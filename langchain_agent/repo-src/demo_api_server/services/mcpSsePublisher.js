@@ -1,0 +1,38 @@
+// demo_api_server/services/mcpSsePublisher.js
+'use strict';
+
+const mcpFlowSseHub = require('./mcpFlowSseHub');
+const { buildSsePayload } = require('./sseCorrelation');
+
+/**
+ * Publish an MCP tool result to the SSE hub so the Token Chain MCP Results
+ * tab updates in real-time without waiting for the 15-second poll cycle.
+ * Shape matches the mcpToolCallsChain entries from getMCPToolCalls().
+ *
+ * @param {string} flowTraceId
+ * @param {object} opts
+ * @param {string}  opts.tool
+ * @param {object}  opts.result     raw MCP result (content[], isError, _meta)
+ * @param {number}  opts.durationMs
+ * @param {boolean} opts.isDelegated
+ * @param {object}  [opts.requestJson]  original tool params (pre-HITL-strip snapshot)
+ */
+function publishMcpResultToSse(flowTraceId, { tool, result, durationMs, isDelegated, requestJson }) {
+  if (!flowTraceId) return;
+  const success = result && !result.isError;
+  const toolResultJson = result?.content
+    ? result.content.slice(0, 10)          // cap size for SSE payload
+    : result != null ? { text: String(result).slice(0, 500) } : null;
+  mcpFlowSseHub.publish(flowTraceId, buildSsePayload('mcp-result', {
+    toolName: tool,
+    status: success ? 'success' : 'failure',
+    duration: durationMs ?? 0,
+    isDelegated: !!isDelegated,
+    resultSummary: success ? `${tool} completed` : `${tool} failed`,
+    resultJson: toolResultJson,
+    requestJson: requestJson ?? null,
+    timestamp: new Date().toISOString(),
+  }));
+}
+
+module.exports = { publishMcpResultToSse };

@@ -1,0 +1,196 @@
+{
+  "heroStats": {
+    "cartValue": 349.99,
+    "pendingOrders": 2,
+    "rewardPoints": 4820,
+    "lastOrder": "2026-04-23"
+  },
+  "products": [
+    {
+      "id": "101",
+      "sku": "BB-65QLED",
+      "name": "Samsung 65\" QLED TV",
+      "price": 1299,
+      "stock": "In Stock",
+      "category": "TV"
+    },
+    {
+      "id": "102",
+      "sku": "BB-MBP14",
+      "name": "MacBook Pro 14\"",
+      "price": 1999,
+      "stock": "In Stock",
+      "category": "Laptop"
+    },
+    {
+      "id": "103",
+      "sku": "BB-APP3",
+      "name": "AirPods Pro",
+      "price": 249,
+      "stock": "In Stock",
+      "category": "Audio"
+    },
+    {
+      "id": "104",
+      "sku": "BB-WH1000",
+      "name": "Sony WH-1000XM5",
+      "price": 349,
+      "stock": "In Stock",
+      "category": "Audio"
+    },
+    {
+      "id": "105",
+      "sku": "BB-PS5",
+      "name": "PlayStation 5",
+      "price": 499,
+      "stock": "Low Stock",
+      "category": "Gaming"
+    },
+    {
+      "id": "106",
+      "sku": "BB-ROGLTOP",
+      "name": "ASUS ROG Gaming Laptop",
+      "price": 1199,
+      "stock": "In Stock",
+      "category": "Laptop"
+    },
+    {
+      "id": "107",
+      "sku": "BB-BOSE-SL",
+      "name": "Bose SoundLink Speaker",
+      "price": 149,
+      "stock": "In Stock",
+      "category": "Audio"
+    },
+    {
+      "id": "108",
+      "sku": "BB-LG27",
+      "name": "LG 27\" 4K Monitor",
+      "price": 399,
+      "stock": "In Stock",
+      "category": "Monitor"
+    },
+    {
+      "id": "109",
+      "sku": "BB-IP16PRO",
+      "name": "iPhone 16 Pro",
+      "price": 999,
+      "stock": "Limited Stock",
+      "category": "Phone"
+    },
+    {
+      "id": "110",
+      "sku": "BB-GRM-F8",
+      "name": "Garmin Fenix 8",
+      "price": 799,
+      "stock": "In Stock",
+      "category": "Wearable"
+    }
+  ],
+  "orders": [
+    {
+      "id": "1001",
+      "product": "AirPods Pro",
+      "sku": "BB-APP3",
+      "amount": 249,
+      "status": "Delivered",
+      "date": "2026-04-20",
+      "itemCount": 1
+    },
+    {
+      "id": "1002",
+      "product": "MacBook Pro 14\"",
+      "sku": "BB-MBP14",
+      "amount": 1999,
+      "status": "Shipped",
+      "date": "2026-04-22",
+      "itemCount": 1
+    },
+    {
+      "id": "1003",
+      "product": "Bose SoundLink",
+      "sku": "BB-BOSE-SL",
+      "amount": 149,
+      "status": "Processing",
+      "date": "2026-04-23",
+      "itemCount": 1
+    },
+    {
+      "id": "1004",
+      "product": "Apple Watch Series 10",
+      "sku": "BB-AWS10",
+      "amount": 429,
+      "status": "Delivered",
+      "date": "2026-04-25",
+      "itemCount": 1
+    },
+    {
+      "id": "1005",
+      "product": "Sony WH-1000XM5 Headphones",
+      "sku": "BB-SONYXM5",
+      "amount": 399,
+      "status": "Shipped",
+      "date": "2026-04-28",
+      "itemCount": 1
+    },
+    {
+      "id": "1006",
+      "product": "LG 27\" 4K Monitor",
+      "sku": "BB-LG27UK",
+      "amount": 449,
+      "status": "Processing",
+      "date": "2026-05-01",
+      "itemCount": 1
+    }
+  ],
+  "lineItems": [
+    {
+      "id": "601",
+      "product": "AirPods Pro",
+      "sku": "BB-APP3",
+      "quantity": 1,
+      "unitPrice": 249,
+      "purchaseDate": "2026-04-20"
+    },
+    {
+      "id": "602",
+      "product": "MacBook Pro 14\"",
+      "sku": "BB-MBP14",
+      "quantity": 1,
+      "unitPrice": 1999,
+      "purchaseDate": "2026-04-22"
+    },
+    {
+      "id": "603",
+      "product": "Bose SoundLink",
+      "sku": "BB-BOSE-SL",
+      "quantity": 1,
+      "unitPrice": 149,
+      "purchaseDate": "2026-04-23"
+    },
+    {
+      "id": "604",
+      "product": "Apple Watch Series 10",
+      "sku": "BB-AWS10",
+      "quantity": 1,
+      "unitPrice": 429,
+      "purchaseDate": "2026-04-25"
+    },
+    {
+      "id": "605",
+      "product": "Sony WH-1000XM5 Headphones",
+      "sku": "BB-SONYXM5",
+      "quantity": 1,
+      "unitPrice": 399,
+      "purchaseDate": "2026-04-28"
+    },
+    {
+      "id": "606",
+      "product": "LG 27\" 4K Monitor",
+      "sku": "BB-LG27UK",
+      "quantity": 1,
+      "unitPrice": 449,
+      "purchaseDate": "2026-05-01"
+    }
+  ]
+}

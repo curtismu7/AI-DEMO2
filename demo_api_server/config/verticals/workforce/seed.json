@@ -1,0 +1,395 @@
+{
+  "pto": {
+    "balance": 14,
+    "sickLeave": 6,
+    "accruedYtd": 18
+  },
+  "benefits": [
+    {
+      "id": "101",
+      "name": "Medical",
+      "planType": "PPO",
+      "enrollmentStatus": "Enrolled",
+      "coverageTier": "Employee + Family"
+    },
+    {
+      "id": "102",
+      "name": "Dental",
+      "planType": "DPPO",
+      "enrollmentStatus": "Enrolled",
+      "coverageTier": "Employee Only"
+    },
+    {
+      "id": "103",
+      "name": "401(k)",
+      "planType": "Roth",
+      "enrollmentStatus": "Enrolled",
+      "coverageTier": "6% contribution"
+    },
+    {
+      "id": "104",
+      "name": "Vision",
+      "planType": "VSP",
+      "enrollmentStatus": "Not Enrolled",
+      "coverageTier": "Employee Only"
+    },
+    {
+      "id": "105",
+      "name": "Life Insurance",
+      "planType": "Term",
+      "enrollmentStatus": "Enrolled",
+      "coverageTier": "2x Annual Salary"
+    },
+    {
+      "id": "106",
+      "name": "HSA",
+      "planType": "HSA",
+      "enrollmentStatus": "Enrolled",
+      "coverageTier": "$3,850 annual limit"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "201",
+      "category": "Travel",
+      "description": "Q2 Sales Summit",
+      "amount": 1847.5,
+      "status": "Approved",
+      "submittedDate": "2026-05-02"
+    },
+    {
+      "id": "202",
+      "category": "Meals",
+      "description": "Client dinner - May board meeting",
+      "amount": 214.75,
+      "status": "Reimbursed",
+      "submittedDate": "2026-05-14"
+    },
+    {
+      "id": "203",
+      "category": "Equipment",
+      "description": "External monitor for home office",
+      "amount": 429.99,
+      "status": "Approved",
+      "submittedDate": "2026-04-22"
+    },
+    {
+      "id": "204",
+      "category": "Training",
+      "description": "AWS Certified Solutions Architect course",
+      "amount": 349,
+      "status": "Pending",
+      "submittedDate": "2026-05-28"
+    },
+    {
+      "id": "205",
+      "category": "Travel",
+      "description": "Flight + hotel - Chicago conference",
+      "amount": 1123.4,
+      "status": "Submitted",
+      "submittedDate": "2026-06-01"
+    },
+    {
+      "id": "206",
+      "category": "Meals",
+      "description": "Team lunch - sprint retrospective",
+      "amount": 187.6,
+      "status": "Pending",
+      "submittedDate": "2026-06-02"
+    }
+  ],
+  "payslips": [
+    {
+      "id": "301",
+      "period": "2026-06-01",
+      "grossPay": 5416.67,
+      "netPay": 3812.45,
+      "taxWithheld": 1204.22,
+      "status": "Paid"
+    },
+    {
+      "id": "302",
+      "period": "2026-05-15",
+      "grossPay": 5416.67,
+      "netPay": 3798.1,
+      "taxWithheld": 1218.57,
+      "status": "Paid"
+    },
+    {
+      "id": "303",
+      "period": "2026-05-01",
+      "grossPay": 5416.67,
+      "netPay": 3812.45,
+      "taxWithheld": 1204.22,
+      "status": "Paid"
+    },
+    {
+      "id": "304",
+      "period": "2026-04-15",
+      "grossPay": 5416.67,
+      "netPay": 3801.3,
+      "taxWithheld": 1215.37,
+      "status": "Paid"
+    },
+    {
+      "id": "305",
+      "period": "2026-04-01",
+      "grossPay": 5416.67,
+      "netPay": 3812.45,
+      "taxWithheld": 1204.22,
+      "status": "Paid"
+    }
+  ],
+  "trainings": [
+    {
+      "id": "401",
+      "title": "Security Awareness 2026",
+      "category": "Compliance",
+      "durationHours": 2,
+      "status": "Required",
+      "dueDate": "2026-07-01"
+    },
+    {
+      "id": "402",
+      "title": "Leadership Fundamentals",
+      "category": "Professional Development",
+      "durationHours": 8,
+      "status": "Enrolled",
+      "dueDate": "2026-08-15"
+    },
+    {
+      "id": "403",
+      "title": "Inclusive Workplace",
+      "category": "Compliance",
+      "durationHours": 1,
+      "status": "Completed",
+      "dueDate": "2026-03-31"
+    },
+    {
+      "id": "404",
+      "title": "AWS Cloud Practitioner",
+      "category": "Technical",
+      "durationHours": 20,
+      "status": "In Progress",
+      "dueDate": "2026-09-30"
+    },
+    {
+      "id": "405",
+      "title": "Effective Communication",
+      "category": "Professional Development",
+      "durationHours": 4,
+      "status": "Available",
+      "dueDate": null
+    }
+  ],
+  "tickets": [
+    {
+      "id": "501",
+      "subject": "VPN not connecting from home",
+      "category": "IT",
+      "priority": "High",
+      "status": "In Progress",
+      "createdDate": "2026-06-10"
+    },
+    {
+      "id": "502",
+      "subject": "Request laptop replacement",
+      "category": "IT",
+      "priority": "Medium",
+      "status": "Open",
+      "createdDate": "2026-06-14"
+    },
+    {
+      "id": "503",
+      "subject": "Update direct deposit bank account",
+      "category": "HR",
+      "priority": "High",
+      "status": "Resolved",
+      "createdDate": "2026-05-20"
+    },
+    {
+      "id": "504",
+      "subject": "Office access badge not working",
+      "category": "Facilities",
+      "priority": "Medium",
+      "status": "Closed",
+      "createdDate": "2026-05-30"
+    },
+    {
+      "id": "505",
+      "subject": "Request ergonomic chair",
+      "category": "Facilities",
+      "priority": "Low",
+      "status": "Pending Approval",
+      "createdDate": "2026-06-15"
+    }
+  ],
+  "schedules": [
+    {
+      "id": "601",
+      "date": "2026-06-23",
+      "day": "Monday",
+      "startTime": "09:00",
+      "endTime": "17:00",
+      "location": "Office - Floor 4",
+      "status": "Confirmed"
+    },
+    {
+      "id": "602",
+      "date": "2026-06-24",
+      "day": "Tuesday",
+      "startTime": "09:00",
+      "endTime": "17:00",
+      "location": "Remote",
+      "status": "Confirmed"
+    },
+    {
+      "id": "603",
+      "date": "2026-06-25",
+      "day": "Wednesday",
+      "startTime": "10:00",
+      "endTime": "18:00",
+      "location": "Office - Floor 4",
+      "status": "Confirmed"
+    },
+    {
+      "id": "604",
+      "date": "2026-06-26",
+      "day": "Thursday",
+      "startTime": "09:00",
+      "endTime": "17:00",
+      "location": "Remote",
+      "status": "Confirmed"
+    },
+    {
+      "id": "605",
+      "date": "2026-06-27",
+      "day": "Friday",
+      "startTime": "09:00",
+      "endTime": "13:00",
+      "location": "Office - Floor 4",
+      "status": "Pending"
+    }
+  ],
+  "goals": [
+    {
+      "id": "701",
+      "title": "Complete AWS certification",
+      "category": "Technical Skills",
+      "progressPct": 65,
+      "dueDate": "2026-09-30",
+      "status": "On Track"
+    },
+    {
+      "id": "702",
+      "title": "Mentor two junior engineers",
+      "category": "Leadership",
+      "progressPct": 50,
+      "dueDate": "2026-12-31",
+      "status": "On Track"
+    },
+    {
+      "id": "703",
+      "title": "Reduce deployment error rate by 20%",
+      "category": "Quality",
+      "progressPct": 80,
+      "dueDate": "2026-06-30",
+      "status": "On Track"
+    },
+    {
+      "id": "704",
+      "title": "Complete leadership fundamentals training",
+      "category": "Development",
+      "progressPct": 30,
+      "dueDate": "2026-08-15",
+      "status": "At Risk"
+    },
+    {
+      "id": "705",
+      "title": "Document team runbooks",
+      "category": "Operations",
+      "progressPct": 10,
+      "dueDate": "2026-07-31",
+      "status": "Behind"
+    }
+  ],
+  "colleagues": [
+    {
+      "id": "801",
+      "name": "Sarah Chen",
+      "title": "Engineering Manager",
+      "department": "Platform Engineering",
+      "location": "San Francisco, CA",
+      "status": "Active"
+    },
+    {
+      "id": "802",
+      "name": "Marcus Webb",
+      "title": "Senior Software Engineer",
+      "department": "Platform Engineering",
+      "location": "Remote",
+      "status": "Active"
+    },
+    {
+      "id": "803",
+      "name": "Priya Nair",
+      "title": "Product Manager",
+      "department": "Product",
+      "location": "New York, NY",
+      "status": "Active"
+    },
+    {
+      "id": "804",
+      "name": "James Okafor",
+      "title": "DevOps Engineer",
+      "department": "Platform Engineering",
+      "location": "Austin, TX",
+      "status": "Active"
+    },
+    {
+      "id": "805",
+      "name": "Leila Ahmadi",
+      "title": "UX Designer",
+      "department": "Design",
+      "location": "Remote",
+      "status": "On Leave"
+    }
+  ],
+  "policies": [
+    {
+      "id": "901",
+      "title": "Remote Work Policy",
+      "category": "Workplace",
+      "lastUpdated": "2026-01-15",
+      "status": "Active"
+    },
+    {
+      "id": "902",
+      "title": "Code of Conduct",
+      "category": "Compliance",
+      "lastUpdated": "2025-11-01",
+      "status": "Active"
+    },
+    {
+      "id": "903",
+      "title": "Expense Reimbursement Policy",
+      "category": "Finance",
+      "lastUpdated": "2026-03-10",
+      "status": "Active"
+    },
+    {
+      "id": "904",
+      "title": "Data Security & Privacy",
+      "category": "IT Security",
+      "lastUpdated": "2026-02-28",
+      "status": "Active"
+    },
+    {
+      "id": "905",
+      "title": "Anti-Harassment Policy",
+      "category": "HR",
+      "lastUpdated": "2025-09-01",
+      "status": "Active"
+    }
+  ]
+}

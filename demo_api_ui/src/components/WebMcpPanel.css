@@ -1,0 +1,419 @@
+/* banking_api_ui/src/components/WebMcpPanel.css */
+/* MCP-specific styles for WebMcpPanel — layout and panel structure covered by rule-panel.css */
+
+.webmcp-loading {
+  color: #4a6080;
+  padding: 12px 0;
+  font-size: 15px;
+}
+
+.webmcp-loading__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
+}
+
+.webmcp-discovery-phases {
+  list-style: none;
+  margin: 12px 0 0 26px;
+  padding: 0;
+  border-left: 1px solid #d8e0ea;
+}
+
+.webmcp-discovery-phase {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0 8px 12px;
+  position: relative;
+}
+
+.webmcp-discovery-phase__status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+  background: #cbd5e1;
+  box-shadow: 0 0 0 3px #fff;
+  margin-left: -17px;
+}
+
+.webmcp-discovery-phase--active .webmcp-discovery-phase__status {
+  /* Ring spinner: transparent fill, blue border with one transparent side,
+     rotated. A solid disc rotation isn't visually detectable, so the active
+     state needs a real border to make motion visible. */
+  background: transparent;
+  border: 2px solid #3b82f6;
+  border-top-color: transparent;
+  /* Box-shrinks slightly because border is now 2px wide. */
+  width: 8px;
+  height: 8px;
+  animation: webmcp-spin 0.9s linear infinite;
+}
+
+.webmcp-discovery-phase--success .webmcp-discovery-phase__status {
+  background: #16a34a;
+}
+
+.webmcp-discovery-phase--warning .webmcp-discovery-phase__status {
+  background: #d97706;
+}
+
+.webmcp-discovery-phase--failed .webmcp-discovery-phase__status {
+  background: #dc2626;
+}
+
+.webmcp-discovery-phase__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.webmcp-discovery-phase__label {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.webmcp-discovery-phase__technical {
+  font-size: 12px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Badge: consent / step-up */
+.webmcp-tool-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.webmcp-tool-badge--hitl {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.webmcp-tool-badge--stepup {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #38bdf8;
+}
+
+.webmcp-tool-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  border: 1px dashed #c0ccd8;
+  border-radius: 8px;
+  color: #7a90ac;
+  font-size: 15px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Upfront gate notice (shown before calling) */
+.webmcp-gate-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.webmcp-gate-notice--hitl {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.webmcp-gate-notice--stepup {
+  background: #f0f9ff;
+  border: 1px solid #38bdf8;
+}
+
+.webmcp-gate-notice__icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.webmcp-gate-notice strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.webmcp-gate-notice--hitl strong { color: #92400e; }
+.webmcp-gate-notice--stepup strong { color: #0369a1; }
+
+.webmcp-gate-notice p {
+  margin: 0;
+  color: #4a6080;
+  font-size: 13px;
+}
+
+
+/* ── Spinner / call button ──────────────────────────────────────────────── */
+
+@keyframes webmcp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.webmcp-btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: webmcp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.webmcp-calling-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-size: 15px;
+  color: #1e40af;
+}
+
+.webmcp-calling-status strong {
+  color: #1e3a8a;
+}
+
+.webmcp-calling-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #bfdbfe;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: webmcp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Pipeline events ────────────────────────────────────────────────────── */
+
+.webmcp-stream-log {
+  margin-top: 14px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #f4f7fb;
+  border: 1px solid #d0d9e8;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.webmcp-stream-log h5 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #4a6080;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.webmcp-stream-event {
+  font-family: inherit;
+  font-size: 13px;
+  color: #0f2044;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Result area ────────────────────────────────────────────────────────── */
+
+.webmcp-result {
+  margin-top: 14px;
+}
+
+.webmcp-result h5 {
+  margin: 10px 0 8px;
+  font-size: 13px;
+  color: #4a6080;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.webmcp-result pre {
+  margin: 0;
+  padding: 12px;
+  background: #f4f7fb;
+  border: 1px solid #d0d9e8;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #0f2044;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* Interpretation banner shown above Server Response */
+.webmcp-result-context {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.webmcp-result-context--success {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  align-items: center;
+}
+
+.webmcp-result-context--hitl {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.webmcp-result-context--stepup {
+  background: #f0f9ff;
+  border: 1px solid #38bdf8;
+}
+
+.webmcp-result-context--tool_error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
+.webmcp-result-context__icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.webmcp-result-context strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #0f2044;
+}
+
+.webmcp-result-context--hitl strong   { color: #92400e; }
+.webmcp-result-context--stepup strong { color: #0369a1; }
+.webmcp-result-context--tool_error strong { color: #dc2626; }
+.webmcp-result-context--success strong { color: #15803d; }
+
+.webmcp-result-context p {
+  margin: 0;
+  font-size: 13px;
+  color: #4a6080;
+  line-height: 1.6;
+}
+
+/* ── HTTP-level error ───────────────────────────────────────────────────── */
+
+.webmcp-error {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 6px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
+.webmcp-error p {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #dc2626;
+}
+
+.webmcp-error details {
+  font-size: 13px;
+  color: #4a6080;
+}
+
+.webmcp-error summary {
+  cursor: pointer;
+  color: #4a6080;
+  font-size: 13px;
+}
+
+.webmcp-error pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #0f2044;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Error detail sub-elements ──────────────────────────────────────────── */
+
+.webmcp-error__status {
+  margin: 6px 0 8px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.webmcp-error__summary {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.webmcp-error__summary th {
+  text-align: right;
+  padding: 2px 8px 2px 0;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: top;
+  width: 1%;
+}
+
+.webmcp-error__summary td {
+  text-align: left;
+  padding: 2px 0;
+  font-family: monospace;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.webmcp-error__full {
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 2px solid #e2e8f0;
+}
+
+.webmcp-error__full > summary {
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.webmcp-error__full pre {
+  margin: 6px 0 0;
+  font-size: 11px;
+  max-height: 300px;
+  overflow-y: auto;
+}

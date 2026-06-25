@@ -1,0 +1,575 @@
+{
+  "intents": [
+    {
+      "action": "close_maintenance_ticket",
+      "type": "write",
+      "arr": "maintenanceTickets",
+      "idParam": "ticketId",
+      "mutateStatus": "Closed",
+      "noun": "maintenance ticket",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(close|resolve|complete)\\b.*\\bmaintenance\\b.*\\bticket\\b|\\bmaintenance\\b.*\\bticket\\b.*\\b(clos\\w*|resolv\\w*|complet\\w*)\\b",
+      "toolDescription": "Close or resolve an open maintenance ticket by ticketId.",
+      "render": {
+        "type": "card",
+        "title": "Maintenance Ticket Closed",
+        "fields": [
+          { "label": "Ticket ID", "path": "id" },
+          { "label": "Machine", "path": "machineId" },
+          { "label": "Issue", "path": "issue" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"close maintenance ticket MT-3001\" / \"resolve maintenance ticket MT-3002\" + ticketId -> close_maintenance_ticket params:{ticketId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "close maintenance ticket MT-3002", "expect": "close_maintenance_ticket" },
+        { "phrase": "resolve maintenance ticket MT-3001", "expect": "close_maintenance_ticket" }
+      ]
+    },
+    {
+      "action": "complete_quality_inspection",
+      "type": "write",
+      "arr": "qualityInspections",
+      "idParam": "inspectionId",
+      "mutateStatus": "Passed",
+      "noun": "quality inspection",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(complete|pass|sign[\\s-]off)\\b.*\\b(quality|QC|QA)\\b.*\\binspection\\b|\\b(quality|QC|QA)\\b.*\\binspection\\b.*\\b(complet\\w*|pass\\w*|sign[\\s-]?off)\\b",
+      "toolDescription": "Mark a quality inspection as passed and complete by inspectionId.",
+      "render": {
+        "type": "card",
+        "title": "Inspection Passed",
+        "fields": [
+          { "label": "Inspection ID", "path": "id" },
+          { "label": "Work Order", "path": "workOrder" },
+          { "label": "Inspector", "path": "inspector" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"complete quality inspection QINSP-2002\" / \"pass QC inspection QINSP-2001\" + inspectionId -> complete_quality_inspection params:{inspectionId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "complete quality inspection QINSP-2002", "expect": "complete_quality_inspection" },
+        { "phrase": "pass QC inspection QINSP-2001", "expect": "complete_quality_inspection" }
+      ]
+    },
+    {
+      "action": "receive_shipment",
+      "type": "write",
+      "arr": "shipments",
+      "idParam": "shipmentId",
+      "mutateStatus": "Received",
+      "noun": "shipment",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(receive|confirm\\s+receipt|accept)\\b.*\\bshipment\\b|\\bshipment\\b.*\\b(receiv\\w*|confirm\\w*)\\b",
+      "toolDescription": "Mark a shipment as received by shipmentId.",
+      "render": {
+        "type": "card",
+        "title": "Shipment Received",
+        "fields": [
+          { "label": "Shipment ID", "path": "id" },
+          { "label": "Carrier", "path": "carrier" },
+          { "label": "Destination", "path": "destination" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"receive shipment SHP-5001\" / \"confirm receipt of shipment SHP-5002\" + shipmentId -> receive_shipment params:{shipmentId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "receive shipment SHP-5002", "expect": "receive_shipment" },
+        { "phrase": "confirm receipt of shipment SHP-5001", "expect": "receive_shipment" }
+      ]
+    },
+    {
+      "action": "approve_purchase_order",
+      "type": "write",
+      "arr": "purchaseOrders",
+      "idParam": "poId",
+      "mutateStatus": "Approved",
+      "noun": "purchase order",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bapprov\\w*\\b.*\\b(purchase\\s+order|po)\\b|\\b(purchase\\s+order|po)\\b.*\\bapprov\\w*\\b",
+      "toolDescription": "Approve a pending purchase order by poId.",
+      "render": {
+        "type": "card",
+        "title": "Purchase Order Approved",
+        "fields": [
+          { "label": "PO ID", "path": "id" },
+          { "label": "Supplier", "path": "supplier" },
+          { "label": "Total", "path": "total", "format": "money" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"approve purchase order PO-6001\" / \"approve PO-6003\" + poId -> approve_purchase_order params:{poId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "approve purchase order PO-6001", "expect": "approve_purchase_order" },
+        { "phrase": "approve PO-6003", "expect": "approve_purchase_order" }
+      ]
+    },
+    {
+      "action": "reject_purchase_order",
+      "type": "write",
+      "arr": "purchaseOrders",
+      "idParam": "poId",
+      "mutateStatus": "Rejected",
+      "noun": "purchase order",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\breject\\b.*\\b(purchase\\s+order|po)\\b|\\b(purchase\\s+order|po)\\b.*\\breject\\b",
+      "toolDescription": "Reject a pending purchase order by poId.",
+      "render": {
+        "type": "card",
+        "title": "Purchase Order Rejected",
+        "fields": [
+          { "label": "PO ID", "path": "id" },
+          { "label": "Supplier", "path": "supplier" },
+          { "label": "Total", "path": "total", "format": "money" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"reject purchase order PO-6004\" / \"decline purchase order PO-6005\" + poId -> reject_purchase_order params:{poId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "reject purchase order PO-6004", "expect": "reject_purchase_order" },
+        { "phrase": "reject PO-6005 because the price is too high", "expect": "reject_purchase_order" }
+      ]
+    },
+    {
+      "action": "void_purchase_order",
+      "type": "write",
+      "arr": "purchaseOrders",
+      "idParam": "poId",
+      "mutateStatus": "Voided",
+      "noun": "purchase order",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bvoid\\b.*\\b(purchase\\s+order|po)\\b|\\b(purchase\\s+order|po)\\b.*\\bvoid\\b",
+      "toolDescription": "Void a purchase order before supplier fulfillment by poId.",
+      "render": {
+        "type": "card",
+        "title": "Purchase Order Voided",
+        "fields": [
+          { "label": "PO ID", "path": "id" },
+          { "label": "Supplier", "path": "supplier" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"void purchase order PO-6005\" / \"cancel and void PO-6001\" + poId -> void_purchase_order params:{poId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "void purchase order PO-6005", "expect": "void_purchase_order" },
+        { "phrase": "cancel and void PO-6001 before it ships", "expect": "void_purchase_order" }
+      ]
+    },
+    {
+      "action": "flag_defect",
+      "type": "write",
+      "arr": "defects",
+      "idParam": "defectId",
+      "mutateStatus": "Flagged",
+      "noun": "defect",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(flag|log|report)\\b.*\\bdefect\\b|\\bdefect\\b.*\\b(flagg\\w*|logg\\w*|report\\w*)\\b",
+      "toolDescription": "Flag or log a quality defect record by defectId.",
+      "render": {
+        "type": "card",
+        "title": "Defect Flagged",
+        "fields": [
+          { "label": "Defect ID", "path": "id" },
+          { "label": "Work Order", "path": "workOrder" },
+          { "label": "Description", "path": "description" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"flag defect DEF-7001\" / \"report defect DEF-7002\" + defectId -> flag_defect params:{defectId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "flag defect DEF-7002", "expect": "flag_defect" },
+        { "phrase": "report defect DEF-7001", "expect": "flag_defect" }
+      ]
+    },
+    {
+      "action": "reopen_defect",
+      "type": "write",
+      "arr": "defects",
+      "idParam": "defectId",
+      "mutateStatus": "Reopened",
+      "noun": "defect",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\breopen\\w*\\b.*\\bdefect\\b|\\bdefect\\b.*\\breopen\\w*\\b",
+      "toolDescription": "Reopen a previously closed defect record for further investigation by defectId.",
+      "render": {
+        "type": "card",
+        "title": "Defect Reopened",
+        "fields": [
+          { "label": "Defect ID", "path": "id" },
+          { "label": "Work Order", "path": "workOrder" },
+          { "label": "Description", "path": "description" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"reopen defect DEF-7003\" / \"defect DEF-7001 needs to be reopened\" + defectId -> reopen_defect params:{defectId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "reopen defect DEF-7003 — issue recurred", "expect": "reopen_defect" },
+        { "phrase": "defect DEF-7001 needs to be reopened for review", "expect": "reopen_defect" }
+      ]
+    },
+    {
+      "action": "put_machine_offline",
+      "type": "write",
+      "arr": "machines",
+      "idParam": "machineId",
+      "mutateStatus": "Offline",
+      "noun": "machine",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(take|put)\\b.*\\bmachine\\b.*\\b(off[\\s-]?line|down|out\\s+of\\s+service)\\b|\\bmachine\\b.*\\b(off[\\s-]?line|shut\\s+down|take\\s+down)\\b",
+      "toolDescription": "Set a machine's status to Offline by machineId.",
+      "render": {
+        "type": "card",
+        "title": "Machine Taken Offline",
+        "fields": [
+          { "label": "Machine ID", "path": "id" },
+          { "label": "Name", "path": "name" },
+          { "label": "Cell", "path": "cell" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"take machine MC-1002 offline\" / \"put machine MC-1003 out of service\" + machineId -> put_machine_offline params:{machineId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "take machine MC-1002 offline", "expect": "put_machine_offline" },
+        { "phrase": "put machine MC-1003 out of service", "expect": "put_machine_offline" }
+      ]
+    },
+    {
+      "action": "expedite_shipment",
+      "type": "write",
+      "arr": "shipments",
+      "idParam": "shipmentId",
+      "mutateStatus": "Expedited",
+      "noun": "shipment",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(expedite|rush|prioriti[sz]e)\\w*\\b.*\\bshipment\\b|\\bshipment\\b.*\\b(expedit\\w*|rush\\w*|prioriti[sz]\\w*)\\b",
+      "toolDescription": "Mark a shipment as expedited to prioritize its dispatch by shipmentId.",
+      "render": {
+        "type": "card",
+        "title": "Shipment Expedited",
+        "fields": [
+          { "label": "Shipment ID", "path": "id" },
+          { "label": "Destination", "path": "destination" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"expedite shipment SHP-5003\" / \"rush delivery for SHP-5004\" + shipmentId -> expedite_shipment params:{shipmentId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "expedite shipment SHP-5003 — customer is waiting", "expect": "expedite_shipment" },
+        { "phrase": "rush delivery for shipment SHP-5004", "expect": "expedite_shipment" }
+      ]
+    },
+    {
+      "action": "escalate_maintenance_ticket",
+      "type": "write",
+      "arr": "maintenanceTickets",
+      "idParam": "ticketId",
+      "mutateStatus": "Escalated",
+      "noun": "maintenance ticket",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bescalat\\w*\\b.*\\b(maintenance|ticket|mt[- ]?\\d+)\\b|\\b(maintenance\\s+ticket|mt[- ]?\\d+)\\b.*\\bescalat\\w*\\b",
+      "toolDescription": "Escalate a maintenance ticket to urgent priority by ticketId.",
+      "render": {
+        "type": "card",
+        "title": "Maintenance Ticket Escalated",
+        "fields": [
+          { "label": "Ticket ID", "path": "id" },
+          { "label": "Machine", "path": "machineId" },
+          { "label": "Issue", "path": "issue" },
+          { "label": "Status", "path": "status" }
+        ]
+      },
+      "directiveIntentLine": "\"escalate maintenance ticket MT-3001\" / \"urgent — escalate MT-3004\" + ticketId -> escalate_maintenance_ticket params:{ticketId}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "escalate maintenance ticket MT-3004 to urgent", "expect": "escalate_maintenance_ticket" },
+        { "phrase": "I need MT-3001 escalated immediately", "expect": "escalate_maintenance_ticket" }
+      ]
+    },
+    {
+      "action": "view_machines",
+      "type": "read",
+      "arr": "machines",
+      "resultKey": "machines",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmachines?\\s+(status|list|floor|center|log)\\b|\\bequipment\\s+status\\b|\\bCNC\\b|\\blathes?\\b|\\bmills?\\b",
+      "toolDescription": "List all machines on the shop floor with current status and utilization.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Machine ID", "path": "id", "format": "text" },
+          { "label": "Name", "path": "name", "format": "text" },
+          { "label": "Cell", "path": "cell", "format": "text" },
+          { "label": "Type", "path": "type", "format": "text" },
+          { "label": "Utilization %", "path": "utilizationPct", "format": "percent" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"machine status\" / \"shop floor machines\" / \"list all CNC\" / \"all lathes\" -> view_machines params:{}",
+      "seedRows": [
+        { "id": "MC-1001", "name": "Haas VF-2 CNC Mill", "cell": "Cell A", "type": "CNC Mill", "utilizationPct": 82, "status": "Running" },
+        { "id": "MC-1002", "name": "Mazak QT-250 Lathe", "cell": "Cell A", "type": "CNC Lathe", "utilizationPct": 0, "status": "Offline" },
+        { "id": "MC-1003", "name": "Okuma MB-46V Mill", "cell": "Cell B", "type": "CNC Mill", "utilizationPct": 67, "status": "Running" },
+        { "id": "MC-1004", "name": "Doosan Puma 2600 Lathe", "cell": "Cell B", "type": "CNC Lathe", "utilizationPct": 91, "status": "Running" },
+        { "id": "MC-1005", "name": "Surface Grinder SG-400", "cell": "Cell C", "type": "Grinder", "utilizationPct": 45, "status": "Idle" }
+      ],
+      "evalRows": [
+        { "phrase": "show machine status on the floor", "expect": "view_machines" },
+        { "phrase": "list all CNC machines", "expect": "view_machines" },
+        { "phrase": "equipment status", "expect": "view_machines" }
+      ]
+    },
+    {
+      "action": "view_machine_utilization",
+      "type": "read",
+      "arr": "machines",
+      "resultKey": "machines",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmachine\\s+utilization\\b|\\butilization\\s+(rate|report|metric)\\w*\\b|\\boee\\b|\\bequipment\\s+utilization\\b",
+      "toolDescription": "View machine utilization rates and OEE metrics across the shop floor.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Machine ID", "path": "id", "format": "text" },
+          { "label": "Name", "path": "name", "format": "text" },
+          { "label": "Cell", "path": "cell", "format": "text" },
+          { "label": "Utilization %", "path": "utilizationPct", "format": "percent" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"machine utilization\" / \"OEE report\" / \"equipment utilization\" -> view_machine_utilization params:{}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "show machine utilization rates", "expect": "view_machine_utilization" },
+        { "phrase": "what is OEE across the floor this week", "expect": "view_machine_utilization" }
+      ]
+    },
+    {
+      "action": "view_quality_inspections",
+      "type": "read",
+      "arr": "qualityInspections",
+      "resultKey": "qualityInspections",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(quality|QC|QA)\\s+(inspection[s]?|check[s]?|log[s]?)\\b|\\binspection[s]?\\s+(queue|status|result[s]?|log[s]?)\\b",
+      "toolDescription": "List quality control inspections and their pass/fail status.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Inspection ID", "path": "id", "format": "text" },
+          { "label": "Work Order", "path": "workOrder", "format": "text" },
+          { "label": "Type", "path": "type", "format": "text" },
+          { "label": "Inspector", "path": "inspector", "format": "text" },
+          { "label": "Date", "path": "date", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"quality inspections\" / \"QC checks\" / \"inspection queue\" -> view_quality_inspections params:{}",
+      "seedRows": [
+        { "id": "QINSP-2001", "workOrder": "WO-4002", "type": "Dimensional Check", "inspector": "K. Torres", "date": "2026-06-18", "status": "Passed" },
+        { "id": "QINSP-2002", "workOrder": "WO-4001", "type": "Visual Inspection", "inspector": "A. Okonkwo", "date": "2026-06-17", "status": "In Progress" },
+        { "id": "QINSP-2003", "workOrder": "WO-4003", "type": "Surface Finish", "inspector": "K. Torres", "date": "2026-07-13", "status": "Scheduled" },
+        { "id": "QINSP-2004", "workOrder": "WO-4004", "type": "Final QC", "inspector": "A. Okonkwo", "date": "2026-06-19", "status": "Passed" },
+        { "id": "QINSP-2005", "workOrder": "WO-4001", "type": "First Article Inspection", "inspector": "K. Torres", "date": "2026-06-15", "status": "Failed" }
+      ],
+      "evalRows": [
+        { "phrase": "show quality inspections", "expect": "view_quality_inspections" },
+        { "phrase": "view QC checks for this week", "expect": "view_quality_inspections" },
+        { "phrase": "inspection queue", "expect": "view_quality_inspections" },
+        { "phrase": "what is my latest inspection status", "expect": "view_quality_inspections" },
+        { "phrase": "show my latest inspection results", "expect": "view_quality_inspections" },
+        { "phrase": "show inspection logs", "expect": "view_quality_inspections" }
+      ]
+    },
+    {
+      "action": "view_shipments",
+      "type": "read",
+      "arr": "shipments",
+      "resultKey": "shipments",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bshipments?\\b|\\boutbound\\s+(orders?|freight|loads?)\\b|\\bshipping\\s+(queue|log|status)\\b",
+      "toolDescription": "List outbound shipments and their current delivery status.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Shipment ID", "path": "id", "format": "text" },
+          { "label": "Work Order", "path": "workOrder", "format": "text" },
+          { "label": "Destination", "path": "destination", "format": "text" },
+          { "label": "Carrier", "path": "carrier", "format": "text" },
+          { "label": "Ship Date", "path": "shipDate", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"my shipments\" / \"outbound freight\" / \"shipping queue\" -> view_shipments params:{}",
+      "seedRows": [
+        { "id": "SHP-5001", "workOrder": "WO-4004", "destination": "Acme Aerospace, Wichita KS", "carrier": "FedEx Freight", "shipDate": "2026-06-20", "status": "In Transit" },
+        { "id": "SHP-5002", "workOrder": "WO-4002", "destination": "Delta Dynamics, Detroit MI", "carrier": "UPS Freight", "shipDate": "2026-06-25", "status": "Scheduled" },
+        { "id": "SHP-5003", "workOrder": "WO-4001", "destination": "Acme Aerospace, Wichita KS", "carrier": "FedEx Freight", "shipDate": "2026-07-06", "status": "Pending" },
+        { "id": "SHP-5004", "workOrder": "WO-4003", "destination": "Vertex OEM, Columbus OH", "carrier": "Estes Express", "shipDate": "2026-07-14", "status": "Pending" },
+        { "id": "SHP-5005", "workOrder": "WO-4004", "destination": "Acme Aerospace, Wichita KS", "carrier": "FedEx Freight", "shipDate": "2026-06-10", "status": "Delivered" }
+      ],
+      "evalRows": [
+        { "phrase": "show my shipments", "expect": "view_shipments" },
+        { "phrase": "outbound freight status", "expect": "view_shipments" },
+        { "phrase": "shipping queue", "expect": "view_shipments" }
+      ]
+    },
+    {
+      "action": "view_purchase_orders",
+      "type": "read",
+      "arr": "purchaseOrders",
+      "resultKey": "purchaseOrders",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bpurchase\\s+orders?\\b|\\bopen\\s+POs?\\b|\\bmy\\s+POs?\\b",
+      "toolDescription": "List pending and recent purchase orders for raw materials and supplies.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "PO ID", "path": "id", "format": "text" },
+          { "label": "Supplier", "path": "supplier", "format": "text" },
+          { "label": "Material", "path": "material", "format": "text" },
+          { "label": "Total", "path": "total", "format": "money" },
+          { "label": "Due Date", "path": "dueDate", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"purchase orders\" / \"my POs\" / \"open POs\" -> view_purchase_orders params:{}",
+      "seedRows": [
+        { "id": "PO-6001", "supplier": "MetalSupply Co.", "material": "Aluminum 6061 bar (500 kg)", "total": 8750, "dueDate": "2026-06-30", "status": "Pending Approval" },
+        { "id": "PO-6002", "supplier": "FastenerWorld", "material": "M6 fasteners (10,000 units)", "total": 1240, "dueDate": "2026-07-05", "status": "Approved" },
+        { "id": "PO-6003", "supplier": "SteelSource LLC", "material": "Stainless 304 sheet (200 kg)", "total": 5600, "dueDate": "2026-07-10", "status": "Pending Approval" },
+        { "id": "PO-6004", "supplier": "Apex Tooling", "material": "Carbide end mills (set of 12)", "total": 2980, "dueDate": "2026-06-28", "status": "Delivered" },
+        { "id": "PO-6005", "supplier": "MetalSupply Co.", "material": "Aluminum 7075 plate (200 kg)", "total": 6400, "dueDate": "2026-07-15", "status": "Pending Approval" }
+      ],
+      "evalRows": [
+        { "phrase": "show purchase orders", "expect": "view_purchase_orders" },
+        { "phrase": "open POs", "expect": "view_purchase_orders" },
+        { "phrase": "what purchase orders are pending", "expect": "view_purchase_orders" }
+      ]
+    },
+    {
+      "action": "view_maintenance_tickets",
+      "type": "read",
+      "arr": "maintenanceTickets",
+      "resultKey": "maintenanceTickets",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmaintenance\\s+(ticket[s]?|log[s]?|request[s]?|queue)\\b|\\bopen\\s+maintenance\\b",
+      "toolDescription": "List open and recent maintenance tickets for shop floor equipment.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Ticket ID", "path": "id", "format": "text" },
+          { "label": "Machine", "path": "machineId", "format": "text" },
+          { "label": "Issue", "path": "issue", "format": "text" },
+          { "label": "Priority", "path": "priority", "format": "text" },
+          { "label": "Opened", "path": "openedDate", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"maintenance tickets\" / \"maintenance log\" / \"open maintenance requests\" -> view_maintenance_tickets params:{}",
+      "seedRows": [
+        { "id": "MT-3001", "machineId": "MC-1002", "issue": "Spindle bearing noise — abnormal vibration", "priority": "High", "openedDate": "2026-06-18", "status": "Open" },
+        { "id": "MT-3002", "machineId": "MC-1001", "issue": "Coolant pump leaking at fitting", "priority": "Medium", "openedDate": "2026-06-15", "status": "In Progress" },
+        { "id": "MT-3003", "machineId": "MC-1005", "issue": "Wheel dress cycle overdue", "priority": "Low", "openedDate": "2026-06-10", "status": "Scheduled" },
+        { "id": "MT-3004", "machineId": "MC-1004", "issue": "Turret index timing fault (alarm 523)", "priority": "High", "openedDate": "2026-06-19", "status": "Open" },
+        { "id": "MT-3005", "machineId": "MC-1003", "issue": "ATC tool change slow — gripper wear", "priority": "Medium", "openedDate": "2026-06-12", "status": "Closed" }
+      ],
+      "evalRows": [
+        { "phrase": "show maintenance tickets", "expect": "view_maintenance_tickets" },
+        { "phrase": "open maintenance requests", "expect": "view_maintenance_tickets" },
+        { "phrase": "maintenance log", "expect": "view_maintenance_tickets" }
+      ]
+    },
+    {
+      "action": "view_defects",
+      "type": "read",
+      "arr": "defects",
+      "resultKey": "defects",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(view|show|see|get|list|open|all|my)\\b.*\\bdefects?\\b|\\bdefects?\\s+(log|list|queue|report)\\b|\\bdefect\\s+log\\b|^defects?$",
+      "toolDescription": "List quality defect records logged against open work orders.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Defect ID", "path": "id", "format": "text" },
+          { "label": "Work Order", "path": "workOrder", "format": "text" },
+          { "label": "Description", "path": "description", "format": "text" },
+          { "label": "Severity", "path": "severity", "format": "text" },
+          { "label": "Detected", "path": "detectedDate", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"show defects\" / \"quality defect log\" / \"open defects for WO-4001\" -> view_defects params:{}",
+      "seedRows": [
+        { "id": "DEF-7001", "workOrder": "WO-4001", "description": "Surface scratch on bracket face — Lot 3", "severity": "Minor", "detectedDate": "2026-06-17", "status": "Open" },
+        { "id": "DEF-7002", "workOrder": "WO-4002", "description": "Bore diameter 0.003 inch over tolerance", "severity": "Major", "detectedDate": "2026-06-18", "status": "In Review" },
+        { "id": "DEF-7003", "workOrder": "WO-4004", "description": "Thread form incomplete on 6 of 240 plates", "severity": "Major", "detectedDate": "2026-06-19", "status": "Closed" },
+        { "id": "DEF-7004", "workOrder": "WO-4001", "description": "Anodize color non-uniform on panel edges", "severity": "Minor", "detectedDate": "2026-06-16", "status": "Open" },
+        { "id": "DEF-7005", "workOrder": "WO-4003", "description": "Warp detected on long panel blank — heat treatment required", "severity": "Critical", "detectedDate": "2026-06-20", "status": "Flagged" }
+      ],
+      "evalRows": [
+        { "phrase": "show me all open defects", "expect": "view_defects" },
+        { "phrase": "quality defect log for this week", "expect": "view_defects" }
+      ]
+    },
+    {
+      "action": "view_scrap_report",
+      "type": "read",
+      "arr": "defects",
+      "resultKey": "defects",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bscrap\\s+(report|rate|log|summary)\\b|\\brework\\s+(rate|report|log|summary)\\b",
+      "toolDescription": "View the scrap and rework report derived from logged defect records.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "Defect ID", "path": "id", "format": "text" },
+          { "label": "Work Order", "path": "workOrder", "format": "text" },
+          { "label": "Description", "path": "description", "format": "text" },
+          { "label": "Severity", "path": "severity", "format": "text" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"scrap report\" / \"rework report\" / \"scrap rate this month\" -> view_scrap_report params:{}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "show me the scrap report for this week", "expect": "view_scrap_report" },
+        { "phrase": "what is our rework rate on WO-4001", "expect": "view_scrap_report" }
+      ]
+    },
+    {
+      "action": "view_supplier_scorecard",
+      "type": "read",
+      "arr": "purchaseOrders",
+      "resultKey": "purchaseOrders",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bsupplier\\s+(scorecard|rating|performance|score)\\b|\\bscorecard\\b|\\bperform\\w*\\b.*\\bdeliver\\w*\\b|\\bdeliver\\w*\\b.*\\bperform\\w*\\b",
+      "toolDescription": "View supplier performance scorecard derived from purchase order delivery and quality data.",
+      "render": {
+        "type": "table",
+        "columns": [
+          { "label": "PO ID", "path": "id", "format": "text" },
+          { "label": "Supplier", "path": "supplier", "format": "text" },
+          { "label": "Material", "path": "material", "format": "text" },
+          { "label": "Total", "path": "total", "format": "money" },
+          { "label": "Due Date", "path": "dueDate", "format": "date" },
+          { "label": "Status", "path": "status", "format": "text" }
+        ]
+      },
+      "directiveIntentLine": "\"supplier scorecard\" / \"how is MetalSupply performing\" / \"supplier delivery performance\" -> view_supplier_scorecard params:{}",
+      "seedRows": null,
+      "evalRows": [
+        { "phrase": "show supplier scorecard", "expect": "view_supplier_scorecard" },
+        { "phrase": "how is MetalSupply Co performing on deliveries", "expect": "view_supplier_scorecard" }
+      ]
+    }
+  ]
+}

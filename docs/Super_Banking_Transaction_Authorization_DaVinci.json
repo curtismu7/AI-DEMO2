@@ -1,0 +1,727 @@
+{
+  "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6",
+  "authTokenExpireIds": [],
+  "connectorIds": [
+    "variablesConnector",
+    "httpConnector",
+    "pingOneAuthorizeConnector",
+    "functionsConnector",
+    "pingOneSSOConnector"
+  ],
+  "createdDate": 1776902400000,
+  "currentVersion": 1,
+  "customerId": "8b37902a4f69bb60cbfc6cff61a23dc4",
+  "deployedDate": 1776902400000,
+  "description": "Super Banking transaction authorization flow. Collects transaction details (Amount, TransactionType, Username), looks up the user in PingOne SSO, then evaluates the request against the Super Banking Transaction Authorization policy in PingOne Authorize. Routes to PERMIT, DENY, or STEP_UP (step-up MFA obligation) based on the policy decision. Policy rules: DENY if Amount > $50,000; STEP_UP obligation if Amount > $10,000 and no MFA ACR for transfers/withdrawals; PERMIT otherwise. After import, configure the Decision Router evaluator (node: ox7sf2dn1e) with three branches: condition local.bi4gt8mp5c.payload.status=DENY routes to Transaction Denied; condition local.tz9kv6uh3b.payload.output.stepUpRequired=true routes to Step-Up Required; default routes to Transaction Authorized.",
+  "flowStatus": "enabled",
+  "isOutputSchemaSaved": false,
+  "name": "Super Banking Transaction Authorization",
+  "publishedVersion": 1,
+  "settings": {
+    "csp": "worker-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://devsdk.singularkey.com http://cdnjs.cloudflare.com 'unsafe-inline' 'unsafe-eval';",
+    "intermediateLoadingScreenCSS": "",
+    "intermediateLoadingScreenHTML": "",
+    "customTimeoutErrorScreenMessage": "",
+    "customTimeoutErrorScreenHTML": "",
+    "customTimeoutErrorScreenCSS": "",
+    "logLevel": 3,
+    "useCustomCSS": true,
+    "css": ".footerLogo {\n  content: url('https://authenticator.pingone.com/pingid/assets/images/ping-logo.sm.2x.png');\n  width: 105px !important;\n  height: auto;\n}\n\n:root {\n  --company-logo-img-url: url('https://uploads.pingone.com/environments/a59917da-0f7a-44d3-a070-5da6f652fed6/images/56f8469b-c409-435c-ad5e-c6b95bbeb5a4_36841418-b45b-4468-896b-74784a8d7c60_original.png');\n  --company-logo-max-height: 56px;\n  --background-image-url: none;\n  --card-background-color: rgb(255, 255, 255);\n  --card-shadow-color: rgba(121, 128, 135, .35);\n  --body-font-family: 'Roboto', 'sans-serif';\n  --body-font-size: .935rem;\n  --text-color-primary: 104, 111, 119;\n  --heading-text-color: 104, 111, 119;\n  --text-color-muted-apha: 0.75;\n  --text-color-error: rgb(163, 19, 0);\n  --button-primary-text-color: rgb(255, 255, 255);\n  --button-primary-background-color: 20, 56, 97;\n  --link-button-primary-color: 26, 75, 130;\n  --button-primary-border-radius: 10px;\n  --button-hover-alpha: 0.70;\n  --button-active-alpha: 0.80;\n  --button-disabled-alpha: 0.65;\n  --form-control-border-radius: 10px;\n  --card-body-border-radius: 0px;\n  --focus-highlight-color: 198, 217, 255;\n  --activity-indicator-color: rgb(104, 111, 119);\n  --polling-indicator-color: rgb(104, 111, 119);\n  --bs-body-color: rgb(var(--text-color-main)) !important;\n  --bs-danger-rgb: var(--text-color-error);\n}\n\n.card-body.p-5.d-flex.flex-column>img:first-child,\n.companyLogo {\n  content: var(--company-logo-img-url) !important;\n  height: var(--company-logo-max-height) !important;\n  width: auto !important;\n}\n\ndiv.bg-light {\n  background-image: var(--background-image-url);\n  background-size: cover;\n  background-repeat: no-repeat;\n}\n\nh1, h2, h3, h4 {\n  color: rgb(var(--heading-text-color)) !important;\n}\n\n.card-body {\n  font-family: var(--body-font-family) !important;\n  font-size: var(--body-font-size) !important;\n  color: rgb(var(--text-color-primary)) !important;\n  background-color: var(--card-background-color) !important;\n}\n\np.text-muted {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n.card .text-danger {\n  color: var(--text-color-error) !important;\n}\n\n.form-control,\n.form-control:focus {\n  color: var(--text-color-primary) !important;\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n.form-floating input+label {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n.form-control:focus {\n  border-color: rgba(var(--focus-highlight-color), .5) !important;\n  box-shadow: 0 0 0 0.25rem rgba(var(--focus-highlight-color), 0.25) !important;\n}\n\n.form-select {\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n.btn-primary {\n  --bs-btn-color: var(--button-primary-text-color) !important;\n  --bs-btn-hover-color: var(--button-primary-text-color) !important;\n  --bs-btn-border-color: var(--button-primary-background-color) !important;\n  --bs-btn-bg: rgb(var(--button-primary-background-color)) !important;\n  --bs-btn-hover-bg: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  --bs-btn-active-bg: rgba(var(--button-primary-background-color), var(--button-active-alpha)) !important;\n  --bs-btn-disabled-bg: rgba(var(--button-primary-background-color), var(--button-disabled-alpha)) !important;\n  background-color: rgb(var(--button-primary-background-color)) !important;\n  border-color: rgb(var(--button-primary-background-color)) !important;\n  color: var(--button-primary-text-color) !important;\n  border-radius: var(--button-primary-border-radius) !important;\n}\n\n.btn-primary:hover {\n  background-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  border-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  color: var(--button-primary-text-color) !important;\n}\n\n.btn-link {\n  --bs-btn-color: rgb(var(--link-button-primary-color)) !important;\n  --bs-btn-active-color: rgba(var(--link-button-primary-color), var(--button-active-alpha)) !important;\n  --bs-btn-hover-color: rgba(var(--link-button-primary-color), var(--button-hover-alpha)) !important;\n  --bs-btn-disabled-color: rgba(var(--link-button-primary-color), var(--button-disabled-alpha)) !important;\n  color: rgb(var(--link-button-primary-color)) !important;\n}\n\n.card-body.p-5.d-flex.flex-column {\n  border-radius: var(--card-body-border-radius);\n}\n\n.card.shadow.mb-5 {\n  border-radius: var(--card-body-border-radius);\n  box-shadow: 1px 1px 3px 1px var(--card-shadow-color) !important;\n}",
+    "cssLinks": [
+      "https://assets.pingone.com/ux/astro-nano/0.1.0-alpha.11/icons.css",
+      "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css",
+      "https://assets.pingone.com/ux/end-user-nano/0.1.0-alpha.9/end-user-nano.css"
+    ]
+  },
+  "timeouts": "null",
+  "updatedDate": 1776902400000,
+  "flowId": "5ba3e92c7f41d865094b3c7e621fa890",
+  "versionId": 1,
+  "graphData": {
+    "elements": {
+      "nodes": [
+        {
+          "data": {
+            "id": "qr8me5bv2j",
+            "connectionId": "06922a684039827499bdbdd97f49827b",
+            "nodeType": "CONNECTION",
+            "status": "configured",
+            "connectorId": "variablesConnector",
+            "name": "Variables",
+            "label": "Variables",
+            "type": "trigger",
+            "capabilityName": "saveValue",
+            "properties": {
+              "locale": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"en\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": { "x": 277, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "kw3fh9yt6p",
+            "nodeType": "EVAL"
+          },
+          "position": { "x": 427, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "ln2dc7xa4s",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHTMLTemplate",
+            "type": "trigger",
+            "properties": {
+              "customHTML": {
+                "value": "<div data-skcomponent=\"skrisk\" data-skenvironmentid=\"{{global.companyId}}\" data-skcollectBehavioralData=\"true\" data-skpropertyname=\"riskPayload\" data-skuniversaldeviceidentification=\"false\" data-skpingidagent=\"true\" data-skpingidagenttimeout=\"2000\" data-skpingidagentport=\"\"></div>\n<div class=\"end-user-nano\">\n  <div class=\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\">\n    <div style=\"max-width: 500px; min-width: 400px; width: 100%\">\n      <div class=\"card rounded-3 my-5\">\n        <main aria-labelledby=\"title\">\n          <div class=\"card-body rounded-3 p-5 d-flex flex-column\">\n            <img class=\"companyLogo align-self-center mb-5\" src=\"{{global.variables.companyLogo}}\" alt=\"{{global.variables.companyName}}\">\n            <h1 id=\"title\" class=\"text-center mb-4\">Authorize Transaction</h1>\n            <p class=\"text-muted text-center mb-4\">Enter transaction details to request authorization.</p>\n            <p class=\"text-danger mdi mdi-alert-circle text-center\" id=\"feedbackError\" data-id=\"feedback\" data-skcomponent=\"skerror\" aria-live=\"assertive\"></p>\n            <p class=\"text-danger mdi mdi-alert-circle text-center\" id=\"usernameError\" data-skerrorid=\"username\" data-skcomponent=\"skerrormessage\" aria-live=\"assertive\"></p>\n            <form id=\"txAuthForm\" aria-labelledby=\"title\" data-id=\"txAuthForm\">\n              <div id=\"usernameDiv\" class=\"mb-4 form-floating\">\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"username\" name=\"username\" placeholder=\"Username\" autocomplete=\"\" value=\"\" data-id=\"username-input\" aria-required=\"true\" aria-describedby=\"usernameLabel\">\n                <label id=\"usernameLabel\" for=\"username\">Username</label>\n              </div>\n              <div class=\"mb-4 form-floating\">\n                <input class=\"form-control rounded-3\" type=\"number\" id=\"amount\" name=\"amount\" placeholder=\"Amount (USD)\" min=\"0.01\" step=\"0.01\" aria-required=\"true\" aria-describedby=\"amountLabel\">\n                <label id=\"amountLabel\" for=\"amount\">Amount (USD)</label>\n              </div>\n              <div class=\"mb-4\">\n                <select class=\"form-select rounded-3\" id=\"transactionType\" name=\"transactionType\" aria-required=\"true\">\n                  <option value=\"\">-- Select Transaction Type --</option>\n                  <option value=\"transfer\">Transfer</option>\n                  <option value=\"withdrawal\">Withdrawal</option>\n                  <option value=\"deposit\">Deposit</option>\n                </select>\n              </div>\n              <input type=\"hidden\" id=\"acr\" name=\"acr\" value=\"\">\n              <input type=\"hidden\" id=\"riskPayload\" name=\"riskPayload\" value=\"\">\n              <div class=\"d-flex flex-column\">\n                <button data-id=\"button\" type=\"submit\" class=\"btn btn-primary rounded-3 mb-3\" data-skcomponent=\"skbutton\" data-skbuttontype=\"form-submit\" id=\"btnAuthorize\" data-skform=\"txAuthForm\" data-skbuttonvalue=\"AUTHORIZE\">\n                  Request Authorization\n                </button>\n              </div>\n            </form>\n          </div>\n        </main>\n      </div>\n    </div>\n  </div>\n</div>\n"
+              },
+              "formFieldsList": {
+                "value": [
+                  {
+                    "propertyName": "username",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Username"
+                  },
+                  {
+                    "propertyName": "amount",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Amount (USD)"
+                  },
+                  {
+                    "propertyName": "transactionType",
+                    "preferredControlType": "dropDown",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Transaction Type"
+                  },
+                  {
+                    "propertyName": "acr",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "ACR (Authentication Context)"
+                  },
+                  {
+                    "propertyName": "riskPayload",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "Object",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "propertyName": "buttonValue"
+                  }
+                ]
+              },
+              "nodeTitle": {
+                "value": "Transaction Authorization Request"
+              },
+              "customCSS": {
+                "value": ""
+              },
+              "validationRules": {
+                "value": []
+              },
+              "backgroundColor": {
+                "value": "#afd5ffff"
+              },
+              "customScript": {
+                "value": "const setFieldFocus = (id) => {\n    const el = document.getElementById(id);\n    if (el) el.focus();\n};\n\nconst toggleButtonState = () => {\n    const username = document.getElementById('username');\n    const amount = document.getElementById('amount');\n    const txType = document.getElementById('transactionType');\n    const button = document.getElementById('btnAuthorize');\n    if (!button) return;\n    button.disabled = !(username?.value.trim() && amount?.value && parseFloat(amount.value) > 0 && txType?.value);\n};\n\nconst start = () => {\n    setFieldFocus('username');\n    toggleButtonState();\n    setTimeout(toggleButtonState, 150);\n    setTimeout(toggleButtonState, 500);\n    ['username', 'amount', 'transactionType'].forEach(id => {\n        ['input', 'keyup', 'change'].forEach(evt => {\n            document.getElementById(id)?.addEventListener(evt, toggleButtonState);\n        });\n    });\n};\n\nif (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', start);\n} else {\n    start();\n}"
+              },
+              "inputSchema": {
+                "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"continueButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Continue Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    }\n  }\n}"
+              },
+              "outputSchema": {
+                "value": {}
+              },
+              "title": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Authorize Transaction\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeDescription": {
+                "value": "Collects transaction details: Username, Amount (USD), TransactionType (transfer/withdrawal/deposit). Submits to PingOne Authorize for policy evaluation."
+              },
+              "continueButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Request Authorization\"\n      }\n    ]\n  }\n]"
+              }
+            },
+            "idUnique": "tx_form_001a",
+            "isDisabled": false
+          },
+          "position": { "x": 607, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "vg5nj0bt8u",
+            "nodeType": "EVAL"
+          },
+          "position": { "x": 817, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "we1zp4ks9m",
+            "nodeType": "CONNECTION",
+            "connectionId": "94141bf2f1b9b59a5f5365ff135e02bb",
+            "connectorId": "pingOneSSOConnector",
+            "name": "PingOne",
+            "label": "PingOne",
+            "status": "configured",
+            "capabilityName": "userLookup",
+            "type": "action",
+            "properties": {
+              "matchAttributes": {
+                "value": [
+                  "username",
+                  "email"
+                ]
+              },
+              "userIdentifierForFindUser": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"username\",\n        \"data\": \"{{local.ln2dc7xa4s.payload.output.username}}\",\n        \"tooltip\": \"{{local.ln2dc7xa4s.payload.output.username}}\",\n        \"children\": [\n          {\n            \"text\": \"username\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": { "x": 997, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "yh6aq3rw7f",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": { "x": 1207, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "bi4gt8mp5c",
+            "nodeType": "CONNECTION",
+            "connectionId": "7b2e39fb332e26e8a9035dc92e733ae3",
+            "connectorId": "pingOneAuthorizeConnector",
+            "name": "PingOne Authorize",
+            "label": "PingOne Authorize",
+            "status": "configured",
+            "capabilityName": "makeDecisionRequest",
+            "type": "action",
+            "properties": {
+              "parameters": {
+                "value": [
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Amount\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"amount\",\n        \"data\": \"{{local.ln2dc7xa4s.payload.output.amount}}\",\n        \"tooltip\": \"{{local.ln2dc7xa4s.payload.output.amount}}\",\n        \"children\": [\n          {\n            \"text\": \"amount\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"TransactionType\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"transactionType\",\n        \"data\": \"{{local.ln2dc7xa4s.payload.output.transactionType}}\",\n        \"tooltip\": \"{{local.ln2dc7xa4s.payload.output.transactionType}}\",\n        \"children\": [\n          {\n            \"text\": \"transactionType\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"UserId\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"id\",\n        \"data\": \"{{local.we1zp4ks9m.payload.output.matchedUser.id}}\",\n        \"tooltip\": \"{{local.we1zp4ks9m.payload.output.matchedUser.id}}\",\n        \"children\": [\n          {\n            \"text\": \"id\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Acr\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"acr\",\n        \"data\": \"{{local.ln2dc7xa4s.payload.output.acr}}\",\n        \"tooltip\": \"{{local.ln2dc7xa4s.payload.output.acr}}\",\n        \"children\": [\n          {\n            \"text\": \"acr\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Timestamp\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"auth.svg\",\n        \"url\": \"currentDate\",\n        \"data\": \"{{global.currentDate}}\",\n        \"tooltip\": \"{{global.currentDate}}\",\n        \"children\": [\n          {\n            \"text\": \"currentDate\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"ipAddress\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"auth.svg\",\n        \"url\": \"ip\",\n        \"data\": \"{{global.ip}}\",\n        \"tooltip\": \"{{global.ip}}\",\n        \"children\": [\n          {\n            \"text\": \"ip\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  }
+                ]
+              }
+            }
+          },
+          "position": { "x": 1357, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "ox7sf2dn1e",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": { "x": 1537, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "tz9kv6uh3b",
+            "nodeType": "CONNECTION",
+            "connectionId": "de650ca45593b82c49064ead10b9fe17",
+            "connectorId": "functionsConnector",
+            "name": "Functions",
+            "label": "Functions",
+            "status": "configured",
+            "capabilityName": "customFunction",
+            "type": "trigger",
+            "properties": {
+              "variableInputList": {
+                "value": [
+                  {
+                    "name": "statements",
+                    "preferredDataType": "object",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"statements\",\n        \"data\": \"{{local.bi4gt8mp5c.payload.output.statements}}\",\n        \"tooltip\": \"{{local.bi4gt8mp5c.payload.output.statements}}\",\n        \"children\": [\n          {\n            \"text\": \"statements\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "name": "decision",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"status\",\n        \"data\": \"{{local.bi4gt8mp5c.payload.output.status}}\",\n        \"tooltip\": \"{{local.bi4gt8mp5c.payload.output.status}}\",\n        \"children\": [\n          {\n            \"text\": \"status\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  }
+                ]
+              },
+              "code": {
+                "value": "// Super Banking — Parse PingOne Authorize Transaction Response\n// Processes authorization statements and extracts obligations.\n//\n// Decision routing (configure in the Evaluator node after this Functions node):\n//   local.tz9kv6uh3b.payload.output.denied === true       → Transaction Denied node\n//   local.tz9kv6uh3b.payload.output.stepUpRequired === true → Step-Up Required node\n//   (default)                                              → Transaction Authorized node\n\nmodule.exports = async ({ params }) => {\n    const rawStatements = params.statements;\n    const decision = params.decision;\n\n    // Parse JSON-string payloads in each statement\n    const processedStatements = (rawStatements || []).map(item => {\n        let parsedPayload;\n        if (typeof item.payload === 'string' && item.payload.trim().length > 0) {\n            try {\n                parsedPayload = JSON.parse(item.payload);\n            } catch (e) {\n                parsedPayload = item.payload;\n            }\n        } else {\n            parsedPayload = item.payload || {};\n        }\n        return { ...item, payload: parsedPayload };\n    });\n\n    // Check for step-up MFA obligation\n    // PingOne Authorize signals step-up via statement payload or obligation code\n    const stepUpRequired = processedStatements.some(s =>\n        s.payload && (\n            s.payload.stepUpRequired === true ||\n            s.payload.obligationName === 'stepUp' ||\n            s.payload.obligationName === 'mfa'\n        )\n    );\n\n    const denied = decision === 'DENY';\n    const permitted = decision === 'PERMIT';\n\n    console.log('Super Banking Transaction Authorization Decision:', {\n        decision,\n        stepUpRequired,\n        denied,\n        permitted,\n        statementCount: processedStatements.length\n    });\n\n    return {\n        decision: decision || 'INDETERMINATE',\n        statements: processedStatements,\n        stepUpRequired,\n        denied,\n        permitted,\n        requiresAction: stepUpRequired\n    };\n}"
+              },
+              "outputSchema": {
+                "value": "{\n\t\"output\": {\n\t\t\"type\": \"object\",\n\t\t\"properties\": {\n\t\t\t\"decision\": { \"type\": \"string\" },\n\t\t\t\"statements\": { \"type\": \"object\" },\n\t\t\t\"stepUpRequired\": { \"type\": \"boolean\" },\n\t\t\t\"denied\": { \"type\": \"boolean\" },\n\t\t\t\"permitted\": { \"type\": \"boolean\" },\n\t\t\t\"requiresAction\": { \"type\": \"boolean\" }\n\t\t}\n\t}\n}"
+              },
+              "nodeTitle": {
+                "value": "Parse Authorize Response"
+              }
+            }
+          },
+          "position": { "x": 1717, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "dj5wl0ym8q",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": { "x": 1837, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "rf3cs4en7g",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-check-circle text-success\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Transaction Authorized</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize approved this transaction. The request has been processed.</p>\\n          <div class=\\\"alert border-1 border-success shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: PERMIT</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">Transaction passed all Super Banking policy checks. Amount is within limits and no step-up MFA is required.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Transaction Authorized (PERMIT)"
+              }
+            }
+          },
+          "position": { "x": 2047, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "hm9pa2tk6x",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-close-circle text-danger\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Transaction Denied</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize denied this transaction. The request violates Super Banking policy limits.</p>\\n          <div class=\\\"alert border-1 border-danger shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: DENY</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">Transactions over $50,000 are not permitted by Super Banking policy. Contact your administrator if you believe this is an error.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Transaction Denied (DENY)"
+              }
+            }
+          },
+          "position": { "x": 2047, "y": 486 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "zu6bd8fw1n",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-shield-alert text-warning\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Additional Authentication Required</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize requires multi-factor authentication before this transaction can be approved.</p>\\n          <div class=\\\"alert border-1 border-warning shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: STEP_UP REQUIRED</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">Transactions over $10,000 (transfers and withdrawals) require MFA. Please complete multi-factor authentication and retry your transaction.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Step-Up Required (INDETERMINATE)"
+              }
+            }
+          },
+          "position": { "x": 2047, "y": 736 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        }
+      ],
+      "edges": [
+        {
+          "data": {
+            "id": "txe_01ab23cd",
+            "source": "qr8me5bv2j",
+            "target": "kw3fh9yt6p"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_02bc34de",
+            "source": "kw3fh9yt6p",
+            "target": "ln2dc7xa4s"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_03cd45ef",
+            "source": "ln2dc7xa4s",
+            "target": "vg5nj0bt8u"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_04de56fg",
+            "source": "vg5nj0bt8u",
+            "target": "we1zp4ks9m"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_05ef67gh",
+            "source": "we1zp4ks9m",
+            "target": "yh6aq3rw7f"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_06fg78hi",
+            "source": "yh6aq3rw7f",
+            "target": "bi4gt8mp5c"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_07gh89ij",
+            "source": "bi4gt8mp5c",
+            "target": "ox7sf2dn1e"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_08hi90jk",
+            "source": "ox7sf2dn1e",
+            "target": "tz9kv6uh3b"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_09ij01kl",
+            "source": "tz9kv6uh3b",
+            "target": "dj5wl0ym8q"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_10jk12lm",
+            "source": "dj5wl0ym8q",
+            "target": "rf3cs4en7g"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_11kl23mn",
+            "source": "dj5wl0ym8q",
+            "target": "hm9pa2tk6x"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "txe_12lm34no",
+            "source": "dj5wl0ym8q",
+            "target": "zu6bd8fw1n"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        }
+      ]
+    },
+    "data": {},
+    "zoomingEnabled": true,
+    "userZoomingEnabled": true,
+    "zoom": 1,
+    "minZoom": 1e-50,
+    "maxZoom": 1e+50,
+    "panningEnabled": true,
+    "userPanningEnabled": true,
+    "pan": { "x": 0, "y": 0 },
+    "boxSelectionEnabled": true,
+    "renderer": { "name": "null" }
+  },
+  "flowColor": "#E3F0FF",
+  "savedDate": 1776902400000,
+  "variables": [
+    {
+      "context": "flowInstance",
+      "createdDate": 1776902400000,
+      "fields": {
+        "type": "string",
+        "displayName": "URL for company logo image",
+        "mutable": true,
+        "min": 0,
+        "max": 2000,
+        "sizeInBytes": 0
+      },
+      "id": "companylogo-var-001",
+      "type": "property",
+      "updatedDate": 1776902400000,
+      "visibility": "private",
+      "name": "companyLogo##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    },
+    {
+      "context": "flowInstance",
+      "createdDate": 1776902400000,
+      "fields": {
+        "type": "string",
+        "displayName": "Company name",
+        "mutable": true,
+        "min": 0,
+        "max": 200,
+        "sizeInBytes": 0
+      },
+      "id": "companyname-var-001",
+      "type": "property",
+      "updatedDate": 1776902400000,
+      "visibility": "private",
+      "name": "companyName##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    }
+  ],
+  "forms": {},
+  "connections": []
+}

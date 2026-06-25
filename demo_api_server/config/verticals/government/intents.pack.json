@@ -1,0 +1,1500 @@
+{
+  "intents": [
+    {
+      "action": "dispute_violation",
+      "type": "write",
+      "arr": "violations",
+      "idParam": "id",
+      "mutateStatus": "Disputed",
+      "noun": "violation",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(dispute|appeal|contest)\\b.*\\bviolation\\b",
+      "toolDescription": "Dispute or appeal a code violation by ID, setting its status to Disputed.",
+      "render": {
+        "type": "card",
+        "title": "Violation Disputed",
+        "fields": [
+          {
+            "label": "Violation ID",
+            "path": "id"
+          },
+          {
+            "label": "Description",
+            "path": "description"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"dispute violation VIO-7002\" / \"appeal code violation\" + id -> dispute_violation params:{id}",
+      "seedRows": null,
+      "evalRows": [
+        {
+          "phrase": "dispute violation VIO-7002",
+          "expect": "dispute_violation"
+        },
+        {
+          "phrase": "I want to appeal code violation VIO-7001",
+          "expect": "dispute_violation"
+        }
+      ]
+    },
+    {
+      "action": "reschedule_gov_appointment",
+      "type": "write",
+      "arr": "appointments",
+      "idParam": "id",
+      "mutateStatus": "Reschedule Requested",
+      "noun": "appointment",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(reschedule|move|change)\\b.*\\bappointment\\b",
+      "toolDescription": "Request to reschedule a city appointment by ID.",
+      "render": {
+        "type": "card",
+        "title": "Reschedule Requested",
+        "fields": [
+          {
+            "label": "Appointment ID",
+            "path": "id"
+          },
+          {
+            "label": "Service",
+            "path": "service"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"reschedule appointment APT-4001\" / \"move my city appointment\" + id -> reschedule_gov_appointment params:{id}",
+      "seedRows": null,
+      "evalRows": [
+        {
+          "phrase": "reschedule appointment APT-4001",
+          "expect": "reschedule_gov_appointment"
+        },
+        {
+          "phrase": "move my city appointment APT-4002",
+          "expect": "reschedule_gov_appointment"
+        }
+      ]
+    },
+    {
+      "action": "cancel_permit",
+      "type": "write",
+      "arr": "permits",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\bpermit\\b",
+      "idParam": "id",
+      "mutateStatus": "Cancelled",
+      "noun": "permit",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Cancel an active permit by ID, setting its status to Cancelled.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Permit ID",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to cancel a permit -> cancel_permit params:{id:\"<permitId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Cancel permit P-1001",
+          "expect": "cancel_permit"
+        },
+        {
+          "phrase": "I need to cancel my building permit P-1002",
+          "expect": "cancel_permit"
+        },
+        {
+          "phrase": "Please cancel permit P-1003 for me",
+          "expect": "cancel_permit"
+        }
+      ]
+    },
+    {
+      "action": "submit_filing",
+      "type": "write",
+      "arr": "filings",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bsubmit\\b.*\\b(filing|application|form)\\b",
+      "idParam": "id",
+      "mutateStatus": "Submitted",
+      "noun": "filing",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Submit a pending filing by ID, updating its status to Submitted.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Filing ID",
+            "path": "id"
+          },
+          {
+            "label": "Type",
+            "path": "type"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to submit a filing -> submit_filing params:{id:\"<filingId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Submit filing F-5003",
+          "expect": "submit_filing"
+        },
+        {
+          "phrase": "I want to submit my renewal application F-5003",
+          "expect": "submit_filing"
+        }
+      ]
+    },
+    {
+      "action": "approve_inspection",
+      "type": "write",
+      "arr": "inspections",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\binspection\\b.*\\b(approv\\w*|pass\\w*)\\b|\\b(approv\\w*|pass\\w*)\\b.*\\binspection\\b",
+      "idParam": "id",
+      "mutateStatus": "Passed",
+      "noun": "inspection",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Approve/pass an inspection record by ID, setting its status to Passed.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Inspection ID",
+            "path": "id"
+          },
+          {
+            "label": "Address",
+            "path": "address"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to approve or pass an inspection -> approve_inspection params:{id:\"<inspectionId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Approve inspection INS-3002",
+          "expect": "approve_inspection"
+        },
+        {
+          "phrase": "Mark inspection INS-3001 as passed",
+          "expect": "approve_inspection"
+        }
+      ]
+    },
+    {
+      "action": "close_violation",
+      "type": "write",
+      "arr": "violations",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bviolation\\b.*\\bclos\\w*\\b|\\bclos\\w*\\b.*\\bviolation\\b",
+      "idParam": "id",
+      "mutateStatus": "Closed",
+      "noun": "violation",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Close an open code violation by ID, setting its status to Closed.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Violation ID",
+            "path": "id"
+          },
+          {
+            "label": "Description",
+            "path": "description"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to close a code violation -> close_violation params:{id:\"<violationId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Close violation VIO-7002",
+          "expect": "close_violation"
+        },
+        {
+          "phrase": "Mark code violation VIO-7001 as closed",
+          "expect": "close_violation"
+        }
+      ]
+    },
+    {
+      "action": "schedule_inspection",
+      "type": "write",
+      "arr": "inspections",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bschedule\\b.*\\binspection\\b",
+      "idParam": "id",
+      "mutateStatus": "Scheduled",
+      "noun": "inspection",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Schedule a pending inspection by ID, setting its status to Scheduled.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Inspection ID",
+            "path": "id"
+          },
+          {
+            "label": "Address",
+            "path": "address"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to schedule an inspection -> schedule_inspection params:{id:\"<inspectionId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Schedule inspection INS-3003",
+          "expect": "schedule_inspection"
+        },
+        {
+          "phrase": "I need to schedule an inspection for INS-3001",
+          "expect": "schedule_inspection"
+        }
+      ]
+    },
+    {
+      "action": "renew_permit",
+      "type": "write",
+      "arr": "permits",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\brenew\\w*\\b.*\\bpermit\\b|\\bpermit\\b.*\\brenew\\w*\\b",
+      "idParam": "id",
+      "mutateStatus": "Renewal Submitted",
+      "noun": "permit",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Renew a permit by ID, setting its status to Renewal Submitted.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Permit ID",
+            "path": "id"
+          },
+          {
+            "label": "Permit Type",
+            "path": "permitType"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to renew a permit -> renew_permit params:{id:\"<permitId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Renew permit P-1003",
+          "expect": "renew_permit"
+        },
+        {
+          "phrase": "I need to renew my contractor license permit P-1003",
+          "expect": "renew_permit"
+        },
+        {
+          "phrase": "Submit a renewal for permit P-1002",
+          "expect": "renew_permit"
+        }
+      ]
+    },
+    {
+      "action": "cancel_appointment",
+      "type": "write",
+      "arr": "appointments",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\bappointment\\b",
+      "idParam": "id",
+      "mutateStatus": "Cancelled",
+      "noun": "appointment",
+      "resultKey": null,
+      "seedRows": null,
+      "toolDescription": "Cancel a scheduled appointment by ID, setting its status to Cancelled.",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Appointment ID",
+            "path": "id"
+          },
+          {
+            "label": "Service",
+            "path": "service"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to cancel an appointment -> cancel_appointment params:{id:\"<appointmentId>\"}",
+      "evalRows": [
+        {
+          "phrase": "Cancel appointment APT-4001",
+          "expect": "cancel_appointment"
+        },
+        {
+          "phrase": "I need to cancel my appointment APT-4004",
+          "expect": "cancel_appointment"
+        }
+      ]
+    },
+    {
+      "action": "view_inspections",
+      "type": "read",
+      "arr": "inspections",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\binspections?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "inspection",
+      "resultKey": "inspections",
+      "seedRows": [
+        {
+          "id": "INS-3001",
+          "permitId": "P-1001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "type": "Framing",
+          "scheduledDate": "2026-06-15",
+          "status": "Passed",
+          "inspector": "M. Alvarez"
+        },
+        {
+          "id": "INS-3002",
+          "permitId": "P-1001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "type": "Electrical",
+          "scheduledDate": "2026-07-10",
+          "status": "Scheduled",
+          "inspector": "T. Nguyen"
+        },
+        {
+          "id": "INS-3003",
+          "permitId": "P-1004",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "type": "Final",
+          "scheduledDate": "2025-11-18",
+          "status": "Failed",
+          "inspector": "R. Patel"
+        },
+        {
+          "id": "INS-3004",
+          "permitId": "P-1001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "type": "Foundation",
+          "scheduledDate": "2026-03-05",
+          "status": "Passed",
+          "inspector": "M. Alvarez"
+        },
+        {
+          "id": "INS-3005",
+          "permitId": "P-1004",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "type": "Deck Structure",
+          "scheduledDate": "2025-08-22",
+          "status": "Passed",
+          "inspector": "T. Nguyen"
+        }
+      ],
+      "toolDescription": "List all inspections associated with the user's permits.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Address",
+            "path": "address",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "type",
+            "format": "text"
+          },
+          {
+            "label": "Scheduled Date",
+            "path": "scheduledDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          },
+          {
+            "label": "Inspector",
+            "path": "inspector",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view inspections -> view_inspections params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show me my inspections",
+          "expect": "view_inspections"
+        },
+        {
+          "phrase": "What inspections are scheduled?",
+          "expect": "view_inspections"
+        },
+        {
+          "phrase": "List all inspections for my permits",
+          "expect": "view_inspections"
+        }
+      ]
+    },
+    {
+      "action": "view_violations",
+      "type": "read",
+      "arr": "violations",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bviolations?\\b|\\bcode\\s+enforcement\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "violation",
+      "resultKey": "violations",
+      "seedRows": [
+        {
+          "id": "VIO-7001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "description": "Unpermitted deck construction",
+          "caseNumber": "CE-2025-0441",
+          "openedDate": "2025-06-10",
+          "status": "Resolved",
+          "officer": "M. Alvarez"
+        },
+        {
+          "id": "VIO-7002",
+          "address": "22 Birch Lane, Springfield, IL",
+          "description": "Overgrown vegetation blocking sidewalk",
+          "caseNumber": "CE-2026-0117",
+          "openedDate": "2026-03-22",
+          "status": "Open",
+          "officer": "R. Patel"
+        },
+        {
+          "id": "VIO-7003",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "description": "Junk vehicle on property",
+          "caseNumber": "CE-2025-0899",
+          "openedDate": "2025-09-01",
+          "status": "Closed",
+          "officer": "T. Nguyen"
+        },
+        {
+          "id": "VIO-7004",
+          "address": "1234 Maple Street, Springfield, IL",
+          "description": "Fence height exceeds zoning limit",
+          "caseNumber": "CE-2026-0205",
+          "openedDate": "2026-04-15",
+          "status": "Under Review",
+          "officer": "M. Alvarez"
+        },
+        {
+          "id": "VIO-7005",
+          "address": "500 Elm Court, Springfield, IL",
+          "description": "Exterior paint non-compliant with historic overlay",
+          "caseNumber": "CE-2025-1002",
+          "openedDate": "2025-10-30",
+          "status": "Closed",
+          "officer": "R. Patel"
+        }
+      ],
+      "toolDescription": "List code violation cases associated with addresses on the user's account.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Case #",
+            "path": "caseNumber",
+            "format": "text"
+          },
+          {
+            "label": "Address",
+            "path": "address",
+            "format": "text"
+          },
+          {
+            "label": "Description",
+            "path": "description",
+            "format": "text"
+          },
+          {
+            "label": "Opened",
+            "path": "openedDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view code violations -> view_violations params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show me any violations on my property",
+          "expect": "view_violations"
+        },
+        {
+          "phrase": "Are there any code enforcement cases open?",
+          "expect": "view_violations"
+        },
+        {
+          "phrase": "List my code violations",
+          "expect": "view_violations"
+        }
+      ]
+    },
+    {
+      "action": "view_business_licenses",
+      "type": "read",
+      "arr": "businessLicenses",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bbusiness\\s+licen[cs]e[s]?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "businessLicense",
+      "resultKey": "businessLicenses",
+      "seedRows": [
+        {
+          "id": "BL-6001",
+          "businessName": "Maple Cafe LLC",
+          "licenseType": "Food Service",
+          "issuedDate": "2025-09-15",
+          "expiresDate": "2026-09-15",
+          "status": "Active",
+          "licenseNumber": "FS-2025-00341"
+        },
+        {
+          "id": "BL-6002",
+          "businessName": "Maple Cafe LLC",
+          "licenseType": "Retail Alcohol",
+          "issuedDate": "2025-09-15",
+          "expiresDate": "2026-09-15",
+          "status": "Active",
+          "licenseNumber": "RA-2025-00102"
+        },
+        {
+          "id": "BL-6003",
+          "businessName": "Springfield Contracting Co.",
+          "licenseType": "General Contractor",
+          "issuedDate": "2024-07-01",
+          "expiresDate": "2026-07-01",
+          "status": "Renewal Due",
+          "licenseNumber": "GC-2024-00788"
+        },
+        {
+          "id": "BL-6004",
+          "businessName": "Oak Ave Pet Grooming",
+          "licenseType": "Animal Services",
+          "issuedDate": "2023-03-01",
+          "expiresDate": "2025-03-01",
+          "status": "Expired",
+          "licenseNumber": "AS-2023-00055"
+        },
+        {
+          "id": "BL-6005",
+          "businessName": "Elm Court Realty LLC",
+          "licenseType": "Real Estate Brokerage",
+          "issuedDate": "2026-01-10",
+          "expiresDate": "2028-01-10",
+          "status": "Active",
+          "licenseNumber": "RE-2026-00019"
+        }
+      ],
+      "toolDescription": "List business licenses registered to the user or their associated businesses.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "License #",
+            "path": "licenseNumber",
+            "format": "text"
+          },
+          {
+            "label": "Business Name",
+            "path": "businessName",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "licenseType",
+            "format": "text"
+          },
+          {
+            "label": "Expires",
+            "path": "expiresDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view business licenses -> view_business_licenses params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show my business licenses",
+          "expect": "view_business_licenses"
+        },
+        {
+          "phrase": "What business licenses do I have?",
+          "expect": "view_business_licenses"
+        },
+        {
+          "phrase": "List all business licenses on file",
+          "expect": "view_business_licenses"
+        }
+      ]
+    },
+    {
+      "action": "view_appointments",
+      "type": "read",
+      "arr": "appointments",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bappointments?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "appointment",
+      "resultKey": "appointments",
+      "seedRows": [
+        {
+          "id": "APT-4001",
+          "service": "Building Permit Consultation",
+          "date": "2026-07-08",
+          "time": "10:00 AM",
+          "location": "City Hall — Room 204",
+          "status": "Confirmed"
+        },
+        {
+          "id": "APT-4002",
+          "service": "Records Request Pickup",
+          "date": "2026-07-15",
+          "time": "2:00 PM",
+          "location": "Clerk's Office — Counter 3",
+          "status": "Confirmed"
+        },
+        {
+          "id": "APT-4003",
+          "service": "Business License Renewal",
+          "date": "2026-06-25",
+          "time": "9:30 AM",
+          "location": "City Hall — Room 112",
+          "status": "Completed"
+        },
+        {
+          "id": "APT-4004",
+          "service": "Zoning Variance Hearing",
+          "date": "2026-08-01",
+          "time": "1:00 PM",
+          "location": "City Hall — Council Chambers",
+          "status": "Scheduled"
+        },
+        {
+          "id": "APT-4005",
+          "service": "Code Violation Compliance Review",
+          "date": "2026-05-20",
+          "time": "11:00 AM",
+          "location": "City Hall — Room 204",
+          "status": "Completed"
+        }
+      ],
+      "toolDescription": "List upcoming and past appointments booked with city offices.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Service",
+            "path": "service",
+            "format": "text"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Time",
+            "path": "time",
+            "format": "text"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view appointments -> view_appointments params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show my upcoming appointments",
+          "expect": "view_appointments"
+        },
+        {
+          "phrase": "What appointments do I have scheduled?",
+          "expect": "view_appointments"
+        },
+        {
+          "phrase": "List all my city hall appointments",
+          "expect": "view_appointments"
+        }
+      ]
+    },
+    {
+      "action": "view_tax_assessments",
+      "type": "read",
+      "arr": "taxAssessments",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\btax\\s*(assessment|bill|record)[s]?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "taxAssessment",
+      "resultKey": "taxAssessments",
+      "seedRows": [
+        {
+          "id": "TAX-2001",
+          "parcel": "17-22-401-001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "taxYear": 2025,
+          "assessedValue": 218000,
+          "taxDue": 4360,
+          "dueDate": "2026-06-01",
+          "status": "Paid"
+        },
+        {
+          "id": "TAX-2002",
+          "parcel": "17-22-401-001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "taxYear": 2026,
+          "assessedValue": 224000,
+          "taxDue": 4480,
+          "dueDate": "2027-06-01",
+          "status": "Pending"
+        },
+        {
+          "id": "TAX-2003",
+          "parcel": "17-22-305-012",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "taxYear": 2025,
+          "assessedValue": 183000,
+          "taxDue": 3660,
+          "dueDate": "2026-06-01",
+          "status": "Paid"
+        },
+        {
+          "id": "TAX-2004",
+          "parcel": "17-22-305-012",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "taxYear": 2026,
+          "assessedValue": 187500,
+          "taxDue": 3750,
+          "dueDate": "2027-06-01",
+          "status": "Pending"
+        },
+        {
+          "id": "TAX-2005",
+          "parcel": "17-22-110-088",
+          "address": "500 Elm Court, Springfield, IL",
+          "taxYear": 2026,
+          "assessedValue": 295000,
+          "taxDue": 5900,
+          "dueDate": "2027-06-01",
+          "status": "Overdue"
+        }
+      ],
+      "toolDescription": "List property tax assessments and payment status for parcels associated with the user.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Parcel",
+            "path": "parcel",
+            "format": "text"
+          },
+          {
+            "label": "Address",
+            "path": "address",
+            "format": "text"
+          },
+          {
+            "label": "Tax Year",
+            "path": "taxYear",
+            "format": "count"
+          },
+          {
+            "label": "Tax Due",
+            "path": "taxDue",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view tax assessments -> view_tax_assessments params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show my property tax assessments",
+          "expect": "view_tax_assessments"
+        },
+        {
+          "phrase": "What is my tax bill for this year?",
+          "expect": "view_tax_assessments"
+        },
+        {
+          "phrase": "Show me the tax records for my properties",
+          "expect": "view_tax_assessments"
+        }
+      ]
+    },
+    {
+      "action": "view_records_requests",
+      "type": "read",
+      "arr": "recordsRequests",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\brecords?\\s+request[s]?\\b|\\bFOIA\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "recordsRequest",
+      "resultKey": "recordsRequests",
+      "seedRows": [
+        {
+          "id": "RR-8001",
+          "requestType": "Property History",
+          "description": "Full permit history for 1234 Maple Street",
+          "submittedDate": "2026-05-01",
+          "estimatedReady": "2026-05-15",
+          "status": "Fulfilled"
+        },
+        {
+          "id": "RR-8002",
+          "requestType": "FOIA Request",
+          "description": "Code enforcement case file CE-2026-0117",
+          "submittedDate": "2026-06-01",
+          "estimatedReady": "2026-06-29",
+          "status": "In Review"
+        },
+        {
+          "id": "RR-8003",
+          "requestType": "Zoning Map",
+          "description": "Zoning classification for parcel 17-22-401-001",
+          "submittedDate": "2026-04-10",
+          "estimatedReady": "2026-04-17",
+          "status": "Fulfilled"
+        },
+        {
+          "id": "RR-8004",
+          "requestType": "Business License History",
+          "description": "All licenses for Maple Cafe LLC since 2020",
+          "submittedDate": "2026-05-20",
+          "estimatedReady": "2026-06-03",
+          "status": "Fulfilled"
+        },
+        {
+          "id": "RR-8005",
+          "requestType": "Meeting Minutes",
+          "description": "City council meeting minutes June 2025",
+          "submittedDate": "2026-03-12",
+          "estimatedReady": "2026-03-26",
+          "status": "Fulfilled"
+        }
+      ],
+      "toolDescription": "List public records and FOIA requests submitted by the user.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "requestType",
+            "format": "text"
+          },
+          {
+            "label": "Description",
+            "path": "description",
+            "format": "text"
+          },
+          {
+            "label": "Submitted",
+            "path": "submittedDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view records requests -> view_records_requests params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show my records requests",
+          "expect": "view_records_requests"
+        },
+        {
+          "phrase": "What is the status of my FOIA request?",
+          "expect": "view_records_requests"
+        },
+        {
+          "phrase": "List my public records requests",
+          "expect": "view_records_requests"
+        }
+      ]
+    },
+    {
+      "action": "view_complaints",
+      "type": "read",
+      "arr": "complaints",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcomplaints?\\b|\\breported\\s+issue[s]?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "complaint",
+      "resultKey": "complaints",
+      "seedRows": [
+        {
+          "id": "CMP-1101",
+          "category": "Noise",
+          "description": "Loud construction before 7 AM at 1234 Maple Street",
+          "reportedDate": "2026-05-28",
+          "address": "1234 Maple Street, Springfield, IL",
+          "status": "Under Review"
+        },
+        {
+          "id": "CMP-1102",
+          "category": "Zoning",
+          "description": "Commercial signage exceeds size limit",
+          "reportedDate": "2026-04-12",
+          "address": "501 Commerce Blvd, Springfield, IL",
+          "status": "Closed"
+        },
+        {
+          "id": "CMP-1103",
+          "category": "Pothole",
+          "description": "Large pothole in front of 88 Oak Avenue",
+          "reportedDate": "2026-06-05",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "status": "Assigned"
+        },
+        {
+          "id": "CMP-1104",
+          "category": "Abandoned Vehicle",
+          "description": "Derelict sedan on south side of Elm Court",
+          "reportedDate": "2026-03-19",
+          "address": "500 Elm Court, Springfield, IL",
+          "status": "Resolved"
+        },
+        {
+          "id": "CMP-1105",
+          "category": "Illegal Dumping",
+          "description": "Dumped appliances in vacant lot",
+          "reportedDate": "2026-05-15",
+          "address": "22 Birch Lane, Springfield, IL",
+          "status": "Under Review"
+        }
+      ],
+      "toolDescription": "List service complaints and reported issues submitted by the user.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Category",
+            "path": "category",
+            "format": "text"
+          },
+          {
+            "label": "Description",
+            "path": "description",
+            "format": "text"
+          },
+          {
+            "label": "Reported",
+            "path": "reportedDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view complaints -> view_complaints params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show my submitted complaints",
+          "expect": "view_complaints"
+        },
+        {
+          "phrase": "What complaints have I filed?",
+          "expect": "view_complaints"
+        },
+        {
+          "phrase": "List my reported issues",
+          "expect": "view_complaints"
+        }
+      ]
+    },
+    {
+      "action": "view_documents",
+      "type": "read",
+      "arr": "documents",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "document",
+      "resultKey": "documents",
+      "seedRows": [
+        {
+          "id": "DOC-5501",
+          "title": "Building Permit Certificate — P-1001",
+          "relatedId": "P-1001",
+          "uploadedDate": "2026-02-10",
+          "fileType": "PDF",
+          "status": "Available"
+        },
+        {
+          "id": "DOC-5502",
+          "title": "Inspection Report — INS-3001 Framing",
+          "relatedId": "INS-3001",
+          "uploadedDate": "2026-06-16",
+          "fileType": "PDF",
+          "status": "Available"
+        },
+        {
+          "id": "DOC-5503",
+          "title": "Business License — Maple Cafe LLC",
+          "relatedId": "BL-6001",
+          "uploadedDate": "2025-09-16",
+          "fileType": "PDF",
+          "status": "Available"
+        },
+        {
+          "id": "DOC-5504",
+          "title": "Records Request Fulfillment — RR-8001",
+          "relatedId": "RR-8001",
+          "uploadedDate": "2026-05-16",
+          "fileType": "ZIP",
+          "status": "Available"
+        },
+        {
+          "id": "DOC-5505",
+          "title": "Violation Notice — VIO-7002",
+          "relatedId": "VIO-7002",
+          "uploadedDate": "2026-03-23",
+          "fileType": "PDF",
+          "status": "Available"
+        }
+      ],
+      "toolDescription": "List official documents and certificates available for download on the user's account.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Title",
+            "path": "title",
+            "format": "text"
+          },
+          {
+            "label": "Related ID",
+            "path": "relatedId",
+            "format": "text"
+          },
+          {
+            "label": "Date",
+            "path": "uploadedDate",
+            "format": "date"
+          },
+          {
+            "label": "Type",
+            "path": "fileType",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view available documents -> view_documents params:{}",
+      "evalRows": [
+        {
+          "phrase": "What documents are available for me to download?",
+          "expect": "view_documents"
+        },
+        {
+          "phrase": "Show me my official documents",
+          "expect": "view_documents"
+        },
+        {
+          "phrase": "Can I see my permits and certificates on file?",
+          "expect": "view_documents"
+        }
+      ]
+    },
+    {
+      "action": "view_payment_history",
+      "type": "read",
+      "arr": "payments",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "payment",
+      "resultKey": "payments",
+      "seedRows": [
+        {
+          "id": "PAY-0201",
+          "description": "Building inspection fee — FEE-9001",
+          "amount": 150,
+          "paidDate": "2026-06-03",
+          "method": "Credit Card",
+          "status": "Confirmed"
+        },
+        {
+          "id": "PAY-0202",
+          "description": "Business license renewal — BL-6003",
+          "amount": 225,
+          "paidDate": "2026-06-25",
+          "method": "ACH Transfer",
+          "status": "Confirmed"
+        },
+        {
+          "id": "PAY-0203",
+          "description": "Records request fee — RR-8001",
+          "amount": 35,
+          "paidDate": "2026-05-01",
+          "method": "Credit Card",
+          "status": "Confirmed"
+        },
+        {
+          "id": "PAY-0204",
+          "description": "Tax assessment installment — TAX-2001",
+          "amount": 2180,
+          "paidDate": "2026-05-30",
+          "method": "ACH Transfer",
+          "status": "Confirmed"
+        },
+        {
+          "id": "PAY-0205",
+          "description": "Zoning variance application fee",
+          "amount": 400,
+          "paidDate": "2026-06-10",
+          "method": "Credit Card",
+          "status": "Confirmed"
+        }
+      ],
+      "toolDescription": "View the history of payments made on the user's account.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Description",
+            "path": "description",
+            "format": "text"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Paid Date",
+            "path": "paidDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view payment history -> view_payment_history params:{}",
+      "evalRows": [
+        {
+          "phrase": "Show me my payment history",
+          "expect": "view_payment_history"
+        },
+        {
+          "phrase": "What payments have I made?",
+          "expect": "view_payment_history"
+        },
+        {
+          "phrase": "Can I see my past transactions with the city?",
+          "expect": "view_payment_history"
+        }
+      ]
+    },
+    {
+      "action": "view_zoning_info",
+      "type": "read",
+      "arr": "zoningInfo",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "zoningInfo",
+      "resultKey": "zoningInfo",
+      "seedRows": [
+        {
+          "id": "ZON-9901",
+          "parcel": "17-22-401-001",
+          "address": "1234 Maple Street, Springfield, IL",
+          "zoneCode": "R-1",
+          "zoneDescription": "Single-Family Residential",
+          "overlay": "None",
+          "lastReviewed": "2025-01-15"
+        },
+        {
+          "id": "ZON-9902",
+          "parcel": "17-22-305-012",
+          "address": "88 Oak Avenue, Springfield, IL",
+          "zoneCode": "R-2",
+          "zoneDescription": "Two-Family Residential",
+          "overlay": "None",
+          "lastReviewed": "2025-01-15"
+        },
+        {
+          "id": "ZON-9903",
+          "parcel": "17-22-110-088",
+          "address": "500 Elm Court, Springfield, IL",
+          "zoneCode": "C-1",
+          "zoneDescription": "Neighborhood Commercial",
+          "overlay": "Historic District",
+          "lastReviewed": "2025-03-20"
+        },
+        {
+          "id": "ZON-9904",
+          "parcel": "17-22-712-004",
+          "address": "22 Birch Lane, Springfield, IL",
+          "zoneCode": "R-3",
+          "zoneDescription": "Multi-Family Residential",
+          "overlay": "Flood Plain Zone A",
+          "lastReviewed": "2024-11-10"
+        },
+        {
+          "id": "ZON-9905",
+          "parcel": "17-22-801-055",
+          "address": "501 Commerce Blvd, Springfield, IL",
+          "zoneCode": "C-2",
+          "zoneDescription": "General Commercial",
+          "overlay": "None",
+          "lastReviewed": "2025-06-01"
+        }
+      ],
+      "toolDescription": "View zoning classifications and overlay districts for properties associated with the user.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Parcel",
+            "path": "parcel",
+            "format": "text"
+          },
+          {
+            "label": "Address",
+            "path": "address",
+            "format": "text"
+          },
+          {
+            "label": "Zone Code",
+            "path": "zoneCode",
+            "format": "text"
+          },
+          {
+            "label": "Description",
+            "path": "zoneDescription",
+            "format": "text"
+          },
+          {
+            "label": "Overlay",
+            "path": "overlay",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view zoning information -> view_zoning_info params:{}",
+      "evalRows": [
+        {
+          "phrase": "What is the zoning on my property?",
+          "expect": "view_zoning_info"
+        },
+        {
+          "phrase": "Can you show me zoning info for my parcels?",
+          "expect": "view_zoning_info"
+        },
+        {
+          "phrase": "What zone is 1234 Maple Street in?",
+          "expect": "view_zoning_info"
+        }
+      ]
+    },
+    {
+      "action": "view_notifications",
+      "type": "read",
+      "arr": "notifications",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": "notification",
+      "resultKey": "notifications",
+      "seedRows": [
+        {
+          "id": "NOT-0011",
+          "subject": "Inspection Scheduled — INS-3002",
+          "message": "Your electrical inspection is confirmed for July 10, 2026 at 10:00 AM.",
+          "date": "2026-06-18",
+          "category": "Inspection",
+          "read": false
+        },
+        {
+          "id": "NOT-0012",
+          "subject": "Fee Due — FEE-9002",
+          "message": "License renewal fee of $90.00 is due by July 1, 2026.",
+          "date": "2026-06-10",
+          "category": "Fee",
+          "read": false
+        },
+        {
+          "id": "NOT-0013",
+          "subject": "Permit Renewal Reminder — P-1003",
+          "message": "Your General Contractor License expires in 12 days. Please submit a renewal.",
+          "date": "2026-06-19",
+          "category": "Permit",
+          "read": false
+        },
+        {
+          "id": "NOT-0014",
+          "subject": "Violation Notice — VIO-7002",
+          "message": "A new code enforcement case CE-2026-0117 has been opened at 22 Birch Lane.",
+          "date": "2026-03-22",
+          "category": "Violation",
+          "read": true
+        },
+        {
+          "id": "NOT-0015",
+          "subject": "Records Request Ready — RR-8001",
+          "message": "Your property history records are ready for pickup at the Clerk's Office.",
+          "date": "2026-05-16",
+          "category": "Records",
+          "read": true
+        }
+      ],
+      "toolDescription": "View account notifications including reminders, alerts, and status updates from city offices.",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id",
+            "format": "text"
+          },
+          {
+            "label": "Subject",
+            "path": "subject",
+            "format": "text"
+          },
+          {
+            "label": "Category",
+            "path": "category",
+            "format": "text"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "User wants to view notifications -> view_notifications params:{}",
+      "evalRows": [
+        {
+          "phrase": "Do I have any notifications?",
+          "expect": "view_notifications"
+        },
+        {
+          "phrase": "Show me my alerts from the city",
+          "expect": "view_notifications"
+        },
+        {
+          "phrase": "What messages do I have on my account?",
+          "expect": "view_notifications"
+        }
+      ]
+    }
+  ]
+}

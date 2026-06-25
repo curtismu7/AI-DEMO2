@@ -1,0 +1,23 @@
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.welcome-message {
+  text-align: center;
+  color: #6c757d;
+  padding: 2rem;
+  margin: auto;
+}
+
+.welcome-message h3 {
+  margin: 0 0 1rem 0;
+  color: #495057;
+}
+
+.welcome-message p {
+  margin: 0;
+  line-height: 1.5;
+}

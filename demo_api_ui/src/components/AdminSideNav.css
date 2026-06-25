@@ -1,0 +1,416 @@
+/* AdminSideNav.css - PingIdentity-style admin sidebar with clean white text entries and submenus */
+
+.admin-side-nav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 310px;
+  background: linear-gradient(135deg, #1a2332 0%, #2d3e4f 100%);
+  padding-top: 0;
+  z-index: 999;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  transition: width 0.3s ease-in-out;
+}
+
+.admin-side-nav--collapsed {
+  width: 80px;
+}
+
+/* Collapse/Expand Toggle Button */
+.admin-side-nav__toggle {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  z-index: 1000;
+}
+
+.admin-side-nav__toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-side-nav__toggle:active {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0.95);
+}
+
+/* Drag-to-resize handle — right edge of sidebar */
+.admin-side-nav__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1001;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.admin-side-nav__resize-handle:hover {
+  background: rgba(52, 152, 219, 0.4);
+}
+
+/* Role badge */
+.admin-side-nav__role-badge {
+  display: block;
+  width: calc(100% - 1.5rem);
+  margin: 0.5rem 0.75rem 0.25rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  user-select: none;
+}
+.admin-side-nav__role-badge--admin {
+  background: rgba(220, 38, 38, 0.18);
+  color: #ff4d4d;
+  border: 2px solid #ff4d4d;
+}
+.admin-side-nav__role-badge--customer {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 2px solid #10b981;
+}
+
+/* Quick-access shortcut links at the top of the sidebar */
+.admin-side-nav__quick-links {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-side-nav__quick-link {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 5px 6px;
+  border-radius: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a2332 !important;
+  background: #fff;
+  text-decoration: none !important;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.admin-side-nav__quick-link:hover {
+  background: #e8f4fd;
+  color: #1a2332 !important;
+  border-color: #3498db;
+}
+
+.admin-side-nav__quick-link--active {
+  background: #3498db;
+  color: #fff !important;
+  border-color: #2980b9;
+}
+
+/* Navigation Menu Container */
+.admin-side-nav__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 80px 12px 24px 12px;
+  list-style: none;
+  margin: 0;
+}
+
+/* Sections with spacing */
+.admin-side-nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Divider between sections */
+.admin-side-nav__divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 12px 0;
+}
+
+/* Individual Navigation Item - Clean White Text */
+.admin-side-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+  background: none !important;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+/* All text MUST be white */
+.admin-side-nav__item,
+.admin-side-nav__label,
+.admin-side-nav__icon {
+  color: #fff;
+}
+
+/* Hover state - subtle left border and brighter text */
+.admin-side-nav__item:hover {
+  background: none !important;
+  color: #fff;
+  border-left: 3px solid rgba(52, 152, 219, 0.5);
+  padding-left: 13px;
+}
+
+/* Active state - full blue highlight */
+.admin-side-nav__item--active {
+  background: rgba(52, 152, 219, 0.15) !important;
+  color: #fff;
+  border-left: 3px solid #3498db;
+  padding-left: 13px;
+}
+
+/* Parent item (expandable) styling */
+.admin-side-nav__item--parent {
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.admin-side-nav__item--parent:hover {
+  background: rgba(52, 152, 219, 0.1) !important;
+  color: #fff;
+}
+
+.admin-side-nav__item--parent-active {
+  border-left: 3px solid rgba(52, 152, 219, 0.6);
+  padding-left: 13px;
+  color: #fff;
+}
+
+/* Chevron indicator */
+.admin-side-nav__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.admin-side-nav__chevron--expanded {
+  transform: rotate(90deg);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Submenu container */
+.admin-side-nav__submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 2px solid rgba(52, 152, 219, 0.3);
+  margin-left: 8px;
+}
+
+/* Child items in submenu */
+.admin-side-nav__item--child {
+  padding-left: 28px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.admin-side-nav__item--child:hover {
+  color: #fff;
+  background: rgba(52, 152, 219, 0.08) !important;
+  border-left: 3px solid rgba(52, 152, 219, 0.4);
+  padding-left: 25px;
+}
+
+.admin-side-nav__item--child.admin-side-nav__item--active {
+  background: rgba(52, 152, 219, 0.12) !important;
+  color: #fff;
+  border-left: 3px solid #3498db;
+  padding-left: 25px;
+}
+
+/* Icons */
+.admin-side-nav__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  font-size: 16px;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+  color: #fff;
+}
+
+.admin-side-nav__item:hover .admin-side-nav__icon {
+  opacity: 1;
+}
+
+/* Labels */
+.admin-side-nav__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+}
+
+/* Badge for latest report or new items */
+.admin-side-nav__badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 8px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Action items (buttons without link styling) */
+.admin-side-nav__item--action {
+  cursor: pointer;
+}
+
+.admin-side-nav__item--action:hover {
+  background: none !important;
+}
+
+.admin-side-nav__stop-agent {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.admin-side-nav__stop-agent:hover {
+  background: #fef2f2 !important;
+  color: #dc2626;
+}
+
+.admin-side-nav__stop-agent:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.admin-side-nav__stop-agent:disabled:hover {
+  background: none !important;
+}
+
+/* Responsive - collapse on smaller screens */
+@media (max-width: 768px) {
+  .admin-side-nav {
+    width: 80px;
+  }
+
+  .admin-side-nav__divider {
+    display: none;
+  }
+
+  .admin-side-nav__label {
+    display: none;
+  }
+
+  .admin-side-nav__toggle {
+    display: none;
+  }
+
+  .admin-side-nav__chevron {
+    display: none;
+  }
+
+  .admin-side-nav__submenu {
+    display: none;
+  }
+}
+
+/* Scrollbar styling */
+.admin-side-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-side-nav::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-side-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.admin-side-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Agent UI FAB toggle in sidebar */
+.admin-side-nav__fab-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.admin-side-nav__fab-toggle input[type="checkbox"] {
+  accent-color: #4a90d9;
+  margin-left: 4px;
+}
+
+/* AI Control Plane — red highlight so the stop/control-plane entry stands out
+   (classic skin; the ping2026 skin has its own scoped rule). !important is
+   required to beat the base `.admin-side-nav__item { background: none !important }`
+   and the hover/active !important rules above. */
+.admin-side-nav__item--highlight-danger,
+.admin-side-nav__item--highlight-danger.admin-side-nav__item--active {
+  background: #dc2626 !important;
+  border-radius: 6px;
+}
+.admin-side-nav__item--highlight-danger:hover {
+  background: #b91c1c !important;
+}
+.admin-side-nav__item--highlight-danger .admin-side-nav__label,
+.admin-side-nav__item--highlight-danger .admin-side-nav__icon,
+.admin-side-nav__item--highlight-danger.admin-side-nav__item--active .admin-side-nav__label,
+.admin-side-nav__item--highlight-danger.admin-side-nav__item--active .admin-side-nav__icon {
+  color: #ffffff !important;
+}

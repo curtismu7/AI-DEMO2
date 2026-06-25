@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Option 3 — Floating Pill (Always-on)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #fafaf7;
+    --bg-2: #f1f0ea;
+    --ink: #14110d;
+    --ink-2: #2a2620;
+    --line: #d8d4c8;
+    --line-2: #b9b4a5;
+    --teal: #0a6b62;
+    --teal-soft: #d2ece8;
+    --coral: #e26d56;
+    --coral-soft: #fbe1d8;
+    --pulse: #f6c453;
+    --muted: #7a7466;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Geist', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ---------- App chrome (the banking content keeps real estate) ---------- */
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 5;
+  }
+  .top .brand {
+    font-family: 'Newsreader', serif; font-weight: 500;
+    font-size: 22px; letter-spacing: -0.005em;
+  }
+  .top .brand i { font-style: italic; color: var(--coral); font-weight: 400; }
+  .top .crumb {
+    font-family: 'Geist Mono', monospace; font-size: 11.5px;
+    color: var(--muted);
+  }
+  .top .right { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  .top .session {
+    font-family: 'Geist Mono', monospace; font-size: 11.5px;
+    background: var(--bg-2); padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+  .top .av {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 12px;
+  }
+
+  /* ---------- Banking content (the AGENT IS NOT THIS) ---------- */
+  .content {
+    max-width: 1100px; margin: 0 auto;
+    padding: 40px 28px 200px;
+  }
+  .h1 {
+    font-family: 'Newsreader', serif;
+    font-weight: 500; font-size: 40px; line-height: 1.05;
+    letter-spacing: -0.015em; margin: 0 0 6px;
+  }
+  .h1 i { font-style: italic; color: var(--coral); font-weight: 400; }
+  .sub { color: var(--muted); margin: 0 0 32px; }
+
+  .balances {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px; margin-bottom: 28px;
+  }
+  .bal {
+    border: 1px solid var(--line);
+    background: #fff; border-radius: 12px;
+    padding: 18px;
+  }
+  .bal .label { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .bal .amt { font-family: 'Newsreader', serif; font-size: 30px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.01em; }
+  .bal .acct { color: var(--muted); font-size: 12px; font-family: 'Geist Mono', monospace; }
+  .bal.highlight { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .bal.highlight .label, .bal.highlight .acct { color: rgba(250,250,247,0.65); }
+
+  .activity {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .activity h3 {
+    margin: 0; padding: 16px 20px; border-bottom: 1px solid var(--line);
+    font-size: 14px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .activity h3 small { color: var(--muted); font-weight: 400; font-family: 'Geist Mono', monospace; font-size: 11px; }
+  .row {
+    display: grid; grid-template-columns: 1fr 100px 110px;
+    padding: 12px 20px; border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  .row:first-of-type { border-top: 0; }
+  .row .where { color: var(--ink); }
+  .row .when  { color: var(--muted); font-family: 'Geist Mono', monospace; font-size: 12px; }
+  .row .amt   { text-align: right; font-family: 'Geist Mono', monospace; font-weight: 500; }
+  .row.cr .amt { color: var(--teal); }
+
+  /* ---------- THE PILL — the entire Agent UI in 56px ---------- */
+  /* Collapsed state: sits center-bottom. Pulses gently to indicate "I'm here." */
+  .pill-wrap {
+    position: fixed; left: 50%; bottom: 28px;
+    transform: translateX(-50%);
+    z-index: 30;
+    width: min(720px, calc(100vw - 48px));
+  }
+  .pill {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 999px;
+    padding: 8px 8px 8px 18px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 12px 40px -8px rgba(20,17,13,0.35),
+      0 4px 12px -2px rgba(20,17,13,0.25);
+    cursor: text;
+    transition: border-radius .25s ease, padding .25s ease;
+  }
+  .pill .mark {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--pulse), var(--coral) 70%);
+    box-shadow: 0 0 0 3px rgba(246,196,83,0.18);
+    animation: breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1);    box-shadow: 0 0 0 3px rgba(246,196,83,0.18); }
+    50%      { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(246,196,83,0.10); }
+  }
+  .pill input {
+    background: transparent; border: 0; outline: 0;
+    color: var(--bg); font: inherit; font-size: 15px;
+    width: 100%;
+  }
+  .pill input::placeholder { color: rgba(250,250,247,0.55); }
+  .pill .hint {
+    font-family: 'Geist Mono', monospace; font-size: 10.5px;
+    color: rgba(250,250,247,0.5);
+    padding: 4px 8px; border: 1px solid rgba(250,250,247,0.18);
+    border-radius: 999px;
+  }
+  .pill .go {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--pulse); color: var(--ink);
+    border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    transition: transform .15s ease;
+  }
+  .pill .go:hover { transform: scale(1.05); background: #ffd167; }
+
+  /* Expanded state — toggled by adding .open. Shows last reply + 3 quick paths. */
+  .pill-wrap.open .pill {
+    border-radius: 22px;
+    padding-bottom: 14px;
+  }
+  .panel {
+    margin-top: 8px;
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 60px -16px rgba(20,17,13,0.25);
+    overflow: hidden;
+    display: none;
+  }
+  .pill-wrap.open .panel { display: block; }
+  .panel-tabs {
+    display: flex; padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+    font-family: 'Geist Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .panel-tabs button {
+    background: transparent; border: 0; color: inherit;
+    padding: 12px 14px; cursor: pointer;
+    border-bottom: 1px solid transparent; margin-bottom: -1px;
+  }
+  .panel-tabs button.on { color: var(--ink); border-bottom-color: var(--coral); font-weight: 600; }
+  .panel-body { padding: 18px 20px 20px; font-size: 14px; }
+  .panel-body .ai-msg {
+    display: grid; grid-template-columns: 24px 1fr; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .panel-body .ai-msg .av {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--pulse), var(--coral) 70%);
+  }
+  .panel-body .ai-msg p { margin: 0; line-height: 1.5; }
+  .panel-body .ai-msg p b { color: var(--teal); }
+  .quick {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-top: 10px;
+  }
+  .quick button {
+    text-align: left;
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+    cursor: pointer; font: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .quick button:hover { border-color: var(--line-2); background: #fff; }
+  .quick b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .quick small { color: var(--muted); font-family: 'Geist Mono', monospace; font-size: 11px; }
+
+  .panel-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-top: 1px solid var(--line);
+    background: var(--bg-2); font-size: 11.5px; color: var(--muted);
+    font-family: 'Geist Mono', monospace;
+  }
+  .panel-foot a { color: var(--teal); text-decoration: none; }
+  .panel-foot a:hover { text-decoration: underline; }
+
+  /* ---------- Strategy ---------- */
+  .strategy {
+    max-width: 1100px;
+    margin: 60px auto 100px;
+    padding: 24px 28px;
+    border: 1px dashed var(--line-2);
+    border-radius: 14px;
+    background: var(--bg-2);
+  }
+  .strategy h3 {
+    font-family: 'Newsreader', serif; font-weight: 500;
+    font-size: 24px; margin: 0 0 10px; letter-spacing: -0.005em;
+  }
+  .strategy h3 i { color: var(--coral); font-style: italic; }
+  .strategy ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .strategy li { margin: 6px 0; }
+  .strategy b { color: var(--teal); font-weight: 600; }
+  .toggle {
+    margin-top: 14px; font-size: 12.5px; color: var(--muted);
+  }
+  .toggle button {
+    font: inherit; font-size: 12px;
+    background: var(--ink); color: var(--bg);
+    border: 0; border-radius: 6px;
+    padding: 5px 10px; cursor: pointer;
+    font-family: 'Geist Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div class="brand">Care<i>Connect</i></div>
+    <span class="crumb">customer portal · dashboard</span>
+  </div>
+  <div class="right">
+    <span class="session">25:54 · token ok</span>
+    <span class="av">DU</span>
+  </div>
+</header>
+
+<main class="content">
+  <h1 class="h1">Good afternoon, <i>Demo</i></h1>
+  <p class="sub">Your accounts at a glance. The assistant is one tap away — bottom of the screen, any time.</p>
+
+  <section class="balances">
+    <div class="bal highlight">
+      <div class="label">Total balance</div>
+      <div class="amt">$24,184.62</div>
+      <div class="acct">across 3 accounts</div>
+    </div>
+    <div class="bal">
+      <div class="label">Checking</div>
+      <div class="amt">$4,221.04</div>
+      <div class="acct">···4422</div>
+    </div>
+    <div class="bal">
+      <div class="label">Savings</div>
+      <div class="amt">$19,963.58</div>
+      <div class="acct">···8810</div>
+    </div>
+  </section>
+
+  <section class="activity">
+    <h3>Recent activity <small>last 7 days</small></h3>
+    <div class="row"><span class="where">Whole Foods Market</span><span class="when">May 27</span><span class="amt">−$84.22</span></div>
+    <div class="row"><span class="where">Direct deposit · Payroll</span><span class="when">May 26</span><span class="amt">+$3,200.00</span></div>
+    <div class="row"><span class="where">Pacific Gas & Electric</span><span class="when">May 25</span><span class="amt">−$142.18</span></div>
+    <div class="row cr"><span class="where">Transfer to Savings</span><span class="when">May 24</span><span class="amt">+$500.00</span></div>
+  </section>
+
+  <aside class="strategy">
+    <h3>Why this works — <i>Option 3: Floating pill</i> <span style="color:var(--muted);font-family:'Geist Mono',monospace;font-size:12px;letter-spacing:0.04em;font-style:normal;">· pill on dashboard, FAB on other pages</span></h3>
+    <ul>
+      <li><b>The agent stops competing with the page.</b> The dashboard becomes a real dashboard. The agent is a persistent, beautiful 56-px pill at the bottom — like Raycast / Arc command bar / Linear's command-K, not a kid-toy chip strip.</li>
+      <li><b>One affordance, always present.</b> No "Middle / Float / Always float" toggles — that whole settings cluster collapses into a single visual. The pill IS the layout.</li>
+      <li><b>Expands in place.</b> Click → it grows into a panel with the last AI reply + 3 quick paths + tabs for tokens / rules / tools. Click outside → back to 56 px. No modal, no page-jacking.</li>
+      <li><b>Refined, professional feel.</b> Newsreader serif for content, Geist sans for UI, Geist Mono for telemetry. Warm paper background. Teal + coral accents. Banking — not bubblegum.</li>
+      <li><b>The pedagogical chips move into the pill's tabs.</b> "What is WebMCP / Architecture / MCP Protocol / Token Exchange" become a "Learn" tab inside the expanded panel — accessible but not screaming for attention from the top of the page.</li>
+      <li><b>Placement rule — pill stays on /dashboard only.</b> On marketing, admin, configure and other secondary routes the pill compresses to a single 56-px circular FAB pinned to the bottom-right (sketched at right) — same coral/pulse mark, no composer until clicked. Agent identity is consistent across every route; it just declines to dominate where banking content isn't the page's job.</li>
+    </ul>
+
+    <div style="display:grid; grid-template-columns:1fr 200px; gap:24px; align-items:center; margin-top:18px;">
+      <div style="font-size:13px; color:var(--muted);">
+        <b style="color:var(--ink);">/marketing, /admin, /configure, /setup, /delegation</b> — anywhere the agent isn't the page's job — show only the circular FAB. Same breathing pulse, same accent colors. Clicking it opens the same expanded panel that the pill opens on the dashboard.
+      </div>
+      <div style="text-align:center;">
+        <div style="font-family:'Geist Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;">FAB · other pages</div>
+        <div style="position:relative; display:inline-block;">
+          <div style="display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:50%; background:var(--ink); box-shadow: 0 12px 32px -8px rgba(20,17,13,0.4);">
+            <span style="width:28px; height:28px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--pulse), var(--coral) 70%); box-shadow: 0 0 0 3px rgba(246,196,83,0.18); animation: breathe 3.2s ease-in-out infinite;"></span>
+          </div>
+          <div style="position:absolute; top:-4px; right:-4px; width:14px; height:14px; border-radius:50%; background:var(--coral); border:2px solid var(--bg);"></div>
+        </div>
+        <div style="font-family:'Geist Mono', monospace; font-size:10px; color:var(--muted); margin-top:8px;">56 × 56 · bottom-right</div>
+      </div>
+    </div>
+
+    <div class="toggle">
+      <button type="button" onclick="document.querySelector('.pill-wrap').classList.toggle('open')">Toggle expanded ↔ collapsed</button>
+      &nbsp; (click to preview the open / closed states)
+    </div>
+  </aside>
+</main>
+
+<!-- THE ENTIRE AGENT UI -->
+<div class="pill-wrap open" id="pill">
+  <div class="pill" onclick="document.getElementById('pill').classList.toggle('open')">
+    <span class="mark"></span>
+    <input placeholder="Ask CareConnect — transfer, deposit, look up a charge…" />
+    <span class="hint">⌘K</span>
+    <button type="button" class="go" aria-label="Send">↵</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-tabs">
+      <button type="button" class="on">Chat</button>
+      <button type="button">Token chain · 3</button>
+      <button type="button">Rules</button>
+      <button type="button">Tools · 12</button>
+      <button type="button">Learn</button>
+    </div>
+    <div class="panel-body">
+      <div class="ai-msg">
+        <span class="av"></span>
+        <p>I moved <b>$250</b> from Checking to Savings. Authorized via <b>RFC 8693 token exchange</b> — your user token never left the BFF. New Checking balance: <b>$3,971.04</b>.</p>
+      </div>
+      <div class="quick">
+        <button type="button"><b>Show another transfer</b><small>checking → savings</small></button>
+        <button type="button"><b>Explain what just happened</b><small>3-token chain · plain English</small></button>
+        <button type="button"><b>Find last month's gas spend</b><small>category lookup</small></button>
+      </div>
+    </div>
+    <div class="panel-foot">
+      <span>Session 25:54 · oauth_bearer · aud: enduser.ping.demo</span>
+      <a href="#">Open full inspector →</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

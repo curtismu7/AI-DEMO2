@@ -1,0 +1,59 @@
+{
+  "name": "langchain-mcp-oauth-agent-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^8.0.7",
+    "react-scripts": "5.0.1",
+    "remark-gfm": "^3.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "build:widget": "webpack --config webpack.widget.config.js",
+    "test": "react-scripts test",
+    "test:ci": "CI=true react-scripts test --watchAll=false --testPathIgnorePatterns=AuthorizationModal --testPathIgnorePatterns=AuthorizationCallback --testPathIgnorePatterns=App.test",
+    "eject": "react-scripts eject"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-markdown$": "<rootDir>/src/__mocks__/react-markdown.cjs",
+      "^remark-gfm$": "<rootDir>/src/__mocks__/empty.cjs"
+    }
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.0",
+    "css-loader": "^6.8.0",
+    "html-webpack-plugin": "^5.5.0",
+    "mini-css-extract-plugin": "^2.7.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^6.0.1"
+  }
+}

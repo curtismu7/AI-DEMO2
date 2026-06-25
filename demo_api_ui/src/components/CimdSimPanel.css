@@ -1,0 +1,568 @@
+/* =========================================================
+   CimdSimPanel.css — styles for the CIMD floating simulator drawer
+   (FAB trigger removed; panel opens via Learn / agent / education-open-cimd.)
+   ========================================================= */
+
+/* ---------- FAB Button (unused — kept for reference if re-enabled) ---------- */
+.cimd-fab {
+  position: fixed;
+  top: var(--stack-fab-top-cimd, 68px);
+  left: var(--float-edge, 28px);
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: var(--stack-fab-used-width, min(220px, calc(100vw - 56px)));
+  max-width: var(--stack-fab-viewport-max, 100vw);
+  min-width: 0;
+  height: var(--stack-fab-height, 44px);
+  min-height: var(--stack-fab-height, 44px);
+  padding: 0 12px;
+  background: #0f766e;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.cimd-fab:hover {
+  background: #0d9488;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.cimd-fab--open {
+  background: #0b6b63;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.cimd-fab-icon {
+  font-size: 1rem;
+}
+
+.cimd-fab-label {
+  letter-spacing: 0.05em;
+}
+
+/* ---------- Overlay ---------- */
+.cimd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1210;
+}
+
+/* ---------- Drawer ---------- */
+.cimd-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(740px, 96vw);
+  background: #fff;
+  z-index: 1220;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -6px 0 40px rgba(0, 0, 0, 0.18);
+  transform: translateX(105%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.cimd-drawer--open {
+  transform: translateX(0);
+}
+
+.cimd-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+.cimd-resize-handle:hover {
+  background: rgba(15, 118, 110, 0.25);
+}
+
+/* ---------- Header ---------- */
+.cimd-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem 0.75rem;
+  background: #0f766e;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.cimd-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cimd-subtitle {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.cimd-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.cimd-close:hover {
+  color: #fff;
+}
+
+/* ---------- Tabs ---------- */
+.cimd-tabs {
+  display: flex;
+  background: var(--brand-light-gray);
+  border-bottom: 2px solid #DDDDDD;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.cimd-tab {
+  flex: 1;
+  padding: 0.58rem 0.5rem;
+  border: none;
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #999999;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  min-width: 72px;
+}
+.cimd-tab:hover {
+  color: #0f766e;
+}
+.cimd-tab--active {
+  color: #0f766e;
+  font-weight: 700;
+  border-bottom-color: #0d9488;
+}
+
+/* ---------- Scrollable body ---------- */
+.cimd-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.4rem;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--brand-dark-gray);
+}
+
+.cimd-body p {
+  margin: 0 0 1em;
+}
+.cimd-body ul, .cimd-body ol {
+  margin: 0 0 1em;
+  padding-left: 1.5rem;
+}
+.cimd-body li {
+  margin-bottom: 0.35em;
+}
+.cimd-body strong {
+  color: #0f172a;
+}
+.cimd-body code {
+  background: #f0fdfa;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.82em;
+  color: #0f5f58;
+  font-family: inherit;
+}
+.cimd-body a {
+  color: #0d9488;
+}
+.cimd-body a:hover {
+  color: #0f766e;
+  text-decoration: underline;
+}
+.cimd-body h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f766e;
+  margin: 1.4em 0 0.5em;
+}
+
+/* ---------- Code block ---------- */
+.cimd-code {
+  background: #0f172a;
+  color: #DDDDDD;
+  padding: 12px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+  margin: 0 0 1em;
+  font-family: inherit;
+}
+
+/* Reset inline-code overrides inside code blocks */
+.cimd-code code {
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* ---------- Table ---------- */
+.cimd-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  font-size: 0.82rem;
+}
+.cimd-table th {
+  background: #0f766e;
+  color: #fff;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+.cimd-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #DDDDDD;
+  vertical-align: top;
+}
+.cimd-table tr:nth-child(even) td {
+  background: var(--brand-light-gray);
+}
+
+/* ---------- Info callout ---------- */
+.cimd-callout {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 1em;
+  font-size: 0.83rem;
+}
+.cimd-callout--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.cimd-callout--info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+/* ---------- Simulation: idle state ---------- */
+.cimd-sim {
+  padding: 0;
+}
+
+.cimd-sim-what {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+.cimd-sim-what ol {
+  margin: 0.5em 0 0;
+  padding-left: 1.25rem;
+}
+.cimd-sim-what li {
+  margin-bottom: 0.3em;
+  font-size: 0.83rem;
+}
+
+.cimd-sim-start {
+  margin-top: 20px;
+  width: 100%;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.25rem;
+}
+
+/* ---------- Simulation: running ---------- */
+
+/* Progress dots */
+.cimd-sim-progress {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 8px 4px;
+  flex-wrap: wrap;
+}
+
+.cimd-sim-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #DDDDDD;
+  border: 2px solid #CCCCCC;
+  flex-shrink: 0;
+  transition: background 0.25s, border-color 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #fff;
+  font-weight: 700;
+}
+.cimd-sim-dot.done {
+  background: #0d9488;
+  border-color: #0d9488;
+}
+.cimd-sim-dot.done::after {
+  content: '✓';
+}
+.cimd-sim-dot.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  animation: cimd-pulse 1.5s infinite;
+}
+
+@keyframes cimd-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.25); }
+  50%       { box-shadow: 0 0 0 7px rgba(15, 118, 110, 0.08); }
+}
+
+.cimd-sim-progress-label {
+  font-size: 11px;
+  color: #999999;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+/* Individual step card */
+.cimd-sim-step {
+  animation: cimd-fadein 0.35s ease;
+}
+
+@keyframes cimd-fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cimd-sim-step-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f766e;
+  margin-bottom: 8px;
+}
+
+.cimd-sim-hint {
+  background: #f0fdfa;
+  border-left: 3px solid #0d9488;
+  padding: 7px 12px;
+  font-size: 0.81rem;
+  border-radius: 0 4px 4px 0;
+  margin-top: 10px;
+  color: #134e4a;
+  line-height: 1.5;
+}
+
+/* Fetch loading */
+.cimd-fetch-status {
+  margin-top: 12px;
+}
+
+.cimd-fetch-spinner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f0fdfa;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  color: #134e4a;
+}
+
+.cimd-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #DDDDDD;
+  border-top: 2px solid #0d9488;
+  border-radius: 50%;
+  animation: cimd-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cimd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Validation checks */
+.cimd-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cimd-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  animation: cimd-fadein 0.3s ease;
+}
+
+.cimd-check--pass {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+.cimd-check--info {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+.cimd-check-icon {
+  font-size: 1.05rem;
+  margin-top: 1px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cimd-check-detail {
+  color: #666666;
+  font-size: 0.77rem;
+  display: block;
+  margin-top: 1px;
+}
+
+/* Done card */
+.cimd-sim-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  animation: cimd-fadein 0.35s ease;
+}
+
+.cimd-sim-done-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ---------- Input + Buttons ---------- */
+.cimd-input {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #CCCCCC;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+  min-width: 0;
+}
+.cimd-input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+}
+
+.cimd-btn {
+  padding: 0.48rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.cimd-btn:active {
+  transform: scale(0.97);
+}
+
+.cimd-btn--primary {
+  background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
+  color: #fff;
+  border: 1px solid var(--app-primary-red-border);
+}
+.cimd-btn--primary:hover {
+  background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
+  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.25);
+  color: #fff;
+}
+
+.cimd-btn--secondary {
+  background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
+  color: #fff;
+  border: 1px solid var(--app-primary-red-border);
+}
+.cimd-btn--secondary:hover {
+  background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
+  color: #fff;
+}
+
+/* ---------- Setup step list ---------- */
+.cimd-setup-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1em;
+}
+.cimd-setup-step {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+.cimd-setup-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.cimd-setup-step-body strong {
+  display: block;
+  font-size: 0.87rem;
+  margin-bottom: 2px;
+}
+.cimd-setup-step-body span {
+  font-size: 0.81rem;
+  color: #666666;
+}

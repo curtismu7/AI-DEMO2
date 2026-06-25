@@ -1,0 +1,40 @@
+/* StaleSessionBanner — high contrast (no muted text per project rule) */
+.stale-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #7f1d1d;
+  border-bottom: 2px solid #fca5a5;
+  position: sticky;
+  top: 0;
+  z-index: 100090;
+}
+
+.stale-session-banner__text {
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.stale-session-banner__text strong {
+  font-weight: 800;
+}
+
+.stale-session-banner__btn {
+  background: #ffffff;
+  color: #7f1d1d;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stale-session-banner__btn:hover {
+  background: #fee2e2;
+}

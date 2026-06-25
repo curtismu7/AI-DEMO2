@@ -1,0 +1,168 @@
+/* ============================================================================
+   Ping2026 admin skin — redesigned PingOne console look.
+   EVERY rule is scoped under body.admin-skin-p1 (toggled by useAdminSkin from
+   ff_admin_skin_ping2026). With the flag off this file is inert and the
+   classic skin in AdminSideNav.css renders untouched.
+   ========================================================================= */
+
+/* ── Brand header ───────────────────────────────────────────────────────── */
+/* Always in the DOM (when the sidebar is expanded); the skin class controls
+   visibility so the sidebar needs no JS knowledge of the active skin. */
+.admin-side-nav__ping-brand {
+  display: none;
+}
+body.admin-skin-p1 .admin-side-nav__ping-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px 14px;
+}
+body.admin-skin-p1 .admin-side-nav__ping-mark {
+  width: 22px;
+  height: 22px;
+  background: #b3282d;
+  border-radius: 3px;
+  flex: none;
+}
+body.admin-skin-p1 .admin-side-nav__ping-wordmark {
+  font-size: 17px;
+  color: #23242a;
+  letter-spacing: -0.01em;
+}
+body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
+  font-weight: 700;
+}
+
+/* ── Sidebar surface ────────────────────────────────────────────────────── */
+body.admin-skin-p1 .admin-side-nav {
+  background: #ffffff;
+  box-shadow: none;
+  border-right: 1px solid #e4e5e9;
+}
+
+/* Collapse toggle: subtle gray on white */
+body.admin-skin-p1 .admin-side-nav__toggle {
+  background: #f3f4f6;
+  border: 1px solid #e4e5e9;
+  color: #5d5e66;
+}
+body.admin-skin-p1 .admin-side-nav__toggle:hover {
+  background: #e9eaee;
+  border-color: #d6d7dc;
+}
+
+/* ── Quick links (Customer / Admin / Setup) ─────────────────────────────── */
+body.admin-skin-p1 .admin-side-nav__quick-links {
+  border-bottom: 1px solid #e4e5e9;
+  padding: 6px 10px 10px;
+}
+body.admin-skin-p1 .admin-side-nav__quick-link {
+  background: #f6f7f9;
+  border: 1px solid #e4e5e9;
+  color: #30313a !important;
+}
+body.admin-skin-p1 .admin-side-nav__quick-link:hover {
+  background: #eef3fc;
+  border-color: #2767d2;
+  color: #2767d2 !important;
+}
+body.admin-skin-p1 .admin-side-nav__quick-link--active {
+  background: #e8edfc;
+  border-color: #2767d2;
+  color: #2767d2 !important;
+}
+
+/* ── Nav items ──────────────────────────────────────────────────────────── */
+/* The classic skin forces backgrounds with !important and white text on
+   item/label/icon; backgrounds below must also use !important to win.
+   Text colors win on specificity (body.admin-skin-p1 prefix) alone. */
+body.admin-skin-p1 .admin-side-nav__item,
+body.admin-skin-p1 .admin-side-nav__label {
+  color: #30313a;
+}
+body.admin-skin-p1 .admin-side-nav__icon {
+  color: #5d5e66;
+}
+body.admin-skin-p1 .admin-side-nav__item:hover {
+  background: #f3f4f6 !important;
+  color: #23242a;
+  border-left-color: rgba(39, 103, 210, 0.5);
+}
+
+/* Active item: light-blue highlight (new console "Settings" state).
+   Theme-zone: sidebar active item — brand tokens win, literals are the fallback. */
+body.admin-skin-p1 .admin-side-nav__item--active {
+  background: var(--brand-sidebar-active-bg, #e8edfc) !important;
+  color: var(--brand-sidebar-active-text, #2767d2);
+  border-left-color: var(--brand-sidebar-active-text, #2767d2);
+}
+body.admin-skin-p1 .admin-side-nav__item--parent-active {
+  color: var(--brand-sidebar-active-text, #2767d2);
+  border-left-color: rgba(39, 103, 210, 0.6);
+}
+body.admin-skin-p1 .admin-side-nav__item--active .admin-side-nav__label,
+body.admin-skin-p1 .admin-side-nav__item--parent-active .admin-side-nav__label,
+body.admin-skin-p1 .admin-side-nav__item--active .admin-side-nav__icon,
+body.admin-skin-p1 .admin-side-nav__item--parent-active .admin-side-nav__icon {
+  color: var(--brand-sidebar-active-text, #2767d2);
+}
+
+/* Chevrons + submenu */
+body.admin-skin-p1 .admin-side-nav__chevron {
+  color: #8b8c94;
+}
+body.admin-skin-p1 .admin-side-nav__chevron--expanded {
+  color: #5d5e66;
+}
+body.admin-skin-p1 .admin-side-nav__submenu {
+  background: #f9fafb;
+  border-left-color: rgba(39, 103, 210, 0.3);
+}
+body.admin-skin-p1 .admin-side-nav__item--child {
+  color: #4b4c55;
+}
+
+/* Group dividers */
+body.admin-skin-p1 .admin-side-nav__divider {
+  background: #e4e5e9;
+}
+
+/* Badges ("admin" chips) */
+body.admin-skin-p1 .admin-side-nav__badge {
+  background: #fdeaea;
+  color: #b3282d;
+}
+
+/* ── Scrollbar to match the light surface ───────────────────────────────── */
+body.admin-skin-p1 .admin-side-nav::-webkit-scrollbar-thumb {
+  background: #d6d7dc;
+}
+body.admin-skin-p1 .admin-side-nav::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+/* AI Control Plane — red highlight so the stop/control-plane entry stands out.
+   !important is required: the base .admin-side-nav__item sets
+   `background: none !important` (and hover/active are !important too). */
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger,
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active {
+  background: #dc2626 !important;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger:hover,
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active:hover {
+  background: #b91c1c !important;
+}
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger .admin-side-nav__label,
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger .admin-side-nav__icon,
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active .admin-side-nav__label,
+body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active .admin-side-nav__icon {
+  color: #ffffff !important;
+}
+
+/* ── Skin rules living elsewhere ────────────────────────────────────────────
+   Most skin overrides live here, but a few component stylesheets carry their
+   own body.admin-skin-p1 block co-located with the component's classic CSS:
+     • AuditPage.css — MCP Audit Trail floating window
+   Grep `body.admin-skin-p1` across src/components to find them all.
+   ========================================================================= */

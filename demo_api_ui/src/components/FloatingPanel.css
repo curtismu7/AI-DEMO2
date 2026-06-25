@@ -1,0 +1,208 @@
+/* ========== Floating Panel ========== */
+
+.fp-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  overflow: hidden;
+  z-index: 10;
+  user-select: none;
+}
+
+.fp-panel.fp-dragging {
+  opacity: 0.92;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  cursor: grabbing;
+}
+
+.fp-panel.fp-collapsed {
+  height: auto !important;
+}
+
+/* Title bar */
+.fp-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+  cursor: grab;
+  flex-shrink: 0;
+  /* must sit above the edge handles */
+  position: relative;
+  z-index: 1;
+}
+
+.fp-panel.fp-dragging .fp-titlebar {
+  cursor: grabbing;
+}
+
+.fp-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-controls {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.fp-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.fp-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Content area */
+.fp-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: text;
+  /* must sit above edge handles */
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── 8-direction resize handles ───────────────────────────── */
+
+/* All handles share these base styles */
+.fp-handle {
+  position: absolute;
+  z-index: 2;
+}
+
+/* Edge thickness and corner size */
+:root {
+  --fp-edge: 5px;   /* width of the edge strips */
+  --fp-corner: 12px; /* square size of corner handles */
+}
+
+/* North */
+.fp-handle-n {
+  top: 0; left: var(--fp-corner); right: var(--fp-corner);
+  height: var(--fp-edge);
+  cursor: n-resize;
+}
+/* South */
+.fp-handle-s {
+  bottom: 0; left: var(--fp-corner); right: var(--fp-corner);
+  height: var(--fp-edge);
+  cursor: s-resize;
+}
+/* West */
+.fp-handle-w {
+  top: var(--fp-corner); bottom: var(--fp-corner);
+  left: 0;
+  width: var(--fp-edge);
+  cursor: w-resize;
+}
+/* East */
+.fp-handle-e {
+  top: var(--fp-corner); bottom: var(--fp-corner);
+  right: 0;
+  width: var(--fp-edge);
+  cursor: e-resize;
+}
+/* North-West */
+.fp-handle-nw {
+  top: 0; left: 0;
+  width: var(--fp-corner); height: var(--fp-corner);
+  cursor: nw-resize;
+}
+/* North-East */
+.fp-handle-ne {
+  top: 0; right: 0;
+  width: var(--fp-corner); height: var(--fp-corner);
+  cursor: ne-resize;
+}
+/* South-West */
+.fp-handle-sw {
+  bottom: 0; left: 0;
+  width: var(--fp-corner); height: var(--fp-corner);
+  cursor: sw-resize;
+}
+/* South-East */
+.fp-handle-se {
+  bottom: 0; right: 0;
+  width: var(--fp-corner); height: var(--fp-corner);
+  cursor: nwse-resize;
+  /* visible gripper dots in the corner */
+  background-image: radial-gradient(circle, #9ca3af 1px, transparent 1px),
+                    radial-gradient(circle, #9ca3af 1px, transparent 1px),
+                    radial-gradient(circle, #9ca3af 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: 3px 3px, 7px 7px, 3px 7px;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.fp-handle-se:hover { opacity: 1; }
+
+/* Show a faint highlight on any edge/corner on hover */
+.fp-handle:hover {
+  background: rgba(65,105,225,0.12);
+  border-radius: 2px;
+}
+.fp-handle-se:hover {
+  background: none; /* dots handle it */
+}
+
+/* Placeholder when popped out */
+.fp-placeholder {
+  border: 2px dashed #9ca3af;
+  border-radius: 8px;
+  background: #f9fafb;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fp-placeholder-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.fp-btn-popin {
+  background: #e5e7eb;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fp-btn-popin:hover {
+  background: #d1d5db;
+}

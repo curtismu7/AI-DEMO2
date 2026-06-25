@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# pre-push hook — warns when you are about to push changes to a file
+# that another developer has modified on the remote since your last pull.
+#
+# Install for yourself:
+#   cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+#
+# Install for the whole team (run once after clone):
+#   git config core.hooksPath scripts/hooks
+
+set -euo pipefail
+
+REMOTE="${1:-origin}"
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "HEAD")
+
+# Fetch quietly so we have up-to-date remote refs
+git fetch "$REMOTE" "$BRANCH" --quiet 2>/dev/null || true
+
+REMOTE_REF="$REMOTE/$BRANCH"
+
+# Files you are about to push (committed locally, not yet on remote)
+LOCAL_CHANGES=$(git diff --name-only "$REMOTE_REF"...HEAD 2>/dev/null || true)
+
+if [[ -z "$LOCAL_CHANGES" ]]; then
+  exit 0  # nothing to check
+fi
+
+# Files changed on the remote since your last common ancestor
+REMOTE_CHANGES=$(git diff --name-only HEAD..."$REMOTE_REF" 2>/dev/null || true)
+
+if [[ -z "$REMOTE_CHANGES" ]]; then
+  exit 0  # remote hasn't moved
+fi
+
+# Find overlapping files
+CONFLICTS=$(comm -12 \
+  <(echo "$LOCAL_CHANGES" | sort) \
+  <(echo "$REMOTE_CHANGES" | sort))
+
+if [[ -n "$CONFLICTS" ]]; then
+  echo ""
+  echo "⚠️  CONFLICT WARNING — another developer has modified the same file(s):"
+  echo ""
+  while IFS= read -r file; do
+    # Show who last touched it on the remote
+    AUTHOR=$(git log -1 --pretty="%an <%ae>" "$REMOTE_REF" -- "$file" 2>/dev/null || echo "unknown")
+    WHEN=$(git log -1 --pretty="%ar" "$REMOTE_REF" -- "$file" 2>/dev/null || echo "unknown")
+    echo "  📄 $file"
+    echo "     Remote: $AUTHOR, $WHEN"
+  done <<< "$CONFLICTS"
+  echo ""
+  echo "  Run:  git pull --rebase origin $BRANCH"
+  echo "  Then resolve any conflicts before pushing."
+  echo ""
+  read -r -p "Push anyway? (y/N) " REPLY
+  if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+    echo "Push aborted."
+    exit 1
+  fi
+fi
+
+exit 0

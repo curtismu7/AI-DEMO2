@@ -1,0 +1,1 @@
+# Core services for authentication, MCP client management, and agent logic

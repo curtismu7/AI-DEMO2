@@ -1,0 +1,213 @@
+/* demo_api_ui/src/styles/rule-panel.css
+   Shared list+detail panel pattern used by AuthorizeRulesPanel and WebMcpPanel. */
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+
+.rp-container {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  margin-bottom: 24px;
+}
+
+/* ── Header bar ─────────────────────────────────────────────────────────── */
+
+.rp-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fafafa;
+}
+
+.rp-header__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+}
+
+.rp-header__sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+/* ── Body: flex row ─────────────────────────────────────────────────────── */
+
+.rp-body {
+  display: flex;
+  min-height: 400px;
+}
+
+/* ── Left list column ───────────────────────────────────────────────────── */
+
+.rp-list {
+  width: 240px;
+  min-width: 240px;
+  border-right: 1px solid #e5e5e5;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.rp-list-group-header {
+  padding: 8px 12px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.rp-list-hint {
+  font-size: 11px;
+  color: #777;
+  font-style: italic;
+  padding: 5px 10px 4px;
+  border-bottom: 1px solid #f3f3f3;
+}
+
+/* ── List items ─────────────────────────────────────────────────────────── */
+
+.rp-list-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border: none;
+  border-bottom: 1px solid #f3f3f3;
+  border-left: 3px solid transparent;
+  background: #fff;
+  transition: background 0.1s;
+  width: 100%;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.rp-list-item:hover {
+  background: #f5f5f5;
+}
+
+.rp-list-item--active {
+  border-left-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.rp-list-item__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 3px;
+}
+
+.rp-list-item__sub {
+  font-size: 11px;
+  color: #777;
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+
+/* ── Right detail column ────────────────────────────────────────────────── */
+
+.rp-detail {
+  flex: 1;
+  padding: 18px 20px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.rp-detail__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 6px;
+}
+
+.rp-detail__desc {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+
+/* ── Test / params box ──────────────────────────────────────────────────── */
+
+.rp-test-form {
+  background: #f8f9fc;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.rp-test-form__heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.rp-test-form__row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rp-test-form__field {
+  flex: 1;
+}
+
+.rp-test-form__label {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.rp-test-form__input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #111;
+  background: #fff;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.rp-test-form__input:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+
+.rp-test-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Primary button ─────────────────────────────────────────────────────── */
+
+.rp-btn-primary {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rp-btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.rp-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

@@ -1,0 +1,3 @@
+# Redis is not used by this stack — this file is intentionally empty.
+# Session storage uses LMDB (embedded) in the BFF.
+# If you add Redis later for multi-replica BFF sessions, add a StatefulSet here.

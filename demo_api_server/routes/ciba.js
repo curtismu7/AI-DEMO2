@@ -1,0 +1,275 @@
+'use strict';
+
+/**
+ * routes/ciba.js — CIBA (Client-Initiated Backchannel Authentication) routes
+ *
+ * POST /api/auth/ciba/initiate
+ *   Starts a backchannel auth request for the current session user.
+ *   Returns { auth_req_id, expires_in, interval } — the browser uses these
+ *   to display a "waiting for approval" UI and to start polling.
+ *
+ * GET  /api/auth/ciba/poll/:authReqId
+ *   Single poll — returns { status: 'pending' | 'approved' | 'denied' }.
+ *   When approved, tokens are stored in the server-side session (Backend-for-Frontend (BFF) pattern)
+ *   and never sent to the browser.
+ *
+ * GET  /api/auth/ciba/status
+ *   Returns whether CIBA is enabled and the delivery mode.
+ *
+ * POST /api/auth/ciba/notify
+ *   Ping-mode callback: PingOne calls this when the user approves.
+ *   Marks the auth_req_id as approved in the session store.
+ *
+ * POST /api/auth/ciba/cancel/:authReqId
+ *   Allows the browser to cancel a pending CIBA request.
+ */
+
+const express = require('express');
+const router  = express.Router();
+const cibaService = require('../services/cibaService');
+const { authenticateToken } = require('../middleware/auth');
+const configStore = require('../services/configStore');
+const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
+const { trackTokenEvent } = require('../services/tokenChainService');
+
+const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function _cibaEnabled(res) {
+  if (!cibaService.isEnabled()) {
+    res.status(503).json({
+      error: 'ciba_disabled',
+      message: 'CIBA is not enabled. Set CIBA_ENABLED=true in your environment.',
+    });
+    return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/ciba/status  — public, no auth needed
+// ---------------------------------------------------------------------------
+
+router.get('/status', (req, res) => {
+  res.json({
+    enabled:      cibaService.isEnabled(),
+    deliveryMode: configStore.getEffective('ciba_token_delivery_mode') || 'poll',
+    bindingMessage: configStore.getEffective('ciba_binding_message') || 'Banking App Authentication',
+    // Show PingOne admin steps needed if not enabled
+    setupRequired: !cibaService.isEnabled(),
+    setupSteps: !cibaService.isEnabled() ? [
+      'Set CIBA_ENABLED=true in your environment',
+      'Enable the CIBA grant type on your PingOne application',
+      'Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device',
+    ] : [],
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/initiate — requires existing session
+// ---------------------------------------------------------------------------
+
+/**
+ * Body: {
+ *   scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token)
+ *   binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci)
+ *   acr_values?:      'Multi_factor'             — for step-up auth
+ *   login_hint?:      'user@example.com'         — override from session email
+ * }
+ */
+router.post('/initiate', authenticateToken, async (req, res) => {
+  if (!_cibaEnabled(res)) return;
+
+  // Accept both snake_case (canonical, used by CIBAPanel) and camelCase
+  // (used by the UserDashboard transfer step-up bridge). Normalizing here is
+  // what makes the live transfer -> CIBA path work; see the `ciba` skill.
+  const field = (snakeKey, camelKey) => req.body[snakeKey] ?? req.body[camelKey];
+
+  const loginHint = field('login_hint', 'loginHint')
+    || req.user?.email
+    || req.session?.oauthUser?.email;
+
+  if (!loginHint) {
+    return res.status(400).json({
+      error: 'missing_login_hint',
+      message: 'User email is required to initiate CIBA. Ensure the user is logged in with an email claim.',
+    });
+  }
+
+  const scope = req.body.scope;
+  const acr_values = field('acr_values', 'acrValues') || '';
+  let binding_message = field('binding_message', 'bindingMessage');
+
+  // Validate binding_message length and content (prevents log injection / oversized payloads)
+  if (binding_message !== undefined) {
+    if (typeof binding_message !== 'string') {
+      return res.status(400).json({ error: 'invalid_binding_message', message: 'binding_message must be a string.' });
+    }
+    if (binding_message.length > 256) {
+      return res.status(400).json({ error: 'invalid_binding_message', message: 'binding_message must not exceed 256 characters.' });
+    }
+    // Strip control characters (log injection prevention)
+    binding_message = binding_message.replace(/[\x00-\x1f\x7f]/g, '');
+  }
+
+  try {
+    const result = await cibaService.initiateBackchannelAuth(
+      loginHint,
+      binding_message,
+      scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      acr_values,
+    );
+
+    // Track in session so poll endpoint can verify ownership
+    req.session.cibaRequests = req.session.cibaRequests || {};
+
+    // Enforce one-at-a-time: cancel any existing pending request
+    req.session.cibaRequests = Object.fromEntries(
+      Object.entries(req.session.cibaRequests).filter(
+        ([, v]) => Date.now() < v.expiresAt
+      )
+    );
+
+    req.session.cibaRequests[result.auth_req_id] = {
+      initiatedAt: Date.now(),
+      expiresAt:   Date.now() + result.expires_in * 1000,
+      loginHint,
+      scope: scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      acr_values: acr_values || '',
+      binding_message: binding_message || '',
+    };
+
+    res.json({
+      auth_req_id: result.auth_req_id,
+      authReqId:   result.auth_req_id, // camelCase alias for the UserDashboard bridge
+      expires_in:  result.expires_in,
+      interval:    result.interval,
+      login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
+    });
+  } catch (err) {
+    console.error('[CIBA] initiate failed:', err.response?.data || err.message);
+    const pingError = err.response?.data;
+    res.status(502).json({
+      error:   pingError?.error || 'ciba_initiation_failed',
+      message: pingError?.error_description || err.message,
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/ciba/poll/:authReqId
+// ---------------------------------------------------------------------------
+
+router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
+  if (!_cibaEnabled(res)) return;
+
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending) {
+    return res.status(404).json({
+      error:  'unknown_request',
+      message: 'No pending CIBA request with that ID in this session.',
+    });
+  }
+
+  if (Date.now() > pending.expiresAt) {
+    delete req.session.cibaRequests[authReqId];
+    return res.status(410).json({
+      error:  'request_expired',
+      message: 'The CIBA authentication request has expired. Please try again.',
+    });
+  }
+
+  try {
+    const tokens = await cibaService.pollForTokens(authReqId);
+
+    // Store tokens server-side (Backend-for-Frontend (BFF) pattern — never expose raw tokens to browser)
+    req.session.oauthTokens = {
+      accessToken:  tokens.access_token,
+      idToken:      tokens.id_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
+      tokenType:    tokens.token_type || 'Bearer',
+      scope:        pending.scope,
+      grantedVia:   'ciba',
+    };
+
+    delete req.session.cibaRequests[authReqId];
+    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+
+    // Record the step-up in the token chain so the "CIBA Step-Up" tab and the
+    // floating token-chain panel show the backchannel-granted token as a live
+    // event. Fire-and-forget — a tracking failure must not break approval.
+    try {
+      const jwt = require('jsonwebtoken');
+      const claims = jwt.decode(tokens.access_token) || {};
+      if (claims.sub) {
+        trackTokenEvent({
+          eventType: 'auth',
+          token: tokens.access_token,
+          userId: claims.sub,
+          description: 'CIBA backchannel step-up approved (out-of-band)',
+          additionalData: { grantedVia: 'ciba', scope: pending.scope },
+        }).catch((err) => console.error('[CIBA] token-chain track failed:', err.message));
+      }
+    } catch (trackErr) {
+      console.warn('[CIBA] could not decode token for chain tracking:', trackErr.message);
+    }
+
+    req.session.save((saveErr) => {
+      if (saveErr) console.error('[CIBA] session save error on approval:', saveErr);
+      res.json({
+        status: 'approved',
+        scope:  pending.scope,
+      });
+    });
+  } catch (err) {
+    const errorCode = err.response?.data?.error;
+
+    if (errorCode === 'authorization_pending') {
+      return res.json({ status: 'pending' });
+    }
+    if (errorCode === 'slow_down') {
+      return res.json({ status: 'pending', slow_down: true, retry_after: 10 });
+    }
+
+    // User denied or request expired at PingOne
+    delete req.session.cibaRequests?.[authReqId];
+    res.status(403).json({
+      status: 'denied',
+      error:  errorCode || 'access_denied',
+      message: err.response?.data?.error_description || 'The user denied the authentication request.',
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/cancel/:authReqId
+// ---------------------------------------------------------------------------
+
+router.post('/cancel/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  if (req.session.cibaRequests?.[authReqId]) {
+    delete req.session.cibaRequests[authReqId];
+  }
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/notify  — PingOne ping-mode callback (no session auth)
+// ---------------------------------------------------------------------------
+
+router.post('/notify', (req, res) => {
+  // In ping mode, PingOne sends a POST with the client_notification_token
+  // in the Authorization: Bearer header and the auth_req_id in the body.
+  // For now we acknowledge and note that ping-mode requires shared state (Redis).
+  // Poll mode is fully functional without this endpoint.
+  console.log('[CIBA] ping notification received:', req.body?.auth_req_id);
+  res.sendStatus(204);
+});
+
+module.exports = router;

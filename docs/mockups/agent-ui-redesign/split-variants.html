@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Split-canvas variants — light only</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: 'Inter Tight', system-ui, sans-serif; background:#f8f5ee; color:#1f1a14; padding:48px 32px; }
+  h1 { font-family: 'Fraunces', serif; font-weight:500; font-size:36px; letter-spacing:-.015em; margin:0 0 6px; }
+  h1 em { color:#b54a2c; font-style:italic; font-weight:400; }
+  p.lede { color:#7a7363; max-width: 64ch; margin:0 0 32px; font-size:15px; }
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; max-width: 1200px; }
+  a.card {
+    text-decoration:none; color:inherit;
+    background:#fff; border:1px solid #d3ccb7; border-radius:14px;
+    padding:22px; display:block; transition: transform .12s, box-shadow .15s;
+  }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -16px rgba(31,26,20,.2); }
+  a.card .tag { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px; color:#b54a2c; letter-spacing:.04em; text-transform:uppercase; font-weight:600; }
+  a.card h3 { font-family:'Fraunces', serif; font-weight:500; font-size:22px; margin:6px 0 4px; letter-spacing:-.005em; }
+  a.card p { color:#7a7363; font-size:13.5px; margin:8px 0 0; line-height:1.55; }
+  a.card ul { padding-left:18px; margin:10px 0 0; font-size:12.5px; color:#3a322a; }
+  a.card li { margin:3px 0; }
+  .swatches { display:flex; gap:6px; margin-top:14px; }
+  .sw { height:18px; flex:1; border-radius:3px; border: 1px solid rgba(0,0,0,0.05); }
+  .back { display:inline-block; margin-bottom: 24px; color:#7a7363; text-decoration:none; font-family:'JetBrains Mono', monospace; font-size:12px; }
+  .back:hover { color:#b54a2c; }
+</style>
+</head>
+<body>
+  <a class="back" href="index.html">← all options</a>
+  <h1>Split canvas — <em>three light-mode variants</em></h1>
+  <p class="lede">Same IA as Option 2 (chat left, live token narration right) but light-mode only. The floating agent (existing <code>.banking-agent-fab</code>) is unchanged in all three — these mockups only govern the inline dashboard placement.</p>
+  <div class="grid">
+
+    <a class="card" href="option-2a-paper-split.html">
+      <span class="tag">Option 2A</span>
+      <h3>Paper split</h3>
+      <p>Warm cream paper, Fraunces serif, terracotta accent. Reads like a private-bank statement — quiet, considered, no dark surfaces.</p>
+      <ul>
+        <li>Type: Fraunces serif · Inter Tight · JetBrains Mono</li>
+        <li>Accent: single terracotta on cream</li>
+        <li>Feel: editorial, warm, banking-grade</li>
+      </ul>
+      <div class="swatches">
+        <div class="sw" style="background:#f8f5ee"></div>
+        <div class="sw" style="background:#efeadd"></div>
+        <div class="sw" style="background:#b54a2c"></div>
+        <div class="sw" style="background:#1f1a14"></div>
+      </div>
+    </a>
+
+    <a class="card" href="option-2b-refined.html" style="border-color:#0d6760; box-shadow:0 0 0 3px #ecf6f5;">
+      <span class="tag" style="color:#0d6760;">Option 2B ✓ refined</span>
+      <h3>Clinical split <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#0d6760; letter-spacing:.06em; text-transform:uppercase; font-weight:600;">· chosen</span></h3>
+      <p>White canvas, single teal accent, vertical timeline for the token chain. Now includes 6 production states (default, in-flight, HITL 428, token error, empty, expanded), plus full Inspect and Configure tabs.</p>
+      <ul>
+        <li>Type: Crimson Pro · Inter · JetBrains Mono</li>
+        <li>Accent: single teal on cool white (indigo retired)</li>
+        <li>Feel: audit-grade, regulatable, banking-pro</li>
+        <li><b style="color:#0d6760;">8 scenes mocked</b> — engineer-ready</li>
+      </ul>
+      <div class="swatches">
+        <div class="sw" style="background:#ffffff"></div>
+        <div class="sw" style="background:#f4f6f9"></div>
+        <div class="sw" style="background:#0d6760"></div>
+        <div class="sw" style="background:#0e1a2b"></div>
+      </div>
+    </a>
+
+    <a class="card" href="option-2c-magazine-split.html">
+      <span class="tag">Option 2C</span>
+      <h3>Magazine split</h3>
+      <p>Source Serif 4 headlines, IBM Plex Mono labels, editorial red. Tokens numbered i. ii. iii. with a pullquote — premium print energy.</p>
+      <ul>
+        <li>Type: Source Serif 4 · IBM Plex Sans · IBM Plex Mono</li>
+        <li>Accent: single editorial red on cream</li>
+        <li>Feel: premium, considered, magazine-grade</li>
+      </ul>
+      <div class="swatches">
+        <div class="sw" style="background:#fbf7f0"></div>
+        <div class="sw" style="background:#f3ecdc"></div>
+        <div class="sw" style="background:#c2381f"></div>
+        <div class="sw" style="background:#181410"></div>
+      </div>
+    </a>
+
+  </div>
+</body>
+</html>

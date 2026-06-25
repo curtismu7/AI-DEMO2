@@ -1,0 +1,504 @@
+.mgc-root {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mgc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.mgc-header-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.mgc-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #1a1a2e;
+}
+
+.mgc-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+/* Status badges */
+.mgc-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mgc-badge--live {
+  background: #d4edda;
+  color: #155724;
+}
+.mgc-badge--mock {
+  background: #fff3cd;
+  color: #856404;
+}
+.mgc-badge--off {
+  background: #e2e3e5;
+  color: #495057;
+}
+.mgc-badge--error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.mgc-refresh-btn {
+  padding: 6px 14px;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.mgc-refresh-btn:hover {
+  background: #e8e8e8;
+}
+
+/* Tabs */
+.mgc-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #dee2e6;
+  margin-bottom: 24px;
+}
+.mgc-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+}
+.mgc-tab:hover {
+  color: #333;
+}
+.mgc-tab--active {
+  color: var(--brand-navy, #1d4ed8);
+  border-bottom-color: var(--brand-navy, #1d4ed8);
+  font-weight: 600;
+}
+
+/* Panel */
+.mgc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Info grid */
+.mgc-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .mgc-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mgc-info-item {
+  background: var(--inner-card-bg, #fff);
+  border: var(--inner-card-border, 1px solid #e5e7eb);
+  border-radius: var(--inner-card-radius, 8px);
+  box-shadow: var(--inner-card-shadow, 0 2px 6px rgba(15, 23, 42, 0.05));
+  padding: 12px 16px;
+}
+.mgc-info-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.mgc-on {
+  color: #28a745;
+  font-weight: 500;
+}
+.mgc-off {
+  color: #6c757d;
+}
+
+/* Sections */
+.mgc-section h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: #1a1a2e;
+}
+.mgc-section p {
+  font-size: 14px;
+  color: #444;
+  margin: 0 0 10px;
+}
+
+.mgc-pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre;
+}
+.mgc-pre--code {
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Chain */
+.mgc-chain {
+  padding-left: 20px;
+}
+.mgc-chain li {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #444;
+}
+
+/* Steps */
+.mgc-steps {
+  padding-left: 20px;
+}
+.mgc-steps li {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+/* Code block */
+.mgc-code-block {
+  position: relative;
+}
+.mgc-copy-btn {
+  float: right;
+  margin-bottom: 8px;
+  padding: 5px 12px;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.mgc-copy-btn:hover {
+  background: #0060d0;
+}
+
+/* Env tables */
+.mgc-env-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #1a1a2e;
+}
+.mgc-env-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.mgc-env-table tr {
+  border-bottom: 1px solid #f0f0f0;
+}
+.mgc-env-table tr:last-child {
+  border-bottom: none;
+}
+.mgc-env-key {
+  padding: 7px 12px 7px 0;
+  white-space: nowrap;
+  width: 40%;
+}
+.mgc-env-val {
+  padding: 7px 0;
+  color: #555;
+  word-break: break-all;
+}
+.mgc-env-row--missing {
+  background: #fff8f8;
+}
+.mgc-env-row--missing .mgc-env-val {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+/* Alerts */
+.mgc-alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.mgc-alert--info {
+  background: #e7f3ff;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+/* Loading / error */
+.mgc-loading {
+  padding: 40px;
+  text-align: center;
+  color: #374151;
+}
+.mgc-error {
+  padding: 20px;
+  color: #dc3545;
+}
+
+/* Push Config form */
+.mgc-push-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mgc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mgc-field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.mgc-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #374151);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+.mgc-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  background: var(--background, #fff);
+  color: var(--text, #111827);
+  width: 100%;
+  box-sizing: border-box;
+}
+.mgc-input:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.mgc-field-hint {
+  font-size: 11px;
+  color: var(--text-secondary, #374151);
+  line-height: 1.6;
+  margin-top: 2px;
+}
+.mgc-push-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 8px 20px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mgc-push-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.mgc-push-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.mgc-alert--success {
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.mgc-alert--error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+/* Phase 247 — MCP mode chip */
+.mgc-badge--custom-mode {
+  background: #fff3cd;
+  color: #856404;
+}
+.mgc-badge--pingone-mode {
+  background: #cfe2ff;
+  color: #0a58ca;
+}
+
+/* Phase 264 — Docs & Setup tab */
+.mgc-doc-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.mgc-doc-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 4px;
+}
+.mgc-doc-card-desc {
+  font-size: 12px;
+  color: #666;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.mgc-doc-card-link {
+  font-size: 13px;
+  color: #0070f3;
+  text-decoration: none;
+}
+.mgc-doc-card-link:hover {
+  text-decoration: underline;
+}
+
+/* Phase 264 — Wizard steps */
+.mgc-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.mgc-wizard-step {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.mgc-wizard-step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  cursor: default;
+}
+.mgc-wizard-step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.mgc-wizard-step-circle--complete {
+  background: #28a745;
+  color: #fff;
+}
+.mgc-wizard-step-circle--needs-input {
+  background: #ffc107;
+  color: #333;
+}
+.mgc-wizard-step-circle--pending {
+  background: #e2e3e5;
+  color: #6c757d;
+}
+.mgc-wizard-step-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+  flex: 1;
+}
+.mgc-wizard-step-status {
+  font-size: 12px;
+  color: #666;
+}
+.mgc-wizard-step-body {
+  padding: 16px;
+  background: #fff;
+  border-top: 1px solid #e9ecef;
+}
+
+/* Phase 264 — Required badge */
+.mgc-badge--required {
+  background: #ffc107;
+  color: #333;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Phase 264 — read-only input */
+.mgc-input--readonly {
+  background: #f8f9fa;
+  color: #999;
+  cursor: default;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, 'Courier New', monospace;
+  letter-spacing: 0.03em;
+}
+
+/* Phase 264 — download button */
+.mgc-download-btn {
+  float: right;
+  margin-bottom: 8px;
+  margin-left: 8px;
+  padding: 5px 12px;
+  background: #0070f3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.mgc-download-btn:hover {
+  background: #0060d0;
+}
+
+/* Phase 264 — compliance callout */
+.mgc-compliance-note {
+  background: #e7f3ff;
+  border: 1px solid #bee5eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #0c5460;
+  margin-bottom: 16px;
+}

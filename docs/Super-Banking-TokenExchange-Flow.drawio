@@ -1,0 +1,215 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="RFC 8693 Token Exchange — 1-Exchange vs 2-Exchange" id="token-exchange-flow-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="820" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — RFC 8693 Token Exchange: 1-Exchange vs 2-Exchange Paths" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1360" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- Divider between left (1-exchange) and right (2-exchange) -->
+        <mxCell id="divider" value="" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="40" as="sourcePoint"/>
+            <mxPoint x="700" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Column headers -->
+        <mxCell id="col-left-label" value="1-EXCHANGE PATH" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;rounded=1;fontSize=13;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="50" y="40" width="600" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="col-right-label" value="2-EXCHANGE PATH (USE_AGENT_ACTOR_FOR_MCP=true)" style="text;html=1;strokeColor=none;fillColor=#dae8fc;rounded=1;fontSize=13;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="720" y="40" width="640" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- LEFT: 1-EXCHANGE PATH — BFF, PingOne Token Endpoint, MCP   -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Actor headers (left side) -->
+        <mxCell id="l-actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="82" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="l-actor-p1" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;Token Endpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="295" y="82" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="l-actor-mcp" value="&lt;b&gt;MCP Server&lt;/b&gt;&lt;br&gt;banking_mcp_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="82" width="150" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- Lifelines left side -->
+        <mxCell id="l-life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="128" as="sourcePoint"/>
+            <mxPoint x="135" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l-life-p1" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="370" y="128" as="sourcePoint"/>
+            <mxPoint x="370" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l-life-mcp" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="128" as="sourcePoint"/>
+            <mxPoint x="605" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Left steps -->
+
+        <!-- L1: BFF self-activation: has user access_token -->
+        <mxCell id="l-s1" value="1. Has user access_token (from session)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="160" as="sourcePoint"/>
+            <mxPoint x="135" y="185" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="200" y="160"/>
+              <mxPoint x="200" y="185"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- L2: BFF → PingOne: token exchange -->
+        <mxCell id="l-s2" value="2. POST /token: grant=urn:ietf:params:oauth:grant-type:token-exchange&lt;br&gt;subject_token=user_at, requested_token_type=access_token&lt;br&gt;audience=banking_mcp_01" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="230" as="sourcePoint"/>
+            <mxPoint x="370" y="230" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- L3: PingOne → BFF: MCP token (dashed) -->
+        <mxCell id="l-s3" value="3. MCP access_token (aud=banking_mcp_01, scope narrowed)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="370" y="295" as="sourcePoint"/>
+            <mxPoint x="135" y="295" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- L4: BFF → MCP Server: tool call with MCP token -->
+        <mxCell id="l-s4" value="4. Tool call with Bearer MCP_token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="335" as="sourcePoint"/>
+            <mxPoint x="605" y="335" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Left annotation: token structure -->
+        <mxCell id="l-note1" value="Issued token (no act claim):&lt;br&gt;{ sub: &quot;&amp;lt;user-id&amp;gt;&quot;, aud: &quot;banking_mcp_01&quot;,&lt;br&gt;  scope: &quot;banking:general:read …&quot; }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="50" y="370" width="300" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Left note: RFC 8693 -->
+        <mxCell id="l-note2" value="RFC 8693 §2.1 — token-exchange grant type.&lt;br&gt;PingOne must have Token Exchange enabled on the&lt;br&gt;admin OAuth app (PINGONE_ADMIN_CLIENT_ID)." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="50" y="450" width="300" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- RIGHT: 2-EXCHANGE PATH — BFF, Agent CC, PingOne x2, MCP   -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Actor headers (right side) -->
+        <mxCell id="r-actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="720" y="82" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="r-actor-p1a" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;Token Endpoint A" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="930" y="82" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="r-actor-p1b" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;Token Endpoint B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="82" width="155" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="r-actor-mcp" value="&lt;b&gt;MCP Server&lt;/b&gt;&lt;br&gt;banking_mcp_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1265" y="82" width="100" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- Lifelines right side -->
+        <mxCell id="r-life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="795" y="128" as="sourcePoint"/>
+            <mxPoint x="795" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-life-p1a" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1005" y="128" as="sourcePoint"/>
+            <mxPoint x="1005" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-life-p1b" style="endArrow=none;dashed=1;strokeColor=#333333;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1172" y="128" as="sourcePoint"/>
+            <mxPoint x="1172" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-life-mcp" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1315" y="128" as="sourcePoint"/>
+            <mxPoint x="1315" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Right steps -->
+
+        <!-- R1: BFF → PingOne A: client credentials (actor token) -->
+        <mxCell id="r-s1" value="1. POST /token: grant=client_credentials&lt;br&gt;client_id=PINGONE_AI_AGENT_CLIENT_ID  (actor token)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="795" y="165" as="sourcePoint"/>
+            <mxPoint x="1005" y="165" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- R2: PingOne A → BFF: agent_actor_token (dashed) -->
+        <mxCell id="r-s2" value="2. agent_actor_token  (sub=PINGONE_AI_AGENT_CLIENT_ID)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1005" y="210" as="sourcePoint"/>
+            <mxPoint x="795" y="210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- R3: BFF → PingOne B: token exchange with actor_token -->
+        <mxCell id="r-s3" value="3. POST /token: grant=token-exchange&lt;br&gt;subject_token=user_at, actor_token=agent_actor_token&lt;br&gt;audience=banking_mcp_01" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="795" y="265" as="sourcePoint"/>
+            <mxPoint x="1172" y="265" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- R4: PingOne B → BFF: MCP token with act claim (dashed) -->
+        <mxCell id="r-s4" value="4. MCP access_token with act claim" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1172" y="315" as="sourcePoint"/>
+            <mxPoint x="795" y="315" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- R5: BFF → MCP Server: tool call with bearer -->
+        <mxCell id="r-s5" value="5. Tool call with Bearer MCP_token (act claim present)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="795" y="355" as="sourcePoint"/>
+            <mxPoint x="1315" y="355" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Right annotation: act claim token structure -->
+        <mxCell id="r-note1" value="Issued token (with act claim):&lt;br&gt;{ sub: &quot;&amp;lt;user-id&amp;gt;&quot;, aud: &quot;banking_mcp_01&quot;,&lt;br&gt;  scope: &quot;banking:general:read …&quot;,&lt;br&gt;  act: { sub: &quot;PINGONE_AI_AGENT_CLIENT_ID&quot; } }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="720" y="380" width="320" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Right note: RFC 8693 §4.1 act claim explanation -->
+        <mxCell id="r-note2" value="RFC 8693 §4.1 — act claim: proves delegation chain.&lt;br&gt;act.sub = agent client ID; sub = user.&lt;br&gt;MCP server sees: user authorised agent to act on their behalf." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="720" y="465" width="340" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- Right note: feature flag -->
+        <mxCell id="r-note3" value="Enabled by: USE_AGENT_ACTOR_FOR_MCP=true&lt;br&gt;or runtime flag: ff_two_exchange_delegation" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="720" y="546" width="280" height="46" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

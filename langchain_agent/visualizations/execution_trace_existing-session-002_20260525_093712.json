@@ -1,0 +1,158 @@
+{
+  "session_id": "existing-session-002",
+  "start_time": "2026-05-25T09:37:12.602804",
+  "end_time": "2026-05-25T09:37:12.603327",
+  "total_steps": 10,
+  "total_duration_ms": 0,
+  "execution_steps": [
+    {
+      "step": 1,
+      "type": "websocket_incoming",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:12.602828",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "direction": "incoming",
+        "message_type": "user_message",
+        "payload": {
+          "type": "user_message",
+          "content": "What about transfers?",
+          "session_id": "existing-session-002",
+          "timestamp": "2026-05-25T09:37:12.602819"
+        },
+        "payload_size": 141,
+        "timestamp": "2026-05-25T09:37:12.602827"
+      }
+    },
+    {
+      "step": 2,
+      "type": "user_input",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:12.602850",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "message": "What about transfers?",
+        "session_id": "existing-session-002",
+        "message_length": 21,
+        "timestamp": "2026-05-25T09:37:12.602849"
+      }
+    },
+    {
+      "step": 3,
+      "type": "agent_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:37:12.602861",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "agent_type": "LangChainMCPAgent",
+        "tools_available": 2,
+        "model": "llama3"
+      }
+    },
+    {
+      "step": 4,
+      "type": "memory_check",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:37:12.602942",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "action": "check_user_identification",
+        "user_identified": true
+      }
+    },
+    {
+      "step": 5,
+      "type": "mcp_context_setup",
+      "component": "MCP Tool Provider",
+      "timestamp": "2026-05-25T09:37:12.602952",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "session_id": "existing-session-002",
+        "action": "set_session_context"
+      }
+    },
+    {
+      "step": 6,
+      "type": "llm_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:37:12.603200",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "model": "llama3",
+        "context": "Processing user request with LangGraph",
+        "prompt_preview": "User: What about transfers?",
+        "estimated_input_tokens": "[REDACTED]",
+        "temperature": "<Mock name='mock.temperature' id='4430275776'>"
+      }
+    },
+    {
+      "step": 7,
+      "type": "llm_end",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:37:12.603229",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "response_generated": true,
+        "response_preview": "mock response",
+        "response_length": 13,
+        "processing_time_ms": 0,
+        "estimated_output_tokens": "[REDACTED]",
+        "tokens_per_second": "[REDACTED]"
+      }
+    },
+    {
+      "step": 8,
+      "type": "memory_update",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:37:12.603244",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "action": "store_conversation",
+        "user_message_length": 21,
+        "assistant_response_length": 13
+      }
+    },
+    {
+      "step": 9,
+      "type": "websocket_outgoing",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:12.603288",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "direction": "outgoing",
+        "message_type": "assistant_response",
+        "payload": {
+          "type": "assistant_response",
+          "content": "mock response",
+          "session_id": "existing-session-002",
+          "timestamp": "2026-05-25T09:37:12.603280",
+          "processing_time_ms": 0
+        },
+        "payload_size": 164,
+        "timestamp": "2026-05-25T09:37:12.603288"
+      }
+    },
+    {
+      "step": 10,
+      "type": "response_sent",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:12.603309",
+      "elapsed_ms": 0,
+      "session_id": "existing-session-002",
+      "data": {
+        "response_length": 13,
+        "session_id": "existing-session-002",
+        "total_steps": 9
+      }
+    }
+  ]
+}

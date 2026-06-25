@@ -1,0 +1,198 @@
+{
+  "vertical": "manufacturing",
+  "heuristic": [
+    {
+      "phrase": "close maintenance ticket MT-3002",
+      "expect": "close_maintenance_ticket"
+    },
+    {
+      "phrase": "resolve maintenance ticket MT-3001",
+      "expect": "close_maintenance_ticket"
+    },
+    {
+      "phrase": "complete quality inspection QINSP-2002",
+      "expect": "complete_quality_inspection"
+    },
+    {
+      "phrase": "pass QC inspection QINSP-2001",
+      "expect": "complete_quality_inspection"
+    },
+    {
+      "phrase": "receive shipment SHP-5002",
+      "expect": "receive_shipment"
+    },
+    {
+      "phrase": "confirm receipt of shipment SHP-5001",
+      "expect": "receive_shipment"
+    },
+    {
+      "phrase": "approve purchase order PO-6001",
+      "expect": "approve_purchase_order"
+    },
+    {
+      "phrase": "approve PO-6003",
+      "expect": "approve_purchase_order"
+    },
+    {
+      "phrase": "reject purchase order PO-6004",
+      "expect": "reject_purchase_order"
+    },
+    {
+      "phrase": "reject PO-6005 because the price is too high",
+      "expect": "reject_purchase_order"
+    },
+    {
+      "phrase": "void purchase order PO-6005",
+      "expect": "void_purchase_order"
+    },
+    {
+      "phrase": "cancel and void PO-6001 before it ships",
+      "expect": "void_purchase_order"
+    },
+    {
+      "phrase": "flag defect DEF-7002",
+      "expect": "flag_defect"
+    },
+    {
+      "phrase": "report defect DEF-7001",
+      "expect": "flag_defect"
+    },
+    {
+      "phrase": "reopen defect DEF-7003 — issue recurred",
+      "expect": "reopen_defect"
+    },
+    {
+      "phrase": "defect DEF-7001 needs to be reopened for review",
+      "expect": "reopen_defect"
+    },
+    {
+      "phrase": "take machine MC-1002 offline",
+      "expect": "put_machine_offline"
+    },
+    {
+      "phrase": "put machine MC-1003 out of service",
+      "expect": "put_machine_offline"
+    },
+    {
+      "phrase": "expedite shipment SHP-5003 — customer is waiting",
+      "expect": "expedite_shipment"
+    },
+    {
+      "phrase": "rush delivery for shipment SHP-5004",
+      "expect": "expedite_shipment"
+    },
+    {
+      "phrase": "escalate maintenance ticket MT-3004 to urgent",
+      "expect": "escalate_maintenance_ticket"
+    },
+    {
+      "phrase": "I need MT-3001 escalated immediately",
+      "expect": "escalate_maintenance_ticket"
+    },
+    {
+      "phrase": "show machine status on the floor",
+      "expect": "view_machines"
+    },
+    {
+      "phrase": "list all CNC machines",
+      "expect": "view_machines"
+    },
+    {
+      "phrase": "equipment status",
+      "expect": "view_machines"
+    },
+    {
+      "phrase": "show machine utilization rates",
+      "expect": "view_machine_utilization"
+    },
+    {
+      "phrase": "what is OEE across the floor this week",
+      "expect": "view_machine_utilization"
+    },
+    {
+      "phrase": "show quality inspections",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "view QC checks for this week",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "inspection queue",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "what is my latest inspection status",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "show my latest inspection results",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "show inspection logs",
+      "expect": "view_quality_inspections"
+    },
+    {
+      "phrase": "show my shipments",
+      "expect": "view_shipments"
+    },
+    {
+      "phrase": "outbound freight status",
+      "expect": "view_shipments"
+    },
+    {
+      "phrase": "shipping queue",
+      "expect": "view_shipments"
+    },
+    {
+      "phrase": "show purchase orders",
+      "expect": "view_purchase_orders"
+    },
+    {
+      "phrase": "open POs",
+      "expect": "view_purchase_orders"
+    },
+    {
+      "phrase": "what purchase orders are pending",
+      "expect": "view_purchase_orders"
+    },
+    {
+      "phrase": "show maintenance tickets",
+      "expect": "view_maintenance_tickets"
+    },
+    {
+      "phrase": "open maintenance requests",
+      "expect": "view_maintenance_tickets"
+    },
+    {
+      "phrase": "maintenance log",
+      "expect": "view_maintenance_tickets"
+    },
+    {
+      "phrase": "show me all open defects",
+      "expect": "view_defects"
+    },
+    {
+      "phrase": "quality defect log for this week",
+      "expect": "view_defects"
+    },
+    {
+      "phrase": "show me the scrap report for this week",
+      "expect": "view_scrap_report"
+    },
+    {
+      "phrase": "what is our rework rate on WO-4001",
+      "expect": "view_scrap_report"
+    },
+    {
+      "phrase": "show supplier scorecard",
+      "expect": "view_supplier_scorecard"
+    },
+    {
+      "phrase": "how is MetalSupply Co performing on deliveries",
+      "expect": "view_supplier_scorecard"
+    }
+  ],
+  "directiveOnly": []
+}

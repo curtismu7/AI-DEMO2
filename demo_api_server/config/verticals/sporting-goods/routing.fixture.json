@@ -1,0 +1,211 @@
+{
+  "vertical": "sporting-goods",
+  "heuristic": [
+    {
+      "phrase": "cancel order 1003",
+      "expect": "cancel_order"
+    },
+    {
+      "phrase": "I want to cancel my order",
+      "expect": "cancel_order"
+    },
+    {
+      "phrase": "cancel order 1002 please",
+      "expect": "cancel_order"
+    },
+    {
+      "phrase": "return order 1001",
+      "expect": "return_order"
+    },
+    {
+      "phrase": "I want to return my order",
+      "expect": "return_order"
+    },
+    {
+      "phrase": "start a return for order 1002",
+      "expect": "return_order"
+    },
+    {
+      "phrase": "cancel rental 2001",
+      "expect": "cancel_rental"
+    },
+    {
+      "phrase": "I need to cancel my rental",
+      "expect": "cancel_rental"
+    },
+    {
+      "phrase": "cancel rental 2003",
+      "expect": "cancel_rental"
+    },
+    {
+      "phrase": "redeem my points",
+      "expect": "redeem_points"
+    },
+    {
+      "phrase": "use my loyalty points for a discount",
+      "expect": "redeem_points"
+    },
+    {
+      "phrase": "I want to redeem points on account 3001",
+      "expect": "redeem_points"
+    },
+    {
+      "phrase": "cancel my subscription",
+      "expect": "cancel_subscription"
+    },
+    {
+      "phrase": "I want to cancel my membership",
+      "expect": "cancel_subscription"
+    },
+    {
+      "phrase": "cancel subscription sub-8001",
+      "expect": "cancel_subscription"
+    },
+    {
+      "phrase": "show my payment methods",
+      "expect": "list_payments"
+    },
+    {
+      "phrase": "what cards do I have saved",
+      "expect": "list_payments"
+    },
+    {
+      "phrase": "my saved payment methods",
+      "expect": "list_payments"
+    },
+    {
+      "phrase": "show my shipping addresses",
+      "expect": "list_addresses"
+    },
+    {
+      "phrase": "what addresses do I have on file",
+      "expect": "list_addresses"
+    },
+    {
+      "phrase": "my delivery addresses",
+      "expect": "list_addresses"
+    },
+    {
+      "phrase": "show my invoices",
+      "expect": "list_invoices"
+    },
+    {
+      "phrase": "my billing history",
+      "expect": "list_invoices"
+    },
+    {
+      "phrase": "show my invoices",
+      "expect": "list_invoices"
+    },
+    {
+      "phrase": "show my support tickets",
+      "expect": "list_support_tickets"
+    },
+    {
+      "phrase": "do I have any open cases",
+      "expect": "list_support_tickets"
+    },
+    {
+      "phrase": "my ticket status",
+      "expect": "list_support_tickets"
+    },
+    {
+      "phrase": "show my subscriptions",
+      "expect": "list_subscriptions"
+    },
+    {
+      "phrase": "what membership plan am I on",
+      "expect": "list_subscriptions"
+    },
+    {
+      "phrase": "my sports pass",
+      "expect": "list_subscriptions"
+    },
+    {
+      "phrase": "show my wishlist",
+      "expect": "list_wishlist"
+    },
+    {
+      "phrase": "what items have I saved",
+      "expect": "list_wishlist"
+    },
+    {
+      "phrase": "my favorite gear",
+      "expect": "list_wishlist"
+    },
+    {
+      "phrase": "show my promotions",
+      "expect": "list_promotions"
+    },
+    {
+      "phrase": "what discount codes do I have",
+      "expect": "list_promotions"
+    },
+    {
+      "phrase": "show available coupons",
+      "expect": "list_promotions"
+    },
+    {
+      "phrase": "show my coaching sessions",
+      "expect": "list_coaching_sessions"
+    },
+    {
+      "phrase": "what lessons do I have booked",
+      "expect": "list_coaching_sessions"
+    },
+    {
+      "phrase": "my sports clinics",
+      "expect": "list_coaching_sessions"
+    }
+  ],
+  "directiveOnly": [
+    {
+      "phrase": "close ticket tkt-7001",
+      "expect": "close_support_ticket"
+    },
+    {
+      "phrase": "mark ticket 7002 as closed",
+      "expect": "close_support_ticket"
+    },
+    {
+      "phrase": "I want to close my support ticket",
+      "expect": "close_support_ticket"
+    },
+    {
+      "phrase": "remove wsh-9002 from my wishlist",
+      "expect": "remove_wishlist_item"
+    },
+    {
+      "phrase": "delete that item from my wishlist",
+      "expect": "remove_wishlist_item"
+    },
+    {
+      "phrase": "take wsh-9001 off my saved list",
+      "expect": "remove_wishlist_item"
+    },
+    {
+      "phrase": "cancel coaching session cch-1201",
+      "expect": "cancel_coaching_session"
+    },
+    {
+      "phrase": "I need to cancel my lesson",
+      "expect": "cancel_coaching_session"
+    },
+    {
+      "phrase": "cancel session cch-1202",
+      "expect": "cancel_coaching_session"
+    },
+    {
+      "phrase": "what is my store credit balance",
+      "expect": "list_store_credit"
+    },
+    {
+      "phrase": "show my gift card balance",
+      "expect": "list_store_credit"
+    },
+    {
+      "phrase": "how much store credit do I have",
+      "expect": "list_store_credit"
+    }
+  ]
+}

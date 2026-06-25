@@ -1,0 +1,164 @@
+/* ============================================================================
+   Customer dashboard — Ping2026 skin tokens.
+   All rules are scoped under .customer-skin-p1 (set on the root dashboard
+   element by UserDashboardPing2026 when ff_customer_skin_ping2026 is ON).
+   With flag OFF this file is never imported; the classic UserDashboard.js
+   is rendered instead and this file is inert.
+   B1: token shell only — visual rules added in B2.
+   ============================================================================ */
+
+/* ── Design tokens (Ping2026 palette) ─────────────────────────────────────── */
+.customer-skin-p1 {
+  --csp-bg:            #f4f6f9;
+  --csp-surface:       #ffffff;
+  --csp-border:        #e2e6ea;
+  --csp-primary:       #1a5276;
+  --csp-primary-text:  #ffffff;
+  --csp-accent:        #b3282d;
+  --csp-text-primary:  #23242a;
+  --csp-text-secondary:#5a6472;
+  --csp-radius:        8px;
+  --csp-shadow:        0 1px 4px rgba(0,0,0,0.10);
+}
+
+/* ── Canvas ────────────────────────────────────────────────────────────────── */
+.customer-skin-p1 {
+  background: var(--csp-bg, #f4f6f9);
+  min-height: 100vh;
+}
+
+/* ── White cards ───────────────────────────────────────────────────────────── */
+.customer-skin-p1 .section {
+  background: var(--csp-surface, #fff);
+  border-radius: var(--csp-radius, 8px);
+  box-shadow: var(--csp-shadow);
+  border: 1px solid var(--csp-border);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Hero gradient ─────────────────────────────────────────────────────────── */
+.customer-skin-p1 .ud-hero {
+  background: linear-gradient(
+    135deg,
+    var(--csp-primary, #1a5276) 0%,
+    color-mix(in srgb, var(--accent, #b3282d) 60%, var(--csp-primary) 40%) 100%
+  );
+  color: #fff;
+  border: none;
+}
+
+/* Hero text elements — inherit white from the gradient background */
+.customer-skin-p1 .ud-hero__eyebrow,
+.customer-skin-p1 .ud-hero__greet,
+.customer-skin-p1 .ud-hero__greet em,
+.customer-skin-p1 .ud-hero__insight {
+  color: rgba(255, 255, 255, 0.90);
+}
+
+/* Hero balance ── */
+.customer-skin-p1 .ud-hero__balance {
+  color: #fff;
+}
+
+.customer-skin-p1 .ud-hero__balance-label {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Hero sparkline bars ── */
+.customer-skin-p1 .ud-hero__spark span {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Hero stats row ────────────────────────────────────────────────────────── */
+.customer-skin-p1 .ud-stat__label {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.customer-skin-p1 .ud-stat__value {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ── Account cards ─────────────────────────────────────────────────────────── */
+.customer-skin-p1 .account-card {
+  background: var(--csp-surface);
+  border: 1px solid var(--csp-border);
+  border-radius: var(--csp-radius);
+  box-shadow: var(--csp-shadow);
+}
+
+/* ── Hero accent CTA button ────────────────────────────────────────────────── */
+/* Standard QA buttons stay PingOne-blue; only the --accent CTA uses vertical accent */
+.customer-skin-p1 .ud-qa-btn--accent {
+  background: var(--accent, #b3282d);
+  color: #fff;
+}
+
+.customer-skin-p1 .ud-qa-btn--accent:hover {
+  background: color-mix(in srgb, var(--accent, #b3282d) 85%, #000 15%);
+}
+
+/* ── Trust strip ───────────────────────────────────────────────────────────── */
+.customer-skin-p1 .ud-trust-strip {
+  color: var(--csp-text-secondary);
+  font-size: 0.78rem;
+}
+
+/* ── Super pills (quick links) ─────────────────────────────────────────────── */
+.customer-skin-p1 .ud-super-pill {
+  background: var(--csp-surface);
+  border: 1px solid var(--csp-border);
+  color: var(--csp-text-primary);
+  border-radius: 20px;
+  padding: 0.35rem 0.9rem;
+  text-decoration: none;
+  display: inline-block;
+  transition: box-shadow 0.15s ease;
+}
+
+.customer-skin-p1 .ud-super-pill:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+  text-decoration: none;
+}
+
+/* ── Dark inspector rail (right rail in bottom layout) ─────────────────────── */
+.customer-skin-p1 .rd2-right-rail {
+  background: #1a2233;
+  color: #e2e6ea;
+  border-radius: var(--csp-radius);
+  padding: 1.25rem;
+}
+
+/* Token chain labels in dark rail */
+.customer-skin-p1 .rd2-right-rail .token-chain-label,
+.customer-skin-p1 .rd2-right-rail label,
+.customer-skin-p1 .rd2-right-rail .chain-label {
+  color: #94a3b8;
+}
+
+/* ── Token rail (float + middle layouts) ───────────────────────────────────── */
+.customer-skin-p1 .ud-token-rail {
+  background: #1a2233;
+  color: #e2e6ea;
+}
+
+.customer-skin-p1 .ud-token-rail .section {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  color: inherit;
+}
+
+/* ── Middle resize handle ──────────────────────────────────────────────────── */
+.customer-skin-p1 .ud-middle-resize-handle {
+  background: #1e293b;
+}
+
+/* ── Loading state ─────────────────────────────────────────────────────────── */
+.customer-skin-p1 .user-dashboard > .loading {
+  background: var(--csp-surface);
+  color: var(--csp-text-secondary);
+  padding: 2rem;
+  text-align: center;
+}

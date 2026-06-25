@@ -1,0 +1,269 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="Agent Request Flow" id="agent-request-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — Agent Request Flow (End-to-End with RFC Annotations)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1360" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- RFC Annotations -->
+        <mxCell id="rfc-note" value="RFC References: RFC 6749 (OAuth 2.0) • RFC 7636 (PKCE) • RFC 8693 (Token Exchange) • RFC 8707 (Resource Indicators) • RFC 9728 (AS Discovery) • RFC 9396 (RAR) • RFC 7523 (JWT Auth)" style="text;html=1;strokeColor=none;fillColor=#f8f9fa;rounded=1;fontSize=10;fontStyle=2;align=center;" vertex="1" parent="1">
+          <mxGeometry x="20" y="36" width="1360" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Actor header boxes ───────────────────────────────────── -->
+        <mxCell id="actor-user" value="&lt;b&gt;User&lt;/b&gt;&lt;br&gt;React SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="65" width="120" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="230" y="65" width="140" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-agent" value="&lt;b&gt;AI Agent&lt;/b&gt;&lt;br&gt;BankingAgent.js" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="65" width="140" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-mcp" value="&lt;b&gt;MCP Server&lt;/b&gt;&lt;br&gt;banking_mcp_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="630" y="65" width="140" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bank" value="&lt;b&gt;Banking API&lt;/b&gt;&lt;br&gt;Resource Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="830" y="65" width="140" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-p1" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;Auth Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="65" width="140" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Lifelines ─────────────────────────────────────────────── -->
+        <!-- User x=110 -->
+        <mxCell id="life-user" style="endArrow=none;dashed=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="110" y="111" as="sourcePoint"/>
+            <mxPoint x="110" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- BFF x=300 -->
+        <mxCell id="life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="111" as="sourcePoint"/>
+            <mxPoint x="300" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- Agent x=500 -->
+        <mxCell id="life-agent" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="111" as="sourcePoint"/>
+            <mxPoint x="500" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- MCP x=700 -->
+        <mxCell id="life-mcp" style="endArrow=none;dashed=1;strokeColor=#82b366;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="111" as="sourcePoint"/>
+            <mxPoint x="700" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- Banking API x=900 -->
+        <mxCell id="life-bank" style="endArrow=none;dashed=1;strokeColor=#b85450;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="900" y="111" as="sourcePoint"/>
+            <mxPoint x="900" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- PingOne x=1100 -->
+        <mxCell id="life-p1" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1100" y="111" as="sourcePoint"/>
+            <mxPoint x="1100" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Flow Steps ───────────────────────────────────────────── -->
+        
+        <!-- 0. User Login (Prerequisite) -->
+        <mxCell id="step0-login" value="0. User Login (Prerequisite)&lt;br&gt;Authorization Code + PKCE&lt;br&gt;&lt;b&gt;RFC 7636 (PKCE)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step0-arrow-p1" style="endArrow=block;startArrow=block;curved=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="110" y="180" as="sourcePoint"/>
+            <mxPoint x="1100" y="180" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 1. PingOne returns tokens -->
+        <mxCell id="step1-tokens" value="1. Return access tokens&lt;br&gt;{ access_token, refresh_token, id_token }&lt;br&gt;Stored in BFF session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="160" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step1-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#666666;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1100" y="210" as="sourcePoint"/>
+            <mxPoint x="300" y="210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. User initiates agent request -->
+        <mxCell id="step2-initiate" value="2. User initiates agent request&lt;br&gt;&quot;Transfer $500 to savings&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="230" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2-arrow-bff" style="endArrow=block;startArrow=block;curved=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="110" y="270" as="sourcePoint"/>
+            <mxPoint x="300" y="270" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. BFF validates session -->
+        <mxCell id="step3-validate" value="3. Validate user session&lt;br&gt;Check access token validity&lt;br&gt;&lt;b&gt;RFC 6749 §7.1&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="240" y="250" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step3-arrow-agent" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="300" as="sourcePoint"/>
+            <mxPoint x="500" y="300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. Agent processes request -->
+        <mxCell id="step4-process" value="4. Agent processes request&lt;br&gt;LangChain + Tool selection&lt;br&gt;Identify required scopes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="440" y="280" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step4-arrow-mcp" style="endArrow=block;startArrow=block;curved=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="330" as="sourcePoint"/>
+            <mxPoint x="700" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. MCP tool call -->
+        <mxCell id="step5-mcp" value="5. MCP tool call&lt;br&gt;{ tool: &quot;transfer&quot;, params }&lt;br&gt;&lt;b&gt;RFC 9728 (AS Discovery)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="640" y="310" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step5-arrow-bff-exchange" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="360" as="sourcePoint"/>
+            <mxPoint x="300" y="360" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. Token Exchange Request -->
+        <mxCell id="step6-exchange" value="6. Token Exchange Request&lt;br&gt;grant_type=token-exchange&lt;br&gt;subject_token={userToken}&lt;br&gt;audience={mcpResourceUri}&lt;br&gt;scope={requiredScopes}&lt;br&gt;&lt;b&gt;RFC 8693 §2.1&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="240" y="340" width="120" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="step6-arrow-p1-exchange" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="410" as="sourcePoint"/>
+            <mxPoint x="1100" y="410" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. PingOne validates and issues token -->
+        <mxCell id="step7-validate-exchange" value="7. Validate exchange request&lt;br&gt;• Validate subject token&lt;br&gt;• Check may_act policy&lt;br&gt;• Narrow audience &amp; scope&lt;br&gt;• Add act claim if applicable&lt;br&gt;&lt;b&gt;RFC 8707 (Resource Indicators)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="380" width="140" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="step7-arrow-back-mcp" style="endArrow=block;startArrow=block;curved=1;strokeColor=#666666;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1100" y="450" as="sourcePoint"/>
+            <mxPoint x="300" y="450" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. Return MCP token -->
+        <mxCell id="step8-mcp-token" value="8. Return MCP access token&lt;br&gt;{ access_token, expires_in, scope }&lt;br&gt;aud={mcpResourceUri}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="240" y="430" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step8-arrow-mcp-forward" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="480" as="sourcePoint"/>
+            <mxPoint x="700" y="480" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. MCP calls Banking API -->
+        <mxCell id="step9-api-call" value="9. MCP calls Banking API&lt;br&gt;Authorization: Bearer {mcpToken}&lt;br&gt;POST /api/transactions/transfer&lt;br&gt;&lt;b&gt;Resource Server Access&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="640" y="460" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step9-arrow-bank" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="520" as="sourcePoint"/>
+            <mxPoint x="900" y="520" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10. Banking API validates MCP token -->
+        <mxCell id="step10-validate-mcp" value="10. Validate MCP token&lt;br&gt;• Check token signature&lt;br&gt;• Validate audience&lt;br&gt;• Check scopes&lt;br&gt;• Extract act claim for audit&lt;br&gt;&lt;b&gt;JWT Validation (RFC 7519)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="840" y="500" width="120" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="step10-process-transaction" value="11. Process transaction&lt;br&gt;Execute transfer&lt;br&gt;Update account balances&lt;br&gt;Generate transaction record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="840" y="580" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step10-arrow-back-mcp-result" style="endArrow=block;startArrow=block;curved=1;strokeColor=#b85450;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="900" y="630" as="sourcePoint"/>
+            <mxPoint x="700" y="630" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11. Return result to MCP -->
+        <mxCell id="step11-mcp-result" value="12. Return transaction result&lt;br&gt;{ transactionId, status, amount }&lt;br&gt;Success or error details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="640" y="610" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step11-arrow-back-agent" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="660" as="sourcePoint"/>
+            <mxPoint x="500" y="660" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 12. Agent processes result -->
+        <mxCell id="step12-agent-process" value="13. Agent processes result&lt;br&gt;Format response&lt;br&gt;Add context &amp; explanation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="440" y="640" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step12-arrow-back-bff" style="endArrow=block;startArrow=block;curved=1;strokeColor=#9673a6;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="690" as="sourcePoint"/>
+            <mxPoint x="300" y="690" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 13. Return to user -->
+        <mxCell id="step13-bff-result" value="14. Return formatted result&lt;br&gt;to user interface" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="240" y="670" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step13-arrow-back-user" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="720" as="sourcePoint"/>
+            <mxPoint x="110" y="720" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 14. Display result to user -->
+        <mxCell id="step14-user-display" value="15. Display result to user&lt;br&gt;Transaction confirmation&lt;br&gt;or error message" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="140" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Security and Architecture Notes -->
+        <mxCell id="security-annotation" value="🔒 Security Architecture:&lt;br&gt• User tokens never leave BFF&lt;br&gt• Token exchange narrows scope &amp; audience&lt;br&gt• MCP token only valid for MCP server&lt;br&gt• Banking API validates audience &amp; scopes&lt;br&gt• Complete audit trail with act claims" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#666666;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="780" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- RFC Compliance Box -->
+        <mxCell id="rfc-compliance" value="📋 RFC Compliance:&lt;br&gt• RFC 6749: OAuth 2.0 Framework&lt;br&gt• RFC 7636: PKCE for public clients&lt;br&gt• RFC 8693: Token Exchange delegation&lt;br&gt• RFC 8707: Resource indicators&lt;br&gt• RFC 9728: Auth Server discovery&lt;br&gt• RFC 7519: JWT token format" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6b656;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="270" y="780" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Token Flow Summary -->
+        <mxCell id="token-flow" value="🔄 Token Flow Summary:&lt;br&gt• User Token: Broad audience, many scopes&lt;br&gt• MCP Token: MCP audience, tool scopes&lt;br&gt• Banking API: Validates MCP token only&lt;br&gt• No raw tokens exposed to browser&lt;br&gt• Each hop narrows token privileges" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#82b366;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="490" y="780" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Error Handling Notes -->
+        <mxCell id="error-handling" value="⚠️ Error Handling:&lt;br&gt• Token validation failures&lt;br&gt• Scope/audience mismatches&lt;br&gt• May_act policy violations&lt;br&gt• Banking API authorization errors&lt;br&gt• Network timeouts &amp; retries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="710" y="780" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

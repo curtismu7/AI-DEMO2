@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authorization Callback - Banking Digital Assistant</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background-color: #f8f9fa;
+      }
+      
+      .callback-content {
+        text-align: center;
+        background: white;
+        padding: 3rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 90%;
+      }
+      
+      .status-icon {
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 60px;
+      }
+      
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e9ecef;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .success-icon {
+        color: #28a745;
+        font-size: 48px;
+      }
+      
+      .error-icon {
+        color: #dc3545;
+        font-size: 48px;
+      }
+      
+      h2 {
+        margin: 0 0 1rem 0;
+        color: #495057;
+        font-size: 1.5rem;
+      }
+      
+      p {
+        margin: 0 0 1.5rem 0;
+        color: #6c757d;
+        line-height: 1.5;
+      }
+      
+      .close-button {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.15s ease-in-out;
+      }
+      
+      .close-button:hover {
+        background-color: #545b62;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="callback-content">
+      <div class="status-icon">
+        <div class="spinner"></div>
+      </div>
+      <h2 id="status-title">Processing Authorization</h2>
+      <p id="status-message">Processing authorization...</p>
+      <button id="close-button" class="close-button" style="display: none;" onclick="window.close()">
+        Close Window
+      </button>
+    </div>
+
+    <script>
+      (function() {
+        const statusIcon = document.querySelector('.status-icon');
+        const statusTitle = document.getElementById('status-title');
+        const statusMessage = document.getElementById('status-message');
+        const closeButton = document.getElementById('close-button');
+
+        function showSuccess() {
+          statusIcon.innerHTML = '<div class="success-icon">✓</div>';
+          statusTitle.textContent = 'Authorization Complete';
+          statusMessage.textContent = 'Authorization successful! This window will close automatically.';
+        }
+
+        function showError(message) {
+          statusIcon.innerHTML = '<div class="error-icon">✗</div>';
+          statusTitle.textContent = 'Authorization Failed';
+          statusMessage.textContent = message || 'Authorization failed';
+          closeButton.style.display = 'inline-block';
+        }
+
+        function processCallback() {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+
+            if (error) {
+              showError(errorDescription || error || 'Authorization failed');
+              
+              // Send error to parent window
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'OAUTH_ERROR',
+                  error: errorDescription || error || 'Authorization failed'
+                }, window.location.origin);
+              }
+              
+              // Close window after a delay
+              setTimeout(function() {
+                window.close();
+              }, 3000);
+              
+            } else if (code) {
+              showSuccess();
+              
+              // Send success to parent window
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'OAUTH_SUCCESS',
+                  code: code,
+                  state: state
+                }, window.location.origin);
+              }
+              
+              // Close window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 1500);
+              
+            } else {
+              showError('No authorization code received');
+              
+              // Send error to parent window
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'OAUTH_ERROR',
+                  error: 'No authorization code received'
+                }, window.location.origin);
+              }
+              
+              // Close window after a delay
+              setTimeout(function() {
+                window.close();
+              }, 3000);
+            }
+          } catch (err) {
+            console.error('Error processing authorization callback:', err);
+            showError('Error processing authorization');
+            
+            // Send error to parent window
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'OAUTH_ERROR',
+                error: 'Error processing authorization'
+              }, window.location.origin);
+            }
+            
+            // Close window after a delay
+            setTimeout(function() {
+              window.close();
+            }, 3000);
+          }
+        }
+
+        // Process the callback when the page loads
+        processCallback();
+      })();
+    </script>
+  </body>
+</html>

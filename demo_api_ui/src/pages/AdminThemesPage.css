@@ -1,0 +1,95 @@
+/* AdminThemesPage (see skill: vertical-theme-zones) */
+.admin-themes-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.atp-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
+
+.atp-sub {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 20px;
+  max-width: 620px;
+}
+
+.atp-vertical {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.atp-vertical-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+}
+
+.atp-vertical-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.atp-caret {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.atp-reset-all {
+  font-size: 0.75rem;
+  color: #475569;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.atp-reset-all:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.atp-vertical-body {
+  padding: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Loading skeleton */
+.atp-skeleton-row {
+  height: 56px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  margin-bottom: 10px;
+  animation: atp-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes atp-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.atp-empty {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+}

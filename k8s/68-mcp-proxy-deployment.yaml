@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-proxy
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-proxy
+spec:
+  # Off by default to conserve namespace quota. Bring up on demand via
+  # `kubectl -n ai-demo scale deployment/mcp-proxy --replicas=1`.
+  replicas: 0
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-proxy
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-proxy
+    spec:
+      containers:
+      - name: mcp-proxy
+        image: ai-demo-mcp-proxy:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8895
+          name: http
+        env:
+        - name: PORT
+          value: "8895"
+        - name: MCP_GATEWAY_HTTP_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ai-demo-config
+              key: MCP_GATEWAY_HTTP_URL
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8895
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-proxy
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-proxy
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8895
+    targetPort: 8895
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: mcp-proxy

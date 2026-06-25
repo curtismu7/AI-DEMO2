@@ -1,0 +1,233 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="MFA deviceAuthentication Flow" id="mfa-device-auth-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — MFA deviceAuthentication Flow (PingOne Direct API)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1360" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- RFC Annotations -->
+        <mxCell id="rfc-note" value="RFC References: OAuth 2.0 Security Best Practices (draft-08) • PingOne deviceAuthentications API • RFC 8707 Resource Indicators" style="text;html=1;strokeColor=none;fillColor=#f8f9fa;rounded=1;fontSize=10;fontStyle=2;align=center;" vertex="1" parent="1">
+          <mxGeometry x="20" y="36" width="1360" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Actor header boxes ───────────────────────────────────── -->
+        <mxCell id="actor-agent" value="&lt;b&gt;AI Agent&lt;/b&gt;&lt;br&gt;BankingAgent.js" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="265" y="65" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-p1" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;auth.pingone.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="490" y="65" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-user" value="&lt;b&gt;User&lt;/b&gt;&lt;br&gt;React SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="715" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-device" value="&lt;b&gt;User Device&lt;/b&gt;&lt;br&gt;OTP/Push/FIDO2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Lifelines ─────────────────────────────────────────────── -->
+        <!-- Agent x=125 -->
+        <mxCell id="life-agent" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="111" as="sourcePoint"/>
+            <mxPoint x="125" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- BFF x=345 -->
+        <mxCell id="life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="111" as="sourcePoint"/>
+            <mxPoint x="345" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- PingOne x=570 -->
+        <mxCell id="life-p1" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="111" as="sourcePoint"/>
+            <mxPoint x="570" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- User x=790 -->
+        <mxCell id="life-user" style="endArrow=none;dashed=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="111" as="sourcePoint"/>
+            <mxPoint x="790" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- Device x=1015 -->
+        <mxCell id="life-device" style="endArrow=none;dashed=1;strokeColor=#b85450;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1015" y="111" as="sourcePoint"/>
+            <mxPoint x="1015" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Flow Steps ───────────────────────────────────────────── -->
+        
+        <!-- 1. Agent requests sensitive operation -->
+        <mxCell id="step1-request" value="1. Agent requests sensitive operation&lt;br&gt;(e.g., get_sensitive_account_details)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step1-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="170" as="sourcePoint"/>
+            <mxPoint x="345" y="170" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. BFF checks ACR and triggers MFA -->
+        <mxCell id="step2-check" value="2. Check user ACR&lt;br&gt;acr != Multi_factor ?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="190" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2-decision" value="Yes → Initiate MFA" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="310" y="240" width="70" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2-arrow-down" style="endArrow=block;startArrow=none;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="230" as="sourcePoint"/>
+            <mxPoint x="345" y="240" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. Initiate deviceAuthentication -->
+        <mxCell id="step3-initiate" value="3. POST /deviceAuthentications&lt;br&gt;{ user: { id: userId }, policy: { id: policyId } }&lt;br&gt;Authorization: Bearer {userAccessToken}&lt;br&gt;&lt;b&gt;RFC: OAuth 2.0 Security Best Current Practice&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="270" y="310" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step3-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="290" as="sourcePoint"/>
+            <mxPoint x="570" y="290" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. PingOne returns challenge -->
+        <mxCell id="step4-challenge" value="4. Return deviceAuth challenge&lt;br&gt;{ id: daId, status: DEVICE_SELECTION_REQUIRED, _embedded: { devices: [] } }&lt;br&gt;&lt;b&gt;PingOne deviceAuthentications API&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="330" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step4-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#666666;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="370" as="sourcePoint"/>
+            <mxPoint x="345" y="370" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Show device selection to user -->
+        <mxCell id="step5-devices" value="5. Present device selection UI&lt;br&gt;Available devices from PingOne" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="390" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step5-arrow-user" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="430" as="sourcePoint"/>
+            <mxPoint x="790" y="430" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. User selects device -->
+        <mxCell id="step6-select" value="6. User selects device&lt;br&gt;(e.g., Authenticator App)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="450" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step6-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#6c8ebf;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="490" as="sourcePoint"/>
+            <mxPoint x="345" y="490" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. Select device in PingOne -->
+        <mxCell id="step7-select" value="7. PUT /deviceAuthentications/{daId}&lt;br&gt;{ selectedDevice: { id: deviceId } }&lt;br&gt;Authorization: Bearer {userAccessToken}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="270" y="510" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step7-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="560" as="sourcePoint"/>
+            <mxPoint x="570" y="560" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. PingOne responds with method -->
+        <mxCell id="step8-method" value="8. Return method-specific challenge&lt;br&gt;{ status: OTP_REQUIRED | PUSH_CONFIRMATION_REQUIRED | ASSERTION_REQUIRED }&lt;br&gt;&lt;b&gt;Device Authentication Flow&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="530" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step8-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#666666;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="590" as="sourcePoint"/>
+            <mxPoint x="345" y="590" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. Present MFA method to user -->
+        <mxCell id="step9-present" value="9. Present MFA method UI&lt;br&gt;OTP entry / Push waiting / FIDO2 prompt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="610" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step9-arrow-device" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="650" as="sourcePoint"/>
+            <mxPoint x="1015" y="650" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10. User completes MFA -->
+        <mxCell id="step10-complete" value="10. User completes MFA&lt;br&gt;• OTP: Enter code&lt;br&gt;• Push: Approve on device&lt;br&gt;• FIDO2: Use biometric/key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="945" y="670" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step10-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#b85450;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1015" y="730" as="sourcePoint"/>
+            <mxPoint x="345" y="730" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11. Submit MFA response -->
+        <mxCell id="step11-submit" value="11. PUT /deviceAuthentications/{daId}&lt;br&gt;{ selectedDevice: { id: deviceId, otp: &quot;123456&quot; } }&lt;br&gt;or FIDO2 assertion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="270" y="750" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step11-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="800" as="sourcePoint"/>
+            <mxPoint x="570" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 12. Final success -->
+        <mxCell id="step12-success" value="12. Return COMPLETED status&lt;br&gt;User successfully authenticated&lt;br&gt;&lt;b&gt;Security: Multi-factor achieved&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="770" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step12-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#666666;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="830" as="sourcePoint"/>
+            <mxPoint x="345" y="830" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 13. Continue with original request -->
+        <mxCell id="step13-continue" value="13. Continue original operation&lt;br&gt;with elevated ACR context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="850" width="140" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="step13-arrow-final" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="880" as="sourcePoint"/>
+            <mxPoint x="125" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 14. Return result to agent -->
+        <mxCell id="step14-result" value="14. Return operation result&lt;br&gt;(account details, etc.)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="860" width="130" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Security Annotations -->
+        <mxCell id="security-annotation" value="🔒 Security Notes:&lt;br&gt• User access token never leaves BFF&lt;br&gt• Device authentication uses policy-based MFA&lt;br&gt• Supports OTP, Push, FIDO2/WebAuthn&lt;br&gt• ACR elevated from password to Multi_factor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#666666;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="400" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

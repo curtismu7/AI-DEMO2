@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pydantic-agent
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: pydantic-agent
+spec:
+  # Off by default to conserve namespace quota. langchain-agent is the always-on
+  # runtime; bring this one up on demand via `./k8s/deploy.sh agent pydantic`.
+  replicas: 0
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: pydantic-agent
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: pydantic-agent
+    spec:
+      containers:
+      - name: pydantic-agent
+        image: ai-demo-pydantic-agent:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8893
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "development"
+        - name: BFF_BASE_URL
+          value: "https://demo-api-server:3001"
+        - name: MCP_SERVER_URL
+          value: "ws://mcp-server:8080"
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8893
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pydantic-agent
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: pydantic-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8893
+    targetPort: 8893
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: pydantic-agent

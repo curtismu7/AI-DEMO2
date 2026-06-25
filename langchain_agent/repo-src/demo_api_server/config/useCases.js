@@ -1,0 +1,657 @@
+'use strict';
+
+/**
+ * Use-Case Catalog — single source of truth (Plan A · Phase A1).
+ * Demo launcher, audit table, docs generator, and organic useCaseId tagging
+ * all derive from this file. Content is transcribed from the design spec
+ * docs/superpowers/specs/2026-06-20-ai-agent-security-use-cases-design.md.
+ *
+ * @typedef {{type:'chip',text:string}|{type:'attack',sim:string}} Trigger
+ * @typedef {{tokenChain:string[],activity:string[]}} Evidence
+ * @typedef {{threats:string[],sections:string[]}} Owasp
+ * @typedef {Object} UseCase
+ * @property {string} id            e.g. 'UC7'
+ * @property {string} useCaseId     slug, e.g. 'step-up-required'
+ * @property {'foundations'|'controls'|'attacks'|'hitl'} track
+ * @property {string} title
+ * @property {string} buyerStory
+ * @property {string} pingOneSolution
+ * @property {Trigger} trigger
+ * @property {string} expectedOutcome
+ * @property {Evidence} evidence
+ * @property {string[]} codeRefs
+ * @property {string} maturity      'works' | 'needs-console-import' | 'needs-build' | 'flag:<name>'
+ * @property {Owasp} owasp
+ * @property {string} whatToSay
+ * @property {boolean} advanced
+ * @property {Object<string, Partial<UseCase> & {thresholds?:object}>} [perVertical]
+ */
+
+const VERTICALS = [
+  'banking', 'healthcare', 'retail', 'government',
+  'university', 'workforce', 'sporting-goods', 'manufacturing',
+];
+
+/** @type {UseCase[]} */
+const RAW_USE_CASES = [
+  // --- FOUNDATIONS ---
+  {
+    id: 'UC1',
+    useCaseId: 'delegated-access-with-proof',
+    track: 'foundations',
+    title: 'Delegated access with proof',
+    buyerStory: "Every agent action must trace back to a real human — no anonymous agent access.",
+    pingOneSolution: 'RFC 8693 token exchange mints a delegated token carrying act={agent}; the gateway and Authorize verify the chain.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3', '§8'] },
+    whatToSay: 'The agent acted for you, and the act claim proves it — fully attributable.',
+    advanced: false,
+    match: { tool: 'get_balance' },
+    whatLong: "An AI agent calls a financial tool on the user's behalf — but without proof of delegation, the action is invisible and unattributable. This scenario shows the complete RFC 8693 token-exchange chain: user token → delegated agent token carrying act={agent} → gateway validation → Authorize decision → tool.",
+    businessValue: 'Every agent action is cryptographically tied to the user who authorized it. Audit teams get a full chain of custody from user login to tool call — no hand-rolled attribution, no guesswork.',
+    productRoles: {
+      idp:   'Authenticates the user and mints the delegated token via RFC 8693 exchange, embedding the act claim.',
+      gw:    'Validates the token (aud, exp, act) and routes the call only after a PERMIT decision.',
+      authz: 'Evaluates the act claim and delegation chain; returns PERMIT for a valid actor.',
+    },
+    primaryTool: 'get_account_balance',
+  },
+  {
+    id: 'UC2',
+    useCaseId: 'a2a-delegation',
+    track: 'foundations',
+    title: 'A2A delegation',
+    buyerStory: "A generalist agent handing off to a specialist must carry proof of the original user's authorization through the entire chain.",
+    pingOneSolution: 'PingOne mints a nested-act delegated token for the specialist; scope is narrowed at each hop.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'a2a-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/a2aTokenService.js', 'demo_api_server/routes/a2a.js'],
+    maturity: 'flag:ff_a2a_delegation',
+    owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
+    whatToSay: 'Generalist hands off to specialist — the nested act claim shows the full chain back to the user.',
+    advanced: false,
+    whatLong: "A generalist AI agent hands a task to a specialist sub-agent. Without enforced delegation chains, the specialist acts with the original user's full authority — no narrowing, no proof of the handoff. This scenario demonstrates nested-act token exchange so each hop is attributable and scoped.",
+    businessValue: 'Multi-agent pipelines stay governed end-to-end. Each specialist inherits only the scope the handoff explicitly granted — least privilege across agent hops, with the full chain visible in the token.',
+    productRoles: {
+      idp:   'Mints a nested-act delegated token for the specialist, narrowing scope at each exchange hop.',
+      authz: 'Evaluates the full act chain at each hop; denies if any link is unauthorized.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC3',
+    useCaseId: 'may-act-gate',
+    track: 'foundations',
+    title: 'may_act gate',
+    buyerStory: "An agent should only be allowed to act on a user's behalf if that user explicitly authorized it.",
+    pingOneSolution: "PingOne evaluates the user's may_act attribute; without a match the exchange is denied.",
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision'], activity: ['token', 'authorize'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_api_server/services/oauthService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T3', 'T13'], sections: ['§4.1.1'] },
+    whatToSay: "The user's may_act attribute is the gate — no authorization, no exchange.",
+    advanced: false,
+    whatLong: "A user's may_act attribute controls which agents may act on their behalf. Without it, any agent that obtains a valid token can call the exchange endpoint and act as the user. This scenario demonstrates the PingOne attribute gate — the exchange is denied when the requesting agent is not listed.",
+    businessValue: 'Users control which agents can act for them. The gate is enforced at the authorization server — no per-app code required — so adding or revoking agent authorization is a config change, not a deployment.',
+    productRoles: {
+      idp:   "Evaluates the user's may_act attribute during token exchange; denies the exchange if the agent is not authorized.",
+      authz: 'Evaluates delegation eligibility as a policy step before the tool call is allowed.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC19',
+    useCaseId: 'agent-identity-lifecycle',
+    track: 'foundations',
+    title: 'Non-human (agent) identity lifecycle',
+    buyerStory: "Calls from a retired or orphaned agent identity should fail — agent identities need a full lifecycle just like human ones.",
+    pingOneSolution: 'PingOne manages the agent app as a first-class identity; rotating or retiring the client credential blocks all subsequent calls.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['token-exchange'], activity: ['token'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T9', 'T13'], sections: ['§3.3.6', '§8'] },
+    whatToSay: 'The agent app was retired — its credential no longer mints tokens, so the call dies at the exchange step.',
+    advanced: false,
+    whatLong: "A retired or orphaned agent application still holds credentials. Without lifecycle management, those credentials remain valid indefinitely. This scenario demonstrates what happens when the agent app's client credential is revoked in PingOne — subsequent token exchange requests fail, cutting off all tool access immediately.",
+    businessValue: 'Agent identities are managed with the same lifecycle rigor as human identities. Retiring a credential in PingOne is instant and complete — no per-tool, per-API, or per-service cleanup required.',
+    productRoles: {
+      idp:   'Manages the agent app as a first-class identity; disabling or rotating the credential blocks all subsequent token exchanges.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC20',
+    useCaseId: 'audit-trail',
+    track: 'foundations',
+    title: 'Audit trail / traceability',
+    buyerStory: "Every agent action must be attributable end-to-end — who the agent was, who it acted for, and what it did.",
+    pingOneSolution: 'Every token event and activity log is stamped with useCaseId and the act chain; both evidence panels reconstruct the full trace.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_api_server/services/appEventService.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T8'], sections: ['§3.3.3', '§8'] },
+    whatToSay: 'Every step is logged with useCaseId and the act chain — the full trace is always reconstructable.',
+    advanced: false,
+    whatLong: 'After every agent action, there must be a complete, reconstructable audit trail: who the agent was, who authorized it, what it did, and what the policy decided. This scenario demonstrates the full trace — from user login through token exchange, Authorize decision, and tool dispatch — surfaced in the evidence panels.',
+    businessValue: 'Compliance and incident response depend on traceable agent actions. The useCaseId, act chain, and decision outcome are stamped on every event — building a complete, immutable audit trail without any application-layer instrumentation.',
+    productRoles: {
+      idp:   'Stamps the act chain on every token event; the exchange history is the attribution record.',
+      gw:    'Logs the tool call, the acting agent, and the Authorize decision outcome.',
+      authz: 'Records the policy decision (PERMIT/DENY/STEP_UP) for every evaluated request.',
+    },
+    primaryTool: null,
+  },
+
+  // --- CONTROLS ---
+  {
+    id: 'UC4',
+    useCaseId: 'overscoped-agent',
+    track: 'controls',
+    title: 'Overscoped agent',
+    buyerStory: "An agent holding more scope than the task needs is a standing privilege-escalation risk.",
+    pingOneSolution: 'The scope topology surfaces the mismatch; least-privilege hygiene narrows the token to only what the tool requires.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision'], activity: ['token', 'authorize'] },
+    codeRefs: ['demo_api_server/config/scopes.js', 'demo_api_server/services/agentMcpTokenService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T3'], sections: ['§5.1'] },
+    whatToSay: 'The agent asked for write when it only needed read — least-privilege narrows it before any tool runs.',
+    advanced: false,
+    whatLong: 'An agent requests broader OAuth scopes than the task actually needs — for example, write scope to perform a read-only operation. This creates a standing privilege that can be exploited if the token is stolen or the agent misbehaves. The scenario surfaces the mismatch using the scope topology.',
+    businessValue: "Least-privilege enforcement catches scope bloat before it becomes a risk. Security teams can audit every agent's effective scope against what the tools actually require — with a single canonical topology file as the source of truth.",
+    productRoles: {
+      idp:   'Issues the token with the scopes the agent requested; the topology then surfaces any excess.',
+      authz: 'Evaluates scope requirements per tool; a token carrying only the needed scope is the correct posture.',
+      gw:    'Enforces the required scopes at the gateway boundary — excess scope is harmless here but the mismatch is visible.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC6',
+    useCaseId: 'authz-denied',
+    track: 'controls',
+    title: 'Authz denied',
+    buyerStory: "A policy-violating agent action — like an amount over the limit — must be denied before the tool executes.",
+    pingOneSolution: 'PingOne Authorize evaluates the request and returns DENY; the gateway stops the call.',
+    trigger: { type: 'chip', text: 'transfer $2500 to savings' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: '$2500 exceeds the policy ceiling — Authorize returns DENY before the transfer runs.',
+    advanced: false,
+    match: { tool: 'create_transfer', amountMin: 2000.01 },
+    whatLong: 'An agent attempts a transaction that exceeds a hard policy ceiling — for example, a $2,500 transfer. The Authorize engine evaluates the request before the tool runs and returns DENY. The gateway stops the call; no money moves.',
+    businessValue: 'Policy enforcement is externalized and instant. Changing the deny ceiling is a rule edit — not a code change — and takes effect immediately across every agent and every channel.',
+    productRoles: {
+      idp:   'Issues the delegated token the agent presents at the gateway.',
+      gw:    'Forwards the request to Authorize; stops the tool call on DENY.',
+      authz: 'Evaluates the transaction amount against the ceiling rule and returns DENY.',
+    },
+    primaryTool: 'create_transfer',
+    perVertical: {
+      healthcare: {
+        trigger: { type: 'chip', text: 'pay my $2500 specialist claim' },
+        whatToSay: '$2500 claim payment exceeds the policy ceiling — Authorize returns DENY.',
+      },
+    },
+  },
+  {
+    id: 'UC7',
+    useCaseId: 'step-up-required',
+    track: 'hitl',
+    title: 'Step-up required',
+    buyerStory: "A high-value agent action shouldn't go through on the agent's say-so alone.",
+    pingOneSolution: 'PingOne Authorize returns a step-up obligation → MFA before PERMIT.',
+    trigger: { type: 'chip', text: 'transfer $600 to savings' },
+    expectedOutcome: 'STEP_UP',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_api_server/services/authorizeObligations.js'],
+    maturity: 'works',
+    owasp: { threats: ['T10', 'T3'], sections: ['§3.1.5', '§5.6'] },
+    whatToSay: '$600 >= $500 → MFA required, then it proceeds.',
+    advanced: false,
+    match: { tool: 'create_transfer', amountMin: 500, amountMax: 2000 },
+    whatLong: 'An agent attempts a mid-range transfer ($600). The amount clears the step-up threshold but not the hard deny ceiling. Authorize returns a step-up obligation — the agent must pause, the user must satisfy MFA, and only then does the policy re-evaluate to PERMIT.',
+    businessValue: 'High-value actions get a proportional gate. Step-up is policy-driven, not hard-coded: the threshold is a rule you change in the Authorize console without redeploying anything.',
+    productRoles: {
+      idp:   'Authenticates the user and mints the delegated agent token.',
+      gw:    'Receives the step-up obligation from Authorize; holds the call until the MFA receipt is presented.',
+      authz: 'Returns the STEP_UP obligation for the mid-range amount; re-evaluates to PERMIT after MFA.',
+      mfa:   'Delivers the step-up challenge; the success receipt is presented back to the policy for re-evaluation.',
+    },
+    primaryTool: 'create_transfer',
+    perVertical: {
+      healthcare: {
+        trigger: { type: 'chip', text: 'pay my $600 specialist claim' },
+        whatToSay: '$600 claim payment >= the step-up bar → MFA required first.',
+      },
+    },
+  },
+  {
+    id: 'UC8',
+    useCaseId: 'hitl-consent',
+    track: 'hitl',
+    title: 'HITL consent',
+    buyerStory: "Some agent actions are consequential enough to require a human approval — not just an MFA tap.",
+    pingOneSolution: 'PingOne Authorize returns a HITL obligation; the agent pauses until a verified human approval receipt is received.',
+    trigger: { type: 'chip', text: 'transfer $300 to savings' },
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp', 'hitl'] },
+    codeRefs: ['demo_api_server/services/authorizeObligations.js', 'demo_api_server/routes/hitl.js'],
+    maturity: 'works',
+    owasp: { threats: ['T10'], sections: ['§3.1.5', '§8'] },
+    whatToSay: 'The agent paused and waited — the transfer only ran after you approved it.',
+    advanced: false,
+    match: { tool: 'create_transfer', amountMin: 250, amountMax: 499.99 },
+    whatLong: 'An agent attempts a transfer that requires more than a user tap — a full human-in-the-loop approval. Authorize returns a HITL obligation; the agent is forced to pause and surface a consent modal. Only after the user explicitly approves is the action retried and PERMIT returned.',
+    businessValue: 'Consequential agent actions are gated on verified human consent — not inferred intent. The approval is policy-triggered and auditable, with a cryptographic receipt tying the consent to the eventual tool call.',
+    productRoles: {
+      idp:   'Mints the delegated token the agent uses to call the gateway.',
+      gw:    'Receives the HITL obligation; blocks the tool until the agent presents a HITL receipt.',
+      authz: 'Returns the HITL obligation; re-evaluates to PERMIT only when HitlApproved=true is presented.',
+    },
+    primaryTool: 'create_transfer',
+    perVertical: {
+      healthcare: {
+        trigger: { type: 'chip', text: 'pay my $300 specialist claim' },
+        whatToSay: '$300 claim payment requires human consent before it runs.',
+      },
+    },
+  },
+  {
+    id: 'UC9',
+    useCaseId: 'group-entitlement-check',
+    track: 'controls',
+    title: 'Group / entitlement check',
+    buyerStory: "An agent acting for a user who is not in the required group must be denied, regardless of the token's scopes.",
+    pingOneSolution: 'PingOne Authorize evaluates the user group membership claim and returns DENY when the user is not entitled.',
+    trigger: { type: 'chip', text: 'transfer $600 to savings' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
+    codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
+    maturity: 'flag:ff_authorize_group_policy',
+    owasp: { threats: ['T3'], sections: ['§4.1.1'] },
+    whatToSay: "The user isn't in the required group — Authorize denies regardless of scopes.",
+    advanced: false,
+    whatLong: "A user who is not a member of the required PingOne group attempts an action that requires that membership. The Authorize policy evaluates the group claim in the token and returns DENY — regardless of whether the token's scopes would otherwise permit the action.",
+    businessValue: 'Group-based entitlement decisions are centralized in policy, not scattered across services. Adding a user to a group in PingOne immediately expands what their agent can do — no code change, no cache invalidation.',
+    productRoles: {
+      idp:   "Includes the user's group membership claim in the token.",
+      authz: 'Evaluates the group claim against the entitlement rule; returns DENY when the user is not a member.',
+      gw:    'Enforces the DENY returned by Authorize before any tool is dispatched.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC21',
+    useCaseId: 'entitlement-tiered-capability',
+    track: 'controls',
+    title: 'Entitlement-tiered capability',
+    buyerStory: "A premium-tier user's agent should have access to higher-value tools; a standard user's agent should not even see them.",
+    pingOneSolution: "PingOne group membership drives a per-tier tool set and amount limits; the user's tier expands what the agent may do.",
+    trigger: { type: 'chip', text: 'transfer $600 to savings' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T3'], sections: ['§4.1.1', '§5.1'] },
+    whatToSay: "Private Banking tier gets wire tools and a higher limit; Standard tier's agent is not offered them.",
+    advanced: false,
+    whatLong: "A Private Banking tier user's agent should have access to higher-value tools and limits; a Standard tier user's agent should not even be offered them. PingOne group membership drives the tier — the agent's available tool set and limits expand with the user's entitlement tier.",
+    businessValue: "Tiered entitlement is policy-driven, not hard-coded. Promoting a user to a higher tier in PingOne immediately changes what their agent can do — with no code change and no redeploy.",
+    productRoles: {
+      idp:   "Includes the user's tier group membership claim in the token.",
+      authz: 'Evaluates the tier claim against the entitlement rule; adjusts the permitted tool set and limits.',
+      gw:    'Enforces the per-tier decision from Authorize before dispatching tool calls.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC22',
+    useCaseId: 'ciba-out-of-band-approval',
+    track: 'hitl',
+    title: 'CIBA out-of-band approval',
+    buyerStory: "A high-value action should be approvable on the user's separate device, not just in the same browser session.",
+    pingOneSolution: 'PingOne CIBA sends a backchannel auth request; the agent polls for the auth_req_id and proceeds only after the user approves on their device.',
+    trigger: { type: 'chip', text: 'transfer $600 to savings' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
+    codeRefs: ['demo_api_server/services/cibaService.js', 'demo_api_server/routes/ciba.js'],
+    maturity: 'flag:ff_ciba',
+    owasp: { threats: ['T10'], sections: ['§3.1.5'] },
+    whatToSay: 'The approval came from the user\'s phone — a decoupled, out-of-band confirmation distinct from in-app step-up.',
+    advanced: false,
+    whatLong: "A high-value action requires approval on the user's separate device — not in the same browser session. PingOne CIBA (Client-Initiated Backchannel Authentication) sends an out-of-band approval request; the agent polls for the result and proceeds only after the user approves on their phone.",
+    businessValue: 'Out-of-band approval is meaningfully stronger than in-session step-up — a compromised browser cannot self-approve. CIBA is natively supported by PingOne; no custom push notification infrastructure is needed.',
+    productRoles: {
+      idp:   "Receives the CIBA auth_req_id request and delivers the approval challenge to the user's device.",
+      authz: 'Evaluates the CIBA approval receipt; returns PERMIT only after the user has approved out-of-band.',
+      gw:    'Holds the tool call until the agent presents the CIBA approval receipt.',
+      mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
+    },
+    primaryTool: null,
+  },
+
+  // --- ATTACKS ---
+  {
+    id: 'UC5',
+    useCaseId: 'insufficient-scope',
+    track: 'attacks',
+    title: 'Wrong / insufficient scope',
+    buyerStory: "An agent with the wrong scope should never reach the tool — scope enforcement is the last line of defense.",
+    pingOneSolution: 'The MCP server validates required scopes before dispatching; a token missing a required scope yields DENY.',
+    trigger: { type: 'attack', sim: 'insufficient-scope' },
+    expectedOutcome: 'DENY_403',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp'] },
+    codeRefs: ['demo_mcp_server/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T2', 'T3'], sections: ['§5.1'] },
+    whatToSay: 'The token had read scope, the tool needed write — scope enforcement stopped it cold.',
+    advanced: false,
+    whatLong: "An agent's token is missing a required scope — for example, a read-only token attempting a write tool call. Scope enforcement at the gateway is the last line of defense: the tool must never execute if the token cannot satisfy its scope requirement.",
+    businessValue: 'Scope enforcement is automatic and centralized. No tool needs to re-validate scopes in application code — the gateway and MCP server enforce the topology contract before dispatch.',
+    productRoles: {
+      idp:   'Issues the token with only the scopes the agent was granted.',
+      gw:    'Checks required scopes against the token before routing; returns DENY_403 on mismatch.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC10',
+    useCaseId: 'cross-owner-account',
+    track: 'attacks',
+    title: 'Resource-ownership / account takeover',
+    buyerStory: "An agent must never act on another user's resources — even with a valid token.",
+    pingOneSolution: 'PingOne Authorize binds the resource to the token subject; a cross-owner request is denied.',
+    trigger: { type: 'attack', sim: 'cross-owner-account' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/simulatedAuthorizeService.js', 'demo_authz_server/routes/decision.js'],
+    maturity: 'works',
+    owasp: { threats: ['T3'], sections: ['§2.2.1', '§4.2.2'] },
+    whatToSay: "The agent tried to read another user's account — Authorize matched the resource owner and denied it.",
+    advanced: false,
+    whatLong: "An agent presents a valid delegated token but attempts to read an account belonging to a different user. The Authorize policy binds the resource to the token subject — even a valid, scoped, properly-delegated token is denied if the requested resource belongs to someone else.",
+    businessValue: 'Resource-ownership checks are automatic and policy-driven. Applications do not need to implement owner checks in business logic — Authorize enforces them for every agent call, without exception.',
+    productRoles: {
+      idp:   'Issues the token with the subject (user) claim that Authorize checks against the resource owner.',
+      authz: 'Binds the resource to the token sub; returns DENY on an ownership mismatch.',
+      gw:    'Stops the tool call on DENY before any data is returned.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC11',
+    useCaseId: 'bad-client-gateway',
+    track: 'attacks',
+    title: 'Bad client → agent gateway',
+    buyerStory: 'A malformed or stolen token must never reach the tools.',
+    pingOneSolution: 'The gateway validates aud/exp/iss/nbf before any routing; a bad token is rejected with 401.',
+    trigger: { type: 'attack', sim: 'wrong-aud' },
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T9'], sections: ['§8', '§4.2.2'] },
+    whatToSay: 'Wrong audience → the gateway refuses it before a tool is ever touched.',
+    advanced: false,
+    whatLong: 'An agent presents a token with the wrong audience — or a malformed, expired, or incorrectly signed token. The gateway validates aud, exp, iss, and nbf before any routing occurs; the call is rejected with 401 and no tool is ever touched.',
+    businessValue: 'Token validation at the gateway perimeter means that all downstream services are shielded from malformed credentials. A single enforcement point replaces per-service token checks.',
+    productRoles: {
+      gw:    'Validates aud/exp/iss/nbf on every inbound token; rejects malformed tokens with 401 before routing.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC12',
+    useCaseId: 'token-theft-replay',
+    track: 'attacks',
+    title: 'Token theft / replay defense',
+    buyerStory: "A stolen token must be unusable — audience binding and DPoP key binding ensure it can't be replayed.",
+    pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally; DPoP key binding adds a proof-of-possession check when enabled.',
+    trigger: { type: 'attack', sim: 'replayed-token' },
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/dpopKeyService.js'],
+    maturity: 'flag:ff_dpop',
+    owasp: { threats: ['T9'], sections: ['§3.2.8', '§4.2.3'] },
+    whatToSay: 'Audience binding is unconditional; with DPoP on, a stolen token without the private key is worthless.',
+    advanced: false,
+    whatLong: "A valid delegated token is stolen and replayed by a different party. Audience binding means the token is only accepted by the specific gateway it was minted for — it cannot be used against a different endpoint. When DPoP is enabled, a cryptographic key-binding check is also enforced.",
+    businessValue: 'Audience binding is free and always on. DPoP adds key-binding so a stolen token without the private key is useless — two layers of replay defense without application changes.',
+    productRoles: {
+      idp:   "Mints the token with a specific aud and — when DPoP is on — binds it to the agent's DPoP key.",
+      gw:    'Enforces aud binding unconditionally; validates the DPoP proof when the feature flag is enabled.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC13',
+    useCaseId: 'confused-deputy-actor-injection',
+    track: 'attacks',
+    title: 'Confused-deputy actor injection',
+    buyerStory: "A rogue agent forcing itself into the act claim must be caught — only the authorized actor is allowed.",
+    pingOneSolution: 'The gateway and Authorize check ActClientId against the single configured authorized actor; a rogue actor is denied.',
+    trigger: { type: 'attack', sim: 'rogue-actor' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
+    maturity: 'works',
+    owasp: { threats: ['T13'], sections: ['§4.2.2'] },
+    whatToSay: 'The act claim named a rogue client — the authorized-actor check blocked it immediately.',
+    advanced: false,
+    whatLong: 'A rogue agent injects itself into the act claim, claiming to be the authorized actor. The gateway and Authorize policy both check the ActClientId claim against the single configured authorized actor client ID — an unrecognized actor is denied immediately.',
+    businessValue: 'One configuration — the authorized actor client ID — locks down which agent may act on users behalf. No rogue actor can forge its way into the delegation chain.',
+    productRoles: {
+      gw:    'Extracts the act.sub claim and forwards it to Authorize as ActClientId.',
+      authz: 'Checks ActClientId against the configured authorized actor; returns DENY for any other value.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC14',
+    useCaseId: 'rar-intent-violation',
+    track: 'attacks',
+    title: 'RAR intent violation',
+    buyerStory: "An agent that exceeds the amount or payee granted in its Rich Authorization Request must be denied.",
+    pingOneSolution: 'PingOne Authorize evaluates authorization_details; exceeding the granted amount or payee yields DENY.',
+    trigger: { type: 'attack', sim: 'rar-exceeded' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/intentTokenService.js', 'demo_authz_server/routes/decision.js'],
+    maturity: 'flag:ff_rar',
+    owasp: { threats: ['T6'], sections: ['RFC 9396', '§3.1.7'] },
+    whatToSay: 'The agent tried to transfer more than the RAR granted — Authorize caught the overage and denied it.',
+    advanced: true,
+    whatLong: 'An agent was authorized via a Rich Authorization Request (RFC 9396) for a specific amount and payee. It then attempts a transfer that exceeds the granted authorization_details. Authorize evaluates the RAR context and returns DENY when the actual request exceeds the intent.',
+    businessValue: 'RAR ties authorization to a specific intent — amount, payee, purpose. An agent cannot exceed what the user explicitly approved, even if the token scopes would otherwise allow it.',
+    productRoles: {
+      idp:   'Mints the token with the authorization_details claim encoding the approved intent.',
+      authz: 'Compares the live request parameters against the RAR grant; returns DENY on overage.',
+      gw:    'Forwards the intent context to Authorize and enforces the DENY.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC15',
+    useCaseId: 'intent-token-tampering',
+    track: 'attacks',
+    title: 'Intent-token tampering',
+    buyerStory: "A tampered or expired intent token must be detected before it can authorize a larger or different action.",
+    pingOneSolution: 'The gateway validates the intent token signature and expiry; a tampered or expired token is rejected.',
+    trigger: { type: 'attack', sim: 'tampered-intent-token' },
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/intentTokenService.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T6', 'T8'], sections: ['§4.2.2'] },
+    whatToSay: 'The intent token was altered — the signature check caught the tampering before any tool ran.',
+    advanced: true,
+    whatLong: 'An intent token (encoding the approved transaction parameters) is tampered with — the amount or payee is altered before the agent presents it. The gateway validates the token signature and expiry; a tampered or expired intent token is rejected before any tool runs.',
+    businessValue: 'Cryptographic signing of intent tokens means any in-flight modification is immediately detectable — even if the attacker has network access. No application code needs to verify intent integrity.',
+    productRoles: {
+      gw:    'Validates the intent token signature and expiry; rejects tampered or expired tokens with 401.',
+      idp:   'Signs the intent token at issuance, providing the cryptographic baseline for gateway validation.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC16',
+    useCaseId: 'impersonation-blocked',
+    track: 'attacks',
+    title: 'Impersonation blocked (OBO required)',
+    buyerStory: "An agent presenting a pure impersonation token — with the user as sub but no act claim — must be rejected; only on-behalf-of delegation is allowed.",
+    pingOneSolution: 'The gateway requires an act claim for agent-mediated tool calls; a missing act claim is rejected before any tool runs.',
+    trigger: { type: 'attack', sim: 'impersonation-no-act' },
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T9'], sections: ['§3.3.6', '§4.1.1'] },
+    whatToSay: 'No act claim means no attribution — the gateway rejects pure impersonation to keep every action traceable.',
+    advanced: false,
+    whatLong: 'An agent presents a token where the user is listed as sub but there is no act claim — a pure impersonation posture, not an on-behalf-of delegation. The gateway requires an act claim for all agent-mediated tool calls; a missing act claim is rejected before any tool runs.',
+    businessValue: 'Every agent action must be attributable. Requiring an act claim enforces the on-behalf-of model — preventing silent impersonation and ensuring every tool call carries a verifiable chain of custody.',
+    productRoles: {
+      gw:    'Requires an act claim on every agent-mediated tool call; rejects tokens without one.',
+      authz: 'Validates the act chain when present; this scenario demonstrates the absence case.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC17',
+    useCaseId: 'jit-ephemeral-credentials',
+    track: 'controls',
+    title: 'JIT / ephemeral credentials',
+    buyerStory: "A long-lived agent credential is a standing risk — tokens should be short-lived so a captured one is dead within minutes.",
+    pingOneSolution: 'PingOne issues delegated tokens with a tight TTL; a refresh loop ensures the agent always holds a fresh credential.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_api_server/services/oauthService.js'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T3', 'T9'], sections: ['§3.2.8', '§4.1.1'] },
+    whatToSay: 'The delegated token expires in minutes — a credential captured later is already dead.',
+    advanced: false,
+    whatLong: 'Long-lived agent credentials are a standing risk: a credential captured today is still valid tomorrow. This scenario demonstrates just-in-time ephemeral token issuance with short TTLs — a captured token expires in minutes, not days.',
+    businessValue: "Short-lived credentials are a built-in risk reducer. PingOne's token TTL configuration is the only control needed — no custom secret rotation infrastructure required.",
+    productRoles: {
+      idp:   'Issues delegated tokens with a configurable TTL; the short expiry is enforced at introspection.',
+      gw:    'Introspects every token; a token past its TTL is rejected with 401 even if its signature is valid.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC18',
+    useCaseId: 'rate-limit-defense',
+    track: 'attacks',
+    title: 'Rate-limit / resource-overload defense',
+    buyerStory: "An agent flooding the gateway with tool calls must be throttled before it exhausts resources or runs up cost.",
+    pingOneSolution: 'The agent gateway enforces per-agent / per-tool rate limits; a burst of calls is rejected with 429.',
+    trigger: { type: 'attack', sim: 'rate-limit-burst' },
+    expectedOutcome: 'DENY_429',
+    evidence: { tokenChain: ['user-token'], activity: ['gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/middleware/rateLimiter.ts'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T4'], sections: ['§4.2.3', '§8'] },
+    whatToSay: 'Burst of tool calls → gateway returns 429 and cuts off the flood.',
+    advanced: false,
+    whatLong: 'An agent floods the gateway with rapid sequential tool calls — either to exhaust resources, rack up costs, or probe policy thresholds. The gateway enforces per-agent and per-tool rate limits; calls beyond the quota are rejected with 429 before any tool is dispatched.',
+    businessValue: 'Rate limiting at the gateway perimeter protects upstream services and LLM budgets from runaway or adversarial agents — without application-layer changes.',
+    productRoles: {
+      gw:    'Enforces per-agent / per-tool rate limits; returns 429 on quota breach before any tool dispatch.',
+    },
+    primaryTool: null,
+  },
+];
+
+function deepFreeze(o) {
+  if (o && typeof o === 'object' && !Object.isFrozen(o)) {
+    Object.values(o).forEach(deepFreeze);
+    Object.freeze(o);
+  }
+  return o;
+}
+
+const USE_CASES = Object.freeze(RAW_USE_CASES.map(deepFreeze));
+
+/** Exact-id lookup. @returns {UseCase|undefined} */
+function getUseCase(id) {
+  return USE_CASES.find((u) => u.id === id);
+}
+
+/** Deep-merge a perVertical override over the base entry. @returns {UseCase|undefined} */
+function resolveUseCase(id, vertical) {
+  const base = getUseCase(id);
+  if (!base) return undefined;
+  if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
+    // Strip internal-only fields (perVertical map, match routing bands) from served entries.
+    const { perVertical, match, ...rest } = base;
+    return rest;
+  }
+  const ov = base.perVertical[vertical];
+  const merged = {
+    ...base,
+    ...ov,
+    trigger: ov.trigger ? { ...base.trigger, ...ov.trigger } : base.trigger,
+  };
+  const { perVertical, match, ...rest } = merged;
+  return rest;
+}
+
+/** All 22 entries resolved for a vertical. @returns {UseCase[]} */
+function listUseCases(vertical) {
+  return USE_CASES.map((u) => resolveUseCase(u.id, vertical));
+}
+
+/**
+ * Returns true iff `id` matches a useCaseId slug in the catalog.
+ * Use this to validate untrusted client-supplied useCaseId before stamping.
+ * @param {*} id
+ * @returns {boolean}
+ */
+function isValidUseCaseId(id) {
+  if (!id || typeof id !== 'string') return false;
+  return USE_CASES.some((u) => u.useCaseId === id);
+}
+
+/**
+ * Organic reverse-map: given a resolved tool name + args, return the useCaseId
+ * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
+ * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
+ * @returns {string|undefined}
+ */
+function deriveUseCaseId(toolName, args = {}) {
+  if (!toolName) return undefined;
+  const amount = args && args.amount != null ? Number(args.amount) : undefined;
+  // Exact tool + amount-band match first.
+  for (const u of USE_CASES) {
+    const m = u.match;
+    if (!m || m.tool !== toolName) continue;
+    if (m.amountMin != null && !(amount >= m.amountMin)) continue;
+    if (m.amountMax != null && !(amount <= m.amountMax)) continue;
+    return u.useCaseId;
+  }
+  // Fallback: a small transfer with no band match is baseline delegated access (UC1).
+  if (toolName === 'create_transfer' && amount != null && amount < 250) {
+    const uc1 = USE_CASES.find((u) => u.useCaseId === 'delegated-access-with-proof');
+    if (uc1) return uc1.useCaseId;
+  }
+  return undefined;
+}
+
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId };

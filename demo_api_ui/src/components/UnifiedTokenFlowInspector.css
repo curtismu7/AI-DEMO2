@@ -1,0 +1,1144 @@
+/* banking_api_ui/src/components/UnifiedTokenFlowInspector.css */
+
+.utfi-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, sans-serif;
+  color: #1e293b;
+}
+
+.utfi-container.utfi-floating {
+  border: 1px solid #d1d5db;
+}
+
+.utfi-container.utfi-fixed {
+  border: 1px solid #e5e7eb;
+}
+
+/* ============================================================================
+ * HEADER
+ * ============================================================================ */
+
+.utfi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: grab;
+}
+
+.utfi-header:active {
+  cursor: grabbing;
+}
+
+.utfi-header-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.utfi-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.utfi-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 400;
+}
+
+.utfi-header-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.utfi-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.utfi-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+.utfi-btn:active {
+  background: #e5e7eb;
+}
+
+.utfi-btn-close {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
+.utfi-btn-close:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.utfi-btn-primary {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.utfi-btn-primary:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.utfi-btn-sm {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  background: transparent;
+  color: #1e293b;
+}
+
+.utfi-btn-sm:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+/* ============================================================================
+ * MAIN CONTENT LAYOUT
+ * ============================================================================ */
+
+.utfi-content {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.utfi-left {
+  overflow-y: auto;
+  padding: 16px;
+  border-right: 1px solid #e5e7eb;
+}
+
+.utfi-right {
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.utfi-divider {
+  background: #e5e7eb;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 1200px) {
+  .utfi-content {
+    grid-template-columns: 1fr;
+  }
+
+  .utfi-left {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .utfi-divider {
+    display: none;
+  }
+}
+
+/* ============================================================================
+ * SECTION HEADERS
+ * ============================================================================ */
+
+.utfi-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 16px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.utfi-section-icon {
+  font-size: 20px;
+}
+
+.utfi-section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.utfi-tool-name {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: #eff6ff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.utfi-status-badges {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================================
+ * CARDS & SECTIONS
+ * ============================================================================ */
+
+.utfi-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.utfi-card:hover {
+  background: #fafafa;
+  border-color: #d1d5db;
+}
+
+.utfi-card--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.utfi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  cursor: pointer;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.utfi-card-header:hover {
+  background: #f1f5f9;
+}
+
+.utfi-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.utfi-toggle-icon {
+  color: #334155;
+  font-size: 12px;
+  transition: color 0.2s ease;
+}
+
+.utfi-card-header:hover .utfi-toggle-icon {
+  color: #334155;
+}
+
+.utfi-card-content {
+  padding: 12px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+ * AGENT FLOW SECTION
+ * ============================================================================ */
+
+.utfi-agent-flow-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.utfi-agent-flow-section--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.utfi-empty-state,
+.utfi-empty-msg {
+  text-align: center;
+  color: #1e293b;
+  font-size: 14px;
+  padding: 16px;
+}
+
+.utfi-agent-flow-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.utfi-flow-section {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.utfi-flow-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+}
+
+.utfi-flow-diagram {
+  padding: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Steps */
+.utfi-steps {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.utfi-steps-header {
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.utfi-steps-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.utfi-step {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.utfi-step:last-child {
+  border-bottom: none;
+}
+
+.utfi-step-num {
+  min-width: 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.utfi-step-info {
+  flex: 1;
+}
+
+.utfi-step-title {
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.utfi-step-detail {
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.utfi-step-status {
+  flex-shrink: 0;
+}
+
+/* Badge styles */
+.utfi-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.utfi-badge--pending {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.utfi-badge--active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.utfi-badge--done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.utfi-badge--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.utfi-badge--active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.utfi-badge--expired {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.utfi-badge--provider {
+  background: #f1f5f9;
+  color: #334155;
+  margin-left: 8px;
+}
+
+.utfi-badge--info {
+  background: #dbeafe;
+  color: #1d4ed8;
+  margin-left: 8px;
+}
+
+/* Token chain */
+.utfi-token-chain-section {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.utfi-token-chain-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.utfi-token-chain {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.utfi-token-event {
+  padding: 8px 10px;
+  background: #ffffff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.utfi-token-event:hover {
+  background: #f8fafc;
+  border-left-color: #1d4ed8;
+}
+
+.utfi-token-event--selected {
+  background: #dbeafe;
+  border-left-color: #0d47a1;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.utfi-token-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.utfi-token-type {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.utfi-token-type--user-token {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.utfi-token-type--mcp-token {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.utfi-token-time {
+  margin-left: auto;
+  color: #334155;
+  font-size: 11px;
+}
+
+.utfi-token-claim {
+  color: #1e293b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.utfi-token-claim code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: inherit;
+  color: #1d4ed8;
+  font-size: 11px;
+}
+
+/* ============================================================================
+ * OAUTH INSPECTOR SECTION
+ * ============================================================================ */
+
+.utfi-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.utfi-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.utfi-claim-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.utfi-claim-row:last-child {
+  border-bottom: none;
+}
+
+.utfi-claim-key {
+  font-weight: 500;
+  color: #374151;
+}
+
+.utfi-claim-value {
+  color: #1e293b;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.utfi-muted {
+  color: #1e293b;
+  font-size: 13px;
+}
+
+/* Scopes */
+.utfi-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.utfi-scope-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1d4ed8;
+  white-space: nowrap;
+}
+
+/* Time remaining */
+.utfi-active-text {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.utfi-expired-text {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Error content */
+.utfi-error-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+}
+
+.utfi-error-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.utfi-error-content h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.utfi-error-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+/* Raw JSON */
+.utfi-raw-json {
+  margin: 0;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-family: inherit;
+  font-size: 12px;
+  color: #1e293b;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.utfi-raw-json::-webkit-scrollbar {
+  width: 12px;
+}
+
+.utfi-raw-json::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.utfi-raw-json::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+
+.utfi-raw-json::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.utfi-loading {
+  text-align: center;
+  padding: 20px;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.utfi-hint {
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* ============================================================================
+ * FLOATING PANEL
+ * ============================================================================ */
+
+.utfi-floating-wrapper {
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+ * SCROLLBAR STYLING FOR ALL SECTIONS
+ * ============================================================================ */
+
+.utfi-left::-webkit-scrollbar,
+.utfi-right::-webkit-scrollbar {
+  width: 10px;
+}
+
+.utfi-left::-webkit-scrollbar-track,
+.utfi-right::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.utfi-left::-webkit-scrollbar-thumb,
+.utfi-right::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 5px;
+}
+
+.utfi-left::-webkit-scrollbar-thumb:hover,
+.utfi-right::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================================================
+ * ACCESSIBILITY & ANIMATION PREFERENCES
+ * ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .utfi-card-content,
+  .utfi-floating-wrapper {
+    animation: none;
+  }
+
+  .utfi-card-header,
+  .utfi-btn,
+  .utfi-toggle-icon {
+    transition: none;
+  }
+}
+
+/* Dark mode - disabled, using light theme only */
+/*
+@media (prefers-color-scheme: dark) {
+  .utfi-container {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0;
+  }
+}
+*/
+
+/* Print styles */
+@media print {
+  .utfi-container {
+    border: 1px solid #ccc;
+  }
+
+  .utfi-header-actions {
+    display: none;
+  }
+}
+
+/* ============================================================================
+ * TOKEN EXCHANGE DETAILS SECTION
+ * ============================================================================ */
+
+.utfi-token-exchange-events {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.utfi-exchange-empty {
+  padding: 20px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  border-left: 3px solid #0284c7;
+}
+
+.utfi-exchange-desc {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.utfi-exchange-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.utfi-exchange-timeline::-webkit-scrollbar {
+  width: 6px;
+}
+
+.utfi-exchange-timeline::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.utfi-exchange-timeline::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.utfi-exchange-timeline::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.utfi-exchange-event {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slide-in 0.3s ease;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.utfi-event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.utfi-event-time {
+  font-size: 0.75rem;
+  color: #374151;
+  font-family: inherit;
+}
+
+.utfi-event-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.utfi-event-status--done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.utfi-event-status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.utfi-event-status--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.utfi-event-status--error {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.utfi-event-status--info {
+  background: #dbeafe;
+  color: #0c2340;
+}
+
+.utfi-event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.utfi-event-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.utfi-event-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.8rem;
+}
+
+.utfi-event-label {
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.utfi-event-value {
+  color: #333;
+  font-family: inherit;
+  word-break: break-all;
+  flex: 1;
+}
+
+.utfi-event-message {
+  font-size: 0.8rem;
+  color: #1e293b;
+  padding: 6px 8px;
+  background: white;
+  border-left: 2px solid #4f7df3;
+  border-radius: 2px;
+  line-height: 1.3;
+}
+
+.utfi-scopes-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  flex: 1;
+}
+
+.utfi-scopes-inline .utfi-scope-badge {
+  background: #e0e7ff;
+  color: #3b82f6;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/* ── Educational enhancements ─────────────────────────────────────── */
+
+/* No-scopes warning callout */
+.utfi-no-scopes-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+.utfi-no-scopes-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.utfi-no-scopes-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.utfi-no-scopes-title {
+  font-weight: 600;
+  color: #c2410c;
+}
+.utfi-no-scopes-detail {
+  color: #334155;
+}
+.utfi-no-scopes-detail code {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-family: inherit;
+}
+
+/* RFC inline hints inside Authorization section */
+.utfi-rfc-inline-hint {
+  margin: 4px 0 0;
+  padding: 5px 8px;
+  background: #fff7ed;
+  border-left: 3px solid #fb923c;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.7rem;
+  color: #9a3412;
+  line-height: 1.45;
+}
+.utfi-rfc-inline-hint--good {
+  background: #f0fdf4;
+  border-left-color: #4ade80;
+  color: #166534;
+}
+.utfi-rfc-inline-hint--info {
+  background: #eff6ff;
+  border-left-color: #60a5fa;
+  color: #1e40af;
+}
+
+/* act chain display */
+.utfi-act-chain {
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.utfi-act-chain-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #0f766e;
+  cursor: help;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+}
+.utfi-act-chain-value {
+  display: block;
+  font-family: inherit;
+  font-size: 0.68rem;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 4px;
+  padding: 4px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #0f766e;
+}
+
+/* Flow primer (compact/empty panel) */
+.utfi-flow-primer {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+.utfi-primer-title {
+  font-weight: 600;
+  color: #0c4a6e;
+  margin-bottom: 6px;
+}
+.utfi-primer-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: #0369a1;
+  line-height: 1.7;
+}
+.utfi-primer-steps code {
+  background: #e0f2fe;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-family: inherit;
+}
+
+/* Ready-state RFC hint (non-compact) */
+.utfi-ready-state {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.utfi-ready-rfc-hint {
+  font-size: 0.7rem;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 5px;
+  padding: 5px 8px;
+  line-height: 1.5;
+}
+
+/* Token Exchange RFC primer */
+.utfi-exchange-rfc-primer {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.utfi-exchange-primer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #374151;
+  line-height: 1.45;
+}
+.utfi-exchange-primer-row code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-family: inherit;
+}
+.utfi-primer-rfc {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 0.67rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: inherit;
+}

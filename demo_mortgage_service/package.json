@@ -1,0 +1,22 @@
+{
+  "name": "banking-mortgage-service",
+  "version": "1.0.0",
+  "description": "API-key-gated mortgage data backend for Phase 266 Path A demo (aud: mortgage-service.bxf.com)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^4.19.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.1.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,88 @@
+/* controls.css — APP-WIDE CONTROL DESIGN STANDARD
+ * ------------------------------------------------------------------
+ * One brand color, rounded geometry, fill-on-active, shared focus ring.
+ * Seeded by the PingOne Agent Builder scope toggle that was approved.
+ *
+ * HOW TO USE
+ *   - Plain <input type="checkbox"> anywhere gets the box look for free
+ *     (the global rule below). No markup change needed — this is the sweep.
+ *   - For new/touched code prefer the <Check> component
+ *     (src/components/common/Check.jsx): variant="box" | "pill" | "switch".
+ *   - Native <select> gets the standard skin by adding className="ctl-select".
+ *   - Tokens live in :root here — never hardcode the brand blue elsewhere.
+ *
+ * Opt OUT of the global checkbox restyle by hiding the native input in your
+ * own component (position:absolute;opacity:0) — custom-drawn controls are
+ * unaffected because they never show the native box.
+ */
+
+:root {
+  --ctl-brand: #0b69a3;
+  --ctl-ink: #102a43;
+  --ctl-line: #d9e2ec;
+  --ctl-line-strong: #b6c2cf;
+  --ctl-radius: 10px;
+  --ctl-ring: 0 0 0 3px rgba(11, 105, 163, 0.35);
+}
+
+/* ── Global checkbox sweep — native <input type="checkbox"> → box variant ──
+ * body-scoped (0,0,1,2) so it beats the legacy bare input[type=checkbox]
+ * rules scattered across component CSS. Components that draw their own
+ * checkbox hide the native input, so they are untouched. */
+body input[type="checkbox"]:not(.ctl-raw) {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid var(--ctl-line-strong);
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-content: center;
+  transition: background .15s ease, border-color .15s ease;
+  vertical-align: middle;
+}
+body input[type="checkbox"]:not(.ctl-raw)::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transform-origin: center;
+  transition: transform .15s ease;
+  /* white check mark drawn via clip-path */
+  background: #fff;
+  clip-path: polygon(14% 47%, 0 60%, 40% 100%, 100% 24%, 86% 12%, 38% 71%);
+}
+body input[type="checkbox"]:not(.ctl-raw):checked {
+  background: var(--ctl-brand);
+  border-color: var(--ctl-brand);
+}
+body input[type="checkbox"]:not(.ctl-raw):checked::before { transform: scale(1); }
+body input[type="checkbox"]:not(.ctl-raw):hover:not(:disabled) { border-color: var(--ctl-brand); }
+body input[type="checkbox"]:not(.ctl-raw):focus-visible { outline: none; box-shadow: var(--ctl-ring); }
+body input[type="checkbox"]:not(.ctl-raw):disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Reusable native <select> skin (opt-in: className="ctl-select") ── */
+.ctl-select {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1.5px solid var(--ctl-line);
+  border-radius: var(--ctl-radius);
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230b69a3' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding: 9px 34px 9px 13px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ctl-ink);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ctl-select:hover { border-color: var(--ctl-line-strong); }
+.ctl-select:focus-visible,
+.ctl-select:focus { outline: none; border-color: var(--ctl-brand); box-shadow: var(--ctl-ring); }
+.ctl-select:disabled { opacity: .6; cursor: not-allowed; }

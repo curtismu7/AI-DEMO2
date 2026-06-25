@@ -1,0 +1,301 @@
+/* OwaspLearnerPage.css — learner page for the OWASP Securing Agentic Applications Guide. */
+.owasp-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  color: #1a2330;
+}
+
+/* Header */
+.owasp-header {
+  border-bottom: 1px solid #e3e8ef;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+}
+.owasp-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: #0a2540;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.owasp-header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.owasp-subtitle {
+  font-size: 16px;
+  color: #4a586b;
+  margin: 0 0 18px;
+  max-width: 720px;
+}
+.owasp-doclinks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.owasp-doc-primary {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0a66c2;
+  text-decoration: none;
+}
+.owasp-doc-primary:hover {
+  text-decoration: underline;
+}
+.owasp-doc-meta {
+  font-size: 13px;
+  color: #6b7a8d;
+}
+.owasp-doc-secondary {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.owasp-doc-secondary a {
+  color: #0a66c2;
+  text-decoration: none;
+}
+.owasp-doc-secondary a:hover {
+  text-decoration: underline;
+}
+.owasp-dot {
+  margin: 0 8px;
+  color: #b6c0cc;
+}
+
+/* Sections */
+.owasp-section {
+  margin-bottom: 36px;
+}
+.owasp-section h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.owasp-intro,
+.owasp-section-intro {
+  font-size: 15px;
+  color: #4a586b;
+  line-height: 1.6;
+  max-width: 820px;
+  margin: 0 0 16px;
+}
+
+/* KC cards */
+.owasp-kc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.owasp-kc-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  background: #f7f9fc;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.owasp-kc-card:hover,
+.owasp-kc-card.is-open {
+  border-color: #0a66c2;
+  box-shadow: 0 1px 6px rgba(10, 102, 194, 0.12);
+}
+.owasp-kc-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0a66c2;
+}
+.owasp-kc-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.owasp-kc-blurb {
+  font-size: 13px;
+  color: #4a586b;
+  line-height: 1.5;
+}
+
+/* Threat grid */
+.owasp-threat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.owasp-threat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e3e8ef;
+  background: #fbfcfe;
+}
+.owasp-threat--covered {
+  border-color: #1f9d6b;
+  background: #f0faf5;
+}
+.owasp-threat-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7a8d;
+  min-width: 30px;
+}
+.owasp-threat--covered .owasp-threat-id {
+  color: #1f9d6b;
+}
+.owasp-threat-name {
+  font-size: 14px;
+  flex: 1;
+}
+.owasp-threat-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f9d6b;
+  background: #d9f2e6;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.owasp-threat--planned {
+  border-color: #d99a2b;
+  background: #fdf6ea;
+}
+.owasp-threat--planned .owasp-threat-id {
+  color: #b87914;
+}
+.owasp-threat-tag--planned {
+  color: #b87914;
+  background: #f7e6c4;
+}
+.owasp-map-planned {
+  color: #b87914;
+  font-weight: 600;
+}
+
+/* Architectures */
+.owasp-arch-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.owasp-arch {
+  background: #f7f9fc;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  padding: 16px;
+}
+.owasp-arch h3 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.owasp-arch p {
+  font-size: 13px;
+  color: #4a586b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Lifecycle */
+.owasp-lifecycle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.owasp-stage {
+  background: #f7f9fc;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.owasp-stage h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  color: #0a2540;
+}
+.owasp-stage ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.owasp-stage li {
+  font-size: 13px;
+  color: #4a586b;
+  line-height: 1.55;
+  margin-bottom: 6px;
+}
+
+/* Demo map */
+.owasp-section--map {
+  background: #f4f8ff;
+  border: 1px solid #d6e6fb;
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.owasp-map {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.owasp-map-row {
+  display: grid;
+  grid-template-columns: 130px 90px 1fr 24px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d6e6fb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.owasp-map-row:hover {
+  border-color: #0a66c2;
+  box-shadow: 0 1px 6px rgba(10, 102, 194, 0.12);
+}
+.owasp-map-uc {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0a2540;
+}
+.owasp-map-threats {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0a66c2;
+}
+.owasp-map-control {
+  font-size: 13px;
+  color: #33425a;
+  line-height: 1.45;
+}
+.owasp-map-go {
+  font-size: 16px;
+  color: #0a66c2;
+  text-align: right;
+}
+.owasp-outscope {
+  font-size: 13px;
+  color: #4a586b;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .owasp-map-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .owasp-map-go {
+    display: none;
+  }
+}

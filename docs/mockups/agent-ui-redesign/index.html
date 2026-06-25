@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Agent UI redesign — 3 options</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: 'Inter Tight', system-ui, sans-serif; background:#f6f3ec; color:#0d1117; padding:48px 32px; }
+  h1 { font-family: 'Fraunces', serif; font-weight:500; font-size:36px; letter-spacing:-.015em; margin:0 0 6px; }
+  h1 em { color:#d97041; font-style:italic; }
+  p.lede { color:#6b6759; max-width: 60ch; margin:0 0 32px; font-size:15px; }
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; max-width: 1200px; }
+  a.card {
+    text-decoration:none; color:inherit;
+    background:#fff; border:1px solid #c8c1ad; border-radius:14px;
+    padding:22px; display:block; transition: transform .12s, box-shadow .15s;
+  }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -16px rgba(13,17,23,.2); }
+  a.card h3 { font-family:'Fraunces', serif; font-weight:500; font-size:22px; margin:0 0 4px; letter-spacing:-.005em; }
+  a.card .tag { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px; color:#2b4cff; letter-spacing:.04em; text-transform:uppercase; }
+  a.card p { color:#6b6759; font-size:13.5px; margin:8px 0 0; line-height:1.5; }
+  a.card ul { padding-left:18px; margin:10px 0 0; font-size:12.5px; color:#1a2230; }
+  a.card li { margin:3px 0; }
+</style>
+</head>
+<body>
+  <h1>Agent UI — <em>three redesign options</em></h1>
+  <p class="lede">Each option commits to one placement on the dashboard and shows the same agent compressed to a FAB on other pages. The current Middle / Float / Always-float toggle is retired in every option — no user choice, one consistent answer per design.</p>
+  <div class="grid">
+    <a class="card" href="option-1-command-bar.html">
+      <span class="tag">Option 1 · inline composer</span>
+      <h3>Command bar</h3>
+      <p>Single composer is the hero. All chrome collapses into one 28-px eyebrow with ⌘ shortcuts. Token chain, rules, tools become collapsed drawers.</p>
+      <ul>
+        <li>Dashboard: inline command bar (full width)</li>
+        <li>Other pages: 360-px composer popover behind a small dark FAB</li>
+        <li>Best for: making the existing layout grown-up</li>
+      </ul>
+    </a>
+    <a class="card" href="option-2-split-canvas.html">
+      <span class="tag">Option 2 · inline split</span>
+      <h3>Split canvas (dark ops)</h3>
+      <p>Chat left, live token-chain narration right. Theme/layout/reset collapse to a single 3-tab segmented control. Editorial serif + acid accent.</p>
+      <ul>
+        <li>Dashboard: 60/40 split — chat on left, narration on right</li>
+        <li>Other pages: chat-only FAB; "open inspector" jumps to dashboard</li>
+        <li>Best for: showcasing the token-flow story to technical audiences</li>
+      </ul>
+    </a>
+    <a class="card" href="option-3-floating-pill.html">
+      <span class="tag">Option 3 · floating pill</span>
+      <h3>Floating pill</h3>
+      <p>Whole agent is a 56-px Raycast-style pill at the bottom of the dashboard. Dashboard reclaims the page. Pill expands in place into a panel with tabs.</p>
+      <ul>
+        <li>Dashboard: persistent 720-px pill, center-bottom</li>
+        <li>Other pages: same agent compressed to a 56-px circular FAB</li>
+        <li>Best for: when banking-first feel is the priority</li>
+      </ul>
+    </a>
+  </div>
+</body>
+</html>

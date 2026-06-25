@@ -1,0 +1,345 @@
+/* refinedSurface.css — refined "institutional" look, scoped to the signed-in
+   customer dashboard via [data-refined-surface="customer"]. Accent is NOT
+   redefined here: it cascades from the per-vertical --theme-accent so banking
+   stays blue, healthcare teal, retail yellow. */
+
+[data-refined-surface="customer"] {
+  /* Neutral institutional palette (vertical-independent) */
+  --rd-paper:        #f6f4ef;
+  --rd-surface:      #fffefb;
+  --rd-surface-sunk: #f1eee7;
+  --rd-ink:          #1a1a17;
+  --rd-ink-soft:     #57534c;
+  --rd-ink-faint:    #8a857c;
+  --rd-line:         #e3ddd2;
+  --rd-line-strong:  #d4cdbf;
+  --rd-positive:     #1f6b4a;
+  --rd-negative:     #9a3526;
+  --rd-gold:         #9a7b3f;
+
+  /* Accent comes from the active vertical. --theme-accent is written to :root
+     by applyThemeTokens(); fall back to the banking blue if absent. */
+  --rd-accent:       var(--theme-accent, #1b3a6b);
+  --rd-accent-soft:  color-mix(in srgb, var(--rd-accent) 9%, var(--rd-surface));
+
+  /* Type */
+  --rd-font-display: "Fraunces", Georgia, serif;
+  --rd-font-figure:  "Newsreader", Georgia, serif;
+  --rd-font-body:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --rd-font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  --rd-radius:    4px;
+  --rd-radius-lg: 8px;
+  --rd-shadow-card: 0 1px 0 rgba(26,26,23,.03), 0 1px 2px rgba(26,26,23,.04);
+}
+
+/* ── Task 3: dashboard content ──────────────────────────────────────────────
+   Ports the approved mockup (design/agent-embedded-2026-redesign.html) onto the
+   REAL live DOM classes in UserDashboard.js renderBankingMain() + VerticalHero.jsx.
+   Every selector is scoped to [data-refined-surface="customer"]. Accent is per
+   vertical via var(--rd-accent) — never hardcoded. Mockup → live class map:
+     .hero/.balance-band/.figure/.spark → .ud-hero / .ud-hero__balance / .ud-hero__spark
+     .stats/.stat                       → .vertical-hero / .vertical-hero-card
+     .card/.card-head/.card-title       → .section / .section > h2
+     .acct                              → .account-card (grid of cards, see note)
+     .tx (table)                        → .tx-feed / .tx-row (flex feed, see note)
+     .rail-card                         → .ud-token-rail / .ud-token-rail__inner
+   Skipped flourishes (would require DOM changes — out of scope):
+     - mockup accounts are a single-line .acct list; live markup is a card grid
+       (.account-card with header/balance/actions). Treated as refined cards.
+     - mockup transactions are a <table>; live markup is a .tx-feed of flex rows.
+       Treated as a refined hairline feed.
+     - mockup token-chain stepped rail (.chain/.chain-step) has no live equivalent
+       — TokenChainDisplay renders tcd-* claim/badge boxes. Rail gets card +
+       typography treatment only, not the stepped vertical connector. */
+
+/* base surface
+   Specificity note: the competing rule is `.user-dashboard { background-color:
+   var(--brand-light-gray); font-family: var(--font-primary); }` (0,1,0) which
+   loads LATER in the bundle (from UserDashboard.css) and therefore won an equal
+   (0,1,0) fight — leaving the old gray bg + system font on screen. The root
+   element carries BOTH attributes (`class="user-dashboard ... " data-refined-
+   surface="customer"`), so compounding them gives (0,2,0) and reliably beats
+   `.user-dashboard` regardless of load order. No !important needed. */
+[data-refined-surface="customer"].user-dashboard {
+  background: var(--rd-paper);
+  color: var(--rd-ink);
+  font-family: var(--rd-font-body);
+}
+
+/* ── Hero balance band (mockup .hero / .balance-band / .figure / .spark) ── */
+[data-refined-surface="customer"] .ud-hero {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px 2px 22px;
+  border-bottom: 1px solid var(--rd-line);
+}
+[data-refined-surface="customer"] .ud-hero__eyebrow {
+  font-family: var(--rd-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .ud-hero__insight {
+  color: var(--rd-ink-soft);
+  font-size: 0.94rem;
+  max-width: 56ch;
+}
+[data-refined-surface="customer"] .ud-hero__balance-label {
+  font-family: var(--rd-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .ud-hero__balance {
+  font-family: var(--rd-font-figure);
+  font-weight: 500;
+  font-size: clamp(2.6rem, 6.5vw, 3.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--rd-ink);
+  font-variant-numeric: tabular-nums;
+}
+[data-refined-surface="customer"] .ud-hero__debt {
+  font-family: var(--rd-font-figure);
+  font-variant-numeric: tabular-nums;
+  color: var(--rd-ink-soft);
+}
+[data-refined-surface="customer"] .ud-hero__debt-label {
+  font-family: var(--rd-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+/* sparkline bars — mockup .spark span gradient + gold last bar */
+[data-refined-surface="customer"] .ud-hero__spark span {
+  background: var(--rd-accent);
+  opacity: 0.85;
+  border-radius: 2px 2px 0 0;
+}
+[data-refined-surface="customer"] .ud-hero__spark span:last-child {
+  background: var(--rd-gold);
+  opacity: 1;
+}
+
+/* ── 4-up stat row (mockup .stats / .stat → VerticalHero .vertical-hero*) ── */
+[data-refined-surface="customer"] .vertical-hero {
+  border: 1px solid var(--rd-line);
+  border-radius: var(--rd-radius-lg);
+  background: var(--rd-surface);
+  overflow: hidden;
+  box-shadow: var(--rd-shadow-card);
+  gap: 0;
+}
+[data-refined-surface="customer"] .vertical-hero-card {
+  padding: 18px 20px;
+  border-right: 1px solid var(--rd-line);
+  background: transparent;
+  box-shadow: none;
+}
+[data-refined-surface="customer"] .vertical-hero-card:last-child {
+  border-right: none;
+}
+[data-refined-surface="customer"] .vertical-hero-label {
+  font-family: var(--rd-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .vertical-hero-value {
+  font-family: var(--rd-font-figure);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--rd-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Cards / sections (mockup .card / .card-head / .card-title) ── */
+[data-refined-surface="customer"] .section {
+  background: var(--rd-surface);
+  border: 1px solid var(--rd-line);
+  border-radius: var(--rd-radius-lg);
+  box-shadow: var(--rd-shadow-card);
+}
+[data-refined-surface="customer"] .section > h2 {
+  font-family: var(--rd-font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+  color: var(--rd-ink);
+}
+[data-refined-surface="customer"] .ud-accounts-heading {
+  font-family: var(--rd-font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+  color: var(--rd-ink);
+}
+
+/* ── Accounts (mockup .acct → live .account-card grid) ── */
+[data-refined-surface="customer"] .account-card {
+  background: var(--rd-surface);
+  border: 1px solid var(--rd-line);
+  border-radius: var(--rd-radius-lg);
+  box-shadow: var(--rd-shadow-card);
+}
+[data-refined-surface="customer"] .account-header h3 {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 0.94rem;
+  color: var(--rd-ink);
+}
+[data-refined-surface="customer"] .account-number {
+  font-family: var(--rd-font-mono);
+  font-size: 0.72rem;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .account-type-badge {
+  font-family: var(--rd-font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rd-ink-soft);
+  background: var(--rd-surface-sunk);
+  border: 1px solid var(--rd-line);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+[data-refined-surface="customer"] .account-balance-row .balance {
+  font-family: var(--rd-font-figure);
+  font-weight: 500;
+  font-size: 1.25rem;
+  color: var(--rd-ink);
+  font-variant-numeric: tabular-nums;
+}
+[data-refined-surface="customer"] .account-balance-row .balance--negative {
+  color: var(--rd-negative);
+}
+[data-refined-surface="customer"] .account-balance-row .balance-label {
+  font-family: var(--rd-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+
+/* ── Transactions (mockup .tx table → live .tx-feed / .tx-row) ── */
+[data-refined-surface="customer"] .tx-feed__date-label {
+  font-family: var(--rd-font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .tx-feed__date-line {
+  background: var(--rd-line);
+}
+[data-refined-surface="customer"] .tx-row {
+  border-bottom: 1px solid var(--rd-line);
+}
+[data-refined-surface="customer"] .tx-row:hover {
+  background: var(--rd-surface-sunk);
+}
+[data-refined-surface="customer"] .tx-row__desc {
+  font-weight: 500;
+  color: var(--rd-ink);
+}
+[data-refined-surface="customer"] .tx-row__meta {
+  font-family: var(--rd-font-mono);
+  font-size: 0.72rem;
+  color: var(--rd-ink-faint);
+}
+[data-refined-surface="customer"] .tx-row__amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+[data-refined-surface="customer"] .tx-row__amount--pos {
+  color: var(--rd-positive);
+}
+[data-refined-surface="customer"] .tx-row__amount--neg {
+  color: var(--rd-negative);
+}
+
+/* ── Token-chain rail — the ON-SCREEN refined surface ─────────────────────────
+   This is the focus of the refined treatment: in the live default customer
+   dashboard the only rendered content columns are this token rail
+   (.ud-token-rail → .ud-token-rail__inner.section → <ExchangeModeToggle /> +
+   <TokenChainDisplay/.tcd-root>) and the agent column. The mockup's stepped
+   .chain/.chain-step/.chain-dot connector has NO live equivalent —
+   TokenChainDisplay renders a .tcd-root card with a .tcd-header (title + sub)
+   and a stack of event cards, not a vertical dotted connector. So we apply the
+   mockup's .rail-card aesthetic (paper/surface bg, hairline --rd-line borders,
+   --rd-radius-lg, serif --rd-font-display title, mono --rd-font-mono metadata,
+   per-vertical var(--rd-accent) for the live/session dots) WITHOUT reshaping the
+   chain markup. Specificity is called out per rule. */
+
+/* Rail container — competitor `.ud-token-rail` (0,1,0) sets background:#fff +
+   gray border-right. Ours is (0,2,0) → wins. */
+[data-refined-surface="customer"] .ud-token-rail {
+  background: var(--rd-paper);
+  border-right: 1px solid var(--rd-line);
+}
+/* Inner wrapper stays transparent (its competitor `.ud-token-rail__inner`
+   (0,1,0) already zeroes bg/border/shadow); the visible card is .tcd-root. The
+   compound .ud-token-rail__inner.section (0,2,0) here just keeps padding airy. */
+[data-refined-surface="customer"] .ud-token-rail__inner.section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* TokenChainDisplay card (.tcd-root) — competitor `.tcd-root` (0,1,0) gives a
+   blue-tinted gradient + blue border + heavy shadow. Ours (0,2,0) replaces it
+   with the refined paper card. */
+[data-refined-surface="customer"] .tcd-root {
+  background: var(--rd-surface);
+  border: 1px solid var(--rd-line);
+  border-radius: var(--rd-radius-lg);
+  box-shadow: var(--rd-shadow-card);
+}
+/* Card header — competitor `.tcd-header` (0,1,0): white bg + #e2e8f0 hairline. */
+[data-refined-surface="customer"] .tcd-header {
+  background: linear-gradient(180deg, var(--rd-surface), var(--rd-surface-sunk));
+  border-bottom: 1px solid var(--rd-line);
+}
+/* Card title — competitor `.tcd-header-title` (0,1,0): bold sans, navy. We make
+   it the mockup's serif .card-title in vertical accent. (0,2,0) wins. */
+[data-refined-surface="customer"] .tcd-header-title {
+  font-family: var(--rd-font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--rd-accent);
+}
+/* Subtitle / flow caption — competitor `.tcd-header-sub` (0,1,0): sans, slate.
+   We make it the mockup's mono .chain-meta. (0,2,0) wins. */
+[data-refined-surface="customer"] .tcd-header-sub {
+  font-family: var(--rd-font-mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--rd-ink-faint);
+}
+/* ── Agent column surface only (chat internals left to Tasks 4/5) ─────────────
+   Competitor `.ud-agent-column` (0,1,0) paints the column with the old gray
+   --brand-light-gray bg and --brand-medium-gray dividers, which clashes with the
+   paper surface. Ours (0,2,0) just retints the column surface + side dividers to
+   the refined paper/hairline so the agent sits on the paper cleanly. We do NOT
+   touch the BankingAgent chat internals here. */
+[data-refined-surface="customer"] .ud-agent-column {
+  background: var(--rd-paper);
+  border-left: 1px solid var(--rd-line);
+  border-right: 1px solid var(--rd-line);
+}
+
+/* Session status dot — mockup .chain-dot accent. The LIVE dot is left green
+   (#24a148) on purpose: it is a status signal, not decoration. Only the session
+   dot (competitor `.tcd-session-dot` (0,1,0), already brand-navy) is retinted to
+   the per-vertical refined accent; ours (0,2,0) wins. */
+[data-refined-surface="customer"] .tcd-session-dot {
+  background: var(--rd-accent);
+}

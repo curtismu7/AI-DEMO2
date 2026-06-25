@@ -1,0 +1,36 @@
+.json-field {
+  margin-top: 8px;
+}
+
+.json-field-summary {
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #475569;
+  user-select: none;
+}
+
+.json-field-summary:hover {
+  color: #1e293b;
+}
+
+.json-field-pre {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.4;
+  margin-top: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  /* Wrap long lines instead of overflowing horizontally — the escaped-JSON
+     payloads used to spill off the right edge and read like an error. */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,161 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="CIBA Backchannel Auth Flow" id="ciba-flow-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="820" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — CIBA Backchannel Authentication Flow (OpenID CIBA Core)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1120" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Actor header boxes ───────────────────────────────────── -->
+        <mxCell id="actor-agent" value="&lt;b&gt;AI Agent&lt;/b&gt;&lt;br&gt;BankingAgent.js" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="45" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="265" y="45" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-p1" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;auth.pingone.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="490" y="45" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-device" value="&lt;b&gt;User Device&lt;/b&gt;&lt;br&gt;Email / Push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="715" y="45" width="150" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Lifelines ─────────────────────────────────────────────── -->
+        <!-- Agent x=125 -->
+        <mxCell id="life-agent" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="91" as="sourcePoint"/>
+            <mxPoint x="125" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- BFF x=345 -->
+        <mxCell id="life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="91" as="sourcePoint"/>
+            <mxPoint x="345" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- PingOne x=570 -->
+        <mxCell id="life-p1" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="91" as="sourcePoint"/>
+            <mxPoint x="570" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- User Device x=790 -->
+        <mxCell id="life-device" style="endArrow=none;dashed=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="91" as="sourcePoint"/>
+            <mxPoint x="790" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Messages ─────────────────────────────────────────────── -->
+
+        <!-- 1: Agent → BFF: Initiate high-value operation -->
+        <mxCell id="s1" value="1. Initiate high-value operation (e.g. transfer $1,000)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="125" as="sourcePoint"/>
+            <mxPoint x="345" y="125" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2: BFF → PingOne: POST /bc-authorize -->
+        <mxCell id="s2" value="2. POST /bc-authorize: login_hint=user@email, scope=banking:general:write, binding_message=&quot;Approve transfer&quot;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="165" as="sourcePoint"/>
+            <mxPoint x="570" y="165" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3: PingOne → BFF: auth_req_id (dashed) -->
+        <mxCell id="s3" value="3. auth_req_id, expires_in=120" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="205" as="sourcePoint"/>
+            <mxPoint x="345" y="205" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4: PingOne → User Device: Push notification -->
+        <mxCell id="s4" value="4. Push / email: &quot;Approve transfer of $1,000?&quot; (binding_message)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="245" as="sourcePoint"/>
+            <mxPoint x="790" y="245" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5: BFF → Agent: cibaRequired (dashed) -->
+        <mxCell id="s5" value="5. { cibaRequired: true, auth_req_id: &quot;...&quot; }" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="285" as="sourcePoint"/>
+            <mxPoint x="125" y="285" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6: Agent → BFF: Poll status (every 5s) -->
+        <mxCell id="s6" value="6. Poll: GET /api/ciba/status?auth_req_id=… (every 5 s)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="335" as="sourcePoint"/>
+            <mxPoint x="345" y="335" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7: User Device → PingOne: Approve -->
+        <mxCell id="s7" value="7. User clicks &quot;Approve&quot;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="375" as="sourcePoint"/>
+            <mxPoint x="570" y="375" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8: PingOne → BFF: access_token (on poll, dashed) -->
+        <mxCell id="s8" value="8. access_token (elevated scope — on next poll)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="415" as="sourcePoint"/>
+            <mxPoint x="345" y="415" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9: BFF → Agent: approved + token (dashed) -->
+        <mxCell id="s9" value="9. { approved: true, token: &quot;…&quot; }" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="455" as="sourcePoint"/>
+            <mxPoint x="125" y="455" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10: Agent → BFF: Retry with elevated token -->
+        <mxCell id="s10" value="10. Retry original tool call with elevated token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="495" as="sourcePoint"/>
+            <mxPoint x="345" y="495" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11: BFF → Agent: Tool result (dashed) -->
+        <mxCell id="s11" value="11. Tool result returned" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="535" as="sourcePoint"/>
+            <mxPoint x="125" y="535" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Annotation boxes ─────────────────────────────────────── -->
+
+        <!-- RFC 9126 / CIBA note (near step 2) -->
+        <mxCell id="note1" value="OpenID CIBA Core: backchannel — no browser redirect needed; request goes directly from BFF to PingOne" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="855" y="148" width="285" height="56" as="geometry"/>
+        </mxCell>
+
+        <!-- Poll interval note (near step 6) -->
+        <mxCell id="note2" value="Polling interval: 5 seconds (CIBA_POLL_INTERVAL_MS=5000)&lt;br&gt;Request expiry: 120–300 seconds (CIBA_AUTH_REQUEST_EXPIRY)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="855" y="315" width="285" height="56" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,419 @@
+/* banking_api_ui/src/styles/appShellPages.css
+ * Shared shell for settings-style pages (demo config, config, future admin polish).
+ * Import once per page that opts in. */
+
+.app-page-shell {
+  min-height: calc(100vh - 48px);
+  background: var(--brand-light-gray, #f5f5f5);
+  padding: 0 1rem 2.5rem;
+  font-family: var(--font-primary);
+}
+
+.app-page-shell__hero {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 1.5rem;
+  background: #ffffff;
+  color: var(--brand-dark-gray, #333333);
+  border: 1px solid var(--brand-medium-gray, #e0e0e0);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid var(--brand-navy, #1d4ed8);
+}
+
+.app-page-shell__hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-page-shell__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--app-primary-red, #b91c1c);
+}
+
+.app-page-shell__lead {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #666666;
+  max-width: 40rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.app-page-shell__hero .app-page-shell__lead a {
+  color: var(--app-primary-red, #b91c1c);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-page-shell__hero .app-page-shell__lead a:hover {
+  opacity: 0.8;
+}
+
+.app-page-shell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-page-shell__body {
+  max-width: 1400px;
+  margin: -0.5rem auto 0;
+  padding-top: 0.5rem;
+}
+
+/* Wider content column (admin dashboard, data tables) */
+.app-page-shell__body--wide {
+  max-width: 1400px;
+}
+
+/* Extra horizontal room for dense admin toolbars (Sign in + Log out, many links) */
+.app-page-shell--toolbar-room .app-page-shell__hero {
+  max-width: 1400px;
+}
+
+.app-page-shell--toolbar-room .app-page-shell__body--wide {
+  max-width: 1520px;
+}
+
+/* Toolbar row under hero — light buttons (same language as customer dashboard) */
+.app-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+/* Back / Home / breadcrumb row — align actions to the left; logout uses spacer */
+.page-nav.app-page-toolbar {
+  justify-content: flex-start;
+}
+
+.page-nav__spacer {
+  flex: 1;
+  min-width: 0.5rem;
+}
+
+.page-nav__trail {
+  margin-left: 0.25rem;
+  color: #999999;
+  font-size: 0.875rem;
+}
+
+.app-page-toolbar--start {
+  justify-content: flex-start;
+}
+
+.app-page-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.25;
+  color: var(--app-primary-btn-text, #fff);
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  border: 1px solid var(--app-primary-red-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.app-page-toolbar-btn:hover {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: var(--app-primary-red-hover);
+  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.28);
+  color: var(--app-primary-btn-text, #fff);
+  transform: translateY(-1px);
+}
+
+.app-page-toolbar-btn--accent {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  color: #fff;
+  border-color: var(--app-primary-red-border);
+  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
+}
+
+.app-page-toolbar-btn--accent:hover {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: var(--app-primary-red-hover);
+  color: #fff;
+}
+
+.app-page-toolbar-btn--icon {
+  padding: 9px 11px;
+  min-width: 40px;
+  color: var(--app-primary-btn-text, #fff);
+}
+
+.app-page-toolbar-btn--danger {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  color: #fff;
+  border-color: var(--app-primary-red-border);
+}
+
+.app-page-toolbar-btn--danger:hover {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: var(--app-primary-red-hover);
+  color: #fff;
+}
+
+.app-page-toolbar-btn--theme {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-blue-mid) 0%,
+    var(--app-primary-blue) 100%
+  );
+  border-color: var(--app-primary-blue-border);
+  color: #fff;
+}
+
+.app-page-toolbar-btn--theme:hover {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-blue) 0%,
+    var(--app-primary-blue-hover) 100%
+  );
+  border-color: var(--app-primary-blue-hover);
+  color: #fff;
+}
+
+.admin-dashboard__intro {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard__logo-mark {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard__logo-mark span {
+  background: white;
+  border-radius: 2px;
+}
+
+.admin-dashboard__logo-mark span:nth-child(1) {
+  opacity: 1;
+}
+.admin-dashboard__logo-mark span:nth-child(2) {
+  opacity: 0.8;
+}
+.admin-dashboard__logo-mark span:nth-child(3) {
+  opacity: 0.7;
+}
+.admin-dashboard__logo-mark span:nth-child(4) {
+  opacity: 0.9;
+}
+
+.admin-dashboard__reset-msg {
+  font-size: 0.82rem;
+  color: #999999;
+  margin: 0 0 1rem;
+  text-align: right;
+}
+
+.app-page-toolbar-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-dashboard__brand-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-dashboard__brand-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--app-primary-red, #b91c1c);
+}
+
+.admin-dashboard__headline {
+  margin: 0.35rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--brand-dark-gray, #333333);
+}
+
+.admin-dashboard__welcome {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: #666666;
+}
+
+.app-page-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.app-page-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.app-page-shell__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(185, 28, 28, 0.35);
+  color: #fff;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.app-page-shell__btn:hover {
+  background: rgba(185, 28, 28, 0.55);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+}
+
+.app-page-shell__btn--solid {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.app-page-shell__btn--solid:hover {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+/*
+ * React Router <Link> renders <a>. PingOne end-user-nano.css (index.html) sets global link colors
+ * that win over a lone .app-page-shell__btn class — hero CTAs looked blue + underlined.
+ */
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn,
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn:link,
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn:visited,
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn:hover,
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn:focus,
+.app-page-shell__hero .app-page-shell__actions a.app-page-shell__btn:active {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Admin dashboard: embedded agent is below this page in App <main> (single outer scroll) */
+.admin-dashboard-page.app-page-shell:has(.app-page-shell__body--embed-agent) {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+}
+
+.admin-dashboard-page.app-page-shell .app-page-shell__body--embed-agent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-dashboard-page.app-page-shell
+  .app-page-shell__body--embed-agent
+  .ud-shell--embed-bottom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .app-page-shell {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .app-page-shell__hero {
+    padding: 1.35rem 1.1rem 1.25rem;
+    border-radius: 0 0 10px 10px;
+  }
+}
+

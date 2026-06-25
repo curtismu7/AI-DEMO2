@@ -1,0 +1,352 @@
+/**
+ * LangChain configuration routes.
+ *
+ * Persists configuration to SQLite (configStore) so credentials survive server/browser restarts.
+ * helix_api_key is encrypted at rest; other fields stored plaintext.
+ *
+ * Routes:
+ *   GET  /api/langchain/config/status   — current provider, model, key_set flags
+ *   POST /api/langchain/config          — save provider/model/key to session + SQLite
+ *   DELETE /api/langchain/config/key/:keyType — clear a key from session + SQLite
+ */
+const express = require('express');
+const configStore = require('../services/configStore');
+const { resolveAgentMode, AGENT_MODES, DEFAULT_MODE } = require('../services/agentModeResolver');
+
+const router = express.Router();
+
+// Models available per provider
+const PROVIDER_MODELS = {
+  openai:              ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+  anthropic:           ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-3-5-haiku-20241022'],
+  groq:                ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  google:              ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+  helix:               ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', 'claude-3-5-sonnet'],
+  // LM Studio — Anthropic-compatible endpoint at /v1/messages.
+  // Model IDs must match what is loaded in LM Studio (publisher/model-name format).
+  'anthropic-lmstudio': ['google/gemma-4-e2b', 'google/gemma-4-e4b', 'google/gemma-3-12b-it', 'qwen/qwen3.6-27b'],
+  // Ollama — local small LLM with native tool-calling. Model IDs are Ollama tags
+  // (`ollama list`); pull before use, e.g. `ollama pull qwen2.5:3b`. Prefer a
+  // small NON-reasoning model: NL intent + short teaching answers must return
+  // under the SPA fetch timeout, which reasoning models (qwen3:*) routinely blow.
+  ollama:              ['qwen2.5:3b', 'qwen3:1.7b', 'qwen3:8b', 'llama3.1:8b'],
+};
+
+const DEFAULT_MODELS = {
+  openai:              'gpt-4o-mini',
+  anthropic:           'claude-3-5-haiku-20241022',
+  groq:                'llama-3.1-8b-instant',
+  google:              'gemini-2.0-flash',
+  helix:               'gpt-4o-mini',
+  'anthropic-lmstudio': 'google/gemma-4-e2b',
+  ollama:              'qwen2.5:3b',
+};
+
+// Default provider fallback order surfaced by the LLM Config UI when the
+// session has no saved order yet. Kept in sync with LlmConfigPanel's default.
+const DEFAULT_FALLBACK_ORDER = ['groq', 'anthropic', 'openai', 'google'];
+
+const KEY_SESSION_FIELDS = {};
+
+function getLangchainConfig(req) {
+  return req.session.langchain_config || {};
+}
+
+function setLangchainConfig(req, updates) {
+  req.session.langchain_config = Object.assign(getLangchainConfig(req), updates);
+}
+
+// GET /api/langchain/config/status
+router.get('/config/status', (req, res) => {
+  try {
+    const cfg = getLangchainConfig(req);
+    const { resolveLlmProvider } = require('../services/llmProviderResolver');
+    const provider = resolveLlmProvider(cfg).provider;
+    const model = cfg.model || DEFAULT_MODELS[provider] || DEFAULT_MODELS.helix;
+
+    // Load Helix credentials from SQLite if not in session (e.g., after tab switch)
+    let helix_base_url = cfg.helix_base_url || '';
+    let helix_api_key = cfg.helix_api_key || '';
+    let helix_environment_id = cfg.helix_environment_id || '';
+    let helix_agent_id = cfg.helix_agent_id || '';
+    let helix_prompt_field_id = cfg.helix_prompt_field_id || '';
+
+    // Try to load from configStore but don't let it crash the response.
+    // Use getEffective so FIELD_DEFS defaults (committed in configStore.js for
+    // helix_base_url, helix_environment_id, helix_agent_id, helix_prompt_field_id)
+    // reach fresh clones whose SQLite has not yet been populated.
+    try {
+      helix_base_url = helix_base_url || configStore.getEffective('helix_base_url') || '';
+      helix_api_key = helix_api_key || configStore.getEffective('helix_api_key') || '';
+      helix_environment_id = helix_environment_id || configStore.getEffective('helix_environment_id') || '';
+      helix_agent_id = helix_agent_id || configStore.getEffective('helix_agent_id') || '';
+      helix_prompt_field_id = helix_prompt_field_id || configStore.getEffective('helix_prompt_field_id') || '';
+    } catch (dbErr) {
+      console.warn('[langchainConfig GET] configStore error:', dbErr.message);
+    }
+
+    // If we loaded from SQLite, update the session so it's available for this session
+    if ((helix_base_url || helix_api_key || helix_environment_id || helix_agent_id || helix_prompt_field_id) &&
+        (!cfg.helix_base_url && !cfg.helix_api_key && !cfg.helix_environment_id && !cfg.helix_agent_id && !cfg.helix_prompt_field_id)) {
+      setLangchainConfig(req, {
+        helix_base_url,
+        helix_api_key,
+        helix_environment_id,
+        helix_agent_id,
+        helix_prompt_field_id,
+      });
+    }
+
+    res.json({
+      provider,
+      model,
+      helix_base_url,
+      helix_api_key: helix_api_key ? '••••••••' : '',
+      helix_environment_id,
+      helix_agent_id,
+      helix_prompt_field_id,
+      // Honest credential presence so UIs can disable unconfigured
+      // providers (teaching spec 2026-05-18-chatgpt-claude-as-agent,
+      // "disable unconfigured" UX). openai/anthropic are enforced for real
+      // at banking_agent_service (:3006), which reads OPENAI_API_KEY /
+      // ANTHROPIC_API_KEY — mirror that source here (session key OR
+      // configStore OR that env var).
+      key_set: {
+        helix: !!(helix_api_key && helix_base_url),
+        openai: !!(cfg.openai_api_key ||
+          configStore.getEffective('openai_api_key') ||
+          process.env.OPENAI_API_KEY),
+        anthropic: !!(cfg.anthropic_api_key ||
+          configStore.getEffective('anthropic_api_key') ||
+          process.env.ANTHROPIC_API_KEY),
+        // LM Studio — no API key needed; always "configured" (local server, no auth)
+        'anthropic-lmstudio': true,
+      },
+      provider_models: PROVIDER_MODELS,
+      default_models: DEFAULT_MODELS,
+      fallback_order: Array.isArray(cfg.fallback_order) && cfg.fallback_order.length
+        ? cfg.fallback_order
+        : DEFAULT_FALLBACK_ORDER,
+      agent_mode: configStore.getEffective('agent_mode') || DEFAULT_MODE,
+      external_wiring: configStore.getEffective('agent_external_wiring') || 'bff',
+      agent_modes: AGENT_MODES.map((m) => ({ id: m.id, label: m.label, external: m.external })),
+    });
+  } catch (err) {
+    console.error('[langchainConfig GET] Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/langchain/config
+// Body: { provider, model, key_type, key, helix_api_key, helix_base_url, helix_environment_id, helix_agent_id, helix_prompt_field_id }
+router.post('/config', async (req, res) => {
+  const { provider, model, key_type, key, helix_api_key, helix_base_url, helix_environment_id, helix_agent_id, helix_prompt_field_id } = req.body || {};
+  const { agent_mode, external_wiring } = req.body || {};
+
+  const updates = {};
+  const dbUpdates = {}; // updates for SQLite persistence
+
+  if (provider) updates.provider = provider;
+  if (model) updates.model = model;
+  // Persist the provider fallback order (LLM Config drag-to-reorder UI).
+  if (Array.isArray(req.body?.fallback_order)) {
+    updates.fallback_order = req.body.fallback_order;
+  }
+
+  // Handle Helix credentials (4-field configuration)
+  if (key_type === 'helix' || provider === 'helix') {
+    if (helix_base_url) {
+      updates.helix_base_url = helix_base_url;
+      dbUpdates.helix_base_url = helix_base_url;
+    }
+    if (helix_environment_id) {
+      updates.helix_environment_id = helix_environment_id;
+      dbUpdates.helix_environment_id = helix_environment_id;
+    }
+    if (helix_agent_id) {
+      updates.helix_agent_id = helix_agent_id;
+      dbUpdates.helix_agent_id = helix_agent_id;
+    }
+    if (helix_prompt_field_id) {
+      updates.helix_prompt_field_id = helix_prompt_field_id;
+      dbUpdates.helix_prompt_field_id = helix_prompt_field_id;
+    }
+    if (helix_api_key) {
+      updates.helix_api_key = helix_api_key;
+      dbUpdates.helix_api_key = helix_api_key;
+    }
+    if (key) {
+      updates.helix_api_key = key;
+      dbUpdates.helix_api_key = key;
+    }
+    if (provider) updates.provider = provider;
+  }
+
+  // Handle cloud provider API keys (single-field configuration)
+  if (key_type && ['openai', 'anthropic', 'google', 'groq'].includes(key_type)) {
+    updates[key_type + '_api_key'] = key;
+    updates.provider = key_type;
+  }
+
+  // Anthropic base URL override (for LM Studio proxy or custom endpoint)
+  if (req.body?.anthropic_base_url !== undefined) {
+    updates.anthropic_base_url = req.body.anthropic_base_url || '';
+  }
+
+  setLangchainConfig(req, updates);
+
+  let am = null;
+  if (agent_mode !== undefined) {
+    am = resolveAgentMode(agent_mode, external_wiring);
+    try {
+      await configStore.setConfig({
+        agent_mode: am.mode,
+        agent_external_wiring: am.externalWiring || '',
+      });
+    } catch (err) {
+      console.error('[langchainConfig POST] agent_mode persist failed:', err.message);
+    }
+    if (am.provider) setLangchainConfig(req, { provider: am.provider });
+  }
+
+  // Persist Helix credentials to SQLite
+  if (Object.keys(dbUpdates).length > 0) {
+    try {
+      await configStore.setConfig(dbUpdates);
+    } catch (err) {
+      console.error('[langchainConfig POST] SQLite persist failed:', err.message);
+      // Continue despite DB error — session is still valid
+    }
+  }
+
+  const cfg = getLangchainConfig(req);
+  const { resolveLlmProvider } = require('../services/llmProviderResolver');
+  const activeProvider = resolveLlmProvider(cfg).provider;
+
+  // Log Helix config for debugging
+  if (key_type === 'helix' || provider === 'helix') {
+    console.log('[langchainConfig POST] Helix saved:', {
+      helix_base_url: !!cfg.helix_base_url,
+      helix_api_key: !!cfg.helix_api_key,
+      helix_environment_id: !!cfg.helix_environment_id,
+      helix_agent_id: !!cfg.helix_agent_id,
+      provider: cfg.provider,
+      db: Object.keys(dbUpdates).length > 0 ? 'persisted' : 'session_only'
+    });
+  }
+
+  res.json({
+    ok: true,
+    provider: activeProvider,
+    model: cfg.model || DEFAULT_MODELS[activeProvider],
+    key_set: { [activeProvider]: true },
+    agent_mode: am ? am.mode : (configStore.getEffective('agent_mode') || null),
+    external_wiring: am ? am.externalWiring : (configStore.getEffective('agent_external_wiring') || null),
+  });
+});
+
+// DELETE /api/langchain/config/key/:keyType — clear Helix config from session + SQLite
+router.delete('/config/key/:keyType', async (req, res) => {
+  const keyType = req.params.keyType;
+
+  // Clear Helix config from session
+  if (keyType === 'helix') {
+    const cfg = getLangchainConfig(req);
+    delete cfg.helix_base_url;
+    delete cfg.helix_api_key;
+    delete cfg.helix_environment_id;
+    delete cfg.helix_agent_id;
+    req.session.langchain_config = cfg;
+
+    // Clear from the persistent config store (LMDB-backed configStore — NO SQLITE).
+    // setConfig writes empty strings so getEffective falls back to FIELD_DEFS
+    // defaults / env, matching the prior "DELETE FROM config" semantics.
+    try {
+      await configStore.setConfig({
+        helix_base_url: '',
+        helix_api_key: '',
+        helix_environment_id: '',
+        helix_agent_id: '',
+      });
+      console.log('[langchainConfig DELETE] Helix config cleared from configStore (LMDB)');
+    } catch (err) {
+      console.error('[langchainConfig DELETE] configStore cleanup failed:', err.message);
+      // Continue despite error — session is still cleared
+    }
+  }
+
+  res.json({ ok: true, key_type: keyType, cleared: true });
+});
+
+
+// POST /api/langchain/helix/verify
+// Body: { helix_base_url, helix_api_key, helix_environment_id, helix_agent_id, helix_prompt_field_id }
+// Runs a live Helix conversation test. No session required — called during setup before login.
+router.post('/helix/verify', async (req, res) => {
+  const { helix_base_url, helix_api_key, helix_environment_id, helix_agent_id, helix_prompt_field_id } = req.body || {};
+  const missing = ['helix_base_url','helix_api_key','helix_environment_id','helix_agent_id','helix_prompt_field_id']
+    .filter(k => !req.body?.[k]);
+  if (missing.length) {
+    return res.json({ ok: false, error: `Missing required fields: ${missing.join(', ')}` });
+  }
+  try {
+    const { callHelixAgent } = require('../services/helixLlmService');
+    await callHelixAgent(
+      { helix_base_url, helix_api_key, helix_environment_id, helix_agent_id, helix_prompt_field_id },
+      [{ role: 'user', content: 'ping' }]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+module.exports = router;
+
+// GET /api/langchain/provider/:providerName/status
+// Returns: { provider, status, reason, configured: boolean }
+// Status: 'available' | 'unconfigured' | 'unreachable'
+// NOTE: Async health check runs server-side; client sees result synchronously
+router.get('/provider/:providerName/status', async (req, res) => {
+  const { providerName } = req.params;
+
+  // Validate provider
+  if (!PROVIDER_MODELS[providerName]) {
+    return res.status(400).json({ error: `Unknown provider: ${providerName}` });
+  }
+
+  try {
+    const { getProviderStatus } = require('../services/llmProviderStatus');
+    const cfg = getLangchainConfig(req);
+
+    // For Helix, try to load from SQLite if not in session.
+    // Use getEffective so FIELD_DEFS defaults reach fresh clones.
+    if (providerName === 'helix') {
+      try {
+        cfg.helix_base_url = cfg.helix_base_url || configStore.getEffective('helix_base_url') || '';
+        cfg.helix_api_key = cfg.helix_api_key || configStore.getEffective('helix_api_key') || '';
+        cfg.helix_environment_id = cfg.helix_environment_id || configStore.getEffective('helix_environment_id') || '';
+        cfg.helix_agent_id = cfg.helix_agent_id || configStore.getEffective('helix_agent_id') || '';
+      } catch (dbErr) {
+        console.warn('[langchainConfig provider status] configStore error:', dbErr.message);
+      }
+    }
+
+    const statusData = await getProviderStatus(providerName, cfg);
+    
+    res.json({
+      provider: providerName,
+      status: statusData.status,
+      reason: statusData.reason,
+      configured: statusData.hasKey,
+    });
+  } catch (error) {
+    console.error(`[langchainConfig] Provider status check failed for ${providerName}:`, error.message);
+    res.status(500).json({
+      provider: providerName,
+      status: 'unreachable',
+      reason: `Status check error: ${error.message}`,
+      configured: false,
+    });
+  }
+});

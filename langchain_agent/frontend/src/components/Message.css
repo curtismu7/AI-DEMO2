@@ -1,0 +1,222 @@
+.message {
+  display: flex;
+  margin-bottom: 1rem;
+}
+
+.message-user {
+  justify-content: flex-end;
+}
+
+.message-assistant {
+  justify-content: flex-start;
+}
+
+.message-content {
+  max-width: 70%;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-text {
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.message-user .message-text {
+  background-color: #007bff;
+  color: white;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.message-assistant .message-text {
+  background-color: #e9ecef;
+  color: #495057;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.message-timestamp {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  padding: 0 0.5rem;
+}
+
+.message-user .message-timestamp {
+  text-align: right;
+}
+
+.message-assistant .message-timestamp {
+  text-align: left;
+}
+
+/* Markdown styles */
+.markdown-link {
+  color: #007bff;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.markdown-link:hover {
+  color: #0056b3;
+  text-decoration: none;
+}
+
+.inline-code {
+  background-color: #f8f9fa;
+  color: #e83e8c;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+}
+
+.code-block {
+  background-color: #f8f9fa;
+  color: #495057;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+  display: block;
+  margin: 0.5rem 0;
+  border-left: 3px solid #007bff;
+}
+
+.markdown-blockquote {
+  border-left: 4px solid #007bff;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Style for markdown headings in messages */
+.message-text h1,
+.message-text h2,
+.message-text h3,
+.message-text h4,
+.message-text h5,
+.message-text h6 {
+  margin: 0.5rem 0;
+  color: #495057;
+}
+
+.message-text h1 { font-size: 1.25rem; }
+.message-text h2 { font-size: 1.125rem; }
+.message-text h3 { font-size: 1rem; }
+.message-text h4 { font-size: 0.875rem; }
+
+/* Style for markdown lists */
+.message-text ul,
+.message-text ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.message-text li {
+  margin: 0.25rem 0;
+}
+
+/* Style for markdown paragraphs */
+.message-text p {
+  margin: 0.5rem 0;
+}
+
+.message-text p:first-child {
+  margin-top: 0;
+}
+
+.message-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* Style for strong/bold text */
+.message-text strong {
+  font-weight: 600;
+  color: #343a40;
+}
+
+/* Style for emphasis/italic text */
+.message-text em {
+  font-style: italic;
+  color: #495057;
+}
+
+/* Authorization request styles */
+.auth-request {
+  padding: 1rem;
+  border: 2px solid #007bff;
+  border-radius: 0.5rem;
+  background-color: #f8f9ff;
+  margin: 0.5rem 0;
+}
+
+.auth-header {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: #007bff;
+}
+
+.auth-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  min-width: 150px;
+  justify-content: center;
+}
+
+.auth-button:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.auth-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-button-loading {
+  background-color: #6c757d;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.auth-details {
+  background-color: #e9ecef;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  margin: 0.5rem 0;
+  color: #495057;
+}
+
+.auth-details small {
+  line-height: 1.4;
+}

@@ -1,0 +1,267 @@
+<mxfile host="app.diagrams.net" modified="2026-03-22T00:00:00.000Z" agent="Banking-Demo" version="22.1.0" type="device">
+  <diagram id="component-arch" name="1 — Component architecture">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Banking demo — component architecture (from LUCIDCHART_DIAGRAMS.md Diagram 1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1200" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane-browser" value="Browser (user device)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;fillColor=#e1f5fe;strokeColor=#01579b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ui" value="React UI&#xa;(CRA / Vercel)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;" vertex="1" parent="lane-browser">
+          <mxGeometry y="28" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="chat" value="Chat widget&#xa;→ LangChain WS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3e5fc;strokeColor=#0277bd;" vertex="1" parent="lane-browser">
+          <mxGeometry y="78" width="220" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane-bff" value="Banking Backend-for-Frontend (BFF) (Express — same origin on Vercel)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;fillColor=#fff8e1;strokeColor=#f57f17;" vertex="1" parent="1">
+          <mxGeometry x="300" y="70" width="260" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="oauth" value="OAuth + CIBA&#xa;/api/auth/oauth/*&#xa;/api/auth/ciba/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffecb3;strokeColor=#ff8f00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="28" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="session" value="Session store&#xa;(T1, refresh, id_token)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffecb3;strokeColor=#ff8f00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="98" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mcpproxy" value="MCP proxy&#xa;POST /api/mcp/tool&#xa;RFC 8693 → WS MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffecb3;strokeColor=#ff8f00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="158" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="mcpinsp" value="MCP Inspector&#xa;/api/mcp/inspector/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe082;strokeColor=#f57c00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="228" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="bankapi" value="Banking REST&#xa;/api/accounts · /transactions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffecb3;strokeColor=#ff8f00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="288" width="260" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="authmw" value="auth.js&#xa;JWT + scopes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffecb3;strokeColor=#ff8f00;" vertex="1" parent="lane-bff">
+          <mxGeometry y="338" width="260" height="42" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane-mcp" value="MCP server :8080 (WS + JSON-RPC 2.0)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;fillColor=#f3e5f5;strokeColor=#6a1b9a;" vertex="1" parent="1">
+          <mxGeometry x="600" y="70" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="authmgr" value="AuthenticationIntegration&#xa;introspect + scopes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1bee7;strokeColor=#7b1fa2;" vertex="1" parent="lane-mcp">
+          <mxGeometry y="28" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tools" value="BankingToolRegistry&#xa;get_my_accounts, transfers, …" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1bee7;strokeColor=#7b1fa2;" vertex="1" parent="lane-mcp">
+          <mxGeometry y="88" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="intro" value="TokenIntrospector&#xa;PingOne RFC 7662" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1bee7;strokeColor=#7b1fa2;" vertex="1" parent="lane-mcp">
+          <mxGeometry y="158" width="280" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane-agent" value="LangChain agent (2nd MCP host)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;fillColor=#fff3e0;strokeColor=#e65100;" vertex="1" parent="1">
+          <mxGeometry x="920" y="70" width="260" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="ChatOpenAI + streaming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#ef6c00;" vertex="1" parent="lane-agent">
+          <mxGeometry y="28" width="260" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mcpclient" value="MCP client&#xa;WS + Bearer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#ef6c00;" vertex="1" parent="lane-agent">
+          <mxGeometry y="78" width="260" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="cibaagent" value="OAuth manager&#xa;CIBA + client credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#ef6c00;" vertex="1" parent="lane-agent">
+          <mxGeometry y="128" width="260" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="wsev" value="WS stream_event&#xa;tool_* / llm_token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#ef6c00;" vertex="1" parent="lane-agent">
+          <mxGeometry y="183" width="260" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="insp8081" value=":8081 /inspector/mcp-host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#ef6c00;" vertex="1" parent="lane-agent">
+          <mxGeometry y="238" width="260" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane-p1" value="PingOne" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;fillColor=#e8f5e9;strokeColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="70" width="200" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="p1auth" value="/authorize" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;" vertex="1" parent="lane-p1">
+          <mxGeometry y="28" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="p1token" value="/token&#xa;code, RFC 8693, CIBA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;" vertex="1" parent="lane-p1">
+          <mxGeometry y="68" width="200" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="p1bc" value="/bc-authorize (CIBA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;" vertex="1" parent="lane-p1">
+          <mxGeometry y="123" width="200" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="p1jwks" value="/jwks · /introspect&#xa;/userinfo · /signoff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;" vertex="1" parent="lane-p1">
+          <mxGeometry y="168" width="200" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="p1dv" value="DaVinci (CIBA email)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#388e3c;" vertex="1" parent="lane-p1">
+          <mxGeometry y="223" width="200" height="57" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;startArrow=classic;" edge="1" parent="1" source="ui" target="oauth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1l" value="HTTPS + session cookie" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e1">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="ui" target="mcpproxy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="ui" target="mcpinsp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="ui" target="bankapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=classic;" edge="1" parent="1" source="chat" target="llm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="150" y="400" />
+              <mxPoint x="1050" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5l" value="WebSocket chat" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e5">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="oauth" target="session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="session" target="mcpproxy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="session" target="mcpinsp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="mcpproxy" target="authmgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9l" value="WebSocket MCP" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e9">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="mcpinsp" target="authmgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="mcpproxy" target="p1token">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="520" />
+              <mxPoint x="1320" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11l" value="RFC 8693 (optional)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e11">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint y="10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="oauth" target="p1auth">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="600" />
+              <mxPoint x="1320" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="oauth" target="p1token">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="620" />
+              <mxPoint x="1320" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="bankapi" target="authmw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="authmw" target="p1jwks">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="680" />
+              <mxPoint x="1320" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15l" value="JWKS verify" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e15">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="intro" target="p1jwks">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="520" />
+              <mxPoint x="1320" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="tools" target="bankapi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="450" />
+              <mxPoint x="430" y="450" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17l" value="REST + Bearer" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e17">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="mcpclient" target="authmgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="cibaagent" target="p1bc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1150" y="360" />
+              <mxPoint x="1180" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;" edge="1" parent="1" source="cibaagent" target="p1token">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1150" y="380" />
+              <mxPoint x="1320" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=classic;" edge="1" parent="1" source="p1bc" target="p1dv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="validationMode" value="validationModeConfig.js&#xa;mode: introspection | jwt&#xa;env: VALIDATION_MODE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9e7;strokeColor=#f39c12;fontColor=#1a252f;" vertex="1" parent="1">
+          <mxGeometry x="300" y="500" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tokenValidationTab" value="Config: Token Validation Tab&#xa;GET/POST /api/config/validation-mode&#xa;Test PingOne Connection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#27ae60;fontColor=#1a252f;" vertex="1" parent="1">
+          <mxGeometry x="520" y="500" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tokenValidationEdge" value="mode switch" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="tokenValidationTab" target="validationMode" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="readme" name="0 — About + sequence diagrams">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0r" />
+        <mxCell id="1r" parent="0r" />
+        <mxCell id="note1" value="LUCIDCHART_DIAGRAMS.md is not draw.io format — it uses Mermaid inside Markdown (for Lucidchart “Import → Mermaid” or GitHub preview).&#xa;&#xa;This file (.drawio) is for diagrams.net / draw.io: open with File → Open from Device, or drag onto app.diagrams.net.&#xa;&#xa;Page “1 — Component architecture” mirrors Diagram 1 from the markdown.&#xa;Diagrams 2–9 in the .md file are sequence / flow Mermaid blocks; paste them into draw.io via Arrange → Insert → Advanced → Mermaid, or keep maintaining them in LUCIDCHART_DIAGRAMS.md." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fillColor=#fffde7;strokeColor=#f9a825;fontSize=12;" vertex="1" parent="1r">
+          <mxGeometry x="40" y="40" width="1000" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="note2" value="RFCs / specs (see ARCHITECTURE.md §1a): RFC 6749, 6750, 7636, 7662, 8693, 7009, 7517, 7519, 7591; JSON-RPC 2.0; OIDC Core + CIBA; MCP 2024-11-05." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1r">
+          <mxGeometry x="40" y="260" width="1000" height="70" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

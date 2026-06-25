@@ -1,0 +1,30 @@
+{
+  "name": "banking-dev-mcp",
+  "version": "0.1.0",
+  "description": "Dev-only MCP server for the Super Banking demo: log triage, state inspection, token chain decoding, PingOne read-only ops. Not shipped.",
+  "private": true,
+  "main": "dist/index.js",
+  "bin": {
+    "banking-dev-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:clean": "rm -rf dist && npm run build",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "lmdb": "^3.5.5",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

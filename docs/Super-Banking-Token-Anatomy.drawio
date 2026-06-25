@@ -1,0 +1,194 @@
+<mxGraphModel dx="1422" dy="762" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1500" pageHeight="680" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- Title -->
+    <mxCell id="title" value="Super Banking — RFC 8693 Token Anatomy" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+      <mxGeometry x="250" y="15" width="1000" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="subtitle" value="JWT claims at each stage of the delegated token exchange chain" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#64748b;" vertex="1" parent="1">
+      <mxGeometry x="250" y="50" width="1000" height="25" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Panel 1: Subject Token (Before Exchange) -->
+    <!-- ============================================================ -->
+    <mxCell id="p1-border" value="" style="rounded=1;arcSize=4;fillColor=#f0f9ff;strokeColor=#7dd3fc;strokeWidth=3;" vertex="1" parent="1">
+      <mxGeometry x="30" y="90" width="380" height="490" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p1-header" value="Subject Token" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="30" y="98" width="380" height="35" as="geometry" />
+    </mxCell>
+    <mxCell id="p1-subheader" value="(issued at user login — PKCE)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#64748b;" vertex="1" parent="1">
+      <mxGeometry x="30" y="130" width="380" height="25" as="geometry" />
+    </mxCell>
+
+    <!-- Divider -->
+    <mxCell id="p1-div" value="" style="line;strokeColor=#bae6fd;" vertex="1" parent="1">
+      <mxGeometry x="50" y="158" width="340" height="8" as="geometry" />
+    </mxCell>
+
+    <!-- Claims box P1 -->
+    <mxCell id="p1-claims" value="sub: user-id-12345&#xa;aud: banking_enduser&#xa;iss: https://auth.pingone.com/{env}&#xa;scope: banking:ai:agent&#xa;exp: &lt;timestamp&gt;&#xa;&#xa;may_act: {&#xa;  sub: &lt;PINGONE_AI_AGENT_CLIENT_ID&gt;&#xa;}" style="rounded=1;arcSize=6;fillColor=#e0f2fe;strokeColor=#38bdf8;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+      <mxGeometry x="50" y="170" width="340" height="200" as="geometry" />
+    </mxCell>
+
+    <!-- Annotation P1 -->
+    <mxCell id="p1-note1" value="Standard OIDC token" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0369a1;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="55" y="377" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p1-note2" value="No act chain yet — user's identity only" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="55" y="396" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p1-note3" value="may_act grants AI Agent permission to exchange" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="55" y="418" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p1-note4" value="Audience: banking_enduser resource (not the MCP server)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="55" y="440" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <!-- Issued-by label -->
+    <mxCell id="p1-issuer" value="Issued by: PingOne (PKCE login)" style="rounded=1;arcSize=10;fillColor=#bae6fd;strokeColor=#0ea5e9;fontSize=11;fontColor=#0c4a6e;" vertex="1" parent="1">
+      <mxGeometry x="80" y="540" width="280" height="28" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Arrow 1: Subject → MCP Token -->
+    <!-- ============================================================ -->
+    <mxCell id="arrow1-box" value="BFF calls PingOne&#xa;RFC 8693 Exchange #1&#xa;grant_type=token-exchange&#xa;subject_token = Subject Token&#xa;actor_token = BFF Actor Token (CC)" style="rounded=1;arcSize=10;fillColor=#f0fdf4;strokeColor=#22c55e;fontSize=11;fontColor=#14532d;align=left;spacingLeft=8;" vertex="1" parent="1">
+      <mxGeometry x="430" y="240" width="130" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- Arrow shaft 1 -->
+    <mxCell id="arrow1-shaft" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#22c55e;strokeWidth=4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="p1-border" target="arrow1-box" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Panel 2: MCP Token (After Exchange #1) -->
+    <!-- ============================================================ -->
+    <mxCell id="p2-border" value="" style="rounded=1;arcSize=4;fillColor=#f0fdf4;strokeColor=#4ade80;strokeWidth=3;" vertex="1" parent="1">
+      <mxGeometry x="580" y="90" width="380" height="490" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2-header" value="MCP Token" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#15803d;" vertex="1" parent="1">
+      <mxGeometry x="580" y="98" width="380" height="35" as="geometry" />
+    </mxCell>
+    <mxCell id="p2-subheader" value="(after Exchange #1 — BFF exchanges on behalf of user)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#64748b;" vertex="1" parent="1">
+      <mxGeometry x="580" y="130" width="380" height="25" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2-div" value="" style="line;strokeColor=#86efac;" vertex="1" parent="1">
+      <mxGeometry x="600" y="158" width="340" height="8" as="geometry" />
+    </mxCell>
+
+    <!-- Claims box P2 -->
+    <mxCell id="p2-claims" value="sub: user-id-12345       ← preserved&#xa;aud: https://mcp-server&#xa;iss: https://auth.pingone.com/{env}&#xa;scope: banking:ai:agent&#xa;exp: &lt;timestamp&gt;&#xa;&#xa;" style="rounded=1;arcSize=6;fillColor=#dcfce7;strokeColor=#4ade80;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+      <mxGeometry x="600" y="170" width="340" height="120" as="geometry" />
+    </mxCell>
+
+    <!-- act highlight P2 -->
+    <mxCell id="p2-act-highlight" value="act: {&#xa;  sub: PINGONE_ADMIN_CLIENT_ID    ← BFF is the actor&#xa;}" style="rounded=1;arcSize=6;fillColor=#bbf7d0;strokeColor=#16a34a;strokeWidth=2;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+      <mxGeometry x="600" y="292" width="340" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- act label -->
+    <mxCell id="p2-act-label" value="🔵 NEW: act claim added here" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#15803d;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="605" y="365" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <!-- Annotations P2 -->
+    <mxCell id="p2-note1" value="sub is PRESERVED — original user identity intact" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0369a1;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="605" y="393" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p2-note2" value="aud changes to MCP Server URL" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="605" y="415" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p2-note3" value="act.sub = PINGONE_ADMIN_CLIENT_ID (delegated actor)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#15803d;" vertex="1" parent="1">
+      <mxGeometry x="605" y="437" width="360" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p2-note4" value="BFF used its own Client Credentials token as actor_token" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="605" y="459" width="360" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2-issuer" value="Issued by: PingOne (RFC 8693 Exchange #1)" style="rounded=1;arcSize=10;fillColor=#86efac;strokeColor=#16a34a;fontSize=11;fontColor=#14532d;" vertex="1" parent="1">
+      <mxGeometry x="630" y="540" width="280" height="28" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Arrow 2: MCP → Resource Token -->
+    <!-- ============================================================ -->
+    <mxCell id="arrow2-box" value="MCP Server calls PingOne&#xa;RFC 8693 Exchange #2&#xa;grant_type=token-exchange&#xa;subject_token = MCP Token&#xa;actor_token = MCP Actor Token (CC)" style="rounded=1;arcSize=10;fillColor=#fff7ed;strokeColor=#f97316;fontSize=11;fontColor=#7c2d12;align=left;spacingLeft=8;" vertex="1" parent="1">
+      <mxGeometry x="980" y="240" width="140" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="arrow2-shaft" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#f97316;strokeWidth=4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="p2-border" target="arrow2-box" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Panel 3: Resource Token (After Exchange #2) -->
+    <!-- ============================================================ -->
+    <mxCell id="p3-border" value="" style="rounded=1;arcSize=4;fillColor=#fff7ed;strokeColor=#fb923c;strokeWidth=3;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="90" width="340" height="490" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3-header" value="Resource Token" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#9a3412;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="98" width="340" height="35" as="geometry" />
+    </mxCell>
+    <mxCell id="p3-subheader" value="(after Exchange #2 — full delegation chain)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#64748b;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="130" width="340" height="25" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3-div" value="" style="line;strokeColor=#fdba74;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="158" width="300" height="8" as="geometry" />
+    </mxCell>
+
+    <!-- Claims box P3 -->
+    <mxCell id="p3-claims" value="sub: user-id-12345       ← preserved&#xa;aud: https://resource-server&#xa;iss: https://auth.pingone.com/{env}&#xa;scope: banking:general:read&#xa;exp: &lt;timestamp&gt;&#xa;&#xa;" style="rounded=1;arcSize=6;fillColor=#ffedd5;strokeColor=#fb923c;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="170" width="300" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- outer act highlight P3 -->
+    <mxCell id="p3-act-outer" value="act: {&#xa;  sub: MCP_CLIENT_ID    ← MCP actor" style="rounded=1;arcSize=6;fillColor=#fed7aa;strokeColor=#f97316;strokeWidth=2;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="282" width="300" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- inner act.act highlight P3 -->
+    <mxCell id="p3-act-inner" value="  act: {&#xa;    sub: PINGONE_AI_AGENT_CLIENT_ID&#xa;  }             ← nested actor&#xa;}" style="rounded=1;arcSize=6;fillColor=#fbbf24;strokeColor=#d97706;strokeWidth=2;fontSize=12;fontFamily=Courier New;align=left;spacingLeft=10;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+      <mxGeometry x="1160" y="342" width="300" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- Labels P3 -->
+    <mxCell id="p3-act-label" value="🟠 Nested act chain — full audit trail" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#9a3412;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1165" y="415" width="305" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3-note1" value="sub preserved across both exchanges" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0369a1;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="1165" y="440" width="305" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p3-note2" value="act.sub = MCP server (Exchange #2 actor)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#9a3412;" vertex="1" parent="1">
+      <mxGeometry x="1165" y="462" width="305" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p3-note3" value="act.act.sub = AI Agent (Exchange #1 actor)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="1165" y="484" width="305" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="p3-note4" value="PAZ validates both actors + audience" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="1165" y="506" width="305" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3-issuer" value="Issued by: PingOne (RFC 8693 Exchange #2)" style="rounded=1;arcSize=10;fillColor=#fdba74;strokeColor=#ea580c;fontSize=11;fontColor=#7c2d12;" vertex="1" parent="1">
+      <mxGeometry x="1185" y="540" width="260" height="28" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- Legend bar at bottom -->
+    <!-- ============================================================ -->
+    <mxCell id="legend-bar" value="&lt;b&gt;Key:&lt;/b&gt;  Plain background = unchanged claim  |  🔵 Blue highlight = new act claim added  |  🟠 Orange highlight = MCP actor  |  🟡 Yellow highlight = nested agent actor  |  RFC 8693: subject identity (sub) is never changed by exchange" style="text;html=1;strokeColor=#e2e8f0;fillColor=#f8fafc;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;spacingLeft=8;fontColor=#475569;" vertex="1" parent="1">
+      <mxGeometry x="30" y="600" width="1450" height="30" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

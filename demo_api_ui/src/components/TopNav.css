@@ -1,0 +1,520 @@
+/* ─── Top Navigation Bar (Phase 120-03) ───────────────────────────────────── */
+
+.topnav {
+  background: linear-gradient(135deg, var(--brand-dashboard-header-start, #1e293b) 0%, var(--brand-dashboard-header-end, #334155) 100%);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.topnav-container {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 12px 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* ─── Left Side: Brand + Hamburger ─────────────────────────────────── */
+
+.topnav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.topnav-hamburger {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.topnav-hamburger:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.topnav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.topnav-brand:hover {
+  opacity: 0.85;
+}
+
+.topnav-brand-icon {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 26px;
+}
+
+.topnav-brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--brand-topnav-text, #ffffff);
+  letter-spacing: -0.2px;
+}
+
+/* ─── Context chip (Customer / Admin / Setup) — always after brand ─── */
+
+.topnav-context-chip {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--brand-topnav-text, #ffffff);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ─── 3-tab nav (admin only) ────────────────────────────────────────── */
+
+.topnav-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 60px;
+  margin-left: 8px;
+}
+
+.topnav-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.topnav-nav-link:hover {
+  color: var(--brand-topnav-text, #ffffff);
+}
+
+.topnav-nav-link--active {
+  color: var(--brand-topnav-text, #ffffff);
+  font-weight: 600;
+  border-bottom-color: var(--brand-topnav-text, #ffffff);
+}
+
+/* Use Cases button */
+.topnav-use-cases-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.topnav-use-cases-btn:hover {
+  color: var(--brand-topnav-text, #ffffff);
+}
+
+.topnav-use-cases-btn--active {
+  color: var(--brand-topnav-text, #ffffff);
+  font-weight: 600;
+  border-bottom-color: var(--brand-topnav-text, #ffffff);
+}
+
+.topnav-spacer {
+  flex: 1;
+}
+
+/* ─── Right Side: Scrollable controls + pinned UserMenu ───────────── */
+
+.topnav-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 1;
+  overflow: visible;
+  min-width: 0;
+}
+
+/* Scrollable middle section — controls/token/search can overflow;
+   the UserMenu stays outside this div so it's always reachable. */
+.topnav-right-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  min-width: 0;
+}
+
+.topnav-right-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* UserMenu is always visible — sits outside the scrollable area */
+.topnav-right > .user-menu {
+  flex-shrink: 0;
+}
+
+/* Dashboard controls cluster — moved here from the in-page toolbar so the
+   dashboard reclaims vertical space. Visible only on /dashboard. */
+.topnav-dashboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.topnav-dashboard-controls > * {
+  flex-shrink: 0;
+}
+
+.topnav-reset-demo-btn {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.topnav-reset-demo-btn:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+@media (max-width: 1100px) {
+  .topnav-dashboard-controls {
+    gap: 4px;
+    padding-right: 6px;
+  }
+}
+
+.topnav-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.topnav-search-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.topnav-search-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.topnav-search-input {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 200px;
+  transition: border-color 0.15s ease;
+}
+
+.topnav-search-input:focus {
+  outline: none;
+  border-color: var(--brand-navy, #004687);
+}
+
+/* ─── Mobile Menu ───────────────────────────────────────────────────── */
+
+.topnav-mobile-menu {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+
+.topnav-mobile-nav {
+  padding: 8px 0;
+}
+
+.topnav-mobile-group {
+  padding: 8px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.topnav-mobile-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  padding: 8px 0;
+}
+
+.topnav-mobile-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #333;
+  font-size: 14px;
+  padding: 12px 0;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.topnav-mobile-item:hover {
+  color: var(--brand-navy, #004687);
+}
+
+.topnav-mobile-item--logout {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.topnav-mobile-item--logout:hover {
+  color: #991b1b;
+}
+
+/* ─── Responsive Design ───────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .topnav-nav-link {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .topnav-context-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+  .topnav-token-pill__name {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .topnav-nav {
+    display: none;
+  }
+  .topnav-search-input {
+    width: 150px;
+  }
+}
+
+@media (min-width: 769px) {
+  .topnav-hamburger {
+    display: none;
+  }
+
+  .topnav-mobile-menu {
+    display: none;
+  }
+}
+
+/* Login button in the topnav bar */
+.topnav-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.topnav-login-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Always-visible session actions (Switch + Sign Out) — outside the scroll
+   area so they never disappear behind the user menu on narrow screens. */
+.topnav-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.topnav-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.topnav-switch-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+.topnav-switch-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Token pill */
+.topnav-token-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 3px 10px;
+  min-width: 0;
+}
+
+.topnav-token-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.topnav-token-pill--expiring .topnav-token-pill__dot {
+  background: #f59e0b;
+}
+
+.topnav-token-pill--expired .topnav-token-pill__dot {
+  background: #ef4444;
+}
+
+.topnav-token-pill__name {
+  font-size: 12px;
+  color: #e2e8f0;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topnav-token-pill__countdown {
+  font-size: 12px;
+  color: #4ade80;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.topnav-token-pill--expiring .topnav-token-pill__countdown {
+  color: #fbbf24;
+}
+
+/* Stale: customer tokens gone while admin session lives — muted amber dot,
+   dimmed countdown so the timer doesn't read as "everything is fine". */
+.topnav-token-pill--stale .topnav-token-pill__dot {
+  background: #f59e0b;
+  opacity: 0.6;
+}
+
+.topnav-token-pill--stale .topnav-token-pill__countdown {
+  color: #94a3b8;
+}
+
+.topnav-token-pill__session-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  white-space: nowrap;
+  padding-right: 2px;
+}
+
+.topnav-token-pill__view-btn {
+  font-size: 11px;
+  color: #60a5fa;
+  background: none;
+  border: none;
+  border-left: 1px solid #334155;
+  padding: 0 0 0 8px;
+  margin-left: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.topnav-token-pill__view-btn:hover {
+  color: #93c5fd;
+}
+
+.topnav-token-pill__expired-label {
+  font-size: 12px;
+  color: #f87171;
+  font-weight: 600;
+}
+
+.topnav-token-pill__shimmer {
+  display: inline-block;
+  width: 120px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+  animation: topnav-shimmer 1.4s infinite;
+}
+
+@keyframes topnav-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+

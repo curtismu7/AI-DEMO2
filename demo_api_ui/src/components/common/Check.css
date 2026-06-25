@@ -1,0 +1,52 @@
+/* Check.css — styles for the standard <Check> control. Tokens from controls.css. */
+
+.ctl-check {
+  display: inline-flex !important; /* beat external label{display:block} (end-user-nano.css) */
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.ctl-check .ctl-raw { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ctl-check.is-disabled { opacity: .55; cursor: not-allowed; }
+.ctl-check:focus-within { box-shadow: var(--ctl-ring); border-radius: 8px; }
+.ctl-check-text { color: var(--ctl-ink); transition: color .15s ease; }
+
+/* ── box ── */
+.ctl-check--box .ctl-check-mark {
+  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--ctl-line-strong);
+  background: #fff; display: grid; place-items: center; flex-shrink: 0; transition: background .15s ease, border-color .15s ease;
+}
+.ctl-check--box .ctl-check-mark svg { width: 12px; height: 12px; stroke: #fff; stroke-width: 3.5; fill: none; opacity: 0; transition: opacity .15s ease; }
+.ctl-check--box:hover .ctl-check-mark { border-color: var(--ctl-brand); }
+.ctl-check--box.is-on .ctl-check-mark { background: var(--ctl-brand); border-color: var(--ctl-brand); }
+.ctl-check--box.is-on .ctl-check-mark svg { opacity: 1; }
+
+/* ── pill ── */
+.ctl-check--pill {
+  gap: 8px; border: 1.5px solid var(--ctl-line); border-radius: 999px;
+  padding: 7px 14px 7px 11px; background: #fff;
+  transition: background .15s ease, border-color .15s ease;
+}
+.ctl-check--pill .ctl-check-mark {
+  width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ctl-line-strong);
+  display: grid; place-items: center; flex-shrink: 0; transition: background .15s ease, border-color .15s ease;
+}
+.ctl-check--pill .ctl-check-mark svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 4; fill: none; opacity: 0; transition: opacity .15s ease; }
+.ctl-check--pill:hover { border-color: var(--ctl-brand); }
+.ctl-check--pill.is-on { background: var(--ctl-brand); border-color: var(--ctl-brand); }
+.ctl-check--pill.is-on .ctl-check-text { color: #fff; }
+.ctl-check--pill.is-on .ctl-check-mark { background: #fff; border-color: #fff; }
+.ctl-check--pill.is-on .ctl-check-mark svg { opacity: 1; stroke: var(--ctl-brand); }
+
+/* ── switch ── */
+.ctl-check--switch .ctl-check-track {
+  width: 40px; height: 22px; border-radius: 999px; background: #cdd9e5;
+  position: relative; flex-shrink: 0; transition: background .18s ease;
+}
+.ctl-check--switch .ctl-check-track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s ease;
+}
+.ctl-check--switch.is-on .ctl-check-track { background: var(--ctl-brand); }
+.ctl-check--switch.is-on .ctl-check-track::after { transform: translateX(18px); }

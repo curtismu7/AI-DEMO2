@@ -1,0 +1,219 @@
+{
+  "vertical": "government",
+  "heuristic": [
+    {
+      "phrase": "dispute violation VIO-7002",
+      "expect": "dispute_violation"
+    },
+    {
+      "phrase": "I want to appeal code violation VIO-7001",
+      "expect": "dispute_violation"
+    },
+    {
+      "phrase": "reschedule appointment APT-4001",
+      "expect": "reschedule_gov_appointment"
+    },
+    {
+      "phrase": "move my city appointment APT-4002",
+      "expect": "reschedule_gov_appointment"
+    },
+    {
+      "phrase": "Cancel permit P-1001",
+      "expect": "cancel_permit"
+    },
+    {
+      "phrase": "I need to cancel my building permit P-1002",
+      "expect": "cancel_permit"
+    },
+    {
+      "phrase": "Please cancel permit P-1003 for me",
+      "expect": "cancel_permit"
+    },
+    {
+      "phrase": "Submit filing F-5003",
+      "expect": "submit_filing"
+    },
+    {
+      "phrase": "I want to submit my renewal application F-5003",
+      "expect": "submit_filing"
+    },
+    {
+      "phrase": "Approve inspection INS-3002",
+      "expect": "approve_inspection"
+    },
+    {
+      "phrase": "Mark inspection INS-3001 as passed",
+      "expect": "approve_inspection"
+    },
+    {
+      "phrase": "Close violation VIO-7002",
+      "expect": "close_violation"
+    },
+    {
+      "phrase": "Mark code violation VIO-7001 as closed",
+      "expect": "close_violation"
+    },
+    {
+      "phrase": "Schedule inspection INS-3003",
+      "expect": "schedule_inspection"
+    },
+    {
+      "phrase": "I need to schedule an inspection for INS-3001",
+      "expect": "schedule_inspection"
+    },
+    {
+      "phrase": "Renew permit P-1003",
+      "expect": "renew_permit"
+    },
+    {
+      "phrase": "I need to renew my contractor license permit P-1003",
+      "expect": "renew_permit"
+    },
+    {
+      "phrase": "Submit a renewal for permit P-1002",
+      "expect": "renew_permit"
+    },
+    {
+      "phrase": "Cancel appointment APT-4001",
+      "expect": "cancel_appointment"
+    },
+    {
+      "phrase": "I need to cancel my appointment APT-4004",
+      "expect": "cancel_appointment"
+    },
+    {
+      "phrase": "Show me my inspections",
+      "expect": "view_inspections"
+    },
+    {
+      "phrase": "What inspections are scheduled?",
+      "expect": "view_inspections"
+    },
+    {
+      "phrase": "List all inspections for my permits",
+      "expect": "view_inspections"
+    },
+    {
+      "phrase": "Show me any violations on my property",
+      "expect": "view_violations"
+    },
+    {
+      "phrase": "Are there any code enforcement cases open?",
+      "expect": "view_violations"
+    },
+    {
+      "phrase": "List my code violations",
+      "expect": "view_violations"
+    },
+    {
+      "phrase": "Show my business licenses",
+      "expect": "view_business_licenses"
+    },
+    {
+      "phrase": "What business licenses do I have?",
+      "expect": "view_business_licenses"
+    },
+    {
+      "phrase": "List all business licenses on file",
+      "expect": "view_business_licenses"
+    },
+    {
+      "phrase": "Show my upcoming appointments",
+      "expect": "view_appointments"
+    },
+    {
+      "phrase": "What appointments do I have scheduled?",
+      "expect": "view_appointments"
+    },
+    {
+      "phrase": "List all my city hall appointments",
+      "expect": "view_appointments"
+    },
+    {
+      "phrase": "Show my property tax assessments",
+      "expect": "view_tax_assessments"
+    },
+    {
+      "phrase": "What is my tax bill for this year?",
+      "expect": "view_tax_assessments"
+    },
+    {
+      "phrase": "Show me the tax records for my properties",
+      "expect": "view_tax_assessments"
+    },
+    {
+      "phrase": "Show my records requests",
+      "expect": "view_records_requests"
+    },
+    {
+      "phrase": "What is the status of my FOIA request?",
+      "expect": "view_records_requests"
+    },
+    {
+      "phrase": "List my public records requests",
+      "expect": "view_records_requests"
+    },
+    {
+      "phrase": "Show my submitted complaints",
+      "expect": "view_complaints"
+    },
+    {
+      "phrase": "What complaints have I filed?",
+      "expect": "view_complaints"
+    },
+    {
+      "phrase": "List my reported issues",
+      "expect": "view_complaints"
+    }
+  ],
+  "directiveOnly": [
+    {
+      "phrase": "What documents are available for me to download?",
+      "expect": "view_documents"
+    },
+    {
+      "phrase": "Show me my official documents",
+      "expect": "view_documents"
+    },
+    {
+      "phrase": "Can I see my permits and certificates on file?",
+      "expect": "view_documents"
+    },
+    {
+      "phrase": "Show me my payment history",
+      "expect": "view_payment_history"
+    },
+    {
+      "phrase": "What payments have I made?",
+      "expect": "view_payment_history"
+    },
+    {
+      "phrase": "Can I see my past transactions with the city?",
+      "expect": "view_payment_history"
+    },
+    {
+      "phrase": "What is the zoning on my property?",
+      "expect": "view_zoning_info"
+    },
+    {
+      "phrase": "Can you show me zoning info for my parcels?",
+      "expect": "view_zoning_info"
+    },
+    {
+      "phrase": "What zone is 1234 Maple Street in?",
+      "expect": "view_zoning_info"
+    },
+    {
+      "phrase": "Do I have any notifications?",
+      "expect": "view_notifications"
+    },
+    {
+      "phrase": "Show me my alerts from the city",
+      "expect": "view_notifications"
+    },
+    {
+      "phrase": "What messages do I have on my account?",
+      "expect": "view_notifications"
+    }
+  ]
+}

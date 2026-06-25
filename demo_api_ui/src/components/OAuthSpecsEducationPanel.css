@@ -1,0 +1,385 @@
+/* OAuthSpecsEducationPanel.css — Interactive OAuth Standards Education */
+
+.oauthspec-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.05),
+    rgba(51, 65, 85, 0.05)
+  );
+  border-radius: 12px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, sans-serif;
+}
+
+.oauthspec-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.oauthspec-header h2 {
+  font-size: 2rem;
+  margin: 0 0 0.5rem 0;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.oauthspec-subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Tabs Navigation */
+.oauthspec-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.oauthspec-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.oauthspec-tab-nav::-webkit-scrollbar {
+  height: 6px;
+}
+
+.oauthspec-tab-nav::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.oauthspec-tab-nav::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.oauthspec-tab-btn {
+  position: relative;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: 2px solid transparent;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #475569;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.oauthspec-tab-btn:hover {
+  color: #1e293b;
+  background: rgba(203, 213, 225, 0.3);
+}
+
+.oauthspec-tab-btn.active {
+  color: #0066cc;
+  border-bottom-color: #0066cc;
+}
+
+.oauthspec-tab-btn.optional {
+  position: relative;
+}
+
+.oauthspec-optional-indicator {
+  font-size: 1.1rem;
+  margin-left: 0.5rem;
+  display: inline-block;
+}
+
+/* Tab Content */
+.oauthspec-tab-content {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.oauthspec-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.oauthspec-header-row h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #0f172a;
+  flex: 1;
+  min-width: 300px;
+}
+
+.oauthspec-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.oauthspec-badge {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.oauthspec-badge-stable {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.oauthspec-badge-draft {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.oauthspec-badge-implemented {
+  background: #dbeafe;
+  color: #0c4a6e;
+  border: 1px solid #bae6fd;
+}
+
+.oauthspec-badge-optional {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.oauthspec-description {
+  font-size: 1rem;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+/* Feature Flag Alert */
+.oauthspec-feature-flag-alert {
+  background: linear-gradient(
+    135deg,
+    rgba(243, 232, 255, 0.5),
+    rgba(229, 231, 235, 0.5)
+  );
+  border-left: 4px solid #9333ea;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.oauthspec-feature-flag-alert code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.9em;
+}
+
+/* Details Section */
+.oauthspec-details {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.oauthspec-details h4 {
+  font-size: 1.1rem;
+  color: #0f172a;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.oauthspec-details h4:first-child {
+  margin-top: 0;
+}
+
+.oauthspec-details p {
+  margin: 0.5rem 0;
+}
+
+.oauthspec-details ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.oauthspec-details li {
+  margin: 0.4rem 0;
+}
+
+.oauthspec-details code {
+  background: #f1f5f9;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: #0f172a;
+}
+
+.oauthspec-code {
+  display: block;
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.oauthspec-code::before {
+  content: "";
+}
+
+/* Comparison Table */
+.oauthspec-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.oauthspec-comparison thead {
+  background: #f8fafc;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+.oauthspec-comparison th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.oauthspec-comparison td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.oauthspec-comparison tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Not Implemented Section */
+.oauthspec-not-implemented {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.oauthspec-not-implemented h4 {
+  color: #991b1b;
+  font-size: 1.1rem;
+  margin: 0 0 1rem 0;
+}
+
+.oauthspec-not-implemented ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.oauthspec-not-implemented li {
+  color: #7c2d12;
+  margin: 0.5rem 0;
+}
+
+.oauthspec-not-implemented strong {
+  color: #7f1d1d;
+}
+
+/* Footer */
+.oauthspec-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.oauthspec-footer p {
+  margin: 0;
+}
+
+.oauthspec-footer a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.oauthspec-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .oauthspec-container {
+    padding: 1rem;
+  }
+
+  .oauthspec-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .oauthspec-tab-content {
+    padding: 1.5rem;
+  }
+
+  .oauthspec-tab-nav {
+    flex-wrap: wrap;
+  }
+
+  .oauthspec-header-row {
+    flex-direction: column;
+  }
+
+  .oauthspec-badges {
+    justify-content: flex-start;
+  }
+
+  .oauthspec-details {
+    font-size: 0.9rem;
+  }
+
+  .oauthspec-code {
+    font-size: 0.8rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .oauthspec-container {
+    background: white;
+    box-shadow: none;
+  }
+
+  .oauthspec-tab-nav {
+    display: none;
+  }
+
+  .oauthspec-details {
+    page-break-inside: avoid;
+  }
+}

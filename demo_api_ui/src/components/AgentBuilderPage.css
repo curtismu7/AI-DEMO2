@@ -1,0 +1,54 @@
+/* demo_api_ui/src/components/AgentBuilderPage.css */
+.ab-page { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+.ab-page h1 { margin: 0 0 4px; }
+.ab-intro { color: #243b53; margin: 0 0 20px; }
+
+.ab-chain { display: flex; align-items: stretch; gap: 8px; margin-bottom: 24px; }
+.ab-node { flex: 1; border: 2px solid #9aa5b1; border-radius: 10px; padding: 10px 14px; background: #f5f7fa; }
+.ab-node-on { border-color: #1f7a33; background: #eaf7ed; }
+.ab-node-label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #102a43; }
+.ab-node-value { font-size: 14px; color: #102a43; word-break: break-all; }
+.ab-arrow { align-self: center; font-size: 20px; color: #102a43; }
+
+.ab-card { border: 1px solid #d9e2ec; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; background: #fff; }
+.ab-card h2 { margin: 0 0 10px; font-size: 18px; }
+.ab-card h3 { margin: 16px 0 8px; font-size: 14px; text-transform: uppercase; color: #102a43; }
+
+.ab-kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; margin: 0 0 10px; }
+.ab-kv dt { font-weight: 600; color: #102a43; }
+.ab-kv dd { margin: 0; word-break: break-all; }
+
+.ab-edu { color: #243b53; font-size: 14px; }
+.ab-note { color: #7c5e10; background: #fff8e1; border: 1px solid #e0c36a; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+.ab-empty-note { color: #243b53; font-size: 14px; }
+.ab-error { color: #fff; background: #b00020; border-radius: 6px; padding: 10px 14px; font-weight: 600; margin: 8px 0; }
+
+.ab-badge { display: inline-block; background: #102a43; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+
+.ab-resource { border: 1px solid #d9e2ec; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.ab-resource-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ab-resource-name { font-weight: 700; }
+.ab-aud { font-size: 12px; color: #102a43; }
+/* Scope chips use the shared <Check variant="pill"> control (common/Check.jsx).
+   The <code> child gets brand-blue scope text on the white pill; the component
+   flips it to white when the pill fills. */
+.ab-scopes { display: flex; flex-wrap: wrap; gap: 10px; }
+.ab-scopes .ctl-check--pill code { font-size: 13px; transition: color .15s ease; }
+.ab-scopes .ctl-check--pill.is-on code { color: #fff; }
+
+.ab-create-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin: 12px 0; }
+.ab-create-form input { padding: 8px 10px; border: 1px solid #9aa5b1; border-radius: 6px; }
+
+.ab-apply-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.ab-dirty { color: #7c5e10; font-weight: 600; }
+
+.ab-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #9aa5b1; background: #fff; color: #102a43; font-weight: 600; cursor: pointer; }
+.ab-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ab-btn-primary { background: #0b69a3; border-color: #0b69a3; color: #fff; }
+.ab-btn-danger { background: #b00020; border-color: #b00020; color: #fff; }
+.ab-btn-sm { padding: 3px 10px; font-size: 12px; margin-left: auto; }
+.ab-confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.ab-loading { padding: 40px; text-align: center; color: #102a43; font-weight: 600; }
+
+.ab-badge-soft { background: #486581; }
+.ab-agent-meta { font-size: 13px; color: #243b53; }

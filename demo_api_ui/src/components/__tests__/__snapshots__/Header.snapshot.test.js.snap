@@ -1,0 +1,164 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Header snapshot > renders admin nav without change 1`] = `
+<div>
+  <header
+    class="header app-top-header"
+  >
+    <div
+      class="container"
+    >
+      <div
+        class="app-top-header__brand"
+      >
+        <svg
+          data-testid="brand-logo"
+        />
+        <h1
+          class="app-top-header__title"
+        >
+          Accounts API Admin Dashboard
+        </h1>
+      </div>
+      <nav
+        class="nav"
+      >
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/admin"
+        >
+          Admin Dashboard
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/activity"
+        >
+          Activity Logs
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/users"
+        >
+          Users
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/accounts"
+        >
+          Accounts
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/transactions"
+        >
+          Transactions
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/onboarding"
+        >
+          Setup guide
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/config"
+        >
+          Config
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/postman"
+        >
+          Postman
+        </a>
+        <div
+          class="app-top-header__user"
+        >
+          <span>
+            Welcome, 
+             
+          </span>
+          <button
+            class="btn btn-secondary header-switch-role-btn"
+            title="Switch to Customer view"
+            type="button"
+          >
+            ⇄ Customer view
+          </button>
+          <button
+            class="btn btn-secondary"
+            type="button"
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+</div>
+`;
+
+exports[`Header snapshot > renders user nav without change 1`] = `
+<div>
+  <header
+    class="header app-top-header"
+  >
+    <div
+      class="container"
+    >
+      <div
+        class="app-top-header__brand"
+      >
+        <svg
+          data-testid="brand-logo"
+        />
+        <h1
+          class="app-top-header__title"
+        >
+          Personal Account Dashboard
+        </h1>
+      </div>
+      <nav
+        class="nav"
+      >
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/dashboard"
+        >
+          My Dashboard
+        </a>
+        <div
+          class="app-top-header__user"
+        >
+          <span>
+            Welcome, 
+             
+          </span>
+          <button
+            class="btn btn-secondary header-switch-role-btn"
+            title="Switch to Admin view"
+            type="button"
+          >
+            ⇄ Admin view
+          </button>
+          <button
+            class="btn btn-secondary"
+            type="button"
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+</div>
+`;

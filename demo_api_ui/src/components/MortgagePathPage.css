@@ -1,0 +1,185 @@
+/* MortgagePathPage.css — Phase 266 Path A landing page (amber theme).
+   No emoji glyphs anywhere (REGRESSION_PLAN §0). */
+
+.mpp-container {
+  max-width: 880px;
+  margin: 32px auto;
+  padding: 24px;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  color: #1f2937;
+}
+
+.mpp-header {
+  border-left: 6px solid #ca8a04;
+  background: rgba(202, 138, 4, 0.06);
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  border-radius: 0 6px 6px 0;
+}
+
+.mpp-badge {
+  display: inline-block;
+  background: #ca8a04;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 10px;
+}
+
+.mpp-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 4px 0 6px 0;
+}
+
+.mpp-subtitle {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mpp-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 20px 22px;
+  margin-bottom: 18px;
+}
+
+.mpp-card--mortgage {
+  border-left: 3px solid #ca8a04;
+}
+
+.mpp-card--swap {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.mpp-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mpp-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0;
+}
+
+.mpp-field-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.mpp-field-row:last-child {
+  border-bottom: none;
+}
+
+.mpp-field-row dt {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.mpp-field-row dd {
+  font-size: 14px;
+  color: #1f2937;
+  margin: 0;
+  font-weight: 500;
+}
+
+.mpp-field-row--accent dd {
+  color: #92400e;
+  font-weight: 700;
+}
+
+.mpp-swap-line {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.55;
+  margin: 0 0 14px 0;
+}
+
+.mpp-swap-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: #fef3c7;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+
+.mpp-swap-label {
+  font-weight: 600;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.mpp-swap-value {
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  font-size: 14px;
+  background: #fef9c3;
+  padding: 2px 8px;
+  border-radius: 2px;
+  color: #713f12;
+}
+
+.mpp-swap-details {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.mpp-swap-details li {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.mpp-actions {
+  text-align: right;
+  margin-top: 20px;
+}
+
+.mpp-back-btn {
+  background: #1f2937;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mpp-back-btn:hover { background: #111827; }
+
+.mpp-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  line-height: 1.55;
+}
+
+.mpp-loading {
+  color: #6b7280;
+  padding: 24px;
+  text-align: center;
+}

@@ -1,0 +1,46 @@
+---
+title: CIBA Step-Up for High-Value Transfer (STEP_UP_METHOD=ciba)
+---
+sequenceDiagram
+    participant B as Browser (UserDashboard)
+    participant BFF as BFF (demo_api_server)
+    participant TC as tokenChainService.js
+    participant P1 as PingOne (bc-authorize)
+    participant U as User device (out-of-band)
+
+    %% ── 428 gate — frontend-driven bridge ───────────────────────────────────
+    Note over B,P1: STEP_UP_METHOD=ciba — the BFF gate returns 428, it does NOT call cibaService itself
+    B->>BFF: POST /api/transactions (transfer >= confirm_threshold_usd)
+    BFF-->>B: 428 { step_up_method: 'ciba', step_up_acr }
+    Note over B: handleCibaStepUp reacts to the 428
+
+    %% ── initiate ────────────────────────────────────────────────────────────
+    B->>BFF: POST /api/auth/ciba/initiate { login_hint, binding_message }
+    BFF->>P1: bc-authorize (login_hint, binding_message, scope, acr_values)
+    P1-->>BFF: { auth_req_id, expires_in, interval }
+    BFF-->>B: { auth_req_id, authReqId, expires_in, interval }
+    Note over B,BFF: route returns BOTH casings — tokens never reach the browser
+
+    %% ── out-of-band approval ────────────────────────────────────────────────
+    P1->>U: Approval request on the policy-bound channel (email / SMS / FIDO2 / push)
+    U-->>P1: User approves
+
+    %% ── poll ────────────────────────────────────────────────────────────────
+    loop until approved / denied / expired
+        B->>BFF: GET /api/auth/ciba/poll/:authReqId
+        BFF->>P1: poll token endpoint (auth_req_id)
+        alt still pending
+            P1-->>BFF: authorization_pending (or slow_down)
+            BFF-->>B: { status: 'pending' }
+        else approved
+            P1-->>BFF: { access_token, id_token, refresh_token }
+            BFF->>BFF: store tokens server-side (BFF), stepUpVerified = +5 min
+            BFF->>TC: trackTokenEvent(auth, grantedVia: 'ciba')
+            BFF-->>B: { status: 'approved' }
+        end
+    end
+
+    %% ── transfer proceeds ───────────────────────────────────────────────────
+    B->>BFF: POST /api/transactions (retry)
+    BFF-->>B: 200 transaction result
+    Note over B,TC: The CIBA Step-Up tab + floating token-chain panel show the backchannel-granted token

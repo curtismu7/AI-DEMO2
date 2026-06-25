@@ -1,0 +1,492 @@
+'use strict';
+/**
+ * GET /api/admin/mcp-gateway/config
+ *
+ * Returns mock gateway status, current configuration summary, and the
+ * generated PingGateway 2025.11.1 mcp.json route file for real deployments.
+ *
+ * Auth is enforced by authenticateToken middleware in server.js.
+ */
+const express = require('express');
+const http = require('http');
+const https = require('https');
+const configStore = require('../services/configStore');
+const router = express.Router();
+
+// ---------------------------------------------------------------------------
+// Health probe to the mock gateway
+// ---------------------------------------------------------------------------
+function probeGatewayHealth(gatewayUrl) {
+    return new Promise((resolve) => {
+        const url = new URL(gatewayUrl.replace(/\/$/, '') + '/health');
+        const isHttps = url.protocol === 'https:';
+        const transport = isHttps ? https : http;
+        const opts = {
+            hostname: url.hostname,
+            port: parseInt(url.port || (isHttps ? '443' : '80'), 10),
+            path: url.pathname,
+            method: 'GET',
+            timeout: 3000,
+            // Relax TLS only outside production (self-signed mkcert on loopback);
+            // production validates certs. Matches the CR-04/BL-04 pattern.
+            ...(isHttps && process.env.NODE_ENV !== 'production' ? { rejectUnauthorized: false } : {}),
+        };
+        const req = transport.request(opts, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try { resolve({ running: res.statusCode === 200, response: JSON.parse(data) }); }
+                catch { resolve({ running: res.statusCode === 200, response: null }); }
+            });
+        });
+        req.on('error', () => resolve({ running: false, response: null }));
+        req.on('timeout', () => { req.destroy(); resolve({ running: false, response: null }); });
+        req.end();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Live config read from the running Demo Agent Gateway.
+//
+// Reads the gateway's ACTUAL in-memory config from GET /admin/config — the
+// safe-view projection (no secrets) the gateway exposes. This is the real
+// loaded routing config (mcpOlbWsUrl, devBypass, etc.), not the locally
+// generated mirror. Gated behind the shared internal secret (BL-01), so we
+// send the same x-internal-gateway-secret header the BFF uses elsewhere.
+//
+// Returns { ok, config } on success, or { ok: false, error } when the gateway
+// is unreachable, the secret is missing/wrong (401), or — for a real
+// PingGateway, which has no /admin/config — not found (404). Never throws.
+// ---------------------------------------------------------------------------
+function fetchGatewayLiveConfig(gatewayUrl) {
+    return new Promise((resolve) => {
+        const secret = process.env.BFF_INTERNAL_SECRET || '';
+        if (!secret) {
+            resolve({ ok: false, error: 'BFF_INTERNAL_SECRET not set — cannot read live gateway config' });
+            return;
+        }
+        const url = new URL(gatewayUrl.replace(/\/$/, '') + '/admin/config');
+        const isHttps = url.protocol === 'https:';
+        const transport = isHttps ? https : http;
+        const opts = {
+            hostname: url.hostname,
+            port: parseInt(url.port || (isHttps ? '443' : '80'), 10),
+            path: url.pathname,
+            method: 'GET',
+            timeout: 3000,
+            headers: { 'x-internal-gateway-secret': secret },
+            ...(isHttps && process.env.NODE_ENV !== 'production' ? { rejectUnauthorized: false } : {}),
+        };
+        const req = transport.request(opts, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    resolve({ ok: false, error: `gateway returned HTTP ${res.statusCode}` });
+                    return;
+                }
+                try { resolve({ ok: true, config: JSON.parse(data) }); }
+                catch { resolve({ ok: false, error: 'gateway returned non-JSON config' }); }
+            });
+        });
+        req.on('error', (e) => resolve({ ok: false, error: e.message }));
+        req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'live config read timed out' }); });
+        req.end();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Generate a real PingGateway 2025.11.1 mcp.json route configuration.
+//
+// Schema matches the official PingGateway MCP TOI (Feb 2026) and public docs:
+//   https://docs.pingidentity.com/pinggateway/2025.11/mcp/index.html
+//
+// Filter pipeline (in order):
+//   McpAuditFilter -> UriPathRewriteFilter -> McpProtectionFilter ->
+//   McpValidationFilter -> ReverseProxyHandler
+// ---------------------------------------------------------------------------
+function buildPingGatewayMcpJson(cfg) {
+    const pingOneEnvUrl  = cfg.pingOneEnvUrl;      // https://auth.pingone.com/\<envId\>
+    const pingOneResId   = cfg.pingOneResourceId;  // PingOne resource client_id (for introspect)
+    const gatewayPublic  = cfg.gatewayPublicUrl;   // https://ig.example.com:8443
+    const mcpServerUrl   = cfg.upstreamMcpUrl;     // http://localhost:8000
+    const mcpScope       = cfg.mcpScope || 'test';
+
+    return {
+        name: 'mcp',
+        condition: '${find(request.uri.path, \'^/mcp\')}',
+        properties: {
+            pingOneEnvID:      pingOneEnvUrl,
+            pingOneResourceID: pingOneResId,
+            gatewayUrl:        gatewayPublic,
+            mcpServerUrl:      mcpServerUrl,
+        },
+        baseURI: '&{mcpServerUrl}',
+        heap: [
+            {
+                name: 'SystemAndEnvSecretStore-1',
+                type: 'SystemAndEnvSecretStore',
+            },
+            {
+                name: 'AuditService',
+                type: 'AuditService',
+                config: {
+                    eventHandlers: [{
+                        class: 'org.forgerock.audit.handlers.json.JsonAuditEventHandler',
+                        config: {
+                            name: 'json',
+                            logDirectory: '&{ig.instance.dir}/audit',
+                            topics: ['access', 'mcp'],
+                        },
+                    }],
+                },
+            },
+            {
+                // Introspects bearer tokens against PingOne /as/introspect.
+                // Requires RESOURCE_SECRET_ID env var set to base64 of the
+                // PingOne resource client secret (no trailing newline):
+                //   printf '%s' "<secret>" | base64
+                name: 'rsFilter',
+                type: 'OAuth2ResourceServerFilter',
+                config: {
+                    requireHttps: false,
+                    scopes: [mcpScope],
+                    accessTokenResolver: {
+                        type: 'TokenIntrospectionAccessTokenResolver',
+                        config: {
+                            endpoint: '&{pingOneEnvID}/as/introspect',
+                            providerHandler: {
+                                type: 'Chain',
+                                config: {
+                                    filters: [{
+                                        type: 'HttpBasicAuthenticationClientFilter',
+                                        config: {
+                                            username: '&{pingOneResourceID}',
+                                            passwordSecretId: 'resource.secret.id',
+                                            secretsProvider: 'SystemAndEnvSecretStore-1',
+                                        },
+                                    }],
+                                    handler: 'ForgeRockClientHandler',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        ],
+        handler: {
+            type: 'Chain',
+            config: {
+                filters: [
+                    {
+                        type: 'McpAuditFilter',
+                        config: { auditService: 'AuditService' },
+                    },
+                    {
+                        // Strip /mcp prefix — MCP server expects requests at /
+                        type: 'UriPathRewriteFilter',
+                        config: { mappings: { '/mcp': '/' } },
+                    },
+                    {
+                        // Serves /.well-known/oauth-protected-resource (RFC 9728).
+                        // Validates token aud against resourceId, adds resource_metadata
+                        // to WWW-Authenticate on 401.
+                        type: 'McpProtectionFilter',
+                        config: {
+                            resourceId: '&{gatewayUrl}/mcp',
+                            authorizationServerUri: '&{pingOneEnvID}/as',
+                            resourceServerFilter: 'rsFilter',
+                            supportedScopes: [mcpScope],
+                            resourceIdPointer: '/aud/0',
+                        },
+                    },
+                    {
+                        // Validates Origin, Accept header, and JSON-RPC 2.0 envelope.
+                        // Populates ${contexts.mcp} with protocol version + session id.
+                        type: 'McpValidationFilter',
+                        config: { acceptedOrigins: '.*' },
+                    },
+                ],
+                handler: {
+                    type: 'ReverseProxyHandler',
+                    config: { soTimeout: '20 seconds' },
+                },
+            },
+        },
+    };
+}
+
+// ---------------------------------------------------------------------------
+// admin.json snippet — merge into PingGateway admin.json.
+// streamingEnabled: true is required for MCP SSE transport.
+// ---------------------------------------------------------------------------
+function buildAdminJsonSnippet() {
+    return {
+        _comment: 'Merge into PingGateway admin.json — streamingEnabled required for MCP SSE transport',
+        adminConnector: { host: 'localhost', port: 8085 },
+        connectors: [
+            { port: 8080 },
+            { port: 8443, tls: 'ServerTlsOptions-1' },
+        ],
+        streamingEnabled: true,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/mcp-gateway/config
+// ---------------------------------------------------------------------------
+router.get('/config', async (req, res) => {
+  try {
+    const defaultGatewayUrl = `http://localhost:3005`;
+    const gatewayUrl     = process.env.MCP_GATEWAY_HTTP_URL || defaultGatewayUrl;
+    const gatewayEnabled = !!process.env.MCP_GATEWAY_HTTP_URL;
+    const devBypass      = process.env.MCP_GW_DEV_BYPASS === 'true';
+
+    const [{ running, response: healthResponse }, liveConfig] = await Promise.all([
+        probeGatewayHealth(gatewayUrl),
+        fetchGatewayLiveConfig(gatewayUrl),
+    ]);
+
+    const envId  = configStore.getEffective('pingone_environment_id') || '<PingOne Environment ID>';
+    const region = configStore.getEffective('pingone_region') || 'com';
+
+    const cfg = {
+        // Mock gateway fields
+        gatewayResourceUri:    process.env.MCP_GW_RESOURCE_URI     || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '',
+        upstreamMcpUrl:        process.env.MCP_OLB_WS_URL           || configStore.getEffective('mcp_server_url') || 'http://localhost:8000',
+        mcpOlbResourceUri:     process.env.MCP_OLB_RESOURCE_URI    || '',
+        mcpInvestWsUrl:        process.env.MCP_INVEST_WS_URL        || '',
+        mcpInvestResourceUri:  process.env.MCP_INVEST_RESOURCE_URI  || '',
+        hitlServiceUrl:        process.env.HITL_SERVICE_URL         || '',
+        pingAuthorizeEndpoint: process.env.PINGAUTHORIZE_ENDPOINT   || '',
+        pingAuthorizeWorkerId: process.env.PINGAUTHORIZE_WORKER_ID  || '',
+
+        // Real PingGateway 2025.11.1 mcp.json fields
+        pingOneEnvUrl:    `https://auth.pingone.${region}/${envId}`,
+        pingOneResourceId: process.env.MCP_GW_CLIENT_ID             || configStore.getEffective('mcp_gw_client_id') || '<PingOne test resource ID>',
+        gatewayPublicUrl:  process.env.MCP_GW_RESOURCE_URI
+            ? process.env.MCP_GW_RESOURCE_URI.replace(/\/mcp$/, '')
+            : configStore.getEffective('mcp_gw_public_url') || 'https://ig.example.com:8443',
+        mcpScope: configStore.getEffective('mcp_scope') || 'mcp:invoke',
+    };
+    cfg.introspectEndpoint = `${cfg.pingOneEnvUrl}/as/introspect`;
+
+    res.json({
+        mcpMode: configStore.get('mcp_use_pingone_server') === 'true' ? 'pingone' : 'custom',
+        mock: {
+            enabled: gatewayEnabled,
+            running,
+            devBypass,
+            url: gatewayUrl,
+            health: healthResponse,
+            // Live config read from the gateway's GET /admin/config (the real
+            // loaded routing config, not the generated mirror). null when the
+            // gateway is unreachable or doesn't expose /admin/config.
+            liveConfig: liveConfig.ok ? liveConfig.config : null,
+            liveConfigError: liveConfig.ok ? null : liveConfig.error,
+        },
+        config: cfg,
+        envVars: {
+            required: {
+                MCP_GW_RESOURCE_URI:     process.env.MCP_GW_RESOURCE_URI     ? '••••' : 'NOT SET',
+                MCP_GW_CLIENT_ID:        process.env.MCP_GW_CLIENT_ID        ? '••••' : 'NOT SET',
+                MCP_GW_CLIENT_SECRET:    process.env.MCP_GW_CLIENT_SECRET    ? '••••' : 'NOT SET',
+                PINGONE_TOKEN_ENDPOINT:  process.env.PINGONE_TOKEN_ENDPOINT   ? '••••' : 'NOT SET',
+                MCP_OLB_RESOURCE_URI:    process.env.MCP_OLB_RESOURCE_URI    ? '••••' : 'NOT SET',
+                MCP_INVEST_RESOURCE_URI: process.env.MCP_INVEST_RESOURCE_URI  ? '••••' : 'NOT SET',
+            },
+            optional: {
+                MCP_GATEWAY_HTTP_URL:    process.env.MCP_GATEWAY_HTTP_URL    || '(not set — gateway routing disabled)',
+                MCP_GW_DEV_BYPASS:       process.env.MCP_GW_DEV_BYPASS       || 'false',
+                PINGAUTHORIZE_ENDPOINT:  process.env.PINGAUTHORIZE_ENDPOINT   || '(not set — permit-all)',
+                PINGAUTHORIZE_WORKER_ID: process.env.PINGAUTHORIZE_WORKER_ID  || '(not set)',
+                RESOURCE_SECRET_ID:      process.env.RESOURCE_SECRET_ID       ? '••••' : '(not set — required for real PingGateway)',
+            },
+        },
+        // Drop into $HOME/.openig/config/routes/mcp.json
+        pingGatewayJson: buildPingGatewayMcpJson(cfg),
+        // Merge into PingGateway admin.json (streamingEnabled required for SSE)
+        pingGatewayAdminJson: buildAdminJsonSnippet(),
+    });
+  } catch (err) {
+    console.error('[mcpGatewayConfig] GET /config error:', err.message);
+    res.status(500).json({ error: 'gateway_config_error', message: err.message });
+  }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/mcp-gateway/config — push config to the running mock gateway
+// ---------------------------------------------------------------------------
+router.post('/config', async (req, res) => {
+    const gatewayUrl = process.env.MCP_GATEWAY_HTTP_URL || 'http://localhost:3005';
+
+    const allowed = [
+        'gatewayResourceUri', 'mcpOlbWsUrl', 'mcpInvestWsUrl',
+        'mcpOlbResourceUri', 'mcpInvestResourceUri',
+        'pingAuthorizeEndpoint', 'pingAuthorizeWorkerId',
+        'hitlServiceUrl', 'devBypass',
+        'mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope',
+    ];
+
+    const updates = {};
+    for (const key of allowed) {
+        if (key in (req.body || {})) {
+            updates[key] = req.body[key];
+        }
+    }
+
+    if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    try {
+        const target = new URL('/admin/config', gatewayUrl);
+        const body = JSON.stringify(updates);
+
+        const response = await new Promise((resolve, reject) => {
+            const http = require('http');
+            const opts = {
+                hostname: target.hostname,
+                port: parseInt(target.port || '3005', 10),
+                path: target.pathname,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+                timeout: 5000,
+            };
+            const req2 = http.request(opts, (r) => {
+                let data = '';
+                r.on('data', (c) => { data += c; });
+                r.on('end', () => {
+                    try { resolve({ status: r.statusCode, body: JSON.parse(data) }); }
+                    catch { resolve({ status: r.statusCode, body: data }); }
+                });
+            });
+            req2.on('error', reject);
+            req2.on('timeout', () => { req2.destroy(); reject(new Error('Gateway config push timed out')); });
+            req2.write(body);
+            req2.end();
+        });
+
+        if (response.status !== 200) {
+            return res.status(502).json({ error: 'Gateway returned error', detail: response.body });
+        }
+
+        const persistKeys = ['mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope'];
+        const toStore = {};
+        for (const k of persistKeys) {
+            if (k in updates) toStore[k] = updates[k];
+        }
+        if (Object.keys(toStore).length > 0) {
+            try { await configStore.setRaw(toStore); } catch (e) {
+                console.warn('[mcpGatewayConfig] configStore persist failed:', e.message);
+            }
+        }
+
+        res.json({ ok: true, pushed: updates, gatewayConfig: response.body.config });
+    } catch (err) {
+        res.status(502).json({ error: 'Could not reach mock gateway', detail: err.message });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/mcp-gateway/active
+// Authoritative active-gateway state from configStore.getEffective — the SAME
+// source the gateway path and the X-Authz-Simulated header use, so the tester
+// banner always matches real gateway behavior (avoids feature-flag resolve drift).
+// ---------------------------------------------------------------------------
+router.get('/active', (req, res) => {
+    const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    let url = null;
+    try { url = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl(); } catch { /* not configured */ }
+    res.json({
+        usePingGateway: usePing,
+        name:           usePing ? 'PingOne Agent Gateway' : 'Demo Agent Gateway',
+        simulated,
+        authzBackend:   simulated ? 'Simulated (demo_authz_server)' : 'Real PingOne Authorize',
+        url,
+    });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/mcp-gateway/test
+// Send a single MCP tool call THROUGH the active gateway (Demo Agent Gateway or
+// PingOne Agent Gateway, per ff_mcp_gateway_pinggateway) and return the tool
+// result plus the gateway's audit trail — introspection, the authorize DECISION
+// (PERMIT / DENY / INDETERMINATE) and reason, and the upstream route. Powers the
+// Setup "Gateway Tester" page. Auth enforced by authenticateToken in server.js.
+// ---------------------------------------------------------------------------
+router.post('/test', express.json(), async (req, res) => {
+    const { tool, args } = req.body || {};
+    if (!tool || typeof tool !== 'string') {
+        return res.status(400).json({ error: 'bad_request', message: 'tool (string) is required' });
+    }
+
+    const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const gateway = {
+        flag:        'ff_mcp_gateway_pinggateway',
+        usePingGateway: usePing,
+        name:        usePing ? 'PingOne Agent Gateway' : 'Demo Agent Gateway',
+        authzBackend: simulated ? 'mock (demo_authz_server)' : 'real (PingOne Authorize)',
+        simulated,
+    };
+
+    const { callToolViaGateway, getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
+    const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
+
+    let url;
+    try {
+        url = getMcpGatewayHttpUrl();
+        gateway.url = url;
+    } catch (e) {
+        return res.status(500).json({ gateway, error: 'gateway_not_configured', message: e.message });
+    }
+
+    const t0 = Date.now();
+    let token, tokenEvents = [];
+    try {
+        ({ token, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool));
+    } catch (e) {
+        return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (!token) {
+        return res.status(401).json({
+            gateway, error: 'no_mcp_token',
+            message: 'No delegated MCP access token for this session. Sign in as a user with MCP access first.',
+        });
+    }
+
+    try {
+        const { result, gwAuditTrail } = await callToolViaGateway(
+            url, token, tool, (args && typeof args === 'object') ? args : {},
+            { correlationId: req.correlationId },
+        );
+        return res.json({
+            gateway, ok: true, durationMs: Date.now() - t0,
+            result,
+            gwAuditTrail: gwAuditTrail || null,
+            tokenEvents,
+        });
+    } catch (e) {
+        // callToolViaGateway throws structured errors with .code / .httpStatus /
+        // .gatewayErrorCode / .rpcData / .gatewayMessage. Surface them so the tester
+        // shows WHY the gateway rejected the call (e.g. an authorize DENY).
+        const decision = e.rpcData && e.rpcData.decision
+            ? e.rpcData.decision
+            : (e.gatewayErrorCode === 'access_denied' ? 'DENY' : null);
+        return res.json({
+            gateway, ok: false, durationMs: Date.now() - t0,
+            error:            e.code || 'gateway_error',
+            httpStatus:       e.httpStatus || null,
+            gatewayErrorCode: e.gatewayErrorCode || null,
+            message:          e.gatewayMessage || e.message,
+            decision,
+            rpcData:          e.rpcData || null,
+            tokenEvents,
+        });
+    }
+});
+
+module.exports = router;

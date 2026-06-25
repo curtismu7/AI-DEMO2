@@ -1,0 +1,17 @@
+{
+  "noun": "enrollment record",
+  "record": {
+    "enrollment": {
+      "studentId": "SU-2026-88102",
+      "program": "B.S. Computer Science",
+      "term": "Spring 2026",
+      "standing": "Good Standing",
+      "enrolledCredits": 11,
+      "creditsEarned": 78,
+      "gpa": "3.62",
+      "tuitionBalance": 1840.00,
+      "currency": "USD",
+      "holds": "None"
+    }
+  }
+}

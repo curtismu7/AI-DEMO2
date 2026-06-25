@@ -1,0 +1,158 @@
+{
+  "heroStats": {
+    "gearValue": 644,
+    "activeRentals": 2,
+    "loyaltyTier": "Gold",
+    "lastPurchase": "2026-04-27"
+  },
+  "products": [
+    {
+      "id": "501",
+      "sku": "SS-NK-RUN",
+      "name": "Nike Pegasus 41",
+      "price": 140,
+      "stock": "In Stock",
+      "category": "Running"
+    },
+    {
+      "id": "502",
+      "sku": "SS-UA-HVY",
+      "name": "Under Armour Hoodie",
+      "price": 75,
+      "stock": "In Stock",
+      "category": "Apparel"
+    },
+    {
+      "id": "503",
+      "sku": "SS-TW-GOLF",
+      "name": "Titleist Pro V1 (12)",
+      "price": 55,
+      "stock": "Low Stock",
+      "category": "Golf"
+    },
+    {
+      "id": "504",
+      "sku": "SS-YNX-MAT",
+      "name": "Yonex Badminton Racket",
+      "price": 120,
+      "stock": "In Stock",
+      "category": "Racket"
+    },
+    {
+      "id": "505",
+      "sku": "SS-GRM-WCH",
+      "name": "Garmin Forerunner 265",
+      "price": 449,
+      "stock": "In Stock",
+      "category": "Wearable"
+    },
+    {
+      "id": "506",
+      "sku": "SS-ASI-TEN",
+      "name": "Asics Gel-Quantum 360",
+      "price": 165,
+      "stock": "In Stock",
+      "category": "Running"
+    }
+  ],
+  "orders": [
+    {
+      "id": "2001",
+      "product": "Nike Pegasus 41",
+      "sku": "SS-NK-RUN",
+      "amount": 140,
+      "status": "Delivered",
+      "date": "2026-04-18"
+    },
+    {
+      "id": "2002",
+      "product": "Garmin Forerunner 265",
+      "sku": "SS-GRM-WCH",
+      "amount": 449,
+      "status": "Shipped",
+      "date": "2026-04-25"
+    },
+    {
+      "id": "2003",
+      "product": "Titleist Pro V1 (12-pack)",
+      "sku": "SS-TW-GOLF",
+      "amount": 55,
+      "status": "Processing",
+      "date": "2026-04-27"
+    },
+    {
+      "id": "2004",
+      "product": "Under Armour Hoodie",
+      "sku": "SS-UA-HVY",
+      "amount": 75,
+      "status": "Delivered",
+      "date": "2026-03-10"
+    },
+    {
+      "id": "2005",
+      "product": "Yonex Badminton Racket",
+      "sku": "SS-YNX-MAT",
+      "amount": 120,
+      "status": "Delivered",
+      "date": "2026-02-14"
+    },
+    {
+      "id": "2006",
+      "product": "Hydro Flask Water Bottle",
+      "sku": "SS-HF-BTL",
+      "amount": 45,
+      "status": "Cancelled",
+      "date": "2026-05-01"
+    }
+  ],
+  "rentals": [
+    {
+      "id": "3001",
+      "item": "Trek Marlin 8 Mountain Bike",
+      "sku": "SS-TREK-MB8",
+      "dueDate": "2026-05-30",
+      "dailyRate": 45,
+      "status": "Active"
+    },
+    {
+      "id": "3002",
+      "item": "Rossignol Ski Set",
+      "sku": "SS-RS-SKI",
+      "dueDate": "2026-06-01",
+      "dailyRate": 60,
+      "status": "Active"
+    },
+    {
+      "id": "3003",
+      "item": "Kayak — Perception Pescador 10",
+      "sku": "SS-PP-KYK",
+      "dueDate": "2026-06-07",
+      "dailyRate": 55,
+      "status": "Active"
+    },
+    {
+      "id": "3004",
+      "item": "Stand-Up Paddleboard",
+      "sku": "SS-SUP-11",
+      "dueDate": "2026-05-20",
+      "dailyRate": 40,
+      "status": "Returned"
+    },
+    {
+      "id": "3005",
+      "item": "Salomon Snowboard + Boots",
+      "sku": "SS-SLM-SB",
+      "dueDate": "2026-04-05",
+      "dailyRate": 70,
+      "status": "Returned"
+    },
+    {
+      "id": "3006",
+      "item": "Cannondale Trail 8 Bike",
+      "sku": "SS-CND-TRL",
+      "dueDate": "2026-06-15",
+      "dailyRate": 50,
+      "status": "Active"
+    }
+  ]
+}

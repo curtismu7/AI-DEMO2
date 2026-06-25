@@ -1,0 +1,438 @@
+{
+  "orders": [
+    {
+      "id": "2001",
+      "product": "Nike Pegasus 41",
+      "sku": "SS-NK-RUN",
+      "amount": 140,
+      "status": "Delivered",
+      "date": "2026-04-18"
+    },
+    {
+      "id": "2002",
+      "product": "Garmin Forerunner 265",
+      "sku": "SS-GRM-WCH",
+      "amount": 449,
+      "status": "Shipped",
+      "date": "2026-04-25"
+    },
+    {
+      "id": "2003",
+      "product": "Titleist Pro V1 (12-pack)",
+      "sku": "SS-TW-GOLF",
+      "amount": 55,
+      "status": "Processing",
+      "date": "2026-04-27"
+    },
+    {
+      "id": "2004",
+      "product": "Under Armour Hoodie",
+      "sku": "SS-UA-HVY",
+      "amount": 75,
+      "status": "Delivered",
+      "date": "2026-03-10"
+    },
+    {
+      "id": "2005",
+      "product": "Yonex Badminton Racket",
+      "sku": "SS-YNX-MAT",
+      "amount": 120,
+      "status": "Delivered",
+      "date": "2026-02-14"
+    },
+    {
+      "id": "2006",
+      "product": "Hydro Flask Water Bottle",
+      "sku": "SS-HF-BTL",
+      "amount": 45,
+      "status": "Cancelled",
+      "date": "2026-05-01"
+    }
+  ],
+  "rentals": [
+    {
+      "id": "3001",
+      "item": "Trek Marlin 8 Mountain Bike",
+      "sku": "SS-TREK-MB8",
+      "dueDate": "2026-05-30",
+      "dailyRate": 45,
+      "status": "Active"
+    },
+    {
+      "id": "3002",
+      "item": "Rossignol Ski Set",
+      "sku": "SS-RS-SKI",
+      "dueDate": "2026-06-01",
+      "dailyRate": 60,
+      "status": "Active"
+    },
+    {
+      "id": "3003",
+      "item": "Kayak — Perception Pescador 10",
+      "sku": "SS-PP-KYK",
+      "dueDate": "2026-06-07",
+      "dailyRate": 55,
+      "status": "Active"
+    },
+    {
+      "id": "3004",
+      "item": "Stand-Up Paddleboard",
+      "sku": "SS-SUP-11",
+      "dueDate": "2026-05-20",
+      "dailyRate": 40,
+      "status": "Returned"
+    },
+    {
+      "id": "3005",
+      "item": "Salomon Snowboard + Boots",
+      "sku": "SS-SLM-SB",
+      "dueDate": "2026-04-05",
+      "dailyRate": 70,
+      "status": "Returned"
+    },
+    {
+      "id": "3006",
+      "item": "Cannondale Trail 8 Bike",
+      "sku": "SS-CND-TRL",
+      "dueDate": "2026-06-15",
+      "dailyRate": 50,
+      "status": "Active"
+    }
+  ],
+  "loyalty": [
+    { "id": "LYL-001", "points": 4500, "tier": "Gold", "status": "active" }
+  ],
+  "payments": [
+    {
+      "id": "pay-4001",
+      "type": "Visa",
+      "last4": "4242",
+      "expiry": "12/27",
+      "isDefault": true
+    },
+    {
+      "id": "pay-4002",
+      "type": "Mastercard",
+      "last4": "8888",
+      "expiry": "09/26",
+      "isDefault": false
+    },
+    {
+      "id": "pay-4003",
+      "type": "Amex",
+      "last4": "0005",
+      "expiry": "03/28",
+      "isDefault": false
+    },
+    {
+      "id": "pay-4004",
+      "type": "Visa",
+      "last4": "1111",
+      "expiry": "07/25",
+      "isDefault": false
+    },
+    {
+      "id": "pay-4005",
+      "type": "PayPal",
+      "last4": "N/A",
+      "expiry": "N/A",
+      "isDefault": false
+    }
+  ],
+  "addresses": [
+    {
+      "id": "addr-5001",
+      "label": "Home",
+      "street": "42 Maple Ave",
+      "city": "Denver",
+      "isDefault": true
+    },
+    {
+      "id": "addr-5002",
+      "label": "Work",
+      "street": "100 Commerce Blvd",
+      "city": "Boulder",
+      "isDefault": false
+    },
+    {
+      "id": "addr-5003",
+      "label": "Cabin",
+      "street": "7 Trail Rd",
+      "city": "Estes Park",
+      "isDefault": false
+    },
+    {
+      "id": "addr-5004",
+      "label": "Gym",
+      "street": "300 Fitness Way",
+      "city": "Aurora",
+      "isDefault": false
+    },
+    {
+      "id": "addr-5005",
+      "label": "Parent",
+      "street": "88 Oak St",
+      "city": "Fort Collins",
+      "isDefault": false
+    }
+  ],
+  "invoices": [
+    {
+      "id": "inv-6001",
+      "date": "2025-05-10",
+      "amount": 189.99,
+      "status": "paid",
+      "itemCount": 3
+    },
+    {
+      "id": "inv-6002",
+      "date": "2025-04-22",
+      "amount": 64.5,
+      "status": "paid",
+      "itemCount": 1
+    },
+    {
+      "id": "inv-6003",
+      "date": "2025-03-15",
+      "amount": 312,
+      "status": "paid",
+      "itemCount": 5
+    },
+    {
+      "id": "inv-6004",
+      "date": "2025-02-01",
+      "amount": 44.99,
+      "status": "paid",
+      "itemCount": 1
+    },
+    {
+      "id": "inv-6005",
+      "date": "2025-01-08",
+      "amount": 229.95,
+      "status": "paid",
+      "itemCount": 2
+    }
+  ],
+  "support_tickets": [
+    {
+      "id": "tkt-7001",
+      "subject": "Missing item in order",
+      "status": "open",
+      "createdAt": "2025-06-01",
+      "priority": "high"
+    },
+    {
+      "id": "tkt-7002",
+      "subject": "Defective ski boot buckle",
+      "status": "in_progress",
+      "createdAt": "2025-05-28",
+      "priority": "medium"
+    },
+    {
+      "id": "tkt-7003",
+      "subject": "Wrong size delivered",
+      "status": "resolved",
+      "createdAt": "2025-05-10",
+      "priority": "low"
+    },
+    {
+      "id": "tkt-7004",
+      "subject": "Rental return receipt",
+      "status": "resolved",
+      "createdAt": "2025-04-30",
+      "priority": "low"
+    },
+    {
+      "id": "tkt-7005",
+      "subject": "Loyalty points not credited",
+      "status": "open",
+      "createdAt": "2025-06-12",
+      "priority": "medium"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "sub-8001",
+      "plan": "Pro Athlete",
+      "monthlyPrice": 29.99,
+      "status": "active",
+      "renewalDate": "2025-07-15"
+    },
+    {
+      "id": "sub-8002",
+      "plan": "Gear Insider",
+      "monthlyPrice": 9.99,
+      "status": "active",
+      "renewalDate": "2025-07-01"
+    },
+    {
+      "id": "sub-8003",
+      "plan": "Ski Season Pass",
+      "monthlyPrice": 49.99,
+      "status": "paused",
+      "renewalDate": "2025-11-01"
+    },
+    {
+      "id": "sub-8004",
+      "plan": "Basic",
+      "monthlyPrice": 0,
+      "status": "cancelled",
+      "renewalDate": "2025-03-01"
+    },
+    {
+      "id": "sub-8005",
+      "plan": "Family Pack",
+      "monthlyPrice": 59.99,
+      "status": "active",
+      "renewalDate": "2025-08-20"
+    }
+  ],
+  "wishlist": [
+    {
+      "id": "wsh-9001",
+      "item": "Carbon Fiber Road Bike",
+      "price": 2499.99,
+      "inStock": true,
+      "addedDate": "2025-05-20"
+    },
+    {
+      "id": "wsh-9002",
+      "item": "Titanium Ski Poles",
+      "price": 149.99,
+      "inStock": false,
+      "addedDate": "2025-04-10"
+    },
+    {
+      "id": "wsh-9003",
+      "item": "Trail Running Shoes X12",
+      "price": 129.99,
+      "inStock": true,
+      "addedDate": "2025-06-01"
+    },
+    {
+      "id": "wsh-9004",
+      "item": "GPS Sports Watch Pro",
+      "price": 349.99,
+      "inStock": true,
+      "addedDate": "2025-03-15"
+    },
+    {
+      "id": "wsh-9005",
+      "item": "Compression Training Kit",
+      "price": 89.99,
+      "inStock": false,
+      "addedDate": "2025-05-05"
+    }
+  ],
+  "promotions": [
+    {
+      "id": "prm-1101",
+      "code": "SUMMER20",
+      "discountPercent": 20,
+      "expiresAt": "2025-08-31",
+      "status": "active"
+    },
+    {
+      "id": "prm-1102",
+      "code": "LOYAL10",
+      "discountPercent": 10,
+      "expiresAt": "2025-12-31",
+      "status": "active"
+    },
+    {
+      "id": "prm-1103",
+      "code": "SKISEASON15",
+      "discountPercent": 15,
+      "expiresAt": "2025-11-30",
+      "status": "active"
+    },
+    {
+      "id": "prm-1104",
+      "code": "WELCOME5",
+      "discountPercent": 5,
+      "expiresAt": "2025-07-01",
+      "status": "used"
+    },
+    {
+      "id": "prm-1105",
+      "code": "FLASH30",
+      "discountPercent": 30,
+      "expiresAt": "2025-06-20",
+      "status": "expired"
+    }
+  ],
+  "coaching_sessions": [
+    {
+      "id": "cch-1201",
+      "sport": "Skiing",
+      "coach": "Mia Halvorsen",
+      "date": "2025-07-05",
+      "status": "confirmed"
+    },
+    {
+      "id": "cch-1202",
+      "sport": "Mountain Biking",
+      "coach": "Derek Lund",
+      "date": "2025-07-12",
+      "status": "confirmed"
+    },
+    {
+      "id": "cch-1203",
+      "sport": "Rock Climbing",
+      "coach": "Sara Okonjo",
+      "date": "2025-06-28",
+      "status": "completed"
+    },
+    {
+      "id": "cch-1204",
+      "sport": "Trail Running",
+      "coach": "Tom Briggs",
+      "date": "2025-06-15",
+      "status": "cancelled"
+    },
+    {
+      "id": "cch-1205",
+      "sport": "Kayaking",
+      "coach": "Lily Chen",
+      "date": "2025-08-02",
+      "status": "pending"
+    }
+  ],
+  "store_credit": [
+    {
+      "id": "crd-1301",
+      "source": "Return Refund",
+      "balance": 45,
+      "expiresAt": "2026-01-01",
+      "status": "active"
+    },
+    {
+      "id": "crd-1302",
+      "source": "Gift Card",
+      "balance": 100,
+      "expiresAt": "2026-06-30",
+      "status": "active"
+    },
+    {
+      "id": "crd-1303",
+      "source": "Loyalty Reward",
+      "balance": 20,
+      "expiresAt": "2025-12-31",
+      "status": "active"
+    },
+    {
+      "id": "crd-1304",
+      "source": "Promotional Credit",
+      "balance": 0,
+      "expiresAt": "2025-05-01",
+      "status": "expired"
+    },
+    {
+      "id": "crd-1305",
+      "source": "Gift Card",
+      "balance": 50,
+      "expiresAt": "2026-03-15",
+      "status": "active"
+    }
+  ]
+}

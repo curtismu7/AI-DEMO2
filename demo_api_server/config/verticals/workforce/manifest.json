@@ -1,0 +1,313 @@
+{
+  "id": "workforce",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "WX Workforce",
+    "headerTitle": "WX Workforce",
+    "documentTitle": "WX Workforce · PingOne AI IAM Core",
+    "logoAlt": "WX Workforce logo",
+    "tagline": "AI-Powered HR & Workforce Demo",
+    "logoPath": "/branding/workforce-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#4c1d95",
+      "--app-primary-red-hover": "#3b0764",
+      "--app-primary-red-mid": "#7c3aed",
+      "--app-primary-red-border": "#6d28d9",
+      "--brand-dashboard-header-start": "#4c1d95",
+      "--brand-dashboard-header-end": "#7c3aed",
+      "--brand-app-shell-hero-start": "#4c1d95",
+      "--brand-app-shell-hero-end": "#7c3aed",
+      "--theme-accent": "#a78bfa",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Account",
+    "accounts": "Accounts",
+    "accountTypes": [
+      "PTO Balance",
+      "Benefits Allowance",
+      "Expense Budget"
+    ],
+    "transaction": "Request",
+    "transactions": "Requests",
+    "transactionTypes": [
+      "Time Off Request",
+      "Expense Report",
+      "Benefits Claim",
+      "Reimbursement"
+    ],
+    "balance": "Balance",
+    "agent": "HR Assistant",
+    "dashboard": "My Workspace",
+    "highValueAction": "Expense Approval",
+    "highValueLabel": "High-value expense"
+  },
+  "agent": {
+    "persona": "HR Assistant",
+    "greeting": "Hi {name}! I'm your HR Assistant. I can help you check PTO balance, submit expense reports, or review benefits. What would you like to do?",
+    "systemPromptFlavor": "You are a WX Workforce HR assistant. Help employees check PTO balances, submit expense reports, review benefits, and track reimbursements. Use HR language: accounts are PTO balances, benefits allowances, or expense budgets, transactions are requests or submissions, balance is PTO or budget balance. Be professional and direct."
+  },
+  "dashboard": {
+    "kind": "workforce",
+    "chips": [
+      {
+        "key": "balance",
+        "label": "PTO Balance"
+      },
+      {
+        "key": "accounts",
+        "label": "My Benefits"
+      },
+      {
+        "key": "transactions",
+        "label": "Request History"
+      },
+      {
+        "key": "transfer",
+        "label": "Submit Request"
+      },
+      {
+        "key": "feature",
+        "label": "Show Expense Report"
+      }
+    ],
+    "chips10": [
+      { "id": "wf1", "label": "My benefits", "message": "my benefits", "mode": "both", "tool": "view_benefits" },
+      { "id": "wf2", "label": "PTO balance", "message": "pto balance", "mode": "both", "tool": "pto_balance" },
+      { "id": "wf3", "label": "My expenses", "message": "my expenses", "mode": "both", "tool": "list_expenses" },
+      { "id": "wf4", "label": "🔐 Submit an expense", "message": "submit an expense", "mode": "both", "hitlTrigger": true, "tool": "submit_expense" },
+      { "id": "wf5", "label": "🔐 Request time off", "message": "request time off", "mode": "both", "hitlTrigger": true, "tool": "request_time_off" },
+      { "id": "wf-feature", "label": "My expense report", "message": "view my expense report", "mode": "both", "tool": "show_expense_report" },
+      { "id": "wf6", "label": "Sick leave balance", "message": "sick leave balance", "mode": "both" },
+      { "id": "wf7", "label": "Expense history", "message": "expense history", "mode": "both", "tool": "list_expenses" },
+      { "id": "wf8", "label": "When should I use my PTO?", "message": "What's the best time of year for a sabbatical?", "mode": "llm" },
+      { "id": "wf9", "label": "Right medical plan?", "message": "Do I have the right insurance plan for my needs?", "mode": "llm" },
+      { "id": "wf10", "label": "Which expenses are pending?", "message": "What's still waiting on my manager's sign-off?", "mode": "both" },
+      { "id": "wf-direct", "label": "🔌 Direct MCP", "message": "show expense report", "mode": "direct", "tool": "list_expenses" }
+    ],
+    "hero": {
+      "cards": [
+        {
+          "label": "Next Pay Date",
+          "dataKey": "heroStats.nextPayDate",
+          "format": "date"
+        },
+        {
+          "label": "PTO Balance",
+          "dataKey": "heroStats.ptoBalance",
+          "format": "count"
+        },
+        {
+          "label": "Open Enrollments",
+          "dataKey": "heroStats.openEnrollments",
+          "format": "count"
+        },
+        {
+          "label": "Team Size",
+          "dataKey": "heroStats.teamSize",
+          "format": "count"
+        }
+      ]
+    },
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Pay": [
+        {
+          "id": "wf_payday",
+          "label": "Next payday",
+          "message": "When is my next payday?"
+        },
+        {
+          "id": "wf_paystubs",
+          "label": "Recent pay stubs",
+          "message": "Show my last 3 pay stubs"
+        }
+      ],
+      "Benefits": [
+        {
+          "id": "wf_enrolled",
+          "label": "My benefits",
+          "message": "What benefits am I enrolled in?"
+        },
+        {
+          "id": "wf_enrollment",
+          "label": "Open enrollment",
+          "message": "When does open enrollment close?"
+        }
+      ],
+      "Time Off": [
+        {
+          "id": "wf_pto",
+          "label": "PTO balance",
+          "message": "How much PTO do I have left?"
+        },
+        {
+          "id": "wf_pending",
+          "label": "Pending requests",
+          "message": "Show my pending time-off requests"
+        }
+      ],
+      "Team": [
+        {
+          "id": "wf_schedules",
+          "label": "Team schedules",
+          "message": "Show my direct reports' schedules"
+        },
+        {
+          "id": "wf_out",
+          "label": "Who's out?",
+          "message": "Who is out of office this week?"
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "expense:read"
+  },
+  "delegation": {
+    "pageTitle": "Delegate Access",
+    "pageDescription": "Delegate workspace access to a colleague or team member",
+    "granteeLabel": "colleague or delegate",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Accounts",    "description": "See workspace accounts and budgets" },
+      "view_balances":     { "label": "View Balance",     "description": "See available budget and allowances" },
+      "create_deposit":    { "label": "Submit Requests",  "description": "Submit time-off or expense requests" },
+      "create_withdrawal": { "label": "Cancel Requests",  "description": "Cancel pending requests" },
+      "create_transfer":   { "label": "Approve Expenses", "description": "Approve high-value expense reports" }
+    }
+  },
+  "render": {
+    "cancel_expense": {"type":"card","title":"Expense Cancelled","fields":[{"label":"Expense ID","path":"id"},{"label":"Category","path":"category"},{"label":"Status","path":"status"}]},
+    "view_payslips": {"type":"table","title":"My Payslips","columns":[{"label":"Pay Period","path":"period"},{"label":"Gross Pay","path":"grossPay","format":"money"},{"label":"Net Pay","path":"netPay","format":"money"},{"label":"Tax Withheld","path":"taxWithheld","format":"money"},{"label":"Status","path":"status"}]},
+    "view_trainings": {"type":"table","title":"Training Courses","columns":[{"label":"Course","path":"title"},{"label":"Category","path":"category"},{"label":"Duration (hrs)","path":"durationHours","format":"count"},{"label":"Status","path":"status"},{"label":"Due Date","path":"dueDate","format":"date"}]},
+    "enroll_training": {"type":"card","title":"Enrolled in Training","fields":[{"label":"Course","path":"title"},{"label":"Category","path":"category"},{"label":"Status","path":"status"}]},
+    "view_tickets": {"type":"table","title":"Support Tickets","columns":[{"label":"Ticket #","path":"id"},{"label":"Subject","path":"subject"},{"label":"Category","path":"category"},{"label":"Priority","path":"priority"},{"label":"Status","path":"status"},{"label":"Created","path":"createdDate","format":"date"}]},
+    "close_ticket": {"type":"card","title":"Ticket Closed","fields":[{"label":"Ticket #","path":"id"},{"label":"Subject","path":"subject"},{"label":"Status","path":"status"}]},
+    "view_schedule": {"type":"table","title":"My Schedule","columns":[{"label":"Date","path":"date","format":"date"},{"label":"Day","path":"day"},{"label":"Start Time","path":"startTime"},{"label":"End Time","path":"endTime"},{"label":"Location","path":"location"},{"label":"Status","path":"status"}]},
+    "view_goals": {"type":"table","title":"My Goals","columns":[{"label":"Goal","path":"title"},{"label":"Category","path":"category"},{"label":"Progress %","path":"progressPct","format":"percent"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Status","path":"status"}]},
+    "complete_goal": {"type":"card","title":"Goal Completed","fields":[{"label":"Goal","path":"title"},{"label":"Category","path":"category"},{"label":"Status","path":"status"}]},
+    "view_colleagues": {"type":"table","title":"My Team","columns":[{"label":"Name","path":"name"},{"label":"Title","path":"title"},{"label":"Department","path":"department"},{"label":"Location","path":"location"},{"label":"Status","path":"status"}]},
+    "view_payslip_detail": {"type":"fieldList","title":"Payslip Detail","fields":[{"label":"Pay Period","path":"period"},{"label":"Gross Pay","path":"grossPay","format":"money"},{"label":"Net Pay","path":"netPay","format":"money"},{"label":"Tax Withheld","path":"taxWithheld","format":"money"},{"label":"Status","path":"status"}]},
+    "view_policies": {"type":"table","title":"Company Policies","columns":[{"label":"Policy","path":"title"},{"label":"Category","path":"category"},{"label":"Last Updated","path":"lastUpdated","format":"date"},{"label":"Status","path":"status"}]},
+    "request_schedule_change": {"type":"card","title":"Schedule Change Requested","fields":[{"label":"Shift Date","path":"date"},{"label":"Location","path":"location"},{"label":"Status","path":"status"}]},
+    "view_announcements": {"type":"table","title":"Company Announcements","columns":[{"label":"Title","path":"title"},{"label":"Category","path":"category"},{"label":"Date","path":"lastUpdated","format":"date"},{"label":"Status","path":"status"}]},
+    "update_goal_progress": {"type":"card","title":"Goal Updated","fields":[{"label":"Goal","path":"title"},{"label":"Progress %","path":"progressPct","format":"percent"},{"label":"Status","path":"status"}]},
+    "view_direct_deposit": {"type":"fieldList","title":"Direct Deposit Info","fields":[{"label":"Pay Period","path":"period"},{"label":"Net Pay","path":"netPay","format":"money"},{"label":"Status","path":"status"}]},
+    "withdraw_training_enrollment": {"type":"card","title":"Training Enrollment Withdrawn","fields":[{"label":"Course","path":"title"},{"label":"Category","path":"category"},{"label":"Status","path":"status"}]},
+    "view_benefits": { "type": "table", "columns": [ { "label": "Plan #", "path": "id" }, { "label": "Benefit", "path": "name" }, { "label": "Plan", "path": "planType" }, { "label": "Status", "path": "enrollmentStatus" } ] },
+    "pto_balance": { "type": "fieldList", "title": "PTO", "fields": [ { "label": "Balance", "path": "balance", "format": "count" }, { "label": "Sick leave", "path": "sickLeave", "format": "count" }, { "label": "Accrued YTD", "path": "accruedYtd", "format": "count" } ] },
+    "list_expenses": { "type": "table", "columns": [ { "label": "Expense #", "path": "id" }, { "label": "Category", "path": "category" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "submit_expense": { "type": "card", "title": "Expense Submitted", "fields": [ { "label": "Category", "path": "category" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "request_time_off": { "type": "card", "title": "Time Off Requested", "fields": [ { "label": "Days", "path": "days", "format": "count" }, { "label": "Remaining", "path": "remaining", "format": "count" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_expense_report",
+    "pageTitle": "Expense Report",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#4c1d95",
+    "dataKey": "expenseReport",
+    "fields": [
+      {
+        "label": "Report ID",
+        "path": "reportId"
+      },
+      {
+        "label": "Category",
+        "path": "category"
+      },
+      {
+        "label": "Description",
+        "path": "description"
+      },
+      {
+        "label": "Amount",
+        "path": "amount",
+        "format": "money",
+        "accent": true
+      },
+      {
+        "label": "Submitted",
+        "path": "submittedDate"
+      },
+      {
+        "label": "Status",
+        "path": "status"
+      },
+      {
+        "label": "Approver",
+        "path": "approver"
+      },
+      {
+        "label": "Reimbursement date",
+        "path": "reimbursementDate"
+      }
+    ],
+    "sectionTitle": "Report details",
+    "emptyPrompt": "show expense report",
+    "scopeError": "The agent's access token does not carry the expense:read scope. Sign out and sign back in to consent to expense report access, then try \"Show Expense Report\" again."
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

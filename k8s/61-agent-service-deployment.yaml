@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-service
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: agent-service
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: agent-service
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: agent-service
+    spec:
+      containers:
+      - name: agent-service
+        image: ai-demo-agent-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3006
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: HOST                       # default 127.0.0.1 is unreachable cross-pod
+          value: "0.0.0.0"
+        - name: AGENT_SERVICE_PORT
+          value: "3006"
+        - name: BFF_BASE_URL
+          value: "https://demo-api-server:3001"
+        - name: MCP_GATEWAY_URL
+          value: "http://mcp-gateway:3005"
+        # agent-secrets supplies AGENT_CLIENT_ID/SECRET, PINGONE_TOKEN_ENDPOINT,
+        # PINGONE_* (from demo_agent_service/.env, same as compose's env_file).
+        envFrom:
+        - secretRef:
+            name: agent-secrets
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            # Bumped 512Mi -> 1Gi: the ollama reasoning path (@langchain/ollama +
+            # buffering a multi-second model response) ran tight at 512Mi (an extra
+            # in-pod node process OOMed), a suspect in the empty-answer investigation.
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3006
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3006
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-service
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: agent-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3006
+    targetPort: 3006
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: agent-service

@@ -1,0 +1,226 @@
+/* banking_api_ui/src/components/shared/LoadingOverlay.css */
+
+.lo-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.92);
+  /* backdrop-filter removed to prevent background blur */
+  animation: lo-fade-in 0.15s ease;
+}
+
+@keyframes lo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px 48px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  min-width: 420px;
+  max-width: 560px;
+  text-align: center;
+  animation: lo-slide-up 0.2s ease;
+}
+
+@keyframes lo-slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.lo-spinner {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #dddddd;
+  border-top-color: var(--brand-navy);
+  border-radius: 50%;
+  animation: lo-spin 0.8s linear infinite;
+}
+
+@keyframes lo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lo-message {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  line-height: 1.4;
+}
+
+.lo-sub {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #999999;
+  line-height: 1.4;
+}
+
+/* Color accent stripe on the card top edge (color driven by inline style via SpinnerHost) */
+.lo-card {
+  border-top: 3px solid var(--brand-navy);
+}
+
+/* Blue monospace pill showing the live API endpoint */
+.lo-endpoint {
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--brand-navy);
+  background: #eff6ff;
+  padding: 2px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  max-width: 480px;
+  text-align: center;
+}
+
+/* Dark-mode aware */
+@media (prefers-color-scheme: dark) {
+  .lo-card {
+    background: var(--brand-dark-gray);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+  .lo-message {
+    color: var(--brand-light-gray);
+  }
+  .lo-sub {
+    color: #94a3b8;
+  }
+  .lo-spinner {
+    border-color: var(--brand-dark-gray);
+    border-top-color: var(--brand-navy-light);
+  }
+  .lo-endpoint {
+    background: #1e3a5f;
+    color: #93c5fd;
+  }
+}
+
+/* ── Activity feed (Phase 162) ─────────────────────────────────────────── */
+
+.lo-card {
+  max-width: 560px;
+}
+
+.lo-activity-feed {
+  max-height: 160px;
+  overflow-y: auto;
+  margin-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 8px;
+  width: 100%;
+}
+
+.lo-activity-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 0;
+  font-family: inherit;
+  color: #475569;
+  animation: lo-feed-in 0.2s ease;
+}
+
+@keyframes lo-feed-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lo-activity-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.lo-activity-time {
+  flex-shrink: 0;
+  width: 44px;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.lo-activity-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Subtle scrollbar for the feed */
+.lo-activity-feed::-webkit-scrollbar {
+  width: 4px;
+}
+.lo-activity-feed::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lo-activity-feed::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 2px;
+}
+
+/* Dark-mode overrides for activity feed */
+@media (prefers-color-scheme: dark) {
+  .lo-activity-feed {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  .lo-activity-line {
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .lo-activity-time {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .lo-activity-feed::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* ── Always-dark card ──────────────────────────────────────────────────── *
+ * Applied by SpinnerHost for the BusySpinner dial so the luminous (dark-theme)
+ * spinner reads against a dark panel regardless of OS color scheme. A deep
+ * slate panel sits above the slate backdrop; the dial's near-black face and
+ * navy glow read cleanly on it. Defined last so it wins over the .lo-card and
+ * prefers-color-scheme rules above (equal specificity, later source order). */
+.lo-card--dark {
+  background: #16202e;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+.lo-card--dark .lo-message { color: var(--brand-light-gray); }
+.lo-card--dark .lo-sub { color: #94a3b8; }
+.lo-card--dark .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
+.lo-card--dark .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
+.lo-card--dark .lo-activity-line { color: rgba(255, 255, 255, 0.85); }
+.lo-card--dark .lo-activity-time { color: rgba(255, 255, 255, 0.5); }
+.lo-card--dark .lo-activity-feed::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); }

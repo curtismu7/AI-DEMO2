@@ -1,0 +1,252 @@
+/* Chat Widget Styles */
+.chat-widget {
+  position: fixed;
+  z-index: 10000;
+  width: 400px;
+  height: 600px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e5e9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Positioning */
+.chat-widget--bottom-right {
+  bottom: 20px;
+  right: 20px;
+}
+
+.chat-widget--bottom-left {
+  bottom: 20px;
+  left: 20px;
+}
+
+.chat-widget--top-right {
+  top: 20px;
+  right: 20px;
+}
+
+.chat-widget--top-left {
+  top: 20px;
+  left: 20px;
+}
+
+/* Themes */
+.chat-widget--dark {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: white;
+}
+
+.chat-widget--dark .chat-widget__header {
+  background: #1a202c;
+  border-color: #4a5568;
+}
+
+/* Minimized state */
+.chat-widget--minimized {
+  height: 50px;
+}
+
+.chat-widget--minimized .chat-widget__content {
+  display: none;
+}
+
+/* Header */
+.chat-widget__header {
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  user-select: none;
+}
+
+.chat-widget__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #2d3748;
+}
+
+.chat-widget__icon {
+  font-size: 16px;
+}
+
+.chat-widget__controls {
+  display: flex;
+  gap: 4px;
+}
+
+.chat-widget__control-btn {
+  background: none;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #718096;
+  transition: all 0.2s ease;
+}
+
+.chat-widget__control-btn:hover {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+.chat-widget__close:hover {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+/* Content */
+.chat-widget__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Override chat interface styles for widget */
+.chat-widget .chat-interface {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.chat-widget .chat-header {
+  display: none; /* Hide the original header */
+}
+
+.chat-widget .chat-messages {
+  flex: 1;
+  padding: 16px;
+}
+
+.chat-widget .chat-input {
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 16px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .chat-widget {
+    width: calc(100vw - 40px);
+    height: calc(100vh - 40px);
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    top: 20px;
+  }
+  
+  .chat-widget--bottom-right,
+  .chat-widget--bottom-left,
+  .chat-widget--top-right,
+  .chat-widget--top-left {
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    top: 20px;
+  }
+}
+
+/* Animation for opening/closing */
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.chat-widget {
+  animation: slideInUp 0.3s ease-out;
+}
+
+/* ── LangChain provider badge + settings panel ── */
+.lc-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: auto;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.lc-badge:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.lc-settings-panel {
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lc-settings-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.lc-settings-panel__row label {
+  width: 60px;
+  font-weight: 600;
+  color: #555;
+  flex-shrink: 0;
+}
+.lc-settings-panel__row select,
+.lc-settings-panel__row input[type="password"] {
+  flex: 1;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.lc-key-set {
+  color: #2e7d32;
+  font-size: 12px;
+}
+
+.lc-btn-save {
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.lc-btn-save:hover { background: #0d47a1; }
+.lc-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lc-learn-more {
+  font-size: 11px;
+  color: #1565c0;
+  text-decoration: none;
+}
+.lc-learn-more:hover { text-decoration: underline; }

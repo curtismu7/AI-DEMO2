@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BX Finance — Admin dashboard (2026 mock)</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface-2: #eef1f8;
+      --hero: linear-gradient(135deg, #1e3a8a 0%, #2563eb 52%, #b91c1c 100%);
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-red: #dc2626;
+      --border: rgb(15 23 42 / 0.08);
+      --radius: 14px;
+      --shadow: 0 1px 3px rgb(15 23 42 / 8%);
+    }
+    html[data-theme="dark"] {
+      --bg: #0c1018;
+      --surface: #141a24;
+      --surface-2: #1a2230;
+      --hero: linear-gradient(135deg, #172554 0%, #1d4ed8 50%, #991b1b 100%);
+      --text: #e8edf5;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-red: #f87171;
+      --border: rgb(148 163 184 / 0.18);
+      --shadow: 0 1px 4px rgb(0 0 0 / 40%);
+    }
+    * { box-sizing: border-box; }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .skip {
+      position: absolute;
+      left: -9999px;
+      z-index: 9999;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+    }
+    .skip:focus {
+      left: 12px;
+      top: 12px;
+    }
+    .hero {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 22px 22px 20px;
+      background: var(--hero);
+      color: #fff;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 12px 32px rgb(30 58 138 / 0.25);
+    }
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 1.45rem;
+      letter-spacing: -0.02em;
+    }
+    .hero p {
+      margin: 0;
+      opacity: 0.92;
+      font-size: 0.95rem;
+    }
+    .toolbar {
+      max-width: 1200px;
+      margin: -8px auto 0;
+      padding: 0 22px 20px;
+    }
+    .toolbar-inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .tb-btn {
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .tb-btn:hover {
+      filter: brightness(0.97);
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 22px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .token-mock {
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-left: 3px solid var(--accent-red);
+      padding-left: 12px;
+    }
+    .token-step {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .kpi {
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .kpi strong {
+      display: block;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .kpi span {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .table-placeholder {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .admin-actions__lead {
+      margin: 0 0 14px;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    .admin-actions__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.1s ease;
+    }
+    .action-btn:hover {
+      filter: brightness(0.98);
+      transform: translateY(-1px);
+    }
+    .action-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .action-btn--primary {
+      background: linear-gradient(135deg, #1d4ed8, var(--accent));
+      color: #fff;
+      border-color: transparent;
+    }
+    .action-btn--neutral {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+    .action-btn--danger {
+      background: linear-gradient(135deg, #b91c1c, var(--accent-red));
+      color: #fff;
+      border-color: transparent;
+    }
+    .action-btn--warn {
+      background: var(--surface);
+      color: var(--accent-red);
+      border-color: rgb(220 38 38 / 0.35);
+    }
+    html[data-theme="dark"] .action-btn--warn {
+      border-color: rgb(248 113 113 / 0.4);
+    }
+    /* Left rail + agent toggle (matches live admin shell) */
+    .mock-admin {
+      position: relative;
+    }
+    @media (min-width: 900px) {
+      .mock-admin {
+        padding-left: 248px;
+      }
+    }
+    .mock-left-rail {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1001;
+      width: min(220px, calc(100vw - 24px));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .mock-left-rail > * {
+      pointer-events: auto;
+    }
+    .mock-rail-btn {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: default;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .mock-rail-btn--ciba { background: #b91c1c; }
+    .mock-rail-btn--cimd { background: #0f766e; }
+    .mock-rail-btn--nav { background: #b91c1c; }
+    .mock-rail-btn--demo {
+      background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+      font-weight: 700;
+    }
+    .mock-rail-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+    .mock-edu-bar {
+      width: 100%;
+      background: linear-gradient(to bottom, #fef2f2 0%, #fee2e2 35%, #f1f5f9 100%);
+      border-bottom: 1px solid #fecaca;
+      padding: 0.5rem 0.75rem;
+    }
+    .mock-edu-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .mock-edu-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #7f1d1d;
+    }
+    .mock-agent-seg {
+      display: inline-flex;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #7f1d1d;
+    }
+    .mock-agent-seg button {
+      margin: 0;
+      border: none;
+      background: #fff5f5;
+      color: #7f1d1d;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.45rem 0.65rem;
+      cursor: pointer;
+    }
+    .mock-agent-seg button[aria-pressed="true"] {
+      background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+      color: #fff;
+    }
+    .lookup-lead {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: 0 0 12px;
+      line-height: 1.5;
+    }
+    .lookup-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    .lookup-form label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .lookup-form input {
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: inherit;
+    }
+    .lookup-form .btn-apply {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #1d4ed8, var(--accent));
+      color: #fff;
+      font-weight: 600;
+      cursor: default;
+      font-family: inherit;
+    }
+    .lookup-profile {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.65rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+    .lookup-profile dt {
+      margin: 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .lookup-profile dd {
+      margin: 0.15rem 0 0;
+    }
+    .lookup-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(34, 197, 94, 0.15);
+      color: #15803d;
+    }
+    .lookup-table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-top: 0.75rem;
+    }
+    .lookup-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .lookup-table th,
+    .lookup-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .lookup-table th {
+      background: var(--surface-2);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body class="mock-admin">
+  <a class="skip" href="#admin-main">Skip to admin content</a>
+  <div class="mock-left-rail" aria-label="Dev tools (static mock)">
+    <button type="button" class="mock-rail-btn mock-rail-btn--ciba"><span aria-hidden="true">📱</span> CIBA guide <span class="mock-rail-dot" aria-hidden="true"></span></button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--cimd"><span aria-hidden="true">📄</span> CIMD Simulator</button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--nav">Home</button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--nav">Dashboard</button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--nav">API</button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--nav">Logs</button>
+    <button type="button" class="mock-rail-btn mock-rail-btn--demo">Demo config</button>
+  </div>
+  <header class="hero">
+    <div class="hero-top">
+      <div>
+        <h1>Admin dashboard</h1>
+        <p>Welcome — operations, token visibility, and recent activity.</p>
+      </div>
+      <button type="button" class="tb-btn" id="themeBtn" style="color:#fff;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.12)">Theme</button>
+    </div>
+  </header>
+  <div class="mock-edu-bar" role="region" aria-label="Agent layout">
+    <div class="mock-edu-inner">
+      <span class="mock-edu-label">Agent UI</span>
+      <div class="mock-agent-seg" role="group" aria-label="Agent layout mode">
+        <button type="button" class="mock-agent-btn" data-mock-agent="floating" aria-pressed="true">Floating</button>
+        <button type="button" class="mock-agent-btn" data-mock-agent="embedded" aria-pressed="false">Embedded</button>
+        <button type="button" class="mock-agent-btn" data-mock-agent="both" aria-pressed="false">Both</button>
+      </div>
+      <span style="font-size:0.72rem;color:var(--muted);">Same control as the signed-in learn bar and Application setup.</span>
+    </div>
+  </div>
+  <div class="toolbar">
+    <div class="toolbar-inner" role="toolbar" aria-label="Admin actions">
+      <button type="button" class="tb-btn">Demo config</button>
+      <button type="button" class="tb-btn">MCP Inspector</button>
+      <button type="button" class="tb-btn">Reset demo</button>
+      <button type="button" class="tb-btn">Log out</button>
+    </div>
+  </div>
+  <main id="admin-main">
+    <section class="card" aria-labelledby="tok-h">
+      <h2 id="tok-h">Security — Token chain</h2>
+      <div class="token-mock" role="region" aria-label="Token flow">
+        <div class="token-step">User token (BFF)</div>
+        <div class="token-step">RFC 8693 → MCP token</div>
+        <div class="token-step">MCP server → Banking API</div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="lookup-h">
+      <h2 id="lookup-h">Customer lookup</h2>
+      <p class="lookup-lead">
+        Static mock of <code>POST /api/admin/transactions/lookup</code> — username + last 4 of phone. Profile merges <strong>PingOne</strong> when the worker app can read the directory; accounts and transactions come from demo banking data.
+      </p>
+      <form class="lookup-form" onsubmit="return false;">
+        <div>
+          <label for="mock-lu-user">Username</label>
+          <input id="mock-lu-user" type="text" value="bankuser" readonly />
+        </div>
+        <div>
+          <label for="mock-lu-phone">Last 4 of phone</label>
+          <input id="mock-lu-phone" type="text" value="1586" readonly size="6" />
+        </div>
+        <button type="button" class="btn-apply">Look up customer</button>
+      </form>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
+        <strong style="font-size:1rem;">Customer profile</strong>
+        <span class="lookup-badge">PingOne linked</span>
+      </div>
+      <dl class="lookup-profile">
+        <div><dt>Full name</dt><dd>Demo Bankuser</dd></div>
+        <div><dt>Username</dt><dd>bankuser</dd></div>
+        <div><dt>Email</dt><dd>bankuser@example.com</dd></div>
+        <div><dt>Phone on record</dt><dd>+15551231586</dd></div>
+        <div><dt>PingOne user ID</dt><dd style="word-break:break-all;font-size:0.8rem;">a1b2c3d4-e5f6-7890-abcd-ef1234567890</dd></div>
+      </dl>
+      <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Accounts</h3>
+      <div class="lookup-table-wrap">
+        <table class="lookup-table">
+          <thead>
+            <tr><th>Type</th><th>Account number</th><th style="text-align:right">Balance</th><th>Currency</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>checking</td><td>CHK-DEMO-0001</td><td style="text-align:right">$4,821.50</td><td>USD</td></tr>
+            <tr><td>savings</td><td>SAV-DEMO-0001</td><td style="text-align:right">$12,340.00</td><td>USD</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;">Recent transactions</h3>
+      <div class="lookup-table-wrap">
+        <table class="lookup-table">
+          <thead>
+            <tr><th>Date</th><th>Type</th><th style="text-align:right">Amount</th><th>Description</th><th>Account</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Mar 25, 2026</td><td>deposit</td><td style="text-align:right">$2,500.00</td><td>Payroll deposit</td><td>checking — CHK…0001</td></tr>
+            <tr><td>Mar 24, 2026</td><td>withdrawal</td><td style="text-align:right">$150.00</td><td>ATM withdrawal</td><td>checking — CHK…0001</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="kpi-h">
+      <h2 id="kpi-h" class="visually-hidden">Key metrics</h2>
+      <div class="kpis">
+        <div class="kpi"><strong>42</strong><span>Users</span></div>
+        <div class="kpi"><strong>128</strong><span>Accounts</span></div>
+        <div class="kpi"><strong>1.2k</strong><span>Transactions</span></div>
+        <div class="kpi"><strong>$2.4M</strong><span>Total balance</span></div>
+        <div class="kpi"><strong>$19k</strong><span>Avg balance</span></div>
+        <div class="kpi"><strong>38</strong><span>Active users</span></div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="actions-h">
+      <h2 id="actions-h">Account actions</h2>
+      <p class="admin-actions__lead">Mock controls — select a user or account in the real app before running these.</p>
+      <div class="admin-actions__grid" role="group" aria-label="Account operations">
+        <button type="button" class="action-btn action-btn--primary">Unlock account</button>
+        <button type="button" class="action-btn action-btn--neutral">Lock account</button>
+        <button type="button" class="action-btn action-btn--warn">Report fraud</button>
+        <button type="button" class="action-btn action-btn--danger">Delete account</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Recent activity (24h)</h2>
+      <p class="table-placeholder">Table placeholder — wire to <code>/api/admin/activity/recent</code> in the app.</p>
+    </section>
+  </main>
+  <script>
+    (function () {
+      var key = "bx-dash-theme";
+      var stored = localStorage.getItem(key);
+      if (stored === "dark" || stored === "light") {
+        document.documentElement.dataset.theme = stored;
+      }
+      document.getElementById("themeBtn").addEventListener("click", function () {
+        var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem(key, next);
+      });
+
+      var agentKey = "banking_agent_ui_mode";
+      var agentBtns = document.querySelectorAll(".mock-agent-btn");
+      function syncAgentMock() {
+        var m = "floating";
+        try {
+          m = localStorage.getItem(agentKey) || "floating";
+        } catch (e) {}
+        if (m !== "embedded" && m !== "both") m = "floating";
+        agentBtns.forEach(function (b) {
+          b.setAttribute("aria-pressed", b.getAttribute("data-mock-agent") === m ? "true" : "false");
+        });
+      }
+      agentBtns.forEach(function (b) {
+        b.addEventListener("click", function () {
+          try {
+            localStorage.setItem(agentKey, b.getAttribute("data-mock-agent"));
+          } catch (e) {}
+          syncAgentMock();
+        });
+      });
+      syncAgentMock();
+    })();
+  </script>
+</body>
+</html>

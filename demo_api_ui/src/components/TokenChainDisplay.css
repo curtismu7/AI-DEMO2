@@ -1,0 +1,2810 @@
+/* ─── Root ───────────────────────────────────────────────────────────────── */
+.tcd-root {
+  --tcd-accent: var(--brand-navy);
+  --tcd-accent-soft: #eff6ff;
+  --tcd-ink: #0f172a;
+  --tcd-muted: #4b5563;
+  /* 4-stop type scale — use these instead of arbitrary font-size values */
+  --tcd-size-hero: 15px;    /* panel titles, section headings */
+  --tcd-size-body: 13px;    /* event labels, primary content */
+  --tcd-size-detail: 11.5px; /* claims, IDs, secondary values */
+  --tcd-size-caption: 10px; /* chips, badges, step counter, metadata */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  color: var(--tcd-ink);
+  background: linear-gradient(
+    165deg,
+    #ffffff 0%,
+    var(--brand-light-gray) 48%,
+    var(--brand-light-gray) 100%
+  );
+  border-radius: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow:
+    0 8px 28px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.tcd-header {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.tcd-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tcd-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.tcd-clear-btn {
+  background: #fee2e2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(153, 27, 27, 0.12);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.tcd-clear-btn:hover {
+  background: #fecaca;
+  border-color: #ef4444;
+  box-shadow: 0 1px 4px rgba(153, 27, 27, 0.2);
+}
+.tcd-copy-btn {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  color: #1d4ed8;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(29, 78, 216, 0.1);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.tcd-copy-btn:hover {
+  background: #bfdbfe;
+  border-color: #60a5fa;
+  box-shadow: 0 1px 4px rgba(29, 78, 216, 0.18);
+}
+.tcd-copy-btn--ok {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.tcd-header-sub {
+  font-size: var(--tcd-size-body);
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Status row: Updated / Completed badge + timestamp */
+.tcd-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.tcd-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.tcd-status-badge--updated {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tcd-status-badge--completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tcd-last-updated {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+/* Live dot pulses when receiving live data */
+.tcd-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #24a148;
+  animation: tcd-pulse 1.8s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes tcd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.75);
+  }
+}
+
+/* Session preview: signed-in user token from BFF, no MCP tool call yet */
+.tcd-session-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-navy);
+  flex-shrink: 0;
+}
+
+/* ─── Tabs ───────────────────────────────────────────────────────────────── */
+.tcd-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(241, 245, 249, 0.95);
+  padding: 4px 8px 0;
+  gap: 4px;
+}
+
+.tcd-tab {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: var(--tcd-size-hero);
+  font-weight: 600;
+  color: var(--tcd-muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tcd-tab:hover {
+  color: var(--brand-navy);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.tcd-tab--empty {
+  opacity: 0.5;
+}
+
+.tcd-tab--empty:hover {
+  opacity: 0.75;
+}
+
+.tcd-tab.active {
+  color: var(--brand-navy);
+  background: #fff;
+  box-shadow:
+    0 -2px 0 var(--brand-navy) inset,
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.tcd-hist-count {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: linear-gradient(
+    180deg,
+    var(--brand-navy) 0%,
+    var(--brand-navy) 100%
+  );
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.35;
+}
+
+/* ─── Placeholder note ───────────────────────────────────────────────────── */
+.tcd-placeholder-note {
+  text-align: center;
+  color: var(--tcd-muted);
+  font-size: 0.9375rem;
+  padding: 14px 16px 8px;
+  font-style: italic;
+  background: rgba(239, 246, 255, 0.6);
+  border-radius: 10px;
+  margin: 0 12px 10px;
+  border: 1px dashed rgba(37, 99, 235, 0.25);
+}
+
+.tcd-onboarding-guide {
+  margin: 0 12px 10px;
+  padding: 14px 16px;
+  background: rgba(239, 246, 255, 0.6);
+  border: 1px dashed rgba(37, 99, 235, 0.25);
+  border-radius: 10px;
+}
+
+.tcd-onboarding-guide__title {
+  font-size: var(--tcd-size-body);
+  font-weight: 700;
+  color: #1e40af;
+  margin: 0 0 10px;
+}
+
+.tcd-onboarding-guide__steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: var(--tcd-size-body);
+  color: var(--tcd-muted);
+  line-height: 1.5;
+}
+
+.tcd-onboarding-guide__steps li strong {
+  color: var(--tcd-ink);
+}
+
+/* ─── Events list ────────────────────────────────────────────────────────── */
+.tcd-events {
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: linear-gradient(180deg, #fff 0%, #fafbfc 100%);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* ─── Event wrap (row + connector) ──────────────────────────────────────── */
+.tcd-event-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Event row ──────────────────────────────────────────────────────────── */
+.tcd-event {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 12px 12px 12px;
+  /* Top corners are squared so the path-badge header (see .tcd-path-badge)
+     tucks flush against the card, reading as one bounded unit. */
+  border-radius: 0 0 12px 12px;
+  /* Thick border on all visible sides (top is the attached header) so the
+     whole card reads as one bounded box; status rules below recolor the
+     entire border, not just a left accent. */
+  border: 2px solid rgba(148, 163, 184, 0.55);
+  border-top: none;
+  background: linear-gradient(180deg, #ffffff 0%, var(--brand-light-gray) 100%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.tcd-event:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.08);
+}
+
+/* Status recolors the whole border (top is the header, so border-color on the
+   remaining three sides). */
+.tcd-event.active,
+.tcd-event.acquired {
+  border-color: #24a148;
+}
+
+.tcd-event.exchanged {
+  border-color: #2563eb;
+}
+
+.tcd-event.acquiring {
+  border-color: #f1c21b;
+}
+
+.tcd-event.skipped {
+  border-color: #8d8d8d;
+}
+
+.tcd-event.failed {
+  border-color: #da1e28;
+}
+
+.tcd-event.waiting {
+  border-color: #c6c6c6;
+}
+
+.tcd-event-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Title row — label + inspect icon share a flex row */
+.tcd-event-label {
+  font-size: var(--tcd-size-hero);
+  font-weight: 700;
+  color: var(--tcd-ink);
+  line-height: 1.35;
+  min-width: 0;
+}
+
+/* User ID and Agent ID display row */
+.tcd-event-ids-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.tcd-event-id {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: var(--brand-light-gray);
+  border: 1px solid #dddddd;
+  color: #666666;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcd-event-id--user {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: var(--brand-navy);
+}
+
+.tcd-event-id--agent {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.tcd-event-id--mcp {
+  background: #fefce8;
+  border-color: #fde047;
+  color: #713f12;
+}
+
+.tcd-event-id:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* RFC refs + badge on one row — avoids “Waiting” sitting on top of RFC text in narrow sidebars */
+.tcd-event-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.tcd-event-meta-row .tcd-event-rfc {
+  flex: 1 1 12rem;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.tcd-event-meta-row--no-rfc {
+  justify-content: flex-end;
+}
+
+.tcd-event-rfc {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tcd-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  padding: 6px 10px;
+  background: rgba(241, 245, 249, 0.85);
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ─── Status badge (own column — never overlaps title) ───────────────────── */
+.tcd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.tcd-badge--active {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #14532d;
+  border-color: #86efac;
+}
+.tcd-badge--exchanged {
+  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+  color: #334155;
+  border-color: #94a3b8;
+}
+.tcd-badge--acquiring {
+  background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
+  color: #713f12;
+  border-color: #eab308;
+}
+.tcd-badge--skipped {
+  background: var(--brand-light-gray);
+  color: #666666;
+  border-color: #cccccc;
+}
+.tcd-badge--failed {
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border-color: #f87171;
+}
+.tcd-badge--waiting {
+  background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
+  color: #666666;
+  border-color: #94a3b8;
+}
+
+/* Token type badge */
+.tcd-token-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 6px;
+  border: 1px solid;
+}
+
+/* Subject token (red — RFC 8693 §2.1) */
+.tcd-token-type--user_token {
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border-color: #f87171;
+}
+
+/* Actor/agent token (blue — RFC 8693 §2.2) */
+.tcd-token-type--agent_token {
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e3a8a;
+  border-color: #93c5fd;
+}
+
+.tcd-token-type--exchanged_token {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #14532d;
+  border-color: #22c55e;
+}
+
+.tcd-token-type--unknown,
+.tcd-token-type--invalid {
+  background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
+  color: #666666;
+  border-color: #94a3b8;
+}
+
+.tcd-spinner {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(138, 105, 20, 0.3);
+  border-top-color: #8a6914;
+  border-radius: 50%;
+  animation: tcd-spin 0.7s linear infinite;
+}
+
+@keyframes tcd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Event detail (expanded) ────────────────────────────────────────────── */
+.tcd-event-detail {
+  margin: 6px 0 6px 0;
+  margin-left: 42px;
+  padding: 14px 16px;
+  background: linear-gradient(
+    180deg,
+    var(--brand-light-gray) 0%,
+    var(--brand-light-gray) 100%
+  );
+  border-radius: 0 12px 12px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tcd-explanation {
+  margin: 0;
+  font-size: 14px;
+  color: #525252;
+  line-height: 1.5;
+}
+
+.tcd-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+  margin-bottom: -4px;
+}
+
+/* ─── Collapsible sections ────────────────────────────────────────────────── */
+.tcd-collapsible {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  /* No overflow:hidden — it clips summary header when siblings expand.
+     Border-radius is preserved by the inner elements using border-radius too. */
+  overflow: visible;
+  margin-bottom: 8px;
+}
+
+/* Clip the body content only (not the header) so border-radius looks correct */
+.tcd-collapsible-body {
+  border-radius: 0 0 8px 8px;
+  overflow: clip;
+}
+
+.tcd-collapsible-header {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: #f0f2f5;
+  color: #4b5563;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.15s;
+}
+
+.tcd-collapsible-header:hover {
+  background: #e8eaed;
+  color: #1f2937;
+}
+
+.tcd-collapsible-header::-webkit-details-marker {
+  display: none;
+}
+
+.tcd-collapsible-header::before {
+  content: "▶";
+  font-size: 9px;
+  color: #374151;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tcd-collapsible[open] > .tcd-collapsible-header::before {
+  transform: rotate(90deg);
+}
+
+.tcd-collapsible-body {
+  padding: 10px 14px;
+}
+
+/* ─── Inline pills ───────────────────────────────────────────────────────── */
+.tcd-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.tcd-pill--may-act {
+  background: #d0e2ff;
+  color: #003a6d;
+}
+
+.tcd-pill--act {
+  background: #d9fbfb;
+  color: #005d5d;
+}
+
+.tcd-pill--warn {
+  background: #fff8e1;
+  color: #8a6914;
+  border: 1px solid #f1c21b;
+}
+
+/* Green pill: agent consent given (acr matches expected policy) */
+.tcd-pill--consent {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+/* Inspector panel mirrors */
+.tci-body .tcd-pill--consent {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+/* ─── Event row hints (compact may_act / act indicators on each row) ─────── */
+.tcd-event-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.tcd-event-hint {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.tcd-event-hint--ok {
+  background: #dcfce7;
+  color: #14532d;
+}
+.tcd-event-hint--warn {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde68a;
+}
+.tcd-event-hint--error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+.tcd-event-hint--info {
+  background: #eff6ff;
+  color: var(--brand-navy);
+  border: 1px solid #bfdbfe;
+}
+
+/* ─── Educational boxes (may_act / act / exchange validation) ────────────── */
+.tcd-edu-box {
+  border-radius: 8px;
+  border: 1px solid #dddddd;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.tcd-edu-box + .tcd-edu-box {
+  margin-top: 8px;
+}
+
+.tcd-edu-box--ok {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.tcd-edu-box--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.tcd-edu-box--error {
+  background: #fff1f2;
+  border-color: #fda4af;
+}
+.tcd-edu-box--neutral {
+  background: var(--brand-light-gray);
+  border-color: #cccccc;
+}
+
+.tcd-edu-box-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tcd-edu-box--ok .tcd-edu-box-hd {
+  background: #dcfce7;
+  color: #14532d;
+}
+.tcd-edu-box--warn .tcd-edu-box-hd {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.tcd-edu-box--error .tcd-edu-box-hd {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+.tcd-edu-box--neutral .tcd-edu-box-hd {
+  background: var(--brand-light-gray);
+  color: var(--brand-dark-gray);
+}
+
+.tcd-edu-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tcd-edu-ref {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.tcd-rfc-ref-link {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+}
+
+.tcd-rfc-ref-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tcd-edu-body {
+  padding: 12px 14px;
+  color: var(--brand-dark-gray);
+}
+
+.tcd-edu-body p {
+  margin: 0 0 6px;
+}
+.tcd-edu-body p:last-child {
+  margin-bottom: 0;
+}
+.tcd-edu-body ul,
+.tcd-edu-body ol {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+}
+.tcd-edu-body li {
+  margin-bottom: 3px;
+}
+
+.tcd-edu-code {
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 8px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.tcd-edu-detail {
+  font-size: 12px;
+  font-family: inherit;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 3px 6px;
+  border-radius: 4px;
+  margin: 4px 0 0 !important;
+  word-break: break-all;
+}
+
+/* ─── Not-applicable note (edu sections that don't apply to a token) ─────── */
+.tcd-edu-na {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 14px;
+  color: #374151;
+  font-size: var(--tcd-size-body);
+}
+
+.tcd-edu-na-msg {
+  font-weight: 600;
+  font-style: normal;
+}
+
+.tcd-edu-na-reason {
+  font-size: var(--tcd-size-detail);
+  color: #6b7280;
+  font-style: italic;
+}
+
+.tcd-edu-na-rfc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-style: normal;
+  font-size: 12px;
+  color: #374151;
+}
+
+.tcd-edu-na-rfc-tag {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  letter-spacing: 0.01em;
+}
+
+.tcd-edu-fix {
+  font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 7px 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  color: var(--brand-dark-gray);
+}
+
+.tcd-edu-steps {
+  margin-top: 4px;
+}
+.tcd-edu-steps strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12.5px;
+}
+.tcd-edu-steps ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.tcd-edu-steps li {
+  margin-bottom: 2px;
+  font-size: 12.5px;
+}
+
+.tcd-edu-absent-warn {
+  color: #991b1b;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 8px !important;
+}
+
+/* ─── Trust tab (DPoP / RAR posture summary) ────────────────────────────── */
+.tcd-trust {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  font-size: var(--tcd-size-body);
+  line-height: 1.55;
+  color: var(--brand-dark-gray);
+}
+
+.tcd-trust > p {
+  margin: 0;
+  font-size: var(--tcd-size-detail);
+  color: #6b7280;
+}
+
+.tcd-trust__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 8px;
+  border: 1px solid #dddddd;
+  padding: 10px 12px;
+}
+
+.tcd-trust__row--ok {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.tcd-trust__row--off {
+  background: var(--brand-light-gray);
+  border-color: #cccccc;
+}
+
+.tcd-trust__badge {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 64px;
+  text-align: center;
+  font-size: var(--tcd-size-caption);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.tcd-trust__row--ok .tcd-trust__badge {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.tcd-trust__row--off .tcd-trust__badge {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.tcd-trust__row strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: var(--tcd-size-body);
+  font-weight: 700;
+  color: var(--brand-dark-gray);
+}
+
+.tcd-trust__row > div {
+  font-size: var(--tcd-size-detail);
+}
+
+.tcd-trust__row code {
+  font-family: inherit;
+  font-size: var(--tcd-size-detail);
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+.tcd-edu-checklist {
+  list-style: none;
+  padding-left: 0 !important;
+  margin: 0 !important;
+}
+
+.tcd-edu-checklist li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 2px 0;
+}
+
+.tcd-edu-check-lbl {
+  font-weight: 700;
+  color: #4b5563;
+  flex-shrink: 0;
+  min-width: 18px;
+  font-size: 12px;
+}
+
+/* Inspector body: allow taller code blocks */
+.tci-body .tcd-edu-code {
+  max-height: none;
+}
+.tci-body .tcd-edu-box {
+  font-size: 13px;
+}
+
+/* ─── Exchange request preview ───────────────────────────────────────────── */
+.tcd-exchange-req {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.tcd-exchange-req-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+  padding: 8px 14px;
+  background: #f4f4f4;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tcd-exchange-req pre {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #161616;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* Base style for all jwt dump pre blocks — works regardless of parent context */
+pre.tcd-jwt-dump {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  color: inherit;
+}
+
+.tcd-exchange-req pre.tcd-jwt-dump {
+  max-height: min(840px, 110vh);
+}
+
+/* ─── Claims panel ───────────────────────────────────────────────────────── */
+.tcd-claims {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tcd-claims-alg {
+  font-size: var(--tcd-size-body);
+  font-weight: 600;
+  color: #1f2937;
+  padding: 6px 12px;
+  background: #f3f4f6;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  letter-spacing: 0.03em;
+}
+
+.tcd-claims-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--tcd-size-body);
+}
+
+.tcd-claims-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  vertical-align: top;
+}
+
+.tcd-claims-table td:first-child {
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  width: 40%;
+}
+
+.tcd-no-claims {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #374151;
+  font-style: italic;
+}
+
+.tcd-claim {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  min-height: 30px;
+}
+
+.tcd-claim:last-child {
+  border-bottom: none;
+}
+
+.tcd-claim--may-act {
+  background: rgba(59, 130, 246, 0.12);
+}
+.tcd-claim--act {
+  background: rgba(20, 184, 166, 0.12);
+}
+.tcd-claim--scope {
+  background: rgba(71, 85, 105, 0.08);
+}
+.tcd-claim--aud {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.tcd-claim-key {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+/* Highlight special claim keys */
+.tcd-claim--aud .tcd-claim-key {
+  color: #1a1a1a;
+}
+.tcd-claim--scope .tcd-claim-key {
+  color: #1a1a1a;
+}
+.tcd-claim--act .tcd-claim-key {
+  color: #1a1a1a;
+}
+.tcd-claim--may-act .tcd-claim-key {
+  color: #1a1a1a;
+}
+
+.tcd-claim-sep {
+  font-size: 14px;
+  color: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.tcd-claim-val {
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a1a1a;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.tcd-claim--aud .tcd-claim-val {
+  color: #1a1a1a;
+}
+.tcd-claim--scope .tcd-claim-val {
+  color: #1a1a1a;
+}
+.tcd-claim--act .tcd-claim-val {
+  color: #1a1a1a;
+}
+.tcd-claim--may-act .tcd-claim-val {
+  color: #1a1a1a;
+}
+
+/* ─── Connector between events ───────────────────────────────────────────── */
+.tcd-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 3px 0;
+  margin-left: 18px;
+}
+
+.tcd-connector-line {
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+  border-radius: 1px;
+}
+
+.tcd-connector-arrow {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* ─── Scope delta strip (between connector events) ──────────────────────── */
+.tcd-scope-delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.7rem;
+  margin: 2px 0;
+  max-width: 280px;
+}
+.tcd-scope-delta-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.tcd-scope-delta--removed {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-family-mono);
+  font-size: 0.68rem;
+  text-decoration: line-through;
+}
+.tcd-scope-delta--added {
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-family-mono);
+  font-size: 0.68rem;
+}
+
+/* ─── Authorize decision text colours (used inside edu box) ──────────────── */
+.tcd-ok-text {
+  color: #166534;
+}
+.tcd-error-text {
+  color: #b91c1c;
+}
+
+/* ─── History tab ────────────────────────────────────────────────────────── */
+.tcd-history {
+  padding: 8px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tcd-hist-entry {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.tcd-hist-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: #fafafa;
+  border: none;
+  font-size: 14px;
+  text-align: left;
+}
+
+/* Static (non-interactive) variant — no hover cursor */
+.tcd-hist-head--static {
+  cursor: default;
+}
+
+.tcd-hist-tool {
+  font-weight: 700;
+  color: #161616;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcd-hist-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.tcd-hist-status {
+  font-size: 11px;
+  font-weight: 700;
+}
+.tcd-hist-status--success {
+  color: #16a34a;
+}
+.tcd-hist-status--error {
+  color: #dc2626;
+}
+.tcd-hist-status--partial {
+  color: #d97706;
+}
+
+.tcd-hist-steps {
+  font-size: 11px;
+  color: #374151;
+}
+
+.tcd-hist-ts {
+  font-size: 12px;
+  color: #4b5563;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Events inside an open history entry (kept for backwards compat if any) */
+.tcd-hist-entry .tcd-events {
+  padding: 6px 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* ─── Legend ─────────────────────────────────────────────────────────────── */
+.tcd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 14px 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.tcd-legend-title {
+  width: 100%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+.tcd-legend-item {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 380px) {
+  .tcd-event-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tcd-event-meta-row .tcd-event-rfc {
+    margin-right: 0;
+  }
+
+  .tcd-badge {
+    align-self: flex-start;
+  }
+}
+
+/* ─── Scrollbar for events / claims / exchange-req ─────────────────────────── */
+.tcd-events::-webkit-scrollbar,
+.tcd-claims::-webkit-scrollbar,
+.tcd-exchange-req pre::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tcd-events::-webkit-scrollbar-track,
+.tcd-claims::-webkit-scrollbar-track,
+.tcd-exchange-req pre::-webkit-scrollbar-track {
+  background: #f4f4f4;
+}
+
+.tcd-events::-webkit-scrollbar-thumb,
+.tcd-claims::-webkit-scrollbar-thumb,
+.tcd-exchange-req pre::-webkit-scrollbar-thumb {
+  background: #c6c6c6;
+  border-radius: 2px;
+}
+
+/* ─── Token card title row ───────────────────────────────────────────────── */
+.tcd-event-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tcd-event-label {
+  flex: 1;
+}
+
+/* ─── "Token Details" button row — below the claims strip ───────────────── */
+.tcd-inspect-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.tcd-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #1d4ed8;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.4);
+}
+
+.tcd-inspect-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.tcd-inspect-btn:hover {
+  background: #1e40af;
+  box-shadow: 0 3px 10px rgba(29, 78, 216, 0.5);
+}
+
+.tcd-inspect-btn:active {
+  background: #1e3a8a;
+  box-shadow: none;
+}
+
+/* ─── Token Inspector Panel (portal, fixed, draggable/resizable/collapsible) */
+.tci-panel {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: var(--modal-body-bg, #ffffff);
+  border-radius: var(--modal-radius, 12px);
+  border: var(--modal-border, 1px solid rgba(0, 0, 0, 0.08));
+  box-shadow: var(
+    --modal-shadow,
+    0 20px 48px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1)
+  );
+  /* overflow:clip keeps border-radius without capping collapsible content */
+  overflow: clip;
+  min-width: 400px;
+  min-height: 48px;
+  /* No max-height: panel height is controlled by the resize handle */
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--modal-body-text, #1e293b);
+  animation: dm-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Inspector header ───────────────────────────────────────────────────── */
+.tci-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 14px;
+  background: var(
+    --modal-header-bg,
+    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+  );
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+  min-height: var(--modal-header-height, 48px);
+  border-bottom: none;
+}
+
+.tci-header:active {
+  cursor: grabbing;
+}
+
+.tci-header-icon {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.tci-header-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tci-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--modal-header-text, #ffffff);
+}
+
+.tci-subtitle {
+  font-size: 11px;
+  color: var(--modal-header-sub, rgba(255, 255, 255, 0.65));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tci-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tci-btn {
+  background: var(--modal-btn-bg, rgba(255, 255, 255, 0.12));
+  border: none;
+  border-radius: var(--modal-btn-radius, 6px);
+  color: var(--modal-header-text, #ffffff);
+  font-size: 13px;
+  line-height: 1;
+  width: var(--modal-btn-size, 28px);
+  height: var(--modal-btn-size, 28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.tci-btn:hover {
+  background: var(--modal-btn-bg-hover, rgba(255, 255, 255, 0.28));
+  color: var(--modal-header-text, #ffffff);
+}
+
+.tci-btn--close:hover {
+  background: rgba(239, 68, 68, 0.4);
+  color: #ffffff;
+}
+
+/* ─── Inspector body ─────────────────────────────────────────────────────── */
+.tci-body {
+  flex: 1;
+  min-height: 0;
+  /* Scroll inside the panel — never clip collapsible section headers */
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Pad bottom so last section clears the resize handle */
+  padding: 14px 14px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  /* Ensure collapsible <details> elements are never clipped */
+  contain: none;
+  --tcd-ink: #1e293b;
+  --tcd-muted: #374151;
+}
+
+/* Light-theme overrides for tcd-* components inside inspector */
+.tci-body .tcd-explanation {
+  color: #475569;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.tci-body .tcd-section-title {
+  color: #0f172a;
+  margin-bottom: 4px;
+  border-bottom-color: #e5e7eb;
+}
+
+.tci-body .tcd-collapsible {
+  border-color: #e5e7eb;
+  overflow: visible;
+}
+
+.tci-body .tcd-collapsible-header {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.tci-body .tcd-collapsible-body {
+  background: #ffffff;
+}
+
+.tci-body .tcd-claims {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+  max-height: none;
+}
+
+.tci-body .tcd-claims-alg {
+  background: #f1f5f9;
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
+.tci-body .tcd-claim {
+  border-bottom-color: #e5e7eb;
+}
+
+.tci-body .tcd-claim-key {
+  color: #374151;
+}
+
+.tci-body .tcd-claim-sep {
+  color: #475569;
+}
+
+.tci-body .tcd-claim-val {
+  color: #1e293b;
+}
+
+.tci-body .tcd-claim--may-act {
+  background: rgba(37, 99, 235, 0.08);
+}
+.tci-body .tcd-claim--act {
+  background: rgba(20, 184, 166, 0.08);
+}
+.tci-body .tcd-claim--scope {
+  background: rgba(71, 85, 105, 0.06);
+}
+.tci-body .tcd-claim--aud {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.tci-body .tcd-exchange-req {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+}
+
+.tci-body .tcd-exchange-req-title {
+  background: #f1f5f9;
+  border-color: #e5e7eb;
+  color: #475569;
+}
+
+.tci-body .tcd-exchange-req pre {
+  color: #1e293b;
+  /* No max-height cap — the inspector body itself scrolls */
+}
+
+.tci-body .tcd-exchange-req pre.tcd-jwt-dump {
+  max-height: none;
+}
+
+/* Full JWT JSON dump section in inspector */
+.tci-body .tcd-full-jwt {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.tci-body .tcd-full-jwt pre.tcd-jwt-dump {
+  color: #1e293b;
+  max-height: none;
+  overflow-y: visible;
+  margin: 0;
+  margin-top: 6px;
+}
+
+.tci-body .tcd-pill--may-act {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1e40af;
+}
+
+.tci-body .tcd-pill--act {
+  background: rgba(20, 184, 166, 0.1);
+  color: #0f766e;
+}
+
+.tci-body .tcd-pill--warn {
+  background: rgba(234, 179, 8, 0.1);
+  color: #a16207;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+/* ─── Resize grip — bottom-right corner ─────────────────────────────────── */
+.tci-resize-grip {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: se-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(0, 0, 0, 0.15) 40%,
+    rgba(0, 0, 0, 0.15) 55%,
+    transparent 55%,
+    transparent 65%,
+    rgba(0, 0, 0, 0.15) 65%,
+    rgba(0, 0, 0, 0.15) 80%,
+    transparent 80%
+  );
+  border-radius: 0 0 12px 0;
+  transition: opacity 0.15s;
+  opacity: 0.6;
+}
+
+.tci-resize-grip:hover {
+  opacity: 1;
+}
+
+/* ─── Collapsed state — header only ─────────────────────────────────────── */
+.tci-panel--collapsed {
+  border-radius: 10px;
+}
+
+/* ─── Scrollbar for inspector body ──────────────────────────────────────── */
+.tci-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tci-body::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.tci-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.tci-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* -- Inline claims strip -------------------------------------------------- */
+.tcd-claims-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+.tcd-cs-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+.tcd-cs-key {
+  color: #475569;
+  font-weight: 700;
+}
+.tcd-cs-key::after {
+  content: ":";
+}
+.tcd-cs-val {
+  color: #1e293b;
+  word-break: break-all;
+}
+.tcd-cs-act .tcd-cs-key {
+  color: #0f766e;
+}
+.tcd-cs-act .tcd-cs-val {
+  color: #0d9488;
+}
+.tcd-cs-may .tcd-cs-key {
+  color: #1d4ed8;
+}
+.tcd-cs-may .tcd-cs-val {
+  color: #2563eb;
+}
+.tcd-cs-aud .tcd-cs-key {
+  color: #166534;
+}
+.tcd-cs-aud .tcd-cs-val {
+  color: #15803d;
+}
+.tcd-cs-scope .tcd-cs-val {
+  color: #334155;
+}
+.tcd-cs-expired .tcd-cs-val {
+  color: #b91c1c;
+}
+
+/* -- Exchange mode banner ------------------------------------------------- */
+.tcd-exc-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+}
+.tcd-exc-banner--teal {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+.tcd-exc-banner--blue {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.tcd-exc-banner--slate {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+.tcd-exc-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tcd-exc-banner--teal .tcd-exc-badge {
+  color: #5eead4;
+}
+.tcd-exc-banner--blue .tcd-exc-badge {
+  color: #93c5fd;
+}
+.tcd-exc-banner--slate .tcd-exc-badge {
+  color: #374151;
+}
+.tcd-exc-desc {
+  font-size: 0.69rem;
+  color: #374151;
+  font-family: inherit;
+}
+
+/* Empty state — shown when signed-in user has no token chain events yet */
+.tcd-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--tcd-muted, #8a9bb5);
+}
+.tcd-empty-state__icon {
+  font-size: 2rem;
+}
+.tcd-empty-state__msg {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.tcd-empty-state__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+/* ── Scope injection badges (Phase 146) ─────────────────────────────────── */
+.tcd-scope-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.tcd-scope-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tcd-scope-badge--real {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.tcd-scope-badge--injected {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.tcd-scope-injected-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* ─── MCP Results Section ────────────────────────────────────────────────── */
+.tcd-mcp-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tcd-mcp-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tcd-mcp-results-count {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.tcd-mcp-result-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tcd-mcp-result-card:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.tcd-mcp-result-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tcd-mcp-result-tool {
+  font-family: inherit;
+  color: var(--brand-navy);
+  font-weight: 700;
+  padding: 2px 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 4px;
+}
+
+.tcd-mcp-result-status {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.tcd-mcp-result-status--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.tcd-mcp-result-status--failure {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.tcd-mcp-result-duration {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+.tcd-mcp-result-summary {
+  font-size: 0.85rem;
+  color: #475569;
+  padding: 0 4px;
+}
+
+/* MCP request/response payloads render via the shared <JsonField> component
+   (components/shared/JsonField.css) which wraps long lines instead of
+   overflowing horizontally. */
+
+.tcd-mcp-result-note {
+  font-size: 0.75rem;
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.08);
+  border-left: 2px solid #14b8a6;
+  padding: 6px 8px;
+  border-radius: 3px;
+}
+
+/* ── RFC 8693 annotation below exchange arrows ───────────────────────────── */
+.tcd-rfc-annotation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-family: inherit;
+  font-size: 0.68rem;
+  color: #374151;
+  margin-top: 3px;
+}
+
+.tcd-rfc-link {
+  color: #1e3a5f;
+  font-size: 0.68rem;
+  font-family: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.tcd-rfc-link:hover {
+  text-decoration: underline;
+}
+
+.tcd-aud-label {
+  color: #374151;
+  font-size: 0.68rem;
+  font-family: inherit;
+}
+
+/* ── NL Routing Card (Step 0) ─────────────────────────────────────────────── */
+.tcd-nl-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #2563eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+
+.tcd-nl-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tcd-nl-card__step {
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.tcd-nl-card__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+}
+
+.tcd-nl-card__time {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.tcd-nl-card__row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #374151;
+  margin-bottom: 4px;
+  align-items: flex-start;
+}
+
+.tcd-nl-card__row:last-child {
+  margin-bottom: 0;
+}
+
+.tcd-nl-card__key {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.tcd-nl-card__val {
+  color: #1e293b;
+}
+
+.tcd-nl-card__prompt {
+  font-style: italic;
+  word-break: break-word;
+}
+
+.tcd-nl-card__intent {
+  font-family: var(--font-family-mono);
+  font-size: 0.72rem;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.tcd-nl-source {
+  font-weight: 600;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.tcd-nl-source--heuristic {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tcd-nl-saved-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #166534;
+  background: #dcfce7;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.tcd-nl-source--llm {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.tcd-nl-source__detail {
+  font-weight: 400;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+/* ─── Phase 266 — credentialPath visual identity per chain segment ─────────── */
+/* Path identity is carried by the badge header (below), not a continuous
+   left rail on the wrap — the old rail ran unbroken through badge → card →
+   connector → next badge, chaining cards together so boundaries blurred.
+   The per-card status border-left on .tcd-event now bounds each card cleanly,
+   breaking at every connector. */
+.tcd-path-api_key {
+  background: rgba(202, 138, 4, 0.04);
+}
+.tcd-path-dual_token {
+  background: rgba(13, 148, 136, 0.04);
+}
+.tcd-event-step {
+  margin-left: auto;
+  font-size: var(--tcd-size-caption);
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* Client-auth method chip: how the BFF authenticated to the token endpoint for
+   this step. The JWKS (private_key_jwt) variant is emphasized in green to show
+   the stronger asymmetric path; client_secret variants are neutral. */
+.tcd-auth-method-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--tcd-size-caption);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.tcd-auth-method-chip--jwks {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+/* Full-width header strip attached to the top of each card — a clear
+   "a new card starts here" marker. Sits flush on the card (no bottom gap,
+   rounded top corners only); the margin-top creates breathing room from the
+   preceding connector so consecutive cards read as separate units. */
+.tcd-path-badge {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 0;
+  padding: 3px 10px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border-radius: 8px 8px 0 0;
+  color: #fff;
+  opacity: 1;
+}
+.tcd-path-oauth_bearer > .tcd-path-badge {
+  background: #004687;
+}
+.tcd-path-api_key > .tcd-path-badge {
+  background: #ca8a04;
+}
+.tcd-path-dual_token > .tcd-path-badge {
+  background: #0d9488;
+}
+
+/* ─── Phase 266 R3 — spec-citation pills on each token chain segment ─────── */
+.tcd-specref-group {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+  flex-wrap: wrap;
+  vertical-align: middle;
+}
+.tcd-specref-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tcd-specref-pill:hover {
+  background: #e0e7ff;
+}
+.tcd-specref-unknown {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+  cursor: default;
+}
+.tcd-specref-link-icon {
+  font-size: 9px;
+  opacity: 0.7;
+}
+.tcd-specref-explainer {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.5;
+  white-space: normal;
+  position: relative;
+  z-index: 10;
+}
+.tcd-specref-explainer-row {
+  margin-bottom: 6px;
+}
+.tcd-specref-explainer-row:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Per-card "What changed" diff strip ──────────────────────────────────────
+   Makes the effect of each exchange/step legible at a glance: audience
+   narrowing, scope add/remove, and delegation (act) changes vs the previous
+   step's token. */
+.tcd-event-diff {
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #2563eb;
+  background: #f8fafc;
+  border-radius: 4px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tcd-event-diff-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+.tcd-event-diff-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+.tcd-event-diff-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+.tcd-event-diff-detail {
+  font-family: var(--font-family-mono);
+  word-break: break-all;
+}
+.tcd-diff-removed {
+  color: #b91c1c;
+  text-decoration: line-through;
+  margin-right: 6px;
+}
+.tcd-diff-added {
+  color: #15803d;
+}
+.tcd-diff-arrow {
+  color: #64748b;
+}
+
+/* ── TLS Security Card ──────────────────────────────────────────────────────── */
+.tcd-tls-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #16a34a;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+
+.tcd-tls-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tcd-tls-card__badge {
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.tcd-tls-card__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #14532d;
+  flex: 1;
+}
+
+.tcd-tls-card__toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #16a34a;
+  font-size: 0.85rem;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tcd-tls-card__summary {
+  font-size: 0.74rem;
+  color: #166534;
+  margin: 0 0 0 0;
+  line-height: 1.45;
+}
+
+.tcd-tls-card__hops {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tcd-tls-hop {
+  background: #fff;
+  border: 1px solid #d1fae5;
+  border-radius: 5px;
+  padding: 8px 10px;
+}
+
+.tcd-tls-hop--internal {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.85;
+}
+
+.tcd-tls-hop__route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.tcd-tls-hop__from,
+.tcd-tls-hop__to {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tcd-tls-hop__arrow {
+  font-size: 0.73rem;
+  color: #94a3b8;
+}
+
+.tcd-tls-hop__host {
+  font-size: 0.68rem;
+  background: #f1f5f9;
+  color: #374151;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-family-mono);
+}
+
+.tcd-tls-hop__proto {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.tcd-tls-hop__proto--https {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tcd-tls-hop__proto--http {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.tcd-tls-hop__cert {
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-bottom: 3px;
+}
+
+.tcd-tls-hop__note {
+  font-size: 0.7rem;
+  color: #475569;
+  line-height: 1.4;
+}
+.tcd-trat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tcd-trat-badge.simulated {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+.tcd-trat-badge.native {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #34d399;
+}
+.tcd-mtls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tcd-mtls-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #34d399;
+}
+.tcd-mtls-badge.skipped {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+.tcd-trat-claims-detail {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+}
+
+/* ─── Spotlight walk-through ─────────────────────────────────────────────── */
+/* Controls row + the moving highlight that walks through the chain one card at
+   a time, with a What/Why/Value explainer popover. Brand-blue, state via the
+   .is-on class (no :has) per the app-wide control standard. */
+.tcd-walk {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 9px 14px;
+  margin: 0 0 6px;
+  background: rgba(241, 245, 249, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+}
+.tcd-walk__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tcd-walk__group.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.tcd-walk__label {
+  font-size: var(--tcd-size-body);
+  font-weight: 600;
+  color: var(--tcd-ink);
+}
+
+.tcd-walk__switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #c7cfdb;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.tcd-walk__switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s ease;
+}
+.tcd-walk__switch.is-on {
+  background: var(--brand-navy);
+}
+.tcd-walk__switch.is-on::after {
+  transform: translateX(18px);
+}
+
+.tcd-walk__seg {
+  display: inline-flex;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fff;
+}
+.tcd-walk__seg button {
+  border: none;
+  border-right: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+  color: var(--tcd-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.tcd-walk__seg button:last-child {
+  border-right: none;
+}
+.tcd-walk__seg button.is-on {
+  background: var(--brand-navy);
+  color: #fff;
+}
+
+.tcd-walk__btn {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+  color: var(--tcd-ink);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tcd-walk__btn:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+.tcd-walk__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tcd-walk__lag {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--tcd-muted);
+}
+.tcd-walk__lag b {
+  color: var(--brand-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Spotlight: dim every card, light up the active one. */
+.tcd-events--walking .tcd-event-wrap {
+  opacity: 0.4;
+  transition: opacity 0.25s ease;
+}
+.tcd-events--walking .tcd-event-wrap--spotlit {
+  opacity: 1;
+}
+.tcd-events--walking .tcd-event-wrap--spotlit .tcd-event {
+  border-color: #2563eb;
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.28),
+    0 8px 22px rgba(37, 99, 235, 0.16);
+}
+
+/* Per-card "explain" affordance in the title row. */
+.tcd-event-explain {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #fff;
+  color: var(--tcd-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+}
+.tcd-event-explain:hover {
+  border-color: var(--brand-navy);
+  color: var(--brand-navy);
+}
+
+/* What/Why/Value explainer popover (portaled to body, fixed-positioned). */
+.tcd-step-explainer {
+  position: fixed;
+  z-index: 1200;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(20, 40, 80, 0.2);
+  overflow: hidden;
+}
+.tcd-step-explainer__hd {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 14px;
+  background: var(--brand-navy);
+  color: #fff;
+}
+.tcd-step-explainer__step {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.tcd-step-explainer__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.tcd-step-explainer__close {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tcd-step-explainer__close:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+.tcd-step-explainer__body {
+  padding: 12px 14px 14px;
+}
+.tcd-step-explainer__sec {
+  margin-bottom: 11px;
+}
+.tcd-step-explainer__sec:last-child {
+  margin-bottom: 0;
+}
+.tcd-step-explainer__k {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 5px;
+  margin-bottom: 4px;
+}
+.tcd-step-explainer__sec--what .tcd-step-explainer__k {
+  background: #eef2fb;
+  color: #1e40af;
+}
+.tcd-step-explainer__sec--why .tcd-step-explainer__k {
+  background: #fdf3e0;
+  color: #b45309;
+}
+.tcd-step-explainer__sec--value .tcd-step-explainer__k {
+  background: #e6f6ec;
+  color: #15803d;
+}
+.tcd-step-explainer__v {
+  font-size: 12.7px;
+  color: var(--tcd-ink);
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcd-events--walking .tcd-event-wrap,
+  .tcd-walk__switch,
+  .tcd-walk__switch::after {
+    transition: none;
+  }
+}
+
+/* ─── A4-T1: Halted-step rendering ──────────────────────────────────────── */
+
+/* Halted step — the step where the chain stopped */
+.tcd-event--halted {
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-left-color: #dc2626; /* red-600 — same hue as tcd-badge--failed */
+}
+
+.tcd-event-wrap--halted .tcd-path-badge::after {
+  content: " — stopped here";
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.tcd-halt-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #991b1b;
+}
+.tcd-halt-banner__icon { flex-shrink: 0; margin-top: 1px; }
+.tcd-halt-banner__text { font-weight: 600; }
+.tcd-halt-banner__note {
+  display: block;
+  margin-top: 2px;
+  color: #b91c1c;
+  font-weight: 400;
+}

@@ -1,0 +1,31 @@
+# Persistent log volume for the BFF (banking-api-server).
+#
+# Why: in k8s every service logs to stdout → `kubectl logs`, which is ephemeral
+# (gone on pod restart) and per-pod (no cross-service trace). This PVC gives the
+# BFF a durable directory at /var/log/aidemo for its structured per-category log
+# files AND the unified token-chain trace (demo-unified.log). The trace is the
+# debugging artefact: one ═══ block per MCP tool call with each hop's token_aud,
+# the gateway introspection/authorize decision, and the forward result — so a
+# break like the mcpgateway-vs-mcpserver aud drift reads in one line.
+#
+# Requires a default StorageClass (every local/dev cluster — docker-desktop,
+# kind, minikube, k3s — ships one). fsGroup:1001 on the BFF pod makes the
+# mounted volume group-writable by the non-root runtime user.
+#
+# Single ReadWriteOnce claim is sufficient: the BFF is a single replica and is
+# the only writer (it owns the unified trace, assembled from the gateway audit
+# trail it already receives via the X-Gw-Audit-Trail header).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bff-logs
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: api-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

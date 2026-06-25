@@ -1,0 +1,174 @@
+/* ========== EventStreamPanel ========== */
+
+/* ── Shared shell ─────────────────────────────────────────── */
+
+.esp-panel {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── Embedded mode ────────────────────────────────────────── */
+
+.esp-panel.panel-mode-embedded {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  height: 100%;
+}
+
+/* ── Float mode (draggable window) ───────────────────────── */
+
+.esp-panel.panel-mode-float {
+  position: fixed;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 9100;
+}
+
+.esp-panel.panel-mode-float.esp-dragging {
+  opacity: 0.92;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+}
+
+/* ── Bottom-sheet mode ────────────────────────────────────── */
+
+.esp-panel.panel-mode-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-top: 1px solid #d1d5db;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  z-index: 9100;
+  border-radius: 12px 12px 0 0;
+}
+
+/* ── Title bar ────────────────────────────────────────────── */
+
+.esp-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+  flex-shrink: 0;
+  cursor: default;
+  /* keep above resize handles */
+  position: relative;
+  z-index: 1;
+}
+
+.panel-mode-float .esp-titlebar {
+  cursor: grab;
+}
+
+.esp-panel.panel-mode-float.esp-dragging .esp-titlebar {
+  cursor: grabbing;
+}
+
+.esp-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.esp-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.esp-mode-select {
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.esp-mode-select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.esp-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.esp-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Event list ───────────────────────────────────────────── */
+
+.esp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  scroll-behavior: smooth;
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+
+.esp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 80px;
+  color: #9ca3af;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.esp-empty-icon {
+  font-size: 28px;
+  opacity: 0.45;
+}
+
+.esp-empty-text {
+  font-size: 13px;
+}
+
+/* ── Request divider ──────────────────────────────────────── */
+
+.esp-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.esp-divider::before,
+.esp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}

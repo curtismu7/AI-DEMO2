@@ -1,0 +1,248 @@
+/* ScopeReferencePage.css — live PingOne resource & scope reference tables.
+ * Sits inside AdminSubPageShell (appShellPages.css); matches its white-card idiom. */
+
+/* ── Loading / error states ── */
+.scope-ref__state {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #333333;
+}
+
+.scope-ref__state--error {
+  border-left: 4px solid #b91c1c;
+}
+
+.scope-ref__state-detail {
+  margin: 0.5rem 0 1rem;
+  font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  color: #7f1d1d;
+  word-break: break-word;
+}
+
+/* ── Summary strip ── */
+.scope-ref__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 0.9rem 1.25rem;
+  margin-top: 1rem;
+}
+
+.scope-ref__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding-right: 1rem;
+  border-right: 1px solid #e0e0e0;
+}
+
+.scope-ref__stat:last-of-type {
+  border-right: none;
+}
+
+.scope-ref__stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.scope-ref__stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
+}
+
+.scope-ref__summary-actions {
+  margin-left: auto;
+}
+
+/* ── Section headings ── */
+.scope-ref__section-title {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ── Resource card ── */
+.scope-ref-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.scope-ref-card__header {
+  padding: 1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.scope-ref-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.scope-ref-card__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.scope-ref-card__badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.scope-ref-card__badge--custom {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.scope-ref-card__count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.scope-ref-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 2rem;
+  margin: 0.6rem 0 0;
+}
+
+.scope-ref-card__meta div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.scope-ref-card__meta dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
+}
+
+.scope-ref-card__meta dd {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.scope-ref-card__meta code {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.78rem;
+  color: #111827;
+  word-break: break-all;
+}
+
+.scope-ref-card__empty {
+  padding: 1rem 1.25rem;
+  font-size: 0.88rem;
+  color: #374151;
+}
+
+/* ── Scope table ── */
+.scope-ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.scope-ref-table th {
+  text-align: left;
+  padding: 0.55rem 1.25rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+}
+
+.scope-ref-table__col-name {
+  width: 240px;
+}
+
+.scope-ref-table td {
+  padding: 0.55rem 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+}
+
+.scope-ref-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.scope-ref-table__scope {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.scope-ref-table__desc {
+  color: #333333;
+  line-height: 1.5;
+}
+
+/* ── Collapsible vocabulary document ── */
+.scope-ref__vocab {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+  padding: 0.9rem 1.25rem;
+}
+
+.scope-ref__vocab summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.scope-ref__vocab-doc {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.85rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  max-height: 60vh;
+  overflow: auto;
+  color: #111827;
+}

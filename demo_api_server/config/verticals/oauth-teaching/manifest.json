@@ -1,0 +1,78 @@
+{
+  "id": "oauth-teaching",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "OAuth Academy",
+    "headerTitle": "OAuth Academy",
+    "documentTitle": "OAuth Academy · PingOne AI Demo",
+    "tagline": "Interactive OAuth 2.0 / 2.1 + OIDC Learning",
+    "logoAlt": "OAuth Academy logo",
+    "logoPath": "/branding/oauth-academy-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#4f46e5",
+      "--app-primary-red-hover": "#4338ca",
+      "--app-primary-red-mid": "#6366f1",
+      "--app-primary-red-border": "#4f46e5",
+      "--brand-dashboard-header-start": "#312e81",
+      "--brand-dashboard-header-end": "#4f46e5",
+      "--brand-app-shell-hero-start": "#312e81",
+      "--brand-app-shell-hero-end": "#6366f1",
+      "--theme-accent": "#818cf8",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Token",
+    "accounts": "Tokens",
+    "accountTypes": ["Access Token", "Refresh Token", "ID Token"],
+    "transaction": "Flow",
+    "transactions": "Flows",
+    "transactionTypes": ["Authorization Code", "Token Exchange", "HITL Consent", "Scope Denial"],
+    "balance": "Token Claims",
+    "agent": "OAuth Teacher",
+    "dashboard": "Learning Lab",
+    "highValueAction": "Token Exchange",
+    "highValueLabel": "RFC 8693 token exchange — delegation chain"
+  },
+  "agent": {
+    "persona": "OAuth Teacher",
+    "greeting": "Hi {name}! I'm your OAuth teacher. I can explain OAuth 2.0/2.1 and OIDC concepts, show you the live token chain, and demonstrate real authorization flows. What would you like to learn?"
+  },
+  "dashboard": {
+    "kind": "oauth-teaching",
+    "chips": [
+      { "key": "teaching", "label": "Start Learning" }
+    ],
+    "chips10": [
+      { "id": "ot1", "label": "What is OAuth?", "message": "what is oauth", "mode": "llm" },
+      { "id": "ot2", "label": "Explain scopes", "message": "explain scopes", "mode": "llm" },
+      { "id": "ot3", "label": "What is PKCE?", "message": "what is pkce", "mode": "llm" },
+      { "id": "ot4", "label": "Show token exchange", "message": "explain token exchange", "mode": "llm" },
+      { "id": "ot5", "label": "What is OIDC?", "message": "what is oidc", "mode": "llm" },
+      { "id": "ot6", "label": "Explain act/may_act", "message": "explain act and may_act delegation", "mode": "llm" },
+      { "id": "ot7", "label": "Show token chain", "message": "show token chain", "mode": "llm" },
+      { "id": "ot8", "label": "What is HITL?", "message": "what is human in the loop", "mode": "llm" },
+      { "id": "ot9", "label": "Explain audience narrowing", "message": "explain audience narrowing rfc 8707", "mode": "llm" },
+      { "id": "ot10", "label": "What is RFC 8693?", "message": "what is rfc 8693 token exchange", "mode": "llm" }
+    ]
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write"
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  },
+  "render": {
+    "token_pair": { "type": "token-pair", "title": "Your tokens — before & after exchange" }
+  }
+}

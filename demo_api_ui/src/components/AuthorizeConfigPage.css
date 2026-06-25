@@ -1,0 +1,689 @@
+/* AuthorizeConfigPage — Authorize rules configuration UI */
+
+.azc-root {
+  padding: 0;
+  background: #f1f5f9;
+  min-height: calc(100vh - 120px);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+
+.azc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.azc-header > div:first-child {
+  flex: 1;
+}
+
+.azc-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.azc-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.azc-header-badge {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ── Status Badge ─────────────────────────────────────────────────────── */
+
+.azc-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.azc-badge--off {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.azc-badge--simulated {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.azc-badge--pingone {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.azc-badge--pending_config {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Refresh Button ───────────────────────────────────────────────────── */
+
+.azc-refresh-btn {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.azc-refresh-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* ── Loading / Error ─────────────────────────────────────────────────── */
+
+.azc-loading {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.azc-error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.azc-error button {
+  padding: 4px 10px;
+  background: #991b1b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────── */
+
+.azc-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.azc-tab {
+  padding: 10px 18px;
+  border: none;
+  background: none;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.azc-tab:hover {
+  color: #1e293b;
+}
+
+.azc-tab--active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* ── Panel ────────────────────────────────────────────────────────────── */
+
+.azc-panel {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-left: 4px solid var(--brand-navy, #1d4ed8);
+}
+
+.azc-section {
+  margin-bottom: 32px;
+}
+
+.azc-section:last-child {
+  margin-bottom: 0;
+}
+
+.azc-section > h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.azc-section > h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Description / hints ─────────────────────────────────────────────── */
+
+.azc-description {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+
+.azc-description code,
+.azc-field-hint code {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: #334155;
+  font-weight: 600;
+}
+
+/* ── Tier visual bar ──────────────────────────────────────────────────── */
+
+.azc-tier-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.azc-tier-bar__permit {
+  background: #22c55e;
+  flex: 2.5;
+}
+.azc-tier-bar__confirm {
+  background: #f59e0b;
+  flex: 2.5;
+}
+.azc-tier-bar__stepup {
+  background: #f97316;
+  flex: 15;
+}
+.azc-tier-bar__deny {
+  background: #ef4444;
+  flex: 10;
+}
+
+/* ── Form layout ─────────────────────────────────────────────────────── */
+
+.azc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Row-style layout for number inputs */
+.azc-field {
+  display: grid;
+  grid-template-columns: 210px 150px 1fr;
+  grid-template-areas: "label input hint";
+  align-items: center;
+  column-gap: 16px;
+  padding: 10px 14px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  transition: background 0.1s;
+}
+
+.azc-field:hover {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+/* ── MCP tool picker section ─────────────────────────────────────────── */
+
+.azc-mcp-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.azc-mcp-section__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.azc-mcp-section__hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.azc-tool-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.azc-tool-chip {
+  padding: 4px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748b;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.azc-tool-chip:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.azc-tool-chip--deny {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.azc-tool-chip--hitl {
+  background: #f3e8ff;
+  border-color: #d8b4fe;
+  color: #6b21a8;
+  font-weight: 600;
+}
+
+.azc-input--tools-fallback {
+  max-width: 100%;
+  text-align: left;
+  font-weight: 400;
+}
+
+.azc-field-label {
+  grid-area: label;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.azc-input {
+  grid-area: input;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+  text-align: right;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.azc-input:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+  background: white;
+}
+
+.azc-textarea {
+  grid-area: input;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1e293b;
+  background: #f8fafc;
+  resize: vertical;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  min-height: 72px;
+}
+
+.azc-textarea:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+  background: white;
+}
+
+.azc-field-hint {
+  grid-area: hint;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* Severity tinting on the first three threshold rows */
+.azc-field--deny {
+  border-left: 3px solid #ef4444;
+}
+.azc-field--stepup {
+  border-left: 3px solid #f97316;
+}
+.azc-field--confirm {
+  border-left: 3px solid #f59e0b;
+}
+
+.azc-field--deny:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  border-left-color: #ef4444;
+}
+.azc-field--stepup:hover {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  border-left-color: #f97316;
+}
+.azc-field--confirm:hover {
+  background: #fffbeb;
+  border-color: #fde68a;
+  border-left-color: #f59e0b;
+}
+
+/* ── Save button ─────────────────────────────────────────────────────── */
+
+.azc-save-btn {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 9px 22px;
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.azc-save-btn:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.azc-save-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────── */
+
+.azc-alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.azc-alert:last-child {
+  margin-bottom: 0;
+}
+
+.azc-alert--success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.azc-alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.azc-alert--info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+/* ── Info grid (PingOne tab) ─────────────────────────────────────────── */
+
+.azc-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.azc-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+}
+
+.azc-info-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.azc-info-item code {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 500;
+  word-break: break-all;
+  font-family: inherit;
+}
+
+/* ── Env vars table ──────────────────────────────────────────────────── */
+
+.azc-env-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.azc-env-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.azc-env-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.azc-env-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.azc-env-table td {
+  padding: 9px 12px;
+}
+
+.azc-env-key {
+  font-weight: 600;
+  color: #1e293b;
+  width: 42%;
+}
+
+.azc-env-key code {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #334155;
+}
+
+.azc-env-val {
+  color: #475569;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.azc-env-note {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.azc-env-note code {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #334155;
+}
+
+/* ── Rules list ──────────────────────────────────────────────────────── */
+
+.azc-rules-list {
+  margin: 8px 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.azc-rules-list li {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.azc-rules-list strong {
+  color: #1e293b;
+}
+
+/* ── Scopes grid ─────────────────────────────────────────────────────── */
+
+.azc-scopes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.azc-scope-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  transition: border-color 0.15s;
+}
+
+.azc-scope-card:hover {
+  border-color: #93c5fd;
+}
+
+.azc-scope-name {
+  font-size: 12px;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.azc-scope-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.azc-scope-description {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.azc-scope-hint {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ── Download button ─────────────────────────────────────────────────── */
+
+.azc-download-btn {
+  display: inline-block;
+  padding: 9px 20px;
+  background: #1e3a5f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.azc-download-btn:hover {
+  background: #172e4c;
+  color: white;
+  text-decoration: none;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .azc-field {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "label"
+      "input"
+      "hint";
+    gap: 5px;
+  }
+
+  .azc-input {
+    text-align: left;
+    max-width: 180px;
+  }
+}

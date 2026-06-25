@@ -1,0 +1,532 @@
+/**
+ * SetupWizardTab Styles
+ * 
+ * Two-panel layout for PingOne setup wizard
+ */
+
+/* Root container - two-panel layout */
+.swt-root {
+  display: flex;
+  gap: 2rem;
+  height: 100%;
+  min-height: 600px;
+}
+
+/* Panel headers */
+.swt-panel-header {
+  margin-bottom: 1.5rem;
+}
+
+.swt-panel-header h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.swt-panel-header p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Left Panel - Input Form */
+.swt-form-panel {
+  flex: 0 0 400px;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #e1e5e9;
+  overflow-y: auto;
+}
+
+/* Right Panel - Log */
+.swt-log-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+  overflow: hidden;
+}
+
+/* Form styling */
+.swt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Input groups */
+.swt-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.swt-input-group label {
+  font-weight: 500;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.swt-input-group input,
+.swt-input-group select,
+.swt-input-group textarea {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.swt-input-group input:focus,
+.swt-input-group select:focus,
+.swt-input-group textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.swt-input-group input.error,
+.swt-input-group select.error,
+.swt-input-group textarea.error {
+  border-color: #dc3545;
+}
+
+.swt-input-group input:disabled,
+.swt-input-group select:disabled,
+.swt-input-group textarea:disabled {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
+
+/* Error messages */
+.swt-error {
+  color: #dc3545;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Sections */
+.swt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid #e1e5e9;
+}
+
+.swt-section h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Action buttons */
+.swt-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.swt-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.swt-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.swt-btn--primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.swt-btn--primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.swt-btn--secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.swt-btn--secondary:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.swt-btn--danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.swt-btn--danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.swt-btn--small {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+/* Log container */
+.swt-log-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Empty log state */
+.swt-log-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.swt-log-empty p {
+  color: #666;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Log entries */
+.swt-log-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Individual log entry */
+.swt-log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.swt-log-entry:last-child {
+  border-bottom: none;
+}
+
+/* Log entry states */
+.swt-log-entry--validate,
+.swt-log-entry--population,
+.swt-log-entry--resource-server,
+.swt-log-entry--scopes,
+.swt-log-entry--admin-app,
+.swt-log-entry--admin-config,
+.swt-log-entry--admin-grants,
+.swt-log-entry--user-app,
+.swt-log-entry--user-config,
+.swt-log-entry--user-grants,
+.swt-log-entry--bankuser,
+.swt-log-entry--bankuser-password,
+.swt-log-entry--bankadmin,
+.swt-log-entry--bankadmin-password,
+.swt-log-entry--config,
+.swt-log-entry--complete {
+  color: #333;
+}
+
+.swt-log-entry--resource-server,
+.swt-log-entry--admin-app,
+.swt-log-entry--user-app,
+.swt-log-entry--bankuser,
+.swt-log-entry--bankadmin {
+  background-color: #fff3cd;
+  border-left: 3px solid #ffc107;
+}
+
+.swt-log-entry--connected,
+.swt-log-entry--validate,
+.swt-log-entry--population,
+.swt-log-entry--scopes,
+.swt-log-entry--admin-config,
+.swt-log-entry--admin-grants,
+.swt-log-entry--user-config,
+.swt-log-entry--user-grants,
+.swt-log-entry--bankuser-password,
+.swt-log-entry--bankadmin-password,
+.swt-log-entry--config,
+.swt-log-entry--complete {
+  background-color: #d4edda;
+  border-left: 3px solid #28a745;
+}
+
+.swt-log-entry--error,
+.swt-log-entry--recreate-error {
+  background-color: #f8d7da;
+  border-left: 3px solid #dc3545;
+  color: #721c24;
+}
+
+.swt-log-entry--cancelled {
+  background-color: #e2e3e5;
+  border-left: 3px solid #6c757d;
+  color: #383d41;
+}
+
+/* Log icons */
+.swt-log-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+/* Log messages */
+.swt-log-message {
+  flex: 1;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Recreate buttons */
+.swt-recreate-btn {
+  flex-shrink: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.swt-recreate-btn:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.swt-recreate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Environment file output */
+.swt-env-output {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.swt-env-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.swt-env-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.swt-env-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  resize: vertical;
+  background-color: #fff;
+}
+
+.swt-env-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .swt-root {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .swt-form-panel {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+  
+  .swt-log-panel {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .swt-root {
+    gap: 0.5rem;
+  }
+  
+  .swt-form-panel,
+  .swt-log-panel {
+    padding: 1rem;
+    border-radius: 0;
+  }
+  
+  .swt-panel-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .swt-form {
+    gap: 0.75rem;
+  }
+  
+  .swt-actions {
+    flex-direction: column;
+  }
+  
+  .swt-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .swt-log-entries {
+    padding: 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .swt-log-entry {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .swt-recreate-btn {
+    align-self: flex-start;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .swt-form-panel,
+  .swt-log-panel {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #DDDDDD;
+  }
+  
+  .swt-panel-header h2 {
+    color: #DDDDDD;
+  }
+  
+  .swt-panel-header p {
+    color: #a0aec0;
+  }
+  
+  .swt-input-group label {
+    color: #DDDDDD;
+  }
+  
+  .swt-input-group input,
+  .swt-input-group select,
+  .swt-input-group textarea {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #DDDDDD;
+  }
+  
+  .swt-input-group input:focus,
+  .swt-input-group select:focus,
+  .swt-input-group textarea:focus {
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.25);
+  }
+  
+  .swt-section {
+    border-color: #4a5568;
+  }
+  
+  .swt-section h3 {
+    color: #DDDDDD;
+  }
+  
+  .swt-log-entries {
+    background-color: #2d3748;
+    color: #DDDDDD;
+  }
+  
+  .swt-log-entry {
+    border-color: #4a5568;
+  }
+  
+  .swt-env-output {
+    background-color: #4a5568;
+    border-color: #718096;
+  }
+  
+  .swt-env-header h3 {
+    color: #DDDDDD;
+  }
+  
+  .swt-env-textarea {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #DDDDDD;
+  }
+}
+
+/* Animation for new log entries */
+.swt-log-entry {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner for running state */
+.swt-btn:disabled:not(.swt-btn--danger)::after {
+  content: '';
+  width: 1em;
+  height: 1em;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 0.5em;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

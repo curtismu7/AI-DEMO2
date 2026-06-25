@@ -1,0 +1,67 @@
+{
+  "session_id": "session-x",
+  "start_time": "2026-05-25T09:31:28.209480",
+  "end_time": "2026-05-25T09:31:28.209705",
+  "total_steps": 4,
+  "total_duration_ms": 0,
+  "execution_steps": [
+    {
+      "step": 1,
+      "type": "websocket_incoming",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:31:28.209498",
+      "elapsed_ms": 0,
+      "session_id": "session-x",
+      "data": {
+        "direction": "incoming",
+        "message_type": "user_message",
+        "payload": {
+          "type": "user_message",
+          "content": "hello",
+          "session_id": "session-x",
+          "timestamp": "2026-05-25T09:31:28.209490"
+        },
+        "payload_size": 114,
+        "timestamp": "2026-05-25T09:31:28.209497"
+      }
+    },
+    {
+      "step": 2,
+      "type": "user_input",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:31:28.209517",
+      "elapsed_ms": 0,
+      "session_id": "session-x",
+      "data": {
+        "message": "hello",
+        "session_id": "session-x",
+        "message_length": 5,
+        "timestamp": "2026-05-25T09:31:28.209516"
+      }
+    },
+    {
+      "step": 3,
+      "type": "agent_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:31:28.209527",
+      "elapsed_ms": 0,
+      "session_id": "session-x",
+      "data": {
+        "agent_type": "LangChainMCPAgent",
+        "tools_available": 0,
+        "model": "llama3"
+      }
+    },
+    {
+      "step": 4,
+      "type": "initialization_error",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:31:28.209691",
+      "elapsed_ms": 0,
+      "session_id": "session-x",
+      "data": {
+        "error": "Agent not properly configured with tools"
+      }
+    }
+  ]
+}

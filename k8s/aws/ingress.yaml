@@ -1,0 +1,48 @@
+---
+# ALB Ingress for AI Demo on EKS.
+#
+# TLS is terminated at the ALB using an ACM certificate.
+# Nginx (frontend pod) runs plain HTTP internally — see nginx-http-configmap.yaml.
+#
+# Before applying:
+#   1. Install the AWS Load Balancer Controller in your cluster:
+#      https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+#   2. Replace ACM_CERTIFICATE_ARN below with your certificate ARN.
+#      (ACM cert does NOT require Route 53 — validate via DNS in any provider,
+#       or use email validation.)
+#
+# After applying, get your ALB hostname:
+#   kubectl get ingress ai-demo-ingress -n ai-demo
+#   → ADDRESS column shows: xxxxx.us-east-1.elb.amazonaws.com
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-ingress
+  namespace: ai-demo
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # TLS — replace with your ACM certificate ARN
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:REGION:ACCOUNT_ID:certificate/CERT_ID"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # Redirect HTTP → HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Health check — nginx serves the React app index on /
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/success-codes: "200,304"
+spec:
+  rules:
+  - http:
+      paths:
+      # All traffic → frontend (nginx). Nginx internally proxies /api/ → BFF.
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000

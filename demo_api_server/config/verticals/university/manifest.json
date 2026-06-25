@@ -1,0 +1,209 @@
+{
+  "id": "university",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Super University",
+    "headerTitle": "Super University",
+    "documentTitle": "Super University · PingOne AI IAM Core",
+    "logoAlt": "Super University logo",
+    "tagline": "AI-Powered Campus Registrar Demo"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#6d28d9",
+      "--app-primary-red-hover": "#5b21b6",
+      "--app-primary-red-mid": "#8b5cf6",
+      "--app-primary-red-border": "#5b21b6",
+      "--brand-dashboard-header-start": "#4c1d95",
+      "--brand-dashboard-header-end": "#7c3aed",
+      "--brand-app-shell-hero-start": "#4c1d95",
+      "--brand-app-shell-hero-end": "#7c3aed",
+      "--theme-accent": "#f59e0b",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Course",
+    "accounts": "Enrolled Courses",
+    "accountTypes": ["Core", "Elective", "Lab"],
+    "transaction": "Enrollment Event",
+    "transactions": "Enrollment History",
+    "transactionTypes": ["Registration", "Drop", "Grade Posted", "Transcript Release"],
+    "balance": "Credit Standing",
+    "agent": "Registrar Assistant",
+    "dashboard": "My Enrollment",
+    "highValueAction": "Transcript Release",
+    "highValueLabel": "Official transcript release to a third party"
+  },
+  "agent": {
+    "persona": "Scholar",
+    "greeting": "Hi {name}! I'm Scholar. I can show your enrolled courses, check your credit standing and holds, review your enrollment history, and help you release an official transcript — I'll walk you through the consent steps. What do you need?",
+    "systemPromptFlavor": "You are Scholar, a Super University registrar assistant. Help students view enrolled courses, check credit standing and registration holds, review enrollment history, and release official transcripts. Use registrar language: accounts are enrolled courses, transactions are enrollment events (registration, drop, grade posted, transcript release), balance is credit standing. Be clear and supportive."
+  },
+  "dashboard": {
+    "kind": "university",
+    "chips": [
+      { "key": "balance", "label": "Credit Standing" },
+      { "key": "accounts", "label": "My Courses" },
+      { "key": "transactions", "label": "Enrollment History" },
+      { "key": "transfer", "label": "Release Transcript" },
+      { "key": "feature", "label": "Enrollment Status" }
+    ],
+    "hero": {
+      "cards": [
+        { "label": "Enrolled Courses", "dataKey": "heroStats.enrolledCourses", "format": "count" },
+        { "label": "Credits Earned", "dataKey": "heroStats.creditsEarned", "format": "count" },
+        { "label": "Registration Holds", "dataKey": "heroStats.holds", "format": "count" },
+        { "label": "Standing", "dataKey": "heroStats.standing", "format": "text" }
+      ]
+    },
+    "llmChipGroups": {
+      "Courses": [
+        { "id": "uni_courses", "label": "My courses", "message": "Show my enrolled courses" },
+        { "id": "uni_schedule", "label": "My schedule", "message": "What's my class schedule this term?" }
+      ],
+      "Standing": [
+        { "id": "uni_credits", "label": "Credits earned", "message": "How many credits have I earned?" },
+        { "id": "uni_holds", "label": "Any holds?", "message": "Do I have any registration holds?" }
+      ],
+      "History": [
+        { "id": "uni_history", "label": "Enrollment history", "message": "Show my enrollment history" },
+        { "id": "uni_grades", "label": "Recent grades", "message": "Show my most recent posted grades" }
+      ],
+      "Transcript": [
+        { "id": "uni_release", "label": "Release transcript", "message": "Release my official transcript to a third party" }
+      ]
+    },
+    "chips10": [
+      { "id": "un1", "label": "My courses", "message": "show my enrolled courses", "mode": "both", "tool": "view_courses" },
+      { "id": "un2", "label": "Credit standing", "message": "what is my credit standing", "mode": "both", "tool": "view_standing" },
+      { "id": "un3", "label": "Enrollment history", "message": "show my enrollment history", "mode": "both", "tool": "view_enrollment_history" },
+      { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course" },
+      { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "tool": "release_transcript" },
+      { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment" },
+      { "id": "un6", "label": "Any holds?", "message": "do I have any registration holds", "mode": "both" },
+      { "id": "un7", "label": "Recent grades", "message": "show my recent grades", "mode": "both" },
+      { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm" },
+      { "id": "un-direct", "label": "🔌 Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before an official transcript release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before an official transcript release ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "transcript:read"
+  },
+  "delegation": {
+    "pageTitle": "Authorized Proxy",
+    "pageDescription": "Authorize a parent or advisor to view your enrollment — powered by RFC 8693 token exchange",
+    "granteeLabel": "parent or academic advisor",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Courses",        "description": "See enrolled course list" },
+      "view_balances":     { "label": "View Credit Standing", "description": "See credits, holds, and standing" },
+      "create_deposit":    { "label": "Register Courses",    "description": "Register for new courses" },
+      "create_withdrawal": { "label": "Drop Courses",        "description": "Drop an enrolled course" },
+      "create_transfer":   { "label": "Release Transcript",  "description": "Authorize official transcript release to a third party" }
+    }
+  },
+  "render": {
+    "view_advisors": {"type":"table","title":"My Advisors","columns":[{"label":"Name","path":"name"},{"label":"Department","path":"department"},{"label":"Email","path":"email"},{"label":"Office Hours","path":"officeHours"}]},
+    "cancel_course_registration": {"type":"card","title":"Course Dropped","fields":[{"label":"Course ID","path":"id"},{"label":"Title","path":"title"},{"label":"Status","path":"status"}]},
+    "waitlist_course": {"type":"card","title":"Added to Waitlist","fields":[{"label":"Course ID","path":"id"},{"label":"Title","path":"title"},{"label":"Status","path":"status"}]},
+    "accept_financial_aid": {"type":"card","title":"Aid Accepted","fields":[{"label":"Award ID","path":"id"},{"label":"Award Name","path":"name"},{"label":"Status","path":"status"}]},
+    "pay_tuition_balance": {"type":"card","title":"Payment Submitted","fields":[{"label":"Bill ID","path":"id"},{"label":"Description","path":"description"},{"label":"Status","path":"status"}]},
+    "release_hold": {"type":"card","title":"Hold Released","fields":[{"label":"Hold ID","path":"id"},{"label":"Hold Type","path":"holdType"},{"label":"Status","path":"status"}]},
+    "request_housing_assignment": {"type":"card","title":"Housing Request Submitted","fields":[{"label":"Housing ID","path":"id"},{"label":"Hall","path":"hall"},{"label":"Status","path":"status"}]},
+    "renew_parking_permit": {"type":"card","title":"Parking Permit Renewed","fields":[{"label":"Permit ID","path":"id"},{"label":"Zone","path":"zone"},{"label":"Status","path":"status"}]},
+    "checkout_library_item": {"type":"card","title":"Item Checked Out","fields":[{"label":"Item ID","path":"id"},{"label":"Title","path":"title"},{"label":"Status","path":"status"}]},
+    "apply_scholarship": {"type":"card","title":"Scholarship Application Submitted","fields":[{"label":"Scholarship ID","path":"id"},{"label":"Name","path":"name"},{"label":"Status","path":"status"}]},
+    "view_financial_aid": {"type":"table","title":"Financial Aid","columns":[{"label":"Award ID","path":"id"},{"label":"Name","path":"name","format":"text"},{"label":"Type","path":"type","format":"text"},{"label":"Amount","path":"amount","format":"money"},{"label":"Status","path":"status","format":"text"}]},
+    "view_billing": {"type":"table","title":"Billing & Tuition","columns":[{"label":"Bill ID","path":"id"},{"label":"Description","path":"description","format":"text"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Amount","path":"amount","format":"money"},{"label":"Status","path":"status","format":"text"}]},
+    "view_holds": {"type":"table","title":"Account Holds","columns":[{"label":"Hold ID","path":"id"},{"label":"Type","path":"holdType","format":"text"},{"label":"Reason","path":"reason","format":"text"},{"label":"Placed","path":"placedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_degree_audit": {"type":"table","title":"Degree Audit","columns":[{"label":"Req ID","path":"id"},{"label":"Requirement","path":"requirement","format":"text"},{"label":"Credits Required","path":"creditsRequired","format":"count"},{"label":"Credits Earned","path":"creditsEarned","format":"count"},{"label":"Status","path":"status","format":"text"}]},
+    "view_housing": {"type":"table","title":"Housing Assignment","columns":[{"label":"Housing ID","path":"id"},{"label":"Hall","path":"hall","format":"text"},{"label":"Room","path":"room","format":"text"},{"label":"Term","path":"term","format":"text"},{"label":"Status","path":"status","format":"text"}]},
+    "view_dining": {"type":"table","title":"Dining & Meal Plan","columns":[{"label":"Transaction ID","path":"id"},{"label":"Location","path":"location","format":"text"},{"label":"Date","path":"date","format":"date"},{"label":"Amount","path":"amount","format":"money"},{"label":"Type","path":"type","format":"text"}]},
+    "view_exam_schedule": {"type":"table","title":"Exam Schedule","columns":[{"label":"Exam ID","path":"id"},{"label":"Course","path":"course","format":"text"},{"label":"Type","path":"examType","format":"text"},{"label":"Date","path":"date","format":"date"},{"label":"Location","path":"location","format":"text"}]},
+    "view_parking": {"type":"table","title":"Parking Permits","columns":[{"label":"Permit ID","path":"id"},{"label":"Zone","path":"zone","format":"text"},{"label":"Vehicle","path":"vehicle","format":"text"},{"label":"Expiry","path":"expiryDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_library": {"type":"table","title":"Library Items","columns":[{"label":"Item ID","path":"id"},{"label":"Title","path":"title","format":"text"},{"label":"Type","path":"itemType","format":"text"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_scholarships": {"type":"table","title":"Scholarships","columns":[{"label":"Scholarship ID","path":"id"},{"label":"Name","path":"name","format":"text"},{"label":"Amount","path":"amount","format":"money"},{"label":"Deadline","path":"deadline","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_standing": { "type": "fieldList", "title": "Credit Standing", "fields": [ { "label": "Credits earned", "path": "creditsEarned", "format": "count" }, { "label": "Holds", "path": "holds" }, { "label": "Standing", "path": "standing" } ] },
+    "view_courses": { "type": "table", "columns": [ { "label": "Course", "path": "id" }, { "label": "Title", "path": "title" }, { "label": "Type", "path": "courseType" }, { "label": "Grade", "path": "grade" } ] },
+    "view_enrollment_history": { "type": "table", "columns": [ { "label": "Event #", "path": "id" }, { "label": "Type", "path": "type" }, { "label": "Course", "path": "course" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "register_course": { "type": "card", "title": "Course Registered", "fields": [ { "label": "Course", "path": "course" }, { "label": "Status", "path": "status" } ] },
+    "release_transcript": { "type": "card", "title": "Transcript Released", "fields": [ { "label": "Program", "path": "program" }, { "label": "Status", "path": "status" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_enrollment",
+    "pageTitle": "Enrollment Status",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#6d28d9",
+    "dataKey": "enrollment",
+    "fields": [
+      { "label": "Student ID", "path": "studentId" },
+      { "label": "Program", "path": "program" },
+      { "label": "Term", "path": "term" },
+      { "label": "Standing", "path": "standing" },
+      { "label": "Enrolled credits", "path": "enrolledCredits", "format": "count" },
+      { "label": "Credits earned", "path": "creditsEarned", "format": "count" },
+      { "label": "GPA", "path": "gpa" },
+      { "label": "Tuition balance", "path": "tuitionBalance", "format": "money", "accent": true },
+      { "label": "Holds", "path": "holds" }
+    ],
+    "sectionTitle": "Enrollment details",
+    "emptyPrompt": "show enrollment status",
+    "scopeError": "The agent's access token does not carry the transcript:read scope. Sign out and sign back in to consent to transcript access, then try \"Enrollment Status\" again."
+  },
+  "demoUsers": {
+    "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
+    "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  }
+}

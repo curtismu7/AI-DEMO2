@@ -1,0 +1,61 @@
+.demo-authz-fallback {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.demo-authz-fallback__body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ba-text, #1f2937);
+}
+.demo-authz-fallback__detail {
+  margin: 0;
+  padding: 12px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.demo-authz-fallback__row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.demo-authz-fallback__row dt {
+  flex: 0 0 110px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.demo-authz-fallback__row dd {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+  word-break: break-word;
+}
+.demo-authz-fallback__err {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #b91c1c;
+}
+.demo-authz-fallback__ok {
+  align-self: flex-end;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #4169e1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.demo-authz-fallback__ok:hover {
+  background: #3658c5;
+}

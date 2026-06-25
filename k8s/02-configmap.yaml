@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-demo-config
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+
+  # Public URLs (must match the Redirect URIs registered in PingOne) are now
+  # generated from service-topology.json — see the generated block below.
+
+  # BFF TLS cert paths (mounted from tls-certs secret at /certs)
+  SSL_CRT_FILE: "/certs/tls.crt"
+  SSL_KEY_FILE:  "/certs/tls.key"
+
+  # Inter-service backend addressing (URLs/ports + passthrough flag) is GENERATED
+  # from service-topology.json — the master SoT. To change a host/port/scheme,
+  # edit that file and run `node scripts/gen-service-topology.js generate`.
+  # Rationale that used to live here now lives in service-topology.json:
+  #   - gateway upstreams (MCP_OLB_WS_URL/MCP_INVEST_WS_URL/UPSTREAM_MCP_URL) must
+  #     use in-cluster service names, else the gateway dials localhost → 502;
+  #   - MCP_GATEWAY_HTTP_URL must be the gateway (mcp-gateway:3005), not the MCP
+  #     server, or the BFF bypasses Authorize/exchange;
+  #   - passthrough is false (no skipping the MCP server; mortgage uses the
+  #     gateway's apikey route, not this flag).
+  # >>> BEGIN generated from service-topology.json
+  # Regenerate: node scripts/gen-service-topology.js generate  —  do NOT hand-edit.
+  PUBLIC_APP_URL: "https://api.ping.demo:4000"
+  PINGONE_PUBLIC_APP_URL: "https://api.ping.demo:4000"
+  REACT_APP_CLIENT_URL: "https://api.ping.demo:4000"
+  FRONTEND_ADMIN_URL: "https://api.ping.demo:4000/admin"
+  FRONTEND_DASHBOARD_URL: "https://api.ping.demo:4000/dashboard"
+  CORS_ORIGIN: "https://api.ping.demo:4000"
+  MCP_SERVER_URL: "ws://mcp-server:8080"
+  MCP_OLB_WS_URL: "ws://mcp-server:8080"
+  MCP_INVEST_WS_URL: "ws://mcp-invest:8081"
+  UPSTREAM_MCP_URL: "http://mcp-server:8080"
+  MCP_RESOURCE_URL: "http://mcp-server:8080"
+  MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
+  MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
+  HITL_SERVICE_URL: "http://hitl-service:3009"
+  MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
+  MCP_SERVER_HOST: "0.0.0.0"
+  MCP_SERVER_PORT: "8080"
+  DEMO_API_BASE_URL: "https://demo-api-server:3001"
+  AGUI_HTTP_PORT: "8888"
+  WEBSOCKET_PORT: "8889"
+  HEALTH_HTTP_PORT: "8890"
+  AGUI_HTTP_HOST: "0.0.0.0"
+  CHAT_WS_HOST: "0.0.0.0"
+  MCP_SERVER_RESOURCE_URI: "mcpgateway.ping.demo"
+  MCP_RESOURCE_URI: "mcpgateway.ping.demo"
+  MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo"
+  PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
+  PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
+  PINGONE_RESOURCE_TWO_EXCHANGE_URI: "mcpgateway.ping.demo"
+  # <<< END generated
+
+  # Session persistence across restarts (hand-managed): the BFF wipes ALL
+  # persisted sessions on boot unless this is "false" (server.js — defaults to
+  # clearing). In k8s every pod restart/redeploy is a "boot", so leaving this
+  # unset logs out every user on each rollout and blanks logged-in SPA pages.
+  # Mirrors docker-compose.yml (CLEAR_SESSIONS_ON_BOOT: "false").
+  CLEAR_SESSIONS_ON_BOOT: "false"
+
+  # PingOne JWKS endpoint (hand-managed): the MCP server verifies inbound agent
+  # token signatures against this. WITHOUT it, resolveJwksUri() falls back to
+  # PINGONE_BASE_URL + /jwks — but PINGONE_BASE_URL is the Management API host
+  # (api.pingone.com/v1/environments/{env}), whose /jwks returns 403, so every
+  # agent token signature check fails -> 401 -> the user is logged out on the
+  # first agent prompt. Must point at the AUTH host's OIDC JWKS (/as/jwks).
+  PINGONE_JWKS_URI: "https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as/jwks"
+
+  # CodeGraph index (hand-managed): baked into the langchain-agent image at
+  # build time; not network topology, so it lives outside the generated block.
+  CODEGRAPH_DB_PATH: "/app/codegraph.db"
+
+  # CodeGraph LLM (hand-managed): the ReAct explorer shares the chat agent's
+  # local Ollama model (OLLAMA_MODEL) so only ONE model has to be pulled on the
+  # Ollama host — a separate CODEGRAPH_MODEL (e.g. qwen2.5:3b) 404'd when it was
+  # never pulled there. Override CODEGRAPH_LLM_PROVIDER=anthropic (+ a real
+  # ANTHROPIC_API_KEY) for cloud, or set CODEGRAPH_MODEL to pin a different model
+  # that is ALREADY pulled on the Ollama host.
+
+  # BFF -> langchain-agent HTTP base (hand-managed): consumed by codegraphProxy.js
+  # and aguiSseProxy.js, which otherwise default to 127.0.0.1:8888 (the BFF pod
+  # itself) and 502 in-cluster. Points at the langchain-agent ClusterIP service.
+  LANGCHAIN_AGENT_HTTP_URL: "http://langchain-agent:8888"
+
+  # Feature flag (hand-managed): enable the HTTP MCP transport alongside WS.
+  HTTP_MCP_TRANSPORT_ENABLED: "true"
+
+  # Helix LLM (hand-managed): the four PUBLIC Helix values (non-secret) so the
+  # in-cluster agent has a complete Helix config without relying on configStore
+  # LMDB defaults (empty in a fresh pod). These mirror the committed defaults in
+  # demo_api_server/services/configStore.js for the shared "LLM2" demo agent.
+  # The SECRET (HELIX_API_KEY) is NOT here — create-secrets.sh sources it from
+  # the gitignored <HELIX_AGENT_ID>.json keyfile (e.g. LLM2.json) at deploy time.
+  HELIX_BASE_URL: "https://openam-helix.forgeblocks.com"
+  HELIX_ENVIRONMENT_ID: "fe213c3c-9c1d-4bdb-954a-a22879dad26d"
+  HELIX_AGENT_ID: "LLM2"
+  HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
+
+  # Ollama (local LLM) runs as an in-cluster pod — see k8s/55-ollama-deployment.yaml.
+  # Consumers reach it via the `ollama` Service (cluster DNS), so the "Ollama"
+  # agent mode now works on remote clusters too, not just local OrbStack/Docker
+  # Desktop. (Bare-metal `./run.sh` still uses a host-native Ollama on localhost;
+  # that path is separate and untouched.) Model is llama3.2:3b — CPU-friendly and
+  # within the namespace ResourceQuota; the pod pulls it on first start.
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3.2:3b"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: frontend
+data:
+  default.conf: |
+    server {
+        listen 3000 ssl;
+        server_name api.ping.demo;
+
+        ssl_certificate     /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api/ {
+            proxy_pass https://demo-api-server:3001/api/;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            # The BFF cert is issued for api.ping.demo, not the upstream host
+            # "demo-api-server", so send SNI and verify against that name.
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer-when-downgrade" always;
+        add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
+
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_proxied expired no-cache no-store private auth;
+        gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
+    }

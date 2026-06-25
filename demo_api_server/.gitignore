@@ -1,0 +1,4 @@
+.vercel
+.env*.local
+.test-session.json
+.test-fixtures.json

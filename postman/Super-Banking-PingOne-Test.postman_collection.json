@@ -1,0 +1,289 @@
+{
+  "info": {
+    "name": "Super Banking — PingOne Test Endpoints",
+    "description": "All `/api/pingone-test/*` BFF endpoints for the Super Banking demo.\n\n## How to authenticate (session-based endpoints)\n\nThe BFF uses OAuth Authorization Code + PKCE which requires a real browser. Postman cannot complete this flow directly.\n\n1. **Log in via browser** — open `https://api.ping.demo:4000` and sign in (e.g. bankuser / Tigers7&).\n2. **Copy the session cookie** — in DevTools → Application → Cookies → `api.ping.demo`, copy the `connect.sid` value.\n3. **Paste into Postman** — set the `sessionCookie` collection variable to the copied value (including the `s%3A` prefix).\n4. **Send 🔑 Token Operations requests** — the Cookie header is pre-configured.\n\nNo-session endpoints (🔧 Setup, 📋 Discovery, 🛠️ Update/Fix) work without authentication.",
+    "_postman_id": "super-banking-pingone-test-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.ping.demo:3001", "type": "string" },
+    { "key": "frontendUrl", "value": "https://api.ping.demo:4000", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "sessionCookie", "value": "", "type": "string", "description": "Paste connect.sid cookie value from browser DevTools" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication (read me)",
+      "description": "OAuth login requires a real browser — Postman cannot complete the PKCE redirect flow.\n\n**Steps:**\n1. Open {{frontendUrl}} in a browser and log in.\n2. DevTools → Application → Cookies → copy `connect.sid` value.\n3. Set the `sessionCookie` collection variable to that value.\n4. 🔑 Token Operations requests will use it automatically.",
+      "item": [
+        {
+          "name": "⚠️ READ ME — How to get a session cookie",
+          "request": {
+            "method": "GET",
+            "url": "{{frontendUrl}}",
+            "description": "This request just opens the frontend. It is here as a reminder:\n\n1. Open {{frontendUrl}} in your **browser** (not Postman).\n2. Sign in as `bankuser` / `Tigers7&` (user) or your admin account.\n3. Open DevTools → Application → Cookies → `api.ping.demo`.\n4. Copy the full `connect.sid` value (including `s%3A` prefix).\n5. In Postman: Collection Variables → set `sessionCookie` to the copied value.\n\nAll 🔑 Token Operations requests include a `Cookie: connect.sid={{sessionCookie}}` header."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Setup & Config",
+      "description": "Configuration and worker-token endpoints. No login required — these use the worker (client_credentials) app.",
+      "item": [
+        {
+          "name": "GET /config",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/config",
+            "description": "Returns the current effective configuration (env + configStore). Shows all PingOne client IDs, audiences, and feature flags."
+          }
+        },
+        {
+          "name": "GET /worker-token",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/worker-token",
+            "description": "Obtains a worker client_credentials token from PingOne. Verifies worker app connectivity."
+          }
+        },
+        {
+          "name": "POST /worker-config",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/worker-config",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"YOUR_WORKER_CLIENT_ID\",\n  \"clientSecret\": \"YOUR_WORKER_CLIENT_SECRET\",\n  \"authMethod\": \"basic\",\n  \"tokenExchangeAuthMethod\": \"post\"\n}"
+            },
+            "description": "Updates worker token credentials in configStore + .env. Only needed if the default worker credentials are wrong."
+          }
+        },
+        {
+          "name": "GET /verify-assets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/verify-assets",
+            "description": "Verifies PingOne assets: environment reachable, apps exist, resource servers configured."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Discovery (Read-Only)",
+      "description": "Read-only endpoints. No login required — these use the worker token internally.",
+      "item": [
+        {
+          "name": "GET /apps",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/apps",
+            "description": "Lists all PingOne applications in the environment. Shows app types, client IDs, enabled status."
+          }
+        },
+        {
+          "name": "GET /ai-agent-apps",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/ai-agent-apps",
+            "description": "Fetches only AI_AGENT type apps. Flags Super Banking ones. Reports missing expected apps."
+          }
+        },
+        {
+          "name": "GET /resources",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/resources",
+            "description": "Lists all PingOne resource servers — names, audiences, types."
+          }
+        },
+        {
+          "name": "GET /scopes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/scopes",
+            "description": "Lists scopes on all resource servers, grouped by RS."
+          }
+        },
+        {
+          "name": "GET /users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/users",
+            "description": "Lists PingOne users. Auto-sets {{userId}} from the first user returned."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.users && jsonData.users.length > 0) {",
+                  "    pm.collectionVariables.set('userId', jsonData.users[0].id);",
+                  "    console.log('Set userId → ' + jsonData.users[0].id + ' (' + (jsonData.users[0].username || jsonData.users[0].email) + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /diagnose-mcp-exchange",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/diagnose-mcp-exchange",
+            "description": "Diagnoses token exchange: checks MCP RS, scopes, exchanger app grants. Returns canExchange true/false and lists missingFromRS / missingFromApp."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Update / Fix (Mutating)",
+      "description": "Idempotent — safe to run repeatedly. These CREATE or MODIFY PingOne resources via the worker token.",
+      "item": [
+        {
+          "name": "POST /update-resources",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/update-resources",
+            "description": "Ensures Banking RS and MCP RS exist with all canonical scopes. Creates RS if missing; adds only missing scopes."
+          }
+        },
+        {
+          "name": "POST /update-scopes",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/update-scopes",
+            "description": "Adds missing canonical scopes to existing RS. Skips RS creation."
+          }
+        },
+        {
+          "name": "POST /update-apps",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/update-apps",
+            "description": "Grants correct banking scope subsets to each Super Banking app. Returns per-app steps + AI_AGENT apps discovered."
+          }
+        },
+        {
+          "name": "POST /update-user-spel — Set may_act",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/update-user-spel",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"enabled\": true\n}"
+            },
+            "description": "Two-step: (1) PATCHes mayAct.sub on user, (2) ensures may_act attribute mapping on OIDC apps with correct SpEL. Auto-fixes broken ${user.mayAct} mappings.\n\nRun GET /users first to populate {{userId}}."
+          }
+        },
+        {
+          "name": "POST /update-user-spel — Clear may_act",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/update-user-spel",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"enabled\": false\n}"
+            },
+            "description": "Clears mayAct on the user. No mapping step."
+          }
+        },
+        {
+          "name": "POST /fix-mcp-exchange",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/fix-mcp-exchange",
+            "description": "Auto-fixes MCP token exchange: creates MCP RS if missing, adds scopes, assigns to exchanger app. Run diagnose-mcp-exchange first."
+          }
+        },
+        {
+          "name": "POST /fix-banking-resource-server",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pingone-test/fix-banking-resource-server",
+            "description": "Creates or repairs the Banking API resource server and its canonical scopes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔑 Token Operations (session-based)",
+      "description": "These endpoints read tokens from the BFF session. Set the `sessionCookie` collection variable first (see 🔐 Authentication folder).\n\n**Prerequisite:** Log in via browser and copy `connect.sid` into the `sessionCookie` variable.",
+      "item": [
+        {
+          "name": "GET /authz-token — View session token claims",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/authz-token",
+            "header": [
+              { "key": "Cookie", "value": "connect.sid={{sessionCookie}}" }
+            ],
+            "description": "Shows decoded claims of the session's access token (token value is truncated for security). Confirms login type: admin / customer / ai_agent."
+          }
+        },
+        {
+          "name": "GET /agent-token — Agent CC token",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/agent-token",
+            "description": "Gets the agent's client_credentials token (MCP Token Exchanger or AI Agent app). No user session needed."
+          }
+        },
+        {
+          "name": "GET /exchange-user-to-mcp — Single exchange",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/exchange-user-to-mcp",
+            "header": [
+              { "key": "Cookie", "value": "connect.sid={{sessionCookie}}" }
+            ],
+            "description": "Exchanges the session user's access token → MCP token (single RFC 8693 exchange). Returns full decoded MCP token with claims."
+          }
+        },
+        {
+          "name": "GET /exchange-id-token-to-mcp",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/exchange-id-token-to-mcp",
+            "header": [
+              { "key": "Cookie", "value": "connect.sid={{sessionCookie}}" }
+            ],
+            "description": "Exchanges the session user's ID token (not AT) → MCP token."
+          }
+        },
+        {
+          "name": "GET /exchange-user-agent-to-mcp — With actor",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/exchange-user-agent-to-mcp",
+            "header": [
+              { "key": "Cookie", "value": "connect.sid={{sessionCookie}}" }
+            ],
+            "description": "Exchange with actor: user AT + agent CC → MCP token. Shows act/may_act claims."
+          }
+        },
+        {
+          "name": "GET /exchange-user-to-agent-to-mcp — Full 2-exchange chain",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/pingone-test/exchange-user-to-agent-to-mcp",
+            "header": [
+              { "key": "Cookie", "value": "connect.sid={{sessionCookie}}" }
+            ],
+            "description": "Full 2-exchange delegation chain: (1) user AT → agent AT, (2) agent AT + actor → final MCP token. Shows full delegation claim chain."
+          }
+        }
+      ]
+    }
+  ]
+}

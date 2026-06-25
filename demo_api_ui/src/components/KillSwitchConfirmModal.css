@@ -1,0 +1,349 @@
+/* KillSwitchConfirmModal.css */
+
+.ksm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  /* backdrop-filter removed for modal/overlay compliance */
+  z-index: 1200;
+  animation: ksm-fade-in 0.2s ease-out;
+}
+
+@keyframes ksm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ksm-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, 92vw);
+  max-height: 95vh;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(239, 68, 68, 0.15);
+  z-index: 1201;
+  overflow-y: auto;
+  animation: ksm-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ksm-slide-up {
+  from {
+    transform: translate(-50%, -46%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+}
+
+/* ── Header band ─────────────────────────────────────────────────────────── */
+
+.ksm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  border-bottom: 1px solid #b91c1c;
+}
+
+.ksm-header-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.ksm-header-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Instructions ────────────────────────────────────────────────────────── */
+
+.ksm-instructions {
+  padding: 4px 0 12px;
+}
+
+.ksm-instructions-lead {
+  font-size: 13px;
+  color: #374151;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.ksm-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ksm-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #fff;
+  line-height: 1.45;
+}
+
+.ksm-steps li strong {
+  color: #fca5a5;
+}
+
+.ksm-step-num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+/* ── Reason field ────────────────────────────────────────────────────────── */
+
+.ksm-field {
+  padding: 0 0 12px;
+}
+
+.ksm-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.ksm-select,
+.ksm-text-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #111827;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.ksm-select:focus,
+.ksm-text-input:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.ksm-select:disabled,
+.ksm-text-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ksm-error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* ── Warning note ────────────────────────────────────────────────────────── */
+
+.ksm-warning-note {
+  margin-top: 4px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
+/* ── Confirm (danger) button ─────────────────────────────────────────────── */
+
+.ksm-confirm-btn {
+  padding: 6px 18px;
+  background: #dc2626;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ksm-confirm-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.ksm-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Emergency button ────────────────────────────────────────────────────── */
+
+.ksm-action-row {
+  display: flex;
+  justify-content: center;
+  padding: 28px 20px 12px;
+}
+
+.ksm-emergency-btn {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 5px solid #7f1d1d;
+  outline: 3px solid rgba(239, 68, 68, 0.25);
+  background: radial-gradient(
+    circle at 38% 35%,
+    #f87171 0%,
+    #dc2626 45%,
+    #991b1b 100%
+  );
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow:
+    0 6px 0 #7f1d1d,
+    0 8px 20px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(239, 68, 68, 0.4);
+  transition: all 0.12s ease;
+  transform: translateY(0);
+  user-select: none;
+}
+
+.ksm-emergency-btn:hover:not(:disabled) {
+  box-shadow:
+    0 6px 0 #7f1d1d,
+    0 10px 28px rgba(0, 0, 0, 0.65),
+    0 0 45px rgba(239, 68, 68, 0.6);
+  background: radial-gradient(
+    circle at 38% 35%,
+    #fca5a5 0%,
+    #ef4444 45%,
+    #b91c1c 100%
+  );
+}
+
+.ksm-emergency-btn:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow:
+    0 1px 0 #7f1d1d,
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.ksm-emergency-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow:
+    0 4px 0 #374151,
+    0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.ksm-emergency-btn__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.ksm-emergency-btn__label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.ksm-emergency-btn--loading .ksm-emergency-btn__icon {
+  display: none;
+}
+.ksm-emergency-btn--loading .ksm-emergency-btn__label {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Cancel link ─────────────────────────────────────────────────────────── */
+
+.ksm-cancel-row {
+  display: flex;
+  justify-content: center;
+  padding: 0 20px 20px;
+}
+
+.ksm-cancel-link {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 10px 28px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.ksm-cancel-link:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: #fff;
+}
+
+.ksm-cancel-link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .ksm-panel {
+    border-radius: 8px;
+  }
+  .ksm-emergency-btn {
+    width: 110px;
+    height: 110px;
+  }
+  .ksm-emergency-btn__icon {
+    font-size: 24px;
+  }
+}

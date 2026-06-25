@@ -1,0 +1,63 @@
+.footer {
+  width: 100%;
+  background: #f8f8fa;
+  border-top: 1px solid #e0e0e0;
+  padding: 16px 0 8px 0;
+  position: relative;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+}
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+/* Matches Ping outline button feel (EducationBar) on light footer */
+.footer-demo-config {
+  margin-left: 12px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brand-navy);
+  text-decoration: none;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #fff;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.footer-demo-config:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  text-decoration: none;
+  color: var(--brand-navy);
+}
+
+.footer-theme-toggle {
+  margin-left: 8px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--brand-navy);
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.footer-theme-toggle:hover {
+  background: #eff6ff;
+  border-color: #4169e1;
+}
+.footer-logo {
+  height: 32px;
+  width: 32px;
+  margin-right: 8px;
+  vertical-align: middle;
+}

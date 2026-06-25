@@ -1,0 +1,1107 @@
+{
+  "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6",
+  "authTokenExpireIds": [],
+  "connectorIds": [
+    "variablesConnector",
+    "httpConnector",
+    "pingOneAuthorizeConnector",
+    "functionsConnector",
+    "pingOneSSOConnector"
+  ],
+  "createdDate": 1773802529548,
+  "currentVersion": 151,
+  "customerId": "8b37902a4f69bb60cbfc6cff61a23dc4",
+  "deployedDate": 1773802534457,
+  "description": "DaVinci flow for the Super Banking transaction authorization demo. Collects transaction amount and type, authenticates the user via PingOne SSO, calls PingOne Authorize with Super Banking policy parameters (Amount, TransactionType, UserId, Acr, Timestamp), then displays the PERMIT/DENY/STEP-UP decision.",
+  "flowStatus": "enabled",
+  "isOutputSchemaSaved": false,
+  "name": "Super Banking Authorize Dashboard",
+  "publishedVersion": 151,
+  "settings": {
+    "csp": "worker-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://devsdk.singularkey.com http://cdnjs.cloudflare.com 'unsafe-inline' 'unsafe-eval';",
+    "intermediateLoadingScreenCSS": "",
+    "intermediateLoadingScreenHTML": "",
+    "customTimeoutErrorScreenMessage": "",
+    "customTimeoutErrorScreenHTML": "",
+    "customTimeoutErrorScreenCSS": "",
+    "logLevel": 3,
+    "useCustomCSS": true,
+    "css": ".footerLogo {\n  /* Ping Logo */\n  content: url('https://authenticator.pingone.com/pingid/assets/images/ping-logo.sm.2x.png');\n  width: 105px !important;\n  height: auto;\n}\n\n:root {\n  /******************************************************** * COMPANY LOGO *********************************************************/\n  --company-logo-img-url: url('https://uploads.pingone.com/environments/a59917da-0f7a-44d3-a070-5da6f652fed6/images/56f8469b-c409-435c-ad5e-c6b95bbeb5a4_36841418-b45b-4468-896b-74784a8d7c60_original.png');\n  --company-logo-max-height: 56px;\n  /******************************************************** * PAGE BACKGROUND *********************************************************/\n  --background-image-url: none;\n  /******************************************************** * CARD BODY *********************************************************/\n  --card-background-color: rgb(255, 255, 255);\n  --card-shadow-color: rgba(121, 128, 135, .35);\n  /******************************************************** * BODY *********************************************************/\n  --body-font-family: 'Roboto', 'sans-serif';\n  --body-font-size: .935rem;\n  /******************************************************** * TEXT FONT COLORS *********************************************************/\n  /* PRIMARY FONT COLOR (RGB) */\n  --text-color-primary: 104, 111, 119;\n  /* HEADING FONT COLR (RBG) */\n  --heading-text-color: 104, 111, 119;\n  /* MUTED TEXT ALPHA */\n  --text-color-muted-apha: 0.75;\n  /* ERROR FONT COLOR */\n  --text-color-error: rgb(163, 19, 0);\n  /******************************************************** * BUTTON ATTRIBUTES *********************************************************/\n  /* BUTTON FONT COLOR */\n  --button-primary-text-color: rgb(255, 255, 255);\n  /* BUTTON BACKGROUND COLOR (RGB) */\n  --button-primary-background-color: 20, 56, 97;\n  /* LINK BUTTON FONT COLOR (RGB) */\n  --link-button-primary-color: 26, 75, 130;\n  /* BUTTON BORDER RADIUS */\n  --button-primary-border-radius: 10px;\n  /* BUTTON HOVER ALPHA */\n  --button-hover-alpha: 0.70;\n  /* BUTTON ACTIVE ALPHA */\n  --button-active-alpha: 0.80;\n  /* BUTTON DISABLED ALPHA */\n  --button-disabled-alpha: 0.65;\n  /******************************************************** * FORM CONTROLS *********************************************************/\n  --form-control-border-radius: 10px;\n  --card-body-border-radius: 0px;\n  --focus-highlight-color: 198, 217, 255;\n  /******************************************************** * ACTIVITY INDICATOR & BUTTON SPINNER COLOR *********************************************************/\n  --activity-indicator-color: rgb(104, 111, 119);\n  --polling-indicator-color: rgb(104, 111, 119);\n  /******************************************************** * APPLYING TEXT COLOR - DO NOT CHANGE *********************************************************/\n  /* H1,H2, H3, Body text color */\n  --bs-body-color: rgb(var(--text-color-main)) !important;\n  --bs-danger-rgb: var(--text-color-error);\n}\n\n/******************************************************** * CLASSES BELOW ARE DERIVED FROM VALUES ABOVE * DO NOT CHANGE UNLESS YOU HAVE CSS 'SKILLZ' :) *********************************************************/\n/* COMPANY LOGO */\n.card-body.p-5.d-flex.flex-column>img:first-child,\n.companyLogo {\n  content: var(--company-logo-img-url) !important;\n  height: var(--company-logo-max-height) !important;\n  width: auto !important;\n}\n\n/* BACKGROUND IMAGE */\ndiv.bg-light {\n  background-image: var(--background-image-url);\n  background-size: cover;\n  background-repeat: no-repeat;\n}\n\n/* HEADING TEXT */\nh1,\nh2,\nh3,\nh4 {\n  color: rgb(var(--heading-text-color)) !important;\n}\n\n/* BODY FONT & COLOR */\n.card-body {\n  /* font family */\n  font-family: var(--body-font-family) !important;\n  /* font size */\n  font-size: var(--body-font-size) !important;\n  /* font color */\n  color: rgb(var(--text-color-primary)) !important;\n  /* background color */\n  background-color: var(--card-background-color) !important;\n}\n\n/* MUTED PARAGRAPH */\np.text-muted {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n/* ERROR MESSAGE PARAGRAPH */\n.card .text-danger {\n  color: var(--text-color-error) !important;\n}\n\n/* FORM CONTROL FONT COLOR */\n.form-control,\n.form-control:focus {\n  color: var(--text-color-primary) !important;\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n/* FORM CONTROL PLACEHOLDER FONT COLOR */\n.form-floating input+label {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n/* FORM CONTROL HIGHLIGHT */\n.form-control:focus {\n  border-color: rgba(var(--focus-highlight-color), .5) !important;\n  box-shadow: 0 0 0 0.25rem rgba(var(--focus-highlight-color), 0.25) !important;\n}\n\n/* FORM CONTROL HIGHLIGHT */\n.form-select {\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n/* PRIMARY BUTTON */\n.btn-primary {\n  /* font color */\n  --bs-btn-color: var(--button-primary-text-color) !important;\n  /* font color when hovering */\n  --bs-btn-hover-color: var(--button-primary-text-color) !important;\n  /* border color */\n  --bs-btn-border-color: var(--button-primary-background-color) !important;\n  /* background color */\n  --bs-btn-bg: rgb(var(--button-primary-background-color)) !important;\n  /* background color when hovering */\n  --bs-btn-hover-bg: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  /* background color when active */\n  --bs-btn-active-bg: rgba(var(--button-primary-background-color), var(--button-active-alpha)) !important;\n  /* background color when disabled */\n  --bs-btn-disabled-bg: rgba(var(--button-primary-background-color), var(--button-disabled-alpha)) !important;\n  background-color: rgb(var(--button-primary-background-color)) !important;\n  border-color: rgb(var(--button-primary-background-color)) !important;\n  color: var(--button-primary-text-color) !important;\n  border-radius: var(--button-primary-border-radius) !important;\n}\n\n.btn-primary:hover {\n  background-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  border-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  color: var(--button-primary-text-color) !important;\n}\n\n/* LINK BUTTON */\n.btn-link {\n  /* button font color */\n  --bs-btn-color: rgb(var(--link-button-primary-color)) !important;\n  /* button font color when active */\n  --bs-btn-active-color: rgba(var(--link-button-primary-color), var(--button-active-alpha)) !important;\n  /* button font color when hovering */\n  --bs-btn-hover-color: rgba(var(--link-button-primary-color), var(--button-hover-alpha)) !important;\n  /* button font color when disabled */\n  --bs-btn-disabled-color: rgba(var(--link-button-primary-color), var(--button-disabled-alpha)) !important;\n  color: rgb(var(--link-button-primary-color)) !important;\n}\n\n/* POLLING INDICATORS */\n.css-11k6vsm,\n.css-17zi2ag,\n.css-139roxj {\n  /* width: 20px; */\n  /* height: 20px; */\n  /* animation-duration: 0.75s; */\n  /* circle background color */\n  background-color: var(--polling-indicator-color) !important;\n}\n\n/* BUTTON ACTIVITY INDICATOR, PROGRESS SPINNER */\n.css-sw2ho0 {\n  /* spinning circle color */\n  --primary-color: var(--activity-indicator-color) !important;\n}\n\n/* PROGRESS SPINNER */\n.spinner-color {\n  color: var(--polling-indicator-color) !important;\n}\n\n.card-body.p-5.d-flex.flex-column {\n  border-radius: var(--card-body-border-radius);\n}\n\n.card.shadow.mb-5 {\n  border-radius: var(--card-body-border-radius);\n  box-shadow: 1px 1px 3px 1px var(--card-shadow-color) !important;\n}",
+    "cssLinks": [
+      "https://assets.pingone.com/ux/astro-nano/0.1.0-alpha.11/icons.css",
+      "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css",
+      "https://assets.pingone.com/ux/end-user-nano/0.1.0-alpha.9/end-user-nano.css"
+    ]
+  },
+  "timeouts": "null",
+  "updatedDate": 1773802534478,
+  "flowId": "0fd6a56f664d634032434f1420ec88a5",
+  "versionId": 151,
+  "graphData": {
+    "elements": {
+      "nodes": [
+        {
+          "data": {
+            "id": "5gu4heyt1z",
+            "connectionId": "06922a684039827499bdbdd97f49827b",
+            "nodeType": "CONNECTION",
+            "status": "configured",
+            "connectorId": "variablesConnector",
+            "name": "Variables",
+            "label": "Variables",
+            "type": "trigger",
+            "capabilityName": "saveValue",
+            "properties": {
+              "locale": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"en\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": {
+            "x": 277,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "uzyyzg8j4o",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHTMLTemplate",
+            "type": "trigger",
+            "properties": {
+              "customHTML": {
+                "value": "<div data-skcomponent=\"skrisk\" data-skenvironmentid=\"{{global.companyId}}\" data-skcollectBehavioralData=\"true\" data-skpropertyname=\"riskPayload\" data-skuniversaldeviceidentification=\"false\" data-skpingidagent=\"true\" data-skpingidagenttimeout=\"2000\" data-skpingidagentport=\"\"></div>\n<div class=\"end-user-nano\">\n  {{#if navBar}}\n  <nav class=\"navbar navbar-dark bg-dark sticky-top shadow-sm py-2\">\n    <div class=\"container-fluid d-flex align-items-center\">\n      <div class=\"navbar-brand d-flex align-items-center mb-0\">\n        <img src=\"\" alt=\"Company Logo\" class=\"companyLogo me-3\">\n      </div>\n      <div class=\"flex-grow-1 text-center px-2\">\n        <h1 class=\"text-white fw-semibold fs-2 mb-0\">{{navBar}}</h1>\n      </div>\n      <div>\n        <form id=\"menuForm\" data-id=\"menuForm\" class=\"mb-0\">\n          <button id=\"skbutton_form-submit\" class=\"btn btn-secondary rounded-3 p-2\" type=\"submit\" data-skbuttonvalue=\"LOGOUT\" data-skform=\"menuForm\" data-skbuttontype=\"form-submit\" data-skcomponent=\"skbutton\">\n            Log Out\n          </button>\n        </form>\n      </div>\n    </div>\n  </nav>\n  {{/if}}\n\n  <div class=\"min-vh-100 bg-light d-flex flex-column align-items-center py-5\">\n    <div style=\"max-width: 560px; width: 100%\">\n      <div class=\"card shadow rounded-3 my-4\">\n        <div class=\"card-body p-5 d-flex flex-column\">\n          <img class=\"companyLogo align-self-center mb-4\" src=\"\" alt=\"Super Banking\">\n          <h1 class=\"text-center mb-1\">Super Banking</h1>\n          <p class=\"text-muted text-center mb-4\">Transaction Authorization Demo</p>\n\n          <p class=\"text-danger mdi mdi-alert-circle text-center\" id=\"feedbackError\" data-id=\"feedback\" data-skcomponent=\"skerror\" aria-live=\"assertive\"></p>\n\n          <div class=\"alert alert-primary rounded-3 mb-4 small\" role=\"alert\">\n            <strong>PingOne Authorize Policy Demo</strong><br>\n            Enter a transaction amount and type, then sign in. PingOne Authorize will evaluate the policy and return a real-time PERMIT, DENY, or Step-Up decision.\n          </div>\n\n          <div class=\"border rounded-3 p-3 bg-white mb-4\">\n            <p class=\"fw-semibold text-dark mb-2 small text-uppercase\" style=\"letter-spacing: 0.05em;\">Active Policy Rules</p>\n            <table class=\"table table-sm table-borderless mb-0 small\">\n              <tbody>\n                <tr>\n                  <td class=\"text-muted\">Amount &gt; $2,000</td>\n                  <td><span class=\"badge bg-danger\">DENY</span></td>\n                </tr>\n                <tr>\n                  <td class=\"text-muted\">Amount &gt; $500 without MFA</td>\n                  <td><span class=\"badge bg-warning text-dark\">STEP-UP</span></td>\n                </tr>\n                <tr>\n                  <td class=\"text-muted\">All other transactions</td>\n                  <td><span class=\"badge bg-success\">PERMIT</span></td>\n                </tr>\n              </tbody>\n            </table>\n          </div>\n\n          <form id=\"authForm\" data-id=\"authForm\">\n            <div class=\"mb-3\">\n              <label class=\"form-label small fw-semibold text-muted text-uppercase\">Transaction Amount (USD)</label>\n              <input type=\"number\" class=\"form-control rounded-3\" id=\"Amount\" name=\"Amount\" placeholder=\"1500\" value=\"1500\" min=\"1\" aria-required=\"true\">\n            </div>\n            <div class=\"mb-4\">\n              <label class=\"form-label small fw-semibold text-muted text-uppercase\">Transaction Type</label>\n              <select class=\"form-select rounded-3\" id=\"TransactionType\" name=\"TransactionType\">\n                <option value=\"transfer\" selected>Transfer</option>\n                <option value=\"withdrawal\">Withdrawal</option>\n                <option value=\"deposit\">Deposit</option>\n              </select>\n            </div>\n            <button class=\"btn btn-primary rounded-3 w-100 py-2\" type=\"submit\" data-skcomponent=\"skbutton\" data-skbuttontype=\"form-submit\" id=\"btnContinue\" data-skform=\"authForm\" data-skbuttonvalue=\"SUBMIT\">\n              Sign In and Evaluate\n            </button>\n          </form>\n        </div>\n      </div>\n    </div>\n  </div>\n</div>\n"
+              },
+              "formFieldsList": {
+                "value": [
+                  {
+                    "propertyName": "password",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": true,
+                    "displayName": "Password"
+                  },
+                  {
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "propertyName": "buttonValue"
+                  },
+                  {
+                    "propertyName": "riskPayload",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "Object",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "username",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "origin",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "rpId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "webAuthNSupport",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "Amount",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "number",
+                    "value": "1500",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "TransactionType",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "transfer",
+                    "hashedVisibility": false
+                  }
+                ]
+              },
+              "nodeTitle": {
+                "value": "Transaction Authorization Demo"
+              },
+              "customCSS": {
+                "value": ""
+              },
+              "validationRules": {
+                "value": []
+              },
+              "backgroundColor": {
+                "value": "#afd5ffff"
+              },
+              "customScript": {
+                "value": "// // ==============================================\n// // DOM Focus Utilities\n// // ==============================================\n\n// /**\n//  * Focuses the element with the given ID.\n//  * @param {string} id - The ID of the DOM element to focus.\n//  */\n// const setFieldFocus = (id) => {\n//     const element = document.getElementById(id);\n//     if (element) {\n//         element.focus();\n//     } else {\n//         console.log(`Element with ID '${id}' not found.`);\n//     }\n// };\n\n\n// // ==============================================\n// // Password Toggle UI\n// // ==============================================\n\n// /**\n//  * Creates a show/hide password toggle for an input inside a given container.\n//  * @param {string} id - ID of the container that includes the password input.\n//  */\n// const makePasswordToggle = (id) => {\n//     const container = document.getElementById(id);\n//     if (!container) return;\n\n//     const password = container.querySelector(\"input\");\n//     if (!password) return;\n\n//     const toggler = document.createElement(\"button\");\n//     toggler.setAttribute(\"type\", \"button\");\n//     toggler.setAttribute(\"aria-label\", \"Show/Hide Password\");\n//     toggler.className = \"btn mdi mdi-eye-off-outline position-absolute end-0 top-50 translate-middle-y\";\n//     container.appendChild(toggler);\n\n//     /**\n//      * Toggles visibility of password and icon.\n//      */\n//     const togglePasswordVisibility = () => {\n//         const isHidden = password.type === \"password\";\n//         password.type = isHidden ? \"text\" : \"password\";\n//         toggler.classList.toggle(\"mdi-eye-outline\", isHidden);\n//         toggler.classList.toggle(\"mdi-eye-off-outline\", !isHidden);\n//         password.focus();\n//     };\n\n//     toggler.addEventListener(\"click\", togglePasswordVisibility);\n// };\n\n\n// // ==============================================\n// // Username Input Validation\n// // ==============================================\n\n// /**\n//  * Enables/disables a button based on Username input validity.\n//  * @param {string} inputId - ID of the Username input field.\n//  * @param {string} buttonId - ID of the button to enable/disable.\n//  */\n// const toggleButtonState = (inputId, buttonId) => {\n//     const inputField = document.getElementById(inputId);\n//     const button = document.getElementById(buttonId);\n\n//     if (inputField && button) {\n//         // Disable the button initially when the DOM is fully loaded\n//         button.disabled = true;\n\n//         // Add input event listener to update the button state dynamically\n//         inputField.addEventListener(\"input\", () => {\n//             button.disabled = inputField.value.trim().length === 0;\n//         });\n//     } else {\n//         console.log(`Element with ID ${inputId} or ${buttonId} not found.`);\n//     }\n// };\n\n\n// // ==============================================\n// // Language Selector Submission\n// // ==============================================\n\n// /**\n//  * Automatically submits form when language selection changes.\n//  */\n// const wireLanguageSelector = () => {\n//     const languageSelector = document.getElementById(\"language\");\n//     const form = document.getElementById(\"passwordForm\");\n\n//     if (languageSelector && form) {\n//         languageSelector.addEventListener(\"change\", () => form.submit());\n//     }\n// };\n\n\n// // ==============================================\n// // WebAuthn Detection Logic\n// // ==============================================\n\n// let _origin = \"\";\n// let _rpId = \"\";\n// let _webAuthNSupport = \"\";\n\n// /**\n//  * Detects if WebAuthn API is supported.\n//  */\n// function isWebAuthnSupported() {\n//     try {\n//         return !!window.PublicKeyCredential;\n//     } catch {\n//         return false;\n//     }\n// }\n\n// /**\n//  * Checks if a platform authenticator is available.\n//  * @returns {Promise<boolean>}\n//  */\n// function isWebAuthnPlatformAuthenticatorAvailable() {\n//     if (\n//         isWebAuthnSupported() &&\n//         typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'\n//     ) {\n//         return window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()\n//             .then(result => result)\n//             .catch(() => false);\n//     }\n//     return Promise.resolve(false);\n// }\n\n// /**\n//  * Extracts Relying Party ID from origin.\n//  * @param {string} origin - URL origin.\n//  * @returns {string} - RP ID.\n//  */\n// function extractRPID(origin) {\n//     try {\n//         const hostname = new URL(origin).hostname;\n//         if (hostname === \"localhost\" || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(hostname)) return hostname;\n//         const parts = hostname.split(\".\");\n//         return parts.length < 2 ? hostname : parts.slice(-2).join(\".\");\n//     } catch {\n//         return \"unknown\";\n//     }\n// }\n\n// /**\n//  * Populates WebAuthn support fields for form submission.\n//  */\n// function applyWebAuthnFieldsToForm() {\n//     const originInput = document.getElementById(\"origin\");\n//     const rpIdInput = document.getElementById(\"rpId\");\n//     // const supportInput = document.querySelector(\"[name='webAuthNSupport']\");\n//     const supportInput = document.getElementById(\"webAuthNSupport\");\n\n//     if (originInput) originInput.value = _origin;\n//     if (rpIdInput) rpIdInput.value = _rpId;\n//     if (supportInput) supportInput.value = _webAuthNSupport;\n// }\n\n// /**\n//  * Sets up detection of WebAuthn support and availability.\n//  */\n// function initializeWebAuthnDetection() {\n//     _origin = window.location.origin;\n//     _rpId = extractRPID(_origin);\n\n//     const supported = isWebAuthnSupported();\n\n//     isWebAuthnPlatformAuthenticatorAvailable().then((available) => {\n//         _webAuthNSupport = available\n//             ? \"FULL\"\n//             : (supported ? \"SECURITY_KEY_ONLY\" : \"NONE\");\n//     }).catch(() => {\n//         _webAuthNSupport = supported ? \"SECURITY_KEY_ONLY\" : \"NONE\";\n//     });\n// }\n\n// /**\n//  * Binds WebAuthn field injection to form submit button.\n//  * @param {string} buttonId - ID of the submit button.\n//  */\n// function wireWebAuthnFormSubmit(buttonId = \"btnContinue\") {\n//     const button = document.getElementById(buttonId);\n//     if (button) {\n//         button.addEventListener(\"click\", applyWebAuthnFieldsToForm);\n//     }\n// }\n\n\n// // ==============================================\n// // App Initialization\n// // ==============================================\n\n// /**\n//  * Initializes event wiring, detection, and form state.\n//  */\n// const start = () => {\n//     makePasswordToggle(\"passwordDiv\");\n//     setFieldFocus(\"username\");\n//     initializeWebAuthnDetection();\n//     wireWebAuthnFormSubmit(\"btnContinue\");\n//     wireWebAuthnFormSubmit(\"btnForgot\");\n//     wireWebAuthnFormSubmit(\"btnBack\");\n//     toggleButtonState(\"username\", \"btnContinue\");\n// };\n\n\n// // ==============================================\n// // DOM Ready Check\n// // ==============================================\n\n// if (document.readyState === \"loading\") {\n//     document.addEventListener(\"DOMContentLoaded\", start);\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// } else {\n//     start();\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// }\n"
+              },
+              "inputSchema": {
+                "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"navBar\": {\n      \"type\": \"string\",\n      \"displayName\": \"Nav Bar Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"displayName\": \"Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textOne\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text One\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textTwo\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text Two\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"continueButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Continue Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"changeButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Change Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"forgotButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Forgot Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"reportsButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Report links\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"documentsButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Document Buttons\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"quickLinksButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Quicklinks Buttons\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"bookOfBusinessButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Book Of Business\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    }\n  }\n}"
+              },
+              "outputSchema": {
+                "value": {}
+              },
+              "title": {
+                "value": "[{\"children\": [{\"text\": \"Super Banking Authorization\"}]}]"
+              },
+              "nodeDescription": {
+                "value": "Super Banking transaction authorization demo landing page"
+              },
+              "continueButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Submit\"\n      }\n    ]\n  }\n]"
+              },
+              "forgotButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Having trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "changeButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "textOne": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"Upcoming Anniversaries\"\n      }\n    ]\n  }\n]"
+              },
+              "navBar": {
+                "value": "[{\"children\": [{\"text\": \"Super Banking\"}]}]"
+              },
+              "textTwo": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Book of Business\"\n      }\n    ]\n  }\n]"
+              }
+            },
+            "idUnique": "c5qqlk26dw",
+            "isDisabled": false
+          },
+          "position": {
+            "x": 607,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "75v28ivqrx",
+            "nodeType": "EVAL"
+          },
+          "position": {
+            "x": 427,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "6hxwdprl4h",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHTMLTemplate",
+            "type": "trigger",
+            "properties": {
+              "customHTML": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div data-skcomponent=\\\"skrisk\\\" data-skenvironmentid=\\\"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"auth.svg\",\n        \"url\": \"companyId\",\n        \"data\": \"{{global.companyId}}\",\n        \"tooltip\": \"{{global.companyId}}\",\n        \"children\": [\n          {\n            \"text\": \"{{global.companyId}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\\" data-skcollectBehavioralData=\\\"true\\\" data-skpropertyname=\\\"riskPayload\\\" data-skuniversaldeviceidentification=\\\"false\\\" data-skpingidagent=\\\"true\\\" data-skpingidagenttimeout=\\\"2000\\\" data-skpingidagentport=\\\"\\\"></div>\\n<div class=\\\"end-user-nano\\\">\\n  {{#if navBar}}\\n  <nav class=\\\"navbar navbar-dark bg-dark sticky-top shadow-sm py-2\\\">\\n    <div class=\\\"container-fluid d-flex align-items-center\\\">\\n      \\n      <!-- Left: Logo -->\\n      <div class=\\\"navbar-brand d-flex align-items-center mb-0\\\">\\n        <img src=\\\"\\\" alt=\\\"Company Logo\\\" class=\\\"companyLogo me-3\\\">\\n      </div>\\n\\n      <!-- Center: Title -->\\n      <div class=\\\"flex-grow-1 text-center px-2\\\">\\n        <h1 class=\\\"text-white fw-semibold fs-2 mb-0\\\">\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"navBar\",\n        \"data\": \"{{navBar}}\",\n        \"tooltip\": \"{{navBar}}\",\n        \"children\": [\n          {\n            \"text\": \"{{navBar}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"</h1>\\n      </div>\\n\\n      <!-- Right: Logout Button -->\\n      <div>\\n        <form id=\\\"menuForm\\\" data-id=\\\"menuForm\\\" class=\\\"mb-0\\\">\\n          <button id=\\\"skbutton_form-submit\\\" class=\\\"btn btn-secondary rounded-3 p-2\\\" type=\\\"submit\\\" data-skbuttonvalue=\\\"LOGOUT\\\" data-skform=\\\"menuForm\\\" data-skbuttontype=\\\"form-submit\\\" data-skcomponent=\\\"skbutton\\\">\\n            \"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"url\": \"forms.button.text.logOut\",\n        \"data\": \"{{forms.button.text.logOut | translate}}\",\n        \"name\": \"forms.button.text.logOut\",\n        \"children\": [\n          {\n            \"text\": \"forms.button.text.logOut\"\n          }\n        ],\n        \"src\": \"lang.svg\",\n        \"tooltip\": \"{{forms.button.text.logOut}}\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\n          </button>\\n        </form>\\n      </div>\\n\\n    </div>\\n  </nav>\\n  {{/if}}\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 400px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <main aria-labelledby=\\\"title\\\">\\n          <div class=\\\"card-body rounded-3 p-5 d-flex flex-column\\\">\\n            <img class=\\\"companyLogo align-self-center mb-5\\\" src=\\\"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"variable.svg\",\n        \"url\": \"companyLogo\",\n        \"data\": \"{{global.variables.companyLogo}}\",\n        \"tooltip\": \"{{global.variables.companyLogo}}\",\n        \"children\": [\n          {\n            \"text\": \"{{global.variables.companyLogo}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\\" alt=\\\"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"variable.svg\",\n        \"url\": \"companyName\",\n        \"data\": \"{{global.variables.companyName}}\",\n        \"tooltip\": \"{{global.variables.companyName}}\",\n        \"children\": [\n          {\n            \"text\": \"{{global.variables.companyName}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\\">\\n            \\n            {{#if title}}\\n            <h1 id=\\\"title\\\" class=\\\"text-center mb-4\\\">\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"title\",\n        \"data\": \"{{title}}\",\n        \"tooltip\": \"{{title}}\",\n        \"children\": [\n          {\n            \"text\": \"{{title}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"</h1>\\n            {{/if}}\\n\\n            {{#if textOne}}\\n            <p class=\\\"text-muted text-center\\\">\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"textOne\",\n        \"data\": \"{{textOne}}\",\n        \"tooltip\": \"{{textOne}}\",\n        \"children\": [\n          {\n            \"text\": \"{{textOne}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"</p>\\n            {{/if}}\\n\\n            {{#if textTwo}}\\n            <p class=\\\"text-muted text-center\\\">\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"textTwo\",\n        \"data\": \"{{textTwo}}\",\n        \"tooltip\": \"{{textTwo}}\",\n        \"children\": [\n          {\n            \"text\": \"{{textTwo}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"</p>\\n            {{/if}}\\n\\n            <!-- Generic Error Message -->\\n            <p class=\\\"text-danger mdi mdi-alert-circle text-center\\\" id=\\\"feedbackError\\\" data-id=\\\"feedback\\\" data-skcomponent=\\\"skerror\\\" aria-live=\\\"assertive\\\"></p>\\n\\n            <!-- Field Validation Error Messages -->\\n            \\n            <p class=\\\"text-danger mdi mdi-alert-circle text-center\\\" id=\\\"passwordError\\\" data-skerrorid=\\\"password\\\" data-skcomponent=\\\"skerrormessage\\\" aria-live=\\\"assertive\\\"></p>\\n            <form id=\\\"passwordForm\\\" aria-labelledby=\\\"title\\\" data-id=\\\"passwordForm\\\">\\n              <div id=\\\"usernameDiv\\\" class=\\\"mb-4 form-floating\\\">\\n                <input\\n                  class=\\\"form-control rounded-3\\\"\\n                  type=\\\"text\\\"\\n                  id=\\\"username\\\"\\n                  name=\\\"username\\\"\\n                  placeholder=\\\"Username\\\"\\n                  autocomplete=\\\"\\\"\\n                  value=\\\"\\\"\\n                  data-id=\\\"username-input\\\"\\n                  aria-required=\\\"true\\\"\\n                  aria-describedby=\\\"usernameLabel\\\"\\n                />\\n                <label id=\\\"usernameLabel\\\" for=\\\"username\\\">Username</label>\\n              </div>\\n              \\n              <input type=\\\"hidden\\\" id=\\\"origin\\\" name=\\\"origin\\\" value=\\\"\\\">\\n              <input type=\\\"hidden\\\" id=\\\"rpId\\\" name=\\\"rpId\\\" value=\\\"\\\">\\n              <input type=\\\"hidden\\\" id=\\\"webAuthNSupport\\\" value=\\\"\\\">\\n\\n              <!-- <div id=\\\"passwordDiv\\\" class=\\\"mb-4 form-floating\\\">\\n                <input\\n                  class=\\\"form-control\\\"\\n                  type=\\\"password\\\"\\n                  id=\\\"password\\\"\\n                  name=\\\"password\\\"\\n                  placeholder=\\\"Password\\\"\\n                  autocomplete=\\\"current-password\\\"\\n                  value=\\\"\\\"\\n                  data-id=\\\"password-input\\\"\\n                  aria-required=\\\"true\\\"\\n                  aria-describedby=\\\"passwordLabel\\\"\\n                />\\n                <label id=\\\"passwordLabel\\\" for=\\\"password\\\">Password</label>\\n              </div> -->\\n\\n              <div class=\\\"d-flex flex-column\\\">\\n                {{#if continueButtonLabel}}\\n                <button\\n                  data-id=\\\"button\\\"\\n                  type=\\\"submit\\\"\\n                  class=\\\"btn btn-primary rounded-3 mb-3\\\"\\n                  data-skcomponent=\\\"skbutton\\\"\\n                  data-skbuttontype=\\\"form-submit\\\"\\n                  id=\\\"btnContinue\\\"\\n                  data-skform=\\\"passwordForm\\\"\\n                  data-skbuttonvalue=\\\"SUBMIT\\\">\\n                  \"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"continueButtonLabel\",\n        \"data\": \"{{continueButtonLabel}}\",\n        \"tooltip\": \"{{continueButtonLabel}}\",\n        \"children\": [\n          {\n            \"text\": \"{{continueButtonLabel}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\n                </button>\\n                {{/if}}\\n\\n                {{#if changeButtonLabel}}\\n                <button\\n                  data-id=\\\"button\\\"\\n                  class=\\\"btn btn-link\\\"\\n                  data-skcomponent=\\\"skbutton\\\"\\n                  data-skbuttontype=\\\"form-submit\\\"\\n                  data-skform=\\\"passwordForm\\\"\\n                  id=\\\"btnBack\\\"\\n                  data-skbuttonvalue=\\\"CHANGE\\\">\\n                  \"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"changeButtonLabel\",\n        \"data\": \"{{changeButtonLabel}}\",\n        \"tooltip\": \"{{changeButtonLabel}}\",\n        \"children\": [\n          {\n            \"text\": \"{{changeButtonLabel}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\n                </button>\\n                {{/if}}\\n\\n                {{#if forgotButtonLabel}}\\n                <button\\n                  data-id=\\\"button\\\"\\n                  class=\\\"btn btn-link\\\"\\n                  data-skcomponent=\\\"skbutton\\\"\\n                  data-skbuttontype=\\\"form-submit\\\"\\n                  data-skform=\\\"passwordForm\\\"\\n                  id=\\\"btnForgot\\\"\\n                  data-skbuttonvalue=\\\"TROUBLE\\\">\\n                  \"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"url:undefined\",\n        \"url\": \"forgotButtonLabel\",\n        \"data\": \"{{forgotButtonLabel}}\",\n        \"tooltip\": \"{{forgotButtonLabel}}\",\n        \"children\": [\n          {\n            \"text\": \"{{forgotButtonLabel}}\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\\n                </button>\\n                {{/if}}\\n              </div>\\n            </form>\\n          </div>\\n        </main>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "formFieldsList": {
+                "value": [
+                  {
+                    "propertyName": "password",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": true,
+                    "displayName": "Password"
+                  },
+                  {
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "propertyName": "buttonValue",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "propertyName": "riskPayload",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "Object",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "username",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"mwendel\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "origin",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "rpId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "webAuthNSupport",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  }
+                ]
+              },
+              "nodeTitle": {
+                "value": "Username Form"
+              },
+              "customCSS": {
+                "value": ""
+              },
+              "validationRules": {
+                "value": []
+              },
+              "backgroundColor": {
+                "value": "#afd5ffff"
+              },
+              "customScript": {
+                "value": "// ==============================================\n// DOM Focus Utilities\n// ==============================================\n\n/**\n * Focuses the element with the given ID.\n * @param {string} id - The ID of the DOM element to focus.\n */\nconst setFieldFocus = (id) => {\n    const element = document.getElementById(id);\n    if (element) {\n        element.focus();\n    } else {\n        console.log(`Element with ID '${id}' not found.`);\n    }\n};\n\n\n// ==============================================\n// Password Toggle UI\n// ==============================================\n\n/**\n * Creates a show/hide password toggle for an input inside a given container.\n * @param {string} id - ID of the container that includes the password input.\n */\nconst makePasswordToggle = (id) => {\n    const container = document.getElementById(id);\n    if (!container) return;\n\n    const password = container.querySelector(\"input\");\n    if (!password) return;\n\n    const toggler = document.createElement(\"button\");\n    toggler.setAttribute(\"type\", \"button\");\n    toggler.setAttribute(\"aria-label\", \"Show/Hide Password\");\n    toggler.className = \"btn mdi mdi-eye-off-outline position-absolute end-0 top-50 translate-middle-y\";\n    container.appendChild(toggler);\n\n    /**\n     * Toggles visibility of password and icon.\n     */\n    const togglePasswordVisibility = () => {\n        const isHidden = password.type === \"password\";\n        password.type = isHidden ? \"text\" : \"password\";\n        toggler.classList.toggle(\"mdi-eye-outline\", isHidden);\n        toggler.classList.toggle(\"mdi-eye-off-outline\", !isHidden);\n        password.focus();\n    };\n\n    toggler.addEventListener(\"click\", togglePasswordVisibility);\n};\n\n\n// ==============================================\n// Username Input Validation\n// ==============================================\n\n/**\n * Enables/disables a button based on Username input validity.\n * @param {string} inputId - ID of the Username input field.\n * @param {string} buttonId - ID of the button to enable/disable.\n */\n// const toggleButtonState = (inputId, buttonId) => {\n//     const inputField = document.getElementById(inputId);\n//     const button = document.getElementById(buttonId);\n\n//     if (inputField && button) {\n//         // Disable the button initially when the DOM is fully loaded\n//         button.disabled = true;\n\n//         // Add input event listener to update the button state dynamically\n//         inputField.addEventListener(\"input\", () => {\n//             button.disabled = inputField.value.trim().length === 0;\n//         });\n//     } else {\n//         console.log(`Element with ID ${inputId} or ${buttonId} not found.`);\n//     }\n// };\n\n// ==============================================\n// Username Input Validation\n// ==============================================\n\n/**\n * Enables/disables a button based on Username input validity.\n * @param {string} inputId - ID of the Username input field.\n * @param {string} buttonId - ID of the button to enable/disable.\n */\nconst toggleButtonState = (inputId, buttonId) => {\n    const inputField = document.getElementById(inputId);\n    const button = document.getElementById(buttonId);\n\n    if (!inputField || !button) {\n        console.log(`Element with ID ${inputId} or ${buttonId} not found.`);\n        return;\n    }\n\n    // Helper function to explicitly evaluate and set the disabled state\n    const evaluateButtonState = () => {\n        button.disabled = inputField.value.trim().length === 0;\n    };\n\n    // 1. Check immediately on script execution\n    evaluateButtonState();\n\n    // 2. Delayed checks: Give DaVinci time to asynchronously pre-populate the field\n    setTimeout(evaluateButtonState, 150);\n    setTimeout(evaluateButtonState, 500); // A secondary fallback for slow network rendering\n\n    // 3. Bind multiple events to catch all types of user or browser input\n    ['input', 'keyup', 'change'].forEach(eventType => {\n        inputField.addEventListener(eventType, evaluateButtonState);\n    });\n};\n\n\n// ==============================================\n// Language Selector Submission\n// ==============================================\n\n/**\n * Automatically submits form when language selection changes.\n */\nconst wireLanguageSelector = () => {\n    const languageSelector = document.getElementById(\"language\");\n    const form = document.getElementById(\"passwordForm\");\n\n    if (languageSelector && form) {\n        languageSelector.addEventListener(\"change\", () => form.submit());\n    }\n};\n\n\n// ==============================================\n// WebAuthn Detection Logic\n// ==============================================\n\nlet _origin = \"\";\nlet _rpId = \"\";\nlet _webAuthNSupport = \"\";\n\n/**\n * Detects if WebAuthn API is supported.\n */\nfunction isWebAuthnSupported() {\n    try {\n        return !!window.PublicKeyCredential;\n    } catch {\n        return false;\n    }\n}\n\n/**\n * Checks if a platform authenticator is available.\n * @returns {Promise<boolean>}\n */\nfunction isWebAuthnPlatformAuthenticatorAvailable() {\n    if (\n        isWebAuthnSupported() &&\n        typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'\n    ) {\n        return window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()\n            .then(result => result)\n            .catch(() => false);\n    }\n    return Promise.resolve(false);\n}\n\n/**\n * Extracts Relying Party ID from origin.\n * @param {string} origin - URL origin.\n * @returns {string} - RP ID.\n */\nfunction extractRPID(origin) {\n    try {\n        const hostname = new URL(origin).hostname;\n        if (hostname === \"localhost\" || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(hostname)) return hostname;\n        const parts = hostname.split(\".\");\n        return parts.length < 2 ? hostname : parts.slice(-2).join(\".\");\n    } catch {\n        return \"unknown\";\n    }\n}\n\n/**\n * Populates WebAuthn support fields for form submission.\n */\nfunction applyWebAuthnFieldsToForm() {\n    const originInput = document.getElementById(\"origin\");\n    const rpIdInput = document.getElementById(\"rpId\");\n    // const supportInput = document.querySelector(\"[name='webAuthNSupport']\");\n    const supportInput = document.getElementById(\"webAuthNSupport\");\n\n    if (originInput) originInput.value = _origin;\n    if (rpIdInput) rpIdInput.value = _rpId;\n    if (supportInput) supportInput.value = _webAuthNSupport;\n}\n\n/**\n * Sets up detection of WebAuthn support and availability.\n */\nfunction initializeWebAuthnDetection() {\n    _origin = window.location.origin;\n    _rpId = extractRPID(_origin);\n\n    const supported = isWebAuthnSupported();\n\n    isWebAuthnPlatformAuthenticatorAvailable().then((available) => {\n        _webAuthNSupport = available\n            ? \"FULL\"\n            : (supported ? \"SECURITY_KEY_ONLY\" : \"NONE\");\n    }).catch(() => {\n        _webAuthNSupport = supported ? \"SECURITY_KEY_ONLY\" : \"NONE\";\n    });\n}\n\n/**\n * Binds WebAuthn field injection to form submit button.\n * @param {string} buttonId - ID of the submit button.\n */\nfunction wireWebAuthnFormSubmit(buttonId = \"btnContinue\") {\n    const button = document.getElementById(buttonId);\n    if (button) {\n        button.addEventListener(\"click\", applyWebAuthnFieldsToForm);\n    }\n}\n\n\n// ==============================================\n// App Initialization\n// ==============================================\n\n/**\n * Initializes event wiring, detection, and form state.\n */\nconst start = () => {\n    makePasswordToggle(\"passwordDiv\");\n    setFieldFocus(\"username\");\n    initializeWebAuthnDetection();\n    wireWebAuthnFormSubmit(\"btnContinue\");\n    wireWebAuthnFormSubmit(\"btnForgot\");\n    wireWebAuthnFormSubmit(\"btnBack\");\n    toggleButtonState(\"username\", \"btnContinue\");\n};\n\n\n// ==============================================\n// DOM Ready Check\n// ==============================================\n\n// if (document.readyState === \"loading\") {\n//     document.addEventListener(\"DOMContentLoaded\", start);\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// } else {\n//     start();\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// }\n\n// ==============================================\n// DOM Ready Check\n// ==============================================\n\nif (document.readyState === \"loading\") {\n    document.addEventListener(\"DOMContentLoaded\", start);\n} else {\n    start();\n}"
+              },
+              "inputSchema": {
+                "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"navBar\": {\n      \"type\": \"string\",\n      \"displayName\": \"Nav Bar Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"displayName\": \"Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textOne\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text One\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textTwo\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text Two\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"continueButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Continue Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"changeButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Change Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"forgotButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Forgot Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    }\n  }\n}"
+              },
+              "outputSchema": {
+                "value": {}
+              },
+              "title": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"url\": \"forms.button.text.signOn\",\n        \"data\": \"{{forms.button.text.signOn | translate}}\",\n        \"name\": \"forms.button.text.signOn\",\n        \"children\": [\n          {\n            \"text\": \"forms.button.text.signOn\"\n          }\n        ],\n        \"src\": \"lang.svg\",\n        \"tooltip\": \"{{forms.button.text.signOn}}\"\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeDescription": {
+                "value": "Prompt for Username."
+              },
+              "continueButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Submit\"\n      }\n    ]\n  }\n]"
+              },
+              "forgotButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Having trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "changeButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "textOne": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              },
+              "navBar": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              }
+            },
+            "idUnique": "b2lv0rfvjr",
+            "isDisabled": false
+          },
+          "position": {
+            "x": 997,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "koudy5ev76",
+            "nodeType": "EVAL"
+          },
+          "position": {
+            "x": 817,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "131rhe031q",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHTMLTemplate",
+            "type": "trigger",
+            "properties": {
+              "customHTML": {
+                "value": "<div data-skcomponent=\"skrisk\" data-skenvironmentid=\"{{global.companyId}}\" data-skcollectBehavioralData=\"true\" data-skpropertyname=\"riskPayload\" data-skuniversaldeviceidentification=\"false\" data-skpingidagent=\"true\" data-skpingidagenttimeout=\"2000\" data-skpingidagentport=\"\"></div>\n<div class=\"end-user-nano\">\n  {{#if navBar}}\n  <nav class=\"navbar navbar-dark bg-dark sticky-top shadow-sm py-2\">\n    <div class=\"container-fluid d-flex align-items-center\">\n      <div class=\"navbar-brand d-flex align-items-center mb-0\">\n        <img src=\"\" alt=\"Company Logo\" class=\"companyLogo me-3\">\n      </div>\n      <div class=\"flex-grow-1 text-center px-2\">\n        <h1 class=\"text-white fw-semibold fs-2 mb-0\">{{navBar}}</h1>\n      </div>\n      <div>\n        <form id=\"menuForm\" data-id=\"menuForm\" class=\"mb-0\">\n          <button id=\"skbutton_form-submit\" class=\"btn btn-secondary rounded-3 p-2\" type=\"submit\" data-skbuttonvalue=\"LOGOUT\" data-skform=\"menuForm\" data-skbuttontype=\"form-submit\" data-skcomponent=\"skbutton\">\n            Log Out\n          </button>\n        </form>\n      </div>\n    </div>\n  </nav>\n  {{/if}}\n\n  <div class=\"min-vh-100 bg-light d-flex flex-column align-items-center py-5\">\n    <div style=\"max-width: 640px; width: 100%\">\n      <div class=\"card shadow rounded-3 my-4\">\n        <div class=\"card-body p-5 d-flex flex-column\">\n          <img class=\"companyLogo align-self-center mb-4\" src=\"\" alt=\"Super Banking\">\n          <h1 class=\"text-center mb-1\">{{title}}</h1>\n          <p class=\"text-muted text-center mb-4\">PingOne Authorize — Authorization Decision</p>\n\n          <p class=\"text-danger mdi mdi-alert-circle text-center\" id=\"feedbackError\" data-id=\"feedback\" data-skcomponent=\"skerror\" aria-live=\"assertive\"></p>\n\n          {{#if bookOfBusinessButtons}}\n          <div class=\"mb-4\">\n            {{#each bookOfBusinessButtons}}\n              {{#ifEquals code \"transaction-approved\"}}\n              <div class=\"alert alert-success rounded-3 mb-3\" role=\"alert\">\n                <div class=\"d-flex align-items-center gap-2 mb-1\">\n                  <span class=\"mdi mdi-check-circle\" style=\"font-size:1.4rem;\"></span>\n                  <strong>Transaction Approved</strong>\n                </div>\n                <p class=\"mb-0 small\">{{payload/message}}</p>\n              </div>\n              {{/ifEquals}}\n              {{#ifEquals code \"transaction-denied\"}}\n              <div class=\"alert alert-danger rounded-3 mb-3\" role=\"alert\">\n                <div class=\"d-flex align-items-center gap-2 mb-1\">\n                  <span class=\"mdi mdi-close-circle\" style=\"font-size:1.4rem;\"></span>\n                  <strong>Transaction Denied</strong>\n                </div>\n                <p class=\"mb-0 small\">{{payload/message}}</p>\n              </div>\n              {{/ifEquals}}\n              {{#ifEquals code \"step-up-required\"}}\n              <div class=\"alert alert-warning rounded-3 mb-3\" role=\"alert\">\n                <div class=\"d-flex align-items-center gap-2 mb-1\">\n                  <span class=\"mdi mdi-shield-lock\" style=\"font-size:1.4rem;\"></span>\n                  <strong>Step-Up Authentication Required</strong>\n                </div>\n                <p class=\"mb-0 small\">{{payload/message}}</p>\n                <p class=\"mb-0 small text-muted mt-1\">Current: {{payload/currentAcr}} — Required: {{payload/requiredAcr}}</p>\n              </div>\n              {{/ifEquals}}\n              {{#ifEquals code \"mcp-authorization-denied\"}}\n              <div class=\"alert alert-danger rounded-3 mb-3\" role=\"alert\">\n                <div class=\"d-flex align-items-center gap-2 mb-1\">\n                  <span class=\"mdi mdi-robot-off\" style=\"font-size:1.4rem;\"></span>\n                  <strong>MCP Tool Authorization Denied</strong>\n                </div>\n                <p class=\"mb-0 small\">{{payload/message}}</p>\n              </div>\n              {{/ifEquals}}\n              {{#ifEquals code \"mcp-tool-authorized\"}}\n              <div class=\"alert alert-success rounded-3 mb-3\" role=\"alert\">\n                <div class=\"d-flex align-items-center gap-2 mb-1\">\n                  <span class=\"mdi mdi-robot\" style=\"font-size:1.4rem;\"></span>\n                  <strong>MCP Tool Authorized</strong>\n                </div>\n                <p class=\"mb-0 small\">{{payload/message}}</p>\n              </div>\n              {{/ifEquals}}\n            {{/each}}\n          </div>\n          {{/if}}\n\n          <div class=\"border rounded-3 p-3 bg-white mb-4\">\n            <p class=\"fw-semibold text-dark mb-2 small text-uppercase\" style=\"letter-spacing: 0.05em;\">Raw Statements from PingOne Authorize</p>\n            {{#if bookOfBusinessButtons}}\n            <div class=\"d-flex flex-column gap-2\">\n              {{#each bookOfBusinessButtons}}\n              <div class=\"p-2 bg-light rounded-2 small font-monospace d-flex align-items-center gap-2\">\n                <span class=\"fw-semibold\">{{name}}</span>\n                {{#if code}}<span class=\"badge bg-secondary\">{{code}}</span>{{/if}}\n              </div>\n              {{/each}}\n            </div>\n            {{else}}\n            <p class=\"text-muted small mb-0\">No statements returned by PingOne Authorize.</p>\n            {{/if}}\n          </div>\n\n          <form id=\"retryForm\" data-id=\"retryForm\">\n            <button class=\"btn btn-outline-primary rounded-3 w-100\" type=\"submit\" data-skcomponent=\"skbutton\" data-skbuttontype=\"form-submit\" data-skform=\"retryForm\" data-skbuttonvalue=\"LOGOUT\">\n              Evaluate Another Transaction\n            </button>\n          </form>\n        </div>\n      </div>\n    </div>\n  </div>\n</div>\n"
+              },
+              "formFieldsList": {
+                "value": [
+                  {
+                    "propertyName": "password",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": true,
+                    "displayName": "Password"
+                  },
+                  {
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "propertyName": "buttonValue"
+                  },
+                  {
+                    "propertyName": "riskPayload",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "Object",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "username",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "origin",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "rpId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "propertyName": "webAuthNSupport",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "",
+                    "hashedVisibility": false
+                  }
+                ]
+              },
+              "nodeTitle": {
+                "value": "Authorization Result"
+              },
+              "customCSS": {
+                "value": ""
+              },
+              "validationRules": {
+                "value": []
+              },
+              "backgroundColor": {
+                "value": "#afd5ffff"
+              },
+              "customScript": {
+                "value": "// // ==============================================\n// // DOM Focus Utilities\n// // ==============================================\n\n// /**\n//  * Focuses the element with the given ID.\n//  * @param {string} id - The ID of the DOM element to focus.\n//  */\n// const setFieldFocus = (id) => {\n//     const element = document.getElementById(id);\n//     if (element) {\n//         element.focus();\n//     } else {\n//         console.log(`Element with ID '${id}' not found.`);\n//     }\n// };\n\n\n// // ==============================================\n// // Password Toggle UI\n// // ==============================================\n\n// /**\n//  * Creates a show/hide password toggle for an input inside a given container.\n//  * @param {string} id - ID of the container that includes the password input.\n//  */\n// const makePasswordToggle = (id) => {\n//     const container = document.getElementById(id);\n//     if (!container) return;\n\n//     const password = container.querySelector(\"input\");\n//     if (!password) return;\n\n//     const toggler = document.createElement(\"button\");\n//     toggler.setAttribute(\"type\", \"button\");\n//     toggler.setAttribute(\"aria-label\", \"Show/Hide Password\");\n//     toggler.className = \"btn mdi mdi-eye-off-outline position-absolute end-0 top-50 translate-middle-y\";\n//     container.appendChild(toggler);\n\n//     /**\n//      * Toggles visibility of password and icon.\n//      */\n//     const togglePasswordVisibility = () => {\n//         const isHidden = password.type === \"password\";\n//         password.type = isHidden ? \"text\" : \"password\";\n//         toggler.classList.toggle(\"mdi-eye-outline\", isHidden);\n//         toggler.classList.toggle(\"mdi-eye-off-outline\", !isHidden);\n//         password.focus();\n//     };\n\n//     toggler.addEventListener(\"click\", togglePasswordVisibility);\n// };\n\n\n// // ==============================================\n// // Username Input Validation\n// // ==============================================\n\n// /**\n//  * Enables/disables a button based on Username input validity.\n//  * @param {string} inputId - ID of the Username input field.\n//  * @param {string} buttonId - ID of the button to enable/disable.\n//  */\n// const toggleButtonState = (inputId, buttonId) => {\n//     const inputField = document.getElementById(inputId);\n//     const button = document.getElementById(buttonId);\n\n//     if (inputField && button) {\n//         // Disable the button initially when the DOM is fully loaded\n//         button.disabled = true;\n\n//         // Add input event listener to update the button state dynamically\n//         inputField.addEventListener(\"input\", () => {\n//             button.disabled = inputField.value.trim().length === 0;\n//         });\n//     } else {\n//         console.log(`Element with ID ${inputId} or ${buttonId} not found.`);\n//     }\n// };\n\n\n// // ==============================================\n// // Language Selector Submission\n// // ==============================================\n\n// /**\n//  * Automatically submits form when language selection changes.\n//  */\n// const wireLanguageSelector = () => {\n//     const languageSelector = document.getElementById(\"language\");\n//     const form = document.getElementById(\"passwordForm\");\n\n//     if (languageSelector && form) {\n//         languageSelector.addEventListener(\"change\", () => form.submit());\n//     }\n// };\n\n\n// // ==============================================\n// // WebAuthn Detection Logic\n// // ==============================================\n\n// let _origin = \"\";\n// let _rpId = \"\";\n// let _webAuthNSupport = \"\";\n\n// /**\n//  * Detects if WebAuthn API is supported.\n//  */\n// function isWebAuthnSupported() {\n//     try {\n//         return !!window.PublicKeyCredential;\n//     } catch {\n//         return false;\n//     }\n// }\n\n// /**\n//  * Checks if a platform authenticator is available.\n//  * @returns {Promise<boolean>}\n//  */\n// function isWebAuthnPlatformAuthenticatorAvailable() {\n//     if (\n//         isWebAuthnSupported() &&\n//         typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'\n//     ) {\n//         return window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()\n//             .then(result => result)\n//             .catch(() => false);\n//     }\n//     return Promise.resolve(false);\n// }\n\n// /**\n//  * Extracts Relying Party ID from origin.\n//  * @param {string} origin - URL origin.\n//  * @returns {string} - RP ID.\n//  */\n// function extractRPID(origin) {\n//     try {\n//         const hostname = new URL(origin).hostname;\n//         if (hostname === \"localhost\" || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(hostname)) return hostname;\n//         const parts = hostname.split(\".\");\n//         return parts.length < 2 ? hostname : parts.slice(-2).join(\".\");\n//     } catch {\n//         return \"unknown\";\n//     }\n// }\n\n// /**\n//  * Populates WebAuthn support fields for form submission.\n//  */\n// function applyWebAuthnFieldsToForm() {\n//     const originInput = document.getElementById(\"origin\");\n//     const rpIdInput = document.getElementById(\"rpId\");\n//     // const supportInput = document.querySelector(\"[name='webAuthNSupport']\");\n//     const supportInput = document.getElementById(\"webAuthNSupport\");\n\n//     if (originInput) originInput.value = _origin;\n//     if (rpIdInput) rpIdInput.value = _rpId;\n//     if (supportInput) supportInput.value = _webAuthNSupport;\n// }\n\n// /**\n//  * Sets up detection of WebAuthn support and availability.\n//  */\n// function initializeWebAuthnDetection() {\n//     _origin = window.location.origin;\n//     _rpId = extractRPID(_origin);\n\n//     const supported = isWebAuthnSupported();\n\n//     isWebAuthnPlatformAuthenticatorAvailable().then((available) => {\n//         _webAuthNSupport = available\n//             ? \"FULL\"\n//             : (supported ? \"SECURITY_KEY_ONLY\" : \"NONE\");\n//     }).catch(() => {\n//         _webAuthNSupport = supported ? \"SECURITY_KEY_ONLY\" : \"NONE\";\n//     });\n// }\n\n// /**\n//  * Binds WebAuthn field injection to form submit button.\n//  * @param {string} buttonId - ID of the submit button.\n//  */\n// function wireWebAuthnFormSubmit(buttonId = \"btnContinue\") {\n//     const button = document.getElementById(buttonId);\n//     if (button) {\n//         button.addEventListener(\"click\", applyWebAuthnFieldsToForm);\n//     }\n// }\n\n\n// // ==============================================\n// // App Initialization\n// // ==============================================\n\n// /**\n//  * Initializes event wiring, detection, and form state.\n//  */\n// const start = () => {\n//     makePasswordToggle(\"passwordDiv\");\n//     setFieldFocus(\"username\");\n//     initializeWebAuthnDetection();\n//     wireWebAuthnFormSubmit(\"btnContinue\");\n//     wireWebAuthnFormSubmit(\"btnForgot\");\n//     wireWebAuthnFormSubmit(\"btnBack\");\n//     toggleButtonState(\"username\", \"btnContinue\");\n// };\n\n\n// // ==============================================\n// // DOM Ready Check\n// // ==============================================\n\n// if (document.readyState === \"loading\") {\n//     document.addEventListener(\"DOMContentLoaded\", start);\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// } else {\n//     start();\n//     const submitButton = document.getElementById(\"btnContinue\");\n//     if (submitButton) submitButton.disabled = true;\n// }\n"
+              },
+              "inputSchema": {
+                "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"navBar\": {\n      \"type\": \"string\",\n      \"displayName\": \"Nav Bar Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"title\": {\n      \"type\": \"string\",\n      \"displayName\": \"Title\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textOne\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text One\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"textTwo\": {\n      \"type\": \"string\",\n      \"displayName\": \"Text Two\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"continueButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Continue Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"changeButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Change Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"forgotButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Forgot Password Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"reportsButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Report links\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"documentsButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Document Buttons\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"quickLinksButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Quicklinks Buttons\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    },\n    \"bookOfBusinessButtons\": {\n      \"type\": \"string\",\n      \"displayName\": \"Book Of Business\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    }\n  }\n}"
+              },
+              "outputSchema": {
+                "value": {}
+              },
+              "title": {
+                "value": "[{\"children\": [{\"text\": \"Authorization Decision\"}]}]"
+              },
+              "nodeDescription": {
+                "value": "Displays PingOne Authorize decision — PERMIT, DENY, or STEP_UP — with statement details"
+              },
+              "continueButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Submit\"\n      }\n    ]\n  }\n]"
+              },
+              "forgotButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Having trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "changeButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Trouble signing on?\"\n      }\n    ]\n  }\n]"
+              },
+              "textOne": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"Upcoming Anniversaries\"\n      }\n    ]\n  }\n]"
+              },
+              "navBar": {
+                "value": "[{\"children\": [{\"text\": \"Super Banking\"}]}]"
+              },
+              "textTwo": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Book of Business\"\n      }\n    ]\n  }\n]"
+              },
+              "reportsButtons": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"[\\\"Temp\\\", \\\"temp\\\"]\"\n      }\n    ]\n  }\n]"
+              },
+              "documentsButtons": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"[\\\"Temp\\\", \\\"temp\\\"]\"\n      }\n    ]\n  }\n]"
+              },
+              "quickLinksButtons": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              },
+              "bookOfBusinessButtons": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"functions.svg\",\n        \"url\": \"AuthorizeStatements\",\n        \"data\": \"{{local.g9wchuyugd.payload.output.AuthorizeStatements}}\",\n        \"tooltip\": \"{{local.g9wchuyugd.payload.output.AuthorizeStatements}}\",\n        \"children\": [\n          {\n            \"text\": \"AuthorizeStatements\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              }
+            },
+            "idUnique": "l18gw01asx"
+          },
+          "position": {
+            "x": 2407,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "smui0mjzrt",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": {
+            "x": 1207,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "egartczowj",
+            "nodeType": "CONNECTION",
+            "connectionId": "7b2e39fb332e26e8a9035dc92e733ae3",
+            "connectorId": "pingOneAuthorizeConnector",
+            "name": "PingOne Authorize",
+            "label": "PingOne Authorize",
+            "status": "configured",
+            "capabilityName": "makeDecisionRequest",
+            "type": "action",
+            "properties": {
+              "parameters": {
+                "value": [
+                  {
+                    "key": "[{\"children\": [{\"text\": \"UserId\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"\"}, {\"type\": \"link\", \"src\": \"pingIdentity.svg\", \"url\": \"id\", \"data\": \"{{local.gcapaaxku7.payload.output.matchedUser.id}}\", \"tooltip\": \"{{local.gcapaaxku7.payload.output.matchedUser.id}}\", \"children\": [{\"text\": \"id\"}]}, {\"text\": \"\"}]}]"
+                  },
+                  {
+                    "key": "[{\"children\": [{\"text\": \"Amount\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"\"}, {\"type\": \"link\", \"src\": \"http.svg\", \"url\": \"Amount\", \"data\": \"{{local.uzyyzg8j4o.payload.output.Amount}}\", \"tooltip\": \"{{local.uzyyzg8j4o.payload.output.Amount}}\", \"children\": [{\"text\": \"Amount\"}]}, {\"text\": \"\"}]}]"
+                  },
+                  {
+                    "key": "[{\"children\": [{\"text\": \"TransactionType\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"\"}, {\"type\": \"link\", \"src\": \"http.svg\", \"url\": \"TransactionType\", \"data\": \"{{local.uzyyzg8j4o.payload.output.TransactionType}}\", \"tooltip\": \"{{local.uzyyzg8j4o.payload.output.TransactionType}}\", \"children\": [{\"text\": \"TransactionType\"}]}, {\"text\": \"\"}]}]"
+                  },
+                  {
+                    "key": "[{\"children\": [{\"text\": \"Acr\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"urn:pingidentity:authentication:user:password\"}]}]"
+                  },
+                  {
+                    "key": "[{\"children\": [{\"text\": \"Timestamp\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"{{global.currentDateTime}}\"}]}]"
+                  },
+                  {
+                    "key": "[{\"children\": [{\"text\": \"ipAddress\"}]}]",
+                    "value": "[{\"children\": [{\"text\": \"\"}, {\"type\": \"link\", \"src\": \"auth.svg\", \"url\": \"ip\", \"data\": \"{{global.ip}}\", \"tooltip\": \"{{global.ip}}\", \"children\": [{\"text\": \"ip\"}]}, {\"text\": \"\"}]}]"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 1717,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "45x1907uhi",
+            "nodeType": "EVAL"
+          },
+          "position": {
+            "x": 2167,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "zkl37o022s",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": {
+            "x": 1837,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "g9wchuyugd",
+            "nodeType": "CONNECTION",
+            "connectionId": "de650ca45593b82c49064ead10b9fe17",
+            "connectorId": "functionsConnector",
+            "name": "Functions",
+            "label": "Functions",
+            "status": "configured",
+            "capabilityName": "customFunction",
+            "type": "trigger",
+            "properties": {
+              "variableInputList": {
+                "value": [
+                  {
+                    "name": "statements",
+                    "preferredDataType": "object",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"statements\",\n        \"data\": \"{{local.egartczowj.payload.output.statements}}\",\n        \"tooltip\": \"{{local.egartczowj.payload.output.statements}}\",\n        \"children\": [\n          {\n            \"text\": \"statements\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  }
+                ]
+              },
+              "code": {
+                "value": "// Write your code here\n// Supported language: Javascript \nmodule.exports = async ({ params }) => {\n\t// console.log('params: ', params)\n\t// const data = params.statements;\n\n\t// const sanitizedData = data.map(item => ({\n\t// \t...item,\n\t// \tpayload: JSON.parse(item.payload)\n\t// }));\n\n\tconst rawData = params.statements;\n\n\tconst processedData = rawData.map(item => {\n\t\tlet parsedPayload;\n\n\t\t// 1. Check if payload exists and is a string\n\t\tif (typeof item.payload === 'string' && item.payload.trim().length > 0) {\n\t\t\ttry {\n\t\t\t\t// 2. Try to parse it\n\t\t\t\tparsedPayload = JSON.parse(item.payload);\n\t\t\t} catch (e) {\n\t\t\t\t// 3. If it fails, it's just a regular string, so keep it as is\n\t\t\t\tparsedPayload = item.payload;\n\t\t\t}\n\t\t} else {\n\t\t\t// Handle empty strings or nulls\n\t\t\tparsedPayload = item.payload;\n\t\t}\n\n\t\treturn {\n\t\t\t...item,\n\t\t\tpayload: parsedPayload\n\t\t};\n\t});\n\n\tconsole.log(processedData);\n\n\t// console.log(sanitizedData);\n\treturn { 'AuthorizeStatements': processedData }\n}"
+              },
+              "outputSchema": {
+                "value": "{\n\t\"output\": {\n\t\t\"type\": \"object\",\n\t\t\"properties\": {\n\t\t\t\"AuthorizeStatements\": {\n\t\t\t\t\"type\": \"object\"\n\t\t\t}\n\t\t}\n\t}\n}"
+              },
+              "nodeTitle": {
+                "value": "JSON-ify"
+              }
+            }
+          },
+          "position": {
+            "x": 2047,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "gcapaaxku7",
+            "nodeType": "CONNECTION",
+            "connectionId": "94141bf2f1b9b59a5f5365ff135e02bb",
+            "connectorId": "pingOneSSOConnector",
+            "name": "PingOne",
+            "label": "PingOne",
+            "status": "configured",
+            "capabilityName": "userLookup",
+            "type": "action",
+            "properties": {
+              "matchAttributes": {
+                "value": [
+                  "username",
+                  "email"
+                ]
+              },
+              "userIdentifierForFindUser": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"username\",\n        \"data\": \"{{local.6hxwdprl4h.payload.output.username}}\",\n        \"tooltip\": \"{{local.6hxwdprl4h.payload.output.username}}\",\n        \"children\": [\n          {\n            \"text\": \"username\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": {
+            "x": 1357,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "c01215lvtk",
+            "nodeType": "EVAL"
+          },
+          "position": {
+            "x": 1537,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "ety2ssjm9l",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": {
+            "x": 2527,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "s7e61eskea",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"output\",\n        \"data\": \"{{local.131rhe031q.payload.output}}\",\n        \"tooltip\": \"{{local.131rhe031q.payload.output}}\",\n        \"children\": [\n          {\n            \"text\": \"output\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": {
+            "x": 2677,
+            "y": 236
+          },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        }
+      ],
+      "edges": [
+        {
+          "data": {
+            "id": "b489btvvyk",
+            "source": "5gu4heyt1z",
+            "target": "75v28ivqrx"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "sj0d3hdqkt",
+            "source": "75v28ivqrx",
+            "target": "uzyyzg8j4o"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "ycnzp9jnlw",
+            "source": "uzyyzg8j4o",
+            "target": "koudy5ev76"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "kkqel66qa1",
+            "source": "koudy5ev76",
+            "target": "6hxwdprl4h"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "laceffabrn",
+            "source": "6hxwdprl4h",
+            "target": "smui0mjzrt"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "uu4o88ee71",
+            "source": "zkl37o022s",
+            "target": "g9wchuyugd"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "iwqwu0i0za",
+            "source": "g9wchuyugd",
+            "target": "45x1907uhi"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "klbfbtgr5r",
+            "source": "45x1907uhi",
+            "target": "131rhe031q"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "fhjv0bhlkw",
+            "source": "egartczowj",
+            "target": "zkl37o022s"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "3ndod33w2f",
+            "source": "smui0mjzrt",
+            "target": "gcapaaxku7"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "auxhxkh130",
+            "source": "gcapaaxku7",
+            "target": "c01215lvtk"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "fhz4ov3a0o",
+            "source": "c01215lvtk",
+            "target": "egartczowj"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "x96j3ubnun",
+            "source": "131rhe031q",
+            "target": "ety2ssjm9l"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "h9q1rctu26",
+            "source": "ety2ssjm9l",
+            "target": "s7e61eskea"
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        }
+      ]
+    },
+    "data": {},
+    "zoomingEnabled": true,
+    "userZoomingEnabled": true,
+    "zoom": 1,
+    "minZoom": 1e-50,
+    "maxZoom": 1e+50,
+    "panningEnabled": true,
+    "userPanningEnabled": true,
+    "pan": {
+      "x": 0,
+      "y": 0
+    },
+    "boxSelectionEnabled": true,
+    "renderer": {
+      "name": "null"
+    }
+  },
+  "flowColor": "#E3F0FF",
+  "savedDate": 1773798673910,
+  "variables": [
+    {
+      "context": "flowInstance",
+      "createdDate": 1755108118541,
+      "fields": {
+        "type": "string",
+        "displayName": "Url for company's logo image",
+        "mutable": true,
+        "min": 0,
+        "max": 2000,
+        "sizeInBytes": 0
+      },
+      "id": "21d9c176-281c-4553-a607-ba3c141c26ce",
+      "type": "property",
+      "updatedDate": 1771565666013,
+      "visibility": "private",
+      "name": "companyLogo##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    },
+    {
+      "context": "flowInstance",
+      "createdDate": 1762209061789,
+      "fields": {
+        "type": "string",
+        "displayName": "",
+        "mutable": true,
+        "min": 0,
+        "max": 2000,
+        "sizeInBytes": 0
+      },
+      "id": "0995f284-9a82-4f4a-b787-1adc188802f1",
+      "type": "property",
+      "updatedDate": 1771565666013,
+      "visibility": "private",
+      "name": "companyName##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    }
+  ],
+  "forms": {},
+  "connections": []
+}

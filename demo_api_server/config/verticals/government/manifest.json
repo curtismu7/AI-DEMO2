@@ -1,0 +1,209 @@
+{
+  "id": "government",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "CivicPermit",
+    "headerTitle": "CivicPermit",
+    "documentTitle": "CivicPermit · PingOne AI IAM Core",
+    "logoAlt": "CivicPermit logo",
+    "tagline": "AI-Powered Citizen Permitting Demo"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#1d4ed8",
+      "--app-primary-red-hover": "#1e40af",
+      "--app-primary-red-mid": "#3b82f6",
+      "--app-primary-red-border": "#1e40af",
+      "--brand-dashboard-header-start": "#1e3a8a",
+      "--brand-dashboard-header-end": "#2563eb",
+      "--brand-app-shell-hero-start": "#1e3a8a",
+      "--brand-app-shell-hero-end": "#2563eb",
+      "--theme-accent": "#f59e0b",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Permit",
+    "accounts": "Permits & Licenses",
+    "accountTypes": ["Building", "Business", "Professional"],
+    "transaction": "Filing",
+    "transactions": "Filing History",
+    "transactionTypes": ["Application", "Inspection", "Renewal", "Records Release"],
+    "balance": "Fees Owed",
+    "agent": "Permit Assistant",
+    "dashboard": "My Permits",
+    "highValueAction": "Records Release",
+    "highValueLabel": "Sensitive permit-record release to a third party"
+  },
+  "agent": {
+    "persona": "Liberty",
+    "greeting": "Hi {name}! I'm Liberty. I can show your permits and licenses, check fees owed, review your filing history, and help you release permit records — I'll walk you through the consent steps. What do you need?",
+    "systemPromptFlavor": "You are Liberty, a CivicPermit citizen-services assistant. Help residents view permits and licenses, check fees owed, review filing history, and release permit records. Use government permitting language: accounts are permits and licenses, transactions are filings (applications, inspections, renewals, records releases), balance is fees owed. Be clear and procedural."
+  },
+  "dashboard": {
+    "kind": "government",
+    "chips": [
+      { "key": "balance", "label": "Fees Owed" },
+      { "key": "accounts", "label": "My Permits" },
+      { "key": "transactions", "label": "Filing History" },
+      { "key": "transfer", "label": "Release Record" },
+      { "key": "feature", "label": "Permit Status" }
+    ],
+    "hero": {
+      "cards": [
+        { "label": "Active Permits", "dataKey": "heroStats.activePermits", "format": "count" },
+        { "label": "Fees Owed", "dataKey": "heroStats.feesOwed", "format": "money" },
+        { "label": "Next Inspection", "dataKey": "heroStats.nextInspection", "format": "date" },
+        { "label": "License Status", "dataKey": "heroStats.licenseStatus", "format": "text" }
+      ]
+    },
+    "llmChipGroups": {
+      "Permits": [
+        { "id": "gov_permits", "label": "My permits", "message": "Show my permits and licenses" },
+        { "id": "gov_expiring", "label": "Expiring soon", "message": "Which of my permits expire soon?" }
+      ],
+      "Fees": [
+        { "id": "gov_fees", "label": "What do I owe?", "message": "What permit fees do I owe?" },
+        { "id": "gov_pay", "label": "Pay a fee", "message": "I want to pay an outstanding permit fee" }
+      ],
+      "Filings": [
+        { "id": "gov_filings", "label": "Filing history", "message": "Show my filing history" },
+        { "id": "gov_inspection", "label": "Inspection status", "message": "What's the status of my latest inspection?" }
+      ],
+      "Records": [
+        { "id": "gov_release", "label": "Release a record", "message": "Release my permit record to a third party" }
+      ]
+    },
+    "chips10": [
+      { "id": "gv1", "label": "My permits", "message": "show my permits", "mode": "both", "tool": "view_permits" },
+      { "id": "gv2", "label": "Fees owed", "message": "what fees do I owe", "mode": "both", "tool": "view_fees" },
+      { "id": "gv3", "label": "Filing history", "message": "show my filing history", "mode": "both", "tool": "view_filings" },
+      { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee" },
+      { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "tool": "release_record" },
+      { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit" },
+      { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "both" },
+      { "id": "gv7", "label": "Inspection status", "message": "what is my inspection status", "mode": "both" },
+      { "id": "gv8", "label": "Renew a license", "message": "renew my professional license", "mode": "llm", "elicitationTrigger": true },
+      { "id": "gv-direct", "label": "🔌 Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a permit-record release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the permit-record release ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "permits:read"
+  },
+  "delegation": {
+    "pageTitle": "Authorized Representative",
+    "pageDescription": "Authorize a contractor or representative to manage your permits — powered by RFC 8693 token exchange",
+    "granteeLabel": "contractor or representative",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Permits",     "description": "See permit and license list" },
+      "view_balances":     { "label": "View Fees Owed",   "description": "See outstanding permit fees" },
+      "create_deposit":    { "label": "Pay Fees",         "description": "Pay outstanding permit fees" },
+      "create_withdrawal": { "label": "Withdraw Filing",  "description": "Withdraw a pending filing" },
+      "create_transfer":   { "label": "Release Records",  "description": "Authorize permit-record release to a third party" }
+    }
+  },
+  "render": {
+    "dispute_violation": {"type":"card","title":"Violation Disputed","fields":[{"label":"Violation ID","path":"id"},{"label":"Description","path":"description"},{"label":"Status","path":"status"}]},
+    "reschedule_gov_appointment": {"type":"card","title":"Reschedule Requested","fields":[{"label":"Appointment ID","path":"id"},{"label":"Service","path":"service"},{"label":"Status","path":"status"}]},
+    "cancel_permit": {"type":"card","fields":[{"label":"Permit ID","path":"id"},{"label":"Subject","path":"subject"},{"label":"Status","path":"status"}]},
+    "submit_filing": {"type":"card","fields":[{"label":"Filing ID","path":"id"},{"label":"Type","path":"type"},{"label":"Status","path":"status"}]},
+    "approve_inspection": {"type":"card","fields":[{"label":"Inspection ID","path":"id"},{"label":"Address","path":"address"},{"label":"Status","path":"status"}]},
+    "close_violation": {"type":"card","fields":[{"label":"Violation ID","path":"id"},{"label":"Description","path":"description"},{"label":"Status","path":"status"}]},
+    "schedule_inspection": {"type":"card","fields":[{"label":"Inspection ID","path":"id"},{"label":"Address","path":"address"},{"label":"Status","path":"status"}]},
+    "renew_permit": {"type":"card","fields":[{"label":"Permit ID","path":"id"},{"label":"Permit Type","path":"permitType"},{"label":"Status","path":"status"}]},
+    "view_inspections": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Address","path":"address","format":"text"},{"label":"Type","path":"type","format":"text"},{"label":"Scheduled Date","path":"scheduledDate","format":"date"},{"label":"Status","path":"status","format":"text"},{"label":"Inspector","path":"inspector","format":"text"}]},
+    "view_violations": {"type":"table","columns":[{"label":"Case #","path":"caseNumber","format":"text"},{"label":"Address","path":"address","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Opened","path":"openedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_business_licenses": {"type":"table","columns":[{"label":"License #","path":"licenseNumber","format":"text"},{"label":"Business Name","path":"businessName","format":"text"},{"label":"Type","path":"licenseType","format":"text"},{"label":"Expires","path":"expiresDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_appointments": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Service","path":"service","format":"text"},{"label":"Date","path":"date","format":"date"},{"label":"Time","path":"time","format":"text"},{"label":"Status","path":"status","format":"text"}]},
+    "cancel_appointment": {"type":"card","fields":[{"label":"Appointment ID","path":"id"},{"label":"Service","path":"service"},{"label":"Status","path":"status"}]},
+    "view_tax_assessments": {"type":"table","columns":[{"label":"Parcel","path":"parcel","format":"text"},{"label":"Address","path":"address","format":"text"},{"label":"Tax Year","path":"taxYear","format":"count"},{"label":"Tax Due","path":"taxDue","format":"money"},{"label":"Status","path":"status","format":"text"}]},
+    "view_records_requests": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Type","path":"requestType","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Submitted","path":"submittedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_complaints": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Category","path":"category","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Reported","path":"reportedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_documents": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Title","path":"title","format":"text"},{"label":"Related ID","path":"relatedId","format":"text"},{"label":"Date","path":"uploadedDate","format":"date"},{"label":"Type","path":"fileType","format":"text"}]},
+    "view_payment_history": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Amount","path":"amount","format":"money"},{"label":"Paid Date","path":"paidDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_zoning_info": {"type":"table","columns":[{"label":"Parcel","path":"parcel","format":"text"},{"label":"Address","path":"address","format":"text"},{"label":"Zone Code","path":"zoneCode","format":"text"},{"label":"Description","path":"zoneDescription","format":"text"},{"label":"Overlay","path":"overlay","format":"text"}]},
+    "view_notifications": {"type":"table","columns":[{"label":"ID","path":"id","format":"text"},{"label":"Subject","path":"subject","format":"text"},{"label":"Category","path":"category","format":"text"},{"label":"Date","path":"date","format":"date"}]},
+    "view_fees": { "type": "fieldList", "title": "Fees Owed", "fields": [ { "label": "Total owed", "path": "total", "format": "money" }, { "label": "Oldest due", "path": "oldestDue", "format": "date" } ] },
+    "view_permits": { "type": "table", "columns": [ { "label": "Permit ID", "path": "id" }, { "label": "Type", "path": "permitType" }, { "label": "Subject", "path": "subject" }, { "label": "Status", "path": "status" } ] },
+    "view_filings": { "type": "table", "columns": [ { "label": "Filing #", "path": "id" }, { "label": "Type", "path": "type" }, { "label": "Date", "path": "date", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "pay_fee": { "type": "fieldList", "title": "Fee Paid", "fields": [ { "label": "Paid", "path": "paid", "format": "money" }, { "label": "Remaining balance", "path": "remainingBalance", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "release_record": { "type": "card", "title": "Record Released", "fields": [ { "label": "Permit", "path": "permitType" }, { "label": "Status", "path": "status" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_permit",
+    "pageTitle": "Permit Status",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#1d4ed8",
+    "dataKey": "permit",
+    "fields": [
+      { "label": "Permit ID", "path": "permitId" },
+      { "label": "Type", "path": "permitType" },
+      { "label": "Property / business", "path": "subject" },
+      { "label": "Jurisdiction", "path": "jurisdiction" },
+      { "label": "Issued", "path": "issuedDate" },
+      { "label": "Expires", "path": "expiresDate" },
+      { "label": "Fees owed", "path": "feesOwed", "format": "money", "accent": true },
+      { "label": "Status", "path": "status" },
+      { "label": "Inspector", "path": "inspector" }
+    ],
+    "sectionTitle": "Permit details",
+    "emptyPrompt": "show permit status",
+    "scopeError": "The agent's access token does not carry the permits:read scope. Sign out and sign back in to consent to permit access, then try \"Permit Status\" again."
+  },
+  "demoUsers": {
+    "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
+    "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  }
+}

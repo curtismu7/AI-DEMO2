@@ -1,0 +1,649 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangChain MCP Agent Execution - session-x</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            margin: 0; 
+            padding: 24px; 
+            background: #fafbfc;
+            color: #24292e;
+            line-height: 1.5;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: #ffffff; 
+            border: 1px solid #e1e4e8;
+            border-radius: 6px; 
+            box-shadow: 0 1px 3px rgba(27,31,35,0.12);
+        }
+        .header {
+            padding: 24px 32px;
+            border-bottom: 1px solid #e1e4e8;
+            background: #f6f8fa;
+        }
+        .header-nav {
+            margin-bottom: 16px;
+        }
+        .back-btn {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            color: #24292e;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .back-btn:hover {
+            background: #f3f4f6;
+            border-color: #d0d7de;
+        }
+        h1 { 
+            color: #24292e; 
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .session-info { 
+            color: #586069; 
+            font-size: 14px;
+            margin: 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1px;
+            background: #e1e4e8;
+            margin: 0;
+        }
+        .stat-card {
+            background: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #24292e;
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            color: #586069;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        .controls {
+            padding: 16px 32px;
+            border-bottom: 1px solid #e1e4e8;
+            background: #ffffff;
+        }
+        .filter-buttons {
+            margin: 0;
+        }
+        .filter-btn {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            color: #24292e;
+            padding: 6px 12px;
+            margin: 0 4px 0 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .filter-btn:hover {
+            background: #f3f4f6;
+            border-color: #d0d7de;
+        }
+        .filter-btn.active {
+            background: #0969da;
+            color: #ffffff;
+            border-color: #0969da;
+        }
+        .timeline { 
+            max-height: 600px; 
+            overflow-y: auto; 
+            background: #ffffff;
+        }
+        .step { 
+            border-bottom: 1px solid #f0f3f6; 
+            background: #ffffff;
+        }
+        .step:last-child { border-bottom: none; }
+        .step-header {
+            display: flex; 
+            align-items: center; 
+            padding: 12px 32px; 
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            user-select: none;
+        }
+        .step-header:hover { 
+            background-color: #f6f8fa;
+        }
+        .step-header.expanded {
+            background-color: #f6f8fa;
+            border-bottom: 1px solid #d0d7de;
+        }
+        .step-number { 
+            background: #24292e;
+            color: #ffffff; 
+            border-radius: 50%; 
+            width: 28px; 
+            height: 28px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: 600; 
+            margin-right: 12px; 
+            font-size: 11px; 
+            flex-shrink: 0;
+        }
+        .step-summary { flex: 1; }
+        .step-type { 
+            font-weight: 600; 
+            color: #24292e; 
+            margin-bottom: 2px;
+            font-size: 13px;
+        }
+        .step-component { 
+            color: #656d76; 
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .step-toggle {
+            color: #656d76;
+            font-size: 12px;
+            margin-left: 8px;
+            transition: transform 0.15s ease;
+        }
+        .step-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        .step-content { 
+            display: none;
+            padding: 16px 32px 20px 72px;
+            background: #f6f8fa;
+            border-top: 1px solid #d0d7de;
+        }
+        .step-content.expanded {
+            display: block;
+        }
+        .step-data { 
+            background: #ffffff;
+            padding: 12px; 
+            border-radius: 6px; 
+            font-size: 12px; 
+            color: #24292e; 
+            white-space: pre-wrap;
+            border: 1px solid #d0d7de;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+        .payload-section {
+            margin: 8px 0;
+            padding: 12px;
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+        }
+        .payload-header {
+            font-weight: 600;
+            color: #24292e;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .payload-content {
+            background: #f6f8fa;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #d0d7de;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #24292e;
+        }
+        .step-time { 
+            color: #656d76; 
+            font-size: 11px; 
+            margin-right: 8px; 
+            flex-shrink: 0;
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 500;
+            border: 1px solid #d0d7de;
+        }
+        
+        /* Step type specific colors - minimal and professional */
+        .user-input .step-number { background: #0969da; }
+        .websocket-incoming .step-number { background: #0969da; }
+        .websocket-outgoing .step-number { background: #1a7f37; }
+        .mcp-tool-start .step-number { background: #d1242f; }
+        .tool-start .step-number { background: #d1242f; }
+        .mcp-tool-end .step-number { background: #1a7f37; }
+        .tool-end .step-number { background: #1a7f37; }
+        .llm-start .step-number { background: #8250df; }
+        .llm-end .step-number { background: #8250df; }
+        .memory-update .step-number { background: #656d76; }
+        .oauth-check .step-number { background: #bf8700; }
+        .oauth-flow .step-number { background: #bf8700; }
+        .response-sent .step-number { background: #1a7f37; }
+        .chain-start .step-number { background: #0969da; }
+        .chain-end .step-number { background: #1a7f37; }
+        .direct-tool-execution .step-number { background: #fd7e14; }
+        .direct-tool-result .step-number { background: #1a7f37; }
+        .template-response-generation .step-number { background: #8250df; }
+        .tool-retry-start .step-number { background: #fd7e14; }
+        .tool-retry-response .step-number { background: #1a7f37; }
+        .tool-retry-formatted .step-number { background: #8250df; }
+        .tool-retry-error .step-number { background: #cf222e; }
+        .direct-response-return .step-number { background: #6c757d; }
+        .error .step-number { background: #cf222e; }
+        .tool-error .step-number { background: #cf222e; }
+        .llm-error .step-number { background: #cf222e; }
+        .chain-error .step-number { background: #cf222e; }
+        
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .header { padding: 16px 20px; }
+            .header-nav { margin-bottom: 12px; }
+            .controls { 
+                padding: 12px 20px; 
+            }
+            .filter-buttons {
+                text-align: left;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .filter-btn {
+                margin: 2px;
+            }
+            .step-header { 
+                padding: 12px 20px;
+                flex-wrap: wrap;
+            }
+            .step-content {
+                padding: 16px 20px 20px 48px;
+            }
+            .step-time { 
+                order: 3;
+                margin-top: 4px;
+                margin-right: 0;
+            }
+            .step-toggle {
+                order: 4;
+                margin-left: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-nav">
+                <button class="back-btn" onclick="goBack()">← Back to Traces</button>
+            </div>
+            <h1>LangChain MCP Agent Execution Trace</h1>
+            <div class="session-info">
+                Session session-x • 
+                0ms • 
+                4 steps
+            </div>
+        </div>
+        
+        <div class="stats-grid" id="stats"></div>
+        
+        <div class="controls">
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterSteps('all')">All</button>
+                <button class="filter-btn" onclick="filterSteps('websocket')">WebSocket</button>
+                <button class="filter-btn" onclick="filterSteps('tool')">Tools</button>
+                <button class="filter-btn" onclick="filterSteps('llm')">LLM</button>
+                <button class="filter-btn" onclick="filterSteps('memory')">Memory</button>
+                <button class="filter-btn" onclick="filterSteps('error')">Errors</button>
+                <span style="margin: 0 8px; color: #d0d7de;">|</span>
+                <button class="filter-btn" onclick="expandAllSteps()">Expand All</button>
+                <button class="filter-btn" onclick="collapseAllSteps()">Collapse All</button>
+            </div>
+        </div>
+        
+        <div class="timeline" id="timeline"></div>
+    </div>
+
+    <script>
+        const traceData = {"session_id": "session-x", "start_time": "2026-05-25T09:37:12.605738", "end_time": "2026-05-25T09:37:12.605987", "total_steps": 4, "total_duration_ms": 0, "execution_steps": [{"step": 1, "type": "websocket_incoming", "component": "WebSocket Handler", "timestamp": "2026-05-25T09:37:12.605760", "elapsed_ms": 0, "session_id": "session-x", "data": {"direction": "incoming", "message_type": "user_message", "payload": {"type": "user_message", "content": "hello", "session_id": "session-x", "timestamp": "2026-05-25T09:37:12.605751"}, "payload_size": 114, "timestamp": "2026-05-25T09:37:12.605759"}}, {"step": 2, "type": "user_input", "component": "WebSocket Handler", "timestamp": "2026-05-25T09:37:12.605782", "elapsed_ms": 0, "session_id": "session-x", "data": {"message": "hello", "session_id": "session-x", "message_length": 5, "timestamp": "2026-05-25T09:37:12.605781"}}, {"step": 3, "type": "agent_start", "component": "LangChain Agent", "timestamp": "2026-05-25T09:37:12.605793", "elapsed_ms": 0, "session_id": "session-x", "data": {"agent_type": "LangChainMCPAgent", "tools_available": 0, "model": "llama3"}}, {"step": 4, "type": "initialization_error", "component": "LangChain Agent", "timestamp": "2026-05-25T09:37:12.605972", "elapsed_ms": 0, "session_id": "session-x", "data": {"error": "Agent not properly configured with tools"}}]};
+        
+        function renderStats() {
+            const stats = document.getElementById('stats');
+            const steps = traceData.execution_steps;
+            
+            const mcpTools = steps.filter(s => s.type.includes('mcp_tool_start')).length;
+            const llmCalls = steps.filter(s => s.type.includes('llm_start')).length;
+            const memoryUpdates = steps.filter(s => s.type.includes('memory')).length;
+            const avgStepTime = steps.length > 0 ? Math.round(traceData.total_duration_ms / steps.length) : 0;
+            
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${steps.length}</div>
+                    <div class="stat-label">Total Steps</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${traceData.total_duration_ms}</div>
+                    <div class="stat-label">Duration (ms)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${mcpTools}</div>
+                    <div class="stat-label">MCP Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${llmCalls}</div>
+                    <div class="stat-label">LLM Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgStepTime}</div>
+                    <div class="stat-label">Avg Step (ms)</div>
+                </div>
+            `;
+        }
+        
+        function createStepDescription(step) {
+            const stepType = step.type.replace(/_/g, ' ').toUpperCase();
+            const data = step.data;
+            let title = stepType;
+            let component = step.component;
+            
+            // Enhance titles with tool names for MCP-related steps
+            if (data && data.tool_name) {
+                switch(step.type) {
+                    case 'mcp_tool_request':
+                        title = `MCP TOOL REQUEST: ${data.tool_name}`;
+                        break;
+                    case 'mcp_tool_response':
+                        title = `MCP TOOL RESPONSE: ${data.tool_name}`;
+                        break;
+                    case 'tool_start':
+                        title = `TOOL START: ${data.tool_name}`;
+                        break;
+                    case 'tool_end':
+                        title = `TOOL END: ${data.tool_name}`;
+                        break;
+                    case 'tool_retry_start':
+                        title = `TOOL RETRY START: ${data.tool_name}`;
+                        break;
+                    case 'tool_retry_response':
+                        title = `TOOL RETRY RESPONSE: ${data.tool_name}`;
+                        break;
+                    case 'tool_retry_formatted':
+                        title = `TOOL RETRY FORMATTED: ${data.tool_name}`;
+                        break;
+                    case 'tool_retry_error':
+                        title = `TOOL RETRY ERROR: ${data.tool_name}`;
+                        break;
+                    case 'mcp_tool_error':
+                        title = `MCP TOOL ERROR: ${data.tool_name}`;
+                        break;
+                    case 'direct_tool_execution':
+                        title = `DIRECT TOOL EXECUTION: ${data.tool_name}`;
+                        break;
+                    case 'direct_tool_result':
+                        title = `DIRECT TOOL RESULT: ${data.tool_name}`;
+                        break;
+                }
+            }
+            
+            // Enhance other step types with relevant context
+            if (data.response_type && step.type === 'template_response_generation') {
+                title = `TEMPLATE RESPONSE: ${data.response_type.replace(/_/g, ' ').toUpperCase()}`;
+            }
+            
+            if (data.model && step.type === 'llm_start') {
+                title = `LLM START: ${data.model}`;
+            }
+            
+            if (data.model && step.type === 'llm_end') {
+                title = `LLM END: ${data.model}`;
+            }
+            
+            if (data.message_type && step.type.includes('websocket')) {
+                title = `${stepType}: ${data.message_type.replace(/_/g, ' ').toUpperCase()}`;
+            }
+            
+            if (data.action && step.type === 'memory_update') {
+                title = `MEMORY UPDATE: ${data.action.replace(/_/g, ' ').toUpperCase()}`;
+            }
+            
+            return {
+                title: title,
+                component: component
+            };
+        }
+        
+        function formatStepData(data) {
+            let formatted = '';
+            
+            // Handle special payload types
+            if (data.payload) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">WebSocket Payload</div>
+                    <div class="payload-content">${JSON.stringify(data.payload, null, 2)}</div>
+                </div>`;
+            }
+            
+            if (data.input_parameters) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">Input Parameters</div>
+                    <div class="payload-content">${JSON.stringify(data.input_parameters, null, 2)}</div>
+                </div>`;
+            }
+            
+            if (data.result && typeof data.result === 'object') {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">Tool Result</div>
+                    <div class="payload-content">${JSON.stringify(data.result, null, 2)}</div>
+                </div>`;
+            }
+            
+            if (data.prompt_preview) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">LLM Prompt</div>
+                    <div class="payload-content">${data.prompt_preview}</div>
+                </div>`;
+            }
+            
+            if (data.response_preview) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">LLM Response</div>
+                    <div class="payload-content">${data.response_preview}</div>
+                </div>`;
+            }
+            
+            if (data.body) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">HTTP Body</div>
+                    <div class="payload-content">${typeof data.body === 'object' ? JSON.stringify(data.body, null, 2) : data.body}</div>
+                </div>`;
+            }
+            
+            if (data.error) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">Error Details</div>
+                    <div class="payload-content">${data.error}</div>
+                </div>`;
+            }
+            
+            // Add remaining data
+            const remainingData = { ...data };
+            delete remainingData.payload;
+            delete remainingData.input_parameters;
+            delete remainingData.result;
+            delete remainingData.prompt_preview;
+            delete remainingData.response_preview;
+            delete remainingData.body;
+            delete remainingData.error;
+            
+            if (Object.keys(remainingData).length > 0) {
+                formatted += `<div class="payload-section">
+                    <div class="payload-header">Additional Data</div>
+                    <div class="payload-content">${JSON.stringify(remainingData, null, 2)}</div>
+                </div>`;
+            }
+            
+            return formatted || `<div class="payload-content">${JSON.stringify(data, null, 2)}</div>`;
+        }
+        
+        function renderTimeline() {
+            const timeline = document.getElementById('timeline');
+            const steps = traceData.execution_steps;
+            
+            timeline.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = `step ${step.type.replace(/_/g, '-')}`;
+                stepDiv.dataset.stepType = step.type;
+                
+                const formattedData = formatStepData(step.data);
+                const stepId = `step-${index}`;
+                
+                // Create enhanced step description with tool name if available
+                const stepDescription = createStepDescription(step);
+                
+                stepDiv.innerHTML = `
+                    <div class="step-header" onclick="toggleStep('${stepId}')">
+                        <div class="step-number">${step.step}</div>
+                        <div class="step-summary">
+                            <div class="step-type">${stepDescription.title}</div>
+                            <div class="step-component">${stepDescription.component}</div>
+                        </div>
+                        <div class="step-time">${step.elapsed_ms}ms</div>
+                        <div class="step-toggle">▶</div>
+                    </div>
+                    <div class="step-content" id="${stepId}">
+                        <div class="step-data">${formattedData}</div>
+                    </div>
+                `;
+                
+                timeline.appendChild(stepDiv);
+            });
+        }
+        
+        function toggleStep(stepId) {
+            const content = document.getElementById(stepId);
+            const header = content.previousElementSibling;
+            const toggle = header.querySelector('.step-toggle');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                header.classList.remove('expanded');
+                toggle.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                header.classList.add('expanded');
+                toggle.classList.add('expanded');
+            }
+        }
+        
+        function expandAllSteps() {
+            const contents = document.querySelectorAll('.step-content');
+            const headers = document.querySelectorAll('.step-header');
+            const toggles = document.querySelectorAll('.step-toggle');
+            
+            contents.forEach(content => content.classList.add('expanded'));
+            headers.forEach(header => header.classList.add('expanded'));
+            toggles.forEach(toggle => toggle.classList.add('expanded'));
+        }
+        
+        function collapseAllSteps() {
+            const contents = document.querySelectorAll('.step-content');
+            const headers = document.querySelectorAll('.step-header');
+            const toggles = document.querySelectorAll('.step-toggle');
+            
+            contents.forEach(content => content.classList.remove('expanded'));
+            headers.forEach(header => header.classList.remove('expanded'));
+            toggles.forEach(toggle => toggle.classList.remove('expanded'));
+        }
+        
+        function filterSteps(filter) {
+            const steps = document.querySelectorAll('.step');
+            const buttons = document.querySelectorAll('.filter-btn');
+            
+            // Update button states
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Filter steps
+            steps.forEach(step => {
+                const stepType = step.dataset.stepType;
+                let show = false;
+                
+                switch(filter) {
+                    case 'all':
+                        show = true;
+                        break;
+                    case 'websocket':
+                        show = stepType.includes('websocket') || stepType.includes('user_input') || stepType.includes('response_sent');
+                        break;
+                    case 'tool':
+                        show = stepType.includes('tool') || stepType.includes('mcp') || stepType.includes('direct_tool') || stepType.includes('retry');
+                        break;
+                    case 'llm':
+                        show = stepType.includes('llm') || stepType.includes('chain');
+                        break;
+                    case 'memory':
+                        show = stepType.includes('memory');
+                        break;
+                    case 'error':
+                        show = stepType.includes('error');
+                        break;
+                }
+                
+                step.style.display = show ? 'flex' : 'none';
+            });
+        }
+        
+        function goBack() {
+            // Try to go back in browser history first
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // If no history, try to go to trace server root
+                // Check if we're being served from the trace server
+                if (window.location.pathname.includes('/trace/')) {
+                    window.location.href = '/';
+                } else {
+                    // Fallback: close window or show message
+                    if (window.opener) {
+                        window.close();
+                    } else {
+                        alert('Please close this tab to return to the trace overview.');
+                    }
+                }
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            renderStats();
+            renderTimeline();
+        });
+    </script>
+</body>
+</html>

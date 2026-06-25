@@ -1,0 +1,12 @@
+# Documentation Index
+- ## 🏛️ Architecture (current-state source of truth)
+	- [[ARCHITECTURE]] — Full system overview: the AI-agent security demo (not a bank), component map, the four planes, end-to-end flow.
+	- [[SERVICE_TOPOLOGY]] — Every service, port & language; network topology; read-path vs write-path-with-HITL request flows; gateway tool routing.
+	- [[SECURITY_ARCHITECTURE]] — OAuth + PKCE login, the two RFC 8693 token exchanges (`act`/`may_act`), the Authorize pipeline (PERMIT/DENY/STEP-UP/HITL), HITL consent, and scopes.
+- ## 📚 Other key docs
+	- [[APP_OVERVIEW]]
+	- [[ARCHITECTURE-TRUTHS]]
+	- [[ARCHITECTURE_WALKTHROUGH]]
+	- [[AUTHORIZATION_RULES]]
+	- [[ENV_VARS]]
+	- [[FEATURES]]

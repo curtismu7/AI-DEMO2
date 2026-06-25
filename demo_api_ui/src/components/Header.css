@@ -1,0 +1,123 @@
+/* banking_api_ui/src/components/Header.css
+   Light top bar for admin shell — fluid type and wrapping so it does not mash on narrow viewports. */
+
+.app-top-header {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1f2937;
+  border-bottom: 1px solid #93c5fd;
+  padding: clamp(8px, 1.2vw, 12px) 0;
+}
+
+.app-top-header .container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 1rem);
+}
+
+.app-top-header__brand {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 1rem);
+  min-width: min(100%, 280px);
+  flex: 1 1 auto;
+}
+
+.app-top-header__logo {
+  height: clamp(28px, 4vw, 40px);
+  width: auto;
+  margin-right: clamp(0.25rem, 1vw, 0.75rem);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.app-top-header__title {
+  font-size: clamp(0.95rem, 1.1vw + 0.65rem, 1.5rem);
+  font-weight: 700;
+  color: #6c2eb9;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Override index.css .nav-link (white on blue) for this light header */
+.app-top-header .nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(4px, 1.2vw, 1rem);
+  justify-content: flex-end;
+  flex: 1 1 min(320px, 100%);
+  min-width: 0;
+}
+
+.app-top-header .nav-link {
+  color: var(--brand-navy);
+  padding: 0.35rem clamp(0.35rem, 1vw, 0.75rem);
+  font-size: clamp(0.7rem, 0.6vw + 0.65rem, 0.9rem);
+  border-radius: 0.375rem;
+}
+
+.app-top-header .nav-link:hover {
+  background-color: rgba(30, 64, 175, 0.08);
+}
+
+.app-top-header .nav-link.active {
+  background-color: rgba(30, 64, 175, 0.14);
+}
+
+.app-top-header__user {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(0.5rem, 1.2vw, 1rem);
+  font-size: clamp(0.72rem, 0.5vw + 0.65rem, 0.9rem);
+  color: #333;
+}
+
+.app-top-header__user .btn {
+  font-size: clamp(0.75rem, 0.5vw + 0.65rem, 0.875rem);
+  padding: 0.4rem clamp(0.6rem, 1.5vw, 1rem);
+}
+
+/* P2 — Role switch button: indigo accent to distinguish it from the logout button */
+.header-switch-role-btn {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: var(--brand-navy);
+  font-weight: 600;
+}
+
+.header-switch-role-btn:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.header-switch-role-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Session expiry countdown timer in the top header */
+.header-session-timer {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.header-session-timer--expiring {
+  color: #b91c1c;
+  animation: header-timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes header-timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

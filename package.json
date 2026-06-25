@@ -1,0 +1,60 @@
+{
+  "name": "banking-demo",
+  "version": "1.3.1",
+  "private": true,
+  "engines": {
+    "node": ">=20",
+    "npm": ">=9"
+  },
+  "scripts": {
+    "topology:check": "node scripts/gen-service-topology.js check",
+    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js",
+    "topology:generate": "node scripts/gen-service-topology.js generate",
+    "test": "bash scripts/run-all-tests.sh",
+    "test:api-server": "cd demo_api_server && npm test -- --forceExit",
+    "test:mcp-server": "cd demo_mcp_server && npm run test:unit",
+    "test:mcp-server:integration": "cd demo_mcp_server && npm run test:integration",
+    "test:ui": "cd demo_api_ui && CI=true npm test",
+    "test:agent": "cd langchain_agent && bash scripts/run-pytest.sh",
+    "test:agent:full": "cd langchain_agent && bash scripts/run-pytest.sh tests/",
+    "test:agent-ui": "cd langchain_agent/frontend && npm run test:ci",
+    "test:openai-agent": "cd openai_agent && .venv/bin/python -m pytest tests/ -q",
+    "test:pydantic-agent": "cd pydantic_agent && .venv/bin/python -m pytest tests/ -q",
+    "test:mastra-agent": "cd mastra_agent && npm test",
+    "test:agents": "npm run test:openai-agent && npm run test:pydantic-agent && npm run test:mastra-agent",
+    "verify:agents": "bash tests/integration/test-agents-e2e.sh",
+    "test:mcp-inspector": "cd demo_api_server && npm test -- --testPathPattern=mcp-inspector --forceExit",
+    "test:bff-tokens": "cd demo_api_server && npm test -- --testPathPattern='redisWireUrl|bffSessionGating' --forceExit --verbose",
+    "test:session": "cd demo_api_server && npm run test:session",
+    "test:e2e:ui": "cd demo_api_ui && npm run test:e2e:ci",
+    "test:e2e:ui:smoke": "cd demo_api_ui && npm run test:e2e:ui:smoke",
+    "release": "node scripts/release.js",
+    "build:diagrams": "bash scripts/build-diagrams.sh",
+    "setup:fresh": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js",
+    "import": "bash scripts/run-node.sh demo_api_server/scripts/importMigrationBundle.js",
+    "export": "bash scripts/run-node.sh demo_api_server/scripts/exportMigrationBundle.js",
+    "reset": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js --clean --reset-pingone",
+    "reset:import": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js --clean --reset-pingone",
+    "uninstall": "bash scripts/run-node.sh demo_api_server/scripts/uninstall.js",
+    "pingone:bootstrap": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js",
+    "pingone:wipe": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --wipe-environment",
+    "pingone:recreate": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --recreate-apps",
+    "pingone:bootstrap:legacy-manifest": "node scripts/pingone-bootstrap.js",
+    "pingone:bootstrap:probe": "node scripts/pingone-bootstrap.js --probe",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "jslint": "^0.12.1",
+    "nodemailer": "^8.0.4",
+    "tar": "^7.5.15"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
+    "husky": "^9.1.7",
+    "i": "^0.3.7",
+    "lint-staged": "^16.4.0",
+    "npm": "^11.14.1",
+    "or": "^0.2.0"
+  }
+}

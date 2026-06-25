@@ -1,0 +1,193 @@
+---
+# Crash-loop protection for the ai-demo namespace in ping-devops-cmuir.
+#
+# Layer 1 (crash-alert): CronJob runs every 5 minutes. Finds pods with
+# >= 5 container restarts and emits a Kubernetes Warning Event on each
+# affected pod — visible in `kubectl describe pod` and picked up by any
+# event-based monitoring.
+#
+# Layer 2 (crash-circuit-breaker): CronJob runs every 5 minutes. Finds
+# Deployments whose pods have >= 10 container restarts and scales them to 0,
+# stopping the billing bleed and the CrashLoopBackOff cycle.
+# The deployment stays at 0 replicas until an operator scales it back up.
+#
+# Both CronJobs share one ServiceAccount + Role scoped to this namespace.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crash-circuit-breaker
+  namespace: ping-devops-cmuir
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crash-circuit-breaker
+  namespace: ping-devops-cmuir
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "list", "patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crash-circuit-breaker
+  namespace: ping-devops-cmuir
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crash-circuit-breaker
+subjects:
+- kind: ServiceAccount
+  name: crash-circuit-breaker
+  namespace: ping-devops-cmuir
+
+---
+# Layer 1 — Alert: emit Warning events on pods with >= 5 restarts.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: crash-alert
+  namespace: ping-devops-cmuir
+  labels:
+    app: ai-demo
+    component: crash-protection
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: crash-circuit-breaker
+          restartPolicy: Never
+          containers:
+          - name: alerter
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              NAMESPACE=ping-devops-cmuir
+              THRESHOLD=5
+
+              kubectl get pods -n "$NAMESPACE" -o json | \
+                jq -r '
+                  .items[] |
+                  .metadata.name as $pod |
+                  .status.containerStatuses[]? |
+                  select(.restartCount >= '"$THRESHOLD"') |
+                  [$pod, .name, (.restartCount | tostring)] |
+                  join(" ")
+                ' | while read POD CONTAINER RESTARTS; do
+                  echo "ALERT: pod=$POD container=$CONTAINER restarts=$RESTARTS"
+                  kubectl create event "$POD" \
+                    --namespace="$NAMESPACE" \
+                    --field-selector="involvedObject.name=$POD" \
+                    --type=Warning \
+                    --reason=CrashLoopDetected \
+                    --message="Container $CONTAINER has restarted $RESTARTS times - investigate or circuit breaker will engage at 10 restarts" \
+                    2>/dev/null || true
+              done
+              echo "Alert scan complete."
+            resources:
+              requests:
+                cpu: "10m"
+                memory: "32Mi"
+              limits:
+                cpu: "100m"
+                memory: "128Mi"
+
+---
+# Layer 2 — Circuit breaker: scale to 0 any Deployment whose pods have >= 10 restarts.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: crash-circuit-breaker
+  namespace: ping-devops-cmuir
+  labels:
+    app: ai-demo
+    component: crash-protection
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: crash-circuit-breaker
+          restartPolicy: Never
+          containers:
+          - name: breaker
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              NAMESPACE=ping-devops-cmuir
+              THRESHOLD=10
+
+              # For each pod over the restart threshold, find its owning Deployment
+              # and scale it to 0 replicas.
+              kubectl get pods -n "$NAMESPACE" -o json | \
+                jq -r '
+                  .items[] |
+                  select(
+                    (.status.containerStatuses // []) |
+                    any(.restartCount >= '"$THRESHOLD"')
+                  ) |
+                  # Walk owner refs to find the ReplicaSet → Deployment label
+                  .metadata.labels["app"] as $app |
+                  .metadata.labels["component"] as $component |
+                  [$app, $component] |
+                  join(" ")
+                ' | sort -u | while read APP COMPONENT; do
+                  [ -z "$APP" ] && continue
+
+                  # Find the Deployment matching these labels
+                  DEPLOY=$(kubectl get deployments -n "$NAMESPACE" \
+                    -l "app=$APP,component=$COMPONENT" \
+                    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+
+                  [ -z "$DEPLOY" ] && continue
+
+                  CURRENT=$(kubectl get deployment "$DEPLOY" -n "$NAMESPACE" \
+                    -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+
+                  if [ "$CURRENT" -gt 0 ] 2>/dev/null; then
+                    echo "CIRCUIT BREAKER: scaling $DEPLOY to 0 (was $CURRENT replicas, restart threshold reached)"
+                    kubectl scale deployment "$DEPLOY" -n "$NAMESPACE" --replicas=0
+                    # Emit an event on the deployment so it shows in kubectl describe
+                    kubectl create event "$DEPLOY" \
+                      --namespace="$NAMESPACE" \
+                      --type=Warning \
+                      --reason=CircuitBreakerTripped \
+                      --message="Scaled to 0: pod restart count exceeded $THRESHOLD. Scale back up with: kubectl scale deployment $DEPLOY -n $NAMESPACE --replicas=1" \
+                      2>/dev/null || true
+                  fi
+              done
+              echo "Circuit breaker scan complete."
+            resources:
+              requests:
+                cpu: "10m"
+                memory: "32Mi"
+              limits:
+                cpu: "100m"
+                memory: "128Mi"

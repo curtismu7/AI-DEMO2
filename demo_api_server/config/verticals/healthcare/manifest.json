@@ -1,0 +1,322 @@
+{
+  "id": "healthcare",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "CareConnect",
+    "headerTitle": "CareConnect",
+    "documentTitle": "CareConnect · PingOne AI IAM Core",
+    "logoAlt": "CareConnect logo",
+    "tagline": "AI-Powered Healthcare Demo",
+    "logoPath": "/branding/careconnect-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#0f766e",
+      "--app-primary-red-hover": "#0d6b64",
+      "--app-primary-red-mid": "#14b8a6",
+      "--app-primary-red-border": "#0d9488",
+      "--brand-dashboard-header-start": "#0f766e",
+      "--brand-dashboard-header-end": "#0d9488",
+      "--brand-app-shell-hero-start": "#0f766e",
+      "--brand-app-shell-hero-end": "#0d9488",
+      "--theme-accent": "#14b8a6",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Patient Record",
+    "accounts": "Patient Records",
+    "accountTypes": [
+      "Primary Care",
+      "Specialist",
+      "Mental Health"
+    ],
+    "transaction": "Appointment",
+    "transactions": "Appointments",
+    "transactionTypes": [
+      "Check-in",
+      "Consultation",
+      "Records Release",
+      "Referral"
+    ],
+    "balance": "Coverage",
+    "agent": "Care Assistant",
+    "dashboard": "My Health",
+    "highValueAction": "Records Release",
+    "highValueLabel": "High-sensitivity records release"
+  },
+  "agent": {
+    "persona": "Care Assistant",
+    "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go. What do you need?",
+    "systemPromptFlavor": "You are a PingHealth patient assistant. Help patients view their insurance coverage, check patient records, review appointment history, and understand their benefits. Use healthcare language: accounts are patient records, transactions are appointments, consultations, or referrals, balance is coverage amount. Respond with appropriate care and clarity."
+  },
+  "dashboard": {
+    "kind": "healthcare",
+    "chips": [
+      {
+        "key": "balance",
+        "label": "Check Coverage"
+      },
+      {
+        "key": "accounts",
+        "label": "My Records"
+      },
+      {
+        "key": "transactions",
+        "label": "Appointments"
+      },
+      {
+        "key": "transfer",
+        "label": "Release Records"
+      },
+      {
+        "key": "feature",
+        "label": "Show Health Record"
+      }
+    ],
+    "hero": {
+      "cards": [
+        {
+          "label": "Next Appointment",
+          "dataKey": "heroStats.nextAppointment",
+          "format": "date"
+        },
+        {
+          "label": "Active Prescriptions",
+          "dataKey": "heroStats.activePrescriptions",
+          "format": "count"
+        },
+        {
+          "label": "Outstanding Balance",
+          "dataKey": "heroStats.outstandingBalance",
+          "format": "money"
+        },
+        {
+          "label": "Coverage Status",
+          "dataKey": "heroStats.coverageStatus",
+          "format": "text"
+        }
+      ]
+    },
+    "chips10": [
+      { "id": "hc1", "label": "My records", "message": "my records", "mode": "both", "tool": "view_records" },
+      { "id": "hc2", "label": "Check coverage", "message": "check my coverage", "mode": "both", "tool": "view_coverage" },
+      { "id": "hc3", "label": "My appointments", "message": "my appointments", "mode": "both", "tool": "list_appointments" },
+      { "id": "hc4", "label": "Book an appointment", "message": "book an appointment", "mode": "both", "tool": "book_appointment" },
+      { "id": "hc5", "label": "🔐 Release my records", "message": "release my records", "mode": "both", "hitlTrigger": true, "tool": "release_records" },
+      { "id": "hc-a2a", "label": "🔒 Sensitive records", "message": "access my sensitive patient records", "mode": "both", "tool": "sensitive_patient_records" },
+      { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record" },
+      { "id": "hc6", "label": "What's my deductible?", "message": "check my deductible", "mode": "both" },
+      { "id": "hc7", "label": "Upcoming visits", "message": "upcoming visits", "mode": "both" },
+      { "id": "hc8", "label": "Which providers are in-network?", "message": "Which providers are in-network?", "mode": "llm" },
+      { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "both" },
+      { "id": "hc10", "label": "Do I need a referral?", "message": "Do I need a referral?", "mode": "both" },
+      { "id": "hc-direct", "label": "🔌 Direct MCP", "message": "get my health record", "mode": "direct", "tool": "view_records" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Appointments": [
+        {
+          "id": "hc_next_appt",
+          "label": "Next appointment",
+          "message": "When is my next appointment?"
+        },
+        {
+          "id": "hc_specialists",
+          "label": "Specialist visits",
+          "message": "Show upcoming specialist visits"
+        }
+      ],
+      "Prescriptions": [
+        {
+          "id": "hc_active_rx",
+          "label": "Active prescriptions",
+          "message": "List my active prescriptions"
+        },
+        {
+          "id": "hc_refills",
+          "label": "Refills due",
+          "message": "What prescription refills are due this week?"
+        }
+      ],
+      "Billing": [
+        {
+          "id": "hc_balance",
+          "label": "What do I owe?",
+          "message": "What do I owe from my last visit?"
+        },
+        {
+          "id": "hc_pending",
+          "label": "Pending claims",
+          "message": "Show claims pending insurance review"
+        }
+      ],
+      "Coverage": [
+        {
+          "id": "hc_deductible",
+          "label": "Deductible status",
+          "message": "What's my deductible status this year?"
+        },
+        {
+          "id": "hc_covered",
+          "label": "Is this covered?",
+          "message": "Is a specialist referral covered under my plan?"
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "records:read"
+  },
+  "delegation": {
+    "pageTitle": "Proxy Access",
+    "pageDescription": "Authorize a caregiver or family member to access your health records — powered by RFC 8693 token exchange",
+    "granteeLabel": "caregiver or family member",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Patient Records",  "description": "See record list and details" },
+      "view_balances":     { "label": "View Coverage",         "description": "See insurance coverage details" },
+      "create_deposit":    { "label": "Schedule Appointments", "description": "Book new appointments" },
+      "create_withdrawal": { "label": "Cancel Appointments",   "description": "Cancel existing appointments" },
+      "create_transfer":   { "label": "Release Records",       "description": "Authorize records release to providers" }
+    }
+  },
+  "render": {
+    "view_coverage": { "type": "fieldList", "title": "Coverage", "fields": [ { "label": "Plan", "path": "plan" }, { "label": "Status", "path": "status" }, { "label": "Referral required", "path": "referralRequired" }, { "label": "Out of pocket", "path": "outOfPocket", "format": "money" } ] },
+    "book_appointment": { "type": "card", "title": "Appointment Confirmed", "fields": [ { "label": "Provider", "path": "provider" }, { "label": "Clinic", "path": "clinic" }, { "label": "When", "path": "when", "format": "date" }, { "label": "Reason", "path": "reason" } ] },
+    "list_appointments": { "type": "table", "columns": [ { "label": "Appt #", "path": "id" }, { "label": "Provider", "path": "provider" }, { "label": "When", "path": "when", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "view_claims": { "type": "table", "columns": [ { "label": "Claim #", "path": "id" }, { "label": "Procedure", "path": "procedure" }, { "label": "Date", "path": "date", "format": "date" }, { "label": "Billed", "path": "billed", "format": "money" }, { "label": "Covered", "path": "covered", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "view_billing": { "type": "table", "columns": [ { "label": "Bill #", "path": "id" }, { "label": "Description", "path": "description" }, { "label": "Date", "path": "date", "format": "date" }, { "label": "Amount Due", "path": "amountDue", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "pay_bill": { "type": "card", "title": "Bill Paid", "fields": [ { "label": "Bill", "path": "description" }, { "label": "Amount", "path": "amountDue", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "cancel_appointment": { "type": "card", "title": "Appointment Cancelled", "fields": [ { "label": "Provider", "path": "provider" }, { "label": "When", "path": "when", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "reschedule_appointment": { "type": "card", "title": "Appointment Rescheduled", "fields": [ { "label": "Provider", "path": "provider" }, { "label": "When", "path": "when", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "view_medications": {"type":"table","title":"Current Medications","columns":[{"label":"Medication","path":"name"},{"label":"Dosage","path":"dosage"},{"label":"Frequency","path":"frequency"},{"label":"Status","path":"status"},{"label":"Refills Remaining","path":"refillsRemaining","format":"count"}]},
+    "refill_prescription": {"type":"card","title":"Refill Requested","fields":[{"label":"Medication","path":"name"},{"label":"Dosage","path":"dosage"},{"label":"Status","path":"status"}]},
+    "view_lab_results": {"type":"table","title":"Lab Results","columns":[{"label":"Test","path":"test"},{"label":"Date","path":"date","format":"date"},{"label":"Result","path":"value"},{"label":"Reference Range","path":"referenceRange"},{"label":"Status","path":"status"}]},
+    "view_vitals": {"type":"table","title":"Vital Signs","columns":[{"label":"Type","path":"type"},{"label":"Value","path":"value"},{"label":"Unit","path":"unit"},{"label":"Recorded Date","path":"recordedDate","format":"date"},{"label":"Recorded By","path":"recordedBy"}]},
+    "view_care_team": {"type":"table","title":"My Care Team","columns":[{"label":"Provider","path":"name"},{"label":"Specialty","path":"specialty"},{"label":"Clinic","path":"clinic"},{"label":"Phone","path":"phone"},{"label":"Next Available","path":"nextAvailable","format":"date"}]},
+    "list_messages": {"type":"table","title":"Secure Messages","columns":[{"label":"From","path":"from"},{"label":"Subject","path":"subject"},{"label":"Date","path":"date","format":"date"},{"label":"Status","path":"status"}]},
+    "view_referrals": {"type":"table","title":"My Referrals","columns":[{"label":"Specialty","path":"specialty"},{"label":"Provider","path":"toProvider"},{"label":"Facility","path":"facility"},{"label":"Referred","path":"referredDate","format":"date"},{"label":"Expires","path":"expiryDate","format":"date"},{"label":"Status","path":"status"}]},
+    "view_documents": {"type":"table","title":"My Health Documents","columns":[{"label":"Title","path":"title"},{"label":"Type","path":"type"},{"label":"Date","path":"date","format":"date"},{"label":"Status","path":"status"},{"label":"Uploaded By","path":"uploadedBy"}]},
+    "view_immunizations": {"type":"table","title":"Immunization History","columns":[{"label":"Vaccine","path":"vaccine"},{"label":"Date","path":"date","format":"date"},{"label":"Dose","path":"dose"},{"label":"Manufacturer","path":"manufacturer"},{"label":"Status","path":"status"}]},
+    "view_allergies": {"type":"table","title":"My Allergies","columns":[{"label":"Allergen","path":"allergen"},{"label":"Reaction","path":"reaction"},{"label":"Severity","path":"severity"},{"label":"Status","path":"status"},{"label":"Onset Date","path":"onsetDate","format":"date"}]},
+    "view_dependents": {"type":"table","title":"Covered Dependents","columns":[{"label":"Name","path":"name"},{"label":"Relationship","path":"relationship"},{"label":"Date of Birth","path":"dob","format":"date"},{"label":"Coverage Status","path":"coverageStatus"},{"label":"Plan","path":"plan"}]},
+    "view_care_plan": {"type":"table","title":"Care Plan Goals","columns":[{"label":"Goal","path":"goal"},{"label":"Target","path":"target"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Status","path":"status"},{"label":"Assigned To","path":"assignedTo"}]},
+    "mark_message_read": {"type":"card","title":"Message Marked as Read","fields":[{"label":"Subject","path":"subject"},{"label":"Status","path":"status"}]},
+    "request_document": {"type":"card","title":"Document Request Submitted","fields":[{"label":"Document","path":"title"},{"label":"Type","path":"type"},{"label":"Status","path":"status"}]},
+    "cancel_referral": {"type":"card","title":"Referral Cancelled","fields":[{"label":"Specialty","path":"specialty"},{"label":"Status","path":"status"}]},
+    "view_records": { "type": "table", "columns": [ { "label": "Record ID", "path": "id" }, { "label": "Type", "path": "recordType" }, { "label": "Provider", "path": "provider" }, { "label": "Status", "path": "status" } ] },
+    "release_records": { "type": "card", "title": "Records Released", "fields": [ { "label": "Record", "path": "recordType" }, { "label": "Status", "path": "status" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_health_record",
+    "pageTitle": "Health Record",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#0f766e",
+    "dataKey": "healthRecord",
+    "fields": [
+      {
+        "label": "Record ID",
+        "path": "recordId"
+      },
+      {
+        "label": "Record type",
+        "path": "recordType"
+      },
+      {
+        "label": "Provider",
+        "path": "provider"
+      },
+      {
+        "label": "Facility",
+        "path": "facility"
+      },
+      {
+        "label": "Visit date",
+        "path": "visitDate"
+      },
+      {
+        "label": "Covered amount",
+        "path": "coveredAmount",
+        "format": "money",
+        "accent": true
+      },
+      {
+        "label": "Copay",
+        "path": "copay",
+        "format": "money"
+      },
+      {
+        "label": "Status",
+        "path": "status"
+      },
+      {
+        "label": "Coverage plan",
+        "path": "coveragePlan"
+      }
+    ],
+    "sectionTitle": "Record details",
+    "emptyPrompt": "show health record",
+    "scopeError": "The agent's access token does not carry the records:read scope. Sign out and sign back in to consent to health record access, then try \"Show Health Record\" again."
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

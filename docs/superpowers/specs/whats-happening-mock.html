@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What's Happening - All Floating Modes</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .mode-selector {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .mode-selector label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .radio-input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .dashboard {
+      background: white;
+      border-radius: 8px;
+      padding: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      min-height: 500px;
+      text-align: center;
+    }
+
+    .dashboard h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .dashboard p {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 16px;
+      font-size: 14px;
+      color: #1e40af;
+      margin-top: 30px;
+      display: inline-block;
+    }
+
+    /* ===== FLOATING PANEL STYLES ===== */
+    .floating-panel {
+      position: fixed;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      touch-action: none;
+    }
+
+    .floating-panel.hidden {
+      display: none;
+    }
+
+    /* Embedded mode - top right, fixed */
+    .floating-panel.mode-embedded {
+      width: 340px;
+      height: 500px;
+      top: 100px;
+      right: 40px;
+    }
+
+    /* Float mode - draggable, resizable */
+    .floating-panel.mode-float {
+      width: 420px;
+      height: 500px;
+      right: 80px;
+      bottom: 60px;
+    }
+
+    /* Bottom mode - docked to bottom */
+    .floating-panel.mode-bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 300px;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .panel-header {
+      background: linear-gradient(to right, #2563eb, #1d4ed8);
+      color: white;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: grab;
+      user-select: none;
+      border-radius: 8px 8px 0 0;
+      flex-shrink: 0;
+    }
+
+    .floating-panel.mode-bottom .panel-header {
+      border-radius: 12px 12px 0 0;
+    }
+
+    .panel-header:active {
+      cursor: grabbing;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .panel-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .control-btn {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      padding: 0;
+      font-weight: bold;
+    }
+
+    .control-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .events-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      background: #fafafa;
+    }
+
+    .events-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .events-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .events-container::-webkit-scrollbar-thumb {
+      background: #bbb;
+      border-radius: 3px;
+    }
+
+    .event-card {
+      background: white;
+      border-left: 4px solid #2563eb;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      font-size: 13px;
+    }
+
+    .event-card.agent-thinking { border-left-color: #a855f7; }
+    .event-card.tool-call { border-left-color: #10b981; }
+    .event-card.token-exchange { border-left-color: #f59e0b; }
+    .event-card.result { border-left-color: #06b6d4; }
+
+    .event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .event-timestamp {
+      font-size: 11px;
+      color: #888;
+      font-family: 'Monaco', 'Courier', monospace;
+      white-space: nowrap;
+    }
+
+    .event-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .badge-user-request { background: #dbeafe; color: #1e40af; }
+    .badge-agent-thinking { background: #e9d5ff; color: #6b21a8; }
+    .badge-tool-call { background: #d1fae5; color: #065f46; }
+    .badge-token-exchange { background: #fef3c7; color: #92400e; }
+    .badge-result { background: #cffafe; color: #164e63; }
+
+    .event-plain-english {
+      font-size: 12px;
+      color: #333;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .event-technical {
+      font-size: 10px;
+      background: #f9f9f9;
+      border-left: 2px solid #e0e0e0;
+      padding: 6px;
+      border-radius: 3px;
+      color: #555;
+      font-family: 'Monaco', 'Courier', monospace;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s;
+      line-height: 1.3;
+    }
+
+    .event-technical.expanded { max-height: 150px; }
+
+    .technical-toggle {
+      cursor: pointer;
+      font-size: 10px;
+      color: #2563eb;
+      font-weight: 500;
+      user-select: none;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .technical-toggle:hover { text-decoration: underline; }
+
+    .request-divider {
+      background: #f0f0f0;
+      border-top: 1px dashed #ddd;
+      padding: 6px 12px;
+      margin: 8px 0;
+      font-size: 10px;
+      color: #999;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: se-resize;
+      background: linear-gradient(135deg, transparent 50%, #2563eb 50%);
+      border-radius: 0 0 8px 0;
+    }
+
+    .floating-panel.mode-bottom .resize-handle {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="mode-selector">
+      <label>
+        <input type="radio" name="mode" value="embedded" class="radio-input" checked onchange="switchMode('embedded')">
+        <strong>Embedded</strong> (Default Position)
+      </label>
+      <label>
+        <input type="radio" name="mode" value="float" class="radio-input" onchange="switchMode('float')">
+        <strong>Float</strong> (Draggable)
+      </label>
+      <label>
+        <input type="radio" name="mode" value="bottom" class="radio-input" onchange="switchMode('bottom')">
+        <strong>Bottom</strong> (Docked)
+      </label>
+      <label style="margin-left: auto;">
+        <input type="checkbox" id="show-panel" style="width: 18px; height: 18px;" checked onchange="toggleVisibility()">
+        <strong>Show Panel</strong>
+      </label>
+    </div>
+
+    <div class="dashboard">
+      <h1>Agent Dashboard</h1>
+      <p>This is your full dashboard view.</p>
+      <p style="color: #999; font-size: 14px;">All three display modes are floating windows that don't take up page space.</p>
+      <div class="info-box">
+        💡 Try switching between modes above. In Float mode, drag the header to move it or the corner to resize it.
+      </div>
+    </div>
+  </div>
+
+  <!-- EMBEDDED MODE (Default Position) -->
+  <div class="floating-panel mode-embedded" id="embedded-panel">
+    <div class="panel-header" id="embedded-header">
+      <div class="panel-title">What's Happening</div>
+      <div class="panel-controls">
+        <button class="control-btn" title="Close" onclick="toggleVisibility()">✕</button>
+      </div>
+    </div>
+
+    <div class="events-container">
+      <div class="request-divider">Request started at 18:30:00</div>
+
+      <div class="event-card">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:00</span>
+          <span class="event-badge badge-user-request">User Request</span>
+        </div>
+        <div class="event-plain-english">You asked: "What accounts do I have?"</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">RFC 6750: Bearer token<br>Audience: demo_api_server</div>
+      </div>
+
+      <div class="event-card tool-call">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:02</span>
+          <span class="event-badge badge-tool-call">Tool Call</span>
+        </div>
+        <div class="event-plain-english">Called /accounts API to fetch your accounts.</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">Endpoint: /api/accounts<br>Response: 3 accounts</div>
+      </div>
+
+      <div class="event-card result">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:03</span>
+          <span class="event-badge badge-result">Result</span>
+        </div>
+        <div class="event-plain-english">Agent responded with account details.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOAT MODE (Draggable & Resizable) -->
+  <div class="floating-panel mode-float hidden" id="float-panel" style="touch-action: none;">
+    <div class="panel-header" id="float-header">
+      <div class="panel-title">What's Happening</div>
+      <div class="panel-controls">
+        <button class="control-btn" title="Pop out">⬈</button>
+        <button class="control-btn" title="Close" onclick="toggleVisibility()">✕</button>
+      </div>
+    </div>
+
+    <div class="events-container">
+      <div class="request-divider">Request started at 18:30:00</div>
+
+      <div class="event-card">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:00</span>
+          <span class="event-badge badge-user-request">User Request</span>
+        </div>
+        <div class="event-plain-english">You asked: "What accounts do I have?"</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">RFC 6750: Bearer token<br>Audience: demo_api_server</div>
+      </div>
+
+      <div class="event-card tool-call">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:02</span>
+          <span class="event-badge badge-tool-call">Tool Call</span>
+        </div>
+        <div class="event-plain-english">Called /accounts API to fetch your accounts.</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">Endpoint: /api/accounts<br>Response: 3 accounts</div>
+      </div>
+
+      <div class="event-card result">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:03</span>
+          <span class="event-badge badge-result">Result</span>
+        </div>
+        <div class="event-plain-english">Agent responded with account details.</div>
+      </div>
+    </div>
+
+    <div class="resize-handle"></div>
+  </div>
+
+  <!-- BOTTOM MODE (Docked) -->
+  <div class="floating-panel mode-bottom hidden" id="bottom-panel">
+    <div class="panel-header" id="bottom-header">
+      <div class="panel-title">What's Happening</div>
+      <div class="panel-controls">
+        <button class="control-btn" title="Expand">⬆</button>
+        <button class="control-btn" title="Close" onclick="toggleVisibility()">✕</button>
+      </div>
+    </div>
+
+    <div class="events-container">
+      <div class="request-divider">Request started at 18:30:00</div>
+
+      <div class="event-card">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:00</span>
+          <span class="event-badge badge-user-request">User Request</span>
+        </div>
+        <div class="event-plain-english">You asked: "What accounts do I have?"</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">RFC 6750: Bearer token<br>Audience: demo_api_server</div>
+      </div>
+
+      <div class="event-card tool-call">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:02</span>
+          <span class="event-badge badge-tool-call">Tool Call</span>
+        </div>
+        <div class="event-plain-english">Called /accounts API to fetch your accounts.</div>
+        <div class="technical-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">▶ Details</div>
+        <div class="event-technical">Endpoint: /api/accounts<br>Response: 3 accounts</div>
+      </div>
+
+      <div class="event-card result">
+        <div class="event-header">
+          <span class="event-timestamp">18:30:03</span>
+          <span class="event-badge badge-result">Result</span>
+        </div>
+        <div class="event-plain-english">Agent responded with account details.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentMode = 'embedded';
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    const floatPanel = document.getElementById('float-panel');
+    const floatHeader = document.getElementById('float-header');
+    const embeddedPanel = document.getElementById('embedded-panel');
+    const bottomPanel = document.getElementById('bottom-panel');
+
+    function switchMode(mode) {
+      currentMode = mode;
+
+      embeddedPanel.classList.toggle('hidden', mode !== 'embedded');
+      floatPanel.classList.toggle('hidden', mode !== 'float');
+      bottomPanel.classList.toggle('hidden', mode !== 'bottom');
+    }
+
+    function toggleVisibility() {
+      const showCheckbox = document.getElementById('show-panel');
+      const panels = [embeddedPanel, floatPanel, bottomPanel];
+
+      panels.forEach(panel => {
+        if (!panel.classList.contains('hidden')) {
+          panel.classList.toggle('hidden');
+        }
+      });
+
+      showCheckbox.checked = !showCheckbox.checked;
+    }
+
+    // Dragging for float mode
+    floatHeader.addEventListener('mousedown', (e) => {
+      if (currentMode !== 'float') return;
+      isDragging = true;
+      dragOffsetX = e.clientX - floatPanel.offsetLeft;
+      dragOffsetY = e.clientY - floatPanel.offsetTop;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging && currentMode === 'float') {
+        floatPanel.style.right = 'auto';
+        floatPanel.style.bottom = 'auto';
+        floatPanel.style.left = (e.clientX - dragOffsetX) + 'px';
+        floatPanel.style.top = (e.clientY - dragOffsetY) + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+# Data models for authentication, MCP integration, and chat

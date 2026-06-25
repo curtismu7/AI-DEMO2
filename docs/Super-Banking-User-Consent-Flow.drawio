@@ -1,0 +1,227 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="User Consent Flow" id="user-consent-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — User Consent Flow (High-Value Transaction Approval)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1360" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- RFC Annotations -->
+        <mxCell id="rfc-note" value="RFC References: OAuth 2.0 Transaction Binding (RFC 9396) • Rich Authorization Requests (RFC 9396) • User-Managed Access (UMA) 2.0" style="text;html=1;strokeColor=none;fillColor=#f8f9fa;rounded=1;fontSize=10;fontStyle=2;align=center;" vertex="1" parent="1">
+          <mxGeometry x="20" y="36" width="1360" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Actor header boxes ───────────────────────────────────── -->
+        <mxCell id="actor-agent" value="&lt;b&gt;AI Agent&lt;/b&gt;&lt;br&gt;BankingAgent.js" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="265" y="65" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-consent" value="&lt;b&gt;Consent Service&lt;/b&gt;&lt;br&gt;humanInLoopService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="490" y="65" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-user" value="&lt;b&gt;User&lt;/b&gt;&lt;br&gt;React SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="715" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-human" value="&lt;b&gt;Human Approver&lt;/b&gt;&lt;br&gt;Manager/Admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="65" width="150" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Lifelines ─────────────────────────────────────────────── -->
+        <!-- Agent x=125 -->
+        <mxCell id="life-agent" style="endArrow=none;dashed=1;strokeColor=#9673a6;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="111" as="sourcePoint"/>
+            <mxPoint x="125" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- BFF x=345 -->
+        <mxCell id="life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="111" as="sourcePoint"/>
+            <mxPoint x="345" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- Consent Service x=570 -->
+        <mxCell id="life-consent" style="endArrow=none;dashed=1;strokeColor=#82b366;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="111" as="sourcePoint"/>
+            <mxPoint x="570" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- User x=790 -->
+        <mxCell id="life-user" style="endArrow=none;dashed=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="111" as="sourcePoint"/>
+            <mxPoint x="790" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- Human Approver x=1015 -->
+        <mxCell id="life-human" style="endArrow=none;dashed=1;strokeColor=#b85450;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1015" y="111" as="sourcePoint"/>
+            <mxPoint x="1015" y="880" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Flow Steps ───────────────────────────────────────────── -->
+        
+        <!-- 1. Agent requests high-value transaction -->
+        <mxCell id="step1-request" value="1. Agent requests high-value transaction&lt;br&gt;(e.g., transfer $10,000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step1-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="170" as="sourcePoint"/>
+            <mxPoint x="345" y="170" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. BFF evaluates transaction risk -->
+        <mxCell id="step2-evaluate" value="2. Evaluate transaction risk&lt;br&gt;amount &gt; CONSENT_THRESHOLD ?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="190" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2-decision" value="Yes → Require consent" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="310" y="240" width="70" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step2-arrow-down" style="endArrow=block;startArrow=none;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="230" as="sourcePoint"/>
+            <mxPoint x="345" y="240" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. Create consent request -->
+        <mxCell id="step3-create" value="3. Create consent request&lt;br&gt;{ transactionId, amount, from, to, reason, agentId }&lt;br&gt;&lt;b&gt;RFC: Rich Authorization Requests (RFC 9396)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="270" y="310" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step3-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="370" as="sourcePoint"/>
+            <mxPoint x="570" y="370" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. Store consent request -->
+        <mxCell id="step4-store" value="4. Store consent request&lt;br&gt;Generate consentId&lt;br&gt;Set status: PENDING_APPROVAL&lt;br&gt;&lt;b&gt;Transaction Binding (RFC 9396)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="330" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step4-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="390" as="sourcePoint"/>
+            <mxPoint x="345" y="390" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Notify user of consent required -->
+        <mxCell id="step5-notify" value="5. Notify user consent required&lt;br&gt;Show consent details UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="410" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step5-arrow-user" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="450" as="sourcePoint"/>
+            <mxPoint x="790" y="450" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. User initiates approval -->
+        <mxCell id="step6-initiate" value="6. User initiates approval&lt;br&gt;Click &quot;Request Approval&quot;&lt;br&gt;Select approver (manager)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="470" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step6-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#6c8ebf;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="510" as="sourcePoint"/>
+            <mxPoint x="345" y="510" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. Send approval request -->
+        <mxCell id="step7-approval" value="7. Send approval request&lt;br&gt;POST /consent/{consentId}/request-approval&lt;br&gt;{ approverId, approvalType: HUMAN }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="270" y="530" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="step7-arrow" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="580" as="sourcePoint"/>
+            <mxPoint x="570" y="580" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. Update consent status -->
+        <mxCell id="step8-update" value="8. Update consent status&lt;br&gt;status: AWAITING_HUMAN_APPROVAL&lt;br&gt;Generate approval link/token&lt;br&gt;&lt;b&gt;UMA 2.0 Authorization Server&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="550" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step8-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="610" as="sourcePoint"/>
+            <mxPoint x="345" y="610" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. Notify approver -->
+        <mxCell id="step9-notify-approver" value="9. Notify human approver&lt;br&gt;Send email/approval link&lt;br&gt;Include transaction details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="630" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step9-arrow-human" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="670" as="sourcePoint"/>
+            <mxPoint x="1015" y="670" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10. Human reviews and approves -->
+        <mxCell id="step10-review" value="10. Human reviews transaction&lt;br&gt;• Verify amount &amp; recipient&lt;br&gt;• Check business justification&lt;br&gt;• Approve or reject" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="945" y="690" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step10-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#b85450;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1015" y="750" as="sourcePoint"/>
+            <mxPoint x="570" y="750" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11. Process approval decision -->
+        <mxCell id="step11-process" value="11. Process approval decision&lt;br&gt;{ decision: APPROVED | REJECTED, approverId, timestamp }&lt;br&gt;&lt;b&gt;Audit Trail Required&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="495" y="730" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="step11-arrow-back" style="endArrow=block;startArrow=block;curved=1;strokeColor=#82b366;strokeWidth=2;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="790" as="sourcePoint"/>
+            <mxPoint x="345" y="790" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 12. Execute or reject transaction -->
+        <mxCell id="step12-execute" value="12. Execute or reject transaction&lt;br&gt;APPROVED → Execute transfer&lt;br&gt;REJECTED → Return error to agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="275" y="810" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="step12-arrow-final" style="endArrow=block;startArrow=block;curved=1;strokeColor=#d6b656;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="850" as="sourcePoint"/>
+            <mxPoint x="125" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 13. Return result to agent -->
+        <mxCell id="step13-result" value="13. Return transaction result&lt;br&gt;Success: Transaction ID&lt;br&gt;Failure: Rejection reason" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="830" width="130" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Security and Compliance Annotations -->
+        <mxCell id="compliance-annotation" value="🔒 Security &amp; Compliance:&lt;br&gt• Transaction binding prevents replay&lt;br&gt• Human approval creates audit trail&lt;br&gt• Separation of duties enforced&lt;br&gt• Configurable approval thresholds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#666666;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="400" width="200" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Configuration Box -->
+        <mxCell id="config-box" value="⚙️ Configuration:&lt;br&gt• CONSENT_THRESHOLD (default: $5000)&lt;br&gt• APPROVAL_TIMEOUT (default: 24h)&lt;br&gt• REQUIRED_APPROVERS (role-based)&lt;br&gt• NOTIFICATION_CHANNELS (email, SMS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6b656;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="250" width="200" height="100" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

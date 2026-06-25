@@ -1,0 +1,260 @@
+.auth-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 4px;
+  font-size: 14px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* USER ERROR: Warning yellow/orange */
+.auth-error-banner.user {
+  background-color: #fef3cd;
+  border: 1px solid #ffc107;
+  color: #664d03;
+}
+
+.auth-error-banner.user h3 {
+  color: #664d03;
+  margin: 0 0 0.5rem 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-error-banner.user p {
+  margin: 0;
+  color: #856404;
+}
+
+/* TRANSIENT ERROR: Info blue */
+.auth-error-banner.transient {
+  background-color: #d1ecf1;
+  border: 1px solid #17a2b8;
+  color: #0c5460;
+}
+
+.auth-error-banner.transient h3 {
+  color: #0c5460;
+  margin: 0 0 0.5rem 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-error-banner.transient p {
+  margin: 0;
+  color: #0c5460;
+}
+
+.auth-error-banner.transient .banner-icon.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* CONFIG ERROR: Danger red */
+.auth-error-banner.config {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.auth-error-banner.config h3 {
+  color: #721c24;
+  margin: 0 0 0.5rem 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-error-banner.config p {
+  margin: 0.5rem 0 0 0;
+  color: #721c24;
+}
+
+.auth-error-banner.config code {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.banner-details {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.banner-details small {
+  opacity: 0.8;
+}
+
+/* UNKNOWN ERROR: Dark gray */
+.auth-error-banner.unknown {
+  background-color: #e2e3e5;
+  border: 1px solid #d3d6d8;
+  color: #383d41;
+}
+
+.auth-error-banner.unknown h3 {
+  color: #383d41;
+  margin: 0 0 0.5rem 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-error-banner.unknown p {
+  margin: 0;
+  color: #383d41;
+}
+
+.auth-error-banner.unknown code {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+/* Content layout */
+.banner-content {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  gap: 1rem;
+}
+
+.banner-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner-text {
+  flex: 1;
+}
+
+/* Actions */
+.banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Primary button (matches current theme) */
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border: 1px solid #007bff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+/* Secondary button */
+.btn-secondary {
+  background-color: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Text button (close/dismiss) */
+.btn-text {
+  background: none;
+  color: inherit;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.btn-text:hover:not(:disabled) {
+  opacity: 0.7;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .auth-error-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .banner-actions {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-error-banner {
+    padding: 0.75rem;
+  }
+
+  .banner-icon {
+    font-size: 20px;
+  }
+
+  .banner-text h3 {
+    font-size: 14px;
+  }
+
+  .banner-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    min-width: unset;
+  }
+}

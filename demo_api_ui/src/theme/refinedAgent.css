@@ -1,0 +1,66 @@
+/* refinedAgent.css — institutional restyle of the embedded dock CHROME only.
+   Reads --rd-* (from refinedSurface.css, scoped to [data-refined-surface="customer"])
+   + per-vertical --theme-accent (global on :root). Visual only — no layout/size/
+   behavior (those live in App.css / BankingAgent.css and are §1-protected).
+
+   Render contexts (verified):
+     1. Inside the dashboard surface (UserDashboard.js, under
+        [data-refined-surface="customer"]) — --rd-* resolve via inheritance.
+     2. App-level, OUTSIDE the surface (App.js, non-dashboard routes) — --rd-*
+        do NOT resolve, so every var() below carries a literal fallback, and the
+        accent uses --theme-accent (global :root) so per-vertical theming holds
+        even outside the surface. The institutional fallbacks carry the rest.
+
+   Specificity: the live competitors are
+     .global-embedded-agent-dock-wrap            (App.css)            → (0,1,0)
+     .embedded-agent-dock__toolbar               (App.css)            → (0,1,0)
+     .embedded-agent-dock__title                 (App.css, BankingAgent.css) → (0,1,0)
+   The compound wrapper class and the descendant chains below are (0,2,0)+, so
+   they win regardless of load order. (Marketing-page rules are gated on
+   .App--marketing-page and never apply on the dashboard routes this dock uses.)
+   The base wrapper already declares position: relative (App.css), so the
+   ::before seam is safe — we re-declare it for the out-of-surface app-level
+   render where only this file may be present. */
+
+.global-embedded-agent-dock-wrap.refined-dock {
+  position: relative;                 /* harmless — matches App.css base; needed for ::before seam */
+  background: var(--rd-surface, #fffefb);
+  border-top: 1px solid var(--rd-line-strong, #d4cdbf);
+}
+
+/* Thin accent seam at the very top — per-vertical accent fading into gold. */
+.global-embedded-agent-dock-wrap.refined-dock::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--theme-accent, #1b3a6b),
+    var(--rd-gold, #9a7b3f) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* Toolbar — quiet paper-to-sunk gradient instead of the flat brand gray. */
+.global-embedded-agent-dock-wrap.refined-dock .embedded-agent-dock__toolbar {
+  background: linear-gradient(
+    180deg,
+    var(--rd-surface, #fffefb),
+    var(--rd-surface-sunk, #f1eee7)
+  );
+  border-bottom: 1px solid var(--rd-line, #e3ddd2);
+  border-left: 4px solid var(--theme-accent, #1b3a6b);
+}
+
+/* Title — serif display, ink, no uppercase shoutiness. */
+.global-embedded-agent-dock-wrap.refined-dock .embedded-agent-dock__title {
+  font-family: var(--rd-font-display, "Fraunces", Georgia, serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--rd-ink, #1a1a17);
+}

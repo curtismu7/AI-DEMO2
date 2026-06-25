@@ -1,0 +1,7 @@
+.vercel
+
+# Real-login E2E credentials (never commit)
+tests/e2e/.env.e2e
+# Cached auth sessions from saveCustomerSession()
+tests/e2e/.auth/
+playwright-report-real/

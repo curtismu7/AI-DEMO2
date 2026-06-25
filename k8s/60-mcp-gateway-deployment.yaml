@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-gateway
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-gateway
+spec:
+  replicas: 1
+  # Zero-downtime rollouts: bring new pod healthy before terminating old one.
+  # maxSurge:1 transiently adds one pod (100m CPU / 128Mi) during rollouts only —
+  # well within the 8 CPU quota (k8s/01-namespace.yaml). maxUnavailable:0 ensures
+  # the gateway is never fully down during a deploy.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-gateway
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-gateway
+    spec:
+      containers:
+      - name: mcp-gateway
+        image: ai-demo-mcp-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3005
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: MCP_GW_PORT
+          value: "3005"
+        # NB: the gateway reads MCP_OLB_WS_URL / MCP_INVEST_WS_URL (NOT the
+        # MCP_GW_*-prefixed names). Those backend URLs are set in the
+        # ai-demo-config configmap so every consumer gets the in-cluster value.
+        - name: MCP_GW_PASSTHROUGH_TO_MCP_SERVER
+          value: "false"
+        # Talk to the authz sidecar (below) over IPv4 loopback. Overrides the
+        # gateway-secrets value (http://localhost:9001): in the pod, `localhost`
+        # resolves to ::1 first (Node verbatim DNS) but the sidecar binds
+        # 127.0.0.1 only, so `localhost` is refused — pin to 127.0.0.1.
+        - name: PINGAUTHORIZE_ENDPOINT
+          value: "http://127.0.0.1:9001"
+        - name: GW_INTROSPECTION_ENDPOINT
+          value: "http://127.0.0.1:9001/as/introspect"
+        # gateway-secrets supplies MCP_GW_CLIENT_ID/SECRET, PINGONE_* (from
+        # demo_mcp_gateway/.env, same as compose's env_file). configmap last.
+        envFrom:
+        - secretRef:
+            name: gateway-secrets
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        # startupProbe gates liveness/readiness until the process is actually up.
+        # Gives 60s (30 × 2s) for Node to initialise before k8s marks it failing.
+        # Once it passes once, liveness takes over; it never fires again.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3005
+          failureThreshold: 30
+          periodSeconds: 2
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3005
+          initialDelaySeconds: 0
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3005
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      # Authorization Server (mock PingOne Authorize) as a sidecar. The gateway
+      # reaches it over the shared pod loopback at http://127.0.0.1:9001 (see the
+      # PINGAUTHORIZE_ENDPOINT override above). The server binds 127.0.0.1, so
+      # probes must run inside the container's netns (exec); an httpGet probe
+      # dials the pod IP and would be refused.
+      - name: authz-server
+        image: ai-demo-authz-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9001
+          name: authz
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: AUTHZ_PORT
+          value: "9001"
+        # Reuse the gateway's PingOne creds + PINGAUTHORIZE_* config. dotenv falls
+        # back to process.env when no .env file is present in the image.
+        envFrom:
+        - secretRef:
+            name: gateway-secrets
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "25m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        # No liveness probe — authz-server is a loopback-only sidecar.
+        # restartPolicy:Always handles crashes; a liveness probe only adds
+        # a spurious kill path with no recovery benefit.
+        readinessProbe:
+          exec:
+            command: ["wget", "-qO-", "http://127.0.0.1:9001/health"]
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-gateway
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-gateway
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3005
+    targetPort: 3005
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: mcp-gateway

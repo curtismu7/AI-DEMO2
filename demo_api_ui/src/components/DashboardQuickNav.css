@@ -1,0 +1,119 @@
+/* banking_api_ui/src/components/DashboardQuickNav.css — left rail; odd = brand red, even = blue */
+
+.dashboard-quick-nav {
+  position: fixed;
+  top: var(--stack-fab-top-quick-nav, 116px);
+  left: var(--float-edge, 28px);
+  z-index: 1001;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: var(--stack-fab-used-width, min(220px, calc(100vw - 56px)));
+  max-width: var(--stack-fab-viewport-max, 100vw);
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
+}
+
+.dashboard-quick-nav__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--stack-fab-height, 44px);
+  height: var(--stack-fab-height, 44px);
+  padding: 0 12px;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+  text-decoration: none !important;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.15s, border-color 0.2s;
+  user-select: none;
+}
+
+.dashboard-quick-nav a.dashboard-quick-nav__btn,
+.dashboard-quick-nav a.dashboard-quick-nav__btn:visited,
+.dashboard-quick-nav a.dashboard-quick-nav__btn:hover,
+.dashboard-quick-nav a.dashboard-quick-nav__btn:active {
+  text-decoration: none !important;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+/* Odd: red · Even: blue (no teal/green) */
+.dashboard-quick-nav__btn:first-child {
+  border-top: none;
+  border-radius: 8px 8px 0 0;
+}
+
+.dashboard-quick-nav__btn:nth-child(odd) {
+  background: var(--app-primary-red);
+}
+
+.dashboard-quick-nav__btn:nth-child(even) {
+  background: var(--brand-navy);
+}
+
+.dashboard-quick-nav__btn:nth-child(odd):hover {
+  background: var(--app-primary-red-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(127, 29, 29, 0.16);
+  transform: translateY(-1px);
+}
+
+.dashboard-quick-nav__btn:nth-child(even):hover {
+  background: var(--brand-navy);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  transform: translateY(-1px);
+}
+
+.dashboard-quick-nav__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.dashboard-quick-nav__btn:active {
+  transform: scale(0.98);
+}
+
+.dashboard-quick-nav__btn--active:nth-child(odd) {
+  background: var(--app-primary-red-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dashboard-quick-nav__btn--active:nth-child(even) {
+  background: var(--brand-navy);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dashboard-quick-nav__btn--active:hover {
+  filter: brightness(1.03);
+}
+
+@media (max-width: 480px) {
+  .dashboard-quick-nav {
+    left: var(--float-edge, 12px);
+  }
+
+  .dashboard-quick-nav__btn {
+    font-size: 0.75rem;
+  }
+}

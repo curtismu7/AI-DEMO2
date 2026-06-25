@@ -1,0 +1,588 @@
+{
+  "permits": [
+    {
+      "id": "P-1001",
+      "permitType": "Building",
+      "subject": "1234 Maple Street, Springfield, IL",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2026-02-10",
+      "expiresDate": "2026-12-01",
+      "status": "Active",
+      "inspector": "M. Alvarez (Code Enforcement)"
+    },
+    {
+      "id": "P-1002",
+      "permitType": "Business",
+      "subject": "Maple Cafe LLC",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2025-09-15",
+      "expiresDate": "2026-09-15",
+      "status": "Active",
+      "inspector": "—"
+    },
+    {
+      "id": "P-1003",
+      "permitType": "Professional",
+      "subject": "General Contractor License",
+      "jurisdiction": "State of Illinois",
+      "issuedDate": "2024-07-01",
+      "expiresDate": "2026-07-01",
+      "status": "Renewal Due",
+      "inspector": "—"
+    },
+    {
+      "id": "P-1004",
+      "permitType": "Building",
+      "subject": "88 Oak Avenue — deck addition",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2025-05-20",
+      "expiresDate": "2025-11-20",
+      "status": "Released",
+      "inspector": "T. Nguyen (Code Enforcement)"
+    }
+  ],
+  "fees": {
+    "total": 240,
+    "oldestDue": "2026-06-01",
+    "items": [
+      {
+        "id": "FEE-9001",
+        "permitId": "P-1001",
+        "description": "Building inspection fee",
+        "amount": 150,
+        "due": "2026-06-01",
+        "status": "Outstanding"
+      },
+      {
+        "id": "FEE-9002",
+        "permitId": "P-1003",
+        "description": "License renewal fee",
+        "amount": 90,
+        "due": "2026-07-01",
+        "status": "Outstanding"
+      }
+    ]
+  },
+  "filings": [
+    {
+      "id": "F-5001",
+      "type": "Application",
+      "permitId": "P-1001",
+      "date": "2026-02-02",
+      "status": "Approved"
+    },
+    {
+      "id": "F-5002",
+      "type": "Inspection",
+      "permitId": "P-1001",
+      "date": "2026-05-10",
+      "status": "Passed"
+    },
+    {
+      "id": "F-5003",
+      "type": "Renewal",
+      "permitId": "P-1003",
+      "date": "2026-05-28",
+      "status": "Pending"
+    },
+    {
+      "id": "F-5004",
+      "type": "Records Release",
+      "permitId": "P-1004",
+      "date": "2025-11-22",
+      "status": "Completed"
+    }
+  ],
+  "inspections": [
+    {
+      "id": "INS-3001",
+      "permitId": "P-1001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "type": "Framing",
+      "scheduledDate": "2026-06-15",
+      "status": "Passed",
+      "inspector": "M. Alvarez"
+    },
+    {
+      "id": "INS-3002",
+      "permitId": "P-1001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "type": "Electrical",
+      "scheduledDate": "2026-07-10",
+      "status": "Scheduled",
+      "inspector": "T. Nguyen"
+    },
+    {
+      "id": "INS-3003",
+      "permitId": "P-1004",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "type": "Final",
+      "scheduledDate": "2025-11-18",
+      "status": "Failed",
+      "inspector": "R. Patel"
+    },
+    {
+      "id": "INS-3004",
+      "permitId": "P-1001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "type": "Foundation",
+      "scheduledDate": "2026-03-05",
+      "status": "Passed",
+      "inspector": "M. Alvarez"
+    },
+    {
+      "id": "INS-3005",
+      "permitId": "P-1004",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "type": "Deck Structure",
+      "scheduledDate": "2025-08-22",
+      "status": "Passed",
+      "inspector": "T. Nguyen"
+    }
+  ],
+  "violations": [
+    {
+      "id": "VIO-7001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "description": "Unpermitted deck construction",
+      "caseNumber": "CE-2025-0441",
+      "openedDate": "2025-06-10",
+      "status": "Resolved",
+      "officer": "M. Alvarez"
+    },
+    {
+      "id": "VIO-7002",
+      "address": "22 Birch Lane, Springfield, IL",
+      "description": "Overgrown vegetation blocking sidewalk",
+      "caseNumber": "CE-2026-0117",
+      "openedDate": "2026-03-22",
+      "status": "Open",
+      "officer": "R. Patel"
+    },
+    {
+      "id": "VIO-7003",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "description": "Junk vehicle on property",
+      "caseNumber": "CE-2025-0899",
+      "openedDate": "2025-09-01",
+      "status": "Closed",
+      "officer": "T. Nguyen"
+    },
+    {
+      "id": "VIO-7004",
+      "address": "1234 Maple Street, Springfield, IL",
+      "description": "Fence height exceeds zoning limit",
+      "caseNumber": "CE-2026-0205",
+      "openedDate": "2026-04-15",
+      "status": "Under Review",
+      "officer": "M. Alvarez"
+    },
+    {
+      "id": "VIO-7005",
+      "address": "500 Elm Court, Springfield, IL",
+      "description": "Exterior paint non-compliant with historic overlay",
+      "caseNumber": "CE-2025-1002",
+      "openedDate": "2025-10-30",
+      "status": "Closed",
+      "officer": "R. Patel"
+    }
+  ],
+  "businessLicenses": [
+    {
+      "id": "BL-6001",
+      "businessName": "Maple Cafe LLC",
+      "licenseType": "Food Service",
+      "issuedDate": "2025-09-15",
+      "expiresDate": "2026-09-15",
+      "status": "Active",
+      "licenseNumber": "FS-2025-00341"
+    },
+    {
+      "id": "BL-6002",
+      "businessName": "Maple Cafe LLC",
+      "licenseType": "Retail Alcohol",
+      "issuedDate": "2025-09-15",
+      "expiresDate": "2026-09-15",
+      "status": "Active",
+      "licenseNumber": "RA-2025-00102"
+    },
+    {
+      "id": "BL-6003",
+      "businessName": "Springfield Contracting Co.",
+      "licenseType": "General Contractor",
+      "issuedDate": "2024-07-01",
+      "expiresDate": "2026-07-01",
+      "status": "Renewal Due",
+      "licenseNumber": "GC-2024-00788"
+    },
+    {
+      "id": "BL-6004",
+      "businessName": "Oak Ave Pet Grooming",
+      "licenseType": "Animal Services",
+      "issuedDate": "2023-03-01",
+      "expiresDate": "2025-03-01",
+      "status": "Expired",
+      "licenseNumber": "AS-2023-00055"
+    },
+    {
+      "id": "BL-6005",
+      "businessName": "Elm Court Realty LLC",
+      "licenseType": "Real Estate Brokerage",
+      "issuedDate": "2026-01-10",
+      "expiresDate": "2028-01-10",
+      "status": "Active",
+      "licenseNumber": "RE-2026-00019"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "APT-4001",
+      "service": "Building Permit Consultation",
+      "date": "2026-07-08",
+      "time": "10:00 AM",
+      "location": "City Hall — Room 204",
+      "status": "Confirmed"
+    },
+    {
+      "id": "APT-4002",
+      "service": "Records Request Pickup",
+      "date": "2026-07-15",
+      "time": "2:00 PM",
+      "location": "Clerk's Office — Counter 3",
+      "status": "Confirmed"
+    },
+    {
+      "id": "APT-4003",
+      "service": "Business License Renewal",
+      "date": "2026-06-25",
+      "time": "9:30 AM",
+      "location": "City Hall — Room 112",
+      "status": "Completed"
+    },
+    {
+      "id": "APT-4004",
+      "service": "Zoning Variance Hearing",
+      "date": "2026-08-01",
+      "time": "1:00 PM",
+      "location": "City Hall — Council Chambers",
+      "status": "Scheduled"
+    },
+    {
+      "id": "APT-4005",
+      "service": "Code Violation Compliance Review",
+      "date": "2026-05-20",
+      "time": "11:00 AM",
+      "location": "City Hall — Room 204",
+      "status": "Completed"
+    }
+  ],
+  "taxAssessments": [
+    {
+      "id": "TAX-2001",
+      "parcel": "17-22-401-001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "taxYear": 2025,
+      "assessedValue": 218000,
+      "taxDue": 4360,
+      "dueDate": "2026-06-01",
+      "status": "Paid"
+    },
+    {
+      "id": "TAX-2002",
+      "parcel": "17-22-401-001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "taxYear": 2026,
+      "assessedValue": 224000,
+      "taxDue": 4480,
+      "dueDate": "2027-06-01",
+      "status": "Pending"
+    },
+    {
+      "id": "TAX-2003",
+      "parcel": "17-22-305-012",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "taxYear": 2025,
+      "assessedValue": 183000,
+      "taxDue": 3660,
+      "dueDate": "2026-06-01",
+      "status": "Paid"
+    },
+    {
+      "id": "TAX-2004",
+      "parcel": "17-22-305-012",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "taxYear": 2026,
+      "assessedValue": 187500,
+      "taxDue": 3750,
+      "dueDate": "2027-06-01",
+      "status": "Pending"
+    },
+    {
+      "id": "TAX-2005",
+      "parcel": "17-22-110-088",
+      "address": "500 Elm Court, Springfield, IL",
+      "taxYear": 2026,
+      "assessedValue": 295000,
+      "taxDue": 5900,
+      "dueDate": "2027-06-01",
+      "status": "Overdue"
+    }
+  ],
+  "recordsRequests": [
+    {
+      "id": "RR-8001",
+      "requestType": "Property History",
+      "description": "Full permit history for 1234 Maple Street",
+      "submittedDate": "2026-05-01",
+      "estimatedReady": "2026-05-15",
+      "status": "Fulfilled"
+    },
+    {
+      "id": "RR-8002",
+      "requestType": "FOIA Request",
+      "description": "Code enforcement case file CE-2026-0117",
+      "submittedDate": "2026-06-01",
+      "estimatedReady": "2026-06-29",
+      "status": "In Review"
+    },
+    {
+      "id": "RR-8003",
+      "requestType": "Zoning Map",
+      "description": "Zoning classification for parcel 17-22-401-001",
+      "submittedDate": "2026-04-10",
+      "estimatedReady": "2026-04-17",
+      "status": "Fulfilled"
+    },
+    {
+      "id": "RR-8004",
+      "requestType": "Business License History",
+      "description": "All licenses for Maple Cafe LLC since 2020",
+      "submittedDate": "2026-05-20",
+      "estimatedReady": "2026-06-03",
+      "status": "Fulfilled"
+    },
+    {
+      "id": "RR-8005",
+      "requestType": "Meeting Minutes",
+      "description": "City council meeting minutes June 2025",
+      "submittedDate": "2026-03-12",
+      "estimatedReady": "2026-03-26",
+      "status": "Fulfilled"
+    }
+  ],
+  "complaints": [
+    {
+      "id": "CMP-1101",
+      "category": "Noise",
+      "description": "Loud construction before 7 AM at 1234 Maple Street",
+      "reportedDate": "2026-05-28",
+      "address": "1234 Maple Street, Springfield, IL",
+      "status": "Under Review"
+    },
+    {
+      "id": "CMP-1102",
+      "category": "Zoning",
+      "description": "Commercial signage exceeds size limit",
+      "reportedDate": "2026-04-12",
+      "address": "501 Commerce Blvd, Springfield, IL",
+      "status": "Closed"
+    },
+    {
+      "id": "CMP-1103",
+      "category": "Pothole",
+      "description": "Large pothole in front of 88 Oak Avenue",
+      "reportedDate": "2026-06-05",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "status": "Assigned"
+    },
+    {
+      "id": "CMP-1104",
+      "category": "Abandoned Vehicle",
+      "description": "Derelict sedan on south side of Elm Court",
+      "reportedDate": "2026-03-19",
+      "address": "500 Elm Court, Springfield, IL",
+      "status": "Resolved"
+    },
+    {
+      "id": "CMP-1105",
+      "category": "Illegal Dumping",
+      "description": "Dumped appliances in vacant lot",
+      "reportedDate": "2026-05-15",
+      "address": "22 Birch Lane, Springfield, IL",
+      "status": "Under Review"
+    }
+  ],
+  "documents": [
+    {
+      "id": "DOC-5501",
+      "title": "Building Permit Certificate — P-1001",
+      "relatedId": "P-1001",
+      "uploadedDate": "2026-02-10",
+      "fileType": "PDF",
+      "status": "Available"
+    },
+    {
+      "id": "DOC-5502",
+      "title": "Inspection Report — INS-3001 Framing",
+      "relatedId": "INS-3001",
+      "uploadedDate": "2026-06-16",
+      "fileType": "PDF",
+      "status": "Available"
+    },
+    {
+      "id": "DOC-5503",
+      "title": "Business License — Maple Cafe LLC",
+      "relatedId": "BL-6001",
+      "uploadedDate": "2025-09-16",
+      "fileType": "PDF",
+      "status": "Available"
+    },
+    {
+      "id": "DOC-5504",
+      "title": "Records Request Fulfillment — RR-8001",
+      "relatedId": "RR-8001",
+      "uploadedDate": "2026-05-16",
+      "fileType": "ZIP",
+      "status": "Available"
+    },
+    {
+      "id": "DOC-5505",
+      "title": "Violation Notice — VIO-7002",
+      "relatedId": "VIO-7002",
+      "uploadedDate": "2026-03-23",
+      "fileType": "PDF",
+      "status": "Available"
+    }
+  ],
+  "payments": [
+    {
+      "id": "PAY-0201",
+      "description": "Building inspection fee — FEE-9001",
+      "amount": 150,
+      "paidDate": "2026-06-03",
+      "method": "Credit Card",
+      "status": "Confirmed"
+    },
+    {
+      "id": "PAY-0202",
+      "description": "Business license renewal — BL-6003",
+      "amount": 225,
+      "paidDate": "2026-06-25",
+      "method": "ACH Transfer",
+      "status": "Confirmed"
+    },
+    {
+      "id": "PAY-0203",
+      "description": "Records request fee — RR-8001",
+      "amount": 35,
+      "paidDate": "2026-05-01",
+      "method": "Credit Card",
+      "status": "Confirmed"
+    },
+    {
+      "id": "PAY-0204",
+      "description": "Tax assessment installment — TAX-2001",
+      "amount": 2180,
+      "paidDate": "2026-05-30",
+      "method": "ACH Transfer",
+      "status": "Confirmed"
+    },
+    {
+      "id": "PAY-0205",
+      "description": "Zoning variance application fee",
+      "amount": 400,
+      "paidDate": "2026-06-10",
+      "method": "Credit Card",
+      "status": "Confirmed"
+    }
+  ],
+  "zoningInfo": [
+    {
+      "id": "ZON-9901",
+      "parcel": "17-22-401-001",
+      "address": "1234 Maple Street, Springfield, IL",
+      "zoneCode": "R-1",
+      "zoneDescription": "Single-Family Residential",
+      "overlay": "None",
+      "lastReviewed": "2025-01-15"
+    },
+    {
+      "id": "ZON-9902",
+      "parcel": "17-22-305-012",
+      "address": "88 Oak Avenue, Springfield, IL",
+      "zoneCode": "R-2",
+      "zoneDescription": "Two-Family Residential",
+      "overlay": "None",
+      "lastReviewed": "2025-01-15"
+    },
+    {
+      "id": "ZON-9903",
+      "parcel": "17-22-110-088",
+      "address": "500 Elm Court, Springfield, IL",
+      "zoneCode": "C-1",
+      "zoneDescription": "Neighborhood Commercial",
+      "overlay": "Historic District",
+      "lastReviewed": "2025-03-20"
+    },
+    {
+      "id": "ZON-9904",
+      "parcel": "17-22-712-004",
+      "address": "22 Birch Lane, Springfield, IL",
+      "zoneCode": "R-3",
+      "zoneDescription": "Multi-Family Residential",
+      "overlay": "Flood Plain Zone A",
+      "lastReviewed": "2024-11-10"
+    },
+    {
+      "id": "ZON-9905",
+      "parcel": "17-22-801-055",
+      "address": "501 Commerce Blvd, Springfield, IL",
+      "zoneCode": "C-2",
+      "zoneDescription": "General Commercial",
+      "overlay": "None",
+      "lastReviewed": "2025-06-01"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "NOT-0011",
+      "subject": "Inspection Scheduled — INS-3002",
+      "message": "Your electrical inspection is confirmed for July 10, 2026 at 10:00 AM.",
+      "date": "2026-06-18",
+      "category": "Inspection",
+      "read": false
+    },
+    {
+      "id": "NOT-0012",
+      "subject": "Fee Due — FEE-9002",
+      "message": "License renewal fee of $90.00 is due by July 1, 2026.",
+      "date": "2026-06-10",
+      "category": "Fee",
+      "read": false
+    },
+    {
+      "id": "NOT-0013",
+      "subject": "Permit Renewal Reminder — P-1003",
+      "message": "Your General Contractor License expires in 12 days. Please submit a renewal.",
+      "date": "2026-06-19",
+      "category": "Permit",
+      "read": false
+    },
+    {
+      "id": "NOT-0014",
+      "subject": "Violation Notice — VIO-7002",
+      "message": "A new code enforcement case CE-2026-0117 has been opened at 22 Birch Lane.",
+      "date": "2026-03-22",
+      "category": "Violation",
+      "read": true
+    },
+    {
+      "id": "NOT-0015",
+      "subject": "Records Request Ready — RR-8001",
+      "message": "Your property history records are ready for pickup at the Clerk's Office.",
+      "date": "2026-05-16",
+      "category": "Records",
+      "read": true
+    }
+  ]
+}

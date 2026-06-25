@@ -1,0 +1,1040 @@
+{
+  "$schema": "./scope-topology.schema.json",
+  "version": 3,
+  "deployment": {
+    "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only.",
+    "environments": {
+      "local": {
+        "publicAppUrl": "https://api.ping.demo:4000",
+        "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp"
+      },
+      "k8s": {
+        "publicAppUrl": "https://ai-demo.ping-devops.com",
+        "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp"
+      }
+    },
+    "redirectUris": {
+      "_comment": "Derived from publicAppUrl by configStore at startup. Uncomment and set manually only to override auto-derivation.",
+      "adminCallback": "/api/auth/oauth/callback",
+      "userCallback": "/api/auth/oauth/user/callback"
+    }
+  },
+  "provisioning": {
+    "appPrefix": "Demo AI App",
+    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate" },
+    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent" }
+  },
+  "scopes": {
+    "read": { "description": "Read accounts, balances, transactions", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
+    "write": { "description": "Write operations (deposit/withdrawal/transfer)", "riskLevel": "high", "resource": "Super Banking API", "category": "data" },
+    "transfer": { "description": "Execute fund transfers", "riskLevel": "high", "resource": "Super Banking API", "category": "data" },
+    "accounts:read": { "description": "Read account information and balances", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
+    "transactions:read": { "description": "Read transaction history and details", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
+    "mortgage:read": { "description": "Read mortgage/feature-specific data (banking vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "largepurchase:read": { "description": "Read large purchase data (retail vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "records:read": { "description": "Read health record data (healthcare vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "gear:read": { "description": "Read gear order data (sporting-goods vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "expense:read": { "description": "Read expense report data (workforce vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "permits:read": { "description": "Read permit status data (government vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "transcript:read": { "description": "Read enrollment/transcript status data (university vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "invest:read": { "description": "Read investment accounts, balances, and portfolio summaries (A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
+    "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },
+    "agent:invoke": { "description": "Invoke the Agent Gateway (Two-Exchange Step 1 audience)", "riskLevel": "medium", "resource": "Super Banking Agent Gateway", "category": "infra" },
+    "ai_agent": { "description": "AI agent identity", "riskLevel": "medium", "resource": "Super Banking API", "category": "ai" },
+    "admin:read": { "description": "Read access to administrative data", "riskLevel": "medium", "resource": "Super Banking API", "category": "admin" },
+    "admin:write": { "description": "Write access to administrative operations", "riskLevel": "high", "resource": "Super Banking API", "category": "admin" },
+    "admin:delete": { "description": "Delete operations for administrative tasks", "riskLevel": "critical", "resource": "Super Banking API", "category": "admin" },
+    "users:read": { "description": "Read access to user management data", "riskLevel": "medium", "resource": "Super Banking API", "category": "admin" },
+    "users:manage": { "description": "Full user management capabilities", "riskLevel": "high", "resource": "Super Banking API", "category": "admin" },
+    "workorders:read": { "description": "Read Work Order Status data (manufacturing vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "sensitive:read": { "description": "Read sensitive account details (full account/routing numbers) — requires user consent", "riskLevel": "high", "resource": "Super Banking API", "category": "data" }
+  },
+  "resources": {
+    "Super Banking API": {
+      "uri": "enduser.ping.demo",
+      "scopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+    },
+    "Super Banking MCP Server": {
+      "uri": "mcpserver.ping.demo",
+      "scopes": ["mcp:invoke"],
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+    },
+    "Super Banking MCP Gateway": {
+      "uri": "mcpgateway.ping.demo",
+      "scopes": ["mcp:invoke"],
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read"]
+    },
+    "Super Banking Agent Gateway": {
+      "uri": "agentgateway.ping.demo",
+      "scopes": ["agent:invoke"]
+    },
+    "Super Banking A2A Intermediate": {
+      "uri": "a2a-intermediate.ping.demo",
+      "scopes": ["agent:invoke"]
+    }
+  },
+  "apps": {
+    "Super Banking User App": {
+      "type": "WEB_APP",
+      "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
+      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read"]
+    },
+    "Super Banking Admin App": {
+      "type": "WEB_APP",
+      "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
+      "grantedScopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage"]
+    },
+    "Super Banking MCP Server": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials"],
+      "isResourceServer": "Super Banking MCP Server",
+      "grantedScopes": []
+    },
+    "Super Banking MCP Gateway": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "isResourceServer": "Super Banking MCP Gateway",
+      "grantedScopes": []
+    },
+    "Super Banking MCP Exchanger": {
+      "type": "WEB_APP",
+      "grantTypes": ["token_exchange"],
+      "grantedScopes": ["read", "write", "mcp:invoke"]
+    },
+    "Super Banking AI Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["agent:invoke"]
+    },
+    "Super Banking Investment Advisor Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["invest:read"]
+    },
+    "Super Banking Records Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Purchase Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Membership Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Payroll Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Agent": {
+      "type": "WORKER",
+      "grantTypes": ["client_credentials"],
+      "grantedScopes": []
+    },
+    "Super Banking Worker": {
+      "type": "WORKER",
+      "grantTypes": ["client_credentials"],
+      "grantedScopes": []
+    }
+  },
+  "servers": {
+    "demo_api_server": { "resource": "Super Banking API", "validatesAudience": "enduser.ping.demo", "gatesOnToolScopes": false, "description": "BFF / token custodian. Performs RFC 8693 two-exchange delegation (user token -> mcpgateway.ping.demo)." },
+    "demo_mcp_gateway": { "resource": "Super Banking MCP Gateway", "validatesAudience": "mcpgateway.ping.demo", "gatesOnToolScopes": true, "description": "MCP Gateway. Validates inbound aud === mcpgateway.ping.demo and enforces per-tool requiredScopes (getScopesForGatewayTool) on the inbound bearer BEFORE credential swap. Therefore every gateway-surface tool scope MUST be mirrored onto the Super Banking MCP Gateway resource (ARCHITECTURE-TRUTHS T-10)." },
+    "demo_mcp_server": { "resource": "Super Banking MCP Server", "validatesAudience": "mcpgateway.ping.demo", "gatesOnToolScopes": true, "description": "Backend MCP tool server. Gateway forwards the inbound bearer UNCHANGED (no re-exchange — see authorizeMcpRequest.ts Step 4 + GatewayTokenPolicy D-05), so the server validates aud === mcpgateway.ping.demo (MCP_SERVER_RESOURCE_URI), the same gateway-targeted audience. PingOne token exchange cannot issue a separate server aud alongside the gateway aud (returns invalid_scope: May not request scopes for multiple resources)." },
+    "demo_agent_service": { "resource": "Super Banking Agent Gateway", "validatesAudience": "agentgateway.ping.demo", "gatesOnToolScopes": false, "description": "Agent Gateway (Two-Exchange Step 1 audience for the AI Agent client-credentials token)." }
+  },
+  "tools": {
+    "get_my_accounts": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_account_balance": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_my_transactions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_sensitive_account_details": {
+      "requiredScopes": ["read", "sensitive:read"],
+      "surface": "gateway",
+      "challengeType": "consent"
+    },
+    "sequential_think": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_investment_balance": {
+      "requiredScopes": ["invest:read"],
+      "surface": "gateway",
+      "a2aDelegated": true
+    },
+    "get_investment_accounts": {
+      "requiredScopes": ["invest:read"],
+      "surface": "gateway",
+      "a2aDelegated": true
+    },
+    "get_investment_transactions": {
+      "requiredScopes": ["invest:read"],
+      "surface": "gateway",
+      "a2aDelegated": true
+    },
+    "get_portfolio_summary": {
+      "requiredScopes": ["invest:read"],
+      "surface": "gateway",
+      "a2aDelegated": true
+    },
+    "show_mortgage": {
+      "requiredScopes": ["mortgage:read"],
+      "surface": "gateway"
+    },
+    "show_large_purchase": {
+      "requiredScopes": ["largepurchase:read"],
+      "surface": "gateway"
+    },
+    "show_health_record": {
+      "requiredScopes": ["records:read"],
+      "surface": "gateway"
+    },
+    "show_gear_order": {
+      "requiredScopes": ["gear:read"],
+      "surface": "gateway"
+    },
+    "show_expense_report": {
+      "requiredScopes": ["expense:read"],
+      "surface": "gateway"
+    },
+    "show_permit": {
+      "requiredScopes": ["permits:read"],
+      "surface": "gateway"
+    },
+    "show_enrollment": {
+      "requiredScopes": ["transcript:read"],
+      "surface": "gateway"
+    },
+    "create_deposit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "create_withdrawal": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "create_transfer": {
+      "requiredScopes": ["write", "transfer"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
+    },
+    "update_contact_email": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_fee_waiver": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_benefits": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "pto_balance": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_expenses": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "submit_expense": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "request_time_off": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
+    },
+    "view_records": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_coverage": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_appointments": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "book_appointment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
+    },
+    "release_records": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "list_orders": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "order_status": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "rewards_balance": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "checkout": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
+    },
+    "list_gear": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_rentals": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "gear_order_status": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "loyalty_balance": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "extend_rental": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
+    },
+    "sensitive_patient_records": {
+      "requiredScopes": ["read"],
+      "a2aDelegatedScope": "records:read",
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_order_history": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_membership_details": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_payroll_details": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "query_user_by_email": {
+      "requiredScopes": ["ai_agent"],
+      "surface": "exchange-only"
+    },
+    "admin_list_all_users": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "admin_get_user_details": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "admin_delete_user": {
+      "requiredScopes": ["admin:write", "admin:delete", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "admin_manage_accounts": {
+      "requiredScopes": ["admin:write", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "admin_view_audit_logs": {
+      "requiredScopes": ["admin:read"],
+      "surface": "exchange-only"
+    },
+    "admin_system_status": {
+      "requiredScopes": ["admin:read"],
+      "surface": "exchange-only"
+    },
+    "lookup_customer": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "get_customer_profile": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "get_customer_accounts": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "get_customer_transactions": {
+      "requiredScopes": ["admin:read", "users:read"],
+      "surface": "exchange-only"
+    },
+    "freeze_account": {
+      "requiredScopes": ["admin:write", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "reset_customer_password": {
+      "requiredScopes": ["admin:write", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "adjust_balance": {
+      "requiredScopes": ["admin:write", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "delete_customer": {
+      "requiredScopes": ["admin:write", "admin:delete", "users:manage"],
+      "surface": "exchange-only"
+    },
+    "list_accounts": {
+      "requiredScopes": ["read"],
+      "surface": "legacy-alias"
+    },
+    "list_transactions": {
+      "requiredScopes": ["read"],
+      "surface": "legacy-alias"
+    },
+    "transfer": {
+      "requiredScopes": ["write"],
+      "surface": "legacy-alias"
+    },
+    "deposit": {
+      "requiredScopes": ["write"],
+      "surface": "legacy-alias"
+    },
+    "withdraw": {
+      "requiredScopes": ["write"],
+      "surface": "legacy-alias"
+    },
+    "discover_oas_operations": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "call_pingone_operation": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "api_key_demo": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "dual_token_demo": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "show_work_order": {
+      "requiredScopes": ["workorders:read"],
+      "surface": "gateway"
+    },
+    "cancel_appointment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "close_support_ticket": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_billing": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_documents": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "approve_inspection": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_permit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "close_violation": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "dispute_violation": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "pay_fee": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "release_record": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "renew_permit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "reschedule_gov_appointment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "schedule_inspection": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "submit_filing": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_appointments": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_business_licenses": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_complaints": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_fees": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_filings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_inspections": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_notifications": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_payment_history": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_permits": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_records_requests": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_tax_assessments": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_violations": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_zoning_info": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "cancel_referral": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "list_messages": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "mark_message_read": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "pay_bill": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "refill_prescription": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_document": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "reschedule_appointment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_allergies": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_care_plan": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_care_team": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_claims": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_dependents": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_immunizations": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_lab_results": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_medications": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_referrals": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_vitals": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "approve_purchase_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "close_maintenance_ticket": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "complete_quality_inspection": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "escalate_maintenance_ticket": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "expedite_shipment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "flag_defect": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "put_machine_offline": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "receive_shipment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "reject_purchase_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "release_work_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "reopen_defect": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "schedule_run": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_defects": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_inventory": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_machine_utilization": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_machines": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_maintenance_tickets": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_production_history": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_purchase_orders": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_quality_inspections": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_scrap_report": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_shipments": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_supplier_scorecard": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_work_orders": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "void_purchase_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "add_to_wishlist": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "initiate_return": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "pause_subscription": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "redeem_store_credit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "remove_payment_method": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "remove_price_alert": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "reorder": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_addresses": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_gift_cards": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_payment_methods": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_price_alerts": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_recently_viewed": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_returns": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_subscriptions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_support_tickets": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_wishlist": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "cancel_coaching_session": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_rental": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_subscription": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "list_addresses": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_coaching_sessions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_invoices": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_payments": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_promotions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_store_credit": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_subscriptions": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_support_tickets": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_wishlist": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "redeem_points": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "remove_wishlist_item": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "return_order": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "accept_financial_aid": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "apply_scholarship": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_course_registration": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "checkout_library_item": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "pay_tuition_balance": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "register_course": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "release_hold": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "release_transcript": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up",
+      "requiresAgentMediation": true
+    },
+    "renew_parking_permit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_housing_assignment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_advisors": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_courses": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_degree_audit": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_dining": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_enrollment_history": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_exam_schedule": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_financial_aid": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_holds": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_housing": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_library": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_parking": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_scholarships": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_standing": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "waitlist_course": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "cancel_expense": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "close_ticket": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "complete_goal": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "enroll_training": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_schedule_change": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "update_goal_progress": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_announcements": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_colleagues": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_direct_deposit": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_goals": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_payslip_detail": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_payslips": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_policies": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_schedule": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_tickets": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_trainings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "withdraw_training_enrollment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    }
+  }
+}

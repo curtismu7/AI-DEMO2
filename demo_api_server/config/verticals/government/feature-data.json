@@ -1,0 +1,17 @@
+{
+  "noun": "permit record",
+  "record": {
+    "permit": {
+      "permitId": "PRM-2026-04412",
+      "permitType": "Building",
+      "subject": "1234 Maple Street, Springfield, IL",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2026-02-10",
+      "expiresDate": "2026-12-01",
+      "feesOwed": 240.00,
+      "currency": "USD",
+      "status": "Active — inspection pending",
+      "inspector": "M. Alvarez (Code Enforcement)"
+    }
+  }
+}

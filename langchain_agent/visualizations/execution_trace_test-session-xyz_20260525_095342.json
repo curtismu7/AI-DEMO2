@@ -1,0 +1,158 @@
+{
+  "session_id": "test-session-xyz",
+  "start_time": "2026-05-25T09:53:42.285727",
+  "end_time": "2026-05-25T09:53:42.286348",
+  "total_steps": 10,
+  "total_duration_ms": 0,
+  "execution_steps": [
+    {
+      "step": 1,
+      "type": "websocket_incoming",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:53:42.285762",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "direction": "incoming",
+        "message_type": "user_message",
+        "payload": {
+          "type": "user_message",
+          "content": "Show my balance",
+          "session_id": "test-session-xyz",
+          "timestamp": "2026-05-25T09:53:42.285749"
+        },
+        "payload_size": 131,
+        "timestamp": "2026-05-25T09:53:42.285760"
+      }
+    },
+    {
+      "step": 2,
+      "type": "user_input",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:53:42.285794",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "message": "Show my balance",
+        "session_id": "test-session-xyz",
+        "message_length": 15,
+        "timestamp": "2026-05-25T09:53:42.285792"
+      }
+    },
+    {
+      "step": 3,
+      "type": "agent_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:53:42.285806",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "agent_type": "LangChainMCPAgent",
+        "tools_available": 2,
+        "model": "llama3"
+      }
+    },
+    {
+      "step": 4,
+      "type": "memory_check",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:53:42.285896",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "action": "check_user_identification",
+        "user_identified": true
+      }
+    },
+    {
+      "step": 5,
+      "type": "mcp_context_setup",
+      "component": "MCP Tool Provider",
+      "timestamp": "2026-05-25T09:53:42.285908",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "session_id": "test-session-xyz",
+        "action": "set_session_context"
+      }
+    },
+    {
+      "step": 6,
+      "type": "llm_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:53:42.286186",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "model": "llama3",
+        "context": "Processing user request with LangGraph",
+        "prompt_preview": "User: Show my balance",
+        "estimated_input_tokens": "[REDACTED]",
+        "temperature": "<Mock name='mock.temperature' id='4526817136'>"
+      }
+    },
+    {
+      "step": 7,
+      "type": "llm_end",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:53:42.286224",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "response_generated": true,
+        "response_preview": "Your balance is $1,234.56",
+        "response_length": 25,
+        "processing_time_ms": 0,
+        "estimated_output_tokens": "[REDACTED]",
+        "tokens_per_second": "[REDACTED]"
+      }
+    },
+    {
+      "step": 8,
+      "type": "memory_update",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:53:42.286240",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "action": "store_conversation",
+        "user_message_length": 15,
+        "assistant_response_length": 25
+      }
+    },
+    {
+      "step": 9,
+      "type": "websocket_outgoing",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:53:42.286302",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "direction": "outgoing",
+        "message_type": "assistant_response",
+        "payload": {
+          "type": "assistant_response",
+          "content": "Your balance is $1,234.56",
+          "session_id": "test-session-xyz",
+          "timestamp": "2026-05-25T09:53:42.286293",
+          "processing_time_ms": 0
+        },
+        "payload_size": 172,
+        "timestamp": "2026-05-25T09:53:42.286301"
+      }
+    },
+    {
+      "step": 10,
+      "type": "response_sent",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:53:42.286324",
+      "elapsed_ms": 0,
+      "session_id": "test-session-xyz",
+      "data": {
+        "response_length": 25,
+        "session_id": "test-session-xyz",
+        "total_steps": 9
+      }
+    }
+  ]
+}

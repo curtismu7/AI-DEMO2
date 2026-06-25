@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mortgage-service
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mortgage-service
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mortgage-service
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mortgage-service
+    spec:
+      containers:
+      - name: mortgage-service
+        image: ai-demo-mortgage-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: MORTGAGE_SERVICE_PORT   # server reads MORTGAGE_SERVICE_PORT, not PORT
+          value: "8082"
+        - name: MORTGAGE_SERVICE_HOST     # default 127.0.0.1 is unreachable cross-pod
+          value: "0.0.0.0"
+        - name: DEMO_API_BASE_URL
+          value: "https://demo-api-server:3001"
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mortgage-service
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mortgage-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8082
+    targetPort: 8082
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: mortgage-service

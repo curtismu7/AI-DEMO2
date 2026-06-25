@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Run Report — workforce — 6/6/2026, 6:59:24 AM</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 2rem;
+    }
+    h1 { color: #277ba5; margin-bottom: 1.5rem; border-bottom: 3px solid #277ba5; padding-bottom: 0.5rem; }
+    h2 { color: #277ba5; margin-top: 2rem; margin-bottom: 1rem; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; font-size: 0.9rem; }
+    .meta-item { background: #f9f9f9; padding: 1rem; border-radius: 4px; border-left: 3px solid #277ba5; }
+    .meta-item strong { color: #277ba5; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: "Monaco", "Menlo", monospace; font-size: 0.85em; }
+    pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin: 1rem 0; border-left: 3px solid #277ba5; }
+    pre code { background: none; padding: 0; }
+    .success { color: #22863a; }
+    .failed { color: #cb2431; }
+    .skipped { color: #888; }
+    .event-list { margin: 1rem 0; }
+    .event-item { background: #f9f9f9; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #277ba5; }
+    .event-item.failed { border-left-color: #cb2431; }
+    .event-item.skipped { border-left-color: #ccc; }
+    .event-label { font-weight: 600; color: #277ba5; font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .event-meta { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
+    .event-explanation { font-size: 0.85rem; color: #444; margin-top: 0.5rem; font-style: italic; }
+    .claims-block { margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: #fff; border-radius: 3px; border: 1px solid #e0e0e0; font-size: 0.82rem; }
+    .claims-block div { margin-bottom: 0.15rem; }
+    .download-section { margin-top: 2rem; padding: 1.5rem; background: #f0f7fa; border-radius: 4px; }
+    .download-section button { background: #277ba5; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+    .download-section button:hover { background: #1f5a80; }
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; padding: 0; }
+      .download-section { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Run Report</h1>
+
+    <div class="meta">
+      <div class="meta-item">
+        <strong>Vertical:</strong> workforce
+      </div>
+      <div class="meta-item">
+        <strong>Date:</strong> 6/6/2026, 6:59:24 AM
+      </div>
+      <div class="meta-item">
+        <strong>Run ID:</strong> <code>8842aa1f-f7cd-4589-80f9-66d631de14b8</code>
+      </div>
+      <div class="meta-item">
+        <strong>Agent Path:</strong> unknown
+      </div>
+    </div>
+
+    <h2>Prompt</h2>
+    <pre><code>submit expense 45 taxi</code></pre>
+
+    <h2>Results</h2>
+    <div class="meta">
+      <div class="meta-item">
+        <strong>Status:</strong> <span class="success">
+          ✅ Success
+        </span>
+      </div>
+      <div class="meta-item">
+        <strong>Tools Called:</strong> submit_expense
+      </div>
+      <div class="meta-item">
+        <strong>Confidence:</strong> 0.70
+      </div>
+      <div class="meta-item">
+        <strong>Token Count:</strong> 16
+      </div>
+    </div>
+    <h2>Token Chain (16 events)</h2>
+    <div class="event-list">
+      <div class="event-item">
+        <div class="event-label">1. User access token</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 7519 (JWT) · RFC 9068 (OAuth2 JWT AT)</div>
+        <div class="event-explanation">Issued by PingOne after Authorization Code + PKCE login. Stored in the Backend-for-Frontend (BFF) session (server-side httpOnly cookie — never sent to the browser). Token carries 7 scope(s): expense:read ai:agent:read transfer read openid write mortgage:read
+✓ Agent scopes: ai:agent:read
+Contains may_act: {"sub":"https://agent.com"} — this prospectively authorises the Backend-for-Frontend (BFF) to exchange this token. sub: https://agent.com</div>
+        <div class="claims-block"><div><strong>sub:</strong> <code>4511829e-44a0-4cab-8f42-1f9ad860ae91</code></div><div><strong>aud:</strong> <code>["enduser.ping.demo"]</code></div><div><strong>scope:</strong> <code>expense:read ai:agent:read transfer read openid write mortgage:read</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750116</code></div><div><strong>may_act:</strong> <code>{"sub":"https://agent.com"}</code></div><div><strong>client_id:</strong> <code>b7d00976-405f-4c55-914a-a3ebe8f369d8</code></div></div>
+      </div>
+      <div class="event-item">
+        <div class="event-label">2. User Token — PingOne Active-Token Introspection (RFC 7662)</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 7662</div>
+        <div class="event-explanation">PingOne confirmed the user token is active. sub=4511829e-44a0-4cab-8f42-1f9ad860ae91 scope="expense:read,ai:agent:read,transfer,read,openid,write,mortgage:read".</div>
+        <div class="claims-block"><div><strong>sub:</strong> <code>4511829e-44a0-4cab-8f42-1f9ad860ae91</code></div><div><strong>aud:</strong> <code>["enduser.ping.demo"]</code></div><div><strong>scope:</strong> <code>expense:read ai:agent:read transfer read openid write mortgage:read</code></div><div><strong>exp:</strong> <code>1780750116</code></div><div><strong>client_id:</strong> <code>b7d00976-405f-4c55-914a-a3ebe8f369d8</code></div></div>
+      </div>
+      <div class="event-item">
+        <div class="event-label">3. 2-Exchange #1 — AI Agent Actor Token (CC) ✔️</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 8693 §2.1</div>
+        <div class="event-explanation">AI Agent App (d21c5124-8ac5-43d1-81f2-31a7ec649b96) obtained its Client Credentials actor token. aud=agentgateway.ping.demo. Used as actor_token in Exchange #1.</div>
+        <div class="claims-block"><div><strong>aud:</strong> <code>["agentgateway.ping.demo"]</code></div><div><strong>scope:</strong> <code>agent:invoke</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750765</code></div><div><strong>may_act:</strong> <code>#{'sub': 'd3f8fead-b81d-46f9-bba5-051e493cea0e'}</code></div><div><strong>client_id:</strong> <code>d21c5124-8ac5-43d1-81f2-31a7ec649b96</code></div></div>
+      </div>
+      <div class="event-item skipped">
+        <div class="event-label">4. AI Agent Actor Token (CC) — JWKS Verification (RFC 7515)</div>
+        <div class="event-meta">⚠️ <strong>skipped</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 7515 · RFC 7517</div>
+        <div class="event-explanation">JWKS verification skipped: logger is not a function</div>
+      </div>
+      <div class="event-item failed">
+        <div class="event-label">5. 2-Exchange #1 — Agent Exchanged Token ✔️</div>
+        <div class="event-meta">❌ <strong>exchanged</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 8693</div>
+        <div class="event-explanation">Exchange #1 succeeded. Agent Exchanged Token (Token 2): aud=["agentgateway.ping.demo"], act=undefined. act.sub records that the AI Agent performed this exchange. Now performing Exchange #2.</div>
+        <div class="claims-block"><div><strong>sub:</strong> <code>4511829e-44a0-4cab-8f42-1f9ad860ae91</code></div><div><strong>aud:</strong> <code>["agentgateway.ping.demo"]</code></div><div><strong>scope:</strong> <code>agent:invoke</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750765</code></div><div><strong>may_act:</strong> <code>#{'sub': 'd3f8fead-b81d-46f9-bba5-051e493cea0e'}</code></div><div><strong>client_id:</strong> <code>d21c5124-8ac5-43d1-81f2-31a7ec649b96</code></div></div>
+      </div>
+      <div class="event-item skipped">
+        <div class="event-label">6. Agent Exchanged Token (#1 result) — JWKS Verification (RFC 7515)</div>
+        <div class="event-meta">⚠️ <strong>skipped</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 7515 · RFC 7517</div>
+        <div class="event-explanation">JWKS verification skipped: logger is not a function</div>
+      </div>
+      <div class="event-item">
+        <div class="event-label">7. 2-Exchange #2 — MCP Actor Token (CC) ✔️</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 8693 §2.1</div>
+        <div class="event-explanation">MCP Service App (d3f8fead-b81d-46f9-bba5-051e493cea0e) obtained its Client Credentials actor token. aud=mcpgateway.ping.demo. Used as actor_token in Exchange #2.</div>
+        <div class="claims-block"><div><strong>aud:</strong> <code>["mcpgateway.ping.demo"]</code></div><div><strong>scope:</strong> <code>mcp:invoke</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750765</code></div><div><strong>client_id:</strong> <code>d3f8fead-b81d-46f9-bba5-051e493cea0e</code></div></div>
+      </div>
+      <div class="event-item skipped">
+        <div class="event-label">8. MCP Service Actor Token (CC) — JWKS Verification (RFC 7515)</div>
+        <div class="event-meta">⚠️ <strong>skipped</strong> &nbsp;·&nbsp; 6:59:25 AM &nbsp;·&nbsp; RFC 7515 · RFC 7517</div>
+        <div class="event-explanation">JWKS verification skipped: logger is not a function</div>
+      </div>
+      <div class="event-item failed">
+        <div class="event-label">9. 2-Exchange: Final MCP Token (nested act chain) ✔️</div>
+        <div class="event-meta">❌ <strong>exchanged</strong> &nbsp;·&nbsp; 6:59:26 AM &nbsp;·&nbsp; RFC 8693</div>
+        <div class="event-explanation">Both RFC 8693 exchanges succeeded. Final MCP Token (Token 3): aud=["mcpgateway.ping.demo"] ✅, act.sub=— (MCP Service), act.act.sub=— (AI Agent). WARNING: act claim missing from Final Token — check act expression on Super Banking Resource Server (docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md §1e).</div>
+        <div class="claims-block"><div><strong>sub:</strong> <code>4511829e-44a0-4cab-8f42-1f9ad860ae91</code></div><div><strong>aud:</strong> <code>["mcpgateway.ping.demo"]</code></div><div><strong>scope:</strong> <code>mcp:invoke write</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750766</code></div><div><strong>client_id:</strong> <code>d3f8fead-b81d-46f9-bba5-051e493cea0e</code></div></div>
+      </div>
+      <div class="event-item skipped">
+        <div class="event-label">10. Final MCP Token (#2 result) — JWKS Verification (RFC 7515)</div>
+        <div class="event-meta">⚠️ <strong>skipped</strong> &nbsp;·&nbsp; 6:59:26 AM &nbsp;·&nbsp; RFC 7515 · RFC 7517</div>
+        <div class="event-explanation">JWKS verification skipped: logger is not a function</div>
+      </div>
+      <div class="event-item">
+        <div class="event-label">11. Transaction Token (TraT) — Simulation Mode</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:26 AM &nbsp;·&nbsp; draft-oauth-transaction-tokens-for-agents-00</div>
+        <div class="event-explanation">ff_trat_mode is ON. TraT context forwarded alongside MCP token as X-TraT-Context header for intra-domain propagation. trat_sim: true marks simulation.</div>
+      </div>
+      <div class="event-item">
+        <div class="event-label">12. Agent Token → MCP Tool: submit_expense</div>
+        <div class="event-meta">✅ <strong>active</strong> &nbsp;·&nbsp; 6:59:26 AM</div>
+        <div class="event-explanation">Agent presenting delegated token to call MCP tool "submit_expense" on behalf of user 4511829e-44a0-4cab-8f42-1f9ad860ae91.</div>
+        <div class="claims-block"><div><strong>sub:</strong> <code>4511829e-44a0-4cab-8f42-1f9ad860ae91</code></div><div><strong>aud:</strong> <code>["mcpgateway.ping.demo"]</code></div><div><strong>scope:</strong> <code>mcp:invoke write</code></div><div><strong>iss:</strong> <code>https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as</code></div><div><strong>exp:</strong> <code>1780750766</code></div><div><strong>client_id:</strong> <code>d3f8fead-b81d-46f9-bba5-051e493cea0e</code></div></div>
+      </div>
+      <div class="event-item failed">
+        <div class="event-label">13. Gateway — RFC 7662 Introspection</div>
+        <div class="event-meta">❌ <strong>valid</strong> &nbsp;·&nbsp; 6:59:26 AM &nbsp;·&nbsp; RFC 7662</div>
+        <div class="event-explanation">Gateway: token verified active via RFC 7662 introspection</div>
+      </div>
+      <div class="event-item failed">
+        <div class="event-label">14. Gateway — PingOne Authorize Decision</div>
+        <div class="event-meta">❌ <strong>permit</strong> &nbsp;·&nbsp; 6:59:26 AM</div>
+        <div class="event-explanation">PingOne Authorize policy evaluation: PERMIT</div>
+      </div>
+      <div class="event-item skipped">
+        <div class="event-label">15. Gateway → MCP Server mTLS</div>
+        <div class="event-meta">⚠️ <strong>skipped</strong> &nbsp;·&nbsp; 6:59:26 AM</div>
+        <div class="event-explanation">mTLS not enforced (MCP_MTLS_ENABLED=false).</div>
+      </div>
+      <div class="event-item failed">
+        <div class="event-label">16. MCP Tool Result: submit_expense</div>
+        <div class="event-meta">❌ <strong>failed</strong> &nbsp;·&nbsp; 6:59:26 AM</div>
+        <div class="event-explanation">MCP tool "submit_expense" returned an error.</div>
+      </div>
+    </div>
+    <h2>Metadata</h2>
+    <div class="meta">
+      <div class="meta-item">
+        <strong>Started:</strong> 2026-06-06T11:59:24.559Z
+      </div>
+      <div class="meta-item">
+        <strong>Completed:</strong> 2026-06-06T11:59:26.702Z
+      </div>
+    </div>
+
+    <div class="download-section">
+      <button onclick="window.print()">Print / Save as PDF</button>
+    </div>
+  </div>
+</body>
+</html>

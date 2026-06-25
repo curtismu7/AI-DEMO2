@@ -1,0 +1,727 @@
+{
+  "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6",
+  "authTokenExpireIds": [],
+  "connectorIds": [
+    "variablesConnector",
+    "httpConnector",
+    "pingOneAuthorizeConnector",
+    "functionsConnector"
+  ],
+  "createdDate": 1776902400000,
+  "currentVersion": 1,
+  "customerId": "8b37902a4f69bb60cbfc6cff61a23dc4",
+  "deployedDate": 1776902400000,
+  "description": "Super Banking MCP first-tool delegation authorization flow. Evaluates the MCP actor delegation chain and resource audience against the Super Banking MCP Delegation policy in PingOne Authorize before allowing the AI agent to execute MCP tools on behalf of a user. Parameters sent: DecisionContext=McpFirstTool, UserId, ToolName, TokenAudience, ActClientId, NestedActClientId, McpResourceUri, Acr. Policy rules: DENY if TokenAudience does not match McpResourceUri; DENY if ActClientId is not the registered BFF client; DENY if UserId is absent; PERMIT otherwise. After import, configure the Decision Router evaluator (node: mc5eval02b) with branches: condition local.mc6auth01a.payload.output.denied=true routes to Tool Authorization Denied; condition local.mc8func01a.payload.output.stepUpRequired=true routes to Step-Up Required; condition local.mc8func01a.payload.output.hitlRequired=true routes to Human Approval Required; default routes to Tool Authorized.",
+  "flowStatus": "enabled",
+  "isOutputSchemaSaved": false,
+  "name": "Super Banking MCP Tool Authorization",
+  "publishedVersion": 1,
+  "settings": {
+    "csp": "worker-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://devsdk.singularkey.com http://cdnjs.cloudflare.com 'unsafe-inline' 'unsafe-eval';",
+    "intermediateLoadingScreenCSS": "",
+    "intermediateLoadingScreenHTML": "",
+    "customTimeoutErrorScreenMessage": "",
+    "customTimeoutErrorScreenHTML": "",
+    "customTimeoutErrorScreenCSS": "",
+    "logLevel": 3,
+    "useCustomCSS": true,
+    "css": ".footerLogo {\n  content: url('https://authenticator.pingone.com/pingid/assets/images/ping-logo.sm.2x.png');\n  width: 105px !important;\n  height: auto;\n}\n\n:root {\n  --company-logo-img-url: url('https://uploads.pingone.com/environments/a59917da-0f7a-44d3-a070-5da6f652fed6/images/56f8469b-c409-435c-ad5e-c6b95bbeb5a4_36841418-b45b-4468-896b-74784a8d7c60_original.png');\n  --company-logo-max-height: 56px;\n  --background-image-url: none;\n  --card-background-color: rgb(255, 255, 255);\n  --card-shadow-color: rgba(121, 128, 135, .35);\n  --body-font-family: 'Roboto', 'sans-serif';\n  --body-font-size: .935rem;\n  --text-color-primary: 104, 111, 119;\n  --heading-text-color: 104, 111, 119;\n  --text-color-muted-apha: 0.75;\n  --text-color-error: rgb(163, 19, 0);\n  --button-primary-text-color: rgb(255, 255, 255);\n  --button-primary-background-color: 20, 56, 97;\n  --link-button-primary-color: 26, 75, 130;\n  --button-primary-border-radius: 10px;\n  --button-hover-alpha: 0.70;\n  --button-active-alpha: 0.80;\n  --button-disabled-alpha: 0.65;\n  --form-control-border-radius: 10px;\n  --card-body-border-radius: 0px;\n  --focus-highlight-color: 198, 217, 255;\n  --activity-indicator-color: rgb(104, 111, 119);\n  --polling-indicator-color: rgb(104, 111, 119);\n  --bs-body-color: rgb(var(--text-color-main)) !important;\n  --bs-danger-rgb: var(--text-color-error);\n}\n\n.card-body.p-5.d-flex.flex-column>img:first-child,\n.companyLogo {\n  content: var(--company-logo-img-url) !important;\n  height: var(--company-logo-max-height) !important;\n  width: auto !important;\n}\n\ndiv.bg-light {\n  background-image: var(--background-image-url);\n  background-size: cover;\n  background-repeat: no-repeat;\n}\n\nh1, h2, h3, h4 {\n  color: rgb(var(--heading-text-color)) !important;\n}\n\n.card-body {\n  font-family: var(--body-font-family) !important;\n  font-size: var(--body-font-size) !important;\n  color: rgb(var(--text-color-primary)) !important;\n  background-color: var(--card-background-color) !important;\n}\n\np.text-muted {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n.card .text-danger {\n  color: var(--text-color-error) !important;\n}\n\n.form-control,\n.form-control:focus {\n  color: var(--text-color-primary) !important;\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n.form-floating input+label {\n  color: rgba(var(--text-color-primary), var(--text-color-muted-apha)) !important;\n}\n\n.form-control:focus {\n  border-color: rgba(var(--focus-highlight-color), .5) !important;\n  box-shadow: 0 0 0 0.25rem rgba(var(--focus-highlight-color), 0.25) !important;\n}\n\n.form-select {\n  border-radius: var(--form-control-border-radius) !important;\n}\n\n.btn-primary {\n  --bs-btn-color: var(--button-primary-text-color) !important;\n  --bs-btn-hover-color: var(--button-primary-text-color) !important;\n  --bs-btn-border-color: var(--button-primary-background-color) !important;\n  --bs-btn-bg: rgb(var(--button-primary-background-color)) !important;\n  --bs-btn-hover-bg: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  --bs-btn-active-bg: rgba(var(--button-primary-background-color), var(--button-active-alpha)) !important;\n  --bs-btn-disabled-bg: rgba(var(--button-primary-background-color), var(--button-disabled-alpha)) !important;\n  background-color: rgb(var(--button-primary-background-color)) !important;\n  border-color: rgb(var(--button-primary-background-color)) !important;\n  color: var(--button-primary-text-color) !important;\n  border-radius: var(--button-primary-border-radius) !important;\n}\n\n.btn-primary:hover {\n  background-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  border-color: rgba(var(--button-primary-background-color), var(--button-hover-alpha)) !important;\n  color: var(--button-primary-text-color) !important;\n}\n\n.btn-link {\n  --bs-btn-color: rgb(var(--link-button-primary-color)) !important;\n  --bs-btn-active-color: rgba(var(--link-button-primary-color), var(--button-active-alpha)) !important;\n  --bs-btn-hover-color: rgba(var(--link-button-primary-color), var(--button-hover-alpha)) !important;\n  --bs-btn-disabled-color: rgba(var(--link-button-primary-color), var(--button-disabled-alpha)) !important;\n  color: rgb(var(--link-button-primary-color)) !important;\n}\n\n.card-body.p-5.d-flex.flex-column {\n  border-radius: var(--card-body-border-radius);\n}\n\n.card.shadow.mb-5 {\n  border-radius: var(--card-body-border-radius);\n  box-shadow: 1px 1px 3px 1px var(--card-shadow-color) !important;\n}",
+    "cssLinks": [
+      "https://assets.pingone.com/ux/astro-nano/0.1.0-alpha.11/icons.css",
+      "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css",
+      "https://assets.pingone.com/ux/end-user-nano/0.1.0-alpha.9/end-user-nano.css"
+    ]
+  },
+  "timeouts": "null",
+  "updatedDate": 1776902400000,
+  "flowId": "9dc7b24e8a53f901267d4e5c830fb12a",
+  "versionId": 1,
+  "graphData": {
+    "elements": {
+      "nodes": [
+        {
+          "data": {
+            "id": "mc1var01a",
+            "connectionId": "06922a684039827499bdbdd97f49827b",
+            "nodeType": "CONNECTION",
+            "status": "configured",
+            "connectorId": "variablesConnector",
+            "name": "Variables",
+            "label": "Variables",
+            "type": "trigger",
+            "capabilityName": "saveValue",
+            "properties": {
+              "locale": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"en\"\n      }\n    ]\n  }\n]"
+              }
+            }
+          },
+          "position": { "x": 277, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc2eval01a",
+            "nodeType": "EVAL"
+          },
+          "position": { "x": 427, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc3form01a",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHTMLTemplate",
+            "type": "trigger",
+            "properties": {
+              "customHTML": {
+                "value": "<div data-skcomponent=\"skrisk\" data-skenvironmentid=\"{{global.companyId}}\" data-skcollectBehavioralData=\"true\" data-skpropertyname=\"riskPayload\" data-skuniversaldeviceidentification=\"false\" data-skpingidagent=\"true\" data-skpingidagenttimeout=\"2000\" data-skpingidagentport=\"\"></div>\n<div class=\"end-user-nano\">\n  <div class=\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\">\n    <div style=\"max-width: 560px; min-width: 400px; width: 100%\">\n      <div class=\"card rounded-3 my-5\">\n        <main aria-labelledby=\"title\">\n          <div class=\"card-body rounded-3 p-5 d-flex flex-column\">\n            <img class=\"companyLogo align-self-center mb-5\" src=\"{{global.variables.companyLogo}}\" alt=\"{{global.variables.companyName}}\">\n            <h1 id=\"title\" class=\"text-center mb-2\">MCP Tool Authorization</h1>\n            <p class=\"text-muted text-center mb-4\">Review and authorize the AI agent's tool invocation request.</p>\n            <p class=\"text-danger mdi mdi-alert-circle text-center\" id=\"feedbackError\" data-id=\"feedback\" data-skcomponent=\"skerror\" aria-live=\"assertive\"></p>\n            <form id=\"mcpAuthForm\" aria-labelledby=\"title\" data-id=\"mcpAuthForm\">\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">User ID (PingOne sub)</label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"userId\" name=\"userId\" placeholder=\"PingOne user ID (sub claim)\" aria-required=\"true\">\n              </div>\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">Tool Name</label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"toolName\" name=\"toolName\" placeholder=\"e.g. banking_get_accounts\" aria-required=\"true\">\n              </div>\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">Token Audience</label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"tokenAudience\" name=\"tokenAudience\" placeholder=\"aud claim from MCP access token\" aria-required=\"true\">\n              </div>\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">Actor Client ID (act.client_id)</label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"actClientId\" name=\"actClientId\" placeholder=\"Client ID of Super Banking BFF Admin\" aria-required=\"true\">\n              </div>\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">Nested Actor Client ID <span class=\"text-muted fw-normal\">(optional)</span></label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"nestedActClientId\" name=\"nestedActClientId\" placeholder=\"act.act.client_id for multi-hop delegation\">\n              </div>\n              <div class=\"mb-3\">\n                <label class=\"form-label fw-semibold\">MCP Resource URI</label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"mcpResourceUri\" name=\"mcpResourceUri\" placeholder=\"Expected MCP server URI\" aria-required=\"true\">\n              </div>\n              <div class=\"mb-4\">\n                <label class=\"form-label fw-semibold\">ACR <span class=\"text-muted fw-normal\">(optional)</span></label>\n                <input class=\"form-control rounded-3\" type=\"text\" id=\"acr\" name=\"acr\" placeholder=\"Authentication context class reference\">\n              </div>\n              <input type=\"hidden\" id=\"riskPayload\" name=\"riskPayload\" value=\"\">\n              <div class=\"d-flex flex-column\">\n                <button data-id=\"button\" type=\"submit\" class=\"btn btn-primary rounded-3 mb-3\" data-skcomponent=\"skbutton\" data-skbuttontype=\"form-submit\" id=\"btnEvaluate\" data-skform=\"mcpAuthForm\" data-skbuttonvalue=\"EVALUATE\">\n                  Evaluate Authorization\n                </button>\n              </div>\n            </form>\n          </div>\n        </main>\n      </div>\n    </div>\n  </div>\n</div>\n"
+              },
+              "formFieldsList": {
+                "value": [
+                  {
+                    "propertyName": "userId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "User ID (PingOne sub)"
+                  },
+                  {
+                    "propertyName": "toolName",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Tool Name"
+                  },
+                  {
+                    "propertyName": "tokenAudience",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Token Audience (aud)"
+                  },
+                  {
+                    "propertyName": "actClientId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Actor Client ID (act.client_id)"
+                  },
+                  {
+                    "propertyName": "nestedActClientId",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "Nested Actor Client ID (act.act.client_id)"
+                  },
+                  {
+                    "propertyName": "mcpResourceUri",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "MCP Resource URI"
+                  },
+                  {
+                    "propertyName": "acr",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]",
+                    "hashedVisibility": false,
+                    "displayName": "ACR"
+                  },
+                  {
+                    "propertyName": "riskPayload",
+                    "preferredControlType": "textField",
+                    "preferredDataType": "Object",
+                    "value": "",
+                    "hashedVisibility": false
+                  },
+                  {
+                    "preferredControlType": "textField",
+                    "preferredDataType": "string",
+                    "propertyName": "buttonValue"
+                  }
+                ]
+              },
+              "nodeTitle": {
+                "value": "MCP Tool Authorization Request"
+              },
+              "customCSS": {
+                "value": ""
+              },
+              "validationRules": {
+                "value": []
+              },
+              "backgroundColor": {
+                "value": "#afd5ffff"
+              },
+              "customScript": {
+                "value": "const toggleButtonState = () => {\n    const required = ['userId', 'toolName', 'tokenAudience', 'actClientId', 'mcpResourceUri'];\n    const button = document.getElementById('btnEvaluate');\n    if (!button) return;\n    button.disabled = required.some(id => !document.getElementById(id)?.value.trim());\n};\n\nconst start = () => {\n    const first = document.getElementById('userId');\n    if (first) first.focus();\n    toggleButtonState();\n    setTimeout(toggleButtonState, 150);\n    setTimeout(toggleButtonState, 500);\n    ['userId', 'toolName', 'tokenAudience', 'actClientId', 'mcpResourceUri'].forEach(id => {\n        ['input', 'keyup', 'change'].forEach(evt => {\n            document.getElementById(id)?.addEventListener(evt, toggleButtonState);\n        });\n    });\n};\n\nif (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', start);\n} else {\n    start();\n}"
+              },
+              "inputSchema": {
+                "value": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"continueButtonLabel\": {\n      \"type\": \"string\",\n      \"displayName\": \"Continue Button Label\",\n      \"preferredControlType\": \"textField\",\n      \"enableParameters\": true\n    }\n  }\n}"
+              },
+              "outputSchema": {
+                "value": {}
+              },
+              "title": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"MCP Tool Authorization\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeDescription": {
+                "value": "Collects MCP delegation parameters: UserId, ToolName, TokenAudience, ActClientId (act.client_id), NestedActClientId (act.act.client_id), McpResourceUri, Acr. All are passed to PingOne Authorize to validate the RFC 8693 actor chain."
+              },
+              "continueButtonLabel": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Evaluate Authorization\"\n      }\n    ]\n  }\n]"
+              }
+            },
+            "idUnique": "mcp_form_001a",
+            "isDisabled": false
+          },
+          "position": { "x": 607, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc4eval01b",
+            "nodeType": "EVAL"
+          },
+          "position": { "x": 817, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc6auth01a",
+            "nodeType": "CONNECTION",
+            "connectionId": "7b2e39fb332e26e8a9035dc92e733ae3",
+            "connectorId": "pingOneAuthorizeConnector",
+            "name": "PingOne Authorize",
+            "label": "PingOne Authorize",
+            "status": "configured",
+            "capabilityName": "makeDecisionRequest",
+            "type": "action",
+            "properties": {
+              "parameters": {
+                "value": [
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"DecisionContext\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"McpFirstTool\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"UserId\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"userId\",\n        \"data\": \"{{local.mc3form01a.payload.output.userId}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.userId}}\",\n        \"children\": [\n          {\n            \"text\": \"userId\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"ToolName\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"toolName\",\n        \"data\": \"{{local.mc3form01a.payload.output.toolName}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.toolName}}\",\n        \"children\": [\n          {\n            \"text\": \"toolName\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"TokenAudience\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"tokenAudience\",\n        \"data\": \"{{local.mc3form01a.payload.output.tokenAudience}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.tokenAudience}}\",\n        \"children\": [\n          {\n            \"text\": \"tokenAudience\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"ActClientId\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"actClientId\",\n        \"data\": \"{{local.mc3form01a.payload.output.actClientId}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.actClientId}}\",\n        \"children\": [\n          {\n            \"text\": \"actClientId\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"NestedActClientId\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"nestedActClientId\",\n        \"data\": \"{{local.mc3form01a.payload.output.nestedActClientId}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.nestedActClientId}}\",\n        \"children\": [\n          {\n            \"text\": \"nestedActClientId\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"McpResourceUri\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"mcpResourceUri\",\n        \"data\": \"{{local.mc3form01a.payload.output.mcpResourceUri}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.mcpResourceUri}}\",\n        \"children\": [\n          {\n            \"text\": \"mcpResourceUri\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Acr\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"http.svg\",\n        \"url\": \"acr\",\n        \"data\": \"{{local.mc3form01a.payload.output.acr}}\",\n        \"tooltip\": \"{{local.mc3form01a.payload.output.acr}}\",\n        \"children\": [\n          {\n            \"text\": \"acr\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "key": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"ipAddress\"\n      }\n    ]\n  }\n]",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"auth.svg\",\n        \"url\": \"ip\",\n        \"data\": \"{{global.ip}}\",\n        \"tooltip\": \"{{global.ip}}\",\n        \"children\": [\n          {\n            \"text\": \"ip\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  }
+                ]
+              }
+            }
+          },
+          "position": { "x": 997, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc5eval02b",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": { "x": 1207, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc8func01a",
+            "nodeType": "CONNECTION",
+            "connectionId": "de650ca45593b82c49064ead10b9fe17",
+            "connectorId": "functionsConnector",
+            "name": "Functions",
+            "label": "Functions",
+            "status": "configured",
+            "capabilityName": "customFunction",
+            "type": "trigger",
+            "properties": {
+              "variableInputList": {
+                "value": [
+                  {
+                    "name": "statements",
+                    "preferredDataType": "object",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"statements\",\n        \"data\": \"{{local.mc6auth01a.payload.output.statements}}\",\n        \"tooltip\": \"{{local.mc6auth01a.payload.output.statements}}\",\n        \"children\": [\n          {\n            \"text\": \"statements\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  },
+                  {
+                    "name": "decision",
+                    "preferredDataType": "string",
+                    "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"\"\n      },\n      {\n        \"type\": \"link\",\n        \"src\": \"pingIdentity.svg\",\n        \"url\": \"status\",\n        \"data\": \"{{local.mc6auth01a.payload.output.status}}\",\n        \"tooltip\": \"{{local.mc6auth01a.payload.output.status}}\",\n        \"children\": [\n          {\n            \"text\": \"status\"\n          }\n        ]\n      },\n      {\n        \"text\": \"\"\n      }\n    ]\n  }\n]"
+                  }
+                ]
+              },
+              "code": {
+                "value": "// Super Banking — Parse PingOne Authorize MCP Delegation Response\n// Processes authorization statements and extracts obligations.\n//\n// Decision routing (configure in the Evaluator node after this Functions node):\n//   local.mc8func01a.payload.output.denied === true           → Tool Authorization Denied node\n//   local.mc8func01a.payload.output.stepUpRequired === true   → Step-Up Required node\n//   local.mc8func01a.payload.output.hitlRequired === true     → Human Approval Required node\n//   (default)                                                 → Tool Authorized node\n//\n// Also route from the Decision Router evaluator (mc5eval02b) BEFORE this node:\n//   local.mc6auth01a.payload.output.status === 'DENY'         → Tool Authorization Denied (skip Functions)\n\nmodule.exports = async ({ params }) => {\n    const rawStatements = params.statements;\n    const decision = params.decision;\n\n    // Parse JSON-string payloads in each statement\n    const processedStatements = (rawStatements || []).map(item => {\n        let parsedPayload;\n        if (typeof item.payload === 'string' && item.payload.trim().length > 0) {\n            try {\n                parsedPayload = JSON.parse(item.payload);\n            } catch (e) {\n                parsedPayload = item.payload;\n            }\n        } else {\n            parsedPayload = item.payload || {};\n        }\n        return { ...item, payload: parsedPayload };\n    });\n\n    // Check for step-up MFA obligation\n    const stepUpRequired = processedStatements.some(s =>\n        s.payload && (\n            s.payload.stepUpRequired === true ||\n            s.payload.obligationName === 'stepUp' ||\n            s.payload.obligationName === 'mfa'\n        )\n    );\n\n    // Check for Human-In-The-Loop (HITL) obligation\n    // HITL is returned when the policy requires manual approval before tool execution\n    const hitlRequired = processedStatements.some(s =>\n        s.payload && (\n            s.payload.hitlRequired === true ||\n            s.payload.obligationName === 'hitl' ||\n            s.payload.obligationName === 'humanApproval'\n        )\n    );\n\n    const denied = decision === 'DENY';\n    const permitted = decision === 'PERMIT' && !stepUpRequired && !hitlRequired;\n\n    console.log('Super Banking MCP Tool Authorization Decision:', {\n        decision,\n        stepUpRequired,\n        hitlRequired,\n        denied,\n        permitted,\n        statementCount: processedStatements.length\n    });\n\n    return {\n        decision: decision || 'INDETERMINATE',\n        statements: processedStatements,\n        stepUpRequired,\n        hitlRequired,\n        denied,\n        permitted,\n        requiresAction: stepUpRequired || hitlRequired\n    };\n}"
+              },
+              "outputSchema": {
+                "value": "{\n\t\"output\": {\n\t\t\"type\": \"object\",\n\t\t\"properties\": {\n\t\t\t\"decision\": { \"type\": \"string\" },\n\t\t\t\"statements\": { \"type\": \"object\" },\n\t\t\t\"stepUpRequired\": { \"type\": \"boolean\" },\n\t\t\t\"hitlRequired\": { \"type\": \"boolean\" },\n\t\t\t\"denied\": { \"type\": \"boolean\" },\n\t\t\t\"permitted\": { \"type\": \"boolean\" },\n\t\t\t\"requiresAction\": { \"type\": \"boolean\" }\n\t\t}\n\t}\n}"
+              },
+              "nodeTitle": {
+                "value": "Parse MCP Authorize Response"
+              }
+            }
+          },
+          "position": { "x": 1357, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mc9eval03a",
+            "nodeType": "EVAL",
+            "label": "Evaluator"
+          },
+          "position": { "x": 1537, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mca_permit",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-check-circle text-success\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Tool Authorized</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize approved this MCP tool invocation. The actor delegation chain has been validated.</p>\\n          <div class=\\\"alert border-1 border-success shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: PERMIT</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">Token audience matches the MCP resource URI. Actor client ID is the registered Super Banking BFF. User identity is present in the token chain.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Tool Authorized (PERMIT)"
+              }
+            }
+          },
+          "position": { "x": 1717, "y": 236 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mcb_deny",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-close-circle text-danger\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Tool Authorization Denied</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize denied this MCP tool invocation. The delegation chain or token audience failed policy validation.</p>\\n          <div class=\\\"alert border-1 border-danger shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: DENY</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">Possible causes: TokenAudience does not match McpResourceUri; ActClientId is not the registered Super Banking BFF; UserId is absent from the token chain.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Tool Authorization Denied (DENY)"
+              }
+            }
+          },
+          "position": { "x": 1717, "y": 486 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mcc_stepup",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-shield-alert text-warning\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Step-Up Authentication Required</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize requires additional authentication before this MCP tool can be invoked.</p>\\n          <div class=\\\"alert border-1 border-warning shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: STEP_UP REQUIRED</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">The user must complete multi-factor authentication. Retry the tool invocation after completing MFA.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Step-Up Required (INDETERMINATE + stepUpRequired)"
+              }
+            }
+          },
+          "position": { "x": 1717, "y": 736 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mcd_hitl",
+            "nodeType": "CONNECTION",
+            "connectionId": "867ed4363b2bc21c860085ad2baa817d",
+            "connectorId": "httpConnector",
+            "name": "Http",
+            "label": "Http",
+            "status": "configured",
+            "capabilityName": "customHtmlMessage",
+            "type": "trigger",
+            "properties": {
+              "message": {
+                "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"<div class=\\\"end-user-nano\\\">\\n  <div class=\\\"min-vh-100 bg-light d-flex flex-column align-items-center py-4\\\">\\n    <div style=\\\"max-width: 500px; min-width: 400px; width: 100%\\\">\\n      <div class=\\\"card rounded-3 my-5\\\">\\n        <div class=\\\"card-body rounded-3 p-5 d-flex flex-column text-center\\\">\\n          <span class=\\\"mdi mdi-account-supervisor text-primary\\\" style=\\\"font-size: 3rem;\\\"></span>\\n          <h1 class=\\\"mt-3 mb-3\\\">Human Approval Required</h1>\\n          <p class=\\\"text-muted mb-4\\\">PingOne Authorize requires manual human approval before this MCP tool can be executed. A request has been sent to your administrator.</p>\\n          <div class=\\\"alert border-1 border-primary shadow\\\">\\n            <strong class=\\\"text-dark\\\">Decision: HITL REQUIRED</strong>\\n            <p class=\\\"mb-0 mt-2 small text-muted\\\">This tool invocation requires human-in-the-loop approval. Please wait for administrator approval and retry.</p>\\n          </div>\\n        </div>\\n      </div>\\n    </div>\\n  </div>\\n</div>\\n\"\n      }\n    ]\n  }\n]"
+              },
+              "nodeTitle": {
+                "value": "Human Approval Required (HITL)"
+              }
+            }
+          },
+          "position": { "x": 1717, "y": 986 },
+          "group": "nodes",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": false,
+          "classes": ""
+        }
+      ],
+      "edges": [
+        {
+          "data": {
+            "id": "mce_01ab23cd",
+            "source": "mc1var01a",
+            "target": "mc2eval01a"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_02bc34de",
+            "source": "mc2eval01a",
+            "target": "mc3form01a"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_03cd45ef",
+            "source": "mc3form01a",
+            "target": "mc4eval01b"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_04de56fg",
+            "source": "mc4eval01b",
+            "target": "mc6auth01a"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_05ef67gh",
+            "source": "mc6auth01a",
+            "target": "mc5eval02b"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_06fg78hi",
+            "source": "mc5eval02b",
+            "target": "mc8func01a"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_07gh89ij",
+            "source": "mc5eval02b",
+            "target": "mcb_deny"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_08hi90jk",
+            "source": "mc8func01a",
+            "target": "mc9eval03a"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_09ij01kl",
+            "source": "mc9eval03a",
+            "target": "mca_permit"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_10jk12lm",
+            "source": "mc9eval03a",
+            "target": "mcc_stepup"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        },
+        {
+          "data": {
+            "id": "mce_11kl23mn",
+            "source": "mc9eval03a",
+            "target": "mcd_hitl"
+          },
+          "position": { "x": 0, "y": 0 },
+          "group": "edges",
+          "removed": false,
+          "selected": false,
+          "selectable": true,
+          "locked": false,
+          "grabbable": true,
+          "pannable": true,
+          "classes": ""
+        }
+      ]
+    },
+    "data": {},
+    "zoomingEnabled": true,
+    "userZoomingEnabled": true,
+    "zoom": 1,
+    "minZoom": 1e-50,
+    "maxZoom": 1e+50,
+    "panningEnabled": true,
+    "userPanningEnabled": true,
+    "pan": { "x": 0, "y": 0 },
+    "boxSelectionEnabled": true,
+    "renderer": { "name": "null" }
+  },
+  "flowColor": "#E3F0FF",
+  "savedDate": 1776902400000,
+  "variables": [
+    {
+      "context": "flowInstance",
+      "createdDate": 1776902400000,
+      "fields": {
+        "type": "string",
+        "displayName": "URL for company logo image",
+        "mutable": true,
+        "min": 0,
+        "max": 2000,
+        "sizeInBytes": 0
+      },
+      "id": "companylogo-mcp-var-001",
+      "type": "property",
+      "updatedDate": 1776902400000,
+      "visibility": "private",
+      "name": "companyLogo##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    },
+    {
+      "context": "flowInstance",
+      "createdDate": 1776902400000,
+      "fields": {
+        "type": "string",
+        "displayName": "Company name",
+        "mutable": true,
+        "min": 0,
+        "max": 200,
+        "sizeInBytes": 0
+      },
+      "id": "companyname-mcp-var-001",
+      "type": "property",
+      "updatedDate": 1776902400000,
+      "visibility": "private",
+      "name": "companyName##SK##flowInstance",
+      "companyId": "a59917da-0f7a-44d3-a070-5da6f652fed6"
+    }
+  ],
+  "forms": {},
+  "connections": []
+}

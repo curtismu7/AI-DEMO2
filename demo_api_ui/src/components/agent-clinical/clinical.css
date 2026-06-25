@@ -1,0 +1,565 @@
+/**
+ * Clinical Split design tokens + chrome styles.
+ *
+ * Scoped under .agent-clinical-host (set on the dashboard root) and prefixed
+ * with .ac- so nothing can leak into the rest of the app.
+ *
+ * See docs/mockups/agent-ui-redesign/option-2b-refined.html for the source.
+ */
+
+/* Reset legacy .user-dashboard chrome when the clinical layout owns the page. */
+.user-dashboard--clinical-split.agent-clinical-host {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  display: block;
+}
+
+.agent-clinical-host {
+  /* ----- palette tokens (teal-led, no indigo) ----- */
+  --ac-bg: #ffffff;
+  --ac-bg-2: #f4f6f9;
+  --ac-bg-3: #e8edf3;
+  --ac-ink: #0e1a2b;
+  --ac-ink-2: #2c3a52;
+  --ac-rule: #d8dee8;
+  --ac-rule-2: #b9c2d1;
+  --ac-muted: #6b7689;
+  --ac-muted-2: #93a0b3;
+
+  --ac-teal: #0d6760;
+  --ac-teal-2: #0a5550;
+  --ac-teal-soft: #d8eceb;
+  --ac-teal-tint: #ecf6f5;
+
+  --ac-gold: #a87317;
+  --ac-gold-soft: #f7eccf;
+  --ac-rose: #a13348;
+  --ac-rose-soft: #f5dde2;
+  --ac-moss: #4a6b3a;
+  --ac-moss-soft: #dfeada;
+
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  color: var(--ac-ink);
+  background: var(--ac-bg);
+  min-height: 100vh;
+}
+
+/* ----- shell ----- */
+.ac-shell {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  min-height: 100vh;
+  background: var(--ac-bg);
+}
+
+/* ----- rail (44px) ----- */
+.ac-rail {
+  height: 44px;
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items: center;
+  padding: 0 14px 0 18px;
+  border-bottom: 1px solid var(--ac-rule);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.ac-brand {
+  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+.ac-brand em {
+  font-style: italic;
+  color: var(--ac-teal);
+  font-weight: 400;
+}
+
+/* ----- tabs ----- */
+.ac-tabs {
+  justify-self: center;
+  display: inline-flex;
+  gap: 2px;
+  background: var(--ac-bg-2);
+  border: 1px solid var(--ac-rule);
+  border-radius: 6px;
+  padding: 2px;
+}
+.ac-tab {
+  background: transparent;
+  border: 0;
+  color: var(--ac-muted);
+  font: inherit;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 11.5px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ac-tab--on {
+  background: #fff;
+  color: var(--ac-ink);
+  box-shadow: 0 1px 0 rgba(14, 26, 43, 0.08);
+}
+.ac-tab-glyph {
+  display: inline-block;
+  font-size: 12px;
+}
+.ac-tab-kbd {
+  font-family: inherit;
+  font-size: 9.5px;
+  background: var(--ac-bg-3);
+  color: var(--ac-muted);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* ----- rail right cluster ----- */
+.ac-rail-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ac-session {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  background: var(--ac-teal-tint);
+  border: 1px solid var(--ac-teal-soft);
+  color: var(--ac-teal);
+  padding: 4px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+}
+.ac-session-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ac-teal);
+  box-shadow: 0 0 0 3px rgba(13, 103, 96, 0.12);
+}
+.ac-icn {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ac-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.ac-icn:hover {
+  background: var(--ac-bg-2);
+  border-color: var(--ac-rule);
+  color: var(--ac-ink);
+}
+.ac-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ac-teal);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ----- pane (the area below the rail; Phase 3b+ swaps in TalkPane etc.) ----- */
+.ac-pane {
+  display: grid;
+  min-height: 0;
+}
+
+/* ----- placeholder (Phase 3a only) ----- */
+.ac-placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  padding: 60px 20px;
+  gap: 8px;
+}
+.ac-eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  color: var(--ac-teal);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.ac-headline {
+  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: -0.015em;
+  color: var(--ac-ink);
+  margin: 0;
+}
+.ac-copy {
+  color: var(--ac-muted);
+  font-size: 14px;
+  max-width: 52ch;
+  margin: 0;
+}
+.ac-kbd-hint {
+  margin-top: 14px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  color: var(--ac-muted-2);
+}
+.ac-kbd-hint kbd {
+  background: var(--ac-bg-2);
+  border: 1px solid var(--ac-rule);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ac-ink);
+}
+
+/* =================================================================
+   TalkPane — chat-left / narration-right split
+   ================================================================= */
+
+.ac-talk {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ----- left: chat column ----- */
+.ac-talk-chat {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-right: 1px solid var(--ac-rule);
+  background: var(--ac-bg);
+  min-height: 540px;
+}
+.ac-chat-head {
+  padding: 22px 28px 12px;
+}
+.ac-eyebrow--small {
+  font-size: 10.5px;
+}
+.ac-chat-headline {
+  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  margin: 4px 0 4px;
+  color: var(--ac-ink);
+}
+.ac-chat-headline i {
+  font-style: italic;
+  color: var(--ac-teal);
+  font-weight: 400;
+}
+.ac-chat-sub {
+  color: var(--ac-muted);
+  font-size: 13px;
+  max-width: 52ch;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.ac-thread {
+  padding: 14px 28px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ac-msg {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.ac-av {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid var(--ac-rule);
+  flex-shrink: 0;
+}
+.ac-av--you {
+  background: var(--ac-bg-2);
+  color: var(--ac-ink);
+}
+.ac-av--ai {
+  background: var(--ac-teal);
+  color: #fff;
+  border-color: var(--ac-teal);
+}
+.ac-bubble {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.ac-bubble-who {
+  font-size: 10.5px;
+  color: var(--ac-muted);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  margin-bottom: 3px;
+  letter-spacing: 0.02em;
+}
+.ac-bubble-body strong {
+  color: var(--ac-ink);
+  font-weight: 600;
+}
+
+/* ----- composer ----- */
+.ac-composer {
+  margin: 10px 18px 18px;
+  background: #fff;
+  border: 1px solid var(--ac-rule-2);
+  border-radius: 10px;
+  padding: 10px 12px 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ac-composer:focus-within {
+  border-color: var(--ac-teal);
+  box-shadow: 0 0 0 3px var(--ac-teal-tint);
+}
+.ac-composer textarea {
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ac-ink);
+  font-size: 14px;
+  outline: none;
+  min-height: 44px;
+}
+.ac-composer textarea::placeholder {
+  color: var(--ac-muted);
+}
+.ac-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ac-muted);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+.ac-composer-hint {
+  letter-spacing: 0.04em;
+}
+.ac-composer--placeholder textarea {
+  opacity: 0.5;
+}
+.ac-send {
+  border: 0;
+  cursor: pointer;
+  background: var(--ac-ink);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 0.04em;
+}
+.ac-send:hover {
+  background: var(--ac-teal);
+}
+.ac-send:disabled {
+  background: var(--ac-bg-3);
+  color: var(--ac-muted-2);
+  cursor: not-allowed;
+}
+
+/* ----- right: narration column ----- */
+.ac-talk-narrate {
+  background: var(--ac-bg-2);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+}
+.ac-narrate-head {
+  padding: 16px 22px 10px;
+  border-bottom: 1px solid var(--ac-rule);
+  background: #fff;
+}
+.ac-narrate-h2 {
+  font-family: 'Crimson Pro', 'Source Serif Pro', Georgia, serif;
+  font-weight: 500;
+  font-size: 18px;
+  margin: 4px 0 0;
+  letter-spacing: -0.005em;
+}
+.ac-narrate-h2 i {
+  font-style: italic;
+  color: var(--ac-teal);
+  font-weight: 400;
+}
+.ac-narrate-meta {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 10.5px;
+  color: var(--ac-muted);
+  margin-top: 4px;
+}
+.ac-narrate-meta strong {
+  color: var(--ac-ink);
+  font-weight: 500;
+}
+
+.ac-narrate-tabs {
+  display: flex;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--ac-rule);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 10.5px;
+  color: var(--ac-muted);
+  background: #fff;
+}
+.ac-narrate-tab {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 10px 0;
+  margin-right: 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font: inherit;
+}
+.ac-narrate-tab--on {
+  color: var(--ac-teal);
+  border-bottom-color: var(--ac-teal);
+  font-weight: 600;
+}
+
+.ac-narrate-body {
+  padding: 16px 22px 22px;
+  overflow-y: auto;
+}
+
+/* ----- timeline cards ----- */
+.ac-tstep {
+  position: relative;
+  margin-bottom: 8px;
+  padding-left: 22px;
+}
+.ac-tstep::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--ac-teal);
+}
+.ac-tstep--done::before {
+  background: var(--ac-teal);
+}
+.ac-tstep + .ac-tstep::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: -8px;
+  width: 1px;
+  height: 16px;
+  background: var(--ac-rule-2);
+}
+.ac-tstep-card {
+  background: #fff;
+  border: 1px solid var(--ac-rule);
+  border-radius: 6px;
+  padding: 9px 12px;
+}
+.ac-tstep-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.ac-tstep-role {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  color: var(--ac-teal);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.ac-tstep-rfc {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 9.5px;
+  color: var(--ac-muted);
+}
+.ac-tstep-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ac-ink);
+}
+.ac-tstep-sub {
+  color: var(--ac-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* =================================================================
+   Phase 3c — BankingAgent inline-mode portal host.
+
+   App.js detects clinicalSplit=true (set by TalkPane via AgentUiModeContext)
+   and renders BankingAgent with mode="inline" + splitColumnChrome=true. That
+   activates the existing .ba-mode-inline / .ba-split-column classes in
+   BankingAgent.css — no floating dock, no drag handle, fills its host.
+
+   Our job here is just to make sure the host column is a bounded flex
+   container so the agent has somewhere defined to grow into.
+   ================================================================= */
+
+.ac-pane {
+  min-height: 0;
+  height: calc(100vh - 44px);
+  overflow: hidden;
+}
+.ac-talk {
+  height: 100%;
+  min-height: 0;
+}
+.ac-talk-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.ac-chat-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}

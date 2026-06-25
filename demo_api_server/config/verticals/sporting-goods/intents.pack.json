@@ -1,0 +1,1178 @@
+{
+  "intents": [
+    {
+      "action": "cancel_order",
+      "type": "write",
+      "arr": "orders",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\border\\b|\\border\\b.*\\bcancel\\b",
+      "idParam": "orderId",
+      "mutateStatus": "cancelled",
+      "noun": "order",
+      "toolDescription": "Cancel a pending gear order by order id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Order ID",
+            "path": "id"
+          },
+          {
+            "label": "Item",
+            "path": "item"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel my order\" / \"cancel order 1001\" -> cancel_order params:{orderId}",
+      "evalRows": [
+        {
+          "phrase": "cancel order 1003",
+          "expect": "cancel_order"
+        },
+        {
+          "phrase": "I want to cancel my order",
+          "expect": "cancel_order"
+        },
+        {
+          "phrase": "cancel order 1002 please",
+          "expect": "cancel_order"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "return_order",
+      "type": "write",
+      "arr": "orders",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\breturn\\b.*\\border\\b|\\bstart\\s+a\\s+return\\b|\\brequest\\s+return\\b",
+      "idParam": "orderId",
+      "mutateStatus": "return_requested",
+      "noun": "order",
+      "toolDescription": "Initiate a return for a delivered gear order by order id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Order ID",
+            "path": "id"
+          },
+          {
+            "label": "Item",
+            "path": "item"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"return my order\" / \"start a return for order 1002\" -> return_order params:{orderId}",
+      "evalRows": [
+        {
+          "phrase": "return order 1001",
+          "expect": "return_order"
+        },
+        {
+          "phrase": "I want to return my order",
+          "expect": "return_order"
+        },
+        {
+          "phrase": "start a return for order 1002",
+          "expect": "return_order"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "cancel_rental",
+      "type": "write",
+      "arr": "rentals",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\brental\\b|\\brental\\b.*\\bcancel\\b",
+      "idParam": "rentalId",
+      "mutateStatus": "cancelled",
+      "noun": "rental",
+      "toolDescription": "Cancel an active equipment rental by rental id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Rental ID",
+            "path": "id"
+          },
+          {
+            "label": "Item",
+            "path": "item"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel my rental\" / \"cancel rental 2001\" -> cancel_rental params:{rentalId}",
+      "evalRows": [
+        {
+          "phrase": "cancel rental 2001",
+          "expect": "cancel_rental"
+        },
+        {
+          "phrase": "I need to cancel my rental",
+          "expect": "cancel_rental"
+        },
+        {
+          "phrase": "cancel rental 2003",
+          "expect": "cancel_rental"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "redeem_points",
+      "type": "write",
+      "arr": "loyalty",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bredeem\\b.*\\bpoints?\\b|\\buse\\b.{0,20}\\bpoints?\\b",
+      "idParam": "loyaltyId",
+      "mutateStatus": "redeemed",
+      "noun": "loyalty reward",
+      "toolDescription": "Redeem loyalty points for a reward or discount by loyalty account id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Account ID",
+            "path": "id"
+          },
+          {
+            "label": "Tier",
+            "path": "tier"
+          },
+          {
+            "label": "Points",
+            "path": "points"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"redeem my points\" / \"use my points\" -> redeem_points params:{loyaltyId}",
+      "evalRows": [
+        {
+          "phrase": "redeem my points",
+          "expect": "redeem_points"
+        },
+        {
+          "phrase": "use my loyalty points for a discount",
+          "expect": "redeem_points"
+        },
+        {
+          "phrase": "I want to redeem points on account 3001",
+          "expect": "redeem_points"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "close_support_ticket",
+      "type": "write",
+      "arr": "support_tickets",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": "ticketId",
+      "mutateStatus": "closed",
+      "noun": "support ticket",
+      "toolDescription": "Close an open support ticket by ticket id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Ticket ID",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"close ticket 7001\" / \"mark my ticket as resolved\" -> close_support_ticket params:{ticketId}",
+      "evalRows": [
+        {
+          "phrase": "close ticket tkt-7001",
+          "expect": "close_support_ticket"
+        },
+        {
+          "phrase": "mark ticket 7002 as closed",
+          "expect": "close_support_ticket"
+        },
+        {
+          "phrase": "I want to close my support ticket",
+          "expect": "close_support_ticket"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "cancel_subscription",
+      "type": "write",
+      "arr": "subscriptions",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\bsubscription\\b|\\bcancel\\b.*\\bmembership\\b|\\bunsubscribe\\b",
+      "idParam": "subscriptionId",
+      "mutateStatus": "cancelled",
+      "noun": "subscription",
+      "toolDescription": "Cancel an active subscription or membership plan by subscription id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Subscription ID",
+            "path": "id"
+          },
+          {
+            "label": "Plan",
+            "path": "plan"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel my subscription\" / \"cancel subscription sub-8002\" -> cancel_subscription params:{subscriptionId}",
+      "evalRows": [
+        {
+          "phrase": "cancel my subscription",
+          "expect": "cancel_subscription"
+        },
+        {
+          "phrase": "I want to cancel my membership",
+          "expect": "cancel_subscription"
+        },
+        {
+          "phrase": "cancel subscription sub-8001",
+          "expect": "cancel_subscription"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "remove_wishlist_item",
+      "type": "write",
+      "arr": "wishlist",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": "wishlistItemId",
+      "mutateStatus": "removed",
+      "noun": "wishlist item",
+      "toolDescription": "Remove a specific item from the customer wishlist by id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Item ID",
+            "path": "id"
+          },
+          {
+            "label": "Item",
+            "path": "item"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"remove item from wishlist\" / \"delete wsh-9002 from my wishlist\" -> remove_wishlist_item params:{wishlistItemId}",
+      "evalRows": [
+        {
+          "phrase": "remove wsh-9002 from my wishlist",
+          "expect": "remove_wishlist_item"
+        },
+        {
+          "phrase": "delete that item from my wishlist",
+          "expect": "remove_wishlist_item"
+        },
+        {
+          "phrase": "take wsh-9001 off my saved list",
+          "expect": "remove_wishlist_item"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "cancel_coaching_session",
+      "type": "write",
+      "arr": "coaching_sessions",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": "sessionId",
+      "mutateStatus": "cancelled",
+      "noun": "coaching session",
+      "toolDescription": "Cancel a booked coaching session or lesson by session id",
+      "render": {
+        "type": "card",
+        "fields": [
+          {
+            "label": "Session ID",
+            "path": "id"
+          },
+          {
+            "label": "Sport",
+            "path": "sport"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel my coaching session\" / \"cancel session cch-1201\" -> cancel_coaching_session params:{sessionId}",
+      "evalRows": [
+        {
+          "phrase": "cancel coaching session cch-1201",
+          "expect": "cancel_coaching_session"
+        },
+        {
+          "phrase": "I need to cancel my lesson",
+          "expect": "cancel_coaching_session"
+        },
+        {
+          "phrase": "cancel session cch-1202",
+          "expect": "cancel_coaching_session"
+        }
+      ],
+      "seedRows": null,
+      "resultKey": null
+    },
+    {
+      "action": "list_payments",
+      "type": "read",
+      "arr": "payments",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bpayment\\s+methods?\\b|\\bsaved\\s+cards?\\b|\\bcards?\\b.{0,15}\\bsaved\\b|\\bmy\\s+cards?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List saved payment methods on the customer account",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id"
+          },
+          {
+            "label": "Type",
+            "path": "type"
+          },
+          {
+            "label": "Last 4",
+            "path": "last4"
+          },
+          {
+            "label": "Expiry",
+            "path": "expiry"
+          },
+          {
+            "label": "Default",
+            "path": "isDefault"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my payment methods\" / \"show my cards\" -> list_payments params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my payment methods",
+          "expect": "list_payments"
+        },
+        {
+          "phrase": "what cards do I have saved",
+          "expect": "list_payments"
+        },
+        {
+          "phrase": "my saved payment methods",
+          "expect": "list_payments"
+        }
+      ],
+      "resultKey": "payments",
+      "seedRows": [
+        {
+          "id": "pay-4001",
+          "type": "Visa",
+          "last4": "4242",
+          "expiry": "12/27",
+          "isDefault": true
+        },
+        {
+          "id": "pay-4002",
+          "type": "Mastercard",
+          "last4": "8888",
+          "expiry": "09/26",
+          "isDefault": false
+        },
+        {
+          "id": "pay-4003",
+          "type": "Amex",
+          "last4": "0005",
+          "expiry": "03/28",
+          "isDefault": false
+        },
+        {
+          "id": "pay-4004",
+          "type": "Visa",
+          "last4": "1111",
+          "expiry": "07/25",
+          "isDefault": false
+        },
+        {
+          "id": "pay-4005",
+          "type": "PayPal",
+          "last4": "N/A",
+          "expiry": "N/A",
+          "isDefault": false
+        }
+      ]
+    },
+    {
+      "action": "list_addresses",
+      "type": "read",
+      "arr": "addresses",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\baddress(es)?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List saved shipping addresses on the customer account",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id"
+          },
+          {
+            "label": "Label",
+            "path": "label"
+          },
+          {
+            "label": "Street",
+            "path": "street"
+          },
+          {
+            "label": "City",
+            "path": "city"
+          },
+          {
+            "label": "Default",
+            "path": "isDefault"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my addresses\" / \"show shipping addresses\" -> list_addresses params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my shipping addresses",
+          "expect": "list_addresses"
+        },
+        {
+          "phrase": "what addresses do I have on file",
+          "expect": "list_addresses"
+        },
+        {
+          "phrase": "my delivery addresses",
+          "expect": "list_addresses"
+        }
+      ],
+      "resultKey": "addresses",
+      "seedRows": [
+        {
+          "id": "addr-5001",
+          "label": "Home",
+          "street": "42 Maple Ave",
+          "city": "Denver",
+          "isDefault": true
+        },
+        {
+          "id": "addr-5002",
+          "label": "Work",
+          "street": "100 Commerce Blvd",
+          "city": "Boulder",
+          "isDefault": false
+        },
+        {
+          "id": "addr-5003",
+          "label": "Cabin",
+          "street": "7 Trail Rd",
+          "city": "Estes Park",
+          "isDefault": false
+        },
+        {
+          "id": "addr-5004",
+          "label": "Gym",
+          "street": "300 Fitness Way",
+          "city": "Aurora",
+          "isDefault": false
+        },
+        {
+          "id": "addr-5005",
+          "label": "Parent",
+          "street": "88 Oak St",
+          "city": "Fort Collins",
+          "isDefault": false
+        }
+      ]
+    },
+    {
+      "action": "list_invoices",
+      "type": "read",
+      "arr": "invoices",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\binvoices?\\b|\\bbilling\\s+history\\b|\\bbills?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List past invoices and billing history for the customer",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Invoice ID",
+            "path": "id"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Items",
+            "path": "itemCount",
+            "format": "count"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my invoices\" / \"show billing history\" -> list_invoices params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my invoices",
+          "expect": "list_invoices"
+        },
+        {
+          "phrase": "my billing history",
+          "expect": "list_invoices"
+        },
+        {
+          "phrase": "show my invoices",
+          "expect": "list_invoices"
+        }
+      ],
+      "resultKey": "invoices",
+      "seedRows": [
+        {
+          "id": "inv-6001",
+          "date": "2025-05-10",
+          "amount": 189.99,
+          "status": "paid",
+          "itemCount": 3
+        },
+        {
+          "id": "inv-6002",
+          "date": "2025-04-22",
+          "amount": 64.5,
+          "status": "paid",
+          "itemCount": 1
+        },
+        {
+          "id": "inv-6003",
+          "date": "2025-03-15",
+          "amount": 312,
+          "status": "paid",
+          "itemCount": 5
+        },
+        {
+          "id": "inv-6004",
+          "date": "2025-02-01",
+          "amount": 44.99,
+          "status": "paid",
+          "itemCount": 1
+        },
+        {
+          "id": "inv-6005",
+          "date": "2025-01-08",
+          "amount": 229.95,
+          "status": "paid",
+          "itemCount": 2
+        }
+      ]
+    },
+    {
+      "action": "list_support_tickets",
+      "type": "read",
+      "arr": "support_tickets",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bsupport\\s+ticket(?:s)?\\b|\\bmy\\s+ticket(?:s)?\\b|\\bopen\\s+cases?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List customer support tickets and their current status",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Ticket ID",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Created",
+            "path": "createdAt",
+            "format": "date"
+          },
+          {
+            "label": "Priority",
+            "path": "priority"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my support tickets\" / \"show open cases\" -> list_support_tickets params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my support tickets",
+          "expect": "list_support_tickets"
+        },
+        {
+          "phrase": "do I have any open cases",
+          "expect": "list_support_tickets"
+        },
+        {
+          "phrase": "my ticket status",
+          "expect": "list_support_tickets"
+        }
+      ],
+      "resultKey": "support_tickets",
+      "seedRows": [
+        {
+          "id": "tkt-7001",
+          "subject": "Missing item in order",
+          "status": "open",
+          "createdAt": "2025-06-01",
+          "priority": "high"
+        },
+        {
+          "id": "tkt-7002",
+          "subject": "Defective ski boot buckle",
+          "status": "in_progress",
+          "createdAt": "2025-05-28",
+          "priority": "medium"
+        },
+        {
+          "id": "tkt-7003",
+          "subject": "Wrong size delivered",
+          "status": "resolved",
+          "createdAt": "2025-05-10",
+          "priority": "low"
+        },
+        {
+          "id": "tkt-7004",
+          "subject": "Rental return receipt",
+          "status": "resolved",
+          "createdAt": "2025-04-30",
+          "priority": "low"
+        },
+        {
+          "id": "tkt-7005",
+          "subject": "Loyalty points not credited",
+          "status": "open",
+          "createdAt": "2025-06-12",
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "action": "list_subscriptions",
+      "type": "read",
+      "arr": "subscriptions",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmy\\s+subscription(?:s)?\\b|\\bmembership\\s+plan\\b|\\bsports\\s+pass\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List active and past memberships or subscription plans for the customer",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id"
+          },
+          {
+            "label": "Plan",
+            "path": "plan"
+          },
+          {
+            "label": "Price/mo",
+            "path": "monthlyPrice",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Renews",
+            "path": "renewalDate",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my subscriptions\" / \"show my membership plan\" -> list_subscriptions params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my subscriptions",
+          "expect": "list_subscriptions"
+        },
+        {
+          "phrase": "what membership plan am I on",
+          "expect": "list_subscriptions"
+        },
+        {
+          "phrase": "my sports pass",
+          "expect": "list_subscriptions"
+        }
+      ],
+      "resultKey": "subscriptions",
+      "seedRows": [
+        {
+          "id": "sub-8001",
+          "plan": "Pro Athlete",
+          "monthlyPrice": 29.99,
+          "status": "active",
+          "renewalDate": "2025-07-15"
+        },
+        {
+          "id": "sub-8002",
+          "plan": "Gear Insider",
+          "monthlyPrice": 9.99,
+          "status": "active",
+          "renewalDate": "2025-07-01"
+        },
+        {
+          "id": "sub-8003",
+          "plan": "Ski Season Pass",
+          "monthlyPrice": 49.99,
+          "status": "paused",
+          "renewalDate": "2025-11-01"
+        },
+        {
+          "id": "sub-8004",
+          "plan": "Basic",
+          "monthlyPrice": 0,
+          "status": "cancelled",
+          "renewalDate": "2025-03-01"
+        },
+        {
+          "id": "sub-8005",
+          "plan": "Family Pack",
+          "monthlyPrice": 59.99,
+          "status": "active",
+          "renewalDate": "2025-08-20"
+        }
+      ]
+    },
+    {
+      "action": "list_wishlist",
+      "type": "read",
+      "arr": "wishlist",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bwish\\s*list\\b|\\bsaved\\s+items?\\b|\\bfavorites?\\b|\\bitems?\\b.{0,15}\\bsaved\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List items saved to the customer wishlist or favorites",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "ID",
+            "path": "id"
+          },
+          {
+            "label": "Item",
+            "path": "item"
+          },
+          {
+            "label": "Price",
+            "path": "price",
+            "format": "money"
+          },
+          {
+            "label": "In Stock",
+            "path": "inStock"
+          },
+          {
+            "label": "Added",
+            "path": "addedDate",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my wishlist\" / \"show saved items\" -> list_wishlist params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my wishlist",
+          "expect": "list_wishlist"
+        },
+        {
+          "phrase": "what items have I saved",
+          "expect": "list_wishlist"
+        },
+        {
+          "phrase": "my favorite gear",
+          "expect": "list_wishlist"
+        }
+      ],
+      "resultKey": "wishlist",
+      "seedRows": [
+        {
+          "id": "wsh-9001",
+          "item": "Carbon Fiber Road Bike",
+          "price": 2499.99,
+          "inStock": true,
+          "addedDate": "2025-05-20"
+        },
+        {
+          "id": "wsh-9002",
+          "item": "Titanium Ski Poles",
+          "price": 149.99,
+          "inStock": false,
+          "addedDate": "2025-04-10"
+        },
+        {
+          "id": "wsh-9003",
+          "item": "Trail Running Shoes X12",
+          "price": 129.99,
+          "inStock": true,
+          "addedDate": "2025-06-01"
+        },
+        {
+          "id": "wsh-9004",
+          "item": "GPS Sports Watch Pro",
+          "price": 349.99,
+          "inStock": true,
+          "addedDate": "2025-03-15"
+        },
+        {
+          "id": "wsh-9005",
+          "item": "Compression Training Kit",
+          "price": 89.99,
+          "inStock": false,
+          "addedDate": "2025-05-05"
+        }
+      ]
+    },
+    {
+      "action": "list_promotions",
+      "type": "read",
+      "arr": "promotions",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bpromotions?\\b|\\bcoupons?\\b|\\bdeals?\\b|\\boffers?\\b|\\bdiscount\\s+codes?\\b|\\bpromo\\s+codes?\\b|\\bdiscounts?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List available promotions, discount codes, and coupons for the customer",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Promo ID",
+            "path": "id"
+          },
+          {
+            "label": "Code",
+            "path": "code"
+          },
+          {
+            "label": "Discount",
+            "path": "discountPercent",
+            "format": "percent"
+          },
+          {
+            "label": "Expires",
+            "path": "expiresAt",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my promotions\" / \"show discount codes\" -> list_promotions params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my promotions",
+          "expect": "list_promotions"
+        },
+        {
+          "phrase": "what discount codes do I have",
+          "expect": "list_promotions"
+        },
+        {
+          "phrase": "show available coupons",
+          "expect": "list_promotions"
+        }
+      ],
+      "resultKey": "promotions",
+      "seedRows": [
+        {
+          "id": "prm-1101",
+          "code": "SUMMER20",
+          "discountPercent": 20,
+          "expiresAt": "2025-08-31",
+          "status": "active"
+        },
+        {
+          "id": "prm-1102",
+          "code": "LOYAL10",
+          "discountPercent": 10,
+          "expiresAt": "2025-12-31",
+          "status": "active"
+        },
+        {
+          "id": "prm-1103",
+          "code": "SKISEASON15",
+          "discountPercent": 15,
+          "expiresAt": "2025-11-30",
+          "status": "active"
+        },
+        {
+          "id": "prm-1104",
+          "code": "WELCOME5",
+          "discountPercent": 5,
+          "expiresAt": "2025-07-01",
+          "status": "used"
+        },
+        {
+          "id": "prm-1105",
+          "code": "FLASH30",
+          "discountPercent": 30,
+          "expiresAt": "2025-06-20",
+          "status": "expired"
+        }
+      ]
+    },
+    {
+      "action": "list_coaching_sessions",
+      "type": "read",
+      "arr": "coaching_sessions",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcoaching\\b|\\blessons?\\b|\\bclinics?\\b|\\btraining\\s+sessions?\\b",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List booked coaching sessions, clinics, and lessons for the customer",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Session ID",
+            "path": "id"
+          },
+          {
+            "label": "Sport",
+            "path": "sport"
+          },
+          {
+            "label": "Coach",
+            "path": "coach"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my coaching sessions\" / \"show my lessons\" -> list_coaching_sessions params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my coaching sessions",
+          "expect": "list_coaching_sessions"
+        },
+        {
+          "phrase": "what lessons do I have booked",
+          "expect": "list_coaching_sessions"
+        },
+        {
+          "phrase": "my sports clinics",
+          "expect": "list_coaching_sessions"
+        }
+      ],
+      "resultKey": "coaching_sessions",
+      "seedRows": [
+        {
+          "id": "cch-1201",
+          "sport": "Skiing",
+          "coach": "Mia Halvorsen",
+          "date": "2025-07-05",
+          "status": "confirmed"
+        },
+        {
+          "id": "cch-1202",
+          "sport": "Mountain Biking",
+          "coach": "Derek Lund",
+          "date": "2025-07-12",
+          "status": "confirmed"
+        },
+        {
+          "id": "cch-1203",
+          "sport": "Rock Climbing",
+          "coach": "Sara Okonjo",
+          "date": "2025-06-28",
+          "status": "completed"
+        },
+        {
+          "id": "cch-1204",
+          "sport": "Trail Running",
+          "coach": "Tom Briggs",
+          "date": "2025-06-15",
+          "status": "cancelled"
+        },
+        {
+          "id": "cch-1205",
+          "sport": "Kayaking",
+          "coach": "Lily Chen",
+          "date": "2025-08-02",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "action": "list_store_credit",
+      "type": "read",
+      "arr": "store_credit",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "toolDescription": "List store credit balances and gift card credits available on the account",
+      "render": {
+        "type": "table",
+        "columns": [
+          {
+            "label": "Credit ID",
+            "path": "id"
+          },
+          {
+            "label": "Source",
+            "path": "source"
+          },
+          {
+            "label": "Balance",
+            "path": "balance",
+            "format": "money"
+          },
+          {
+            "label": "Expires",
+            "path": "expiresAt",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my store credit\" / \"show gift card balance\" -> list_store_credit params:{}",
+      "evalRows": [
+        {
+          "phrase": "what is my store credit balance",
+          "expect": "list_store_credit"
+        },
+        {
+          "phrase": "show my gift card balance",
+          "expect": "list_store_credit"
+        },
+        {
+          "phrase": "how much store credit do I have",
+          "expect": "list_store_credit"
+        }
+      ],
+      "resultKey": "store_credit",
+      "seedRows": [
+        {
+          "id": "crd-1301",
+          "source": "Return Refund",
+          "balance": 45,
+          "expiresAt": "2026-01-01",
+          "status": "active"
+        },
+        {
+          "id": "crd-1302",
+          "source": "Gift Card",
+          "balance": 100,
+          "expiresAt": "2026-06-30",
+          "status": "active"
+        },
+        {
+          "id": "crd-1303",
+          "source": "Loyalty Reward",
+          "balance": 20,
+          "expiresAt": "2025-12-31",
+          "status": "active"
+        },
+        {
+          "id": "crd-1304",
+          "source": "Promotional Credit",
+          "balance": 0,
+          "expiresAt": "2025-05-01",
+          "status": "expired"
+        },
+        {
+          "id": "crd-1305",
+          "source": "Gift Card",
+          "balance": 50,
+          "expiresAt": "2026-03-15",
+          "status": "active"
+        }
+      ]
+    }
+  ]
+}

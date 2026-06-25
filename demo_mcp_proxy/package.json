@@ -1,0 +1,12 @@
+{
+  "name": "demo-mcp-proxy",
+  "version": "1.0.0",
+  "description": "HTTP-to-MCP sidecar proxy — exposes MCP tools as a plain REST API for stateless agents",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

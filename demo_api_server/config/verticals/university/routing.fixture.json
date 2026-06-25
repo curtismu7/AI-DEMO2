@@ -1,0 +1,247 @@
+{
+  "vertical": "university",
+  "heuristic": [
+    {
+      "phrase": "drop course CS101",
+      "expect": "cancel_course_registration"
+    },
+    {
+      "phrase": "I want to withdraw from class 202",
+      "expect": "cancel_course_registration"
+    },
+    {
+      "phrase": "cancel my registration for section 305",
+      "expect": "cancel_course_registration"
+    },
+    {
+      "phrase": "put me on the waitlist for course 303",
+      "expect": "waitlist_course"
+    },
+    {
+      "phrase": "join waitlist for MATH 201",
+      "expect": "waitlist_course"
+    },
+    {
+      "phrase": "waitlist class section 410",
+      "expect": "waitlist_course"
+    },
+    {
+      "phrase": "accept my financial aid award 2001",
+      "expect": "accept_financial_aid"
+    },
+    {
+      "phrase": "I want to accept my loan offer",
+      "expect": "accept_financial_aid"
+    },
+    {
+      "phrase": "accept grant 2003",
+      "expect": "accept_financial_aid"
+    },
+    {
+      "phrase": "pay my tuition bill 3001",
+      "expect": "pay_tuition_balance"
+    },
+    {
+      "phrase": "settle my balance for this term",
+      "expect": "pay_tuition_balance"
+    },
+    {
+      "phrase": "make a payment on invoice 3004",
+      "expect": "pay_tuition_balance"
+    },
+    {
+      "phrase": "clear my financial hold 4001",
+      "expect": "release_hold"
+    },
+    {
+      "phrase": "release hold 4003 on my account",
+      "expect": "release_hold"
+    },
+    {
+      "phrase": "remove the advising hold from my account",
+      "expect": "release_hold"
+    },
+    {
+      "phrase": "request a room in the dorm 6002",
+      "expect": "request_housing_assignment"
+    },
+    {
+      "phrase": "apply for on-campus housing",
+      "expect": "request_housing_assignment"
+    },
+    {
+      "phrase": "change my residence hall assignment 6003",
+      "expect": "request_housing_assignment"
+    },
+    {
+      "phrase": "renew my parking permit 8002",
+      "expect": "renew_parking_permit"
+    },
+    {
+      "phrase": "extend parking permit for zone A",
+      "expect": "renew_parking_permit"
+    },
+    {
+      "phrase": "reactivate permit 8004",
+      "expect": "renew_parking_permit"
+    },
+    {
+      "phrase": "check out book 9002 from the library",
+      "expect": "checkout_library_item"
+    },
+    {
+      "phrase": "borrow library item 9003",
+      "expect": "checkout_library_item"
+    },
+    {
+      "phrase": "reserve this resource 9005",
+      "expect": "checkout_library_item"
+    },
+    {
+      "phrase": "apply for the merit scholarship 1001",
+      "expect": "apply_scholarship"
+    },
+    {
+      "phrase": "submit scholarship application 1003",
+      "expect": "apply_scholarship"
+    },
+    {
+      "phrase": "apply to the STEM scholarship",
+      "expect": "apply_scholarship"
+    },
+    {
+      "phrase": "show my financial aid package",
+      "expect": "view_financial_aid"
+    },
+    {
+      "phrase": "what grants and loans do I have",
+      "expect": "view_financial_aid"
+    },
+    {
+      "phrase": "check my FAFSA status",
+      "expect": "view_financial_aid"
+    },
+    {
+      "phrase": "show my tuition bill for this semester",
+      "expect": "view_billing"
+    },
+    {
+      "phrase": "what is my balance due",
+      "expect": "view_billing"
+    },
+    {
+      "phrase": "view my student account charges",
+      "expect": "view_billing"
+    },
+    {
+      "phrase": "do I have any holds on my account",
+      "expect": "view_holds"
+    },
+    {
+      "phrase": "show me my registration holds",
+      "expect": "view_holds"
+    },
+    {
+      "phrase": "what account holds are active",
+      "expect": "view_holds"
+    },
+    {
+      "phrase": "show my degree audit",
+      "expect": "view_degree_audit"
+    },
+    {
+      "phrase": "how many credits do I still need to graduate",
+      "expect": "view_degree_audit"
+    },
+    {
+      "phrase": "check my graduation requirements",
+      "expect": "view_degree_audit"
+    },
+    {
+      "phrase": "what is my housing assignment",
+      "expect": "view_housing"
+    },
+    {
+      "phrase": "show me my dorm room",
+      "expect": "view_housing"
+    },
+    {
+      "phrase": "which residence hall am I in",
+      "expect": "view_housing"
+    },
+    {
+      "phrase": "show my meal plan balance",
+      "expect": "view_dining"
+    },
+    {
+      "phrase": "how many dining dollars do I have left",
+      "expect": "view_dining"
+    },
+    {
+      "phrase": "view my recent cafeteria transactions",
+      "expect": "view_dining"
+    },
+    {
+      "phrase": "when are my final exams",
+      "expect": "view_exam_schedule"
+    },
+    {
+      "phrase": "show me the midterm schedule",
+      "expect": "view_exam_schedule"
+    },
+    {
+      "phrase": "what is my exam schedule for this term",
+      "expect": "view_exam_schedule"
+    },
+    {
+      "phrase": "who is my academic advisor",
+      "expect": "view_advisors"
+    },
+    {
+      "phrase": "show my advisors",
+      "expect": "view_advisors"
+    },
+    {
+      "phrase": "my advisor contact info",
+      "expect": "view_advisors"
+    }
+  ],
+  "directiveOnly": [
+    {
+      "phrase": "show my campus parking permit",
+      "expect": "view_parking"
+    },
+    {
+      "phrase": "do I have a parking pass",
+      "expect": "view_parking"
+    },
+    {
+      "phrase": "view my parking permits and citations",
+      "expect": "view_parking"
+    },
+    {
+      "phrase": "what library books do I have checked out",
+      "expect": "view_library"
+    },
+    {
+      "phrase": "show my library account",
+      "expect": "view_library"
+    },
+    {
+      "phrase": "view my borrowed items and due dates",
+      "expect": "view_library"
+    },
+    {
+      "phrase": "what scholarships are available to me",
+      "expect": "view_scholarships"
+    },
+    {
+      "phrase": "show me all scholarships I can apply for",
+      "expect": "view_scholarships"
+    },
+    {
+      "phrase": "list my scholarship applications",
+      "expect": "view_scholarships"
+    }
+  ]
+}

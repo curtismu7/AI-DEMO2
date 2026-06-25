@@ -1,0 +1,93 @@
+{
+  "session_id": "test-session-abc",
+  "start_time": "2026-05-25T09:37:41.575227",
+  "end_time": "2026-05-25T09:37:41.576096",
+  "total_steps": 6,
+  "total_duration_ms": 0,
+  "execution_steps": [
+    {
+      "step": 1,
+      "type": "websocket_incoming",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:41.575254",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "direction": "incoming",
+        "message_type": "user_message",
+        "payload": {
+          "type": "user_message",
+          "content": "What are my accounts?",
+          "session_id": "test-session-abc",
+          "timestamp": "2026-05-25T09:37:41.575243"
+        },
+        "payload_size": 137,
+        "timestamp": "2026-05-25T09:37:41.575253"
+      }
+    },
+    {
+      "step": 2,
+      "type": "user_input",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:37:41.575285",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "message": "What are my accounts?",
+        "session_id": "test-session-abc",
+        "message_length": 21,
+        "timestamp": "2026-05-25T09:37:41.575283"
+      }
+    },
+    {
+      "step": 3,
+      "type": "agent_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:37:41.575296",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "agent_type": "LangChainMCPAgent",
+        "tools_available": 2,
+        "model": "llama3"
+      }
+    },
+    {
+      "step": 4,
+      "type": "memory_check",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:37:41.575790",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "action": "check_user_identification",
+        "user_identified": true
+      }
+    },
+    {
+      "step": 5,
+      "type": "mcp_context_setup",
+      "component": "MCP Tool Provider",
+      "timestamp": "2026-05-25T09:37:41.575804",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "session_id": "test-session-abc",
+        "action": "set_session_context"
+      }
+    },
+    {
+      "step": 6,
+      "type": "error",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:37:41.576039",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "error": "_make_stream_config() missing 1 required positional argument: 'tracer_callback'",
+        "error_type": "TypeError",
+        "error_module": "unknown"
+      }
+    }
+  ]
+}

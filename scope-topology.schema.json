@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scope Topology",
+  "type": "object",
+  "required": ["version", "scopes", "resources", "apps", "tools"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "provisioning": {
+      "type": "object",
+      "description": "Display names for PingOne-provisioned apps and resource servers. Keys are internal JS object keys; values are the names provisioned into PingOne.",
+      "properties": {
+        "appPrefix": { "type": "string" },
+        "resourceNames": { "type": "object", "additionalProperties": { "type": "string" } },
+        "appNames": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "version": { "type": "integer", "enum": [1, 2, 3] },
+    "deployment": {
+      "type": "object",
+      "description": "v3: Public app URLs per deployment environment (non-sensitive). Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Kept separate from .env (which holds secrets) for better auditability and version control.",
+      "additionalProperties": false,
+      "properties": {
+        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
+        "environments": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "publicAppUrl": { "type": "string", "description": "Browser-facing app origin (https://...)" },
+              "pingGatewayResourceUri": { "type": "string", "description": "PingGateway resource server URI (alternate gateway endpoint)" }
+            }
+          }
+        },
+        "redirectUris": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
+            "adminCallback": { "type": "string", "description": "Redirect URI path for admin login" },
+            "userCallback": { "type": "string", "description": "Redirect URI path for user login" }
+          }
+        }
+      }
+    },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["description", "riskLevel", "resource"],
+        "additionalProperties": false,
+        "properties": {
+          "description": { "type": "string", "minLength": 1 },
+          "riskLevel": { "enum": ["low", "medium", "high", "critical"] },
+          "resource": { "type": "string", "minLength": 1 },
+          "category": {
+            "enum": ["banking", "admin", "ai", "data", "feature", "agent", "infra"],
+            "description": "v2: policy-engine scope family. Authoritative for scopePolicyEngine categorization (admin/users -> admin; ai_agent -> ai; default banking)."
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["scopes"],
+        "additionalProperties": false,
+        "properties": {
+          "uri": {
+            "type": "string",
+            "description": "v2: the resource server's audience (PingOne aud). Authoritative — bootstrap creates the RS with this audience."
+          },
+          "scopes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Scopes native to this resource server (this RS is the canonical owner)."
+          },
+          "mirroredScopes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "v2: scopes mirrored onto this RS because it is an RFC 8693 exchange-hop audience. Per ARCHITECTURE-TRUTHS T-10, scope vocabularies are per-resource and do not cascade — a scope traveling through an exchange hop must exist on that hop's audience resource. These are owned (native) by another RS but must also exist here."
+          }
+        }
+      }
+    },
+    "apps": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["grantedScopes"],
+        "additionalProperties": false,
+        "properties": {
+          "grantedScopes": { "type": "array", "items": { "type": "string" } },
+          "type": {
+            "type": "string",
+            "enum": ["WEB_APP", "WORKER", "SINGLE_PAGE_APP", "NATIVE_APP"],
+            "description": "v2: PingOne application type bootstrap should create."
+          },
+          "grantTypes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "v2: OAuth grant types for this app (e.g. authorization_code, client_credentials, token_exchange)."
+          },
+          "isResourceServer": {
+            "type": "string",
+            "description": "v2: if this app IS a resource server (its inbound token aud target), the resource name it corresponds to. Used to wire app -> RS audience."
+          }
+        }
+      }
+    },
+    "servers": {
+      "type": "object",
+      "description": "v2: per-runtime-service model — which resource the service owns/validates and what it gates on. Documents the deployment topology so bootstrap + audits derive server expectations from one place.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["resource"],
+        "additionalProperties": false,
+        "properties": {
+          "resource": {
+            "type": "string",
+            "description": "The resource server whose audience this service validates inbound tokens against."
+          },
+          "validatesAudience": {
+            "type": "string",
+            "description": "The aud value this service requires on inbound tokens (normally the resource's uri)."
+          },
+          "gatesOnToolScopes": {
+            "type": "boolean",
+            "description": "True if this service enforces per-tool requiredScopes (e.g. the MCP Gateway). Implies every gateway-surface tool scope must be mirrored onto this server's resource."
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["requiredScopes", "surface"],
+        "additionalProperties": false,
+        "properties": {
+          "requiredScopes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "surface": { "enum": ["gateway", "exchange-only", "legacy-alias"] },
+          "challengeType": { "enum": ["step_up", "consent"] },
+          "a2aDelegated": { "type": "boolean", "description": "True when this sensitive tool is reachable ONLY via A2A specialist delegation — PingOne Authorize DENYs unless the token's act chain shows a specialist delegated by the generalist (depth >= 2). The generalist cannot call it directly." },
+          "a2aDelegatedScope": { "type": "string", "description": "The specialist scope the A2A-delegated token must carry to reach this tool (e.g. 'records:read'). Paired with a2aDelegated: true." },
+          "requiresAgentMediation": { "type": "boolean", "description": "True when this tool requires agent mediation (HITL consent or step-up) before execution." }
+        }
+      }
+    }
+  }
+}

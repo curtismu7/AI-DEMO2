@@ -1,0 +1,69 @@
+
+/* ── Scope injection warning banner (Phase 146) ─────────────────────────── */
+.dash-scope-injection-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 4px solid #f59e0b;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.dash-scope-injection-banner__icon { font-size: 1.2rem; flex-shrink: 0; }
+.dash-scope-injection-banner__text { flex: 1; }
+.dash-scope-injection-banner__text strong { display: block; color: #d97706; margin-bottom: 2px; }
+.dash-scope-injection-banner__text span { color: #92400e; font-size: 0.82rem; }
+.dash-scope-injection-banner__close {
+  background: none; border: none; font-size: 1.1rem; color: #d97706;
+  cursor: pointer; padding: 0 4px; flex-shrink: 0; opacity: 0.7;
+}
+.dash-scope-injection-banner__close:hover { opacity: 1; }
+
+/* ── Admin dashboard: override split-pane-layout to column so toolbar stacks above grid ── */
+.admin-dashboard-page .split-pane-layout {
+  flex-direction: column;
+  height: auto;
+}
+
+/* ── Admin dashboard: two-column layout in Middle mode ───────────────────── */
+main.admin-dash-main--split {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Token Chain: column 1 — self-contained scroll box, max viewport height (64px nav + 56px toolbar) */
+main.admin-dash-main--split .dash-shell-card--token {
+  grid-column: 1;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+/* Col-2 wrapper: single scrollable cell so all right-column cards sit flush together */
+main.admin-dash-main--split .admin-dash-col2 {
+  grid-column: 2;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Responsive: single column below 1024px regardless of mode */
+@media (max-width: 1024px) {
+  main.admin-dash-main--split {
+    display: block;
+  }
+
+  main.admin-dash-main--split .dash-shell-card--token,
+  main.admin-dash-main--split .admin-dash-col2 {
+    grid-column: unset;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

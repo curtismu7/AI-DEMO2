@@ -1,0 +1,1079 @@
+{
+  "info": {
+    "_postman_id": "23e4bdac-1138-4929-a741-64eff4d640f2",
+    "name": "AI-IAM-CORE Webinar",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "2072799",
+    "_collection_link": "https://go.postman.co/collection/2072799-23e4bdac-1138-4929-a741-64eff4d640f2?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Lookup User with Filter Copy 3",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"UserID received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"userID\", response._embedded.users[0].id);",
+              "    console.log(\"userID stored: \", response._embedded.users[0].id);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.pingone.com/v1/environments/{{envID}}/users?filter=username%20eq%20%22+passworduser+%22",
+          "protocol": "https",
+          "host": [
+            "api",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "v1",
+            "environments",
+            "{{envID}}",
+            "users"
+          ],
+          "query": [
+            {
+              "key": "filter",
+              "value": "username%20eq%20%22+passworduser+%22"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "BankingApp (that logs in theHuman)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"flowID\", response.id);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/authorize?response_type=code&response_mode=pi.flow&client_id=4b9cbd36-9a90-4ef1-9d9b-cac2df40e813&scope=BankingAgent",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "authorize"
+          ],
+          "query": [
+            {
+              "key": "response_type",
+              "value": "code"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "https://example.com",
+              "disabled": true
+            },
+            {
+              "key": "response_mode",
+              "value": "pi.flow"
+            },
+            {
+              "key": "client_id",
+              "value": "4b9cbd36-9a90-4ef1-9d9b-cac2df40e813"
+            },
+            {
+              "key": "scope",
+              "value": "BankingAgent"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Check Username/Password Copy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.pingidentity.usernamePassword.check+json"
+          },
+          {
+            "key": "Cookie",
+            "value": "ST={{sessionToken}}",
+            "description": "Use this for localhost",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"Passworduser\",\n    \"password\": \"Ping1Password!\"\n}"
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "flows",
+            "{{flowID}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Resume Copy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Resume\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"authCode\", response.authorizeResponse.code);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "{{sessionToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "resume"
+          ],
+          "query": [
+            {
+              "key": "flowId",
+              "value": "{{flowID}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Token for Code AI-User-(authorization_code for tokens)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"SubJectAccessTokenFrom1sClient\", response.access_token);",
+              "    pm.environment.set(\"subject_token\", response.access_token);",
+              "    pm.environment.set(\"ID-Token\", response.id_token);",
+              "    pm.environment.set(\"SubjectIdentityTokenFrom1stClient\", response.id_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "authorization_code",
+              "description": "Required",
+              "type": "text"
+            },
+            {
+              "key": "code",
+              "value": "{{authCode}}",
+              "description": "Required",
+              "type": "text"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "https://oauth.pstmn.io/v1/browser-callback",
+              "description": "Required",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "client_id",
+              "value": "4b9cbd36-9a90-4ef1-9d9b-cac2df40e813",
+              "description": "(For CLIENT_SECRET_POST; if included with Basic Auth, must match Header value)",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "WG9h9P5X.-CGYulvwHlzSt_y.JC5vxT2vJfqijXIQbzq5RS78Ly8pe.r6CZt_siV",
+              "description": "(For for CLIENT_SECRET_POST)",
+              "type": "text"
+            },
+            {
+              "key": "scope",
+              "value": "openid Agent1",
+              "type": "text",
+              "disabled": true
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{authPath}}/{{envID}}/as/token",
+          "host": [
+            "{{authPath}}"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Agent1 (Agent Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"flowID\", response.id);",
+              "    pm.environment.set(\"actor_token_from_ai_agent\", response.access_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "rzZkVWir_yw-HpuGS1zqtt-ECzGtHgSfxm8raw7me5UTHlozpQsyks6WIw3P-osk",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "884faa6c-7a8a-48a8-8f28-50bf1b88efbe",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "",
+            "value": "",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "text",
+              "uuid": "284c6102-6ec2-43cd-8351-f90568ead1a9"
+            },
+            {
+              "key": "client_id",
+              "value": "",
+              "type": "text",
+              "uuid": "20f21957-183a-478f-8f0b-ec93bb4c45d6"
+            },
+            {
+              "key": "client_secret",
+              "value": "",
+              "type": "text",
+              "uuid": "9c766016-2eb1-416b-aebe-08c9d8ca57ae"
+            },
+            {
+              "key": "scope",
+              "value": "BankingAgent",
+              "type": "text",
+              "uuid": "fa475f27-d2e1-4093-b51e-c27c1df7404a"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{authPath}}/d10a6005-be3d-46f8-9cdf-d0154c182aec/as/token",
+          "host": [
+            "{{authPath}}"
+          ],
+          "path": [
+            "d10a6005-be3d-46f8-9cdf-d0154c182aec",
+            "as",
+            "token"
+          ],
+          "query": [
+            {
+              "key": "redirect_uri",
+              "value": "https://example.com",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Agent Exchange Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"flowID\", response.id);",
+              "    pm.environment.set(\"mcp_subject_access_token\", response.access_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "grant_type",
+            "value": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "subject_token",
+            "value": "{{SubJectTokenFrom1sClient}}",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "subject_token_type",
+            "value": "urn:ietf:params:oauth:token-type:access_token",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "scope",
+            "value": "sub exchange",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "requested_token_type",
+            "value": "urn:ietf:params:oauth:token-type_access_token",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "client_id",
+            "value": "86e42934-7a6d-4581-8002-4cdf998a6330",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "client_secret",
+            "value": "Fdt0NYf1fKYF~cpUAACh~ax~9mh.WtYlZm2~1XYh1dYq6bgIeFJb5b9OKFoz9chl",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "urn:ietf:params:oauth:grant-type:token-exchange",
+              "type": "text",
+              "uuid": "8cb73259-70b1-418a-9a1e-0461e7d84e60"
+            },
+            {
+              "key": "subject_token",
+              "value": "{{subject_token}}",
+              "description": "Use the Access token from 1st client as the subject token to exchange",
+              "type": "text",
+              "uuid": "0fc3f371-7fcd-4035-b828-00b29261de3f"
+            },
+            {
+              "key": "subject_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "description": "Use the Access Token",
+              "type": "text",
+              "uuid": "44ee8a1c-4adf-461a-a76b-70b93133412b"
+            },
+            {
+              "key": "requested_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "type": "text",
+              "uuid": "c513e7bd-175c-4c29-a611-a1ab83341ce1"
+            },
+            {
+              "key": "scope",
+              "value": "MCPServer",
+              "type": "text",
+              "uuid": "8546c235-d603-46c3-ad8e-47bb18a8c789"
+            },
+            {
+              "key": "client_id",
+              "value": "884faa6c-7a8a-48a8-8f28-50bf1b88efbe",
+              "type": "text",
+              "uuid": "803af2ea-cdce-46c0-9e63-9603c9f1a81d"
+            },
+            {
+              "key": "client_secret",
+              "value": "rzZkVWir_yw-HpuGS1zqtt-ECzGtHgSfxm8raw7me5UTHlozpQsyks6WIw3P-osk",
+              "type": "text",
+              "uuid": "a3eae28e-375d-4f30-9236-65b55363fe01"
+            },
+            {
+              "key": "actor_token",
+              "value": "{{actor_token_from_ai_agent}}",
+              "type": "text",
+              "uuid": "a110eadd-9bc7-4d28-a180-9a0309db568a"
+            },
+            {
+              "key": "actor_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "type": "text",
+              "uuid": "857ed6fa-c2ed-4e1b-880a-a8d9bed44776"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/token",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "token"
+          ],
+          "query": [
+            {
+              "key": "redirect_uri",
+              "value": "https://example.com",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "MCP-Server-Authentication",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"flowID\", response.id);",
+              "    pm.environment.set(\"mcp_actor_access_token\", response.access_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "",
+            "value": "",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "text",
+              "uuid": "284c6102-6ec2-43cd-8351-f90568ead1a9"
+            },
+            {
+              "key": "client_id",
+              "value": "e2c3094e-06b2-4be3-a710-2d5e45915d2c",
+              "type": "text",
+              "uuid": "20f21957-183a-478f-8f0b-ec93bb4c45d6"
+            },
+            {
+              "key": "client_secret",
+              "value": "RgA_Pcb-skvB43vJ9SpVR-Vd1SN-hqa1ameQDiqUnWPJB5GCxMR4zzkW8kJCnRfE",
+              "type": "text",
+              "uuid": "9c766016-2eb1-416b-aebe-08c9d8ca57ae"
+            },
+            {
+              "key": "scope",
+              "value": "MCPServerRegistration",
+              "type": "text",
+              "uuid": "fa475f27-d2e1-4093-b51e-c27c1df7404a"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/token",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "token"
+          ],
+          "query": [
+            {
+              "key": "redirect_uri",
+              "value": "https://example.com",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "MCP Exchange Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"flowID\", response.id);",
+              "    pm.environment.set(\"MCP-Access-token\", response.access_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "    const jwtPayload = atob((response.access_token).split(\".\")[1]);",
+              "    pm.environment.set(\"jwt_payload\", jwtPayload);",
+              "    jwt_payload = JSON.parse(jwt_payload);",
+              "    console.log(\"Payload\",jwt_payload);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "grant_type",
+            "value": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "subject_token",
+            "value": "{{SubJectTokenFrom1sClient}}",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "subject_token_type",
+            "value": "urn:ietf:params:oauth:token-type:access_token",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "scope",
+            "value": "sub exchange",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "requested_token_type",
+            "value": "urn:ietf:params:oauth:token-type_access_token",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "client_id",
+            "value": "86e42934-7a6d-4581-8002-4cdf998a6330",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "client_secret",
+            "value": "Fdt0NYf1fKYF~cpUAACh~ax~9mh.WtYlZm2~1XYh1dYq6bgIeFJb5b9OKFoz9chl",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "urn:ietf:params:oauth:grant-type:token-exchange",
+              "type": "text",
+              "uuid": "8cb73259-70b1-418a-9a1e-0461e7d84e60"
+            },
+            {
+              "key": "subject_token",
+              "value": "{{mcp_subject_access_token}}",
+              "description": "Use the Access token from 1st client as the subject token to exchange",
+              "type": "text",
+              "uuid": "0fc3f371-7fcd-4035-b828-00b29261de3f"
+            },
+            {
+              "key": "subject_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "description": "Use the Access Token",
+              "type": "text",
+              "uuid": "44ee8a1c-4adf-461a-a76b-70b93133412b"
+            },
+            {
+              "key": "requested_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "type": "text",
+              "uuid": "c513e7bd-175c-4c29-a611-a1ab83341ce1"
+            },
+            {
+              "key": "scope",
+              "value": "ResourceServer",
+              "type": "text",
+              "uuid": "8546c235-d603-46c3-ad8e-47bb18a8c789"
+            },
+            {
+              "key": "client_id",
+              "value": "e2c3094e-06b2-4be3-a710-2d5e45915d2c",
+              "type": "text",
+              "uuid": "803af2ea-cdce-46c0-9e63-9603c9f1a81d"
+            },
+            {
+              "key": "client_secret",
+              "value": "RgA_Pcb-skvB43vJ9SpVR-Vd1SN-hqa1ameQDiqUnWPJB5GCxMR4zzkW8kJCnRfE",
+              "type": "text",
+              "uuid": "a3eae28e-375d-4f30-9236-65b55363fe01"
+            },
+            {
+              "key": "actor_token",
+              "value": "{{mcp_actor_access_token}}",
+              "type": "text",
+              "uuid": "a110eadd-9bc7-4d28-a180-9a0309db568a"
+            },
+            {
+              "key": "actor_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token",
+              "type": "text",
+              "uuid": "857ed6fa-c2ed-4e1b-880a-a8d9bed44776"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/token",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "token"
+          ],
+          "query": [
+            {
+              "key": "redirect_uri",
+              "value": "https://example.com",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Call PAZ Copy 2",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"parameters\": {\n        \"inConditionAmountCheck\": \"false\",\n            \"inConditionCheckAgent\": \"false\",\n            \"inConditionAgentCheckAmount\": \"AgentCheckAmount\",\n            \"inAgentAmount\": \"50\",\n        \"inMCPTokenJWT\": \"{{MCP-Access-token}}\"\n    },\n    \"resources\": {\n        \"environmentId\": \"3dfae2e3-23c8-46eb-9a09-df4a3e59141a\"\n    }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{APIPath}}/environments/{{envID}}/decisionEndpoints/cc26aaa9-9b27-4409-bc60-f8a5f98d6296",
+          "host": [
+            "{{APIPath}}"
+          ],
+          "path": [
+            "environments",
+            "{{envID}}",
+            "decisionEndpoints",
+            "cc26aaa9-9b27-4409-bc60-f8a5f98d6296"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CheckIntroSpection",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "client_id",
+              "value": "7bb93320-3c96-47c1-8a4a-825518c1f30e",
+              "type": "text",
+              "uuid": "207ec514-b0b7-4b7d-ae05-72005aae15f2"
+            },
+            {
+              "key": "client_secret",
+              "value": "lIW-QkCx2nlP0Mu6i_UZw2.myY5t~j2EO4japURkuXJoYYuKbQO_ZiGbTonD5lcH",
+              "type": "text",
+              "uuid": "d74be8a8-73a7-40be-bded-50a8cff57e93"
+            },
+            {
+              "key": "token",
+              "value": "{{MCP-Access-token}}",
+              "type": "text",
+              "uuid": "359073a1-e347-4d95-af0d-49c4e6b764a0"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/introspect",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "introspect"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Token Revocation Copy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "token",
+              "value": "{{MCP-Access-token}}",
+              "description": "Required",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "7bb93320-3c96-47c1-8a4a-825518c1f30e",
+              "type": "text",
+              "uuid": "47fc2778-0cf4-4af1-b00a-e541f7fcf2d8"
+            },
+            {
+              "key": "client_secret",
+              "value": "lIW-QkCx2nlP0Mu6i_UZw2.myY5t~j2EO4japURkuXJoYYuKbQO_ZiGbTonD5lcH",
+              "type": "text",
+              "uuid": "55d196fd-0d51-4317-921e-8e8cc9810399"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{authPath}}/{{envID}}/as/revoke",
+          "host": [
+            "{{authPath}}"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "revoke"
+          ]
+        },
+        "description": "This PingOne collection contains only the requests without documentation. For the official PingOne Platform API documentation, see [Token Revocation](https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-token-revocation)."
+      },
+      "response": []
+    },
+    {
+      "name": "Get a Worker Access Token Copy",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Access Token received\", function () {",
+              "    pm.response.to.have.status(200);",
+              "",
+              "    response = pm.response.json();",
+              "    pm.environment.set(\"token\", response.access_token);",
+              "    //console.log(\"Access Token: \", atob((response.access_token).split(\".\")[1]));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "Client-ID",
+            "value": "",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "scope",
+              "type": "text",
+              "value": "p1:read:env:user p1:create:env:user"
+            },
+            {
+              "key": "grant_type",
+              "type": "text",
+              "value": "client_credentials"
+            },
+            {
+              "key": "client_id",
+              "type": "text",
+              "value": "96f8bcf3-6e45-4dc9-9689-c486e7822e34"
+            },
+            {
+              "key": "client_secret",
+              "type": "text",
+              "value": "B2b1OPx0tE9ZLHg~VFmPAZNHAiz_kDd4hGakC705_YXUyUx~uM11zdTKmOc0jBI4"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://auth.pingone.com/{{envID}}/as/token",
+          "protocol": "https",
+          "host": [
+            "auth",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "{{envID}}",
+            "as",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

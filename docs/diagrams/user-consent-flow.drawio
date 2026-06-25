@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-04-07T12:00:00.000Z" agent="5.0" etag="user-consent-flow-v1" version="21.0.0" type="device">
+  <diagram name="User Consent Flow" id="user-consent-flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- User -->
+        <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#01579b;fontColor=#01579b;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Banking App -->
+        <mxCell id="banking-app" value="Banking App&#xa;(BFF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;fontColor=#4a148c;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Consent Modal -->
+        <mxCell id="consent-modal" value="Consent Modal&#xa;(HITL)&#xa;Transaction Details" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f57c00;fontColor=#f57c00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne Auth -->
+        <mxCell id="pingone-auth" value="PingOne&#xa;Auth Server&#xa;(RFC 6749)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#1b5e20;fontColor=#1b5e20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- OTP Service -->
+        <mxCell id="otp-service" value="OTP Service&#xa;(CIBA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#880e4f;fontColor=#880e4f;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Flow Arrows -->
+        <mxCell id="flow1" value="1. Initiate Transaction&#xa;$1,200 Transfer" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="user" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="70" as="sourcePoint" />
+            <mxPoint x="240" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="200" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow2" value="2. Detect High Value&#xa;&gt; $1,000 Threshold" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="banking-app" target="consent-modal">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="70" as="sourcePoint" />
+            <mxPoint x="440" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="400" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow3" value="3. Show Consent Modal&#xa;Amount: $1,200&#xa;Recipient: John Doe&#xa;Require: OTP Approval" style="endArrow=classic;html=1;rounded=0;strokeColor=#f57c00;strokeWidth=2;" edge="1" parent="1" source="consent-modal" target="user">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="440" y="110" as="sourcePoint" />
+            <mxPoint x="160" y="110" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="300" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow4" value="4. User Approves&#xa;Click 'Authorize'" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="user" target="consent-modal">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="150" as="sourcePoint" />
+            <mxPoint x="440" y="150" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="300" y="150" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow5" value="5. Initiate CIBA&#xa;/bc-authorize&#xa;binding_message=Approve $1,200" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="consent-modal" target="pingone-auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="70" as="sourcePoint" />
+            <mxPoint x="640" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="610" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow6" value="6. Trigger OTP&#xa;Send 6-digit code" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="pingone-auth" target="otp-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="70" as="sourcePoint" />
+            <mxPoint x="840" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="800" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow7" value="7. User Receives OTP&#xa;(Email/SMS)" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="otp-service" target="user">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="840" y="110" as="sourcePoint" />
+            <mxPoint x="160" y="110" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="500" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow8" value="8. Enter OTP&#xa;6-digit code" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="user" target="otp-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="190" as="sourcePoint" />
+            <mxPoint x="840" y="190" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="500" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow9" value="9. OTP Validated&#xa;Return access_token" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="otp-service" target="pingone-auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="840" y="230" as="sourcePoint" />
+            <mxPoint x="760" y="230" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="800" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow10" value="10. Execute Transaction&#xa;$1,200 Transfer" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="pingone-auth" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="640" y="270" as="sourcePoint" />
+            <mxPoint x="360" y="270" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="500" y="270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow11" value="11. Transaction Complete&#xa;Confirmation to User" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="banking-app" target="user">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="240" y="310" as="sourcePoint" />
+            <mxPoint x="160" y="310" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="200" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Decision Diamond -->
+        <mxCell id="decision" value="User Approves?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;fontColor=#e65100;" vertex="1" parent="1">
+          <mxGeometry x="280" y="130" width="100" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Reject Path -->
+        <mxCell id="reject-path" value="Reject - Cancel Transaction" style="endArrow=classic;html=1;rounded=0;strokeColor=#f44336;strokeWidth=2;" edge="1" parent="1" source="decision" target="user">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="280" y="170" as="sourcePoint" />
+            <mxPoint x="100" y="200" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="190" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- RFC Annotations -->
+        <mxCell id="rfc-annotation1" value="RFC 6749&#xa;OAuth 2.0&#xa;Authorization Framework" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="640" y="350" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rfc-annotation2" value="RFC 8628 (CIBA)&#xa;Client Initiated&#xa;Backchannel Auth" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="840" y="350" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rfc-annotation3" value="HITL Pattern&#xa;Human-in-the-Loop&#xa;Transaction Approval" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="350" width="140" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Configuration Box -->
+        <mxCell id="config-box" value="Configuration:&#xa;HIGH_VALUE_TRANSACTION_THRESHOLD=1000.00&#xa;CIBA_BINDING_MESSAGE_TEMPLATE='Approve {amount} transfer'&#xa;OTP_LIFETIME=300 seconds&#xa;MAX_ATTEMPTS=3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999;fontColor=#333;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="410" width="300" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Security Notes -->
+        <mxCell id="security-notes" value="Security Features:&#xa;1. Transaction amount validation&#xa;2. Recipient verification&#xa;3. OTP rate limiting&#xa;4. Audit trail logging&#xa;5. Transaction rollback on failure" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f57c00;fontColor=#e65100;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="380" y="410" width="280" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Error Handling -->
+        <mxCell id="error-handling" value="Error Scenarios:&#xa;1. OTP expired - resend new code&#xa;2. OTP incorrect - decrement attempts&#xa;3. User rejects - cancel transaction&#xa;4. Network timeout - retry with backoff&#xa;5. Invalid recipient - block transaction" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#c62828;fontColor=#c62828;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="700" y="410" width="280" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking User Consent Flow&#xa;High-Value Transaction Approval with HITL and CIBA&#xa;RFC 6749 + RFC 8628 Implementation" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="520" width="600" height="60" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

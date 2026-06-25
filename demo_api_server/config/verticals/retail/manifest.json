@@ -1,0 +1,322 @@
+{
+  "id": "retail",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Great Buy",
+    "headerTitle": "Great Buy",
+    "documentTitle": "Great Buy · PingOne AI IAM Core",
+    "logoAlt": "Great Buy logo",
+    "tagline": "AI-Powered Retail Demo",
+    "logoPath": "/branding/bestbuy-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#FFE000",
+      "--app-primary-red-hover": "#FFCC00",
+      "--app-primary-red-mid": "#FFE933",
+      "--app-primary-red-border": "#E6CC00",
+      "--app-primary-btn-text": "#1D1D1B",
+      "--brand-dashboard-header-start": "#1D1D1B",
+      "--brand-dashboard-header-end": "#2d2d2b",
+      "--brand-app-shell-hero-start": "#1D1D1B",
+      "--brand-app-shell-hero-end": "#2d2d2b",
+      "--theme-accent": "#FFE000",
+      "--brand-navy": "#1D1D1B",
+      "--brand-dashboard-header-text": "#FFFFFF",
+      "--brand-topnav-bg-start": "#1D1D1B",
+      "--brand-topnav-bg-end": "#2d2d2b",
+      "--brand-topnav-text": "#1D1D1B"
+    }
+  },
+  "terminology": {
+    "account": "Account",
+    "accounts": "Accounts",
+    "accountTypes": [
+      "Rewards Points",
+      "Store Credit",
+      "Gift Card"
+    ],
+    "transaction": "Activity",
+    "transactions": "Activity",
+    "transactionTypes": [
+      "Purchase",
+      "Return",
+      "Refund",
+      "Points Redemption"
+    ],
+    "balance": "Balance",
+    "agent": "Shopping Assistant",
+    "dashboard": "My Account",
+    "highValueAction": "Large Purchase",
+    "highValueLabel": "High-value purchase"
+  },
+  "agent": {
+    "persona": "Shopping Assistant",
+    "greeting": "Hi {name}! I can browse products, check prices, help with your cart, and explain the OAuth flows securing your checkout. What would you like to do?",
+    "systemPromptFlavor": "You are a Great Buy shopping assistant. Help customers check their reward points, browse purchase history, view their account balances, and complete checkouts. Use retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points, transfers are orders. Be concise and professional."
+  },
+  "dashboard": {
+    "kind": "retail",
+    "chips": [
+      {
+        "key": "balance",
+        "label": "Rewards Points"
+      },
+      {
+        "key": "accounts",
+        "label": "List My Orders"
+      },
+      {
+        "key": "transactions",
+        "label": "Purchase History"
+      },
+      {
+        "key": "transfer",
+        "label": "Checkout"
+      },
+      {
+        "key": "feature",
+        "label": "Show Large Purchase"
+      }
+    ],
+    "chips10": [
+      { "id": "rt1", "label": "List my orders", "message": "list my orders", "mode": "both", "tool": "list_orders" },
+      { "id": "rt2", "label": "Where's my order?", "message": "order status", "mode": "both", "tool": "order_status" },
+      { "id": "rt3", "label": "My reward points", "message": "my reward points", "mode": "both", "tool": "rewards_balance" },
+      { "id": "rt4", "label": "🔐 Checkout", "message": "checkout", "mode": "both", "hitlTrigger": true, "tool": "checkout" },
+      { "id": "rt-feature", "label": "My recent purchase", "message": "show my recent purchase", "mode": "both", "tool": "show_large_purchase" },
+      { "id": "rt5", "label": "Order history", "message": "order history", "mode": "both" },
+      { "id": "rt6", "label": "Track my order", "message": "track my order", "mode": "both", "tool": "order_status" },
+      { "id": "rt7", "label": "Store credit balance", "message": "store credit balance", "mode": "both", "tool": "rewards_balance" },
+      { "id": "rt8", "label": "What should I buy with my points?", "message": "What should I buy with my points?", "mode": "llm" },
+      { "id": "rt9", "label": "Compare my last two orders", "message": "Compare my recent purchases side by side", "mode": "both" },
+      { "id": "rt10", "label": "Any deals on what I viewed?", "message": "Any deals on what I viewed?", "mode": "llm" },
+      { "id": "rt-direct", "label": "🔌 Direct MCP", "message": "list my orders", "mode": "direct", "tool": "list_orders" }
+    ],
+    "hero": {
+      "cards": [
+        {
+          "label": "Cart Value",
+          "dataKey": "heroStats.cartValue",
+          "format": "money"
+        },
+        {
+          "label": "Pending Orders",
+          "dataKey": "heroStats.pendingOrders",
+          "format": "count"
+        },
+        {
+          "label": "Reward Points",
+          "dataKey": "heroStats.rewardPoints",
+          "format": "count"
+        },
+        {
+          "label": "Last Order",
+          "dataKey": "heroStats.lastOrder",
+          "format": "date"
+        }
+      ]
+    },
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Orders": [
+        {
+          "id": "ret_recent",
+          "label": "Recent order status",
+          "message": "Where is my most recent order?"
+        },
+        {
+          "id": "ret_30day",
+          "label": "Last 30 days",
+          "message": "Show orders placed in the last 30 days"
+        }
+      ],
+      "Products": [
+        {
+          "id": "ret_wishlist",
+          "label": "My wishlist",
+          "message": "What's on my wishlist?"
+        },
+        {
+          "id": "ret_viewed",
+          "label": "Recently viewed",
+          "message": "Show items I've viewed recently"
+        }
+      ],
+      "Returns": [
+        {
+          "id": "ret_start_return",
+          "label": "Start a return",
+          "message": "Start a return for my last order"
+        },
+        {
+          "id": "ret_policy",
+          "label": "Return policy",
+          "message": "What's the return policy on electronics?"
+        }
+      ],
+      "Rewards": [
+        {
+          "id": "ret_points",
+          "label": "My points",
+          "message": "How many reward points do I have?"
+        },
+        {
+          "id": "ret_redeem",
+          "label": "Redeem rewards",
+          "message": "What rewards can I redeem today?"
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "largepurchase:read"
+  },
+  "delegation": {
+    "pageTitle": "Family Account Sharing",
+    "pageDescription": "Share your Great Buy account with a family member — powered by RFC 8693 token exchange",
+    "granteeLabel": "family member",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Account",          "description": "See account details and saved items" },
+      "view_balances":     { "label": "View Balance",          "description": "See store credit and rewards balance" },
+      "create_deposit":    { "label": "Make Purchases",        "description": "Buy items on this account" },
+      "create_withdrawal": { "label": "Process Returns",       "description": "Return or exchange items" },
+      "create_transfer":   { "label": "Transfer Store Credit", "description": "Move store credit to another account" }
+    }
+  },
+  "featurePage": {
+    "mcpTool": "show_large_purchase",
+    "pageTitle": "Large Purchase",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#1D1D1B",
+    "dataKey": "largePurchase",
+    "fields": [
+      {
+        "label": "Order ID",
+        "path": "orderId"
+      },
+      {
+        "label": "Product",
+        "path": "product"
+      },
+      {
+        "label": "SKU",
+        "path": "sku"
+      },
+      {
+        "label": "Category",
+        "path": "category"
+      },
+      {
+        "label": "Amount",
+        "path": "amount",
+        "format": "money",
+        "accent": true
+      },
+      {
+        "label": "Status",
+        "path": "status"
+      },
+      {
+        "label": "Estimated delivery",
+        "path": "estimatedDelivery"
+      },
+      {
+        "label": "Rewards points",
+        "path": "rewardsPointsEarned"
+      },
+      {
+        "label": "Retailer",
+        "path": "retailer"
+      }
+    ],
+    "sectionTitle": "Purchase details",
+    "emptyPrompt": "show large purchase",
+    "scopeError": "The agent's access token does not carry the largepurchase:read scope. Sign out and sign back in to consent to large purchase access, then try \"Show Large Purchase\" again."
+  },
+  "render": {
+    "initiate_return": {"type":"card","title":"Return Initiated","fields":[{"label":"Return #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "add_to_wishlist": {"type":"card","title":"Added to Wishlist","fields":[{"label":"Item #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "reorder": {"type":"card","title":"Order Resubmitted","fields":[{"label":"Order #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "view_payment_methods": {"type":"table","title":"Payment Methods","columns":[{"label":"Card #","path":"id"},{"label":"Type","path":"type"},{"label":"Last 4","path":"last4"},{"label":"Expiry","path":"expiry"},{"label":"Default","path":"is_default"}]},
+    "remove_payment_method": {"type":"card","title":"Payment Method Removed","fields":[{"label":"Card #","path":"id"},{"label":"Type","path":"type"},{"label":"Status","path":"status"}]},
+    "view_addresses": {"type":"table","title":"Saved Addresses","columns":[{"label":"Address #","path":"id"},{"label":"Label","path":"label"},{"label":"Street","path":"street"},{"label":"City","path":"city"},{"label":"Default","path":"is_default"}]},
+    "view_subscriptions": {"type":"table","title":"My Subscriptions","columns":[{"label":"Sub #","path":"id"},{"label":"Product","path":"product"},{"label":"Frequency","path":"frequency"},{"label":"Next Delivery","path":"next_date","format":"date"},{"label":"Status","path":"status"}]},
+    "pause_subscription": {"type":"card","title":"Subscription Paused","fields":[{"label":"Sub #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "view_support_tickets": {"type":"table","title":"Support Tickets","columns":[{"label":"Ticket #","path":"id"},{"label":"Subject","path":"subject"},{"label":"Category","path":"category"},{"label":"Status","path":"status"},{"label":"Created","path":"created_date","format":"date"}]},
+    "close_support_ticket": {"type":"card","title":"Ticket Closed","fields":[{"label":"Ticket #","path":"id"},{"label":"Subject","path":"subject"},{"label":"Status","path":"status"}]},
+    "view_gift_cards": {"type":"table","title":"Gift Cards","columns":[{"label":"Card #","path":"id"},{"label":"Last 4","path":"last4"},{"label":"Balance","path":"balance","format":"money"},{"label":"Expires","path":"expiry","format":"date"},{"label":"Status","path":"status"}]},
+    "view_price_alerts": {"type":"table","title":"Price Alerts","columns":[{"label":"Alert #","path":"id"},{"label":"Product","path":"product"},{"label":"Target Price","path":"target_price","format":"money"},{"label":"Current Price","path":"current_price","format":"money"},{"label":"Status","path":"status"}]},
+    "remove_price_alert": {"type":"card","title":"Price Alert Removed","fields":[{"label":"Alert #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "view_recently_viewed": {"type":"table","title":"Recently Viewed","columns":[{"label":"Item #","path":"id"},{"label":"Product","path":"product"},{"label":"Price","path":"price","format":"money"},{"label":"Viewed","path":"viewed_date","format":"date"},{"label":"Category","path":"category"}]},
+    "redeem_store_credit": {"type":"card","title":"Store Credit Redeemed","fields":[{"label":"Reward #","path":"id"},{"label":"Tier","path":"tier"},{"label":"Status","path":"status"}]},
+    "cancel_order": {"type":"card","title":"Order Cancelled","fields":[{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "view_wishlist": {"type":"table","title":"My Wishlist","columns":[{"label":"Item #","path":"id"},{"label":"Product","path":"product"},{"label":"Price","path":"price","format":"money"}]},
+    "view_returns": {"type":"table","title":"My Returns","columns":[{"label":"Return #","path":"id"},{"label":"Product","path":"product"},{"label":"Reason","path":"reason"},{"label":"Status","path":"status"},{"label":"Date","path":"date","format":"date"}]},
+    "list_orders": { "type": "table", "columns": [ { "label": "Order ID", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "order_status": { "type": "card", "title": "Order Status", "fields": [ { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "rewards_balance": { "type": "fieldList", "title": "Rewards", "fields": [ { "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" }, { "label": "Store credit", "path": "storeCredit", "format": "money" } ] },
+    "checkout": { "type": "card", "title": "Order Placed", "fields": [ { "label": "Product", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] }
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

@@ -1,0 +1,347 @@
+{
+  "workOrders": [
+    {
+      "id": "WO-4001",
+      "product": "Bracket Assembly A12",
+      "type": "Assembly",
+      "quantity": 500,
+      "completedQty": 320,
+      "status": "In Production",
+      "dueDate": "2026-07-05"
+    },
+    {
+      "id": "WO-4002",
+      "product": "Spindle Housing",
+      "type": "Machining",
+      "quantity": 120,
+      "completedQty": 120,
+      "status": "Inspection",
+      "dueDate": "2026-06-28"
+    },
+    {
+      "id": "WO-4003",
+      "product": "Anodized Panel",
+      "type": "Finishing",
+      "quantity": 800,
+      "completedQty": 0,
+      "status": "Queued",
+      "dueDate": "2026-07-12"
+    },
+    {
+      "id": "WO-4004",
+      "product": "Gearbox Plate",
+      "type": "Machining",
+      "quantity": 240,
+      "completedQty": 240,
+      "status": "Released",
+      "dueDate": "2026-06-20"
+    }
+  ],
+  "inventory": {
+    "value": 184500,
+    "unitsOnHand": 9420,
+    "lowStock": 2,
+    "items": [
+      {
+        "sku": "MAT-AL6061",
+        "name": "Aluminum 6061 bar",
+        "onHand": 1200,
+        "reorderAt": 400
+      },
+      {
+        "sku": "MAT-SS304",
+        "name": "Stainless 304 sheet",
+        "onHand": 180,
+        "reorderAt": 200
+      },
+      {
+        "sku": "MAT-FAST-M6",
+        "name": "M6 fasteners",
+        "onHand": 8040,
+        "reorderAt": 2000
+      }
+    ]
+  },
+  "productionHistory": [
+    {
+      "id": "PR-9001",
+      "type": "Setup",
+      "workOrder": "WO-4001",
+      "date": "2026-06-15",
+      "status": "Complete"
+    },
+    {
+      "id": "PR-9002",
+      "type": "Run",
+      "workOrder": "WO-4001",
+      "date": "2026-06-16",
+      "status": "Complete"
+    },
+    {
+      "id": "PR-9003",
+      "type": "Inspection",
+      "workOrder": "WO-4002",
+      "date": "2026-06-18",
+      "status": "Passed"
+    },
+    {
+      "id": "PR-9004",
+      "type": "Shipment",
+      "workOrder": "WO-4004",
+      "date": "2026-06-19",
+      "status": "Shipped"
+    }
+  ],
+  "machines": [
+    {
+      "id": "MC-1001",
+      "name": "Haas VF-2 CNC Mill",
+      "cell": "Cell A",
+      "type": "CNC Mill",
+      "utilizationPct": 82,
+      "status": "Running"
+    },
+    {
+      "id": "MC-1002",
+      "name": "Mazak QT-250 Lathe",
+      "cell": "Cell A",
+      "type": "CNC Lathe",
+      "utilizationPct": 0,
+      "status": "Offline"
+    },
+    {
+      "id": "MC-1003",
+      "name": "Okuma MB-46V Mill",
+      "cell": "Cell B",
+      "type": "CNC Mill",
+      "utilizationPct": 67,
+      "status": "Running"
+    },
+    {
+      "id": "MC-1004",
+      "name": "Doosan Puma 2600 Lathe",
+      "cell": "Cell B",
+      "type": "CNC Lathe",
+      "utilizationPct": 91,
+      "status": "Running"
+    },
+    {
+      "id": "MC-1005",
+      "name": "Surface Grinder SG-400",
+      "cell": "Cell C",
+      "type": "Grinder",
+      "utilizationPct": 45,
+      "status": "Idle"
+    }
+  ],
+  "qualityInspections": [
+    {
+      "id": "QINSP-2001",
+      "workOrder": "WO-4002",
+      "type": "Dimensional Check",
+      "inspector": "K. Torres",
+      "date": "2026-06-18",
+      "status": "Passed"
+    },
+    {
+      "id": "QINSP-2002",
+      "workOrder": "WO-4001",
+      "type": "Visual Inspection",
+      "inspector": "A. Okonkwo",
+      "date": "2026-06-17",
+      "status": "In Progress"
+    },
+    {
+      "id": "QINSP-2003",
+      "workOrder": "WO-4003",
+      "type": "Surface Finish",
+      "inspector": "K. Torres",
+      "date": "2026-07-13",
+      "status": "Scheduled"
+    },
+    {
+      "id": "QINSP-2004",
+      "workOrder": "WO-4004",
+      "type": "Final QC",
+      "inspector": "A. Okonkwo",
+      "date": "2026-06-19",
+      "status": "Passed"
+    },
+    {
+      "id": "QINSP-2005",
+      "workOrder": "WO-4001",
+      "type": "First Article Inspection",
+      "inspector": "K. Torres",
+      "date": "2026-06-15",
+      "status": "Failed"
+    }
+  ],
+  "shipments": [
+    {
+      "id": "SHP-5001",
+      "workOrder": "WO-4004",
+      "destination": "Acme Aerospace, Wichita KS",
+      "carrier": "FedEx Freight",
+      "shipDate": "2026-06-20",
+      "status": "In Transit"
+    },
+    {
+      "id": "SHP-5002",
+      "workOrder": "WO-4002",
+      "destination": "Delta Dynamics, Detroit MI",
+      "carrier": "UPS Freight",
+      "shipDate": "2026-06-25",
+      "status": "Scheduled"
+    },
+    {
+      "id": "SHP-5003",
+      "workOrder": "WO-4001",
+      "destination": "Acme Aerospace, Wichita KS",
+      "carrier": "FedEx Freight",
+      "shipDate": "2026-07-06",
+      "status": "Pending"
+    },
+    {
+      "id": "SHP-5004",
+      "workOrder": "WO-4003",
+      "destination": "Vertex OEM, Columbus OH",
+      "carrier": "Estes Express",
+      "shipDate": "2026-07-14",
+      "status": "Pending"
+    },
+    {
+      "id": "SHP-5005",
+      "workOrder": "WO-4004",
+      "destination": "Acme Aerospace, Wichita KS",
+      "carrier": "FedEx Freight",
+      "shipDate": "2026-06-10",
+      "status": "Delivered"
+    }
+  ],
+  "purchaseOrders": [
+    {
+      "id": "PO-6001",
+      "supplier": "MetalSupply Co.",
+      "material": "Aluminum 6061 bar (500 kg)",
+      "total": 8750,
+      "dueDate": "2026-06-30",
+      "status": "Pending Approval"
+    },
+    {
+      "id": "PO-6002",
+      "supplier": "FastenerWorld",
+      "material": "M6 fasteners (10,000 units)",
+      "total": 1240,
+      "dueDate": "2026-07-05",
+      "status": "Approved"
+    },
+    {
+      "id": "PO-6003",
+      "supplier": "SteelSource LLC",
+      "material": "Stainless 304 sheet (200 kg)",
+      "total": 5600,
+      "dueDate": "2026-07-10",
+      "status": "Pending Approval"
+    },
+    {
+      "id": "PO-6004",
+      "supplier": "Apex Tooling",
+      "material": "Carbide end mills (set of 12)",
+      "total": 2980,
+      "dueDate": "2026-06-28",
+      "status": "Delivered"
+    },
+    {
+      "id": "PO-6005",
+      "supplier": "MetalSupply Co.",
+      "material": "Aluminum 7075 plate (200 kg)",
+      "total": 6400,
+      "dueDate": "2026-07-15",
+      "status": "Pending Approval"
+    }
+  ],
+  "maintenanceTickets": [
+    {
+      "id": "MT-3001",
+      "machineId": "MC-1002",
+      "issue": "Spindle bearing noise — abnormal vibration",
+      "priority": "High",
+      "openedDate": "2026-06-18",
+      "status": "Open"
+    },
+    {
+      "id": "MT-3002",
+      "machineId": "MC-1001",
+      "issue": "Coolant pump leaking at fitting",
+      "priority": "Medium",
+      "openedDate": "2026-06-15",
+      "status": "In Progress"
+    },
+    {
+      "id": "MT-3003",
+      "machineId": "MC-1005",
+      "issue": "Wheel dress cycle overdue",
+      "priority": "Low",
+      "openedDate": "2026-06-10",
+      "status": "Scheduled"
+    },
+    {
+      "id": "MT-3004",
+      "machineId": "MC-1004",
+      "issue": "Turret index timing fault (alarm 523)",
+      "priority": "High",
+      "openedDate": "2026-06-19",
+      "status": "Open"
+    },
+    {
+      "id": "MT-3005",
+      "machineId": "MC-1003",
+      "issue": "ATC tool change slow — gripper wear",
+      "priority": "Medium",
+      "openedDate": "2026-06-12",
+      "status": "Closed"
+    }
+  ],
+  "defects": [
+    {
+      "id": "DEF-7001",
+      "workOrder": "WO-4001",
+      "description": "Surface scratch on bracket face — Lot 3",
+      "severity": "Minor",
+      "detectedDate": "2026-06-17",
+      "status": "Open"
+    },
+    {
+      "id": "DEF-7002",
+      "workOrder": "WO-4002",
+      "description": "Bore diameter 0.003 inch over tolerance",
+      "severity": "Major",
+      "detectedDate": "2026-06-18",
+      "status": "In Review"
+    },
+    {
+      "id": "DEF-7003",
+      "workOrder": "WO-4004",
+      "description": "Thread form incomplete on 6 of 240 plates",
+      "severity": "Major",
+      "detectedDate": "2026-06-19",
+      "status": "Closed"
+    },
+    {
+      "id": "DEF-7004",
+      "workOrder": "WO-4001",
+      "description": "Anodize color non-uniform on panel edges",
+      "severity": "Minor",
+      "detectedDate": "2026-06-16",
+      "status": "Open"
+    },
+    {
+      "id": "DEF-7005",
+      "workOrder": "WO-4003",
+      "description": "Warp detected on long panel blank — heat treatment required",
+      "severity": "Critical",
+      "detectedDate": "2026-06-20",
+      "status": "Flagged"
+    }
+  ]
+}

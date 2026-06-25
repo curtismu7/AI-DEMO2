@@ -1,0 +1,899 @@
+openapi: 3.0.3
+info:
+  title: AI-Demo BFF API
+  version: "1.0"
+  description: |
+    Backend-for-Frontend (BFF) for the AI-Demo banking platform.
+
+    **Token custody:** The browser never holds a raw OAuth token. Every authenticated
+    request carries only an httpOnly session cookie (`connect.sid`). The BFF reads the
+    PingOne access token from the server-side session and uses it for upstream calls.
+    See ADR 0006 for the full rationale.
+
+    **Token exchange:** MCP tool calls trigger an RFC 8693 token exchange — the user
+    access token is exchanged for a narrower MCP access token before being forwarded
+    to the MCP server. The Token Chain panel in the UI shows this live.
+
+    **Auth modes:** Two validation strategies are available at runtime (ADR 0005):
+    - `introspection` — RFC 7662 real-time check against PingOne
+    - `jwt` — RFC 7519 offline signature verification (no revocation detection)
+servers:
+  - url: https://api.ping.demo:3001
+    description: Local dev (mkcert HTTPS)
+  - url: http://localhost:3001
+    description: Local dev (HTTP fallback)
+
+tags:
+  - name: auth
+    description: OAuth session management (admin and customer flows)
+  - name: accounts
+    description: Banking account operations
+  - name: transactions
+    description: Banking transactions and HITL consent challenges
+  - name: mcp
+    description: MCP tool invocation pipeline (RFC 8693 token exchange)
+  - name: agent
+    description: AI agent chat interface
+  - name: tokens
+    description: Token chain inspection and preview
+  - name: admin
+    description: Admin config, feature flags, user management
+  - name: health
+    description: Liveness and readiness probes
+
+paths:
+
+  # ── OAuth: Customer flow ──────────────────────────────────────────────────
+
+  /api/auth/oauth/user/login:
+    get:
+      tags: [auth]
+      summary: Initiate customer OAuth login (PKCE)
+      description: |
+        Redirects the browser to PingOne's authorization endpoint.
+        Generates a cryptographically random `state` (CSRF token) and PKCE
+        `code_verifier` (S256), stores them in the session + a signed cookie,
+        then redirects. The callback validates `state` before exchanging the code.
+      parameters:
+        - name: return_to
+          in: query
+          description: SPA path to redirect to after login (validated against allowlist)
+          schema:
+            type: string
+            example: /dashboard
+        - name: force
+          in: query
+          description: Force re-authentication even if a session exists
+          schema:
+            type: boolean
+      responses:
+        "302":
+          description: Redirect to PingOne authorization endpoint
+
+  /api/auth/oauth/user/callback:
+    get:
+      tags: [auth]
+      summary: Customer OAuth callback (authorization code exchange)
+      description: |
+        PingOne redirects here after authentication. The BFF:
+        1. Validates `state` against the session/cookie value (CSRF protection)
+        2. Exchanges the authorization code for tokens (RFC 6749 §4.1.3)
+        3. Validates the ID token nonce
+        4. Calls `req.session.regenerate()` to prevent session fixation (OWASP)
+        5. Stores access + refresh tokens in the new session (never sent to browser)
+        6. Optionally runs RFC 7662 introspection and stores the result in `loginIntrospection`
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: error
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to SPA (dashboard or return_to path)
+
+  /api/auth/oauth/user/status:
+    get:
+      tags: [auth]
+      summary: Customer session status
+      responses:
+        "200":
+          description: Session state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  user:
+                    $ref: "#/components/schemas/UserSummary"
+                  consentGiven:
+                    type: boolean
+                  expiresAt:
+                    type: integer
+                    description: Unix ms — when the access token expires
+
+  /api/auth/oauth/user/logout:
+    get:
+      tags: [auth]
+      summary: Customer logout (clears session + redirects to PingOne signoff)
+      security:
+        - sessionCookie: []
+      responses:
+        "302":
+          description: Redirect to PingOne end-session endpoint
+
+  /api/auth/oauth/user/consent:
+    post:
+      tags: [auth]
+      summary: Grant in-app agent consent
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Consent recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  consentGiven:
+                    type: boolean
+                  consentedAt:
+                    type: string
+                    format: date-time
+    delete:
+      tags: [auth]
+      summary: Revoke agent consent
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Consent revoked
+
+  # ── OAuth: Admin flow ─────────────────────────────────────────────────────
+
+  /api/auth/oauth/login:
+    get:
+      tags: [auth]
+      summary: Initiate admin OAuth login
+      responses:
+        "302":
+          description: Redirect to PingOne
+
+  /api/auth/oauth/callback:
+    get:
+      tags: [auth]
+      summary: Admin OAuth callback
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to /admin
+
+  /api/auth/oauth/status:
+    get:
+      tags: [auth]
+      summary: Admin session status
+      responses:
+        "200":
+          description: Admin session state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  user:
+                    $ref: "#/components/schemas/UserSummary"
+                  tokenType:
+                    type: string
+                    enum: [introspection, jwt]
+                    description: Active token validation mode (ADR 0005)
+
+  /api/auth/oauth/token-claims:
+    get:
+      tags: [auth]
+      summary: Decode access token claims (display only — no signature verification)
+      description: Returns decoded header + payload from the session access token. Raw token strings are never included. Used by the Token Chain panel for educational display.
+      responses:
+        "200":
+          description: Decoded JWT claims
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  decoded:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                      payload:
+                        type: object
+
+  # ── Banking: Accounts ─────────────────────────────────────────────────────
+
+  /api/accounts/my:
+    get:
+      tags: [accounts]
+      summary: Get current user's accounts
+      description: Returns accounts for the authenticated customer. Auto-provisions demo accounts on first call.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Account list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Account"
+
+  /api/accounts/{id}/balance:
+    get:
+      tags: [accounts]
+      summary: Get account balance
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: number
+                    format: float
+
+  # ── Banking: Transactions ─────────────────────────────────────────────────
+
+  /api/transactions/my:
+    get:
+      tags: [transactions]
+      summary: Get current user's transactions
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Transaction"
+                  count:
+                    type: integer
+
+  /api/transactions:
+    post:
+      tags: [transactions]
+      summary: Execute a banking transaction
+      description: |
+        Creates a transfer, deposit, or withdrawal. High-value amounts require a
+        pre-confirmed `consentChallengeId` (HITL gate — see ADR 0003 and Phase 170).
+
+        Transfer type ALWAYS requires a consent challenge regardless of amount.
+        Deposits/withdrawals require consent for amounts over `confirm_threshold_usd` (default $250).
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionRequest"
+      responses:
+        "200":
+          description: Transaction executed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionResponse"
+        "428":
+          description: Precondition Required — consent challenge needed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: consent_required
+                  message:
+                    type: string
+                  high_value_threshold_usd:
+                    type: number
+
+  # ── HITL Consent Challenge ────────────────────────────────────────────────
+
+  /api/transactions/consent-challenge:
+    post:
+      tags: [transactions]
+      summary: Create a HITL consent challenge
+      description: |
+        Step 1 of the HITL flow. Creates a pending challenge for a high-value
+        transaction. The challenge ID must be presented when executing the transaction.
+        Challenge state machine: pending → otp_pending → confirmed → (consumed on transaction)
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, amount]
+              properties:
+                type:
+                  type: string
+                  enum: [transfer, deposit, withdrawal]
+                amount:
+                  type: number
+                fromAccountId:
+                  type: string
+                toAccountId:
+                  type: string
+      responses:
+        "200":
+          description: Challenge created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challengeId:
+                    type: string
+                  expiresAt:
+                    type: integer
+                  snapshot:
+                    type: object
+
+  /api/transactions/consent-challenge/{id}/confirm:
+    post:
+      tags: [transactions]
+      summary: Confirm challenge (triggers MFA/OTP delivery)
+      description: Step 2 — user clicks "Agree". Triggers OTP email or PingOne MFA depending on `hitl_consent_mfa_mode` config.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: MFA/OTP initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challengeId:
+                    type: string
+                  otpSent:
+                    type: boolean
+                  mfaRequired:
+                    type: boolean
+                  devices:
+                    type: array
+                    items:
+                      type: object
+
+  /api/transactions/consent-challenge/{id}/verify-otp:
+    post:
+      tags: [transactions]
+      summary: Verify OTP code (promotes challenge to confirmed)
+      description: Step 3 — submit the 6-digit code. On success the challenge is confirmed and can be consumed in the transaction request. Demo bypass code is `123123`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otpCode]
+              properties:
+                otpCode:
+                  type: string
+                  pattern: "^\\d{6}$"
+      responses:
+        "200":
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challengeId:
+                    type: string
+                  confirmExpiresAt:
+                    type: integer
+
+  # ── MCP Tool Pipeline ─────────────────────────────────────────────────────
+
+  /api/mcp/tool:
+    post:
+      tags: [mcp]
+      summary: Execute a banking MCP tool
+      description: |
+        The full MCP tool invocation pipeline:
+        1. RFC 7662 introspect user token (or skip if jwt mode)
+        2. RFC 8693 token exchange → narrowed MCP access token with act claim
+        3. Forward tool call over WebSocket to demo_mcp_server
+        4. Return result + tokenEvents for the Token Chain panel
+
+        See the request flow diagram in ARCHITECTURE.md and the Token Chain panel in the UI.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool]
+              properties:
+                tool:
+                  type: string
+                  description: MCP tool name from BankingToolRegistry
+                  example: list_accounts
+                params:
+                  type: object
+                  description: Tool-specific parameters (see /api/mcp/inspector/tools)
+                flowTraceId:
+                  type: string
+                  description: Optional UUID for SSE flow tracing
+      responses:
+        "200":
+          description: Tool result with token chain events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    description: MCP tool response payload
+                  tokenEvents:
+                    type: array
+                    description: Token Chain events for UI display
+                    items:
+                      $ref: "#/components/schemas/TokenEvent"
+        "403":
+          description: Token exchange blocked (missing scopes or may_act)
+        "428":
+          description: HITL consent required before this tool call
+
+  /api/mcp/inspector/tools:
+    get:
+      tags: [mcp]
+      summary: List available MCP tools (unauthenticated catalog)
+      description: Returns the tool registry — names, descriptions, input schemas, and required OAuth scopes. Used by the MCP Inspector UI panel.
+      responses:
+        "200":
+          description: Tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/McpToolDefinition"
+
+  # ── Agent Chat ────────────────────────────────────────────────────────────
+
+  /api/banking-agent/message:
+    post:
+      tags: [agent]
+      summary: Send a natural-language message to the AI agent
+      description: |
+        The agent interprets the message, selects banking tools (via MCP), executes
+        them through the full RFC 8693 pipeline, and returns a natural-language response.
+        Each tool call produces tokenEvents visible in the Token Chain panel.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  example: What is my checking account balance?
+                sessionId:
+                  type: string
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  action:
+                    type: string
+                  tokenEvents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TokenEvent"
+
+  # ── Token Chain ───────────────────────────────────────────────────────────
+
+  /api/tokens/session-preview:
+    get:
+      tags: [tokens]
+      summary: Get token chain preview for the current session (pre-tool-call)
+      description: |
+        Returns tokenEvents showing the user access token and exchange readiness,
+        without performing an RFC 8693 exchange. Displayed in the Token Chain panel
+        immediately after login.
+      responses:
+        "200":
+          description: Token preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokenEvents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TokenEvent"
+
+  # ── Admin Config ──────────────────────────────────────────────────────────
+
+  /api/admin/config:
+    get:
+      tags: [admin]
+      summary: Read runtime configuration (sensitive values masked)
+      description: Returns all configStore values. Secret fields (client secrets, passwords) are replaced with `***`. Use the Config UI to update values.
+      responses:
+        "200":
+          description: Configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: object
+                  isConfigured:
+                    type: boolean
+                  storageType:
+                    type: string
+    post:
+      tags: [admin]
+      summary: Update one or more config keys
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              example:
+                token_validation_mode: introspection
+                ff_hitl_enabled: "true"
+      responses:
+        "200":
+          description: Config updated
+
+  /api/admin/feature-flags:
+    get:
+      tags: [admin]
+      summary: List all feature flags
+      responses:
+        "200":
+          description: Feature flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flags:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        label:
+                          type: string
+                        type:
+                          type: string
+                          enum: [boolean, number, string]
+                        value:
+                          oneOf:
+                            - type: boolean
+                            - type: number
+                            - type: string
+    patch:
+      tags: [admin]
+      summary: Update feature flag values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              example:
+                ff_hitl_enabled: true
+                confirm_threshold_usd: 500
+      responses:
+        "200":
+          description: Flags updated
+
+  # ── Health ────────────────────────────────────────────────────────────────
+
+  /api/health/live:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: alive
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/health/ready:
+    get:
+      tags: [health]
+      summary: Readiness probe (checks PingOne JWKS and MCP connectivity)
+      responses:
+        "200":
+          description: All dependencies ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ready, degraded]
+                  checks:
+                    type: object
+                    properties:
+                      pingone_jwks:
+                        type: string
+                        enum: [ok, error]
+                      mcp_server:
+                        type: string
+                        enum: [ok, error, skipped]
+                      database:
+                        type: string
+                        enum: [ok, error]
+
+# ── Components ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: |
+        httpOnly session cookie. JavaScript cannot read it — this is the BFF
+        token-custody pattern (ADR 0006). The BFF reads the PingOne access token
+        from the server-side session for each authenticated request.
+
+  schemas:
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [customer, admin]
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        accountType:
+          type: string
+          example: checking
+        accountNumber:
+          type: string
+        balance:
+          type: number
+          format: float
+        currency:
+          type: string
+          default: USD
+        isActive:
+          type: boolean
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [transfer, deposit, withdrawal]
+        amount:
+          type: number
+          format: float
+        fromAccountId:
+          type: string
+          nullable: true
+        toAccountId:
+          type: string
+          nullable: true
+        description:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    TransactionRequest:
+      type: object
+      required: [type, amount]
+      properties:
+        type:
+          type: string
+          enum: [transfer, deposit, withdrawal]
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          maximum: 1000000
+        fromAccountId:
+          type: string
+          description: Required for transfer and withdrawal
+        toAccountId:
+          type: string
+          description: Required for transfer and deposit
+        description:
+          type: string
+        consentChallengeId:
+          type: string
+          description: Required for transfers and amounts over the HITL threshold
+
+    TransactionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        transaction:
+          $ref: "#/components/schemas/Transaction"
+        withdrawalTransaction:
+          $ref: "#/components/schemas/Transaction"
+        depositTransaction:
+          $ref: "#/components/schemas/Transaction"
+
+    TokenEvent:
+      type: object
+      description: |
+        A step in the RFC 8693 token chain, displayed in the Token Chain UI panel.
+        Each event corresponds to a phase: acquiring the user token, introspecting it,
+        exchanging it, verifying the exchanged token's JWKS signature, etc.
+      properties:
+        id:
+          type: string
+          example: user-token
+        label:
+          type: string
+          example: User access token
+        status:
+          type: string
+          enum: [active, acquiring, exchanged, waiting, success, failed, skipped, warning, degraded, permit, deny, indeterminate]
+        timestamp:
+          type: string
+          format: date-time
+        alg:
+          type: string
+          nullable: true
+          example: RS256
+        claims:
+          type: object
+          nullable: true
+          description: Sanitised JWT claims (sub, aud, scope, act, may_act, exp, iat). Never includes the raw token string.
+        explanation:
+          type: string
+          description: Human-readable description of what happened and why — the educational narrative.
+        rfc:
+          type: string
+          nullable: true
+          example: "RFC 8693 · RFC 8707"
+        jwtFullDecode:
+          type: object
+          nullable: true
+          description: Full decoded header + sanitised payload for the Token Chain JSON dump. No raw token.
+          properties:
+            header:
+              type: object
+            claims:
+              type: object
+
+    McpToolDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+          example: list_accounts
+        description:
+          type: string
+        inputSchema:
+          type: object
+          description: JSON Schema for the tool's input parameters
+        requiredScopes:
+          type: array
+          items:
+            type: string
+          example: [read]

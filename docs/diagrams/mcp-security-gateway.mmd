@@ -1,0 +1,51 @@
+---
+title: MCP Security Gateway — AI Demo (Live Architecture)
+---
+%% Phase 266 R2 (2026-05-11): One gateway, three credential mechanisms.
+%% 2026-06-18: PingGateway (IG, :3036) is the default MCP gateway (ff_mcp_gateway_pinggateway=true).
+%% Authorize params now include UserId + McpResourceUri in every McpToolCall request.
+%% Real→mock Authorize failover: PingOne Authorize (real) → mock authz-server:9001 (via X-Authz-Simulated header).
+%% Path A (api_key): scope gate (banking:mortgage:read); OAuth bearer dropped; X-API-Key + X-User-Sub injected; calls demo_mortgage_service :8082 (Phase 267).
+%% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity.
+%% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) to banking_resource_server /accounts /transactions (SQLite).
+%% Paths B and C both reach the same banking_resource_server backend at different routes.
+flowchart LR
+    BANKING_AGENT["Banking Agent\n(LangChain FAB · :8888)"]
+
+    subgraph Customer["Customer Cloud"]
+        direction TB
+        GATEWAY["MCP\nGateway"]
+        MCP_SERVER["Banking MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
+        GATEWAY <-->|"3. Adapt security to\ndownstream requirements"| MCP_SERVER
+        BANKING_RS["banking_resource_server\n/identity (Path B: dual_token)\n/accounts /transactions (Path C: oauth_bearer)"]
+        SQLITE[("SQLite\nbanking-resource-server.db")]
+        API_KEY_BACKEND["demo_mortgage_service :8082\n(LIVE - Path A, Phase 267)\nAccepts: X-API-Key + X-User-Sub"]
+    end
+
+    subgraph Ping["Ping"]
+        PING["Ping Identity Platform\n(PingOne)\ntoken validation · policy eval\nstep-up MFA · audit\nRFC 8693 token exchange"]
+        PING_AUTHORIZE["PingOne Authorize (PDP)\nMcpToolCall evaluate:\nUserId + McpResourceUri params\nPERMIT · DENY · INDETERMINATE"]
+        MOCK_AUTHZ["mock authz-server :9001\nDrop-in fallback (X-Authz-Simulated)\nReal→mock failover"]
+    end
+
+    BANKING_AGENT -->|"1. Intercept MCP traffic\n(user OAuth bearer)"| GATEWAY
+    GATEWAY -->|"response"| BANKING_AGENT
+    GATEWAY <-->|"2. Enforce identity and\nsecurity rules governed\nby the Ping platform"| PING
+    GATEWAY -->|"2a. PDP evaluate per tool call\n(UserId + McpResourceUri)"| PING_AUTHORIZE
+    PING_AUTHORIZE -.->|"real P1AZ unavailable →\nfailover (X-Authz-Simulated)"| MOCK_AUTHZ
+
+    %% Phase 266 R2: Three outbound credential paths from the Gateway
+    GATEWAY -->|"Path B: Bearer + id_token\ndual_token - /identity"| BANKING_RS
+    GATEWAY -->|"Path C: Bearer (RFC 8693 exchange)\noauth_bearer - /accounts /transactions"| BANKING_RS
+    GATEWAY -->|"Path A: X-API-Key + X-User-Sub\napi_key - banking:mortgage:read scope gate"| API_KEY_BACKEND
+    BANKING_RS -.->|"reads accounts\n+ transactions"| SQLITE
+
+    style GATEWAY fill:#c0392b,color:#fff,stroke:#922b21,font-weight:bold
+    style PING fill:#e8a0a0,color:#333,stroke:#c0392b
+    style BANKING_AGENT fill:#ffffff,stroke:#333
+    style MCP_SERVER fill:#ffffff,stroke:#333
+    style BANKING_RS fill:#ccfbf1,stroke:#0d9488,color:#134e4a
+    style SQLITE fill:#f1f5f9,stroke:#475569,color:#0f172a
+    style API_KEY_BACKEND fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-dasharray: 6 4
+    style Customer stroke:#c0392b,stroke-width:2px,stroke-dasharray: 6 4,color:#333
+    style Ping stroke:#c0392b,stroke-width:2px,stroke-dasharray: 6 4,color:#333

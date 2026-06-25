@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banking Chat Widget Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .demo-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .demo-buttons {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .demo-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #3182ce;
+            color: white;
+            font-size: 14px;
+        }
+        .demo-btn:hover {
+            background: #2c5aa0;
+        }
+        .code-block {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-content">
+        <h1>Banking Chat Widget Demo</h1>
+        <p>This page demonstrates how to embed the Banking Chat Widget on any website.</p>
+        
+        <h2>Integration Methods</h2>
+        
+        <h3>Method 1: Auto-initialization with data attributes</h3>
+        <div class="code-block">
+&lt;!-- Include React (if not already included) --&gt;
+&lt;script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"&gt;&lt;/script&gt;
+&lt;script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"&gt;&lt;/script&gt;
+
+&lt;!-- Include the widget --&gt;
+&lt;link rel="stylesheet" href="banking-chat-widget.css"&gt;
+&lt;script 
+    src="banking-chat-widget.js"
+    data-banking-chat-widget
+    data-position="bottom-right"
+    data-theme="light"
+    data-title="AI Banking Assistant"
+    data-auto-open="false"
+&gt;&lt;/script&gt;
+        </div>
+
+        <h3>Method 2: Manual initialization</h3>
+        <div class="code-block">
+&lt;script&gt;
+// Initialize the widget
+const widget = window.initBankingChatWidget({
+    position: 'bottom-right',
+    theme: 'light',
+    title: 'AI Banking Assistant',
+    autoOpen: false,
+    onOpen: () => console.log('Widget opened'),
+    onClose: () => console.log('Widget closed'),
+    onMessage: (message) => console.log('New message:', message)
+});
+
+// Control the widget programmatically
+// widget.open();
+// widget.close();
+// widget.destroy();
+&lt;/script&gt;
+        </div>
+
+        <h2>Demo Controls</h2>
+        <div class="demo-buttons">
+            <button class="demo-btn" onclick="initWidget()">Initialize Widget</button>
+            <button class="demo-btn" onclick="openWidget()">Open Widget</button>
+            <button class="demo-btn" onclick="closeWidget()">Close Widget</button>
+            <button class="demo-btn" onclick="destroyWidget()">Destroy Widget</button>
+        </div>
+
+        <div class="demo-buttons">
+            <button class="demo-btn" onclick="changePosition('bottom-left')">Bottom Left</button>
+            <button class="demo-btn" onclick="changePosition('bottom-right')">Bottom Right</button>
+            <button class="demo-btn" onclick="changePosition('top-left')">Top Left</button>
+            <button class="demo-btn" onclick="changePosition('top-right')">Top Right</button>
+        </div>
+
+        <div class="demo-buttons">
+            <button class="demo-btn" onclick="changeTheme('light')">Light Theme</button>
+            <button class="demo-btn" onclick="changeTheme('dark')">Dark Theme</button>
+        </div>
+
+        <h2>Configuration Options</h2>
+        <div class="code-block">
+{
+    containerId: 'banking-chat-widget',     // Container element ID
+    apiUrl: 'ws://localhost:8000/ws',       // WebSocket URL
+    position: 'bottom-right',               // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
+    theme: 'light',                         // 'light', 'dark'
+    title: 'AI Banking Assistant',          // Widget title
+    autoOpen: false,                        // Auto-open on load
+    showFAB: true,                         // Show floating action button
+    fabTheme: 'light',                     // FAB theme
+    onOpen: function() {},                 // Open callback
+    onClose: function() {},                // Close callback
+    onMessage: function(message) {},       // New message callback
+    customStyles: {},                      // Custom CSS styles
+    className: ''                          // Additional CSS class
+}
+        </div>
+
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        
+        <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    </div>
+
+    <!-- Include React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Include the widget -->
+    <script src="banking-chat-widget.js"></script>
+    <link rel="stylesheet" href="banking-chat-widget.css">
+
+    <script>
+        let currentWidget = null;
+        let currentConfig = {
+            position: 'bottom-right',
+            theme: 'light',
+            title: 'AI Banking Assistant',
+            autoOpen: false,
+            onOpen: () => console.log('Widget opened'),
+            onClose: () => console.log('Widget closed'),
+            onMessage: (message) => console.log('New message:', message)
+        };
+
+        function initWidget() {
+            if (currentWidget) {
+                currentWidget.destroy();
+            }
+            currentWidget = window.initBankingChatWidget(currentConfig);
+        }
+
+        function openWidget() {
+            if (currentWidget) {
+                currentWidget.open();
+            } else {
+                initWidget();
+                setTimeout(() => currentWidget.open(), 100);
+            }
+        }
+
+        function closeWidget() {
+            if (currentWidget) {
+                currentWidget.close();
+            }
+        }
+
+        function destroyWidget() {
+            if (currentWidget) {
+                currentWidget.destroy();
+                currentWidget = null;
+            }
+        }
+
+        function changePosition(position) {
+            currentConfig.position = position;
+            if (currentWidget) {
+                currentWidget.destroy();
+                currentWidget = window.initBankingChatWidget(currentConfig);
+            }
+        }
+
+        function changeTheme(theme) {
+            currentConfig.theme = theme;
+            if (currentWidget) {
+                currentWidget.destroy();
+                currentWidget = window.initBankingChatWidget(currentConfig);
+            }
+        }
+
+        // Auto-initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initWidget();
+        });
+    </script>
+</body>
+</html>

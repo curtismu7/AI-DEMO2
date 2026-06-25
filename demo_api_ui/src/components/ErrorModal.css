@@ -1,0 +1,202 @@
+/**
+ * ErrorModal.css
+ * Styling for the error modal dialog
+ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.error-modal {
+  background: white;
+  border-radius: 8px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: #fef3c7;
+  border-bottom: 2px solid #fbbf24;
+  border-radius: 8px 8px 0 0;
+}
+
+.error-modal__icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.error-modal__title {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #92400e;
+  word-break: break-word;
+}
+
+.error-modal__close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #92400e;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.error-modal__close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.error-modal__body {
+  padding: 24px;
+}
+
+.error-section {
+  margin-bottom: 20px;
+}
+
+.error-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.error-section p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.error-modal__toggle {
+  background: transparent;
+  border: none;
+  color: #3b82f6;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.error-modal__toggle:hover {
+  color: #1d4ed8;
+}
+
+.error-modal__code {
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin-top: 8px;
+  color: #374151;
+  font-family: inherit;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-modal__footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-secondary {
+  background: white;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn-secondary:active {
+  background: #e5e7eb;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+
+  .error-modal {
+    max-height: 90vh;
+  }
+
+  .error-modal__header {
+    padding: 16px;
+  }
+
+  .error-modal__body {
+    padding: 16px;
+  }
+
+  .error-modal__footer {
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}

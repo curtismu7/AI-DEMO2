@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-api-server
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: api-server
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: api-server
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: api-server
+    spec:
+      containers:
+      - name: api-server
+        image: ai-demo-api-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3001
+          name: https
+        # The BFF runs in development mode (same as docker-compose): the demo's
+        # simulatedAuthorizeService refuses to load under NODE_ENV=production.
+        # This explicit env overrides the shared configmap's NODE_ENV.
+        env:
+        - name: NODE_ENV
+          value: "development"
+        # Persist structured logs + the unified token-chain trace to the PVC
+        # mounted at /var/log/aidemo (survives pod restarts; queryable while the
+        # pod runs). Set here (not the shared configmap) so only the BFF — which
+        # has the volume + owns the trace — turns file logging on.
+        - name: ENABLE_FILE_LOGGING
+          value: "true"
+        - name: LOG_DIRECTORY
+          value: "/var/log/aidemo"
+        # Route BFF→agent-service calls to the k8s service DNS name.
+        # Without this the BFF defaults to localhost:3006, which is unreachable
+        # inside the pod. This env var must be set before the BFF starts.
+        - name: AGENT_SERVICE_URL
+          value: "http://agent-service:3006"
+        # secret first, configmap last → cluster URLs in the configmap win
+        envFrom:
+        - secretRef:
+            name: ai-demo-secrets
+        - configMapRef:
+            name: ai-demo-config
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /certs
+          readOnly: true
+        - name: bff-logs
+          mountPath: /var/log/aidemo
+        # Persist the LMDB store (report history, configStore overrides) so it
+        # survives pod restarts. Without this it lived on the pod's ephemeral
+        # filesystem and every restart wiped the past-reports list.
+        - name: lmdb-data
+          mountPath: /app/data/persistent/lmdb
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          tcpSocket:
+            port: 3001
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["curl", "-k", "-f", "https://localhost:3001/api/healthz"]
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: tls-certs
+      - name: bff-logs
+        persistentVolumeClaim:
+          claimName: bff-logs
+      - name: lmdb-data
+        persistentVolumeClaim:
+          claimName: lmdb-data
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-api-server
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: api-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3001
+    targetPort: 3001
+    protocol: TCP
+    name: https
+  selector:
+    app: ai-demo
+    component: api-server
+---
+# Persistent LMDB store for the BFF (demo-api-server).
+#
+# Why: the report-history list (reportStore) and configStore overrides live in
+# an LMDB env at /app/data/persistent/lmdb. Without a volume this sat on the
+# pod's ephemeral filesystem, so every pod restart wiped all collected reports
+# and the "past reports" list came back empty. This PVC makes it durable.
+#
+# Defined in this file (not a standalone manifest) because k8s/deploy.sh applies
+# manifests by explicit filename and already applies 20-api-server-deployment.yaml,
+# so the claim is guaranteed to be created alongside the deployment that mounts it.
+#
+# Single ReadWriteOnce claim is sufficient: the BFF is a single replica and the
+# only writer. fsGroup:1001 on the pod makes the volume group-writable by the
+# non-root runtime user.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lmdb-data
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: api-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

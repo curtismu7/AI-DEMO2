@@ -1,0 +1,104 @@
+/* ========== EventCard ========== */
+
+.ec-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  margin-bottom: 6px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.ec-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Header row — always visible */
+.ec-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ec-header:hover {
+  background: #f9fafb;
+}
+
+/* Timestamp */
+.ec-timestamp {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Badge */
+.ec-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+}
+
+.ec-badge--user_request    { background: #dbeafe; color: #1d4ed8; }
+.ec-badge--agent_thinking  { background: #ede9fe; color: #6d28d9; }
+.ec-badge--tool_call       { background: #dcfce7; color: #15803d; }
+.ec-badge--token_exchange  { background: #ffedd5; color: #c2410c; }
+.ec-badge--result          { background: #ccfbf1; color: #0f766e; }
+.ec-badge--error           { background: #fee2e2; color: #b91c1c; }
+/* Fallback for unknown types */
+.ec-badge--unknown         { background: #f3f4f6; color: #4b5563; }
+
+/* Message text */
+.ec-message {
+  flex: 1;
+  min-width: 0;
+  color: #111827;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.ec-card--error .ec-message {
+  color: #b91c1c;
+}
+
+/* Expand toggle chevron */
+.ec-toggle {
+  flex-shrink: 0;
+  color: #9ca3af;
+  font-size: 10px;
+  padding-top: 2px;
+  transition: transform 0.15s;
+}
+
+.ec-toggle--open {
+  transform: rotate(180deg);
+}
+
+/* Collapsible technical details */
+.ec-details {
+  border-top: 1px solid #f3f4f6;
+  padding: 8px 10px;
+  background: #f9fafb;
+}
+
+.ec-details pre {
+  margin: 0;
+  font-size: 11px;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  color: #374151;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
+}

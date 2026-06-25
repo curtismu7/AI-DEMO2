@@ -1,0 +1,514 @@
+{
+  "courses": [
+    {
+      "id": "C-CS301",
+      "title": "Algorithms",
+      "courseType": "Core",
+      "credits": 4,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-ENG210",
+      "title": "Technical Writing",
+      "courseType": "Elective",
+      "credits": 3,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-PHY150",
+      "title": "Physics II Lab",
+      "courseType": "Lab",
+      "credits": 1,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-HIS101",
+      "title": "World History",
+      "courseType": "Elective",
+      "credits": 3,
+      "term": "Fall 2025",
+      "grade": "A-",
+      "status": "Completed"
+    }
+  ],
+  "standing": {
+    "creditsEarned": 78,
+    "creditsInProgress": 11,
+    "gpa": "3.62",
+    "holds": "None",
+    "standing": "Good Standing"
+  },
+  "enrollmentHistory": [
+    {
+      "id": "E-9001",
+      "type": "Registration",
+      "course": "CS301",
+      "date": "2026-01-12",
+      "status": "Confirmed"
+    },
+    {
+      "id": "E-9002",
+      "type": "Drop",
+      "course": "MAT220",
+      "date": "2026-01-20",
+      "status": "Processed"
+    },
+    {
+      "id": "E-9003",
+      "type": "Grade Posted",
+      "course": "HIS101",
+      "date": "2026-05-15",
+      "status": "Final"
+    },
+    {
+      "id": "E-9004",
+      "type": "Transcript Release",
+      "course": "—",
+      "date": "2025-12-02",
+      "status": "Completed"
+    }
+  ],
+  "financial_aid": [
+    {
+      "id": "2001",
+      "name": "Pell Grant",
+      "type": "Grant",
+      "amount": 3500,
+      "term": "Fall 2025",
+      "status": "Disbursed"
+    },
+    {
+      "id": "2002",
+      "name": "Subsidized Stafford Loan",
+      "type": "Loan",
+      "amount": 5500,
+      "term": "Fall 2025",
+      "status": "Accepted"
+    },
+    {
+      "id": "2003",
+      "name": "Merit Scholarship",
+      "type": "Scholarship",
+      "amount": 2000,
+      "term": "Fall 2025",
+      "status": "Pending"
+    },
+    {
+      "id": "2004",
+      "name": "Work-Study Award",
+      "type": "Work-Study",
+      "amount": 1200,
+      "term": "Spring 2026",
+      "status": "Offered"
+    },
+    {
+      "id": "2005",
+      "name": "Unsubsidized Stafford Loan",
+      "type": "Loan",
+      "amount": 4000,
+      "term": "Spring 2026",
+      "status": "Accepted"
+    }
+  ],
+  "billing": [
+    {
+      "id": "3001",
+      "description": "Fall 2025 Tuition",
+      "dueDate": "2025-08-15",
+      "amount": 8400,
+      "term": "Fall 2025",
+      "status": "Unpaid"
+    },
+    {
+      "id": "3002",
+      "description": "Technology Fee",
+      "dueDate": "2025-08-15",
+      "amount": 250,
+      "term": "Fall 2025",
+      "status": "Unpaid"
+    },
+    {
+      "id": "3003",
+      "description": "Health Services Fee",
+      "dueDate": "2025-08-15",
+      "amount": 180,
+      "term": "Fall 2025",
+      "status": "Paid"
+    },
+    {
+      "id": "3004",
+      "description": "Spring 2026 Tuition",
+      "dueDate": "2026-01-10",
+      "amount": 8400,
+      "term": "Spring 2026",
+      "status": "Pending"
+    },
+    {
+      "id": "3005",
+      "description": "Parking Permit Fee",
+      "dueDate": "2025-09-01",
+      "amount": 120,
+      "term": "Fall 2025",
+      "status": "Paid"
+    }
+  ],
+  "holds": [
+    {
+      "id": "4001",
+      "holdType": "Financial",
+      "reason": "Unpaid tuition balance",
+      "placedDate": "2025-07-01",
+      "status": "Active"
+    },
+    {
+      "id": "4002",
+      "holdType": "Advising",
+      "reason": "Advisor signature required",
+      "placedDate": "2025-07-10",
+      "status": "Active"
+    },
+    {
+      "id": "4003",
+      "holdType": "Library",
+      "reason": "Overdue materials",
+      "placedDate": "2025-06-15",
+      "status": "Released"
+    },
+    {
+      "id": "4004",
+      "holdType": "Immunization",
+      "reason": "Missing vaccination record",
+      "placedDate": "2025-05-20",
+      "status": "Active"
+    },
+    {
+      "id": "4005",
+      "holdType": "Parking",
+      "reason": "Unpaid parking fines",
+      "placedDate": "2025-07-22",
+      "status": "Active"
+    }
+  ],
+  "degree_audit": [
+    {
+      "id": "5001",
+      "requirement": "Core Curriculum",
+      "creditsRequired": 42,
+      "creditsEarned": 39,
+      "status": "In Progress"
+    },
+    {
+      "id": "5002",
+      "requirement": "Major Requirements",
+      "creditsRequired": 60,
+      "creditsEarned": 48,
+      "status": "In Progress"
+    },
+    {
+      "id": "5003",
+      "requirement": "Free Electives",
+      "creditsRequired": 18,
+      "creditsEarned": 18,
+      "status": "Completed"
+    },
+    {
+      "id": "5004",
+      "requirement": "Writing Intensive",
+      "creditsRequired": 6,
+      "creditsEarned": 6,
+      "status": "Completed"
+    },
+    {
+      "id": "5005",
+      "requirement": "Capstone/Senior Project",
+      "creditsRequired": 3,
+      "creditsEarned": 0,
+      "status": "Not Started"
+    }
+  ],
+  "housing": [
+    {
+      "id": "6001",
+      "hall": "North Hall",
+      "room": "204B",
+      "roomType": "Double",
+      "term": "Fall 2025",
+      "status": "Assigned"
+    },
+    {
+      "id": "6002",
+      "hall": "East Village",
+      "room": "112A",
+      "roomType": "Single",
+      "term": "Spring 2026",
+      "status": "Requested"
+    },
+    {
+      "id": "6003",
+      "hall": "South Quad",
+      "room": "308C",
+      "roomType": "Triple",
+      "term": "Fall 2024",
+      "status": "Completed"
+    },
+    {
+      "id": "6004",
+      "hall": "West Commons",
+      "room": "215",
+      "roomType": "Suite",
+      "term": "Spring 2025",
+      "status": "Completed"
+    },
+    {
+      "id": "6005",
+      "hall": "Graduate Tower",
+      "room": "501",
+      "roomType": "Studio",
+      "term": "Fall 2025",
+      "status": "Waitlisted"
+    }
+  ],
+  "dining": [
+    {
+      "id": "7001",
+      "location": "Main Dining Hall",
+      "date": "2025-09-10",
+      "amount": 10.5,
+      "type": "Meal Swipe",
+      "balance": 180
+    },
+    {
+      "id": "7002",
+      "location": "Campus Coffee",
+      "date": "2025-09-11",
+      "amount": 5.25,
+      "type": "Dining Dollars",
+      "balance": 174.75
+    },
+    {
+      "id": "7003",
+      "location": "Science Building Cafe",
+      "date": "2025-09-12",
+      "amount": 8,
+      "type": "Dining Dollars",
+      "balance": 166.75
+    },
+    {
+      "id": "7004",
+      "location": "Main Dining Hall",
+      "date": "2025-09-13",
+      "amount": 10.5,
+      "type": "Meal Swipe",
+      "balance": 156.25
+    },
+    {
+      "id": "7005",
+      "location": "Union Food Court",
+      "date": "2025-09-14",
+      "amount": 12.75,
+      "type": "Dining Dollars",
+      "balance": 143.5
+    }
+  ],
+  "exams": [
+    {
+      "id": "1101",
+      "course": "CS 301",
+      "examType": "Midterm",
+      "date": "2025-10-15",
+      "location": "Science Hall 200",
+      "duration": 90
+    },
+    {
+      "id": "1102",
+      "course": "MATH 201",
+      "examType": "Midterm",
+      "date": "2025-10-17",
+      "location": "Math Building 105",
+      "duration": 75
+    },
+    {
+      "id": "1103",
+      "course": "ENG 220",
+      "examType": "Final",
+      "date": "2025-12-12",
+      "location": "Liberal Arts 301",
+      "duration": 120
+    },
+    {
+      "id": "1104",
+      "course": "CS 301",
+      "examType": "Final",
+      "date": "2025-12-15",
+      "location": "Science Hall 200",
+      "duration": 120
+    },
+    {
+      "id": "1105",
+      "course": "HIST 110",
+      "examType": "Final",
+      "date": "2025-12-18",
+      "location": "Online",
+      "duration": 90
+    }
+  ],
+  "parking": [
+    {
+      "id": "8001",
+      "zone": "Zone A - Commuter",
+      "vehicle": "Honda Civic ABC-1234",
+      "expiryDate": "2025-12-31",
+      "status": "Active"
+    },
+    {
+      "id": "8002",
+      "zone": "Zone B - Resident",
+      "vehicle": "Toyota Corolla XYZ-5678",
+      "expiryDate": "2025-05-31",
+      "status": "Expired"
+    },
+    {
+      "id": "8003",
+      "zone": "Zone C - Faculty Lot",
+      "vehicle": "Ford F-150 DEF-9012",
+      "expiryDate": "2026-05-31",
+      "status": "Active"
+    },
+    {
+      "id": "8004",
+      "zone": "Zone A - Commuter",
+      "vehicle": "Nissan Altima GHI-3456",
+      "expiryDate": "2024-12-31",
+      "status": "Expired"
+    },
+    {
+      "id": "8005",
+      "zone": "Zone D - Visitor",
+      "vehicle": "Chevrolet Malibu JKL-7890",
+      "expiryDate": "2025-10-31",
+      "status": "Active"
+    }
+  ],
+  "library": [
+    {
+      "id": "9001",
+      "title": "Introduction to Algorithms",
+      "itemType": "Book",
+      "dueDate": "2025-09-28",
+      "status": "Checked Out"
+    },
+    {
+      "id": "9002",
+      "title": "The Great Gatsby",
+      "itemType": "Book",
+      "dueDate": "2025-10-05",
+      "status": "Checked Out"
+    },
+    {
+      "id": "9003",
+      "title": "Physics Lab Equipment",
+      "itemType": "Equipment",
+      "dueDate": "2025-09-20",
+      "status": "Overdue"
+    },
+    {
+      "id": "9004",
+      "title": "Journal of Computer Science",
+      "itemType": "Journal",
+      "dueDate": "2025-09-25",
+      "status": "Reserved"
+    },
+    {
+      "id": "9005",
+      "title": "Data Structures Textbook",
+      "itemType": "Book",
+      "dueDate": "2025-10-10",
+      "status": "Checked Out"
+    }
+  ],
+  "scholarships": [
+    {
+      "id": "1001",
+      "name": "Dean's Merit Scholarship",
+      "amount": 5000,
+      "deadline": "2025-11-01",
+      "gpaRequired": 3.5,
+      "status": "Available"
+    },
+    {
+      "id": "1002",
+      "name": "STEM Excellence Award",
+      "amount": 3000,
+      "deadline": "2025-10-15",
+      "gpaRequired": 3,
+      "status": "Applied"
+    },
+    {
+      "id": "1003",
+      "name": "Community Service Scholarship",
+      "amount": 1500,
+      "deadline": "2025-09-30",
+      "gpaRequired": 2.5,
+      "status": "Available"
+    },
+    {
+      "id": "1004",
+      "name": "First-Generation Student Grant",
+      "amount": 2500,
+      "deadline": "2025-10-01",
+      "gpaRequired": 2,
+      "status": "Awarded"
+    },
+    {
+      "id": "1005",
+      "name": "International Student Award",
+      "amount": 4000,
+      "deadline": "2025-11-15",
+      "gpaRequired": 3.2,
+      "status": "Available"
+    }
+  ],
+  "advisors": [
+    {
+      "id": "ADV-5001",
+      "name": "Dr. Elena Ruiz",
+      "department": "Computer Science",
+      "email": "eruiz@superu.edu",
+      "officeHours": "Tue/Thu 2-4pm"
+    },
+    {
+      "id": "ADV-5002",
+      "name": "Prof. Daniel Kim",
+      "department": "Mathematics",
+      "email": "dkim@superu.edu",
+      "officeHours": "Mon 10-12pm"
+    },
+    {
+      "id": "ADV-5003",
+      "name": "Dr. Aisha Bello",
+      "department": "Academic Success Center",
+      "email": "abello@superu.edu",
+      "officeHours": "Wed 1-3pm"
+    },
+    {
+      "id": "ADV-5004",
+      "name": "Prof. Marco Santini",
+      "department": "Physics",
+      "email": "msantini@superu.edu",
+      "officeHours": "Fri 9-11am"
+    },
+    {
+      "id": "ADV-5005",
+      "name": "Dr. Priya Nair",
+      "department": "Career Services",
+      "email": "pnair@superu.edu",
+      "officeHours": "By appointment"
+    }
+  ]
+}

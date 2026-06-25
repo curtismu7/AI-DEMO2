@@ -1,0 +1,1957 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SideNav snapshot > renders admin nav without change 1`] = `
+<div>
+  <aside
+    class="sidenav"
+  >
+    <div
+      class="sidenav-brand"
+    >
+      <div
+        class="sidenav-brand-logo"
+      >
+        <div
+          class="sidenav-logo-grid"
+        >
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+      <span
+        class="sidenav-brand-name"
+      >
+        Super Banking
+      </span>
+      <button
+        aria-label="Collapse sidebar"
+        class="sidenav-collapse-btn"
+        title="Collapse sidebar"
+        type="button"
+      >
+        ‹
+      </button>
+    </div>
+    <div
+      class="sidenav-user"
+    >
+      <div
+        class="sidenav-user-avatar"
+      >
+        ?
+      </div>
+      <div
+        class="sidenav-user-info"
+      >
+        <div
+          class="sidenav-user-name"
+        >
+           
+        </div>
+        <div
+          class="sidenav-user-role"
+        >
+          👑 Admin
+        </div>
+      </div>
+    </div>
+    <nav
+      class="sidenav-nav"
+    >
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Overview
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/admin"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <circle
+              cx="10"
+              cy="8"
+              r="4"
+            />
+            <path
+              d="M10.67 13.02c-.22-.01-.44-.02-.67-.02-2.42 0-4.68.67-6.61 1.82-.88.52-1.39 1.5-1.39 2.53V20h9.26a6.963 6.963 0 0 1-.59-6.98zM20.75 16c0-.22-.03-.42-.06-.63l1.14-1.01-1-1.73-1.45.49c-.32-.27-.68-.48-1.08-.63L18 11h-2l-.3 1.49c-.4.15-.76.36-1.08.63l-1.45-.49-1 1.73 1.14 1.01c-.03.21-.06.41-.06.63s.03.42.06.63l-1.14 1.01 1 1.73 1.45-.49c.32.27.68.48 1.08.63L16 21h2l.3-1.49c.4-.15.76-.36 1.08-.63l1.45.49 1-1.73-1.14-1.01c.03-.21.06-.41.06-.63zM17 18c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Admin Dashboard
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/agent"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M4 4h16v12H5.17L4 17.17V4m0-2c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zm2 10h8v2H6v-2zm0-3h12v2H6V9zm0-3h12v2H6V6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            AI Agent
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/mcp-traffic"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdPlug
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            MCP Tool Tester
+          </span>
+        </a>
+        <button
+          class="sidenav-link sidenav-action-btn"
+          type="button"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            🔄 Reset Demo
+          </span>
+        </button>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Management
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/activity"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M19 5v14H5V5h14m1.1-2H3.9c-.5 0-.9.4-.9.9v16.2c0 .4.4.9.9.9h16.2c.4 0 .9-.5.9-.9V3.9c0-.5-.5-.9-.9-.9zM11 7h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6zM7 7h2v2H7zm0 4h2v2H7zm0 4h2v2H7z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Activity Logs
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/users"
+        >
+          <svg
+            aria-hidden="true"
+            class="sidenav-icon"
+            fill="none"
+            height="20"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Users
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/accounts"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M4 10h3v7H4zM10.5 10h3v7h-3zM2 19h20v3H2zM17 10h3v7h-3zM12 1 2 6v2h20V6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Accounts
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/admin/banking"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M4 10h3v7H4zM10.5 10h3v7h-3zM2 19h20v3H2zM17 10h3v7h-3zM12 1 2 6v2h20V6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Demo admin
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/transactions"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Transactions
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/delegation"
+        >
+          <svg
+            aria-hidden="true"
+            class="sidenav-icon"
+            fill="none"
+            height="20"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Manage Delegates
+          </span>
+        </a>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Configuration
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/scope-audit"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Scope Audit
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/configure"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdTune
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            Configure
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/config"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            App Config
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/settings"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Security
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/demo-data"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0 1 12 19z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Demo Data
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/onboarding"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdDeploy
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            Setup Guide
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/setup/pingone"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            PingOne Ref.
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/setup/wizard"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdDeploy
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            Setup Wizard
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/pingone-test"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdBuild
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            PingOne Test
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/mfa-test"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            P1MFA Test
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/mcp-tools"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdPlug
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            MCP Tools
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/pingone-authorize"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdPolicy
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            Authorize
+          </span>
+        </a>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          User Management
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/self-service"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Create Account
+          </span>
+        </a>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Tools
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/code-explorer"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Code Explorer
+          </span>
+        </a>
+      </div>
+    </nav>
+    <div
+      class="sidenav-group sidenav-safety"
+    >
+      <div
+        class="sidenav-group-label"
+      >
+        Safety
+      </div>
+      <button
+        class="sidenav-link sidenav-safety-btn"
+        style="background: rgb(239, 68, 68); color: white; cursor: pointer;"
+        title="Stop agent (emergency control)"
+        type="button"
+      >
+        <span
+          style="font-size: 18px;"
+        >
+          🛑
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          STOP AGENT
+        </span>
+      </button>
+    </div>
+    <div
+      class="sidenav-group sidenav-learn"
+    >
+      <div
+        class="sidenav-group-label"
+      >
+        Learn & Explore
+      </div>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Login Flow"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Login Flow
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Token Exchange"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Token Exchange
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="may_act / act"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M19 5v14H5V5h14m1.1-2H3.9c-.5 0-.9.4-.9.9v16.2c0 .4.4.9.9.9h16.2c.4 0 .9-.5.9-.9V3.9c0-.5-.5-.9-.9-.9zM11 7h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6zM7 7h2v2H7zm0 4h2v2H7zm0 4h2v2H7z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          may_act / act
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="PKCE"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          PKCE
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="CIBA"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdPlug
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          CIBA
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="MCP Protocol"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdPlug
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          MCP Protocol
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Introspection"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Introspection
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Agent Gateway"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Agent Gateway
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="RFC Index"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdFileText
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          RFC Index
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="CIMD"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          CIMD
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Intent Auth Standards"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Intent Auth Standards
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="⭐ IETF Standards"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          ⭐ IETF Standards
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="OWASP Agentic"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          OWASP Agentic
+        </span>
+      </button>
+    </div>
+    <div
+      class="sidenav-footer"
+    >
+      <button
+        class="sidenav-logout-btn"
+        title="Sign out"
+        type="button"
+      >
+        <span
+          class="sidenav-link-icon"
+        >
+          ⏻
+        </span>
+        <span>
+          Sign out
+        </span>
+      </button>
+    </div>
+  </aside>
+</div>
+`;
+
+exports[`SideNav snapshot > renders user nav without change 1`] = `
+<div>
+  <aside
+    class="sidenav"
+  >
+    <div
+      class="sidenav-brand"
+    >
+      <div
+        class="sidenav-brand-logo"
+      >
+        <div
+          class="sidenav-logo-grid"
+        >
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+      <span
+        class="sidenav-brand-name"
+      >
+        Super Banking
+      </span>
+      <button
+        aria-label="Collapse sidebar"
+        class="sidenav-collapse-btn"
+        title="Collapse sidebar"
+        type="button"
+      >
+        ‹
+      </button>
+    </div>
+    <div
+      class="sidenav-user"
+    >
+      <div
+        class="sidenav-user-avatar"
+      >
+        ?
+      </div>
+      <div
+        class="sidenav-user-info"
+      >
+        <div
+          class="sidenav-user-name"
+        >
+           
+        </div>
+        <div
+          class="sidenav-user-role"
+        >
+          👤 Customer
+        </div>
+      </div>
+    </div>
+    <nav
+      class="sidenav-nav"
+    >
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          My Workspace
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/use-cases"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Use Cases
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/dashboard"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            HiOutlineBarChart3
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            My Dashboard
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/agent"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M4 4h16v12H5.17L4 17.17V4m0-2c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zm2 10h8v2H6v-2zm0-3h12v2H6V9zm0-3h12v2H6V6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            AI Agent
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/mcp-traffic"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdPlug
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            MCP Tool Tester
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/demo-data"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Demo config
+          </span>
+        </a>
+        <button
+          class="sidenav-link sidenav-action-btn"
+          type="button"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            🔄 Reset Demo
+          </span>
+        </button>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/pingone-test"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Test Page
+          </span>
+        </a>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Self Service
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/self-service"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Create Account
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/accounts"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M4 10h3v7H4zM10.5 10h3v7h-3zM2 19h20v3H2zM17 10h3v7h-3zM12 1 2 6v2h20V6z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            My Accounts
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/transactions"
+        >
+          <span
+            class="sidenav-icon"
+          >
+            MdMoneyExchange
+          </span>
+          <span
+            class="sidenav-link-label"
+          >
+            Transfer Money
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/profile"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Profile Settings
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/security"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0z"
+              fill="none"
+            />
+            <path
+              d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Security Center
+          </span>
+        </a>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/delegation"
+        >
+          <svg
+            aria-hidden="true"
+            class="sidenav-icon"
+            fill="none"
+            height="20"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Manage Delegates
+          </span>
+        </a>
+      </div>
+      <div
+        class="sidenav-group"
+      >
+        <div
+          class="sidenav-group-label"
+        >
+          Tools
+        </div>
+        <a
+          class="sidenav-link"
+          data-discover="true"
+          href="/code-explorer"
+        >
+          <svg
+            class="sidenav-icon"
+            fill="currentColor"
+            height="20"
+            stroke="currentColor"
+            stroke-width="0"
+            viewBox="0 0 24 24"
+            width="20"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 0h24v24H0V0z"
+              fill="none"
+            />
+            <path
+              d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"
+            />
+          </svg>
+          <span
+            class="sidenav-link-label"
+          >
+            Code Explorer
+          </span>
+        </a>
+      </div>
+    </nav>
+    <div
+      class="sidenav-group sidenav-safety"
+    >
+      <div
+        class="sidenav-group-label"
+      >
+        Safety
+      </div>
+      <button
+        class="sidenav-link sidenav-safety-btn"
+        style="background: rgb(239, 68, 68); color: white; cursor: pointer;"
+        title="Stop agent (emergency control)"
+        type="button"
+      >
+        <span
+          style="font-size: 18px;"
+        >
+          🛑
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          STOP AGENT
+        </span>
+      </button>
+    </div>
+    <div
+      class="sidenav-group sidenav-learn"
+    >
+      <div
+        class="sidenav-group-label"
+      >
+        Learn & Explore
+      </div>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Login Flow"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Login Flow
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Token Exchange"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Token Exchange
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="may_act / act"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M19 5v14H5V5h14m1.1-2H3.9c-.5 0-.9.4-.9.9v16.2c0 .4.4.9.9.9h16.2c.4 0 .9-.5.9-.9V3.9c0-.5-.5-.9-.9-.9zM11 7h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6zM7 7h2v2H7zm0 4h2v2H7zm0 4h2v2H7z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          may_act / act
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="PKCE"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          PKCE
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="CIBA"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdPlug
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          CIBA
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="MCP Protocol"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdPlug
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          MCP Protocol
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Introspection"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Introspection
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Agent Gateway"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Agent Gateway
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="RFC Index"
+        type="button"
+      >
+        <span
+          class="sidenav-icon"
+        >
+          MdFileText
+        </span>
+        <span
+          class="sidenav-link-label"
+        >
+          RFC Index
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="CIMD"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          CIMD
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="Intent Auth Standards"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          Intent Auth Standards
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="⭐ IETF Standards"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          ⭐ IETF Standards
+        </span>
+      </button>
+      <button
+        class="sidenav-link sidenav-learn-btn"
+        title="OWASP Agentic"
+        type="button"
+      >
+        <svg
+          class="sidenav-icon"
+          fill="currentColor"
+          height="20"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 24 24"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 0h24v24H0z"
+            fill="none"
+          />
+          <path
+            d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+          />
+        </svg>
+        <span
+          class="sidenav-link-label"
+        >
+          OWASP Agentic
+        </span>
+      </button>
+    </div>
+    <div
+      class="sidenav-footer"
+    >
+      <button
+        class="sidenav-logout-btn"
+        title="Sign out"
+        type="button"
+      >
+        <span
+          class="sidenav-link-icon"
+        >
+          ⏻
+        </span>
+        <span>
+          Sign out
+        </span>
+      </button>
+    </div>
+  </aside>
+</div>
+`;

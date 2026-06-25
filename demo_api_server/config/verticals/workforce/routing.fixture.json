@@ -1,0 +1,167 @@
+{
+  "vertical": "workforce",
+  "heuristic": [
+    {
+      "phrase": "cancel expense 204",
+      "expect": "cancel_expense"
+    },
+    {
+      "phrase": "cancel my pending expense",
+      "expect": "cancel_expense"
+    },
+    {
+      "phrase": "enroll me in training 405",
+      "expect": "enroll_training"
+    },
+    {
+      "phrase": "sign me up for course 405",
+      "expect": "enroll_training"
+    },
+    {
+      "phrase": "close ticket 501",
+      "expect": "close_ticket"
+    },
+    {
+      "phrase": "resolve ticket 502",
+      "expect": "close_ticket"
+    },
+    {
+      "phrase": "complete goal 703",
+      "expect": "complete_goal"
+    },
+    {
+      "phrase": "mark goal 701 as done",
+      "expect": "complete_goal"
+    },
+    {
+      "phrase": "show my payslips",
+      "expect": "view_payslips"
+    },
+    {
+      "phrase": "view my pay stubs",
+      "expect": "view_payslips"
+    },
+    {
+      "phrase": "my paycheck history",
+      "expect": "view_payslips"
+    },
+    {
+      "phrase": "show my training courses",
+      "expect": "view_trainings"
+    },
+    {
+      "phrase": "what trainings do I have",
+      "expect": "view_trainings"
+    },
+    {
+      "phrase": "my learning modules",
+      "expect": "view_trainings"
+    },
+    {
+      "phrase": "show my support tickets",
+      "expect": "view_tickets"
+    },
+    {
+      "phrase": "my IT tickets",
+      "expect": "view_tickets"
+    },
+    {
+      "phrase": "what help desk requests do I have open",
+      "expect": "view_tickets"
+    },
+    {
+      "phrase": "show my work schedule",
+      "expect": "view_schedule"
+    },
+    {
+      "phrase": "what are my shifts this week",
+      "expect": "view_schedule"
+    },
+    {
+      "phrase": "my upcoming schedule",
+      "expect": "view_schedule"
+    },
+    {
+      "phrase": "show my performance goals",
+      "expect": "view_goals"
+    },
+    {
+      "phrase": "what are my OKRs",
+      "expect": "view_goals"
+    },
+    {
+      "phrase": "my objectives for this quarter",
+      "expect": "view_goals"
+    },
+    {
+      "phrase": "show my team members",
+      "expect": "view_colleagues"
+    },
+    {
+      "phrase": "who is on my team",
+      "expect": "view_colleagues"
+    },
+    {
+      "phrase": "org chart",
+      "expect": "view_colleagues"
+    }
+  ],
+  "directiveOnly": [
+    {
+      "phrase": "request a change to shift 604",
+      "expect": "request_schedule_change"
+    },
+    {
+      "phrase": "I need to swap my Friday shift 605",
+      "expect": "request_schedule_change"
+    },
+    {
+      "phrase": "update progress on goal 705",
+      "expect": "update_goal_progress"
+    },
+    {
+      "phrase": "I have been working on goal 704",
+      "expect": "update_goal_progress"
+    },
+    {
+      "phrase": "withdraw me from training 402",
+      "expect": "withdraw_training_enrollment"
+    },
+    {
+      "phrase": "drop course 404, I can no longer attend",
+      "expect": "withdraw_training_enrollment"
+    },
+    {
+      "phrase": "show me the detail for my June paycheck",
+      "expect": "view_payslip_detail"
+    },
+    {
+      "phrase": "what was my net pay last month",
+      "expect": "view_payslip_detail"
+    },
+    {
+      "phrase": "show me the company policies",
+      "expect": "view_policies"
+    },
+    {
+      "phrase": "what is the remote work policy",
+      "expect": "view_policies"
+    },
+    {
+      "phrase": "any company announcements this week",
+      "expect": "view_announcements"
+    },
+    {
+      "phrase": "latest company news",
+      "expect": "view_announcements"
+    },
+    {
+      "phrase": "what bank account is my paycheck deposited to",
+      "expect": "view_direct_deposit"
+    },
+    {
+      "phrase": "show my direct deposit details",
+      "expect": "view_direct_deposit"
+    }
+  ]
+}

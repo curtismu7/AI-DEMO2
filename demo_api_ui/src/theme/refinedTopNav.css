@@ -1,0 +1,71 @@
+/* refinedTopNav.css
+   Override the TopNav to consistently use vertical-driven tokens.
+   --brand-dashboard-header-start, --brand-dashboard-header-end, --brand-topnav-text
+   are all set by applyThemeTokens() from the active vertical manifest.
+   We do NOT change layout, padding, z-index, or nav link routing. */
+
+/* Header bar: vertical gradient */
+.topnav {
+  background: linear-gradient(
+    135deg,
+    var(--brand-dashboard-header-start, #1d4ed8) 0%,
+    var(--brand-dashboard-header-end, #1d4ed8) 100%
+  ) !important;
+  border-bottom: none;
+  height: 56px;
+}
+
+/* Brand name */
+.topnav-brand-name {
+  color: var(--brand-topnav-text, #ffffff) !important;
+  font-family: "Fraunces", serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Brand logo container: clean gap */
+.topnav-brand {
+  gap: 10px;
+}
+
+/* Brand icon: square, contained.
+   TopNav uses react-icons SVG (not <img>); target the SVG element and the
+   icon class. The !important overrides the font-size: 26px set in TopNav.css. */
+.topnav-brand img,
+.topnav-brand .topnav-brand-icon {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.topnav-brand .topnav-brand-icon svg,
+.topnav-brand svg {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+/* Nav links: themed text on coloured header */
+.topnav-nav-link {
+  color: var(--brand-topnav-text, rgba(255, 255, 255, 0.75)) !important;
+  font-size: .84rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.topnav-nav-link:hover {
+  color: var(--brand-topnav-text, #ffffff) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  opacity: 1;
+}
+.topnav-nav-link--active {
+  color: var(--brand-topnav-text, #ffffff) !important;
+  border-bottom-color: var(--brand-topnav-text, rgba(255, 255, 255, 0.7)) !important;
+  opacity: 1;
+}
+
+/* User info: themed text */
+.topnav-user-name,
+.topnav-user-role {
+  color: var(--brand-topnav-text, rgba(255, 255, 255, 0.85)) !important;
+}

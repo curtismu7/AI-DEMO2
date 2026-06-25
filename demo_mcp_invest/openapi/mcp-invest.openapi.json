@@ -1,0 +1,78 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MCP Invest Tool Scope Map",
+    "description": "OpenAPI representation of investment MCP tools and their required OAuth scopes for PingAuthorize per-tool scope policy.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://mcp-invest.bxf.com", "description": "Production mcp-invest" },
+    { "url": "http://localhost:8081", "description": "Local development" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/tools/get_investment_accounts": {
+      "post": {
+        "operationId": "get_investment_accounts",
+        "summary": "List investment accounts",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": { "200": { "description": "Investment accounts" } }
+      }
+    },
+    "/tools/get_investment_balance": {
+      "post": {
+        "operationId": "get_investment_balance",
+        "summary": "Get investment account balance",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id"], "properties": { "account_id": { "type": "string" } } } } }
+        },
+        "responses": { "200": { "description": "Balance" } }
+      }
+    },
+    "/tools/get_portfolio_summary": {
+      "post": {
+        "operationId": "get_portfolio_summary",
+        "summary": "Get portfolio summary with allocation and performance",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id"], "properties": { "account_id": { "type": "string" }, "period": { "type": "string", "enum": ["1d","1w","1m","3m","1y","ytd"] } } } } }
+        },
+        "responses": { "200": { "description": "Portfolio summary" } }
+      }
+    },
+    "/tools/get_investment_transactions": {
+      "post": {
+        "operationId": "get_investment_transactions",
+        "summary": "Get investment transactions",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id"], "properties": { "account_id": { "type": "string" }, "limit": { "type": "number" } } } } }
+        },
+        "responses": { "200": { "description": "Investment transactions" } }
+      }
+    }
+  }
+}

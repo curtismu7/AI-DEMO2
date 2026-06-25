@@ -1,0 +1,1542 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* Bottom-right stack: CIBA guide (regular button) above agent FAB — shared by CIBAPanel + BankingAgent */
+  --float-edge: 28px;
+  --float-gap: 12px;
+  --fab-size: 56px;
+  --ciba-action-height: 44px;
+  --fab-bottom: var(--float-edge);
+  --ciba-bottom: calc(var(--float-edge) + var(--fab-size) + var(--float-gap));
+  --agent-panel-bottom: calc(
+    var(--ciba-bottom) + var(--ciba-action-height) + var(--float-gap)
+  );
+  /* Left-side rail (top → bottom): Quick nav (when present) → Demo config — CIBA/CIMD FABs removed */
+  --stack-fab-width: 220px;
+  --stack-fab-height: 44px;
+  --stack-fab-gap: 0px;
+  --stack-fab-top-home: 16px;
+  --stack-fab-top-dash: calc(
+    var(--stack-fab-top-home) + var(--stack-fab-height) + var(--stack-fab-gap)
+  );
+  /* 72px clears the app header bar (padding ~12px + logo ~40px + padding ~12px + border 1px ≈ 65px) */
+  --stack-fab-top-base: 72px;
+  /* Demo config FAB — first slot when quick nav hidden (config, landing, …) */
+  --stack-fab-top-demo: var(--stack-fab-top-base);
+  /* Keep left-side FABs inside the viewport */
+  --stack-fab-viewport-max: max(
+    0px,
+    calc(
+      100vw - 2 * var(--float-edge) - env(safe-area-inset-left, 0px) -
+        env(safe-area-inset-right, 0px)
+    )
+  );
+  --stack-fab-used-width: min(
+    var(--stack-fab-width),
+    var(--stack-fab-viewport-max)
+  );
+}
+
+/* Quick nav (signed-in /, /admin, /dashboard only) — extra stack + content inset */
+.App.App--has-quick-nav {
+  --float-edge: 12px;
+  --stack-fab-top-quick-nav: var(--stack-fab-top-base);
+  --quick-nav-stack-height: calc(
+    7 * var(--stack-fab-height)
+  ); /* overridden by DashboardQuickNav.js; gap:0 so no gap term */
+  --stack-fab-top-demo: calc(
+    var(--stack-fab-top-quick-nav) + var(--quick-nav-stack-height)
+  );
+  /* Page content clears quick nav + demo */
+  --rail-content-gap: 16px;
+  --left-rail-inset: calc(
+    var(--float-edge) + var(--stack-fab-used-width) + var(--rail-content-gap)
+  );
+  padding-left: var(--left-rail-inset);
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .App.App--has-quick-nav {
+    --rail-content-gap: 8px;
+    --stack-fab-width: 168px;
+  }
+}
+
+/* Second nav row (Dashboard) present — push rail stack below Home + Dashboard */
+.App.App--has-nav-dash {
+  --stack-fab-top-base: calc(
+    var(--stack-fab-top-dash) + var(--stack-fab-height) + var(--stack-fab-gap)
+  );
+}
+
+/* On /dashboard, UserDashboard header clears the rail — shift entire stack below it */
+.App.App--on-dashboard {
+  --stack-fab-top-base: 156px;
+}
+
+/* Embedded dock — flows as part of the page content, not a floating widget */
+.global-embedded-agent-dock-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: min(1400px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0;
+  box-sizing: border-box;
+  /* Above .footer (z-index 10) when the layout stacks at the bottom of the viewport */
+  z-index: 12;
+  pointer-events: auto;
+  background: #fff;
+  border-top: 2px solid var(--brand-medium-gray);
+}
+
+/* Collapsed: just the header bar */
+.global-embedded-agent-dock-wrap--collapsed {
+  background: var(--brand-light-gray);
+}
+
+/* Guest fallback shown in the bottom dock when no user is signed in (no agent
+   portals into the dock for guests — App gates that on a signed-in user). */
+.embedded-agent-dock-guest-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px;
+  min-height: 96px;
+  color: #475569;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Toolbar — looks like a page section header, not a widget titlebar */
+.embedded-agent-dock__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px;
+  background: var(--brand-light-gray);
+  border-bottom: 1px solid var(--brand-medium-gray);
+  /* Left accent bar — anchors it to the page visually */
+  border-left: 4px solid var(--brand-navy);
+}
+
+.embedded-agent-dock__toolbar .embedded-agent-dock__head {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Title text — matches page section heading style */
+.embedded-agent-dock__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.embedded-agent-dock__framework-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  background: #e8f0fb;
+  color: #1e3a5f;
+  border: 1px solid #c0d0ea;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
+.global-embedded-agent-dock-wrap .embedded-agent-dock {
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 0;
+  border-top: none;
+  box-shadow: none;
+  background: transparent;
+  padding-top: 0;
+}
+
+/* Portal host: fills dock flex parent so portaled content's height:100%
+   resolves correctly in Safari/Firefox as well as Chrome. */
+.embedded-agent-dock-host {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Collapsed: host stays mounted (portal target / agent React subtree
+   preserved) but is hidden. React keeps the portaled subtree mounted
+   regardless of CSS, so in-flight chat state survives collapse/expand. */
+.global-embedded-agent-dock-wrap .embedded-agent-dock--collapsed {
+  display: none;
+}
+
+/* Collapse / expand toggle */
+.embedded-dock-collapse-btn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 5px;
+  color: #999999;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.embedded-dock-collapse-btn:hover {
+  background: var(--brand-medium-gray);
+  color: var(--brand-dark-gray);
+}
+
+/* Resize handle — minimal drag grip between content and dock */
+.embedded-dock-resize-handle {
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 10px;
+  margin: 0;
+  padding: 3px 0;
+  border: none;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-light-gray);
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.15s;
+}
+
+.embedded-dock-resize-handle__grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.embedded-dock-resize-handle__bar {
+  display: block;
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(100, 116, 139, 0.3);
+  transition:
+    background 0.15s,
+    width 0.15s;
+}
+
+.embedded-dock-resize-handle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.embedded-dock-resize-handle:hover {
+  background: var(--brand-medium-gray);
+}
+
+.embedded-dock-resize-handle:hover .embedded-dock-resize-handle__bar {
+  background: rgba(37, 99, 235, 0.5);
+  width: 44px;
+}
+
+.embedded-dock-resize-handle:active {
+  cursor: ns-resize;
+  background: #dbeafe;
+}
+
+.embedded-dock-resize-handle:focus-visible {
+  outline: 2px solid #4169e1;
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .App {
+    --float-edge: 16px;
+  }
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* When the bottom agent is embedded inside the dashboard (not App-level),
+   make main-content a flex column so UserDashboard can fill + attach agent flush. */
+.App--has-embedded-dock .main-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Embedded agent: page scrolls above; assistant is part of the layout at the bottom (not fixed over the page) */
+.main-content.main-content--embedded-dock {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content--embedded-dock .main-content__primary {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Two-column layout: side nav + scrollable content */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  align-items: stretch;
+}
+
+.app-shell-body {
+  flex: 1;
+  min-width: 0;
+  overflow-x: clip; /* clip instead of hidden — doesn't create a scroll container, so position:absolute dropdowns escape correctly */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Full-height wrapper for the inline agent page */
+.agent-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  /* The page is inset on the left to clear the nav rail; add a matching
+     right gutter so chat content doesn't hug the viewport edge. */
+  padding-right: clamp(16px, 3vw, 32px);
+  box-sizing: border-box;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(12px, 3vw, 20px);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 1.125rem;
+  color: #6b7280;
+}
+
+.loading::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  margin-left: 0.5rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid var(--brand-navy);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* HOME — top of left-side rail */
+.nav-home-fab {
+  position: fixed;
+  top: var(--stack-fab-top-home, 16px);
+  left: var(--float-edge, 28px);
+  box-sizing: border-box;
+  width: var(--stack-fab-used-width, min(220px, calc(100vw - 56px)));
+  max-width: var(--stack-fab-viewport-max, 100vw);
+  min-width: 0;
+  height: var(--stack-fab-height, 44px);
+  min-height: var(--stack-fab-height, 44px);
+  padding: 0 12px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    var(--app-primary-blue-mid) 0%,
+    var(--app-primary-blue) 100%
+  );
+  border: 1px solid var(--app-primary-blue-border);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    box-shadow 0.15s;
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
+  text-decoration: none;
+}
+
+.nav-home-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);
+  background: linear-gradient(
+    135deg,
+    var(--app-primary-blue) 0%,
+    var(--app-primary-blue-hover) 100%
+  );
+}
+
+.nav-home-fab:active {
+  transform: scale(0.97);
+}
+
+/* Role dashboard — second slot (signed-in only) */
+.nav-dashboard-fab {
+  position: fixed;
+  top: var(--stack-fab-top-dash, 68px);
+  left: var(--float-edge, 28px);
+  box-sizing: border-box;
+  width: var(--stack-fab-used-width, min(220px, calc(100vw - 56px)));
+  max-width: var(--stack-fab-viewport-max, 100vw);
+  min-width: 0;
+  height: var(--stack-fab-height, 44px);
+  min-height: var(--stack-fab-height, 44px);
+  padding: 0 12px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    var(--app-primary-blue-mid) 0%,
+    var(--app-primary-blue) 100%
+  );
+  border: 1px solid var(--app-primary-blue-border);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    box-shadow 0.15s;
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
+  text-decoration: none;
+}
+
+.nav-dashboard-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.45);
+  background: linear-gradient(
+    135deg,
+    var(--app-primary-blue) 0%,
+    var(--app-primary-blue-hover) 100%
+  );
+}
+
+.nav-dashboard-fab:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 768px) {
+  .App {
+    --stack-fab-width: 200px;
+    --stack-fab-height: 42px;
+    --stack-fab-top-home: 14px;
+    --stack-fab-top-dash: calc(
+      var(--stack-fab-top-home) + var(--stack-fab-height) + var(--stack-fab-gap)
+    );
+    --stack-fab-top-base: 12px;
+    --stack-fab-top-demo: var(--stack-fab-top-base);
+  }
+  .App.App--has-quick-nav {
+    --stack-fab-top-quick-nav: var(--stack-fab-top-base);
+    --quick-nav-stack-height: calc(7 * var(--stack-fab-height));
+    --stack-fab-top-demo: calc(
+      var(--stack-fab-top-quick-nav) + var(--quick-nav-stack-height)
+    );
+  }
+  .App.App--has-nav-dash {
+    --stack-fab-top-base: calc(
+      var(--stack-fab-top-dash) + var(--stack-fab-height) + var(--stack-fab-gap)
+    );
+  }
+  .nav-home-fab,
+  .nav-dashboard-fab,
+  .demo-config-fab {
+    font-size: 0.75rem;
+  }
+}
+
+/* Global Demo Config FAB — left-side rail (below quick nav when present) */
+.demo-config-fab {
+  position: fixed;
+  top: var(--stack-fab-top-demo, 224px);
+  left: var(--float-edge, 28px);
+  box-sizing: border-box;
+  width: var(--stack-fab-used-width, min(220px, calc(100vw - 56px)));
+  max-width: var(--stack-fab-viewport-max, 100vw);
+  min-width: 0;
+  height: var(--stack-fab-height, 44px);
+  min-height: var(--stack-fab-height, 44px);
+  padding: 0 12px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(
+    135deg,
+    var(--brand-navy) 0%,
+    var(--brand-navy) 100%
+  );
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    box-shadow 0.15s;
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.demo-config-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+  background: linear-gradient(
+    135deg,
+    var(--brand-navy) 0%,
+    var(--brand-navy) 100%
+  );
+}
+
+.demo-config-fab:active {
+  transform: scale(0.97);
+}
+
+/*
+ * PingOne end-user-nano (global) styles <a> / buttons with link colors that override our red CTAs.
+ * Keep white labels on every red filled button and router links styled as those buttons.
+ */
+.App.end-user-nano
+  :is(
+    .btn-primary,
+    .btn-primary:hover,
+    .btn-primary:focus,
+    .btn-primary:focus-visible,
+    .btn-primary:active,
+    .btn-primary:visited,
+    .btn-secondary,
+    .btn-secondary:hover,
+    .btn-secondary:focus,
+    .btn-secondary:focus-visible,
+    .btn-secondary:active,
+    .btn-secondary:visited,
+    .btn-danger,
+    .btn-danger:hover,
+    .btn-danger:focus,
+    .btn-danger:focus-visible,
+    .btn-danger:active,
+    .btn-danger:visited,
+    .btn-success,
+    .btn-success:hover,
+    .btn-success:focus,
+    .btn-success:focus-visible,
+    .btn-success:active,
+    .btn-success:visited,
+    .btn-outline-primary,
+    .btn-outline-primary:hover,
+    .btn-outline-primary:focus,
+    .btn-outline-primary:focus-visible,
+    .btn-outline-primary:active,
+    .btn-outline-primary:visited,
+    .btn-blue,
+    .btn-blue:hover,
+    .btn-blue:focus,
+    .btn-blue:focus-visible,
+    .btn-blue:active,
+    .btn-blue:visited
+  ) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* Landing-page header secondary button must show red text on white, not white-on-white.
+   Specificity matches the :is() rule above (0,4,0) so source-order wins here. */
+.App.end-user-nano .landing-header-actions .btn-secondary,
+.App.end-user-nano .landing-header-actions .btn-secondary:hover,
+.App.end-user-nano .landing-header-actions .btn-secondary:focus,
+.App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
+.App.end-user-nano .landing-header-actions .btn-secondary:active,
+.App.end-user-nano .landing-header-actions .btn-secondary:visited {
+  color: var(--app-primary-red, #b91c1c) !important;
+  -webkit-text-fill-color: var(--app-primary-red, #b91c1c) !important;
+}
+
+.App.end-user-nano
+  a:is(
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-success,
+    .btn-outline-primary,
+    .btn-blue
+  ):any-link {
+  text-decoration: none !important;
+}
+
+.App.end-user-nano a.dashboard-toolbar-btn,
+.App.end-user-nano a.dashboard-toolbar-btn:any-link,
+.App.end-user-nano a.dashboard-toolbar-btn:hover,
+.App.end-user-nano a.dashboard-toolbar-btn:focus-visible,
+.App.end-user-nano a.dashboard-toolbar-btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+.App.end-user-nano a.app-page-toolbar-btn,
+.App.end-user-nano a.app-page-toolbar-btn:any-link,
+.App.end-user-nano a.app-page-toolbar-btn:hover,
+.App.end-user-nano a.app-page-toolbar-btn:focus-visible,
+.App.end-user-nano a.app-page-toolbar-btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+/* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
+.App.end-user-nano button.app-page-toolbar-btn,
+.App.end-user-nano button.app-page-toolbar-btn:hover,
+.App.end-user-nano button.app-page-toolbar-btn:focus,
+.App.end-user-nano button.app-page-toolbar-btn:focus-visible,
+.App.end-user-nano button.app-page-toolbar-btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.App.end-user-nano a.log-page-nav-btn,
+.App.end-user-nano a.log-page-nav-btn:any-link,
+.App.end-user-nano a.log-page-nav-btn:hover,
+.App.end-user-nano a.log-page-nav-btn:focus-visible,
+.App.end-user-nano a.log-page-nav-btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+/* Solid / ghost shell CTAs outside the blue hero (e.g. McpInspector, DemoDataPage) */
+.App.end-user-nano a.app-page-shell__btn,
+.App.end-user-nano a.app-page-shell__btn:any-link,
+.App.end-user-nano a.app-page-shell__btn:hover,
+.App.end-user-nano a.app-page-shell__btn:focus-visible,
+.App.end-user-nano a.app-page-shell__btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+.App.end-user-nano button.app-page-shell__btn,
+.App.end-user-nano button.app-page-shell__btn:hover,
+.App.end-user-nano button.app-page-shell__btn:focus,
+.App.end-user-nano button.app-page-shell__btn:focus-visible,
+.App.end-user-nano button.app-page-shell__btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* MCP Inspector red CTAs: <a> and <button> (.mcp-inspector__btn) vs global nano link color */
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:any-link,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:visited,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:hover,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:focus,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:focus-visible,
+.App.end-user-nano .mcp-inspector-page a.mcp-inspector__btn:active,
+.App.end-user-nano .mcp-inspector-page button.mcp-inspector__btn,
+.App.end-user-nano .mcp-inspector-page button.mcp-inspector__btn:hover,
+.App.end-user-nano .mcp-inspector-page button.mcp-inspector__btn:focus,
+.App.end-user-nano .mcp-inspector-page button.mcp-inspector__btn:focus-visible,
+.App.end-user-nano .mcp-inspector-page button.mcp-inspector__btn:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+/* Top-right stack FABs — Ping global button/link color must not override labels or currentColor icons */
+.App.end-user-nano
+  :is(
+    .nav-home-fab,
+    .nav-home-fab:hover,
+    .nav-home-fab:focus,
+    .nav-home-fab:focus-visible,
+    .nav-home-fab:active,
+    .nav-dashboard-fab,
+    .nav-dashboard-fab:hover,
+    .nav-dashboard-fab:focus,
+    .nav-dashboard-fab:focus-visible,
+    .nav-dashboard-fab:active,
+    .demo-config-fab,
+    .demo-config-fab:hover,
+    .demo-config-fab:focus,
+    .demo-config-fab:focus-visible,
+    .demo-config-fab:active
+  ) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* Session-style error toasts (dashboardToast.js) — message + Sign in */
+.dashboard-toast-error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.dashboard-toast-error__text {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.dashboard-toast-error__btn {
+  align-self: flex-end;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  cursor: pointer;
+}
+
+.dashboard-toast-error__btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Push main layout below fixed session banner */
+.App.App--session-reauth {
+  padding-top: 5.5rem;
+}
+
+@media (max-width: 520px) {
+  .App.App--session-reauth {
+    padding-top: 6.5rem;
+  }
+}
+
+/* Full-width session prompt — “log in again” (replaces toast for login-style errors; see dashboardToast.js) */
+.session-reauth-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10050;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 1px solid #f59e0b;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  box-sizing: border-box;
+}
+
+.session-reauth-banner__inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.session-reauth-banner__text {
+  margin: 0;
+  flex: 1 1 240px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #78350f;
+  line-height: 1.45;
+}
+
+.session-reauth-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.session-reauth-banner__btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.session-reauth-banner__btn--primary {
+  background: #b45309;
+  color: #fff;
+  border-color: #92400e;
+}
+
+.session-reauth-banner__btn--primary:hover {
+  background: #92400e;
+}
+
+.session-reauth-banner__btn--ghost {
+  background: transparent;
+  color: #78350f;
+  border-color: rgba(120, 53, 15, 0.35);
+}
+
+.session-reauth-banner__btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.session-reauth-banner__btn--secondary {
+  background: #fff;
+  color: #b45309;
+  border-color: #f59e0b;
+}
+
+.session-reauth-banner__btn--secondary:hover {
+  background: #fef3c7;
+}
+
+/* HITL indicator styling */
+.session-reauth-banner--hitl {
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom-color: #f59e0b;
+}
+
+.session-reauth-banner__hitl-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.session-reauth-banner__hitl-icon {
+  font-size: 1.1rem;
+}
+
+.session-reauth-banner__hitl-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OTP Step-Up Modal — Phase 52
+   ═══════════════════════════════════════════════════════════════════ */
+
+.otp-step-up-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.otp-step-up-modal {
+  max-width: 420px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: var(
+    --modal-shadow,
+    0 20px 48px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1)
+  );
+  border: 1px solid var(--brand-medium-gray);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.otp-step-up-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.otp-step-up-modal__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.otp-step-up-modal__contact {
+  display: inline-block;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0369a1;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Who is being verified — high contrast, never muted */
+.otp-step-up-modal__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0369a1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.otp-step-up-modal__identity-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0369a1;
+}
+.otp-step-up-modal__identity-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.otp-step-up-modal__identity-email {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Demo code reveal — link + revealed box, high contrast */
+.otp-step-up-modal__demo {
+  margin-top: 10px;
+}
+.otp-step-up-modal__demo-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.otp-step-up-modal__demo-link:hover {
+  color: #075985;
+}
+.otp-step-up-modal__demo-box {
+  margin-top: 8px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #92400e;
+  font-variant-numeric: tabular-nums;
+}
+
+/* OTP delivery failure — high contrast, never muted */
+.otp-step-up-modal__delivery-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-left: 3px solid #dc2626;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+.otp-step-up-modal__delivery-error strong {
+  font-weight: 800;
+  color: #7f1d1d;
+}
+
+/* Register-a-passkey device row */
+.otp-step-up-modal__device-item--register {
+  border-style: dashed;
+  border-color: #0369a1;
+  color: #0369a1;
+  font-weight: 700;
+}
+.otp-step-up-modal__device-item--register:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.otp-step-up-modal__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #999999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.otp-step-up-modal__close:hover {
+  background: var(--brand-light-gray);
+}
+
+.otp-step-up-modal__body {
+  /* content area */
+}
+
+.otp-step-up-modal__lead {
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+
+.otp-step-up-modal__lead strong {
+  color: var(--brand-navy);
+  font-weight: 600;
+}
+
+.otp-step-up-modal__input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border: 2px solid var(--brand-medium-gray);
+  border-radius: 10px;
+  padding: 0.65rem 0.5rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.otp-step-up-modal__input:focus {
+  border-color: #0ea5e9;
+}
+
+.otp-step-up-modal__input--error {
+  border-color: #dc2626;
+  background: #fff5f5;
+}
+
+.otp-step-up-modal__error {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #dc2626;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.otp-step-up-modal__hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.otp-step-up-modal__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.25rem;
+}
+
+.otp-step-up-modal__btn-primary {
+  flex: 1;
+  padding: var(--btn-padding);
+  min-height: var(--btn-height);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-weight);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  color: #fff;
+  border: 1px solid var(--app-primary-red-border);
+  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
+}
+
+.otp-step-up-modal__btn-primary:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: var(--app-primary-red-hover);
+}
+
+.otp-step-up-modal__btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.otp-step-up-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+  flex-shrink: 0;
+}
+
+.otp-step-up-modal__close:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.otp-step-up-modal__btn-cancel {
+  flex: 1;
+  padding: var(--btn-padding);
+  min-height: var(--btn-height);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-weight);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  background: #ffffff;
+  color: var(--app-primary-red);
+  border: 1px solid var(--app-primary-red-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.otp-step-up-modal__btn-cancel:hover {
+  background: #fef2f2;
+  border-color: var(--app-primary-red);
+}
+
+.otp-step-up-modal__btn-ghost {
+  padding: var(--btn-padding);
+  min-height: var(--btn-height);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-weight);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  background: #ffffff;
+  color: var(--app-primary-red);
+  border: 1px solid var(--app-primary-red-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.otp-step-up-modal__btn-ghost:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: var(--app-primary-red);
+}
+
+.otp-step-up-modal__btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OTP Step-Up Modal — Phase 52
+   ═══════════════════════════════════════════════════════════════════ */
+
+.otp-step-up-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.otp-step-up-modal {
+  max-width: 420px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: var(
+    --modal-shadow,
+    0 20px 48px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1)
+  );
+  border: 1px solid var(--brand-medium-gray);
+}
+.otp-step-up-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.otp-step-up-modal__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+.otp-step-up-modal__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #999999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 0;
+  transition: background 0.15s;
+}
+.otp-step-up-modal__close:hover {
+  background: var(--brand-light-gray);
+}
+.otp-step-up-modal__lead {
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+.otp-step-up-modal__lead strong {
+  color: var(--brand-navy);
+  font-weight: 600;
+}
+.otp-step-up-modal__input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border: 2px solid var(--brand-medium-gray);
+  border-radius: 10px;
+  padding: 0.65rem 0.5rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.otp-step-up-modal__input:focus {
+  border-color: #0ea5e9;
+}
+.otp-step-up-modal__input--error {
+  border-color: #dc2626;
+  background: #fff5f5;
+}
+.otp-step-up-modal__error {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #dc2626;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+.otp-step-up-modal__hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+.otp-step-up-modal__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.25rem;
+}
+.otp-step-up-modal__btn-primary {
+  flex: 1;
+  padding: var(--btn-padding);
+  min-height: var(--btn-height);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-weight);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red-mid) 0%,
+    var(--app-primary-red) 100%
+  );
+  color: #fff;
+  border: 1px solid var(--app-primary-red-border);
+  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
+}
+.otp-step-up-modal__btn-primary:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    var(--app-primary-red) 0%,
+    var(--app-primary-red-hover) 100%
+  );
+  border-color: var(--app-primary-red-hover);
+}
+.otp-step-up-modal__btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.otp-step-up-modal__btn-ghost {
+  padding: var(--btn-padding);
+  min-height: var(--btn-height);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-weight);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--btn-transition);
+  background: #ffffff;
+  color: var(--app-primary-red);
+  border: 1px solid var(--app-primary-red-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.otp-step-up-modal__btn-ghost:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: var(--app-primary-red);
+}
+.otp-step-up-modal__btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Push notification waiting panel */
+.push-waiting-spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border: 4px solid var(--brand-medium-gray);
+  border-top-color: var(--brand-navy);
+  border-radius: 50%;
+  animation: push-spin 0.9s linear infinite;
+}
+
+@keyframes push-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.otp-step-up-modal--totp .otp-step-up-modal__lead strong {
+  color: #374151;
+}
+
+.otp-step-up-modal--push .otp-step-up-modal__actions {
+  justify-content: center;
+}
+
+/* FIDO2 passkey modal variant */
+.otp-step-up-modal--fido2 .otp-step-up-modal__actions {
+  justify-content: center;
+}
+
+/* P1MFA device picker (Phase 174-04) */
+.otp-step-up-modal__device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+.otp-step-up-modal__device-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  font-size: 0.95rem;
+}
+.otp-step-up-modal__device-item:hover {
+  border-color: var(--accent-blue, #0066cc);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
+}
+.otp-step-up-modal__device-icon {
+  font-size: 1.3rem;
+}
+
+/* Method toggle link (Phase 174-03) */
+.otp-step-up-modal__method-toggle {
+  background: transparent;
+  border: none;
+  color: #0ea5e9;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0.5rem 0;
+  width: 100%;
+  text-align: center;
+}
+.otp-step-up-modal__method-toggle:hover {
+  color: #0284c7;
+}
+
+/* OTP Step-Up Modal — RFC 9470 education footer */
+.otp-step-up-modal__rfc-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 1.1rem;
+  padding: 0.6rem 0.75rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  color: #0369a1;
+  line-height: 1.45;
+}
+.otp-step-up-modal__rfc-label {
+  font-weight: 600;
+  color: #0c4a6e;
+}
+.otp-step-up-modal__rfc-detail {
+  color: #0369a1;
+}
+.otp-step-up-modal__rfc-detail code {
+  font-family: inherit;
+  background: #e0f2fe;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+.otp-step-up-modal__rfc-refs {
+  font-size: 0.68rem;
+  color: #0369a1;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+/* ── Phase 163: Sidebar layout offset ─────────────────────────────────────────
+   Push main content right so the fixed sidebar doesn't overlay it.
+   Only applies when sidebar is rendered (user is logged in).
+   Sidebar width: 310px default expanded, 80px collapsed (JS overrides --sidebar-width on resize). */
+.App {
+  --sidebar-width: 310px;
+  --sidebar-collapsed-width: 80px;
+}
+
+/* When sidebar is present (user is logged in), offset all content containers */
+.App:has(.admin-side-nav) .main-content,
+.App:has(.admin-side-nav) .topnav,
+.App:has(.admin-side-nav) .chase-top-nav,
+.App:has(.admin-side-nav) > .footer {
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.3s ease-in-out;
+  width: calc(100% - var(--sidebar-width));
+  box-sizing: border-box;
+}
+
+/* When sidebar is collapsed */
+.App:has(.admin-side-nav--collapsed) .main-content,
+.App:has(.admin-side-nav--collapsed) .topnav,
+.App:has(.admin-side-nav--collapsed) .chase-top-nav,
+.App:has(.admin-side-nav--collapsed) > .footer {
+  margin-left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
+  box-sizing: border-box;
+}
+
+/* Responsive: on small screens sidebar auto-collapses to icon-only */
+@media (max-width: 768px) {
+  .App:has(.admin-side-nav) .main-content,
+  .App:has(.admin-side-nav) .topnav,
+  .App:has(.admin-side-nav) .chase-top-nav,
+  .App:has(.admin-side-nav) > .footer {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+}
+
+/* ── API/MCP Traffic pages inside sidebar shell ──────────────────────────────
+   These pages use position:fixed/100vw to fill the viewport when opened in a
+   popup window. When navigated to in-app (with the sidebar present) we must
+   offset them so the fixed sidebar does not cover their content.            */
+.App:has(.admin-side-nav) .api-traffic-page-host {
+  width: calc(100vw - var(--sidebar-width));
+  margin-left: var(--sidebar-width);
+}
+.App:has(.admin-side-nav) .api-traffic-panel--page {
+  left: var(--sidebar-width);
+  width: calc(100vw - var(--sidebar-width));
+}
+.App:has(.admin-side-nav--collapsed) .api-traffic-page-host {
+  width: calc(100vw - var(--sidebar-collapsed-width));
+  margin-left: var(--sidebar-collapsed-width);
+}
+.App:has(.admin-side-nav--collapsed) .api-traffic-panel--page {
+  left: var(--sidebar-collapsed-width);
+  width: calc(100vw - var(--sidebar-collapsed-width));
+}

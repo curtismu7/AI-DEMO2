@@ -1,0 +1,15 @@
+.acpc-root { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; overflow: hidden; font-size: 0.8rem; }
+.acpc-header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f8fafc; flex-wrap: wrap; }
+.acpc-method { padding: 2px 7px; border-radius: 3px; font-weight: 700; font-family: inherit; font-size: 0.72rem; }
+.acpc-method--post { background: #dcfce7; color: #15803d; }
+.acpc-method--get  { background: #dbeafe; color: #1d4ed8; }
+.acpc-endpoint { font-family: inherit; color: #374151; flex: 1; word-break: break-all; }
+.acpc-doc-link { font-size: 0.72rem; color: #2563eb; text-decoration: none; white-space: nowrap; }
+.acpc-doc-link:hover { text-decoration: underline; }
+.acpc-desc { padding: 4px 12px 6px; font-size: 0.75rem; color: #64748b; background: #f8fafc; border-top: 1px solid #f1f5f9; }
+.acpc-body { padding: 8px 12px; }
+.acpc-body-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.acpc-body-label { font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.acpc-copy { padding: 2px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #fff; color: #64748b; cursor: pointer; font-size: 0.68rem; font-weight: 600; }
+.acpc-copy:hover { background: #f1f5f9; }
+.acpc-json { margin: 0; font-size: 0.72rem; font-family: inherit; background: #1e293b; color: #7dd3fc; padding: 10px; border-radius: 6px; overflow-x: auto; max-height: 200px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }

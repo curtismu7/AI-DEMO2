@@ -1,0 +1,1080 @@
+{
+  "intents": [
+    {
+      "action": "cancel_expense",
+      "type": "write",
+      "arr": "expenses",
+      "idParam": "expenseId",
+      "mutateStatus": "Cancelled",
+      "noun": "expense",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\bexpense\\b|\\bwithdraw\\b.*\\bexpense\\b",
+      "toolDescription": "Cancel a pending expense report by expenseId.",
+      "render": {
+        "type": "card",
+        "title": "Expense Cancelled",
+        "fields": [
+          {
+            "label": "Expense ID",
+            "path": "id"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel expense 201\" / \"cancel my expense\" + expenseId -> cancel_expense params:{expenseId}",
+      "evalRows": [
+        {
+          "phrase": "cancel expense 204",
+          "expect": "cancel_expense"
+        },
+        {
+          "phrase": "cancel my pending expense",
+          "expect": "cancel_expense"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "enroll_training",
+      "type": "write",
+      "arr": "trainings",
+      "idParam": "trainingId",
+      "mutateStatus": "Enrolled",
+      "noun": "training",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\benroll\\b.*\\b(training|course)\\b|\\bsign\\s+(me\\s+)?up\\b.*\\b(training|course)\\b",
+      "toolDescription": "Enroll the employee in a training course by trainingId.",
+      "render": {
+        "type": "card",
+        "title": "Enrolled in Training",
+        "fields": [
+          {
+            "label": "Course",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"enroll in training 405\" / \"sign me up for course\" + trainingId -> enroll_training params:{trainingId}",
+      "evalRows": [
+        {
+          "phrase": "enroll me in training 405",
+          "expect": "enroll_training"
+        },
+        {
+          "phrase": "sign me up for course 405",
+          "expect": "enroll_training"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "close_ticket",
+      "type": "write",
+      "arr": "tickets",
+      "idParam": "ticketId",
+      "mutateStatus": "Closed",
+      "noun": "ticket",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bclose\\b.*\\bticket\\b|\\bresolve\\b.*\\bticket\\b",
+      "toolDescription": "Close an open support ticket by ticketId.",
+      "render": {
+        "type": "card",
+        "title": "Ticket Closed",
+        "fields": [
+          {
+            "label": "Ticket #",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"close ticket 501\" / \"mark ticket as resolved\" + ticketId -> close_ticket params:{ticketId}",
+      "evalRows": [
+        {
+          "phrase": "close ticket 501",
+          "expect": "close_ticket"
+        },
+        {
+          "phrase": "resolve ticket 502",
+          "expect": "close_ticket"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "complete_goal",
+      "type": "write",
+      "arr": "goals",
+      "idParam": "goalId",
+      "mutateStatus": "Completed",
+      "noun": "goal",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcomplete\\b.*\\bgoal\\b|\\bmark\\b.*\\bgoal\\b.*\\bdone\\b",
+      "toolDescription": "Mark a performance goal as completed by goalId.",
+      "render": {
+        "type": "card",
+        "title": "Goal Completed",
+        "fields": [
+          {
+            "label": "Goal",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"complete goal 703\" / \"mark goal as done\" + goalId -> complete_goal params:{goalId}",
+      "evalRows": [
+        {
+          "phrase": "complete goal 703",
+          "expect": "complete_goal"
+        },
+        {
+          "phrase": "mark goal 701 as done",
+          "expect": "complete_goal"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "request_schedule_change",
+      "type": "write",
+      "arr": "schedules",
+      "idParam": "scheduleId",
+      "mutateStatus": "Change Requested",
+      "noun": "schedule",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Request a change to a specific scheduled shift by scheduleId.",
+      "render": {
+        "type": "card",
+        "title": "Schedule Change Requested",
+        "fields": [
+          {
+            "label": "Shift Date",
+            "path": "date"
+          },
+          {
+            "label": "Location",
+            "path": "location"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"request change to shift 604\" / \"I need to change my Thursday schedule\" + scheduleId -> request_schedule_change params:{scheduleId}",
+      "evalRows": [
+        {
+          "phrase": "request a change to shift 604",
+          "expect": "request_schedule_change"
+        },
+        {
+          "phrase": "I need to swap my Friday shift 605",
+          "expect": "request_schedule_change"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "update_goal_progress",
+      "type": "write",
+      "arr": "goals",
+      "idParam": "goalId",
+      "mutateStatus": "In Progress",
+      "noun": "goal",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Update the progress status of a performance goal by goalId.",
+      "render": {
+        "type": "card",
+        "title": "Goal Updated",
+        "fields": [
+          {
+            "label": "Goal",
+            "path": "title"
+          },
+          {
+            "label": "Progress %",
+            "path": "progressPct",
+            "format": "percent"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"update progress on goal 704\" / \"goal 705 is now in progress\" + goalId -> update_goal_progress params:{goalId}",
+      "evalRows": [
+        {
+          "phrase": "update progress on goal 705",
+          "expect": "update_goal_progress"
+        },
+        {
+          "phrase": "I have been working on goal 704",
+          "expect": "update_goal_progress"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "withdraw_training_enrollment",
+      "type": "write",
+      "arr": "trainings",
+      "idParam": "trainingId",
+      "mutateStatus": "Withdrawn",
+      "noun": "training",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Withdraw the employee from an enrolled training course by trainingId.",
+      "render": {
+        "type": "card",
+        "title": "Training Enrollment Withdrawn",
+        "fields": [
+          {
+            "label": "Course",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"drop training 402\" / \"withdraw from course 402\" + trainingId -> withdraw_training_enrollment params:{trainingId}",
+      "evalRows": [
+        {
+          "phrase": "withdraw me from training 402",
+          "expect": "withdraw_training_enrollment"
+        },
+        {
+          "phrase": "drop course 404, I can no longer attend",
+          "expect": "withdraw_training_enrollment"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "view_payslips",
+      "type": "read",
+      "arr": "payslips",
+      "resultKey": "payslips",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bpay\\s*slip[s]?\\b|\\bpay\\s*stub[s]?\\b|\\bpaycheck[s]?\\b|\\bmy\\s+pay\\s+history\\b",
+      "toolDescription": "List the employee's recent payslips.",
+      "render": {
+        "type": "table",
+        "title": "My Payslips",
+        "columns": [
+          {
+            "label": "Pay Period",
+            "path": "period"
+          },
+          {
+            "label": "Gross Pay",
+            "path": "grossPay",
+            "format": "money"
+          },
+          {
+            "label": "Net Pay",
+            "path": "netPay",
+            "format": "money"
+          },
+          {
+            "label": "Tax Withheld",
+            "path": "taxWithheld",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my payslips\" / \"pay stubs\" / \"my paycheck history\" -> view_payslips params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my payslips",
+          "expect": "view_payslips"
+        },
+        {
+          "phrase": "view my pay stubs",
+          "expect": "view_payslips"
+        },
+        {
+          "phrase": "my paycheck history",
+          "expect": "view_payslips"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "301",
+          "period": "2026-06-01",
+          "grossPay": 5416.67,
+          "netPay": 3812.45,
+          "taxWithheld": 1204.22,
+          "status": "Paid"
+        },
+        {
+          "id": "302",
+          "period": "2026-05-15",
+          "grossPay": 5416.67,
+          "netPay": 3798.1,
+          "taxWithheld": 1218.57,
+          "status": "Paid"
+        },
+        {
+          "id": "303",
+          "period": "2026-05-01",
+          "grossPay": 5416.67,
+          "netPay": 3812.45,
+          "taxWithheld": 1204.22,
+          "status": "Paid"
+        },
+        {
+          "id": "304",
+          "period": "2026-04-15",
+          "grossPay": 5416.67,
+          "netPay": 3801.3,
+          "taxWithheld": 1215.37,
+          "status": "Paid"
+        },
+        {
+          "id": "305",
+          "period": "2026-04-01",
+          "grossPay": 5416.67,
+          "netPay": 3812.45,
+          "taxWithheld": 1204.22,
+          "status": "Paid"
+        }
+      ]
+    },
+    {
+      "action": "view_trainings",
+      "type": "read",
+      "arr": "trainings",
+      "resultKey": "trainings",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\btraining[s]?\\b|\\blearning\\s+(courses?|catalog|modules?)\\b|\\bmy\\s+courses?\\b",
+      "toolDescription": "List available and enrolled training courses for the employee.",
+      "render": {
+        "type": "table",
+        "title": "Training Courses",
+        "columns": [
+          {
+            "label": "Course",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Duration (hrs)",
+            "path": "durationHours",
+            "format": "count"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Due Date",
+            "path": "dueDate",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my trainings\" / \"learning courses\" / \"my courses\" -> view_trainings params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my training courses",
+          "expect": "view_trainings"
+        },
+        {
+          "phrase": "what trainings do I have",
+          "expect": "view_trainings"
+        },
+        {
+          "phrase": "my learning modules",
+          "expect": "view_trainings"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "401",
+          "title": "Security Awareness 2026",
+          "category": "Compliance",
+          "durationHours": 2,
+          "status": "Required",
+          "dueDate": "2026-07-01"
+        },
+        {
+          "id": "402",
+          "title": "Leadership Fundamentals",
+          "category": "Professional Development",
+          "durationHours": 8,
+          "status": "Enrolled",
+          "dueDate": "2026-08-15"
+        },
+        {
+          "id": "403",
+          "title": "Inclusive Workplace",
+          "category": "Compliance",
+          "durationHours": 1,
+          "status": "Completed",
+          "dueDate": "2026-03-31"
+        },
+        {
+          "id": "404",
+          "title": "AWS Cloud Practitioner",
+          "category": "Technical",
+          "durationHours": 20,
+          "status": "In Progress",
+          "dueDate": "2026-09-30"
+        },
+        {
+          "id": "405",
+          "title": "Effective Communication",
+          "category": "Professional Development",
+          "durationHours": 4,
+          "status": "Available",
+          "dueDate": null
+        }
+      ]
+    },
+    {
+      "action": "view_tickets",
+      "type": "read",
+      "arr": "tickets",
+      "resultKey": "tickets",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmy\\s+tickets?\\b|\\bsupport\\s+(tickets?|requests?)\\b|\\bhelp\\s+desk\\b|\\bIT\\s+tickets?\\b",
+      "toolDescription": "List the employee's open and recent support tickets.",
+      "render": {
+        "type": "table",
+        "title": "Support Tickets",
+        "columns": [
+          {
+            "label": "Ticket #",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Priority",
+            "path": "priority"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Created",
+            "path": "createdDate",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my tickets\" / \"support requests\" / \"help desk\" -> view_tickets params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my support tickets",
+          "expect": "view_tickets"
+        },
+        {
+          "phrase": "my IT tickets",
+          "expect": "view_tickets"
+        },
+        {
+          "phrase": "what help desk requests do I have open",
+          "expect": "view_tickets"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "501",
+          "subject": "VPN not connecting from home",
+          "category": "IT",
+          "priority": "High",
+          "status": "In Progress",
+          "createdDate": "2026-06-10"
+        },
+        {
+          "id": "502",
+          "subject": "Request laptop replacement",
+          "category": "IT",
+          "priority": "Medium",
+          "status": "Open",
+          "createdDate": "2026-06-14"
+        },
+        {
+          "id": "503",
+          "subject": "Update direct deposit bank account",
+          "category": "HR",
+          "priority": "High",
+          "status": "Resolved",
+          "createdDate": "2026-05-20"
+        },
+        {
+          "id": "504",
+          "subject": "Office access badge not working",
+          "category": "Facilities",
+          "priority": "Medium",
+          "status": "Closed",
+          "createdDate": "2026-05-30"
+        },
+        {
+          "id": "505",
+          "subject": "Request ergonomic chair",
+          "category": "Facilities",
+          "priority": "Low",
+          "status": "Pending Approval",
+          "createdDate": "2026-06-15"
+        }
+      ]
+    },
+    {
+      "action": "view_schedule",
+      "type": "read",
+      "arr": "schedules",
+      "resultKey": "schedules",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(my\\s+)?schedule\\b|\\bwork\\s+(shifts?|hours|calendar)\\b|\\bshift[s]?\\b",
+      "toolDescription": "View the employee's upcoming work schedule and shifts.",
+      "render": {
+        "type": "table",
+        "title": "My Schedule",
+        "columns": [
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Day",
+            "path": "day"
+          },
+          {
+            "label": "Start Time",
+            "path": "startTime"
+          },
+          {
+            "label": "End Time",
+            "path": "endTime"
+          },
+          {
+            "label": "Location",
+            "path": "location"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my schedule\" / \"work shifts\" / \"upcoming schedule\" -> view_schedule params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my work schedule",
+          "expect": "view_schedule"
+        },
+        {
+          "phrase": "what are my shifts this week",
+          "expect": "view_schedule"
+        },
+        {
+          "phrase": "my upcoming schedule",
+          "expect": "view_schedule"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "601",
+          "date": "2026-06-23",
+          "day": "Monday",
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "location": "Office - Floor 4",
+          "status": "Confirmed"
+        },
+        {
+          "id": "602",
+          "date": "2026-06-24",
+          "day": "Tuesday",
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "location": "Remote",
+          "status": "Confirmed"
+        },
+        {
+          "id": "603",
+          "date": "2026-06-25",
+          "day": "Wednesday",
+          "startTime": "10:00",
+          "endTime": "18:00",
+          "location": "Office - Floor 4",
+          "status": "Confirmed"
+        },
+        {
+          "id": "604",
+          "date": "2026-06-26",
+          "day": "Thursday",
+          "startTime": "09:00",
+          "endTime": "17:00",
+          "location": "Remote",
+          "status": "Confirmed"
+        },
+        {
+          "id": "605",
+          "date": "2026-06-27",
+          "day": "Friday",
+          "startTime": "09:00",
+          "endTime": "13:00",
+          "location": "Office - Floor 4",
+          "status": "Pending"
+        }
+      ]
+    },
+    {
+      "action": "view_goals",
+      "type": "read",
+      "arr": "goals",
+      "resultKey": "goals",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bmy\\s+goals?\\b|\\bperformance\\s+goals?\\b|\\bobjectives?\\b|\\bOKR[s]?\\b",
+      "toolDescription": "List the employee's performance goals and their current status.",
+      "render": {
+        "type": "table",
+        "title": "My Goals",
+        "columns": [
+          {
+            "label": "Goal",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Progress %",
+            "path": "progressPct",
+            "format": "percent"
+          },
+          {
+            "label": "Due Date",
+            "path": "dueDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my goals\" / \"performance goals\" / \"my OKRs\" -> view_goals params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my performance goals",
+          "expect": "view_goals"
+        },
+        {
+          "phrase": "what are my OKRs",
+          "expect": "view_goals"
+        },
+        {
+          "phrase": "my objectives for this quarter",
+          "expect": "view_goals"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "701",
+          "title": "Complete AWS certification",
+          "category": "Technical Skills",
+          "progressPct": 65,
+          "dueDate": "2026-09-30",
+          "status": "On Track"
+        },
+        {
+          "id": "702",
+          "title": "Mentor two junior engineers",
+          "category": "Leadership",
+          "progressPct": 50,
+          "dueDate": "2026-12-31",
+          "status": "On Track"
+        },
+        {
+          "id": "703",
+          "title": "Reduce deployment error rate by 20%",
+          "category": "Quality",
+          "progressPct": 80,
+          "dueDate": "2026-06-30",
+          "status": "On Track"
+        },
+        {
+          "id": "704",
+          "title": "Complete leadership fundamentals training",
+          "category": "Development",
+          "progressPct": 30,
+          "dueDate": "2026-08-15",
+          "status": "At Risk"
+        },
+        {
+          "id": "705",
+          "title": "Document team runbooks",
+          "category": "Operations",
+          "progressPct": 10,
+          "dueDate": "2026-07-31",
+          "status": "Behind"
+        }
+      ]
+    },
+    {
+      "action": "view_colleagues",
+      "type": "read",
+      "arr": "colleagues",
+      "resultKey": "colleagues",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bteam\\s+(members?|directory)\\b|\\bcolleagues?\\b|\\borg\\s*chart\\b|\\bwho\\s+(is\\s+on\\s+my\\s+team|do\\s+I\\s+work\\s+with)\\b",
+      "toolDescription": "List the employee's teammates and direct colleagues in the org chart.",
+      "render": {
+        "type": "table",
+        "title": "My Team",
+        "columns": [
+          {
+            "label": "Name",
+            "path": "name"
+          },
+          {
+            "label": "Title",
+            "path": "title"
+          },
+          {
+            "label": "Department",
+            "path": "department"
+          },
+          {
+            "label": "Location",
+            "path": "location"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my team\" / \"org chart\" / \"my colleagues\" -> view_colleagues params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my team members",
+          "expect": "view_colleagues"
+        },
+        {
+          "phrase": "who is on my team",
+          "expect": "view_colleagues"
+        },
+        {
+          "phrase": "org chart",
+          "expect": "view_colleagues"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "801",
+          "name": "Sarah Chen",
+          "title": "Engineering Manager",
+          "department": "Platform Engineering",
+          "location": "San Francisco, CA",
+          "status": "Active"
+        },
+        {
+          "id": "802",
+          "name": "Marcus Webb",
+          "title": "Senior Software Engineer",
+          "department": "Platform Engineering",
+          "location": "Remote",
+          "status": "Active"
+        },
+        {
+          "id": "803",
+          "name": "Priya Nair",
+          "title": "Product Manager",
+          "department": "Product",
+          "location": "New York, NY",
+          "status": "Active"
+        },
+        {
+          "id": "804",
+          "name": "James Okafor",
+          "title": "DevOps Engineer",
+          "department": "Platform Engineering",
+          "location": "Austin, TX",
+          "status": "Active"
+        },
+        {
+          "id": "805",
+          "name": "Leila Ahmadi",
+          "title": "UX Designer",
+          "department": "Design",
+          "location": "Remote",
+          "status": "On Leave"
+        }
+      ]
+    },
+    {
+      "action": "view_payslip_detail",
+      "type": "read",
+      "arr": "payslips",
+      "resultKey": "payslips",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "View detailed breakdown of a specific payslip by pay period or payslip id.",
+      "render": {
+        "type": "fieldList",
+        "title": "Payslip Detail",
+        "fields": [
+          {
+            "label": "Pay Period",
+            "path": "period"
+          },
+          {
+            "label": "Gross Pay",
+            "path": "grossPay",
+            "format": "money"
+          },
+          {
+            "label": "Net Pay",
+            "path": "netPay",
+            "format": "money"
+          },
+          {
+            "label": "Tax Withheld",
+            "path": "taxWithheld",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show payslip for June\" / \"payslip detail for period 301\" -> view_payslip_detail params:{}",
+      "evalRows": [
+        {
+          "phrase": "show me the detail for my June paycheck",
+          "expect": "view_payslip_detail"
+        },
+        {
+          "phrase": "what was my net pay last month",
+          "expect": "view_payslip_detail"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "view_policies",
+      "type": "read",
+      "arr": "policies",
+      "resultKey": "policies",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "List company HR and workplace policies available to the employee.",
+      "render": {
+        "type": "table",
+        "title": "Company Policies",
+        "columns": [
+          {
+            "label": "Policy",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Last Updated",
+            "path": "lastUpdated",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"company policies\" / \"HR policies\" / \"workplace guidelines\" -> view_policies params:{}",
+      "evalRows": [
+        {
+          "phrase": "show me the company policies",
+          "expect": "view_policies"
+        },
+        {
+          "phrase": "what is the remote work policy",
+          "expect": "view_policies"
+        }
+      ],
+      "seedRows": [
+        {
+          "id": "901",
+          "title": "Remote Work Policy",
+          "category": "Workplace",
+          "lastUpdated": "2026-01-15",
+          "status": "Active"
+        },
+        {
+          "id": "902",
+          "title": "Code of Conduct",
+          "category": "Compliance",
+          "lastUpdated": "2025-11-01",
+          "status": "Active"
+        },
+        {
+          "id": "903",
+          "title": "Expense Reimbursement Policy",
+          "category": "Finance",
+          "lastUpdated": "2026-03-10",
+          "status": "Active"
+        },
+        {
+          "id": "904",
+          "title": "Data Security & Privacy",
+          "category": "IT Security",
+          "lastUpdated": "2026-02-28",
+          "status": "Active"
+        },
+        {
+          "id": "905",
+          "title": "Anti-Harassment Policy",
+          "category": "HR",
+          "lastUpdated": "2025-09-01",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "action": "view_announcements",
+      "type": "read",
+      "arr": "policies",
+      "resultKey": "policies",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "List recent company announcements and news for the employee.",
+      "render": {
+        "type": "table",
+        "title": "Company Announcements",
+        "columns": [
+          {
+            "label": "Title",
+            "path": "title"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Date",
+            "path": "lastUpdated",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"company announcements\" / \"latest news\" / \"company updates\" -> view_announcements params:{}",
+      "evalRows": [
+        {
+          "phrase": "any company announcements this week",
+          "expect": "view_announcements"
+        },
+        {
+          "phrase": "latest company news",
+          "expect": "view_announcements"
+        }
+      ],
+      "seedRows": null
+    },
+    {
+      "action": "view_direct_deposit",
+      "type": "read",
+      "arr": "payslips",
+      "resultKey": "payslips",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "View the employee's direct deposit and banking details on file.",
+      "render": {
+        "type": "fieldList",
+        "title": "Direct Deposit Info",
+        "fields": [
+          {
+            "label": "Pay Period",
+            "path": "period"
+          },
+          {
+            "label": "Net Pay",
+            "path": "netPay",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my direct deposit\" / \"bank account on file\" / \"payment method\" -> view_direct_deposit params:{}",
+      "evalRows": [
+        {
+          "phrase": "what bank account is my paycheck deposited to",
+          "expect": "view_direct_deposit"
+        },
+        {
+          "phrase": "show my direct deposit details",
+          "expect": "view_direct_deposit"
+        }
+      ],
+      "seedRows": null
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "heroStats": {
+    "nextAppointment": "2026-06-03",
+    "activePrescriptions": 3,
+    "outstandingBalance": 142.5,
+    "coverageStatus": "Active"
+  },
+  "patientRecords": [
+    {
+      "id": "101",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. Sarah Mitchell, MD",
+      "coverageType": "PPO",
+      "coverageStatus": "Active"
+    },
+    {
+      "id": "102",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. Alan Greene, MD",
+      "coverageType": "PPO",
+      "coverageStatus": "Active"
+    },
+    {
+      "id": "103",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. Lisa Park, MD",
+      "coverageType": "PPO",
+      "coverageStatus": "Active"
+    },
+    {
+      "id": "104",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. James Okafor, MD",
+      "coverageType": "HMO",
+      "coverageStatus": "Inactive"
+    },
+    {
+      "id": "105",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. Priya Nair, MD",
+      "coverageType": "PPO",
+      "coverageStatus": "Active"
+    },
+    {
+      "id": "106",
+      "name": "Alex Johnson",
+      "dob": "1985-04-12",
+      "provider": "Dr. Marcus Webb, MD",
+      "coverageType": "HMO",
+      "coverageStatus": "Active"
+    }
+  ],
+  "billingHistory": [
+    {
+      "id": "401",
+      "procedureCode": "99213",
+      "date": "2026-04-10",
+      "insurer": "BlueCross",
+      "amountBilled": 220,
+      "status": "Paid"
+    },
+    {
+      "id": "402",
+      "procedureCode": "90837",
+      "date": "2026-04-22",
+      "insurer": "BlueCross",
+      "amountBilled": 180,
+      "status": "Pending"
+    },
+    {
+      "id": "403",
+      "procedureCode": "93000",
+      "date": "2026-05-01",
+      "insurer": "BlueCross",
+      "amountBilled": 95,
+      "status": "Denied"
+    },
+    {
+      "id": "404",
+      "procedureCode": "71046",
+      "date": "2026-03-15",
+      "insurer": "Aetna",
+      "amountBilled": 310,
+      "status": "Paid"
+    },
+    {
+      "id": "405",
+      "procedureCode": "99232",
+      "date": "2026-05-18",
+      "insurer": "Cigna",
+      "amountBilled": 275,
+      "status": "Submitted"
+    },
+    {
+      "id": "406",
+      "procedureCode": "81000",
+      "date": "2026-05-28",
+      "insurer": "Aetna",
+      "amountBilled": 125,
+      "status": "Pending"
+    }
+  ]
+}

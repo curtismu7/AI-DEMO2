@@ -1,0 +1,172 @@
+flowchart LR
+
+    %% title: Banking Demo — Architecture (clean view)
+    %% Simplified architecture diagram for /architecture/overview.
+    %%
+    %% Two notable layout decisions:
+    %%
+    %%   1. Ping Authorize is its OWN column between the Gateway and the
+    %%      backends, not buried inside the PingOne cloud subgraph. Every
+    %%      tool call is evaluated by Authorize, and the picture should
+    %%      make that gate visible.
+    %%
+    %%   2. There are TWO backends on the far right:
+    %%        - OAuth backend (current demo_api_server): forward the
+    %%          downscoped MCP token, backend introspects.
+    %%        - API-key backend (LIVE, Phase 267 — demo_mortgage_service
+    %%          :8082): Gateway swaps in a service API key + X-User-Sub when
+    %%          calling — backend never sees a user token. Drawn solid: this
+    %%          path is wired end-to-end today.
+    %%
+    %% Regenerate the PNG with:
+    %%   npm run build:diagrams -- overview
+    %% or from the UI: /architecture/system → Regenerate this one (overview)
+
+    %% ── Actors (browser side) ───────────────────────────────────────────
+    User["End user<br/>(browser)"]
+
+    %% ── Frontend ─────────────────────────────────────────────────────────
+    UI["demo_api_ui<br/>(React SPA · :4000)"]
+
+    %% ── BFF ──────────────────────────────────────────────────────────────
+    BFF["demo_api_server<br/>BFF · OAuth callback · session<br/>:3001"]
+
+    %% ── Agent service ───────────────────────────────────────────────────
+    Agent["demo_agent_service<br/>LLM tool-calling agent<br/>:3006"]
+
+    %% ── Policy-aware gateway (the credential broker) ───────────────────
+    Gateway["demo_mcp_gateway<br/>Policy-aware credential broker<br/>:3005<br/><br/>• Inbound: user token + agent actor<br/>• Outbound: backend-appropriate creds<br/>• Calls Authorize per request"]
+
+    %% ── Human-in-the-loop (out-of-band consent) ────────────────────────
+    HITL["demo_hitl_service<br/>Out-of-band consent<br/>(high-value txns)<br/>:3009"]
+
+    %% ── Ping Authorize: dedicated column for the policy gate ──────────
+    Authorize["Ping Authorize (PDP)<br/><br/>Evaluates EVERY tool call:<br/>• scope · aud · may_act<br/>• transaction amount / threshold<br/>• tool-specific risk rules<br/>↓<br/>PERMIT · DENY · INDETERMINATE"]
+
+    %% ── Additional Node services (Phase 270 audit) ─────────────────────
+    MCPServer["demo_mcp_server<br/>MCP protocol · WebSocket :8080<br/>tools/list · tools/call"]
+    MCPInvest["demo_mcp_invest<br/>Investment MCP server :8081<br/>(WebSocket + HTTP)"]
+    Mortgage["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
+    LangChain["langchain_agent<br/>Python uvicorn :8888<br/>chat WS :8889 - health :8890"]
+    Vault[("secrets.vault<br/>AEAD + Argon2id<br/>startup-loaded - Phase 269")]
+    MgmtAPI["PingOne Management API<br/>/v1/environments/{env}/users<br/>worker token (CC)"]
+
+    %% Phase 266 R2: three credential paths from the Gateway.
+    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected; Gateway calls demo_mortgage_service :8082 (Phase 267, live).
+    %% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity. RFC 8693 + RFC 8707 audience binding.
+    %% Path C (oauth_bearer): RFC 8693 exchange, Bearer (new aud) to banking_resource_server /accounts /transactions.
+    %% Paths B and C both terminate at the same banking_resource_server node at different routes.
+
+    %% ── PingGateway (Ping Identity IG) — alternative MCP gateway ──────
+    PingGW["PingGateway (IG, :3036)<br/>Alternative MCP gateway<br/>ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup<br/>Real→mock Authorize failover<br/>(X-Authz-Simulated header)"]
+
+    %% ── AG-UI agent-run SSE streaming ─────────────────────────────────
+    AGUI["AG-UI SSE streams (agentRun.js)<br/>Decoded token-chain events injected<br/>In-memory trace (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Runtimes: langchain :8888 · openai :8891<br/>mastra :8892 · pydantic :8893"]
+
+    %% ── Copilot Studio agent-token broker (optional, run separately) ──
+    AgentTokenSvc["agent_token_service (Copilot-only)<br/>Node/TS · :8097 · 127.0.0.1<br/>Auth: x-api-key (BROKER_API_KEY)<br/>Mints PingOne CC token<br/>scope: agent:invoke · aud: agentgateway.ping.demo<br/>POST /token  GET /healthz"]
+
+    %% ── Two backends on the far right ─────────────────────────────────
+    subgraph Backends["Backend resource servers"]
+      direction TB
+      OAuthRS["OAuth backend<br/>(demo_api_server REST + MCP)<br/><br/>Accepts: downscoped MCP token<br/>Verifies: RFC 7662 introspect<br/>Pattern: standard OAuth 2.0"]
+      APIKeyRS["API-key backend<br/>(demo_mortgage_service :8082 — LIVE)<br/><br/>Accepts: X-API-Key + X-User-Sub<br/>Verifies: constant-time shared-secret<br/>Pattern: legacy / 3rd-party APIs<br/>Key injected by Gateway (Phase 267)"]
+      BankingRS["banking_resource_server<br/>/identity - /accounts - /transactions<br/><br/>Path B: Bearer + id_token (dual_token)<br/>Path C: Bearer OAuth (oauth_bearer)<br/>Validates: RFC 6750 authenticateToken"]
+      SQLite["SQLite DB<br/>banking-resource-server.db<br/>(seeded from data/store.js)"]
+    end
+
+    %% ── PingOne IAM (auth server) ───────────────────────────────────────
+    subgraph PingOne["PingOne IAM"]
+      direction TB
+      AS["Authorization server<br/>/authorize · /token<br/>/introspect · /jwks<br/><br/>RFC 6749 · 7662 · 8693"]
+    end
+
+    %% ── Optional LLMs ───────────────────────────────────────────────────
+    LLM["LLM provider<br/>Helix (default) - x-api-key<br/>OpenAI - Anthropic - Groq - Gemini (optional)"]
+
+    %% ── Flow: browser → SPA → BFF ──────────────────────────────────────
+    User -->|HTTPS| UI
+    UI -->|cookie session<br/>+ proxy /api/*| BFF
+
+    %% ── BFF ↔ PingOne (OAuth handshakes) ───────────────────────────────
+    BFF <-->|"OAuth 2.0 + PKCE<br/>RFC 6749 / 7636"| AS
+    BFF -->|"RFC 7662 introspect"| AS
+
+    %% ── Agent flow ─────────────────────────────────────────────────────
+    BFF -->|"prompt + user token"| Agent
+    Agent -->|"RFC 8693 token exchange<br/>(subject = user, actor = agent)"| AS
+    Agent -->|"tool call + TX token"| Gateway
+
+    %% ── Phase 270: edges for newly-named services ─────────────────────
+    Gateway -->|"WS MCP - exchanged Bearer<br/>tools/call"| MCPServer
+    Gateway -->|"WS MCP - invest tools"| MCPInvest
+    Gateway -->|"X-API-Key (Path A)<br/>OAuth Bearer dropped"| Mortgage
+    MCPServer -->|"REST - exchanged Bearer<br/>BankingAPIClient"| OAuthRS
+    MCPServer -->|"RFC 7662 introspect<br/>RFC 8693 chained exchange"| AS
+    MCPInvest -->|"REST - exchanged Bearer"| OAuthRS
+    BFF -->|"PingOne Management API<br/>worker token (CC) - RFC 6749 §4.4"| MgmtAPI
+    BFF -->|"vaultLoader.js startup-load<br/>configStore.setRaw persist:false"| Vault
+    LangChain -->|"WS MCP - Bearer in JSON-RPC"| MCPServer
+    LangChain -->|"HTTPS - provider API key"| LLM
+    User -.->|"WebSocket chat :8889"| LangChain
+
+    %% ── Gateway is the policy gate AND the credential broker ──────────
+    Gateway -->|"PDP evaluate per call:<br/>scope · aud · may_act · amount"| Authorize
+    Authorize -.->|"PERMIT · DENY ·<br/>INDETERMINATE"| Gateway
+
+    %% ── Permitted → forwarded with the RIGHT credential per backend ───
+    Gateway -->|"RFC 8693 downscope<br/>+ MCP token"| OAuthRS
+    Gateway -->|"X-API-Key: svc-key + X-User-Sub<br/>(no user token, Phase 267)"| APIKeyRS
+
+    %% Phase 266 R2: Path B and Path C both reach banking_resource_server
+    Gateway -->|"Bearer + id_token<br/>dual_token - /identity"| BankingRS
+    Gateway -->|"Bearer (RFC 8693 exchange)<br/>oauth_bearer - /accounts /transactions"| BankingRS
+    BankingRS -.->|"reads accounts + transactions"| SQLite
+
+    %% ── INDETERMINATE → HITL out-of-band consent ──────────────────────
+    Gateway -.->|"INDETERMINATE →<br/>request consent"| HITL
+    HITL -.->|"approval / deny<br/>(CIBA-style)"| Gateway
+
+    %% ── PingGateway edges ──────────────────────────────────────────────
+    BFF -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true)"| PingGW
+    PingGW -->|"PDP evaluate<br/>UserId + McpResourceUri in params<br/>real→mock failover"| Authorize
+    PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPServer
+
+    %% ── AG-UI SSE streaming ────────────────────────────────────────────
+    BFF --> AGUI
+
+    %% ── Copilot Studio agent-token broker ─────────────────────────────
+    AgentTokenSvc -->|"client_credentials<br/>scope: agent:invoke"| AS
+
+    %% ── Agent talks to the LLM for tool-call decisions ────────────────
+    Agent -->|"prompt + tool defs"| LLM
+    LLM -.->|"tool-call decisions"| Agent
+
+    %% ── Styling: one colour per tier so layers read at a glance ──────
+    classDef user      fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e,stroke-width:2px
+    classDef frontend  fill:#ecfdf5,stroke:#059669,color:#064e3b,stroke-width:2px
+    classDef bff       fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef tool      fill:#f3e8ff,stroke:#7c3aed,color:#3b0764,stroke-width:2px
+    classDef authorize fill:#fed7aa,stroke:#ea580c,color:#7c2d12,stroke-width:3px
+    classDef backend   fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px
+    classDef planned   fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px,stroke-dasharray: 6 4
+    classDef cloud     fill:#fef2f2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px
+    classDef external  fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:2px
+
+    class User user
+    class UI frontend
+    class BFF bff
+    class Agent,Gateway,HITL tool
+    class Authorize authorize
+    class OAuthRS backend
+    class APIKeyRS planned
+    class BankingRS backend
+    class SQLite backend
+    class AS cloud
+    class LLM external
+    class MCPServer,MCPInvest,PingGW tool
+    class Mortgage backend
+    class MgmtAPI cloud
+    class LangChain external
+    class Vault,AgentTokenSvc planned
+    class AGUI bff

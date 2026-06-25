@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-demo
+  labels:
+    app: ai-demo
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ai-demo-quota
+  namespace: ai-demo
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 24Gi
+    limits.cpu: "16"
+    limits.memory: 48Gi
+    persistentvolumeclaims: "10"
+    services: "20"
+    secrets: "30"
+    configmaps: "20"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-demo-internal
+  namespace: ai-demo
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ai-demo
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ai-demo
+  # Allow egress to PingOne and external HTTPS/DNS
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53

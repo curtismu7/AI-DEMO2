@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Option 2B — Clinical Split</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=GT+Walsheim&family=Söhne&family=DM+Serif+Display:ital@0;1&family=Söhne+Mono&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f4f6f9;
+    --bg-3: #e8edf3;
+    --ink: #0e1a2b;
+    --ink-2: #2c3a52;
+    --rule: #d8dee8;
+    --rule-2: #b9c2d1;
+    --muted: #6b7689;
+    --teal: #0f6b6b;
+    --teal-soft: #d6ecec;
+    --indigo: #2842b0;
+    --indigo-soft: #e0e5f7;
+    --gold: #b8862b;
+    --gold-soft: #f4ead2;
+    --rose: #b34660;
+    --rose-soft: #f7dfe5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Single rail ---------- */
+  .rail {
+    height: 52px;
+    display: grid;
+    grid-template-columns: 240px 1fr auto;
+    align-items: center;
+    padding: 0 18px 0 22px;
+    border-bottom: 1px solid var(--rule);
+    background: #fff;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .brand {
+    font-family: 'Crimson Pro', 'DM Serif Display', serif;
+    font-weight: 500;
+    font-size: 22px; letter-spacing: -0.01em;
+  }
+  .brand em { font-style: italic; color: var(--indigo); font-weight: 400; }
+
+  .rail nav {
+    justify-self: center;
+    display: inline-flex; gap: 2px;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .rail nav button {
+    background: transparent; border: 0;
+    font: inherit; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--muted);
+    padding: 6px 14px; border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .rail nav button.on {
+    background: #fff; color: var(--ink);
+    box-shadow: 0 1px 0 rgba(14,26,43,0.08);
+  }
+  .rail nav button kbd {
+    font-family: inherit; font-size: 10px;
+    background: var(--bg-3); color: var(--muted);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  .rail .right { display: flex; align-items: center; gap: 10px; }
+  .session {
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    background: var(--teal-soft);
+    border: 1px solid var(--teal);
+    color: var(--teal);
+    padding: 5px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 500;
+  }
+  .session .led { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+  .icn {
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .icn:hover { background: var(--bg-2); border-color: var(--rule); color: var(--ink); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--indigo); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+  }
+
+  /* ---------- Split canvas ---------- */
+  .canvas {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    min-height: calc(100vh - 52px);
+  }
+
+  /* LEFT — chat */
+  .chat {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    border-right: 1px solid var(--rule);
+    background: var(--bg);
+  }
+  .chat-head { padding: 32px 36px 14px; }
+  .chat-head .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--indigo); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .chat-head h1 {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    margin: 0 0 6px;
+  }
+  .chat-head h1 i { font-style: italic; color: var(--indigo); font-weight: 400; }
+  .chat-head p { color: var(--muted); font-size: 14px; max-width: 50ch; margin: 4px 0 0; line-height: 1.5; }
+
+  .thread {
+    padding: 18px 36px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .msg { display: grid; grid-template-columns: 32px 1fr; gap: 12px; }
+  .av {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--rule);
+  }
+  .av.you { background: var(--bg-2); color: var(--ink); }
+  .av.ai  { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+  .bubble { font-size: 14.5px; line-height: 1.55; }
+  .bubble .who { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; letter-spacing: 0.02em; }
+  .bubble strong { color: var(--ink); }
+  .bubble .step {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg-2); border: 1px solid var(--rule);
+    padding: 6px 10px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    margin-top: 8px;
+    color: var(--ink-2);
+  }
+  .bubble .step .tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--indigo-soft); color: var(--indigo); font-weight: 600; }
+
+  .composer {
+    margin: 12px 24px 24px;
+    background: #fff;
+    border: 1px solid var(--rule-2);
+    border-radius: 12px;
+    padding: 12px 14px 10px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .composer:focus-within {
+    border-color: var(--indigo);
+    box-shadow: 0 0 0 4px var(--indigo-soft);
+  }
+  .composer textarea {
+    width: 100%; resize: none; border: 0; background: transparent;
+    font: inherit; color: var(--ink); font-size: 15px;
+    outline: none; min-height: 56px;
+  }
+  .composer textarea::placeholder { color: var(--muted); }
+  .composer-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11.5px; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .composer-foot .tools { display: flex; gap: 4px; }
+  .composer-foot .tools button {
+    background: transparent; border: 1px solid var(--rule);
+    color: var(--muted); padding: 4px 8px; border-radius: 5px;
+    font: inherit; font-size: 11px; cursor: pointer;
+  }
+  .composer-foot .tools button:hover { color: var(--ink); border-color: var(--rule-2); background: var(--bg-2); }
+  .send {
+    border: 0; cursor: pointer;
+    background: var(--indigo); color: #fff;
+    padding: 7px 14px; border-radius: 7px;
+    font-weight: 600; font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .send:hover { background: #1f3399; }
+
+  /* RIGHT — narration (clinical) */
+  .narrate {
+    background: var(--bg-2);
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    min-width: 0;
+  }
+  .narrate-head {
+    padding: 24px 28px 14px;
+    border-bottom: 1px solid var(--rule);
+    background: #fff;
+  }
+  .narrate-head .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--indigo); letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 500;
+  }
+  .narrate-head h2 {
+    font-family: 'Crimson Pro', serif; font-weight: 500;
+    font-size: 22px; margin: 6px 0 0; letter-spacing: -0.005em;
+  }
+  .narrate-head h2 i { font-style: italic; color: var(--indigo); font-weight: 400; }
+  .narrate-head .meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); margin-top: 6px;
+  }
+
+  .narrate-tabs {
+    display: flex; gap: 0;
+    padding: 0 28px; border-bottom: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted);
+    background: #fff;
+  }
+  .narrate-tabs button {
+    background: transparent; border: 0; color: inherit;
+    padding: 12px 0; margin-right: 22px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .narrate-tabs button.on { color: var(--indigo); border-bottom-color: var(--indigo); font-weight: 600; }
+
+  .narrate-body {
+    padding: 22px 28px 28px;
+    overflow-y: auto;
+  }
+
+  /* The clinical / timeline treatment */
+  .timeline {
+    position: relative;
+    padding-left: 28px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute; left: 9px; top: 8px; bottom: 8px; width: 1px;
+    background: var(--rule-2);
+  }
+  .step {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .step::before {
+    content: '';
+    position: absolute; left: -23px; top: 14px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--indigo);
+  }
+  .step.done::before { background: var(--indigo); }
+  .step .card {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .step .row1 {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .step .role {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--indigo); letter-spacing: 0.06em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .step .rfc {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--muted);
+  }
+  .step .name { font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--ink); }
+  .step .sub { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .step .sub code { font-family: 'JetBrains Mono', monospace; background: var(--bg-2); padding: 1px 5px; border-radius: 3px; color: var(--indigo); font-size: 11.5px; }
+  .step .claims {
+    display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .step .claims dt { color: var(--muted); }
+  .step .claims dd { margin: 0; color: var(--ink); }
+  .step .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--teal-soft); color: var(--teal);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  .step .badge.warn { background: var(--gold-soft); color: var(--gold); }
+
+  /* Strategy footer */
+  .strategy {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--rule);
+    padding: 26px 36px;
+    background: var(--bg-2);
+    color: var(--ink-2);
+    font-size: 13.5px;
+  }
+  .strategy h3 {
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    font-weight: 500; font-size: 24px;
+    margin: 0 0 10px;
+    letter-spacing: -0.005em;
+  }
+  .strategy h3 i { font-style: italic; color: var(--indigo); font-weight: 400; }
+  .strategy h3 b { color: var(--indigo); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.04em; font-weight: 600; text-transform: uppercase; }
+  .strategy ul { margin: 8px 0 0; padding-left: 18px; }
+  .strategy li { margin: 6px 0; }
+  .strategy strong { color: var(--indigo); font-weight: 600; }
+  .strategy code { font-family: 'JetBrains Mono', monospace; background: #fff; padding: 1px 5px; border-radius: 3px; color: var(--ink); border: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">Care<em>Connect</em></div>
+  <nav role="tablist">
+    <button type="button" class="on">▣ Talk <kbd>1</kbd></button>
+    <button type="button">◇ Inspect <kbd>2</kbd></button>
+    <button type="button">⊞ Configure <kbd>3</kbd></button>
+  </nav>
+  <div class="right">
+    <span class="session"><span class="led"></span>SESSION · 25:54</span>
+    <button type="button" class="icn" title="Search ⌘K">⌕</button>
+    <span class="avatar">DU</span>
+  </div>
+</div>
+
+<div class="canvas">
+
+  <!-- LEFT: chat -->
+  <section class="chat">
+    <header class="chat-head">
+      <div class="eyebrow">Assistant · vertical care</div>
+      <h1>How can I help, <i>Demo User</i>?</h1>
+      <p>Ask in plain language. Every auth step is recorded on the right as a timeline you can audit.</p>
+    </header>
+
+    <div class="thread">
+      <div class="msg">
+        <div class="av you">DU</div>
+        <div class="bubble">
+          <div class="who">YOU · 04:42 PM</div>
+          Transfer $250 from Checking to Savings.
+        </div>
+      </div>
+      <div class="msg">
+        <div class="av ai">Ai</div>
+        <div class="bubble">
+          <div class="who">ASSISTANT</div>
+          On it. Exchanging your user token for an <strong>MCP-scoped</strong> delegated token, then calling <strong>create_transfer</strong>.
+          <div class="step"><span class="tag">RFC 8693</span> subject_token → mcp aud</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <textarea placeholder="Try: deposit $1,200, then show me what just happened…"></textarea>
+      <div class="composer-foot">
+        <div class="tools">
+          <button type="button">/ commands</button>
+          <button type="button">@ account</button>
+          <button type="button">+ attach</button>
+        </div>
+        <button type="button" class="send">SEND ⌘↵</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: timeline narration -->
+  <aside class="narrate" aria-label="Live token chain timeline">
+    <div class="narrate-head">
+      <div class="eyebrow">Audit timeline</div>
+      <h2>What just <i>happened</i></h2>
+      <div class="meta">last message · 04:42 PM · oauth_bearer · 3 steps</div>
+    </div>
+    <div class="narrate-tabs">
+      <button type="button" class="on">Token chain</button>
+      <button type="button">MCP calls</button>
+      <button type="button">Rules</button>
+      <button type="button">Tools</button>
+    </div>
+    <div class="narrate-body">
+      <div class="timeline">
+
+        <div class="step done">
+          <div class="card">
+            <div class="row1">
+              <span class="role">Subject token</span>
+              <span class="rfc">RFC 8693 §2.1</span>
+            </div>
+            <div class="name">User access token</div>
+            <div class="sub">Issued by PingOne OIDC login. Stays in BFF.</div>
+            <dl class="claims">
+              <dt>sub</dt><dd>4511829e-44a…</dd>
+              <dt>aud</dt><dd>enduser.ping.demo</dd>
+              <dt>exp</dt><dd>25m 12s</dd>
+            </dl>
+            <span class="badge">✓ verified</span>
+          </div>
+        </div>
+
+        <div class="step done">
+          <div class="card">
+            <div class="row1">
+              <span class="role">Actor token</span>
+              <span class="rfc">RFC 8693 §2.2</span>
+            </div>
+            <div class="name">Agent actor token (CC, prefetched)</div>
+            <div class="sub">Client credentials grant. Adds delegation proof.</div>
+            <span class="badge">✓ verified</span>
+          </div>
+        </div>
+
+        <div class="step done">
+          <div class="card">
+            <div class="row1">
+              <span class="role">Delegated MCP token</span>
+              <span class="rfc">RFC 8693 §3.2</span>
+            </div>
+            <div class="name">Result of exchange</div>
+            <div class="sub">Nested <code>act</code> claim. Sent only to MCP server.</div>
+            <dl class="claims">
+              <dt>aud</dt><dd>mcp-server.ping.demo</dd>
+              <dt>scope</dt><dd>transfer read</dd>
+            </dl>
+            <span class="badge">✓ act claim valid</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </aside>
+
+  <footer class="strategy">
+    <h3><b>OPTION 2B · </b> Clinical split <span style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px;font-style:normal;font-weight:500;text-transform:none;letter-spacing:0.04em;"> — Stripe-Atlas-meets-banking</span></h3>
+    <ul>
+      <li><strong>Audit-grade aesthetic.</strong> Crimson Pro serif headlines, Inter UI, JetBrains Mono for telemetry. Indigo as the single accent — reads like Stripe / Mercury / Atlas, not a demo toy.</li>
+      <li><strong>Token chain as a vertical timeline,</strong> not a stack of cards. Connecting line + filled dots make the three RFC 8693 steps feel like an audit log a regulator could read.</li>
+      <li><strong>Verification badges</strong> (✓ verified · ✓ act claim valid) replace the current "⚠️ may_act mismatch" / "🔬 PingOne verified" sprawl with one consistent component.</li>
+      <li><strong>Session pill in teal,</strong> not red — green-equivalent reassurance that the session is healthy. Failure states would turn the pill rose.</li>
+      <li><strong>Floating agent untouched.</strong> Same as 2A — your existing <code>.banking-agent-fab</code> stays on non-dashboard routes.</li>
+    </ul>
+  </footer>
+
+</div>
+
+</body>
+</html>

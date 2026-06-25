@@ -1,0 +1,262 @@
+/**
+ * ServerRestartModal.css
+ * 
+ * Styling for the server restart notification modal.
+ * Includes fade-in animation, spinner animation, and responsive design.
+ * 
+ * PERFORMANCE NOTES:
+ * - All animations use GPU-accelerated properties (opacity, transform)
+ * - No layout shift (reflow) during animations
+ * - Runs at 60fps on modern browsers; gracefully degrades on prefers-reduced-motion
+ * - Modal z-index: 9999 (above all other app modals)
+ */
+
+/* ─── Keyframe animations ───────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Modal overlay (backdrop) ──────────────────────────────────────────── */
+
+.modal-overlay.server-restart-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  /* backdrop-filter removed for modal/overlay compliance */
+  animation: fadeIn 0.3s ease-out;
+  /* Hint browser to optimize opacity + transform layers */
+  will-change: opacity;
+}
+
+/* ─── Modal content (card) ──────────────────────────────────────────────── */
+
+.modal-content.server-restart-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+  max-width: 420px;
+  width: 90%;
+  padding: 0;
+  max-height: 90vh;
+  overflow-y: auto;
+  /* Hint browser to optimize scale transform */
+  will-change: transform;
+}
+
+/* ─── Modal header ──────────────────────────────────────────────────────── */
+
+.server-restart-content .modal-header {
+  padding: 20px;
+  background: var(
+    --modal-header-bg,
+    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+  );
+  color: var(--modal-header-text, #ffffff);
+  border-bottom: none;
+  min-height: var(--modal-header-height, 48px);
+}
+
+.server-restart-content .modal-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--modal-header-text, #ffffff);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ─── Modal body ────────────────────────────────────────────────────────── */
+
+.server-restart-content .modal-body {
+  padding: 20px;
+  text-align: center;
+}
+
+/* Spinner — 32px circular indicator with rotating border */
+.restart-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--app-gray-200, #e5e7eb);
+  border-top-color: var(--app-primary-blue, #0066cc);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+  /* Hint browser to optimize rotation transform */
+  will-change: transform;
+}
+
+/* Message text */
+.restart-message {
+  font-size: 14px;
+  color: var(--app-gray-700, #374151);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+/* Attempt counter */
+.attempt-counter {
+  font-size: 13px;
+  color: var(--app-gray-600, #4b5563);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ─── Modal footer ──────────────────────────────────────────────────────── */
+
+.server-restart-content .modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--app-gray-200, #e5e7eb);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ─── Button styling ────────────────────────────────────────────────────── */
+
+.server-restart-content .btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.server-restart-content .btn:focus-visible {
+  outline: 2px solid var(--app-primary-blue, #0066cc);
+  outline-offset: 2px;
+}
+
+/* Primary button (blue) */
+.server-restart-content .btn-blue {
+  background-color: var(--app-primary-blue, #0066cc);
+  color: white;
+}
+
+.server-restart-content .btn-blue:hover {
+  background-color: #0052a3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.server-restart-content .btn-blue:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+}
+
+/* Secondary button (gray) */
+.server-restart-content .btn-secondary {
+  background-color: var(--app-gray-200, #e5e7eb);
+  color: var(--app-gray-900, #111827);
+}
+
+.server-restart-content .btn-secondary:hover {
+  background-color: var(--app-gray-300, #d1d5db);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.server-restart-content .btn-secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Responsive design ────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .modal-overlay.server-restart-modal {
+    padding: 16px;
+  }
+
+  .modal-content.server-restart-content {
+    width: 100%;
+    max-width: none;
+  }
+
+  .server-restart-content .modal-header {
+    padding: 16px;
+  }
+
+  .server-restart-content .modal-header h2 {
+    font-size: 16px;
+  }
+
+  .server-restart-content .modal-body {
+    padding: 16px;
+  }
+
+  .server-restart-content .modal-footer {
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .server-restart-content .btn {
+    width: 100%;
+  }
+}
+
+/* ─── Accessibility: High contrast mode ────────────────────────────────── */
+
+@media (prefers-contrast: more) {
+  .server-restart-content .modal-header h2 {
+    font-weight: 700;
+  }
+
+  .server-restart-content .btn-blue {
+    border: 2px solid var(--app-primary-blue, #0066cc);
+  }
+
+  .server-restart-content .btn-secondary {
+    border: 2px solid var(--app-gray-900, #111827);
+  }
+}
+
+/* ─── Accessibility: Reduced motion ────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay.server-restart-modal {
+    animation: none;
+    opacity: 1;
+    will-change: auto;
+  }
+
+  .modal-content.server-restart-content {
+    will-change: auto;
+  }
+
+  .restart-spinner {
+    animation: none;
+    border-top-color: var(--app-gray-400, #9ca3af);
+    will-change: auto;
+  }
+
+  .server-restart-content .btn {
+    transition: none;
+  }
+}

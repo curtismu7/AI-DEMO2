@@ -1,0 +1,292 @@
+/* ─── Side Navigation ─────────────────────────────────────────────────────── */
+
+.sidenav {
+  --sn-bg: var(--brand-navy, #004687);
+  --sn-bg-hover: var(--brand-navy-light, #005fa3);
+  --sn-bg-active: var(--brand-blue, #0066cc);
+  --sn-accent: var(--brand-blue, #0066cc);
+  --sn-text: #ffffff;
+  --sn-muted: #ffffff;
+  --sn-border: rgba(255, 255, 255, 0.15);
+  --sn-width: 220px;
+  --sn-width-col: 60px;
+
+  width: var(--sn-width);
+  min-height: 100vh;
+  background: var(--sn-bg);
+  color: var(--sn-text);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.22s ease;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  border-right: 1px solid var(--sn-border);
+  z-index: 100;
+}
+
+.sidenav--collapsed {
+  width: var(--sn-width-col);
+}
+
+/* ─── Brand ──────────────────────────────────────────────────────────────── */
+.sidenav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--sn-border);
+  flex-shrink: 0;
+  min-height: 56px;
+}
+
+.sidenav-brand-logo {
+  flex-shrink: 0;
+}
+
+.sidenav-logo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  width: 26px;
+  height: 26px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+}
+
+.sidenav-logo-grid span {
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.sidenav-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  flex: 1;
+  letter-spacing: -0.01em;
+}
+
+.sidenav-collapse-btn {
+  background: transparent;
+  border: 1px solid var(--sn-border);
+  color: var(--sn-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  padding: 0;
+}
+
+.sidenav-collapse-btn:hover {
+  background: var(--sn-bg-hover);
+  color: var(--sn-text);
+}
+
+/* ─── User badge ─────────────────────────────────────────────────────────── */
+.sidenav-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sn-border);
+  flex-shrink: 0;
+}
+
+.sidenav-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sn-accent), #64748b);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidenav-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidenav-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sn-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidenav-user-role {
+  font-size: 11px;
+  color: var(--sn-muted);
+  margin-top: 1px;
+}
+
+/* ─── Nav ────────────────────────────────────────────────────────────────── */
+.sidenav-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.sidenav-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.sidenav-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.sidenav-group {
+  margin-bottom: 12px;
+}
+
+.sidenav-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sn-muted);
+  padding: 12px 14px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+
+.sidenav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  margin: 1px 6px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidenav-link:hover {
+  background: var(--sn-bg-hover);
+  color: #fff;
+}
+
+.sidenav-link--active {
+  background: var(--sn-bg-active);
+  color: #fff;
+  border-left: 3px solid var(--sn-accent);
+  padding-left: 11px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.sidenav-link-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  line-height: 1;
+}
+
+.sidenav-link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Learn & Explore section ────────────────────────────────────────────── */
+.sidenav-learn {
+  border-top: 1px solid var(--sn-border);
+  padding-top: 4px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+/* Reset button so it looks identical to sidenav-link anchor/NavLink */
+.sidenav-learn-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: #ef4444;
+  text-align: left;
+  width: 100%;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+.sidenav-footer {
+  padding: 10px 6px;
+  border-top: 1px solid var(--sn-border);
+  flex-shrink: 0;
+}
+
+.sidenav-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px 8px 14px;
+  background: transparent;
+  border: none;
+  color: var(--sn-muted);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidenav-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+/* ─── Responsive: hide on small screens (use top nav instead) ─────────────── */
+@media (max-width: 768px) {
+  .sidenav {
+    display: none;
+  }
+}
+
+/* ─── Theme Toggle Button ──────────────────────────────────────────────────── */
+
+.sidenav-theme-toggle {
+  opacity: 0.85;
+}
+.sidenav-theme-toggle:hover {
+  opacity: 1;
+}
+

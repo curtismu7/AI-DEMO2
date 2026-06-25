@@ -1,0 +1,71 @@
+/* TokenExchangeFlowDiagram.css --- BEM styling for RFC 8693 flow diagram */
+
+.tefd-root { position: relative; width: 100%; font-family: inherit; }
+.tefd-svg  { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* Actor boxes */
+.tefd-box          { fill: #f5f6fa; stroke: #c8cdd8; stroke-width: 1.5; }
+.tefd-box--user    { fill: #eff6ff; stroke: #93c5fd; }
+.tefd-box--bff     { fill: #f9fafb; stroke: #d1d5db; }
+.tefd-box--pingone { fill: #f9fafb; stroke: #d1d5db; }
+.tefd-box--mcp     { fill: #f0fdf4; stroke: #86efac; }
+.tefd-box--agent   { fill: #fffbeb; stroke: #fcd34d; }
+.tefd-actor-name { font-size: 12px; font-weight: 600; fill: #1e293b; }
+.tefd-actor-sub  { font-size: 10px; fill: #94a3b8; }
+
+/* Arrow lines */
+.tefd-arrow-line         { stroke-width: 2; }
+.tefd-arrow-line--user   { stroke: #3b82f6; }
+.tefd-arrow-line--agent  { stroke: #f59e0b; }
+.tefd-arrow-line--mcp    { stroke: #22c55e; }
+.tefd-arrowhead--user    { fill: #3b82f6; }
+.tefd-arrowhead--agent   { fill: #f59e0b; }
+.tefd-arrowhead--mcp     { fill: #22c55e; }
+
+/* Step circles */
+.tefd-step-circle        { stroke: none; }
+.tefd-step-circle--user  { fill: #3b82f6; }
+.tefd-step-circle--agent { fill: #f59e0b; }
+.tefd-step-circle--mcp   { fill: #22c55e; }
+.tefd-step-num { font-size: 10px; font-weight: 700; fill: #fff; dominant-baseline: middle; }
+
+/* Drop connectors */
+.tefd-drop-line { stroke: #e2e8f0; stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* Arrow labels */
+.tefd-conn-label        { font-size: 11px; font-weight: 600; }
+.tefd-conn-label--user  { fill: #1d4ed8; }
+.tefd-conn-label--agent { fill: #b45309; }
+.tefd-conn-label--mcp   { fill: #15803d; }
+.tefd-conn-rfc          { font-size: 9px; fill: #94a3b8; }
+
+/* Hover states */
+.tefd-arrow-group { outline: none; }
+.tefd-arrow-group--active .tefd-arrow-line  { stroke-width: 2.5; }
+.tefd-arrow-group--active .tefd-conn-label  { font-weight: 700; }
+.tefd-arrow-group--active .tefd-step-circle { filter: drop-shadow(0 0 3px rgba(0,0,0,0.25)); }
+
+/* Tooltip */
+.tefd-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1e293b; color: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 12px; max-width: 280px; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 100; pointer-events: auto; }
+.tefd-tooltip-title { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #e2e8f0; }
+.tefd-tooltip-text  { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: #cbd5e1; }
+.tefd-tooltip-btn   { background: none; border: 1px solid #475569; color: #94a3b8; font-size: 11px; padding: 3px 8px; border-radius: 3px; cursor: pointer; }
+.tefd-tooltip-btn:hover { background: #334155; color: #e2e8f0; }
+
+/* Education buttons */
+.tefd-education-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0 2px; }
+.tefd-btn { padding: 5px 11px; border-radius: 4px; font-size: 12px; cursor: pointer; border: 1px solid transparent; line-height: 1.4; transition: background 0.15s, border-color 0.15s; }
+.tefd-btn--primary   { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.tefd-btn--primary:hover { background: #1e40af; }
+.tefd-btn--secondary { background: #fff; color: #374151; border-color: #d1d5db; }
+.tefd-btn--secondary:hover { background: #f9fafb; border-color: #9ca3af; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tefd-education-buttons { flex-direction: column; gap: 6px; }
+  .tefd-btn { width: 100%; text-align: center; }
+}
+@media (max-width: 480px) {
+  .tefd-root { overflow-x: auto; }
+  .tefd-svg  { min-width: 480px; }
+}

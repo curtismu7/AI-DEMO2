@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Option 1 — Command Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0d1117;
+    --ink-2: #1a2230;
+    --paper: #f6f3ec;
+    --paper-2: #efeadd;
+    --rule: #c8c1ad;
+    --accent: #2b4cff;
+    --accent-soft: #dde2ff;
+    --warm: #d97041;
+    --warm-soft: #f7e3d4;
+    --good: #2d7a4f;
+    --good-soft: #d9eadf;
+    --muted: #6b6759;
+    --shadow: 0 1px 0 rgba(13,17,23,0.05), 0 8px 24px -12px rgba(13,17,23,0.18);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter Tight', -apple-system, system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ---------- App chrome (placeholder for context) ---------- */
+  .app-top {
+    height: 56px;
+    background: var(--ink);
+    color: #eef0f4;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px;
+    font-size: 13px;
+  }
+  .app-top .brand { font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
+  .app-top .brand em { font-style: normal; color: var(--warm); }
+  .app-top .right { display: flex; gap: 18px; align-items: center; opacity: 0.85; }
+
+  .app-shell { display: grid; grid-template-columns: 232px 1fr; min-height: calc(100vh - 56px); }
+  .side {
+    background: var(--paper-2);
+    border-right: 1px solid var(--rule);
+    padding: 18px 14px;
+    font-size: 13px;
+  }
+  .side h6 { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 18px 8px 6px; font-weight: 500; }
+  .side a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 6px;
+    color: var(--ink); text-decoration: none;
+  }
+  .side a.active { background: var(--ink); color: var(--paper); }
+  .side a:hover:not(.active) { background: rgba(13,17,23,0.05); }
+  .side .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rule); }
+  .side a.active .dot { background: var(--warm); }
+
+  .main { padding: 32px 40px 80px; max-width: 1100px; }
+
+  /* ---------- The killer move: one Command Bar ---------- */
+  .command-bar {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* Eyebrow row — context, not controls. Replaces 8 peer buttons. */
+  .eyebrow {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, #fbf8f1 0%, #fff 100%);
+    font-size: 12px;
+  }
+  .eyebrow-left { display: flex; align-items: center; gap: 16px; }
+  .crumb { font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 10px;
+    border-radius: 999px;
+    background: var(--good-soft);
+    color: #1f5536;
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pill .led { width: 6px; height: 6px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(45,122,79,0.18); }
+  .eyebrow-right { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--paper-2); }
+
+  /* Hero ask row */
+  .ask {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    padding: 26px 24px 22px;
+    gap: 18px;
+  }
+  .ask-left h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 30px;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .ask-left h1 em { font-style: italic; color: var(--warm); }
+  .ask-left p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 56ch; }
+  .ask-right { display: flex; gap: 6px; }
+
+  /* The single input — the obvious "where do I type" */
+  .composer {
+    margin: 0 18px 18px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    display: grid; grid-template-rows: 1fr auto;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .composer textarea {
+    border: 0; resize: none; background: transparent;
+    padding: 14px 16px 6px;
+    font-family: inherit; font-size: 15px; color: var(--ink);
+    outline: none; min-height: 64px;
+  }
+  .composer textarea::placeholder { color: var(--muted); }
+  .composer-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px 10px 16px;
+    font-size: 12px; color: var(--muted);
+  }
+  .kbd { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px; }
+  .send {
+    background: var(--ink); color: var(--paper);
+    border: 0; border-radius: 8px;
+    padding: 8px 14px; font-weight: 600; font-size: 13px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .send:hover { background: var(--ink-2); }
+
+  /* Suggestion strip — small, monospaced, NOT shouty chips */
+  .suggest {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 0 18px 18px;
+  }
+  .sg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .sg:hover { background: #fff; }
+  .sg .verb { color: var(--accent); font-weight: 600; }
+
+  /* ---------- Detail drawer (collapsed by default) ---------- */
+  .drawer {
+    margin-top: 18px;
+    background: transparent;
+  }
+  .drawer details {
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: #fff;
+    margin-bottom: 10px;
+  }
+  .drawer summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13.5px; font-weight: 600;
+  }
+  .drawer summary::-webkit-details-marker { display: none; }
+  .drawer summary .meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .drawer summary::after {
+    content: '+'; color: var(--muted); font-weight: 400; font-size: 18px;
+    transition: transform .2s;
+  }
+  .drawer details[open] summary::after { content: '−'; }
+  .drawer .body {
+    padding: 0 18px 16px;
+    font-size: 13px; color: var(--ink-2);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+  }
+  .drawer .body code {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    background: var(--paper); padding: 1px 5px; border-radius: 4px;
+  }
+
+  /* ---------- The strategy explainer ---------- */
+  .strategy {
+    margin-top: 40px;
+    padding: 22px;
+    background: var(--paper-2);
+    border: 1px dashed var(--rule);
+    border-radius: 14px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .strategy h2 { font-family: 'Fraunces', serif; font-weight: 500; margin: 0 0 12px; font-size: 22px; letter-spacing: -0.01em; }
+  .strategy ul { margin: 8px 0 0; padding-left: 18px; }
+  .strategy li { margin: 6px 0; }
+  .strategy b { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="app-top">
+  <div class="brand">Care<em>Connect</em></div>
+  <div class="right">
+    <span>Demo User · 25m 54s</span>
+    <span>customer</span>
+  </div>
+</div>
+
+<div class="app-shell">
+  <aside class="side">
+    <h6>Workspace</h6>
+    <a href="#"><span class="dot"></span>Home</a>
+    <a href="#" class="active"><span class="dot"></span>Dashboard</a>
+    <a href="#"><span class="dot"></span>Family Delegation</a>
+    <h6>Inspect</h6>
+    <a href="#"><span class="dot"></span>Monitoring</a>
+    <a href="#"><span class="dot"></span>Diagrams</a>
+    <a href="#"><span class="dot"></span>Tests</a>
+    <h6>Account</h6>
+    <a href="#"><span class="dot"></span>Admin View</a>
+    <a href="#"><span class="dot"></span>Settings</a>
+    <a href="#"><span class="dot"></span>Log out</a>
+  </aside>
+
+  <main class="main">
+
+    <!-- THE Agent. One thing on the page. -->
+    <section class="command-bar" aria-label="AI banking assistant">
+
+      <!-- All the toolbar noise (theme, layout, controls, reset, token timer, search) compressed
+           into a single eyebrow strip. No competing CTAs. -->
+      <div class="eyebrow">
+        <div class="eyebrow-left">
+          <span class="pill"><span class="led"></span>RFC 8693 · 3-token chain ready</span>
+          <span class="crumb">vertical: <b>CareConnect</b> · session <b>25:54</b></span>
+        </div>
+        <div class="eyebrow-right">
+          <button type="button" class="icon-btn" title="View token chain">⌘T</button>
+          <button type="button" class="icon-btn" title="Layout">⌘L</button>
+          <button type="button" class="icon-btn" title="Reset demo">↻</button>
+          <button type="button" class="icon-btn" title="More">⋯</button>
+        </div>
+      </div>
+
+      <div class="ask">
+        <div class="ask-left">
+          <h1>What can I help with, <em>Demo User</em>?</h1>
+          <p>Ask in plain language — pay a bill, move money, look up a transaction. I'll narrate the auth steps as I go.</p>
+        </div>
+      </div>
+
+      <!-- One input. Period. -->
+      <div class="composer">
+        <textarea placeholder="e.g. Transfer $250 from Checking to Savings, then show me last month's bills"></textarea>
+        <div class="composer-foot">
+          <span><span class="kbd">/</span> commands &nbsp;·&nbsp; <span class="kbd">@</span> account &nbsp;·&nbsp; <span class="kbd">⌘↵</span> send</span>
+          <button type="button" class="send">Send →</button>
+        </div>
+      </div>
+
+      <!-- Suggestion strip replaces shouty pedagogical chips -->
+      <div class="suggest">
+        <button type="button" class="sg"><span class="verb">show</span> my accounts</button>
+        <button type="button" class="sg"><span class="verb">transfer</span> $250 to Savings</button>
+        <button type="button" class="sg"><span class="verb">deposit</span> $1,200 check</button>
+        <button type="button" class="sg"><span class="verb">find</span> last month's gas spend</button>
+        <button type="button" class="sg"><span class="verb">explain</span> what just happened</button>
+      </div>
+    </section>
+
+    <!-- Everything else is progressive disclosure. Nothing competing for attention. -->
+    <section class="drawer" aria-label="Inspect">
+      <details>
+        <summary>Token chain <span class="meta">3 tokens · oauth_bearer path · updated 04:42 PM</span></summary>
+        <div class="body">
+          The full <code>RFC 8693</code> exchange (User → Agent → MCP) renders here on demand. Hidden by default so the
+          chat surface is the hero. Open with <span class="kbd">⌘T</span>.
+        </div>
+      </details>
+      <details>
+        <summary>Authorize rules <span class="meta">4 transaction · 2 tool · simulated engine</span></summary>
+        <div class="body">
+          Confirm $800 · Step-up $1,200 · Deny $2,000. Tester moves into this drawer so it's not a peer card with the agent.
+        </div>
+      </details>
+      <details>
+        <summary>Available tools <span class="meta">12 MCP tools loaded</span></summary>
+        <div class="body">
+          <code>get_my_accounts</code> · <code>get_my_transactions</code> · <code>create_transfer</code> · …
+        </div>
+      </details>
+    </section>
+
+    <!-- Placement rule: this option commits to INLINE on dashboard pages.
+         The Middle/Float/Always-float toggle is retired. On non-dashboard pages
+         (marketing, admin, setup), the same agent appears as a minimal FAB icon. -->
+    <aside class="strategy">
+      <h2>Placement — <span style="color:var(--warm)">inline on dashboard, FAB elsewhere</span></h2>
+      <p style="margin:0 0 14px; color:var(--muted); font-size:13px;">
+        The Middle/Float/Always-float toggle is removed. On <b>/dashboard</b> the command bar above IS the agent, full width.
+        On <b>/marketing</b>, <b>/admin</b>, <b>/configure</b>, etc., the same agent collapses to the FAB pictured at lower right —
+        same composer, same suggestions, same token-chain drawer, in a 360-px popover.
+      </p>
+
+      <div style="display:grid; grid-template-columns: 1fr 240px; gap: 22px; align-items: start; margin-bottom: 18px;">
+        <div>
+          <h2>Why this works — Option 1: Command Bar</h2>
+          <ul>
+            <li><b>One job per surface.</b> The agent is the only first-class card. Everything else collapses into a single drawer.</li>
+            <li><b>Toolbar dies.</b> Theme / layout / reset / token timer fold into a single 28-px eyebrow with icon buttons + ⌘ shortcuts. From 8 visible controls → 4 icons.</li>
+            <li><b>Real composer.</b> The "where do I type?" question is answered the moment you land — a focused input is the most prominent element.</li>
+            <li><b>Suggestions, not CTAs.</b> Monospaced chips with a <span style="color:var(--accent);font-weight:600">verb</span> color cue read as completions, not as competing buttons.</li>
+            <li><b>Token Chain becomes inspectable, not omnipresent.</b> It's still one keystroke (⌘T) away — just not eating 40 % of the viewport.</li>
+            <li><b>One placement rule.</b> Inline on dashboard, FAB everywhere else. No user toggle, no "always float" checkbox.</li>
+          </ul>
+        </div>
+
+        <!-- FAB preview — the same design language scaled down for non-dashboard pages -->
+        <div>
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">FAB on other pages</div>
+          <div style="background:#fff; border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow); padding:0; overflow:hidden;">
+            <div style="background: linear-gradient(180deg,#fbf8f1,#fff); padding:8px 12px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted);">⌘K · CareConnect</span>
+              <span style="font-size:11px; color:var(--muted);">✕</span>
+            </div>
+            <div style="padding:14px 14px 10px;">
+              <div style="font-family:'Fraunces', serif; font-size:15px; margin-bottom:2px;">How can I help?</div>
+              <div style="background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--muted); margin-top:8px;">e.g. transfer $250…</div>
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; background:var(--paper); border:1px solid var(--rule); border-radius:4px; padding:3px 6px;"><span style="color:var(--accent); font-weight:600">show</span> accounts</span>
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; background:var(--paper); border:1px solid var(--rule); border-radius:4px; padding:3px 6px;"><span style="color:var(--accent); font-weight:600">find</span> charge</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center; margin-top:10px;">
+            <div style="display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; background:var(--ink); color:var(--paper); font-family:'Fraunces', serif; font-style:italic; font-weight:500; box-shadow: 0 8px 20px -8px rgba(13,17,23,.35);">Ai</div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); margin-top:6px;">collapsed FAB</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+</div>
+
+</body>
+</html>

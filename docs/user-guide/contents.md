@@ -1,0 +1,25 @@
+# User Guide
+- The docs you need to **set up, configure, run, and use** the demo. (Internal architecture/spec/audit docs live in the parent `docs/` folder.)
+- ## 🚀 Getting started
+	- [[getting-started]] — 5-minute quickstart from a fresh clone.
+	- [[SETUP]] — Complete setup: PingOne app config + environment variables.
+	- [[APP_OVERVIEW]] — What the demo is and the role of each service.
+- ## ⚙️ Configuration
+	- [[ENV_VARS]] — Authoritative list of every environment variable (the config source of truth).
+	- [[PINGONE_CONFIG]] — PingOne configuration source of truth.
+	- [[helix-setup]] — Connect the Helix / Ping AI LLM provider.
+- ## 🔐 MFA
+	- [[MFA_SETUP_GUIDE]] — Step-by-step MFA configuration with PingOne.
+	- [[MFA_USER_SETUP]] — Quick guide for user MFA testing.
+- ## ▶️ Using & running the demo
+	- [[USER_GUIDE]] — End-user guide: MFA, agents, and workflows.
+	- [[FEATURES]] — Feature matrix and the 20-minute demo pitch checklist.
+	- [[AGENT_SHOWCASE_DEMO_SCENARIOS]] — Live demo walkthroughs, click by click.
+	- [[development]] — Development workflow and debugging.
+	- [[deployment]] — Production deployment guide.
+- ## 🧰 Reference & help
+	- [[README]] — Documentation index.
+	- [[ERROR_CODES_AND_REMEDIATION]] — Troubleshooting OAuth / RFC 8693 errors.
+	- [[POSTMAN-GUIDE]] — Postman collections quickstart.
+	- [[POSTMAN_COLLECTIONS_GUIDE]] — Postman collections usage.
+	- [[POSTMAN_COLLECTIONS_README]] — Postman setup & overview.

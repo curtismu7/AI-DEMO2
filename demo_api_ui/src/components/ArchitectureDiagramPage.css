@@ -1,0 +1,478 @@
+/* ArchitectureDiagramPage.css */
+
+.arch-diagram-page {
+  padding: 0 0.5rem;
+}
+
+.arch-diagram-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* zoom + step controls migrated to DiagramControls.css (.dc-*) */
+
+.arch-diagram-scroll-wrapper {
+  overflow: auto;
+  max-height: 75vh;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.arch-diagram-container {
+  position: relative;
+  display: inline-block;
+  min-width: 100%;
+  line-height: 0;
+  background: #ffffff;
+}
+
+.arch-diagram-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  filter: brightness(1.06) contrast(0.96);
+}
+
+.arch-diagram-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* ── Region fills ────────────────────────────────────── */
+
+.diagram-region {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0.3;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* Current active step — brand-navy, pulsing */
+.diagram-region--active {
+  fill: rgba(0, 70, 135, 0.32);
+  stroke: #004687;
+  stroke-width: 0.7;
+  animation: diagram-pulse 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 0.8px rgba(0, 102, 204, 0.9));
+}
+
+/* Previous steps — soft grey, no pulse, stays visible */
+.diagram-region--active-prev {
+  fill: rgba(100, 116, 139, 0.18);
+  stroke: #94a3b8;
+  stroke-width: 0.4;
+}
+
+/* Error — red pulse */
+.diagram-region--active-error {
+  fill: rgba(239, 68, 68, 0.28);
+  stroke: #ef4444;
+  stroke-width: 0.7;
+  animation: diagram-pulse 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 0.8px rgba(239, 68, 68, 0.9));
+}
+
+/* Permit — green pulse */
+.diagram-region--active-permit {
+  fill: rgba(76, 175, 80, 0.28);
+  stroke: #4CAF50;
+  stroke-width: 0.7;
+  animation: diagram-pulse 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 0.8px rgba(76, 175, 80, 0.9));
+}
+
+/* HITL — amber pulse */
+.diagram-region--active-hitl {
+  fill: rgba(217, 119, 6, 0.28);
+  stroke: #d97706;
+  stroke-width: 0.7;
+  animation: diagram-pulse 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 0.8px rgba(217, 119, 6, 0.9));
+}
+
+.diagram-region-text--active-hitl {
+  fill: #92400e;
+}
+
+@keyframes diagram-pulse {
+  0%   { stroke-width: 0.5; opacity: 1; }
+  50%  { stroke-width: 0.7; opacity: 0.7; }
+  100% { stroke-width: 0.5; opacity: 1; }
+}
+
+/* ── Step arrow highlight — thin horizontal band on the active message ── */
+
+.diagram-step-arrow {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: none;
+}
+.diagram-step-arrow--active {
+  fill: rgba(0, 70, 135, 0.22);
+  stroke: #004687;
+  stroke-width: 0.5;
+  animation: step-arrow-pulse 1.0s ease-in-out infinite;
+  filter: drop-shadow(0 0 1px rgba(0, 102, 204, 0.8));
+}
+.diagram-step-arrow--active-error {
+  fill: rgba(239, 68, 68, 0.22);
+  stroke: #ef4444;
+  stroke-width: 0.5;
+  animation: step-arrow-pulse 1.0s ease-in-out infinite;
+  filter: drop-shadow(0 0 1px rgba(239, 68, 68, 0.8));
+}
+.diagram-step-arrow--active-permit {
+  fill: rgba(76, 175, 80, 0.22);
+  stroke: #4CAF50;
+  stroke-width: 0.5;
+  animation: step-arrow-pulse 1.0s ease-in-out infinite;
+  filter: drop-shadow(0 0 1px rgba(76, 175, 80, 0.8));
+}
+.diagram-step-arrow--active-hitl {
+  fill: rgba(217, 119, 6, 0.22);
+  stroke: #d97706;
+  stroke-width: 0.5;
+  animation: step-arrow-pulse 1.0s ease-in-out infinite;
+  filter: drop-shadow(0 0 1px rgba(217, 119, 6, 0.8));
+}
+@keyframes step-arrow-pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ── Explanation text inside boxes ───────────────────── */
+
+.diagram-region-text {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+.diagram-region-text--active {
+  fill: #003366;
+}
+
+.diagram-region-text--active-prev {
+  fill: #64748b;
+  font-weight: 500;
+}
+
+.diagram-region-text--active-error {
+  fill: #b91c1c;
+}
+
+.diagram-region-text--active-permit {
+  fill: #166534;
+}
+
+/* ── Layout: diagram + side card ─────────────────────── */
+
+.arch-diagram-body {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.arch-diagram-body--with-card .arch-diagram-scroll-wrapper {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.arch-token-side {
+  flex: 0 0 360px;
+  min-width: 320px;
+  max-width: 380px;
+  align-self: flex-start;
+  position: sticky;
+  top: 8px;
+}
+
+/* ── Aud trail ────────────────────────────────────────── */
+
+.arch-aud-trail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.arch-aud-trail__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.arch-aud-trail__arrow {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.arch-aud-trail__arrow--past { color: #2563eb; }
+
+.arch-aud-trail__hop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  transition: background 0.3s, border-color 0.3s;
+  min-width: 88px;
+}
+.arch-aud-trail__hop--on {
+  background: #004687;
+  border-color: #004687;
+}
+.arch-aud-trail__hop--past {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.arch-aud-trail__icon { font-size: 0.7rem; }
+
+.arch-aud-trail__name {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+.arch-aud-trail__hop--on  .arch-aud-trail__name { color: #fff; }
+.arch-aud-trail__hop--past .arch-aud-trail__name { color: #1d4ed8; }
+
+.arch-aud-trail__aud {
+  font-size: 0.57rem;
+  font-family: inherit;
+  color: #cbd5e1;
+  line-height: 1.2;
+}
+.arch-aud-trail__hop--on  .arch-aud-trail__aud { color: #bfdbfe; }
+.arch-aud-trail__hop--past .arch-aud-trail__aud { color: #3b82f6; }
+
+.arch-aud-trail__act,
+.arch-aud-trail__mayact {
+  font-size: 0.54rem;
+  font-family: inherit;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+.arch-aud-trail__hop--on .arch-aud-trail__act    { color: #86efac; }
+.arch-aud-trail__hop--on .arch-aud-trail__mayact { color: #fde68a; }
+
+/* step controls migrated to DiagramControls.css (.dc-*) */
+
+/* ── Token panel (wrapper for 1 or 2 stacked cards) ──── */
+
+.arch-token-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Token card — light background, colored left border ─ */
+
+.arch-token-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #2563eb;   /* overridden inline per type */
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.arch-token-card__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.arch-token-card__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arch-token-card__rfc {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.arch-token-card__section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin: 8px 0 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.arch-token-card__section-label--issued {
+  color: #16a34a;
+}
+
+.arch-token-card__note {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.76rem;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── Claim rows ───────────────────────────────────────── */
+
+.arch-claim-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  align-items: flex-start;
+}
+
+.arch-claim-key {
+  font-size: 0.76rem;
+  color: #64748b;
+  font-family: inherit;
+  min-width: 110px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.arch-claim-val {
+  font-size: 0.82rem;
+  font-family: inherit;
+  line-height: 1.5;
+  word-break: break-word;
+  color: #0f172a;
+  font-weight: 500;
+}
+.arch-claim-val--aud    { color: #1d4ed8; font-weight: 700; }
+.arch-claim-val--act    { color: #15803d; font-weight: 700; }
+.arch-claim-val--decide { color: #15803d; font-weight: 700; }
+
+/* ── Token history panel ──────────────────────────────── */
+
+.arch-history {
+  margin-top: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.arch-history__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.arch-history__toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #475569;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.arch-history__title {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.arch-history__clear {
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: #64748b;
+  padding: 2px 8px;
+  transition: background 0.15s;
+}
+.arch-history__clear:hover { background: #e2e8f0; }
+
+.arch-history__scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.75rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.arch-history__scroll::-webkit-scrollbar { height: 6px; }
+.arch-history__scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.arch-history__entry {
+  flex: 0 0 auto;
+  width: 300px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arch-history__entry-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.3;
+}
+
+.arch-history__step-chip {
+  flex-shrink: 0;
+  background: #004687;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.arch-history__card {
+  font-size: 0.78rem;
+}

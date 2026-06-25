@@ -1,0 +1,113 @@
+/* ThemeZonePanel — per-zone palette picker (see skill: vertical-theme-zones) */
+.theme-zone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.tzp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tzp-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 3px;
+}
+
+.tzp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tzp-zone-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  min-width: 150px;
+}
+
+.tzp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tzp-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  position: relative;
+}
+
+.tzp-swatch:hover {
+  transform: scale(1.2);
+  z-index: 1;
+}
+
+.tzp-swatch:focus-visible {
+  outline: 2px solid #2767d2;
+  outline-offset: 2px;
+}
+
+/* Selected: dark ring + inner white gap + checkmark (not color-only — a11y). */
+.tzp-swatch--on {
+  border-color: #1e293b;
+  box-shadow: 0 0 0 2px #fff inset;
+}
+
+.tzp-swatch--on::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.tzp-swatch--reset {
+  background: #fff;
+  border: 1.5px dashed #cbd5e1;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tzp-swatch--reset:hover {
+  border-color: #94a3b8;
+  color: #475569;
+}
+
+.tzp-toast {
+  position: sticky;
+  bottom: 0;
+  align-self: center;
+  margin-top: 6px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

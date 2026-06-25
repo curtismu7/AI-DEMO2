@@ -1,0 +1,3224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Option 2B refined — Clinical Split (production states)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* density-tuned palette — teal-led, indigo retired */
+    --bg: #ffffff;
+    --bg-2: #f4f6f9;
+    --bg-3: #e8edf3;
+    --ink: #0e1a2b;
+    --ink-2: #2c3a52;
+    --rule: #d8dee8;
+    --rule-2: #b9c2d1;
+    --muted: #6b7689;
+    --muted-2: #93a0b3;
+
+    --teal: #0d6760;       /* primary accent */
+    --teal-2: #0a5550;
+    --teal-soft: #d8eceb;
+    --teal-tint: #ecf6f5;
+
+    --gold: #a87317;       /* warning */
+    --gold-soft: #f7eccf;
+    --rose: #a13348;       /* error */
+    --rose-soft: #f5dde2;
+    --moss: #4a6b3a;       /* success */
+    --moss-soft: #dfeada;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ---------- Rail (denser: 44px not 52) ---------- */
+  .rail {
+    height: 44px;
+    display: grid;
+    grid-template-columns: 220px 1fr auto;
+    align-items: center;
+    padding: 0 14px 0 18px;
+    border-bottom: 1px solid var(--rule);
+    background: #fff;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .brand { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 19px; letter-spacing: -0.01em; }
+  .brand em { font-style: italic; color: var(--teal); font-weight: 400; }
+  .rail nav {
+    justify-self: center;
+    display: inline-flex; gap: 2px;
+    background: var(--bg-2); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 2px;
+  }
+  .rail nav button {
+    background: transparent; border: 0;
+    font: inherit; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; color: var(--muted);
+    padding: 5px 12px; border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .rail nav button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 0 rgba(14,26,43,0.08); }
+  .rail nav button kbd { font-family: inherit; font-size: 9.5px; background: var(--bg-3); color: var(--muted); padding: 1px 4px; border-radius: 2px; }
+  .rail .right { display: flex; align-items: center; gap: 8px; }
+  .session {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    background: var(--teal-tint); border: 1px solid var(--teal-soft); color: var(--teal);
+    padding: 4px 9px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 7px; font-weight: 500;
+  }
+  .session .led { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 3px rgba(13,103,96,0.12); }
+  .icn { width: 28px; height: 28px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; display:inline-flex;align-items:center;justify-content:center; }
+  .icn:hover { background: var(--bg-2); border-color: var(--rule); color: var(--ink); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--teal); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+
+  /* ---------- Scene strip ---------- */
+  .scenes {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 10px 18px; background: var(--bg-2);
+    border-bottom: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    position: sticky; top: 44px; z-index: 19;
+  }
+  .scenes .label { color: var(--muted); margin-right: 4px; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 0; font-weight: 600; }
+  .scenes a { text-decoration: none; color: var(--ink-2); background: #fff; border: 1px solid var(--rule); padding: 4px 9px; border-radius: 4px; }
+  .scenes a:hover { border-color: var(--teal); color: var(--teal); }
+  .scenes a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* ---------- Split canvas ---------- */
+  .canvas { display: grid; grid-template-columns: 1.35fr 1fr; }
+  .chat { display: grid; grid-template-rows: auto 1fr auto; border-right: 1px solid var(--rule); background: var(--bg); min-height: 540px; }
+  .chat-head { padding: 22px 28px 12px; }
+  .chat-head .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--teal); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+  .chat-head h1 { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 30px; line-height: 1.05; letter-spacing: -0.018em; margin: 0 0 4px; }
+  .chat-head h1 i { font-style: italic; color: var(--teal); font-weight: 400; }
+  .chat-head p { color: var(--muted); font-size: 13px; max-width: 52ch; margin: 4px 0 0; line-height: 1.5; }
+
+  .thread { padding: 14px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+  .av { width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600; border: 1px solid var(--rule); flex-shrink: 0; }
+  .av.you { background: var(--bg-2); color: var(--ink); }
+  .av.ai  { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .bubble { font-size: 13.5px; line-height: 1.55; }
+  .bubble .who { font-size: 10.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 3px; letter-spacing: 0.02em; }
+  .bubble strong { color: var(--ink); font-weight: 600; }
+  .bubble .step { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-2); border: 1px solid var(--rule); padding: 5px 9px; border-radius: 5px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; margin-top: 6px; color: var(--ink-2); }
+  .bubble .step .tag { font-size: 9.5px; padding: 1px 5px; border-radius: 2px; background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+
+  .bubble .thinking { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-style: italic; font-size: 13.5px; }
+  .bubble .thinking .dots { display: inline-flex; gap: 3px; }
+  .bubble .thinking .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s ease-in-out infinite; }
+  .bubble .thinking .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .bubble .thinking .dots span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes pulse { 0%,80%,100% { opacity: 0.3; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
+
+  .inline-card { background: #fff; border: 1px solid var(--rule); border-left: 3px solid var(--teal); border-radius: 6px; padding: 12px 14px; margin-top: 8px; font-size: 13px; }
+  .inline-card.warn { border-left-color: var(--gold); background: linear-gradient(to right, var(--gold-soft) 0%, #fff 40%); }
+  .inline-card.err  { border-left-color: var(--rose); background: linear-gradient(to right, var(--rose-soft) 0%, #fff 40%); }
+  .inline-card .ic-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-weight: 600; color: var(--ink-2); }
+  .inline-card.warn .ic-title { color: var(--gold); }
+  .inline-card.err  .ic-title { color: var(--rose); }
+  .inline-card .ic-body { color: var(--ink-2); }
+  .inline-card .ic-body code { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; background: var(--bg-2); padding: 1px 4px; border-radius: 2px; color: var(--ink); }
+  .inline-card .ic-actions { margin-top: 10px; display: flex; gap: 6px; }
+  .inline-card .ic-actions button { font: inherit; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 5px 11px; border-radius: 4px; cursor: pointer; border: 1px solid var(--rule); background: #fff; color: var(--ink); }
+  .inline-card .ic-actions button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .inline-card .ic-actions button.primary.warn { background: var(--gold); border-color: var(--gold); }
+  .inline-card .ic-actions button.primary.err { background: var(--rose); border-color: var(--rose); }
+
+  .empty { padding: 60px 28px; text-align: center; color: var(--muted); }
+  .empty .e-mark { width: 44px; height: 44px; border-radius: 50%; background: var(--teal-tint); color: var(--teal); display: inline-flex; align-items: center; justify-content: center; font-family: 'Crimson Pro', serif; font-size: 22px; font-style: italic; margin-bottom: 14px; border: 1px solid var(--teal-soft); }
+  .empty h3 { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 22px; margin: 0 0 4px; color: var(--ink); letter-spacing: -0.012em; }
+  .empty h3 i { color: var(--teal); font-style: italic; font-weight: 400; }
+  .empty p { font-size: 13px; max-width: 36ch; margin: 4px auto 16px; }
+  .empty .quick { display: inline-flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 460px; }
+  .empty .quick button { font: inherit; font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #fff; border: 1px solid var(--rule); color: var(--ink); padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+  .empty .quick button:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-tint); }
+  .empty .quick button .verb { color: var(--teal); font-weight: 600; }
+
+  .composer { margin: 10px 18px 18px; background: #fff; border: 1px solid var(--rule-2); border-radius: 10px; padding: 10px 12px 8px; transition: border-color .15s, box-shadow .15s; }
+  .composer:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+  .composer textarea { width: 100%; resize: none; border: 0; background: transparent; font: inherit; color: var(--ink); font-size: 14px; outline: none; min-height: 44px; }
+  .composer textarea::placeholder { color: var(--muted); }
+  .composer-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .composer-foot .tools { display: flex; gap: 4px; }
+  .composer-foot .tools button { background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 3px 7px; border-radius: 4px; font: inherit; font-size: 10.5px; cursor: pointer; }
+  .composer-foot .tools button:hover { color: var(--ink); border-color: var(--rule-2); background: var(--bg-2); }
+  .send { border: 0; cursor: pointer; background: var(--ink); color: #fff; padding: 6px 12px; border-radius: 5px; font-weight: 600; font-size: 11px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; }
+  .send:hover { background: var(--teal); }
+  .send[disabled] { background: var(--bg-3); color: var(--muted-2); cursor: not-allowed; }
+
+  /* RIGHT */
+  .narrate { background: var(--bg-2); display: grid; grid-template-rows: auto auto 1fr; min-width: 0; }
+  .narrate-head { padding: 16px 22px 10px; border-bottom: 1px solid var(--rule); background: #fff; }
+  .narrate-head .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--teal); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .narrate-head h2 { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 18px; margin: 4px 0 0; letter-spacing: -0.005em; }
+  .narrate-head h2 i { font-style: italic; color: var(--teal); font-weight: 400; }
+  .narrate-head .meta { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+  .narrate-head .meta b { color: var(--ink); font-weight: 500; }
+  .narrate-tabs { display: flex; padding: 0 22px; border-bottom: 1px solid var(--rule); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted); background: #fff; }
+  .narrate-tabs button { background: transparent; border: 0; color: inherit; padding: 10px 0; margin-right: 18px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .narrate-tabs button.on { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
+  .narrate-body { padding: 16px 22px 22px; overflow-y: auto; }
+
+  .timeline { position: relative; padding-left: 22px; }
+  .timeline::before { content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 1px; background: var(--rule-2); }
+  .tstep { position: relative; margin-bottom: 8px; }
+  .tstep::before { content: ''; position: absolute; left: -19px; top: 11px; width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 2px solid var(--teal); }
+  .tstep.done::before { background: var(--teal); }
+  .tstep.pending::before { background: #fff; border-color: var(--muted-2); }
+  .tstep.pending { opacity: 0.55; }
+  .tstep.fail::before { background: var(--rose); border-color: var(--rose); }
+  .tstep .card { background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 9px 12px; cursor: pointer; transition: border-color .12s; }
+  .tstep .card:hover { border-color: var(--teal); }
+  .tstep.expanded .card { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+  .tstep .row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .tstep .role { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--teal); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .tstep .rfc { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--muted); }
+  .tstep .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .tstep .sub { color: var(--muted); font-size: 11.5px; line-height: 1.4; margin-top: 2px; }
+  .tstep .sub code { font-family: 'JetBrains Mono', monospace; background: var(--bg-2); padding: 1px 4px; border-radius: 2px; color: var(--teal); font-size: 10.5px; }
+  .tstep .expand { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); display: none; }
+  .tstep.expanded .expand { display: block; }
+  .tstep .claims { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+  .tstep .claims dt { color: var(--muted); }
+  .tstep .claims dd { margin: 0; color: var(--ink); word-break: break-all; }
+  .tstep .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 7px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge.ok { background: var(--moss-soft); color: var(--moss); }
+  .badge.warn { background: var(--gold-soft); color: var(--gold); }
+  .badge.err { background: var(--rose-soft); color: var(--rose); }
+  .badge.info { background: var(--teal-soft); color: var(--teal); }
+  .tstep .jwt { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; background: var(--bg-2); border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; color: var(--ink-2); line-height: 1.4; overflow-x: auto; }
+  .tstep .jwt .h { color: var(--rose); }
+  .tstep .jwt .p { color: var(--teal); }
+  .tstep .jwt .s { color: var(--muted); }
+
+  .skel { display: flex; flex-direction: column; gap: 8px; }
+  .skel-row { height: 56px; border-radius: 6px; background: linear-gradient(90deg, #fff 0%, var(--bg-3) 50%, #fff 100%); background-size: 200% 100%; border: 1px solid var(--rule); animation: shimmer 1.6s ease-in-out infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .nempty { padding: 30px 12px; text-align: center; color: var(--muted); font-size: 12px; }
+  .nempty p { margin: 4px 0; }
+  .nempty .ne-mark { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 30px; color: var(--rule-2); }
+
+  .cfg-group { background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; }
+  .cfg-group h4 { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .cfg-group h4 b { color: var(--ink); }
+  .cfg-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--rule); font-size: 12.5px; }
+  .cfg-row:first-of-type { border-top: 0; padding-top: 0; }
+  .cfg-row .lbl { color: var(--ink-2); }
+  .cfg-row .val { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--ink); padding: 3px 8px; background: var(--bg-2); border-radius: 4px; border: 1px solid var(--rule); }
+  .switch { width: 30px; height: 16px; background: var(--rule-2); border-radius: 999px; position: relative; cursor: pointer; }
+  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.on { background: var(--teal); }
+  .switch.on::after { left: 16px; }
+
+  .scene-frame { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin: 18px; background: #fff; box-shadow: 0 1px 0 rgba(14,26,43,0.04); }
+  .scene-title { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--bg-2); border-bottom: 1px solid var(--rule); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-2); }
+  .scene-title .name { font-weight: 600; color: var(--ink); }
+  .scene-title .tag { color: var(--muted); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .page-head { padding: 30px 28px 18px; border-bottom: 1px solid var(--rule); background: #fff; }
+  .page-head .crumb { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .page-head .crumb a { color: var(--teal); text-decoration: none; }
+  .page-head h1 { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 30px; margin: 0; letter-spacing: -0.015em; }
+  .page-head h1 i { font-style: italic; color: var(--teal); }
+  .page-head p { color: var(--muted); margin: 4px 0 0; font-size: 13.5px; max-width: 70ch; }
+
+  section.scene-block { padding: 0 22px 22px; }
+  section.scene-block h2 { font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 20px; margin: 22px 0 4px; letter-spacing: -0.005em; padding: 0 18px; }
+  section.scene-block h2 i { font-style: italic; color: var(--teal); font-weight: 400; }
+  section.scene-block h2 b { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; margin-right: 8px; }
+  section.scene-block .summary { color: var(--muted); margin: 0 18px 8px; font-size: 13px; max-width: 70ch; }
+
+  .log-table { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; gap: 0; padding: 0; }
+  .log-head, .log-row { display: grid; grid-template-columns: 78px 1fr 130px 100px; gap: 12px; padding: 9px 28px; border-bottom: 1px solid var(--rule); }
+  .log-head { color: var(--muted); letter-spacing: 0.04em; font-size: 10px; text-transform: uppercase; padding-top: 8px; padding-bottom: 8px; }
+  .log-row { color: var(--ink); text-decoration: none; cursor: pointer; }
+  .log-row:hover { background: var(--teal-tint); }
+  .log-row .badge { justify-self: start; }
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="brand">Care<em>Connect</em></div>
+  <nav role="tablist">
+    <button type="button" class="on">▣ Talk <kbd>1</kbd></button>
+    <button type="button">◇ Inspect <kbd>2</kbd></button>
+    <button type="button">⊞ Configure <kbd>3</kbd></button>
+  </nav>
+  <div class="right">
+    <span class="session"><span class="led"></span>SESSION · 25:54</span>
+    <button type="button" class="icn" title="Search ⌘K">⌕</button>
+    <span class="avatar">DU</span>
+  </div>
+</div>
+
+<div class="scenes">
+  <span class="label">Jump to state</span>
+  <a href="#default" class="on">Talk · default</a>
+  <a href="#loading">Talk · in-flight</a>
+  <a href="#hitl">Talk · HITL 428</a>
+  <a href="#error">Talk · token error</a>
+  <a href="#empty">Talk · empty</a>
+  <a href="#expanded">Talk · expanded token</a>
+  <a href="#expired">Talk · session expired</a>
+  <a href="#chained">Talk · multi-tool chain</a>
+  <a href="#realistic">Talk · realistic thread</a>
+  <a href="#mobile">Mobile · narrow viewport</a>
+  <a href="#fab-coexist">FAB + inline coexistence</a>
+  <a href="#float-mode">Float-mode reflow (3 options)</a>
+  <a href="#mcp-json">MCP calls · request + response JSON</a>
+  <a href="#tabs-5">Right column tabs · All / Tokens / MCP / Standards / Errors</a>
+  <a href="#tabs-5-refined">Tabs refined · search + expandable MCP + HITL standards + replay</a>
+  <a href="#inspect">Inspect tab</a>
+  <a href="#configure">Configure tab</a>
+</div>
+
+<header class="page-head">
+  <div class="crumb"><a href="split-variants.html">← split variants</a> · option 2B refined</div>
+  <h1>Clinical split, in <i>production states</i></h1>
+  <p>Same chat-left / narration-right IA as 2B baseline. Tuned for density, accent-reduced to a single teal, with every state an engineer must ship — loading, HITL 428, token failure, empty, expanded token detail, plus Inspect and Configure tabs.</p>
+</header>
+
+<!-- TALK · DEFAULT -->
+<section class="scene-block" id="default">
+  <h2><b>1 · Talk</b> Default — one round-trip complete</h2>
+  <p class="summary">The standard view: user asked, agent answered, three tokens recorded on the right.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · default</span><span class="tag">/dashboard · session healthy</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · vertical care</div>
+          <h1>How can I help, <i>Demo</i>?</h1>
+          <p>Plain language is fine. Every auth step is recorded on the right.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:42 PM</div>Transfer $250 from Checking to Savings.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Done. Exchanged your <strong>user token</strong> for an MCP-scoped delegated token and called <strong>create_transfer</strong>. New Checking balance: <strong>$3,971.04</strong>.
+            <div class="step"><span class="tag">RFC 8693</span>subject → mcp · 3 tokens · 218 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Try: deposit $1,200, then show me what just happened…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>What just <i>happened</i></h2><div class="meta"><b>04:42:18 PM</b> · oauth_bearer · 3 steps · 218 ms</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 1</button><button type="button">Rules</button><button type="button">Tools · 12</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">RFC 8693 §2.1</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">PingOne OIDC · stays in BFF · <code>aud: enduser</code></div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">RFC 8693 §2.2</span></div>
+              <div class="name">Agent actor (CC prefetched)</div>
+              <div class="sub">Client credentials · adds delegation proof</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP token</span><span class="rfc">RFC 8693 §3.2</span></div>
+              <div class="name">Result of exchange</div>
+              <div class="sub">Nested <code>act</code> claim · sent only to MCP server</div>
+            </div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · LOADING -->
+<section class="scene-block" id="loading">
+  <h2><b>2 · Talk</b> In flight — agent thinking, exchange pending</h2>
+  <p class="summary">Pending tokens show as outline-only dots; the active step shows skeleton lines. The composer disables until the round-trip completes.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · in-flight</span><span class="tag">tool call · /mcp/create_transfer</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · working</div>
+          <h1>Working on it<i>…</i></h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:43 PM</div>Move $500 from Savings to Checking, please.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            <div class="thinking">
+              Exchanging tokens
+              <span class="dots"><span></span><span></span><span></span></span>
+            </div>
+            <div class="step"><span class="tag">RFC 8693</span>exchange in progress · 142 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="One request at a time — the agent is mid-exchange…" disabled style="opacity:0.5;"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button" disabled style="opacity:0.5">/ commands</button><button type="button" disabled style="opacity:0.5">@ account</button></div>
+            <button type="button" class="send" disabled>WORKING…</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>What just <i>happened</i></h2><div class="meta"><b>04:43:02 PM</b> · in-flight · 1 of 3 steps</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls</button><button type="button">Rules</button><button type="button">Tools</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">RFC 8693 §2.1</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">PingOne OIDC · loaded from BFF session</div>
+            </div></div>
+            <div class="tstep pending"><div class="card" style="cursor:default;">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">RFC 8693 §2.2</span></div>
+              <div class="skel" style="margin-top:6px;"><div class="skel-row" style="height:14px;"></div><div class="skel-row" style="height:10px; width:70%;"></div></div>
+            </div></div>
+            <div class="tstep pending"><div class="card" style="cursor:default;">
+              <div class="row1"><span class="role">Delegated MCP token</span><span class="rfc">RFC 8693 §3.2</span></div>
+              <div class="skel" style="margin-top:6px;"><div class="skel-row" style="height:14px;"></div></div>
+            </div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · HITL 428 -->
+<section class="scene-block" id="hitl">
+  <h2><b>3 · Talk</b> HITL 428 challenge — explicit consent required</h2>
+  <p class="summary">Transfer crossed <code>confirm_threshold_usd</code>. The exchange pauses; an inline consent card asks for Approve / Cancel. Token chain shows step 3 "held" — no MCP call has gone out.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · HITL 428</span><span class="tag">paused · awaiting user consent</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · waiting for you</div>
+          <h1>Wait — <i>need a tap</i> from you</h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:44 PM</div>Send $1,200 to Mortgage.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            That's above the <strong>$800 consent threshold</strong>. I've paused before calling <strong>create_transfer</strong>. Approve to release the delegated token, or cancel.
+            <div class="inline-card warn">
+              <div class="ic-title">⚠ Consent required · HTTP 428</div>
+              <div class="ic-body">
+                <strong>Transfer $1,200</strong> · Checking → Mortgage · ACR <code>Single</code> · rule <code>confirm_threshold_usd ≥ $800</code>
+              </div>
+              <div class="ic-actions">
+                <button type="button" class="primary warn">Approve ⌘↵</button>
+                <button type="button">Cancel</button>
+                <button type="button">Why is this required?</button>
+              </div>
+            </div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Resolve the request above before sending a new one…" disabled style="opacity:0.5;"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button" disabled style="opacity:0.5">/ commands</button></div>
+            <button type="button" class="send" disabled>HOLD</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>Exchange <i>held</i></h2><div class="meta"><b>04:44:10 PM</b> · paused · HITL gate</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 0</button><button type="button" style="color:var(--gold);">Rules · gate hit</button><button type="button">Tools</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">RFC 8693 §2.1</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">Available · awaiting policy decision</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">RFC 8693 §2.2</span></div>
+              <div class="name">Agent actor token</div>
+              <div class="sub">Loaded · CC grant prefetched</div>
+            </div></div>
+            <div class="tstep pending"><div class="card" style="cursor:default;">
+              <div class="row1"><span class="role">Delegated MCP token</span><span class="rfc">held · §3.2</span></div>
+              <div class="name" style="color:var(--gold);">Held by policy</div>
+              <div class="sub">Rule <code>confirm_threshold_usd ≥ $800</code> · resume on Approve</div>
+              <div class="badges" style="margin-top:8px;"><span class="badge warn">HITL 428</span><span class="badge info">$1,200 ≥ $800</span></div>
+            </div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · ERROR -->
+<section class="scene-block" id="error">
+  <h2><b>4 · Talk</b> Token exchange failed — <code>act</code> claim mismatch</h2>
+  <p class="summary">PingOne returned a token without the expected nested <code>act</code> claim. The MCP call did not go out. The failed step is rose; user gets recoverable actions.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · token error</span><span class="tag">RFC 8693 §3.2 · invalid act</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · couldn't complete</div>
+          <h1>Couldn't run that <i>safely</i></h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:45 PM</div>Pay my electric bill, $142.18.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Token exchange returned a delegated access token without the nested <code>act</code> claim — I stopped before calling MCP, so no money moved.
+            <div class="inline-card err">
+              <div class="ic-title">✕ act claim absent · TOKEN_INVALID</div>
+              <div class="ic-body">
+                The MCP server requires <code>act.sub = agent_client_id</code> to prove this token was minted for delegated use. PingOne resource policy did not emit the claim.
+              </div>
+              <div class="ic-actions">
+                <button type="button" class="primary err">Re-authenticate</button>
+                <button type="button">Open inspector</button>
+                <button type="button">Copy diagnostics</button>
+              </div>
+            </div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="You can also try a different phrasing or open the inspector…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>Exchange <i>failed</i></h2><div class="meta"><b>04:45:03 PM</b> · failed at step 3 · 341 ms</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 0</button><button type="button">Rules</button><button type="button">Tools</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">RFC 8693 §2.1</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">Loaded · 25m 11s remaining</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">RFC 8693 §2.2</span></div>
+              <div class="name">Agent actor token</div>
+              <div class="sub">Loaded · CC prefetched</div>
+            </div></div>
+            <div class="tstep fail"><div class="card" style="border-left:3px solid var(--rose);">
+              <div class="row1"><span class="role" style="color:var(--rose);">Delegated MCP token</span><span class="rfc">§3.2 · FAILED</span></div>
+              <div class="name" style="color:var(--rose);">act claim absent</div>
+              <div class="sub">Resource policy emitted a token without delegation proof.</div>
+              <div class="badges" style="margin-top:8px;"><span class="badge err">✕ act missing</span><span class="badge info">aud: mcp-server.ping.demo</span></div>
+            </div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · EMPTY -->
+<section class="scene-block" id="empty">
+  <h2><b>5 · Talk</b> Empty — no message yet</h2>
+  <p class="summary">First load of the day. Composer focused. Quick paths suggested. Narration shows what the panel WILL show, not a blank box.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · empty</span><span class="tag">fresh session</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <div class="empty">
+          <div class="e-mark">Ai</div>
+          <h3>What can I help with, <i>Demo</i>?</h3>
+          <p>Pay a bill, move money, look up a transaction. I'll narrate the auth steps as I work.</p>
+          <div class="quick">
+            <button type="button"><span class="verb">show</span> my accounts</button>
+            <button type="button"><span class="verb">transfer</span> $250 to Savings</button>
+            <button type="button"><span class="verb">deposit</span> $1,200 check</button>
+            <button type="button"><span class="verb">find</span> last month's gas spend</button>
+            <button type="button"><span class="verb">explain</span> the token chain</button>
+          </div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>Nothing to show <i>yet</i></h2><div class="meta">narration appears here after the first request</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls</button><button type="button">Rules</button><button type="button">Tools · 12</button></div>
+        <div class="narrate-body">
+          <div class="nempty">
+            <div class="ne-mark">∅</div>
+            <p><strong>Send a message</strong> and you'll see:</p>
+            <p>– The 3-token RFC 8693 chain</p>
+            <p>– Which MCP tool was called</p>
+            <p>– Any Authorize policy rules that fired</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · EXPANDED TOKEN -->
+<section class="scene-block" id="expanded">
+  <h2><b>6 · Talk</b> Expanded token detail — click any step</h2>
+  <p class="summary">Click a timeline card to expand it inline. Full claims grid, verification badges, decoded JWT preview. Click again to collapse.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · expanded token</span><span class="tag">step 3 expanded</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · last action</div>
+          <h1>Transferred <i>$250</i></h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT · 04:42 PM</div>Moved $250 from Checking to Savings. New Checking balance $3,971.04.
+            <div class="step"><span class="tag">RFC 8693</span>3 tokens · 218 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>What just <i>happened</i></h2><div class="meta"><b>04:42:18 PM</b> · oauth_bearer · 3 steps</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 1</button><button type="button">Rules</button><button type="button">Tools</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">§2.1</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">PingOne OIDC · BFF only</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">§2.2</span></div>
+              <div class="name">Agent actor token</div>
+              <div class="sub">CC grant · prefetched</div>
+            </div></div>
+            <div class="tstep done expanded"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP token</span><span class="rfc">§3.2 · click to collapse</span></div>
+              <div class="name">Result of exchange</div>
+              <div class="sub">Nested <code>act</code> claim — sent only to MCP server.</div>
+              <div class="expand">
+                <dl class="claims">
+                  <dt>iss</dt><dd>https://auth.pingone.com/…/as</dd>
+                  <dt>sub</dt><dd>4511829e-44a8-4711-8a3d-2c4b…</dd>
+                  <dt>aud</dt><dd>mcp-server.ping.demo</dd>
+                  <dt>scope</dt><dd>transfer read</dd>
+                  <dt>exp</dt><dd>04:47:18 PM (3m 47s)</dd>
+                  <dt>act.sub</dt><dd>agent.client.id.4f2c…</dd>
+                </dl>
+                <div class="badges">
+                  <span class="badge ok">✓ signature valid</span>
+                  <span class="badge ok">✓ act.sub matches agent</span>
+                  <span class="badge ok">✓ aud narrowed</span>
+                  <span class="badge info">JWKS · cached 4m</span>
+                </div>
+                <div class="jwt">
+                  <div><span class="h">{ "alg": "RS256", "kid": "abc…" }</span></div>
+                  <div><span class="p">{ "sub": "4511…", "aud": "mcp-server.ping.demo",</span></div>
+                  <div><span class="p">  "scope": "transfer read", "act": { "sub": "agent…" } }</span></div>
+                  <div><span class="s">[signature]</span></div>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- INSPECT TAB -->
+<section class="scene-block" id="inspect">
+  <h2><b>7 · Inspect</b> Full session — history, MCP calls, rule decisions</h2>
+  <p class="summary">When you switch to <strong>Inspect</strong>, the left column changes from chat to a session timeline; right keeps the timeline view but adds filters. Read-only.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Inspect · session log</span><span class="tag">read-only · last 6 messages</span></div>
+    <div class="canvas">
+      <section class="chat" style="grid-template-rows: auto 1fr;">
+        <header class="chat-head">
+          <div class="eyebrow">Inspect · session</div>
+          <h1>Last <i>6</i> exchanges</h1>
+          <p>Each row links to its message, token chain, MCP call, and any policy decisions that fired.</p>
+        </header>
+        <div class="thread log-table">
+          <div class="log-head"><span>Time</span><span>Request</span><span>Tool</span><span>Status</span></div>
+          <div class="log-row"><span>04:45:03</span><span>Pay electric, $142.18</span><span>create_transfer</span><span class="badge err">FAIL</span></div>
+          <div class="log-row"><span>04:44:10</span><span>Send $1,200 to Mortgage</span><span>create_transfer</span><span class="badge warn">HITL</span></div>
+          <div class="log-row"><span>04:43:02</span><span>Move $500 to Checking</span><span>create_transfer</span><span class="badge ok">OK · 412ms</span></div>
+          <div class="log-row"><span>04:42:18</span><span>Transfer $250 to Savings</span><span>create_transfer</span><span class="badge ok">OK · 218ms</span></div>
+          <div class="log-row"><span>04:41:55</span><span>Show last month's gas spend</span><span>get_my_transactions</span><span class="badge ok">OK · 89ms</span></div>
+          <div class="log-row"><span>04:40:12</span><span>What are my accounts?</span><span>get_my_accounts</span><span class="badge ok">OK · 64ms</span></div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head" style="padding-bottom: 10px;">
+          <div class="eyebrow">Filters</div>
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="badge info" style="border:0; cursor:pointer;">all · 6</button>
+            <button type="button" class="badge ok" style="border:0; cursor:pointer;">ok · 4</button>
+            <button type="button" class="badge warn" style="border:0; cursor:pointer;">hitl · 1</button>
+            <button type="button" class="badge err" style="border:0; cursor:pointer;">fail · 1</button>
+            <button type="button" class="badge" style="background:var(--bg-2); color:var(--muted); border:1px solid var(--rule); cursor:pointer;">tool: create_transfer ✕</button>
+          </div>
+        </div>
+        <div class="narrate-tabs"><button type="button" class="on">Activity</button><button type="button">MCP calls · 5</button><button type="button">Rules · 2 fired</button><button type="button">Tools · 12</button></div>
+        <div class="narrate-body">
+          <div class="cfg-group" style="background:var(--rose-soft); border-color:var(--rose); border-left:3px solid var(--rose); padding:10px 12px;">
+            <h4 style="color:var(--rose);">✕ 04:45 · token error</h4>
+            <div style="font-size:12px; color:var(--ink-2);">act claim absent on delegated MCP token. Click row to inspect chain.</div>
+          </div>
+          <div class="cfg-group" style="background:var(--gold-soft); border-color:#e7d3a5; border-left:3px solid var(--gold);">
+            <h4 style="color:var(--gold);">⚠ 04:44 · HITL gate fired</h4>
+            <div style="font-size:12px; color:var(--ink-2);">$1,200 ≥ confirm_threshold_usd $800 · user approved · 12.3s</div>
+          </div>
+          <div class="cfg-group">
+            <h4>Aggregate · last 6 exchanges</h4>
+            <div class="cfg-row"><span class="lbl">Average latency</span><span class="val">187 ms</span></div>
+            <div class="cfg-row"><span class="lbl">Token exchanges</span><span class="val">6</span></div>
+            <div class="cfg-row"><span class="lbl">Failures</span><span class="val" style="color:var(--rose);">1</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIGURE TAB -->
+<section class="scene-block" id="configure">
+  <h2><b>8 · Configure</b> Vertical · token policy · rules</h2>
+  <p class="summary">Theme, vertical, FF flags, Authorize rules — every setting from the old toolbar moves here. No reload, no toggle anxiety.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Configure · runtime settings</span><span class="tag">writes to configStore</span></div>
+    <div class="canvas">
+      <section class="chat" style="grid-template-rows: auto 1fr;">
+        <header class="chat-head">
+          <div class="eyebrow">Configure</div>
+          <h1>Runtime <i>knobs</i></h1>
+          <p>Every setting from the old toolbar lives here. Changes persist to configStore on save; nothing reloads.</p>
+        </header>
+        <div class="thread" style="gap:10px;">
+          <div class="cfg-group">
+            <h4><b>Vertical</b> · branding & vocabulary</h4>
+            <div class="cfg-row"><span class="lbl">Theme</span>
+              <span style="display:flex; gap:4px;">
+                <span class="val">Super Banking</span>
+                <span class="val" style="background:var(--teal); color:#fff; border-color:var(--teal);">CareConnect ✓</span>
+                <span class="val">Great Buy</span>
+                <span class="val">Super Sports</span>
+              </span>
+            </div>
+            <div class="cfg-row"><span class="lbl">Vertical persona</span><span class="val">care</span></div>
+          </div>
+          <div class="cfg-group">
+            <h4><b>Agent</b> · placement</h4>
+            <div class="cfg-row"><span class="lbl">Dashboard placement</span><span class="val" style="color:var(--teal);">Split (inline) — fixed</span></div>
+            <div class="cfg-row"><span class="lbl">Other pages</span><span class="val">FAB · existing behavior</span></div>
+            <div class="cfg-row"><span class="lbl">Always show floating FAB</span><span class="switch on"></span></div>
+          </div>
+          <div class="cfg-group">
+            <h4><b>Authorize</b> · transaction rules</h4>
+            <div class="cfg-row"><span class="lbl">Confirm threshold</span><span class="val">$800</span></div>
+            <div class="cfg-row"><span class="lbl">Step-up threshold</span><span class="val">$1,200</span></div>
+            <div class="cfg-row"><span class="lbl">Deny threshold</span><span class="val" style="color:var(--rose);">$2,000</span></div>
+          </div>
+          <div class="cfg-group">
+            <h4><b>Feature flags</b></h4>
+            <div class="cfg-row"><span class="lbl">ff_hitl_enabled</span><span class="switch on"></span></div>
+            <div class="cfg-row"><span class="lbl">ff_authorize_fail_open</span><span class="switch"></span></div>
+            <div class="cfg-row"><span class="lbl">ff_agui_enabled</span><span class="switch on"></span></div>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Live preview</div><h2>Active <i>vertical</i></h2><div class="meta"><b>CareConnect</b> · /dashboard · vertical care</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">PingOne config</button><button type="button">Vocabulary</button><button type="button">Tools allowed</button></div>
+        <div class="narrate-body">
+          <div class="cfg-group">
+            <h4><b>App identity</b></h4>
+            <div class="cfg-row"><span class="lbl">App type</span><span class="val">AI_AGENT</span></div>
+            <div class="cfg-row"><span class="lbl">Environment</span><span class="val">us-east-1 · pinglabs</span></div>
+            <div class="cfg-row"><span class="lbl">Token exchanger client</span><span class="val">agent.client.id.4f2c…</span></div>
+          </div>
+          <div class="cfg-group">
+            <h4><b>Token exchange</b></h4>
+            <div class="cfg-row"><span class="lbl">Resource (aud)</span><span class="val">mcp-server.ping.demo</span></div>
+            <div class="cfg-row"><span class="lbl">Scopes requested</span><span class="val">read write transfer</span></div>
+            <div class="cfg-row"><span class="lbl">act claim policy</span><span class="val" style="color:var(--moss);">✓ delegation-aware</span></div>
+          </div>
+          <div class="cfg-group" style="background:var(--teal-tint); border-color: var(--teal-soft); border-left:3px solid var(--teal);">
+            <h4 style="color:var(--teal);"><b>Sanity check</b></h4>
+            <div style="font-size:12px; color:var(--ink-2);">All required env vars present. <code style="font-family:'JetBrains Mono',monospace; background:#fff; padding:1px 5px; border-radius:3px; border:1px solid var(--rule);">SESSION_SECRET</code> · <code style="font-family:'JetBrains Mono',monospace; background:#fff; padding:1px 5px; border-radius:3px; border:1px solid var(--rule);">PINGONE_*</code> · <code style="font-family:'JetBrains Mono',monospace; background:#fff; padding:1px 5px; border-radius:3px; border:1px solid var(--rule);">HELIX_*</code> · act emitting on test exchange.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · SESSION EXPIRED -->
+<section class="scene-block" id="expired">
+  <h2><b>9 · Talk</b> Session expired mid-exchange — re-authenticate</h2>
+  <p class="summary">User token expired between the agent thinking and the MCP call. Session pill flips gold, step 1 of the chain shows rose, an inline re-auth card preserves the original request so the user can resume after login.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · session expired</span><span class="tag">user_token exp · request preserved</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · paused</div>
+          <h1>Your session <i>just expired</i></h1>
+          <p>Re-authenticate and I'll pick up where you left off — your request is held, not lost.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:46 PM</div>Deposit my paycheck — $3,200.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Your user token expired before I could finish the exchange. Sign back in and I'll resume <strong>create_deposit</strong> automatically — no need to retype.
+            <div class="inline-card warn">
+              <div class="ic-title">⚠ Session expired · 401 from PingOne</div>
+              <div class="ic-body">
+                User token <code>exp</code> was reached 4 s ago. Held request: <strong>deposit $3,200</strong> · Payroll → Checking. I'll replay after sign-in.
+              </div>
+              <div class="ic-actions">
+                <button type="button" class="primary warn">Re-authenticate ⌘↵</button>
+                <button type="button">Cancel held request</button>
+                <button type="button">Why did this happen?</button>
+              </div>
+            </div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Sign back in above to keep going…" disabled style="opacity:0.5;"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button" disabled style="opacity:0.5">/ commands</button></div>
+            <button type="button" class="send" disabled>SIGN IN FIRST</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head">
+          <div class="eyebrow" style="color:var(--gold);">Audit timeline · session warning</div>
+          <h2>User token <i>expired</i></h2>
+          <div class="meta"><b>04:46:02 PM</b> · halted at step 1 · request preserved</div>
+        </div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 0</button><button type="button">Rules</button><button type="button">Tools</button></div>
+        <div class="narrate-body">
+          <div class="timeline">
+            <div class="tstep fail"><div class="card" style="border-left:3px solid var(--rose);">
+              <div class="row1"><span class="role" style="color:var(--rose);">Subject token</span><span class="rfc">§2.1 · EXPIRED</span></div>
+              <div class="name" style="color:var(--rose);">User access token — expired</div>
+              <div class="sub">Issued 30:04 ago · <code>exp</code> reached at 04:45:58 PM. Refresh requires user sign-in.</div>
+              <div class="badges" style="margin-top:8px;"><span class="badge err">✕ exp reached</span><span class="badge warn">401 from PingOne</span></div>
+            </div></div>
+            <div class="tstep pending"><div class="card" style="cursor:default;">
+              <div class="row1"><span class="role">Actor token</span><span class="rfc">RFC 8693 §2.2</span></div>
+              <div class="name">Skipped</div>
+              <div class="sub">Exchange aborted — no subject token to act on.</div>
+            </div></div>
+            <div class="tstep pending"><div class="card" style="cursor:default;">
+              <div class="row1"><span class="role">Delegated MCP token</span><span class="rfc">RFC 8693 §3.2</span></div>
+              <div class="name">Skipped</div>
+              <div class="sub">Will be re-attempted after re-authentication.</div>
+            </div></div>
+          </div>
+          <div class="cfg-group" style="margin-top:12px; background:var(--gold-soft); border-color:#e7d3a5; border-left:3px solid var(--gold);">
+            <h4 style="color:var(--gold);">Held request · resume after sign-in</h4>
+            <div class="cfg-row"><span class="lbl">Tool</span><span class="val">create_deposit</span></div>
+            <div class="cfg-row"><span class="lbl">Amount</span><span class="val">$3,200.00</span></div>
+            <div class="cfg-row"><span class="lbl">From / to</span><span class="val">Payroll → Checking</span></div>
+            <div class="cfg-row"><span class="lbl">Preserved at</span><span class="val">04:46:02 PM</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · MULTI-TOOL CHAIN -->
+<section class="scene-block" id="chained">
+  <h2><b>10 · Talk</b> Multi-tool chained call — one prompt, three MCP calls</h2>
+  <p class="summary">"Pay my electric bill" requires three tools: look up accounts (so the agent knows the bill-pay payee), check recent transactions (to confirm the amount), then create the transfer. Timeline shows each MCP call as its own group with shared subject + actor tokens but distinct delegated tokens.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · multi-tool chain</span><span class="tag">1 prompt · 3 tools · 3 delegated tokens</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · chained call</div>
+          <h1>Three calls, <i>one job</i></h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:47 PM</div>Pay my electric bill.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Looked up your accounts, found PG&amp;E's last bill ($142.18), and transferred from Checking. Three tools, one delegated token per call, all logged on the right.
+            <div class="step"><span class="tag">3 calls</span>get_my_accounts → get_my_transactions → create_transfer · 612 ms total</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask again in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline</div><h2>What just <i>happened</i></h2><div class="meta"><b>04:47:14 PM</b> · 3 MCP calls · 612 ms</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 3</button><button type="button">Rules</button><button type="button">Tools · 12</button></div>
+        <div class="narrate-body">
+
+          <!-- Call 1 -->
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Call 1 of 3 · <span style="color:var(--ink);">get_my_accounts</span> · 89 ms</div>
+          <div class="timeline" style="margin-bottom:14px;">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">§2.1 · reused</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">Loaded once · reused across all 3 calls</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP</span><span class="rfc">§3.2 · scope: read</span></div>
+              <div class="name">aud: mcp-server.ping.demo</div>
+              <div class="sub">Result of exchange #1</div>
+            </div></div>
+          </div>
+
+          <!-- Call 2 -->
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Call 2 of 3 · <span style="color:var(--ink);">get_my_transactions</span> · 102 ms</div>
+          <div class="timeline" style="margin-bottom:14px;">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP</span><span class="rfc">§3.2 · scope: read</span></div>
+              <div class="name">aud: mcp-server.ping.demo</div>
+              <div class="sub">Result of exchange #2 · new token, same actor</div>
+            </div></div>
+          </div>
+
+          <!-- Call 3 -->
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Call 3 of 3 · <span style="color:var(--ink);">create_transfer</span> · 421 ms</div>
+          <div class="timeline">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP</span><span class="rfc">§3.2 · scope: transfer</span></div>
+              <div class="name">aud: mcp-server.ping.demo</div>
+              <div class="sub">Result of exchange #3 · scope narrowed for write</div>
+              <div class="badges" style="margin-top:8px;"><span class="badge info">$142.18 &lt; $800 (no HITL)</span><span class="badge ok">✓ act valid</span></div>
+            </div></div>
+          </div>
+
+          <div style="margin-top:14px; padding:10px 12px; background:var(--teal-tint); border:1px solid var(--teal-soft); border-radius:6px; font-size:12px; color:var(--ink-2);">
+            <strong style="color:var(--teal); font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase;">Why three tokens?</strong><br>
+            Each MCP call gets its own scope-narrowed delegated token. Subject + actor are reused; only the result token is minted fresh. Audit-trail: one row per tool call, never a single fat token spanning multiple writes.
+          </div>
+
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- TALK · REALISTIC THREAD -->
+<section class="scene-block" id="realistic">
+  <h2><b>11 · Talk</b> Realistic thread — 7 messages, real density</h2>
+  <p class="summary">Demonstrates how the layout scales with a real conversation. Each round-trip adds a token-chain group on the right; the most recent is expanded, older ones collapse to compact headers.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Talk · realistic thread</span><span class="tag">7 messages · 4 tool calls · 22 min</span></div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head" style="padding-bottom:8px;">
+          <div class="eyebrow">Assistant · session 25:54</div>
+          <h1>Conversation in <i>progress</i></h1>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:25 PM</div>What are my balances?
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>Checking <strong>$3,971.04</strong> · Savings <strong>$19,963.58</strong> · Credit (statement) <strong>−$842.10</strong>.
+            <div class="step"><span class="tag">RFC 8693</span>get_my_accounts · 64 ms</div>
+          </div></div>
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:28 PM</div>How much did I spend on gas last month?
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>$184.32 across 5 transactions at gas stations in April. Largest: Chevron, $52.40 on April 19.
+            <div class="step"><span class="tag">RFC 8693</span>get_my_transactions · 89 ms</div>
+          </div></div>
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:34 PM</div>Move $500 to Savings.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>Moved <strong>$500</strong> from Checking to Savings. New Checking balance $3,471.04.
+            <div class="step"><span class="tag">RFC 8693</span>create_transfer · 218 ms</div>
+          </div></div>
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:47 PM</div>Pay my electric bill.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Done — $142.18 to PG&amp;E from Checking. Took three tools and three delegated tokens (look-up, balance check, transfer).
+            <div class="step"><span class="tag">3 calls</span>get_my_accounts → get_my_transactions → create_transfer · 612 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="What's next?"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">Audit timeline · 4 exchanges</div><h2>Session <i>so far</i></h2><div class="meta"><b>04:47:14 PM</b> · 6 tokens issued · 612 ms last call</div></div>
+        <div class="narrate-tabs"><button type="button" class="on">Token chain</button><button type="button">MCP calls · 6</button><button type="button">Rules</button><button type="button">Tools · 12</button></div>
+        <div class="narrate-body">
+
+          <!-- Most recent — expanded -->
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">04:47 · pay electric · 3 calls</div>
+          <div class="timeline" style="margin-bottom:14px;">
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Subject token</span><span class="rfc">§2.1 · reused</span></div>
+              <div class="name">User access token</div>
+              <div class="sub">Loaded once · reused</div>
+            </div></div>
+            <div class="tstep done"><div class="card">
+              <div class="row1"><span class="role">Delegated MCP</span><span class="rfc">§3.2 · transfer</span></div>
+              <div class="name">create_transfer · 421 ms</div>
+            </div></div>
+          </div>
+
+          <!-- Older — collapsed headers -->
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); margin-bottom:4px;">
+            <div style="display:flex; justify-content:space-between; padding:6px 10px; background:#fff; border:1px solid var(--rule); border-radius:5px; margin-bottom:4px; cursor:pointer;">
+              <span><b style="color:var(--ink); letter-spacing:0.04em;">04:34</b> · move $500</span>
+              <span class="badge ok">OK · 218ms</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 10px; background:#fff; border:1px solid var(--rule); border-radius:5px; margin-bottom:4px; cursor:pointer;">
+              <span><b style="color:var(--ink); letter-spacing:0.04em;">04:28</b> · gas spend lookup</span>
+              <span class="badge ok">OK · 89ms</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 10px; background:#fff; border:1px solid var(--rule); border-radius:5px; cursor:pointer;">
+              <span><b style="color:var(--ink); letter-spacing:0.04em;">04:25</b> · balances</span>
+              <span class="badge ok">OK · 64ms</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; padding:10px 12px; background:var(--bg-2); border:1px solid var(--rule); border-radius:6px; font-size:11.5px; color:var(--muted); text-align:center;">
+            <strong style="color:var(--ink-2);">4 of 4 shown</strong> · expand any row to see its token chain
+          </div>
+
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- MOBILE / NARROW VIEWPORT -->
+<section class="scene-block" id="mobile">
+  <h2><b>12 · Mobile</b> Narrow viewport — stacked, segmented chat/timeline</h2>
+  <p class="summary">Under 768 px the split canvas stacks. The 3-tab rail (Talk/Inspect/Configure) stays as-is. Inside Talk, a second segmented control lets the user toggle between <strong>Chat</strong> and <strong>Timeline</strong> — both views still present, never two columns squashed.</p>
+  <div class="scene-frame">
+    <div class="scene-title"><span class="name">Mobile · 390 × 800 (iPhone-class)</span><span class="tag">stacked · chat view</span></div>
+    <div style="display:flex; gap:24px; padding:20px; background: var(--bg-2); align-items:flex-start; justify-content:center;">
+
+      <!-- Phone 1: Chat view -->
+      <div style="width:390px; flex-shrink:0; background:#fff; border:1px solid var(--rule); border-radius:18px; overflow:hidden; box-shadow: 0 8px 24px -12px rgba(14,26,43,0.18);">
+        <!-- Mobile rail -->
+        <div style="height:38px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--rule);">
+          <div class="brand" style="font-size:15px;">Care<em>Connect</em></div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span class="session" style="font-size:10px; padding:3px 7px;"><span class="led"></span>25:54</span>
+            <span class="avatar" style="width:22px; height:22px; font-size:10px;">DU</span>
+          </div>
+        </div>
+        <!-- Talk/Inspect/Configure top-level tabs -->
+        <div style="display:flex; padding:6px 10px; gap:4px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+          <button type="button" style="flex:1; background:#fff; border:1px solid var(--rule); border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--ink); cursor:pointer; font-weight:600;">▣ Talk</button>
+          <button type="button" style="flex:1; background:transparent; border:1px solid transparent; border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); cursor:pointer;">◇ Inspect</button>
+          <button type="button" style="flex:1; background:transparent; border:1px solid transparent; border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); cursor:pointer;">⊞ Configure</button>
+        </div>
+        <!-- Chat / Timeline toggle (mobile-only) -->
+        <div style="display:flex; padding:8px 10px; gap:6px; border-bottom:1px solid var(--rule); background:#fff;">
+          <button type="button" style="flex:1; background:var(--ink); color:#fff; border:0; border-radius:5px; padding:7px; font-family:'JetBrains Mono', monospace; font-size:10.5px; cursor:pointer; font-weight:600; letter-spacing:0.04em;">CHAT</button>
+          <button type="button" style="flex:1; background:#fff; color:var(--ink); border:1px solid var(--rule); border-radius:5px; padding:7px; font-family:'JetBrains Mono', monospace; font-size:10.5px; cursor:pointer; letter-spacing:0.04em;">TIMELINE · 3</button>
+        </div>
+        <!-- Chat body -->
+        <div style="padding:14px 14px 8px;">
+          <div class="eyebrow" style="font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600;">Assistant · care</div>
+          <h1 style="font-family:'Crimson Pro', serif; font-weight:500; font-size:22px; line-height:1.1; letter-spacing:-0.012em; margin:4px 0 0;">How can I help, <i style="font-style:italic; color:var(--teal); font-weight:400;">Demo</i>?</h1>
+        </div>
+        <div style="padding:8px 14px; display:flex; flex-direction:column; gap:10px;">
+          <div class="msg" style="grid-template-columns: 22px 1fr; gap:8px;">
+            <div class="av you" style="width:22px; height:22px; font-size:9px;">DU</div>
+            <div class="bubble" style="font-size:12.5px;"><div class="who" style="font-size:9.5px;">YOU · 04:42</div>Transfer $250 from Checking to Savings.</div>
+          </div>
+          <div class="msg" style="grid-template-columns: 22px 1fr; gap:8px;">
+            <div class="av ai" style="width:22px; height:22px; font-size:9px;">Ai</div>
+            <div class="bubble" style="font-size:12.5px;"><div class="who" style="font-size:9.5px;">ASSISTANT</div>Done. New Checking balance <strong>$3,971.04</strong>.
+              <div class="step" style="font-size:10.5px;"><span class="tag" style="font-size:9px;">RFC 8693</span>3 tokens · 218 ms</div>
+            </div>
+          </div>
+        </div>
+        <div class="composer" style="margin:10px 12px 12px; padding:8px 10px 6px;">
+          <textarea placeholder="Ask in plain language…" style="font-size:13px; min-height:34px;"></textarea>
+          <div class="composer-foot" style="font-size:10px;">
+            <div class="tools"><button type="button" style="font-size:9.5px;">/ cmd</button></div>
+            <button type="button" class="send" style="font-size:10px; padding:5px 9px;">SEND</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone 2: Timeline view -->
+      <div style="width:390px; flex-shrink:0; background:#fff; border:1px solid var(--rule); border-radius:18px; overflow:hidden; box-shadow: 0 8px 24px -12px rgba(14,26,43,0.18);">
+        <div style="height:38px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--rule);">
+          <div class="brand" style="font-size:15px;">Care<em>Connect</em></div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span class="session" style="font-size:10px; padding:3px 7px;"><span class="led"></span>25:54</span>
+            <span class="avatar" style="width:22px; height:22px; font-size:10px;">DU</span>
+          </div>
+        </div>
+        <div style="display:flex; padding:6px 10px; gap:4px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+          <button type="button" style="flex:1; background:#fff; border:1px solid var(--rule); border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--ink); cursor:pointer; font-weight:600;">▣ Talk</button>
+          <button type="button" style="flex:1; background:transparent; border:1px solid transparent; border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); cursor:pointer;">◇ Inspect</button>
+          <button type="button" style="flex:1; background:transparent; border:1px solid transparent; border-radius:5px; padding:5px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); cursor:pointer;">⊞ Configure</button>
+        </div>
+        <div style="display:flex; padding:8px 10px; gap:6px; border-bottom:1px solid var(--rule); background:#fff;">
+          <button type="button" style="flex:1; background:#fff; color:var(--ink); border:1px solid var(--rule); border-radius:5px; padding:7px; font-family:'JetBrains Mono', monospace; font-size:10.5px; cursor:pointer; letter-spacing:0.04em;">CHAT</button>
+          <button type="button" style="flex:1; background:var(--ink); color:#fff; border:0; border-radius:5px; padding:7px; font-family:'JetBrains Mono', monospace; font-size:10.5px; cursor:pointer; font-weight:600; letter-spacing:0.04em;">TIMELINE · 3</button>
+        </div>
+        <!-- Timeline body -->
+        <div style="padding:14px 14px 8px;">
+          <div class="eyebrow" style="font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600;">Audit timeline</div>
+          <h1 style="font-family:'Crimson Pro', serif; font-weight:500; font-size:20px; line-height:1.1; letter-spacing:-0.012em; margin:4px 0 0;">What just <i style="font-style:italic; color:var(--teal); font-weight:400;">happened</i></h1>
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); margin-top:4px;"><b style="color:var(--ink); font-weight:500;">04:42:18 PM</b> · 3 steps · 218 ms</div>
+        </div>
+        <div style="padding:8px 14px 16px;">
+          <div class="timeline">
+            <div class="tstep done"><div class="card" style="padding:8px 11px;">
+              <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Subject</span><span class="rfc" style="font-size:9px;">§2.1</span></div>
+              <div class="name" style="font-size:12px;">User access token</div>
+              <div class="sub" style="font-size:10.5px;">PingOne OIDC · BFF only</div>
+            </div></div>
+            <div class="tstep done"><div class="card" style="padding:8px 11px;">
+              <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Actor</span><span class="rfc" style="font-size:9px;">§2.2</span></div>
+              <div class="name" style="font-size:12px;">Agent actor (CC)</div>
+              <div class="sub" style="font-size:10.5px;">Client credentials · prefetched</div>
+            </div></div>
+            <div class="tstep done"><div class="card" style="padding:8px 11px;">
+              <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Delegated</span><span class="rfc" style="font-size:9px;">§3.2</span></div>
+              <div class="name" style="font-size:12px;">Result of exchange</div>
+              <div class="sub" style="font-size:10.5px;">Nested <code style="font-size:10px;">act</code> · MCP only</div>
+              <div class="badges" style="margin-top:6px;"><span class="badge ok" style="font-size:8.5px;">✓ act valid</span></div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div style="padding:14px 18px 18px; font-size:12.5px; color:var(--muted); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Two phones, two views.</strong> Same Talk tab, just toggled — <strong>Chat</strong> shows the conversation, <strong>Timeline · 3</strong> shows the same token chain that lives in the right column on desktop. No information is hidden behind a hamburger; nothing is squashed into a half-width split. Inspect and Configure tabs follow the same pattern.
+    </div>
+  </div>
+</section>
+
+<!-- FAB + INLINE COEXISTENCE -->
+<section class="scene-block" id="fab-coexist">
+  <h2><b>13 · Coexistence</b> Inline + FAB at the same time</h2>
+  <p class="summary">User has <code>fab: true</code> AND is on <code>/dashboard</code> where the inline split is the host. Three behaviors for the FAB are sensible — pick one. All three are shown below with the same Demo User session.</p>
+
+  <!-- Mode A — Mirror -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Mode A · <span style="color:var(--teal);">Mirror</span></span>
+      <span class="tag">FAB opens a popover with the same thread · two surfaces, one conversation</span>
+    </div>
+    <div style="position:relative; min-height:420px; background:var(--bg-2);">
+      <!-- background: the inline split, compressed -->
+      <div class="canvas" style="grid-template-columns: 1.35fr 1fr; min-height: 420px;">
+        <section class="chat" style="min-height: 420px;">
+          <header class="chat-head" style="padding:18px 22px 6px;">
+            <div class="eyebrow">Assistant · /dashboard</div>
+            <h1 style="font-size:22px;">Inline agent <i>active</i></h1>
+            <p style="font-size:12.5px;">The full split-canvas is here. The FAB is a second access point — same chat thread, same token chain.</p>
+          </header>
+          <div class="thread" style="padding:10px 22px;">
+            <div class="msg"><div class="av you">DU</div><div class="bubble" style="font-size:12.5px;"><div class="who">YOU · 04:42</div>Transfer $250 to Savings.</div></div>
+            <div class="msg"><div class="av ai">Ai</div><div class="bubble" style="font-size:12.5px;"><div class="who">ASSISTANT</div>Done. New Checking balance <strong>$3,971.04</strong>.</div></div>
+          </div>
+          <div class="composer" style="margin:8px 16px 14px;"><textarea style="min-height:32px; font-size:13px;" placeholder="Type here or use the FAB →"></textarea><div class="composer-foot" style="margin-top:2px;"><div class="tools"><button type="button" style="font-size:10px;">/ cmd</button></div><button type="button" class="send" style="font-size:10px; padding:4px 9px;">SEND</button></div></div>
+        </section>
+        <aside class="narrate" style="min-height:420px;">
+          <div class="narrate-head" style="padding:12px 18px 6px;"><div class="eyebrow" style="font-size:10px;">Live</div><h2 style="font-size:15px;">What just <i>happened</i></h2></div>
+          <div class="narrate-body" style="padding:10px 18px;">
+            <div class="timeline">
+              <div class="tstep done"><div class="card" style="padding:7px 10px;"><div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Subject</span><span class="rfc" style="font-size:9px;">§2.1</span></div><div class="name" style="font-size:12px;">User token</div></div></div>
+              <div class="tstep done"><div class="card" style="padding:7px 10px;"><div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Actor</span><span class="rfc" style="font-size:9px;">§2.2</span></div><div class="name" style="font-size:12px;">Agent actor</div></div></div>
+              <div class="tstep done"><div class="card" style="padding:7px 10px;"><div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Delegated</span><span class="rfc" style="font-size:9px;">§3.2</span></div><div class="name" style="font-size:12px;">MCP token</div></div></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- FAB popover floating bottom-right -->
+      <div style="position:absolute; bottom:18px; right:18px; width:320px; background:#fff; border:1px solid var(--rule); border-radius:14px; box-shadow: 0 24px 48px -16px rgba(14,26,43,0.25); overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="avatar" style="width:22px; height:22px; font-size:10px;">Ai</span>
+            <span style="font-family:'Crimson Pro', serif; font-size:14px;">CareConnect <i style="color:var(--teal);">popover</i></span>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted);">
+            <span title="Mirroring inline thread" style="display:inline-flex; gap:4px; align-items:center; color:var(--teal); font-weight:600;"><span style="width:5px; height:5px; border-radius:50%; background:var(--teal);"></span> SYNCED</span>
+            <span style="color:var(--rule-2);">|</span>
+            <span>↗</span>
+            <span>✕</span>
+          </div>
+        </div>
+        <div style="padding:12px 14px 8px;">
+          <div class="msg" style="grid-template-columns: 22px 1fr; gap:8px; margin-bottom:8px;">
+            <div class="av ai" style="width:22px; height:22px; font-size:9px;">Ai</div>
+            <div class="bubble" style="font-size:12px;"><div class="who" style="font-size:9.5px;">04:42</div>Done. <strong>$3,971.04</strong>.</div>
+          </div>
+          <div style="background:var(--teal-tint); border:1px solid var(--teal-soft); border-radius:5px; padding:6px 9px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); text-align:center; margin-bottom:8px;">
+            ↑ same thread as the inline split · type here OR there
+          </div>
+        </div>
+        <div class="composer" style="margin:0 12px 12px; padding:7px 10px 6px;">
+          <textarea placeholder="Ask…" style="font-size:12px; min-height:26px;"></textarea>
+          <div class="composer-foot" style="margin-top:2px;">
+            <div class="tools"><button type="button" style="font-size:9.5px;">/ cmd</button></div>
+            <button type="button" class="send" style="font-size:10px; padding:4px 8px;">SEND</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Mode A · Mirror.</strong> Both surfaces are live and bound to the same chat state. Typing in either advances the same thread; the token chain updates in both views. The "SYNCED" indicator in the popover header makes the relationship explicit. Best for users who want a persistent agent visible while they navigate banking content but occasionally want to scroll back to the full split.
+    </div>
+  </div>
+
+  <!-- Mode B — Teleport -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Mode B · <span style="color:var(--teal);">Teleport</span></span>
+      <span class="tag">FAB scrolls to the inline agent on /dashboard · opens popover elsewhere</span>
+    </div>
+    <div style="position:relative; min-height:420px; background:var(--bg-2);">
+      <div class="canvas" style="grid-template-columns: 1.35fr 1fr; min-height: 420px;">
+        <section class="chat" style="min-height: 420px;">
+          <header class="chat-head" style="padding:18px 22px 6px;">
+            <div class="eyebrow">Assistant · /dashboard</div>
+            <h1 style="font-size:22px;">Inline agent <i>is the agent</i></h1>
+            <p style="font-size:12.5px;">On /dashboard, the FAB is purely a "jump to agent" button. No second surface to keep in sync.</p>
+          </header>
+          <div class="thread" style="padding:10px 22px;">
+            <div class="msg"><div class="av ai">Ai</div><div class="bubble" style="font-size:12.5px;"><div class="who">ASSISTANT · 04:42</div>Transferred $250 to Savings. New Checking balance <strong>$3,971.04</strong>.</div></div>
+          </div>
+          <div class="composer" style="margin:8px 16px 14px;"><textarea style="min-height:32px; font-size:13px;" placeholder="The only place to type on /dashboard"></textarea><div class="composer-foot" style="margin-top:2px;"><div class="tools"><button type="button" style="font-size:10px;">/ cmd</button></div><button type="button" class="send" style="font-size:10px; padding:4px 9px;">SEND</button></div></div>
+        </section>
+        <aside class="narrate" style="min-height:420px;">
+          <div class="narrate-head" style="padding:12px 18px 6px;"><div class="eyebrow" style="font-size:10px;">Live</div><h2 style="font-size:15px;">What just <i>happened</i></h2></div>
+          <div class="narrate-body" style="padding:10px 18px;">
+            <div class="timeline">
+              <div class="tstep done"><div class="card" style="padding:7px 10px;"><div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Delegated</span><span class="rfc" style="font-size:9px;">§3.2</span></div><div class="name" style="font-size:12px;">MCP token</div></div></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Small "scroll-to" FAB -->
+      <div style="position:absolute; bottom:24px; right:24px;">
+        <button type="button" style="position:relative; width:52px; height:52px; border-radius:50%; background:var(--ink); border:0; color:#fff; cursor:pointer; box-shadow: 0 12px 28px -8px rgba(14,26,43,0.4); display:inline-flex; align-items:center; justify-content:center;">
+          <span style="font-family:'Crimson Pro', serif; font-style:italic; font-size:18px;">Ai</span>
+          <span style="position:absolute; top:-3px; right:-3px; width:14px; height:14px; border-radius:50%; background:var(--teal); border:2px solid #fff; font-size:9px; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:700;">↑</span>
+        </button>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:9px; color:var(--muted); margin-top:6px; text-align:center; letter-spacing:0.04em;">SCROLL TO AGENT</div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Mode B · Teleport.</strong> No state sync, no popover surface on dashboard. The FAB's only job here is to scroll the page back to the inline agent if the user has scrolled away. The arrow badge replaces the dot to communicate "click to jump." On <code>/admin</code>, <code>/marketing</code>, <code>/configure</code> it reverts to the full popover behavior shown elsewhere in this design.<br><br>
+      <strong>Simplest implementation</strong> — no dual-surface state machine, no "synced" indicator complexity. Recommended unless a strong use case for Mode A surfaces.
+    </div>
+  </div>
+
+  <!-- Mode C — Notifier -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Mode C · <span style="color:var(--teal);">Notifier</span></span>
+      <span class="tag">FAB shows latest result + jump-to-inspect · no chat surface</span>
+    </div>
+    <div style="position:relative; min-height:420px; background:var(--bg-2);">
+      <div class="canvas" style="grid-template-columns: 1.35fr 1fr; min-height: 420px;">
+        <section class="chat" style="min-height: 420px;">
+          <header class="chat-head" style="padding:18px 22px 6px;">
+            <div class="eyebrow">Assistant · /dashboard</div>
+            <h1 style="font-size:22px;">Inline agent <i>owns chat</i></h1>
+            <p style="font-size:12.5px;">FAB is a status/notification surface — most recent result, links to inspect. Click to expand into a fuller notification panel, not a chat.</p>
+          </header>
+          <div class="thread" style="padding:10px 22px;">
+            <div class="msg"><div class="av ai">Ai</div><div class="bubble" style="font-size:12.5px;"><div class="who">ASSISTANT · 04:42</div>Transferred $250 to Savings.</div></div>
+          </div>
+          <div class="composer" style="margin:8px 16px 14px;"><textarea style="min-height:32px; font-size:13px;" placeholder="Chat only happens here…"></textarea><div class="composer-foot" style="margin-top:2px;"><div class="tools"><button type="button" style="font-size:10px;">/ cmd</button></div><button type="button" class="send" style="font-size:10px; padding:4px 9px;">SEND</button></div></div>
+        </section>
+        <aside class="narrate" style="min-height:420px;">
+          <div class="narrate-head" style="padding:12px 18px 6px;"><div class="eyebrow" style="font-size:10px;">Live</div><h2 style="font-size:15px;">What just <i>happened</i></h2></div>
+          <div class="narrate-body" style="padding:10px 18px;">
+            <div class="timeline">
+              <div class="tstep done"><div class="card" style="padding:7px 10px;"><div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Delegated</span><span class="rfc" style="font-size:9px;">§3.2</span></div><div class="name" style="font-size:12px;">MCP token</div></div></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Notification popover -->
+      <div style="position:absolute; bottom:18px; right:18px; width:280px; background:#fff; border:1px solid var(--rule); border-radius:14px; box-shadow: 0 24px 48px -16px rgba(14,26,43,0.25); overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+          <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:600;">Latest result</span>
+          <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted);">04:42 PM</span>
+        </div>
+        <div style="padding:12px;">
+          <div style="display:flex; gap:8px; align-items:flex-start;">
+            <span style="width:22px; height:22px; border-radius:50%; background:var(--moss-soft); color:var(--moss); display:inline-flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;">✓</span>
+            <div style="font-size:12.5px; color:var(--ink-2); line-height:1.45;">
+              <strong style="color:var(--ink);">Transferred $250</strong> · Checking → Savings · 218 ms
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:10px;">
+            <button type="button" style="flex:1; background:var(--ink); color:#fff; border:0; border-radius:5px; padding:6px; font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:600; letter-spacing:0.04em; cursor:pointer;">VIEW IN INSPECT</button>
+            <button type="button" style="background:#fff; color:var(--ink); border:1px solid var(--rule); border-radius:5px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:10px; cursor:pointer;">DISMISS</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Mode C · Notifier.</strong> FAB is not a chat surface at all — it's a system-tray-style result indicator. Most recent tool result, link to the Inspect tab for the full audit. Good if the dashboard already has the full agent and the FAB's job is "let me see the last thing without scrolling back." Worst for users who actually want to ask another question without scrolling.
+    </div>
+  </div>
+
+  <!-- Recommendation -->
+  <div style="margin: 18px 18px 0; padding: 16px 20px; background: var(--teal-tint); border: 1px solid var(--teal-soft); border-left: 3px solid var(--teal); border-radius: 6px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Recommendation</div>
+    <div style="font-size:13.5px; color:var(--ink-2); line-height:1.55;">
+      <strong>Mode B (Teleport)</strong> for v1. It's the cheapest to build (no dual-state machine, no sync indicator), the easiest to explain ("the FAB takes you to the agent"), and degrades gracefully — on non-dashboard routes it becomes the existing popover behavior with no design change.
+      <br><br>
+      <strong>Mode A (Mirror)</strong> is genuinely useful if users are expected to keep the agent in view while scrolling down to read transactions or activity below the fold. Defer to v1.1 if usage data shows that's the actual behavior.
+      <br><br>
+      <strong>Mode C (Notifier)</strong> is the riskiest — it solves a different problem (notifications) using a control that users will read as "chat." Skip unless there's a strong product reason.
+    </div>
+  </div>
+</section>
+
+<!-- FLOAT-MODE REFLOW -->
+<section class="scene-block" id="float-mode">
+  <h2><b>14 · Float mode</b> What /dashboard looks like with placement = Floating</h2>
+  <p class="summary">User picked <strong>Floating</strong> in Configure tab → Agent placement. The inline split-canvas is gone; the FAB is the agent. Three options for what the dashboard reflows to, sharing the same demo content: balance cards + recent activity.</p>
+
+  <!-- Option A: Banking reclaims the space -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Option A · <span style="color:var(--teal);">Banking reclaims the space</span></span>
+      <span class="tag">No agent chrome on dashboard · FAB only · banking-first</span>
+    </div>
+    <div style="background:var(--bg); min-height:460px;">
+      <!-- compressed rail (no Talk/Inspect/Configure since there's no agent host) -->
+      <div style="height:40px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--rule); background:#fff; font-size:11.5px;">
+        <div class="brand" style="font-size:17px;">Care<em>Connect</em></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="session" style="font-size:10.5px; padding:3px 8px;"><span class="led"></span>25:54</span>
+          <button type="button" class="icn" title="Search ⌘K">⌕</button>
+          <span class="avatar" style="width:24px; height:24px; font-size:10px;">DU</span>
+        </div>
+      </div>
+
+      <!-- banking dashboard content -->
+      <div style="padding:24px 28px; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:end; margin-bottom:18px;">
+          <div>
+            <div class="eyebrow" style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">customer dashboard</div>
+            <h1 style="font-family:'Crimson Pro', serif; font-weight:500; font-size:28px; margin:0; letter-spacing:-0.015em;">Good afternoon, <i style="color:var(--teal); font-style:italic; font-weight:400;">Demo</i></h1>
+          </div>
+        </div>
+
+        <!-- balances row -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+          <div style="background:var(--ink); color:#fff; border-radius:10px; padding:16px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; opacity:0.65; margin-bottom:6px;">Total balance</div>
+            <div style="font-family:'Crimson Pro', serif; font-size:26px; font-weight:500; letter-spacing:-0.01em;">$24,184.62</div>
+            <div style="font-size:11.5px; opacity:0.65; margin-top:2px;">3 accounts</div>
+          </div>
+          <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; padding:16px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px;">Checking</div>
+            <div style="font-family:'Crimson Pro', serif; font-size:26px; font-weight:500;">$3,971.04</div>
+            <div style="font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono', monospace; margin-top:2px;">···4422</div>
+          </div>
+          <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; padding:16px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px;">Savings</div>
+            <div style="font-family:'Crimson Pro', serif; font-size:26px; font-weight:500;">$19,963.58</div>
+            <div style="font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono', monospace; margin-top:2px;">···8810</div>
+          </div>
+        </div>
+
+        <!-- activity -->
+        <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; overflow:hidden;">
+          <div style="padding:12px 16px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:13px;">Recent activity</strong>
+            <span style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted);">LAST 7 DAYS</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 100px 110px; padding:9px 16px; border-bottom:1px solid var(--rule); font-size:12.5px;"><span>Whole Foods Market</span><span style="color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:11px;">May 27</span><span style="text-align:right; font-family:'JetBrains Mono', monospace;">−$84.22</span></div>
+          <div style="display:grid; grid-template-columns:1fr 100px 110px; padding:9px 16px; border-bottom:1px solid var(--rule); font-size:12.5px;"><span>Direct deposit · Payroll</span><span style="color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:11px;">May 26</span><span style="text-align:right; font-family:'JetBrains Mono', monospace; color:var(--moss);">+$3,200.00</span></div>
+          <div style="display:grid; grid-template-columns:1fr 100px 110px; padding:9px 16px; font-size:12.5px;"><span>Transfer to Savings</span><span style="color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:11px;">May 24</span><span style="text-align:right; font-family:'JetBrains Mono', monospace; color:var(--teal);">+$500.00</span></div>
+        </div>
+
+        <!-- Open FAB popover with Chat | Token chain tabs -->
+        <div style="position:absolute; bottom:20px; right:28px; width:380px; background:#fff; border:1px solid var(--rule); border-radius:14px; box-shadow: 0 28px 56px -16px rgba(14,26,43,0.28); overflow:hidden;">
+          <!-- Popover header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="avatar" style="width:22px; height:22px; font-size:10px;">Ai</span>
+              <span style="font-family:'Crimson Pro', serif; font-size:14px;">CareConnect</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:10px;">
+              <span>⌘K</span><span>↗</span><span>⋯</span><span>✕</span>
+            </div>
+          </div>
+          <!-- Chat | Token chain tabs INSIDE the FAB -->
+          <div style="display:flex; padding:0 14px; border-bottom:1px solid var(--rule); font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted);">
+            <button type="button" style="background:transparent; border:0; color:var(--teal); padding:10px 0; margin-right:18px; cursor:pointer; border-bottom:2px solid var(--teal); margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">Chat</button>
+            <button type="button" style="background:transparent; border:0; color:var(--muted); padding:10px 0; margin-right:18px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em;">Token chain · 3</button>
+            <button type="button" style="background:transparent; border:0; color:var(--muted); padding:10px 0; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em;">Rules</button>
+          </div>
+          <!-- Chat tab body -->
+          <div style="padding:12px 14px;">
+            <div class="msg" style="grid-template-columns: 22px 1fr; gap:8px; margin-bottom:8px;">
+              <div class="av you" style="width:22px; height:22px; font-size:9px;">DU</div>
+              <div class="bubble" style="font-size:12px;"><div class="who" style="font-size:9.5px;">04:42</div>Transfer $250 to Savings.</div>
+            </div>
+            <div class="msg" style="grid-template-columns: 22px 1fr; gap:8px;">
+              <div class="av ai" style="width:22px; height:22px; font-size:9px;">Ai</div>
+              <div class="bubble" style="font-size:12px;"><div class="who" style="font-size:9.5px;">ASSISTANT</div>Done. <strong>$3,971.04</strong>.
+                <div class="step" style="font-size:10.5px; padding:4px 7px;"><span class="tag" style="font-size:9px;">RFC 8693</span>3 tokens · view in <span style="color:var(--teal); font-weight:600;">Token chain →</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="composer" style="margin:0 12px 12px; padding:8px 10px 6px;">
+            <textarea placeholder="Ask…" style="font-size:12px; min-height:28px;"></textarea>
+            <div class="composer-foot" style="margin-top:2px;">
+              <div class="tools"><button type="button" style="font-size:9.5px;">/ cmd</button></div>
+              <button type="button" class="send" style="font-size:10px; padding:4px 9px;">SEND</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sibling: show the SAME popover in Token chain mode, placed top-right inside the frame -->
+        <div style="position:absolute; top:80px; right:28px; width:360px; background:#fff; border:1px solid var(--rule); border-radius:14px; box-shadow: 0 24px 48px -16px rgba(14,26,43,0.22); overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--bg-2);">
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="avatar" style="width:22px; height:22px; font-size:10px;">Ai</span>
+              <span style="font-family:'Crimson Pro', serif; font-size:14px;">CareConnect</span>
+            </div>
+            <div style="color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:10px;">⋯ ✕</div>
+          </div>
+          <div style="display:flex; padding:0 14px; border-bottom:1px solid var(--rule); font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted);">
+            <button type="button" style="background:transparent; border:0; color:var(--muted); padding:10px 0; margin-right:18px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em;">Chat</button>
+            <button type="button" style="background:transparent; border:0; color:var(--teal); padding:10px 0; margin-right:18px; cursor:pointer; border-bottom:2px solid var(--teal); margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">Token chain · 3</button>
+            <button type="button" style="background:transparent; border:0; color:var(--muted); padding:10px 0; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; text-transform:uppercase; letter-spacing:0.06em;">Rules</button>
+          </div>
+          <div style="padding:14px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:6px;"><b style="color:var(--ink); font-weight:500;">04:42</b> · transfer $250 · 218 ms</div>
+            <div class="timeline" style="padding-left:18px;">
+              <div class="tstep done"><div class="card" style="padding:7px 10px;">
+                <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Subject</span><span class="rfc" style="font-size:9px;">§2.1</span></div>
+                <div class="name" style="font-size:11.5px;">User access token</div>
+              </div></div>
+              <div class="tstep done"><div class="card" style="padding:7px 10px;">
+                <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Actor</span><span class="rfc" style="font-size:9px;">§2.2</span></div>
+                <div class="name" style="font-size:11.5px;">Agent actor</div>
+              </div></div>
+              <div class="tstep done"><div class="card" style="padding:7px 10px;">
+                <div class="row1" style="margin-bottom:1px;"><span class="role" style="font-size:9.5px;">Delegated</span><span class="rfc" style="font-size:9px;">§3.2</span></div>
+                <div class="name" style="font-size:11.5px;">MCP token</div>
+                <div class="badges" style="margin-top:4px;"><span class="badge ok" style="font-size:8.5px;">✓ act valid</span></div>
+              </div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Caption labels for the two popover states -->
+        <div style="position:absolute; top:54px; right:28px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); letter-spacing:0.08em; text-transform:uppercase; font-weight:600;">
+          ↑ same popover · Token chain tab
+        </div>
+        <div style="position:absolute; bottom:240px; right:28px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); letter-spacing:0.08em; text-transform:uppercase; font-weight:600;">
+          ↓ same popover · Chat tab
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Option A · Banking reclaims the space.</strong> Zero agent chrome on /dashboard. The FAB opens to a 380-px popover with three tabs at the top: <strong>Chat</strong>, <strong>Token chain · 3</strong>, and <strong>Rules</strong>. The agent's chat surface and the token-chain narration both live inside the popover — flip with a single tap. Switching back to inline placement is reachable from the popover ⋯ menu → "Switch to inline mode." <strong>Cleanest, most banking-first; token chain still one tap away.</strong>
+    </div>
+  </div>
+
+  <!-- Option B: Rail stays, Talk redirects to FAB -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Option B · <span style="color:var(--teal);">Keep the rail, redirect Talk</span></span>
+      <span class="tag">3-tab chrome stays · Talk shows "use the FAB" empty state</span>
+    </div>
+    <div style="background:var(--bg); min-height:460px;">
+      <!-- rail still present -->
+      <div class="rail" style="position:relative; height:44px;">
+        <div class="brand">Care<em>Connect</em></div>
+        <nav role="tablist">
+          <button type="button" class="on">▣ Talk <kbd>1</kbd></button>
+          <button type="button">◇ Inspect <kbd>2</kbd></button>
+          <button type="button">⊞ Configure <kbd>3</kbd></button>
+        </nav>
+        <div class="right">
+          <span class="session"><span class="led"></span>SESSION · 25:54</span>
+          <button type="button" class="icn" title="Search ⌘K">⌕</button>
+          <span class="avatar">DU</span>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr; padding:24px 28px; position:relative; min-height:380px;">
+        <!-- Talk tab empty state -->
+        <div style="max-width:560px; margin:30px auto 0; text-align:center; padding:32px 24px; background:#fff; border:1px dashed var(--rule-2); border-radius:12px;">
+          <div style="width:44px; height:44px; border-radius:50%; background:var(--teal-tint); color:var(--teal); display:inline-flex; align-items:center; justify-content:center; font-family:'Crimson Pro', serif; font-size:22px; font-style:italic; margin-bottom:12px; border:1px solid var(--teal-soft);">Ai</div>
+          <h3 style="font-family:'Crimson Pro', serif; font-weight:500; font-size:22px; margin:0 0 6px; letter-spacing:-0.012em;">Talk lives in the <i style="color:var(--teal); font-style:italic; font-weight:400;">FAB</i></h3>
+          <p style="color:var(--muted); font-size:13px; max-width:40ch; margin:6px auto 16px;">You picked floating mode in Configure. Click the Ai button at the bottom-right to chat, or switch back to inline mode.</p>
+          <div style="display:flex; gap:8px; justify-content:center;">
+            <button type="button" style="background:var(--ink); color:#fff; border:0; border-radius:6px; padding:7px 14px; font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:600; letter-spacing:0.04em; cursor:pointer;">OPEN FAB ⌘K</button>
+            <button type="button" style="background:#fff; color:var(--ink); border:1px solid var(--rule); border-radius:6px; padding:7px 14px; font-family:'JetBrains Mono', monospace; font-size:11px; cursor:pointer;">SWITCH TO INLINE</button>
+          </div>
+        </div>
+
+        <!-- FAB -->
+        <div style="position:absolute; bottom:20px; right:28px;">
+          <button type="button" style="width:52px; height:52px; border-radius:50%; background:var(--ink); border:0; color:#fff; cursor:pointer; box-shadow: 0 12px 28px -8px rgba(14,26,43,0.4); display:inline-flex; align-items:center; justify-content:center;">
+            <span style="font-family:'Crimson Pro', serif; font-style:italic; font-size:18px;">Ai</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Option B · Keep the rail, redirect Talk.</strong> The 3-tab chrome stays at the top so Inspect and Configure remain one click away. Clicking Talk shows an empty state pointing the user to the FAB. Inspect and Configure tabs still work as full panels. <strong>Pro:</strong> easy to switch back. <strong>Con:</strong> the dashed-border empty card feels orphaned — banking content gets pushed below the fold for users who picked Floating precisely because they wanted banking-first.
+    </div>
+  </div>
+
+  <!-- Option C: Thin sidebar -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Option C · <span style="color:var(--teal);">Thin sidebar (compromise)</span></span>
+      <span class="tag">Agent collapses to a 48px icon strip on the right</span>
+    </div>
+    <div style="background:var(--bg); min-height:460px;">
+      <div style="height:40px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--rule); background:#fff; font-size:11.5px;">
+        <div class="brand" style="font-size:17px;">Care<em>Connect</em></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="session" style="font-size:10.5px; padding:3px 8px;"><span class="led"></span>25:54</span>
+          <button type="button" class="icn" title="Search ⌘K">⌕</button>
+          <span class="avatar" style="width:24px; height:24px; font-size:10px;">DU</span>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 48px; min-height:420px;">
+        <!-- banking content -->
+        <div style="padding:24px 28px;">
+          <div class="eyebrow" style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">customer dashboard</div>
+          <h1 style="font-family:'Crimson Pro', serif; font-weight:500; font-size:28px; margin:0 0 18px; letter-spacing:-0.015em;">Good afternoon, <i style="color:var(--teal); font-style:italic; font-weight:400;">Demo</i></h1>
+
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+            <div style="background:var(--ink); color:#fff; border-radius:10px; padding:14px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; opacity:0.65; margin-bottom:4px;">Total</div>
+              <div style="font-family:'Crimson Pro', serif; font-size:22px; font-weight:500;">$24,184.62</div>
+            </div>
+            <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; padding:14px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:4px;">Checking</div>
+              <div style="font-family:'Crimson Pro', serif; font-size:22px; font-weight:500;">$3,971.04</div>
+            </div>
+            <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; padding:14px;">
+              <div style="font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:4px;">Savings</div>
+              <div style="font-family:'Crimson Pro', serif; font-size:22px; font-weight:500;">$19,963.58</div>
+            </div>
+          </div>
+
+          <div style="background:#fff; border:1px solid var(--rule); border-radius:10px; padding:14px 16px; font-size:12.5px; color:var(--muted);">
+            Recent activity · 3 transactions this week
+          </div>
+        </div>
+
+        <!-- thin sidebar -->
+        <div style="background:var(--bg-2); border-left:1px solid var(--rule); display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:8px;">
+          <button type="button" title="Talk" style="width:32px; height:32px; border-radius:6px; background:var(--teal); color:#fff; border:0; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:600;">▣</button>
+          <button type="button" title="Inspect" style="width:32px; height:32px; border-radius:6px; background:transparent; color:var(--muted); border:1px solid transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:13px;">◇</button>
+          <button type="button" title="Configure" style="width:32px; height:32px; border-radius:6px; background:transparent; color:var(--muted); border:1px solid transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:13px;">⊞</button>
+          <div style="margin-top:auto; padding-top:14px; border-top:1px solid var(--rule); width:32px; text-align:center;">
+            <span style="font-family:'Crimson Pro', serif; font-style:italic; font-size:14px; color:var(--teal);">Ai</span>
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--teal); margin:6px auto 0;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px; font-size:12.5px; color:var(--ink-2); border-top:1px solid var(--rule); background:#fff;">
+      <strong style="color:var(--teal);">Option C · Thin sidebar.</strong> Agent compresses to a 48-px icon strip on the right with the same 3 tabs as icons. Click any icon → that tab expands back into a full inline panel (covering ~40% width like the split-canvas right column). Banking content keeps ~92% of the page; the agent presence stays visible without dominating. <strong>Pro:</strong> tabs always accessible, no "Talk lives elsewhere" mental jump. <strong>Con:</strong> dashboard gets a permanent sidebar even when the user isn't using the agent — visually heavier than Option A.
+    </div>
+  </div>
+
+  <!-- Recommendation -->
+  <div style="margin: 18px 18px 0; padding: 16px 20px; background: var(--teal-tint); border: 1px solid var(--teal-soft); border-left: 3px solid var(--teal); border-radius: 6px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Recommendation</div>
+    <div style="font-size:13.5px; color:var(--ink-2); line-height:1.55;">
+      <strong>Option A (Banking reclaims the space)</strong> because it's what the user is actually asking for when they pick "Floating." If someone switched away from Inline, they want banking content full-width and a discoverable but unobtrusive agent — which is exactly the FAB.<br><br>
+      To re-open the rail and switch back: FAB popover → ⋯ menu → "Switch to inline mode." Same one-click path as picking it in Configure, just reachable from inside the floating UI so the user isn't stuck.<br><br>
+      <strong>Option B</strong> is the safe-but-clunky middle ground; <strong>Option C</strong> is interesting if you want the agent visually present at all times, but it adds a permanent 48-px sidebar that competes with the Float user's "I want my dashboard back" intent.
+    </div>
+  </div>
+</section>
+
+<!-- MCP CALLS — REQUEST + RESPONSE JSON -->
+<section class="scene-block" id="mcp-json">
+  <h2><b>15 · MCP calls</b> Request + Response JSON in the narration column</h2>
+  <p class="summary">Click the <strong>MCP calls</strong> tab in the right column. Shows the wire-level JSON for each tool call this round-trip produced: the request the BFF sent to the MCP server, the response it got back, latency, and the delegated MCP token that authorized it. JSON nodes are syntax-highlighted with collapsible <code>{…}</code> / <code>[…]</code>.</p>
+
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">Talk · MCP calls tab active</span>
+      <span class="tag">1 call this round-trip · create_transfer · 218 ms</span>
+    </div>
+    <div class="canvas">
+      <!-- LEFT: same default chat as scene 1 -->
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · vertical care</div>
+          <h1>How can I help, <i>Demo</i>?</h1>
+          <p>Plain language is fine. Switch the right-column tab to see the MCP wire payload.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:42 PM</div>Transfer $250 from Checking to Savings.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>
+            Done. Exchanged your <strong>user token</strong> for an MCP-scoped delegated token and called <strong>create_transfer</strong>. New Checking balance: <strong>$3,971.04</strong>.
+            <div class="step"><span class="tag">RFC 8693</span>subject → mcp · 3 tokens · 218 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: MCP calls tab active -->
+      <aside class="narrate">
+        <div class="narrate-head">
+          <div class="eyebrow">Audit timeline · MCP wire view</div>
+          <h2>What just <i>happened</i></h2>
+          <div class="meta"><b>04:42:18 PM</b> · oauth_bearer · 1 MCP call · 218 ms</div>
+        </div>
+        <div class="narrate-tabs">
+          <button type="button" class="">Token chain</button>
+          <button type="button" class="on">MCP calls · 1</button>
+          <button type="button">Rules</button>
+          <button type="button">Tools · 12</button>
+        </div>
+        <div class="narrate-body" style="padding-top:14px;">
+
+          <!-- Call header / metadata -->
+          <div class="mcp-call">
+            <div class="mcp-call-head">
+              <div>
+                <div class="mcp-call-name">create_transfer</div>
+                <div class="mcp-call-sub">tool 1 of 1 · BankingToolProvider · <span class="mcp-ok">200 OK</span></div>
+              </div>
+              <div class="mcp-call-meta">
+                <span class="mcp-call-ms">218 ms</span>
+                <span class="mcp-call-aud" title="delegated MCP token audience">aud: mcp-server.ping.demo</span>
+              </div>
+            </div>
+
+            <!-- Request panel -->
+            <details open class="mcp-pane">
+              <summary>
+                <span class="mcp-pane-label"><span class="mcp-arrow mcp-arrow--out">→</span> REQUEST</span>
+                <span class="mcp-pane-tag">POST wss://mcp-server.ping.demo · jsonrpc 2.0 · tools/call</span>
+              </summary>
+              <pre class="mcp-json"><span class="j-p">{</span>
+  <span class="j-k">"jsonrpc"</span><span class="j-c">:</span> <span class="j-s">"2.0"</span><span class="j-c">,</span>
+  <span class="j-k">"id"</span><span class="j-c">:</span> <span class="j-n">42</span><span class="j-c">,</span>
+  <span class="j-k">"method"</span><span class="j-c">:</span> <span class="j-s">"tools/call"</span><span class="j-c">,</span>
+  <span class="j-k">"params"</span><span class="j-c">:</span> <span class="j-p">{</span>
+    <span class="j-k">"name"</span><span class="j-c">:</span> <span class="j-s">"create_transfer"</span><span class="j-c">,</span>
+    <span class="j-k">"arguments"</span><span class="j-c">:</span> <span class="j-p">{</span>
+      <span class="j-k">"fromAccountId"</span><span class="j-c">:</span> <span class="j-s">"acct_4422"</span><span class="j-c">,</span>
+      <span class="j-k">"toAccountId"</span><span class="j-c">:</span>   <span class="j-s">"acct_8810"</span><span class="j-c">,</span>
+      <span class="j-k">"amount"</span><span class="j-c">:</span>        <span class="j-n">250.00</span><span class="j-c">,</span>
+      <span class="j-k">"currency"</span><span class="j-c">:</span>      <span class="j-s">"USD"</span><span class="j-c">,</span>
+      <span class="j-k">"memo"</span><span class="j-c">:</span>          <span class="j-s">"From assistant"</span>
+    <span class="j-p">}</span><span class="j-c">,</span>
+    <span class="j-k">"_meta"</span><span class="j-c">:</span> <span class="j-p">{</span>
+      <span class="j-k">"actor"</span><span class="j-c">:</span>     <span class="j-s">"agent.client.id.4f2c…"</span><span class="j-c">,</span>
+      <span class="j-k">"sessionId"</span><span class="j-c">:</span> <span class="j-s">"s_2026-05-29_a4b7"</span>
+    <span class="j-p">}</span>
+  <span class="j-p">}</span>
+<span class="j-p">}</span></pre>
+            </details>
+
+            <!-- Response panel -->
+            <details open class="mcp-pane">
+              <summary>
+                <span class="mcp-pane-label"><span class="mcp-arrow mcp-arrow--in">←</span> RESPONSE</span>
+                <span class="mcp-pane-tag">200 · 218 ms</span>
+              </summary>
+              <pre class="mcp-json"><span class="j-p">{</span>
+  <span class="j-k">"jsonrpc"</span><span class="j-c">:</span> <span class="j-s">"2.0"</span><span class="j-c">,</span>
+  <span class="j-k">"id"</span><span class="j-c">:</span> <span class="j-n">42</span><span class="j-c">,</span>
+  <span class="j-k">"result"</span><span class="j-c">:</span> <span class="j-p">{</span>
+    <span class="j-k">"content"</span><span class="j-c">:</span> <span class="j-a">[</span>
+      <span class="j-p">{</span>
+        <span class="j-k">"type"</span><span class="j-c">:</span> <span class="j-s">"text"</span><span class="j-c">,</span>
+        <span class="j-k">"text"</span><span class="j-c">:</span> <span class="j-s">"Transfer of $250.00 from Checking (···4422) to Savings (···8810) completed."</span>
+      <span class="j-p">}</span>
+    <span class="j-a">]</span><span class="j-c">,</span>
+    <span class="j-k">"isError"</span><span class="j-c">:</span> <span class="j-b">false</span><span class="j-c">,</span>
+    <span class="j-k">"_meta"</span><span class="j-c">:</span> <span class="j-p">{</span>
+      <span class="j-k">"transactionId"</span><span class="j-c">:</span>    <span class="j-s">"tx_018f3c2b1a8e7f"</span><span class="j-c">,</span>
+      <span class="j-k">"newFromBalance"</span><span class="j-c">:</span>   <span class="j-n">3971.04</span><span class="j-c">,</span>
+      <span class="j-k">"newToBalance"</span><span class="j-c">:</span>     <span class="j-n">20213.58</span><span class="j-c">,</span>
+      <span class="j-k">"authorizeDecision"</span><span class="j-c">:</span> <span class="j-s">"PERMIT"</span><span class="j-c">,</span>
+      <span class="j-k">"hitlRequired"</span><span class="j-c">:</span>      <span class="j-b">false</span>
+    <span class="j-p">}</span>
+  <span class="j-p">}</span>
+<span class="j-p">}</span></pre>
+            </details>
+
+            <!-- Auth footer — token that authorized the call -->
+            <div class="mcp-auth">
+              <div class="mcp-auth-row">
+                <span class="mcp-auth-label">Authorized by</span>
+                <span class="mcp-auth-value">delegated MCP token <code>aud: mcp-server.ping.demo</code> · scope <code>transfer read</code> · nested <code>act</code> ✓</span>
+              </div>
+              <div class="mcp-auth-row">
+                <span class="mcp-auth-label">Headers</span>
+                <span class="mcp-auth-value"><code>Authorization: Bearer eyJhbGc…</code> · <code>X-Request-ID: req_a4b7…</code> · <code>traceparent: 00-2c4b…</code></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tip strip -->
+          <div class="mcp-tip">
+            <strong>When multiple tools fire</strong> (e.g. <code>get_my_accounts → get_my_transactions → create_transfer</code>), each appears as its own collapsible call block in this list. Click the call header to fold one closed.
+          </div>
+
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Strategy block for this scene -->
+  <div style="margin: 18px 18px 0; padding: 16px 20px; background: var(--teal-tint); border: 1px solid var(--teal-soft); border-left: 3px solid var(--teal); border-radius: 6px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Why this works</div>
+    <div style="font-size:13.5px; color:var(--ink-2); line-height:1.55;">
+      The Token chain tab answers <strong>"is the auth correct?"</strong>; the MCP calls tab answers <strong>"what did we send and what came back?"</strong> Both views share the same call data — they're two lenses on the same `tokenEvents` + `mcpCallStore` payload. Switching tabs is a single keystroke and the JSON syntax-highlighting maps cleanly to what a developer sees in their browser DevTools, so the demo doesn't need a tour to be readable.
+      <br><br>
+      <strong>Multi-tool runs</strong> render stacked call blocks (one per <code>tools/call</code> message). The <code>_meta</code> sub-block carries the agent's session ID and actor identity so a viewer can correlate one MCP call back to the originating chat message.
+    </div>
+  </div>
+</section>
+
+<!-- MCP JSON view — local styles (scoped) -->
+<style>
+  .mcp-call {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .mcp-call-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, #fbfcfe, #fff);
+    border-bottom: 1px solid var(--rule);
+  }
+  .mcp-call-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .mcp-call-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .mcp-ok { color: var(--moss); font-weight: 600; }
+  .mcp-call-meta {
+    text-align: right;
+    display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
+  }
+  .mcp-call-ms {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    color: var(--ink);
+  }
+  .mcp-call-aud {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--teal);
+    background: var(--teal-tint);
+    padding: 2px 6px; border-radius: 3px;
+    border: 1px solid var(--teal-soft);
+  }
+
+  .mcp-pane { border-top: 1px solid var(--rule); }
+  .mcp-pane:first-of-type { border-top: 0; }
+  .mcp-pane summary {
+    list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-2);
+  }
+  .mcp-pane summary::-webkit-details-marker { display: none; }
+  .mcp-pane summary:hover { background: #eef2f6; }
+  .mcp-pane[open] summary { background: #fff; border-bottom: 1px solid var(--rule); }
+  .mcp-pane-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .mcp-arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px;
+    font-size: 11px; font-weight: 700;
+    border-radius: 3px;
+  }
+  .mcp-arrow--out { background: var(--teal-tint); color: var(--teal); border: 1px solid var(--teal-soft); }
+  .mcp-arrow--in  { background: var(--moss-soft); color: var(--moss); border: 1px solid #c4d4b6; }
+  .mcp-pane-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .mcp-json {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: #fdfdfd;
+    margin: 0;
+    padding: 10px 14px 14px;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  /* Syntax highlight tokens — kept teal-led to match the rest of the design. */
+  .mcp-json .j-k { color: #2c3a52; }          /* keys */
+  .mcp-json .j-s { color: var(--teal); }       /* strings */
+  .mcp-json .j-n { color: #6a48a8; }          /* numbers (subtle indigo, only color outside the teal/moss/gold/rose palette — kept restrained) */
+  .mcp-json .j-b { color: #6a48a8; font-weight: 600; } /* booleans */
+  .mcp-json .j-p { color: var(--ink); font-weight: 600; }  /* braces */
+  .mcp-json .j-a { color: var(--ink); font-weight: 600; }  /* brackets */
+  .mcp-json .j-c { color: var(--muted-2); }    /* commas + colons */
+
+  .mcp-auth {
+    padding: 10px 14px;
+    background: linear-gradient(180deg, var(--teal-tint), #fff);
+    border-top: 1px solid var(--rule);
+  }
+  .mcp-auth-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 12px;
+    font-size: 11.5px;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .mcp-auth-row:last-child { margin-bottom: 0; }
+  .mcp-auth-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .mcp-auth-value { color: var(--ink-2); }
+  .mcp-auth-value code {
+    font-family: 'JetBrains Mono', monospace;
+    background: #fff;
+    border: 1px solid var(--rule);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10.5px;
+    color: var(--ink);
+  }
+
+  .mcp-tip {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .mcp-tip code {
+    font-family: 'JetBrains Mono', monospace;
+    background: #fff;
+    border: 1px solid var(--rule);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+</style>
+
+<!-- RIGHT COLUMN: 5-TAB CONSOLIDATION -->
+<section class="scene-block" id="tabs-5">
+  <h2><b>16 · Right column</b> Five tabs — All / Tokens / MCP / Standards / Errors</h2>
+  <p class="summary">Consolidates the right-column navigation around what a viewer wants to learn. <strong>All</strong> = unified chronological feed (default). <strong>Tokens</strong> = RFC 8693 chain only. <strong>MCP</strong> = wire-level request/response JSON (scene 15). <strong>Standards</strong> = every RFC / protocol referenced this round-trip with one-liner explanations. <strong>Errors</strong> = empty when green, lights up rose with full failure detail when anything fires red. Same backing data — five lenses.</p>
+
+  <!-- Scene 16a — All tab (unified chronological timeline) -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">All tab · default (unified timeline)</span>
+      <span class="tag">most recent round-trip · 3 tokens · 1 MCP call · 218 ms</span>
+    </div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · vertical care</div>
+          <h1>How can I help, <i>Demo</i>?</h1>
+          <p>Plain language is fine. The right column tells the whole story chronologically.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:42 PM</div>Transfer $250 from Checking to Savings.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>Done. New Checking balance <strong>$3,971.04</strong>.
+            <div class="step"><span class="tag">RFC 8693</span>3 tokens · 1 MCP call · 218 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button><button type="button">@ account</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="narrate">
+        <div class="narrate-head">
+          <div class="eyebrow">Audit timeline · unified</div>
+          <h2>What just <i>happened</i></h2>
+          <div class="meta"><b>04:42:18 PM</b> · 3 tokens · 1 MCP call · 218 ms total</div>
+        </div>
+
+        <!-- 5-tab control -->
+        <div class="narrate-tabs">
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--on">All</button>
+          <button type="button" class="ac-narrate-tab">Tokens · 3</button>
+          <button type="button" class="ac-narrate-tab">MCP · 1</button>
+          <button type="button" class="ac-narrate-tab">Standards · 4</button>
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--ok">Errors · 0</button>
+        </div>
+
+        <div class="narrate-body">
+          <!-- Unified chronological feed -->
+          <div class="ac-feed">
+
+            <!-- Step 1 — User token loaded -->
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.802</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §2.1</span>
+                </div>
+                <div class="ac-feed-title">Subject token loaded</div>
+                <div class="ac-feed-sub">User access token · <code>aud: enduser.ping.demo</code> · stays in BFF</div>
+              </div>
+            </div>
+
+            <!-- Step 2 — Actor token prefetched -->
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.811</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §2.2</span>
+                </div>
+                <div class="ac-feed-title">Actor token prefetched</div>
+                <div class="ac-feed-sub">Agent client credentials grant · adds delegation proof</div>
+              </div>
+            </div>
+
+            <!-- Step 3 — Exchange completed (delegated MCP token minted) -->
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.965</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §3.2</span>
+                </div>
+                <div class="ac-feed-title">Delegated MCP token minted</div>
+                <div class="ac-feed-sub">Nested <code>act</code> claim · <code>aud: mcp-server.ping.demo</code> · scope <code>transfer read</code></div>
+                <div class="ac-feed-badges">
+                  <span class="badge ok">✓ act valid</span>
+                  <span class="badge info">scope narrowed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4 — MCP request -->
+            <div class="ac-feed-item ac-feed-item--mcp">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--mcp">→</span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.971</span>
+                  <span class="ac-feed-kind ac-feed-kind--mcp">MCP REQUEST</span>
+                  <span class="ac-feed-rfc">JSON-RPC 2.0</span>
+                </div>
+                <div class="ac-feed-title"><code>tools/call</code> · create_transfer</div>
+                <div class="ac-feed-sub">POST wss://mcp-server.ping.demo · params: $250 USD · acct_4422 → acct_8810</div>
+              </div>
+            </div>
+
+            <!-- Step 5 — MCP response -->
+            <div class="ac-feed-item ac-feed-item--mcp">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--mcp ac-feed-dot--in">←</span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:18.189</span>
+                  <span class="ac-feed-kind ac-feed-kind--mcp">MCP RESPONSE</span>
+                  <span class="ac-feed-rfc">200 OK · 218 ms</span>
+                </div>
+                <div class="ac-feed-title">Transfer completed · <code>tx_018f3c2b1a8e</code></div>
+                <div class="ac-feed-sub">authorizeDecision <code>PERMIT</code> · hitlRequired <code>false</code> · new balance <code>$3,971.04</code></div>
+                <div class="ac-feed-badges">
+                  <span class="badge ok">✓ PERMIT</span>
+                  <span class="badge info">$250 &lt; $800</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 6 — Round-trip closed -->
+            <div class="ac-feed-item ac-feed-item--done">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--done">✓</span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:18.190</span>
+                  <span class="ac-feed-kind ac-feed-kind--done">DONE</span>
+                  <span class="ac-feed-rfc">218 ms total</span>
+                </div>
+                <div class="ac-feed-title">Round-trip complete</div>
+                <div class="ac-feed-sub">3 tokens issued · 1 MCP call · 4 standards referenced · 0 errors</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Scene 16b — Tabs row close-up showing all 5 states + filter chips -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">Tab row · close-up</span>
+      <span class="tag">Errors badge is moss-green when zero; rose when any failed</span>
+    </div>
+    <div style="background:#fff; padding:24px 32px;">
+      <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:10px;">Healthy round-trip — Errors tab is dim</div>
+      <div class="narrate-tabs" style="border-bottom:1px solid var(--rule); display:flex; padding:0 0 0 0;">
+        <button type="button" class="ac-narrate-tab ac-narrate-tab--on">All</button>
+        <button type="button" class="ac-narrate-tab">Tokens · 3</button>
+        <button type="button" class="ac-narrate-tab">MCP · 1</button>
+        <button type="button" class="ac-narrate-tab">Standards · 4</button>
+        <button type="button" class="ac-narrate-tab ac-narrate-tab--ok">Errors · 0</button>
+      </div>
+
+      <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin: 26px 0 10px;">Failure round-trip — Errors tab lights up rose</div>
+      <div class="narrate-tabs" style="border-bottom:1px solid var(--rule); display:flex; padding:0 0 0 0;">
+        <button type="button" class="ac-narrate-tab">All</button>
+        <button type="button" class="ac-narrate-tab">Tokens · 3</button>
+        <button type="button" class="ac-narrate-tab">MCP · 0</button>
+        <button type="button" class="ac-narrate-tab">Standards · 4</button>
+        <button type="button" class="ac-narrate-tab ac-narrate-tab--on ac-narrate-tab--err">Errors · 1</button>
+      </div>
+
+      <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin: 26px 0 10px;">HITL paused — Errors tab uses gold instead of rose</div>
+      <div class="narrate-tabs" style="border-bottom:1px solid var(--rule); display:flex; padding:0 0 0 0;">
+        <button type="button" class="ac-narrate-tab">All</button>
+        <button type="button" class="ac-narrate-tab">Tokens · 3</button>
+        <button type="button" class="ac-narrate-tab">MCP · 0</button>
+        <button type="button" class="ac-narrate-tab">Standards · 5</button>
+        <button type="button" class="ac-narrate-tab ac-narrate-tab--on ac-narrate-tab--warn">Errors · 1 held</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 16c — Standards tab content preview -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">Standards tab · content preview</span>
+      <span class="tag">4 standards referenced this round-trip · click for explainer</span>
+    </div>
+    <div style="background:var(--bg-2); padding:18px 22px;">
+      <div class="ac-std-list">
+
+        <a class="ac-std" href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">RFC 8693</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">OAuth 2.0 Token Exchange</div>
+            <div class="ac-std-desc">Defines how the BFF swaps a user token + actor token for a delegated MCP token. Carries the nested <code>act</code> claim that proves "the agent acted on the user's behalf."</div>
+            <div class="ac-std-fired">Fired by exchange #1 (subject) · exchange #2 (actor) · result token mint at 04:42:17.965</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <a class="ac-std" href="https://www.rfc-editor.org/rfc/rfc7519" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">RFC 7519</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">JSON Web Token (JWT)</div>
+            <div class="ac-std-desc">The format every token in the chain uses. The MCP server verifies the JWT signature against PingOne's JWKS before honoring the call.</div>
+            <div class="ac-std-fired">Used by all 3 tokens in this round-trip</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <a class="ac-std" href="https://www.rfc-editor.org/rfc/rfc9068" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">RFC 9068</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">OAuth 2.0 JWT Access Token Profile</div>
+            <div class="ac-std-desc">Standardizes the access-token JWT claims (<code>aud</code>, <code>scope</code>, <code>exp</code>, <code>act</code>). The delegated MCP token honors this profile.</div>
+            <div class="ac-std-fired">Used by the delegated MCP token at the §3.2 result step</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <a class="ac-std" href="https://modelcontextprotocol.io/specification" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">MCP 2025-11-25</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">Model Context Protocol · JSON-RPC 2.0</div>
+            <div class="ac-std-desc">The protocol the BFF speaks to the MCP server. <code>tools/call</code> + <code>tools/list</code> + <code>initialize</code> messages flow over WebSocket.</div>
+            <div class="ac-std-fired">Used for the single <code>tools/call</code> invocation at 04:42:17.971</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 16d — Errors tab when something failed -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">Errors tab · with one failure</span>
+      <span class="tag">token-exchange failed at step 3 · act claim absent</span>
+    </div>
+    <div style="background:var(--bg-2); padding:18px 22px;">
+      <div class="ac-err">
+        <div class="ac-err-head">
+          <div>
+            <div class="ac-err-kind">✕ TOKEN_INVALID · act claim absent</div>
+            <div class="ac-err-when">04:42:17.965 · failed at step 3 of 3 · 163 ms before failure</div>
+          </div>
+          <div class="ac-err-tag">rose</div>
+        </div>
+        <div class="ac-err-body">
+          The delegated MCP token PingOne returned does not carry a nested <code>act.sub</code> claim that matches the agent's client ID. The MCP server requires this claim to prove the token was minted for delegated use, so the BFF stopped here and never sent the <code>tools/call</code>. No money moved.
+        </div>
+        <div class="ac-err-section">
+          <div class="ac-err-section-title">What this means</div>
+          <div class="ac-err-section-body">PingOne's resource token policy is not configured to emit the <code>act</code> claim on RFC 8693 exchanges for this agent app. See <code>docs/PINGONE_CONFIG.md</code> § token policies.</div>
+        </div>
+        <div class="ac-err-section">
+          <div class="ac-err-section-title">Likely fixes</div>
+          <ul class="ac-err-fixes">
+            <li>Verify the agent app type is <code>AI_AGENT</code> in PingOne Admin Console.</li>
+            <li>Check the MCP resource's token policy includes the <code>act</code> attribute mapping.</li>
+            <li>Confirm <code>PINGONE_MCP_TOKEN_EXCHANGER_*</code> env vars match the actor app.</li>
+          </ul>
+        </div>
+        <div class="ac-err-actions">
+          <button type="button" class="ac-err-action ac-err-action--primary">Re-authenticate</button>
+          <button type="button" class="ac-err-action">Open Inspect tab</button>
+          <button type="button" class="ac-err-action">Copy diagnostics</button>
+          <button type="button" class="ac-err-action">Open <code>tokenchain_explain</code></button>
+        </div>
+      </div>
+
+      <div class="ac-err-empty-hint">
+        <strong>Errors tab is moss-green ✓</strong> when the round-trip succeeds. It's rose when a token exchange or MCP call failed. It's gold when an exchange was held by a HITL gate (paused, not failed). The badge in the tab row reflects the same state at a glance.
+      </div>
+    </div>
+  </div>
+
+  <!-- Why this works -->
+  <div style="margin: 18px 18px 0; padding: 16px 20px; background: var(--teal-tint); border: 1px solid var(--teal-soft); border-left: 3px solid var(--teal); border-radius: 6px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Why five tabs (not four, not three)</div>
+    <div style="font-size:13.5px; color:var(--ink-2); line-height:1.55;">
+      <strong>All</strong> is the default because a learning viewer wants the whole story chronologically — token ↔ MCP interleaved by timestamp tells the "what happened?" story better than two stacked silos. <strong>Tokens</strong> and <strong>MCP</strong> are filters on the same feed for viewers who already know what they want to inspect.<br><br>
+      <strong>Standards</strong> turns the demo into an RFC index — every protocol that fired this round-trip is one click from its spec. Critical for technical demos where the audience asks "is this real RFC 8693?" — the Standards tab is the receipt.<br><br>
+      <strong>Errors</strong> is the safety valve. When everything succeeds it's dim with `· 0`. When anything fails it lights up — rose for hard failures, gold for HITL pauses. The viewer never has to hunt for the failure card in a long feed.<br><br>
+      The old <strong>Rules</strong> and <strong>Tools</strong> tabs from earlier scenes are absorbed: rule decisions show as items in the All feed (e.g. "$250 &lt; $800 (no HITL)"), and the tool catalog moves to the Configure tab → Tools allowed section. Less to scan in the per-round narration panel.
+    </div>
+  </div>
+</section>
+
+<style>
+  /* =============================================================
+     Scene 16 — right-column 5-tab styles
+     ============================================================= */
+
+  /* Tab row variants — moss for Errors when 0, rose when failing, gold when held */
+  .ac-narrate-tab--ok {
+    color: var(--moss);
+  }
+  .ac-narrate-tab--ok.ac-narrate-tab--on {
+    border-bottom-color: var(--moss);
+    color: var(--moss);
+  }
+  .ac-narrate-tab--err {
+    color: var(--rose);
+  }
+  .ac-narrate-tab--err.ac-narrate-tab--on {
+    border-bottom-color: var(--rose);
+    color: var(--rose);
+    font-weight: 600;
+  }
+  .ac-narrate-tab--warn {
+    color: var(--gold);
+  }
+  .ac-narrate-tab--warn.ac-narrate-tab--on {
+    border-bottom-color: var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  /* Unified chronological feed (All tab) */
+  .ac-feed {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-left: 4px;
+  }
+  .ac-feed-item {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    padding: 10px 0 12px;
+    position: relative;
+  }
+  .ac-feed-item + .ac-feed-item::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: -2px;
+    bottom: 100%;
+    height: 8px;
+    width: 1px;
+    background: var(--rule-2);
+  }
+  .ac-feed-rail {
+    display: flex;
+    justify-content: center;
+    padding-top: 3px;
+  }
+  .ac-feed-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--teal);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--teal);
+  }
+  .ac-feed-dot--token {
+    background: var(--teal);
+    border-color: var(--teal);
+  }
+  .ac-feed-dot--mcp {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+  .ac-feed-dot--mcp.ac-feed-dot--in {
+    background: var(--moss);
+    border-color: var(--moss);
+  }
+  .ac-feed-dot--done {
+    background: var(--moss);
+    border-color: var(--moss);
+    color: #fff;
+  }
+  .ac-feed-body {
+    min-width: 0;
+  }
+  .ac-feed-head {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+  }
+  .ac-feed-time {
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .ac-feed-kind {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 9.5px;
+  }
+  .ac-feed-kind--token {
+    background: var(--teal-tint);
+    color: var(--teal);
+    border: 1px solid var(--teal-soft);
+  }
+  .ac-feed-kind--mcp {
+    background: #eef2f6;
+    color: var(--ink);
+    border: 1px solid var(--rule);
+  }
+  .ac-feed-kind--done {
+    background: var(--moss-soft);
+    color: var(--moss);
+    border: 1px solid #c4d4b6;
+  }
+  .ac-feed-rfc {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .ac-feed-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .ac-feed-title code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .ac-feed-sub {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .ac-feed-sub code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--teal);
+  }
+  .ac-feed-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  /* Standards tab */
+  .ac-std-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ac-std {
+    display: grid;
+    grid-template-columns: 110px 1fr 18px;
+    gap: 16px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .ac-std:hover {
+    border-color: var(--teal);
+    background: var(--teal-tint);
+  }
+  .ac-std-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding-top: 1px;
+  }
+  .ac-std-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .ac-std-desc {
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .ac-std-desc code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--teal);
+  }
+  .ac-std-fired {
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .ac-std-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: right;
+  }
+
+  /* Errors tab */
+  .ac-err {
+    background: #fff;
+    border: 1px solid var(--rose);
+    border-left: 3px solid var(--rose);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .ac-err-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, var(--rose-soft), #fff);
+    border-bottom: 1px solid var(--rule);
+  }
+  .ac-err-kind {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--rose);
+    letter-spacing: 0.02em;
+  }
+  .ac-err-when {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .ac-err-tag {
+    display: none; /* hidden helper for color swatch reference */
+  }
+  .ac-err-body {
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .ac-err-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--rose);
+  }
+  .ac-err-section {
+    padding: 10px 14px;
+    border-top: 1px solid var(--rule);
+  }
+  .ac-err-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .ac-err-section-body {
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .ac-err-section-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .ac-err-fixes {
+    margin: 4px 0 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .ac-err-fixes code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .ac-err-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--bg-2);
+    border-top: 1px solid var(--rule);
+  }
+  .ac-err-action {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .ac-err-action:hover {
+    border-color: var(--ink);
+  }
+  .ac-err-action--primary {
+    background: var(--rose);
+    color: #fff;
+    border-color: var(--rose);
+  }
+  .ac-err-action--primary:hover {
+    background: #8a2839;
+    border-color: #8a2839;
+  }
+  .ac-err-action code {
+    font-family: inherit;
+    background: rgba(0,0,0,0.06);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+  .ac-err-empty-hint {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--moss-soft);
+    border: 1px solid #c4d4b6;
+    border-left: 3px solid var(--moss);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .ac-err-empty-hint strong {
+    color: var(--moss);
+  }
+</style>
+
+<!-- TABS REFINED — search + expandable MCP + HITL standards + replay -->
+<section class="scene-block" id="tabs-5-refined">
+  <h2><b>17 · Tabs refined</b> Search · expandable MCP cards · HITL Standards · replay action · tighter rail</h2>
+  <p class="summary">Four refinements layered onto scene 16: <strong>(1)</strong> All tab gets a search box that filters by tool name / token kind / timestamp range; <strong>(2)</strong> the MCP tab promotes feed items to expandable cards with the full request/response JSON inline (scene 15 depth, scene 16 navigation); <strong>(3)</strong> Standards tab in HITL-paused state adds OIDC CIBA + PingOne Authorize entries; <strong>(4)</strong> Errors tab adds a "Replay this call" action; <strong>(5)</strong> dot rail spacing is tightened from 8px to 4px so the feed reads denser.</p>
+
+  <!-- 17a — All tab with search bar -->
+  <div class="scene-frame">
+    <div class="scene-title">
+      <span class="name">All tab · with search + tight rail</span>
+      <span class="tag">filter applied · "token" shows 3 of 6 items</span>
+    </div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head">
+          <div class="eyebrow">Assistant · vertical care</div>
+          <h1>How can I help, <i>Demo</i>?</h1>
+          <p>Right column filters live as you type.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT · 04:42 PM</div>Transferred $250 to Savings. New Checking balance <strong>$3,971.04</strong>.
+            <div class="step"><span class="tag">RFC 8693</span>3 tokens · 1 MCP call · 218 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="Ask in plain language…"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="narrate">
+        <div class="narrate-head" style="padding-bottom:8px;">
+          <div class="eyebrow">Audit timeline · filtered</div>
+          <h2>What just <i>happened</i></h2>
+          <div class="meta"><b>04:42:18 PM</b> · 3 of 6 events match</div>
+        </div>
+
+        <!-- Search bar above the tabs -->
+        <div class="ac-search">
+          <div class="ac-search-input">
+            <span class="ac-search-icon" aria-hidden="true">⌕</span>
+            <input type="text" placeholder="Filter by tool, kind, or time…" value="token" />
+            <button type="button" class="ac-search-clear" title="Clear filter">✕</button>
+          </div>
+          <div class="ac-search-chips">
+            <button type="button" class="ac-search-chip ac-search-chip--on">token</button>
+            <button type="button" class="ac-search-chip">mcp</button>
+            <button type="button" class="ac-search-chip">errors</button>
+            <button type="button" class="ac-search-chip">after 04:42</button>
+          </div>
+        </div>
+
+        <div class="narrate-tabs">
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--on">All · 3/6</button>
+          <button type="button" class="ac-narrate-tab">Tokens · 3</button>
+          <button type="button" class="ac-narrate-tab">MCP · 0</button>
+          <button type="button" class="ac-narrate-tab">Standards · 4</button>
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--ok">Errors · 0</button>
+        </div>
+
+        <div class="narrate-body">
+          <div class="ac-feed ac-feed--tight">
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.802</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §2.1</span>
+                </div>
+                <div class="ac-feed-title">Subject <mark>token</mark> loaded</div>
+                <div class="ac-feed-sub">User access token · <code>aud: enduser.ping.demo</code></div>
+              </div>
+            </div>
+
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.811</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §2.2</span>
+                </div>
+                <div class="ac-feed-title">Actor <mark>token</mark> prefetched</div>
+                <div class="ac-feed-sub">Client credentials grant</div>
+              </div>
+            </div>
+
+            <div class="ac-feed-item ac-feed-item--token">
+              <div class="ac-feed-rail"><span class="ac-feed-dot ac-feed-dot--token"></span></div>
+              <div class="ac-feed-body">
+                <div class="ac-feed-head">
+                  <span class="ac-feed-time">04:42:17.965</span>
+                  <span class="ac-feed-kind ac-feed-kind--token">TOKEN</span>
+                  <span class="ac-feed-rfc">RFC 8693 §3.2</span>
+                </div>
+                <div class="ac-feed-title">Delegated MCP <mark>token</mark> minted</div>
+                <div class="ac-feed-sub">Nested <code>act</code> claim · <code>aud: mcp-server.ping.demo</code></div>
+                <div class="ac-feed-badges">
+                  <span class="badge ok">✓ act valid</span>
+                  <span class="badge info">scope narrowed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hidden hint that 3 more items are filtered out -->
+            <div class="ac-feed-collapsed">
+              3 events filtered · 2 MCP, 1 DONE · clear filter to show all
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 17b — MCP tab with expandable cards (full JSON inline) -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">MCP tab · expandable cards (one open showing full JSON)</span>
+      <span class="tag">scene 15 depth meets scene 16 navigation</span>
+    </div>
+    <div class="canvas">
+      <section class="chat">
+        <header class="chat-head" style="padding-bottom:8px;">
+          <div class="eyebrow">Assistant · 3 MCP calls this round-trip</div>
+          <h1>Three calls, <i>one job</i></h1>
+          <p>Click any MCP card on the right to expand its full JSON request/response.</p>
+        </header>
+        <div class="thread">
+          <div class="msg"><div class="av you">DU</div><div class="bubble">
+            <div class="who">YOU · 04:47 PM</div>Pay my electric bill.
+          </div></div>
+          <div class="msg"><div class="av ai">Ai</div><div class="bubble">
+            <div class="who">ASSISTANT</div>Done — $142.18 to PG&amp;E.
+            <div class="step"><span class="tag">3 calls</span>get_my_accounts → get_my_transactions → create_transfer · 612 ms</div>
+          </div></div>
+        </div>
+        <div class="composer">
+          <textarea placeholder="What's next?"></textarea>
+          <div class="composer-foot">
+            <div class="tools"><button type="button">/ commands</button></div>
+            <button type="button" class="send">SEND ⌘↵</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="narrate">
+        <div class="narrate-head"><div class="eyebrow">MCP wire view</div><h2>3 calls · <i>one open</i></h2><div class="meta"><b>04:47:14 PM</b> · 612 ms total</div></div>
+        <div class="narrate-tabs">
+          <button type="button" class="ac-narrate-tab">All · 9</button>
+          <button type="button" class="ac-narrate-tab">Tokens · 5</button>
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--on">MCP · 3</button>
+          <button type="button" class="ac-narrate-tab">Standards · 4</button>
+          <button type="button" class="ac-narrate-tab ac-narrate-tab--ok">Errors · 0</button>
+        </div>
+
+        <div class="narrate-body">
+
+          <!-- Collapsed call 1 -->
+          <details class="mcp-call mcp-call--compact">
+            <summary>
+              <div class="mcp-call-summary">
+                <span class="mcp-call-num">1</span>
+                <div class="mcp-call-summary-body">
+                  <div class="mcp-call-name">get_my_accounts</div>
+                  <div class="mcp-call-sub">tools/call · <span class="mcp-ok">200</span> · 89 ms</div>
+                </div>
+                <span class="mcp-call-chevron">▸</span>
+              </div>
+            </summary>
+            <div class="mcp-call-body">
+              <em class="mcp-call-collapsed-hint">Expand to see request + response JSON</em>
+            </div>
+          </details>
+
+          <!-- EXPANDED call 2 with full JSON -->
+          <details open class="mcp-call mcp-call--compact">
+            <summary>
+              <div class="mcp-call-summary">
+                <span class="mcp-call-num mcp-call-num--on">2</span>
+                <div class="mcp-call-summary-body">
+                  <div class="mcp-call-name">get_my_transactions</div>
+                  <div class="mcp-call-sub">tools/call · <span class="mcp-ok">200</span> · 102 ms · click to collapse</div>
+                </div>
+                <span class="mcp-call-chevron mcp-call-chevron--open">▾</span>
+              </div>
+            </summary>
+            <div class="mcp-call-body">
+              <details open class="mcp-pane">
+                <summary>
+                  <span class="mcp-pane-label"><span class="mcp-arrow mcp-arrow--out">→</span> REQUEST</span>
+                  <span class="mcp-pane-tag">jsonrpc 2.0 · tools/call</span>
+                </summary>
+                <pre class="mcp-json"><span class="j-p">{</span>
+  <span class="j-k">"jsonrpc"</span><span class="j-c">:</span> <span class="j-s">"2.0"</span><span class="j-c">,</span>
+  <span class="j-k">"id"</span><span class="j-c">:</span> <span class="j-n">43</span><span class="j-c">,</span>
+  <span class="j-k">"method"</span><span class="j-c">:</span> <span class="j-s">"tools/call"</span><span class="j-c">,</span>
+  <span class="j-k">"params"</span><span class="j-c">:</span> <span class="j-p">{</span>
+    <span class="j-k">"name"</span><span class="j-c">:</span> <span class="j-s">"get_my_transactions"</span><span class="j-c">,</span>
+    <span class="j-k">"arguments"</span><span class="j-c">:</span> <span class="j-p">{</span>
+      <span class="j-k">"merchant"</span><span class="j-c">:</span>   <span class="j-s">"PG&amp;E"</span><span class="j-c">,</span>
+      <span class="j-k">"sinceDays"</span><span class="j-c">:</span> <span class="j-n">35</span>
+    <span class="j-p">}</span>
+  <span class="j-p">}</span>
+<span class="j-p">}</span></pre>
+              </details>
+              <details open class="mcp-pane">
+                <summary>
+                  <span class="mcp-pane-label"><span class="mcp-arrow mcp-arrow--in">←</span> RESPONSE</span>
+                  <span class="mcp-pane-tag">200 · 102 ms</span>
+                </summary>
+                <pre class="mcp-json"><span class="j-p">{</span>
+  <span class="j-k">"jsonrpc"</span><span class="j-c">:</span> <span class="j-s">"2.0"</span><span class="j-c">,</span>
+  <span class="j-k">"id"</span><span class="j-c">:</span> <span class="j-n">43</span><span class="j-c">,</span>
+  <span class="j-k">"result"</span><span class="j-c">:</span> <span class="j-p">{</span>
+    <span class="j-k">"content"</span><span class="j-c">:</span> <span class="j-a">[</span>
+      <span class="j-p">{</span>
+        <span class="j-k">"type"</span><span class="j-c">:</span> <span class="j-s">"text"</span><span class="j-c">,</span>
+        <span class="j-k">"text"</span><span class="j-c">:</span> <span class="j-s">"Most recent PG&amp;E bill: $142.18 on May 14"</span>
+      <span class="j-p">}</span>
+    <span class="j-a">]</span><span class="j-c">,</span>
+    <span class="j-k">"_meta"</span><span class="j-c">:</span> <span class="j-p">{</span>
+      <span class="j-k">"matchCount"</span><span class="j-c">:</span> <span class="j-n">5</span><span class="j-c">,</span>
+      <span class="j-k">"lastAmount"</span><span class="j-c">:</span> <span class="j-n">142.18</span>
+    <span class="j-p">}</span>
+  <span class="j-p">}</span>
+<span class="j-p">}</span></pre>
+              </details>
+            </div>
+          </details>
+
+          <!-- Collapsed call 3 -->
+          <details class="mcp-call mcp-call--compact">
+            <summary>
+              <div class="mcp-call-summary">
+                <span class="mcp-call-num">3</span>
+                <div class="mcp-call-summary-body">
+                  <div class="mcp-call-name">create_transfer</div>
+                  <div class="mcp-call-sub">tools/call · <span class="mcp-ok">200</span> · 421 ms · scope narrowed to <code>transfer</code></div>
+                </div>
+                <span class="mcp-call-chevron">▸</span>
+              </div>
+            </summary>
+            <div class="mcp-call-body">
+              <em class="mcp-call-collapsed-hint">Expand to see request + response JSON</em>
+            </div>
+          </details>
+
+          <div class="mcp-tip" style="margin-top:10px;">
+            <strong>Why expandable?</strong> Most viewers want to scan all 3 calls quickly. Click one open to see the wire payload; the others stay folded. Eliminates the scene-15-vs-scene-16 trade-off.
+          </div>
+
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 17c — Standards tab in HITL state with CIBA + Authorize -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">Standards tab · HITL-paused state</span>
+      <span class="tag">5 standards · CIBA + PingOne Authorize added because of the gate</span>
+    </div>
+    <div style="background:var(--bg-2); padding:18px 22px;">
+
+      <div style="margin-bottom:12px; padding: 10px 12px; background: var(--gold-soft); border: 1px solid #e7d3a5; border-left: 3px solid var(--gold); border-radius: 6px; font-size: 12px; color: var(--ink-2); line-height: 1.5;">
+        <strong style="color:var(--gold); font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase;">▲ Held by policy</strong>
+        <br>
+        Transfer crossed <code style="font-family:'JetBrains Mono', monospace; font-size:11px; background:#fff; padding:1px 5px; border-radius:3px;">confirm_threshold_usd ≥ $800</code>. While the user decides, the right column lists every standard that participated up to this point. CIBA and Authorize entered the chain because of the gate.
+      </div>
+
+      <div class="ac-std-list">
+
+        <a class="ac-std" href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">RFC 8693</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">OAuth 2.0 Token Exchange</div>
+            <div class="ac-std-desc">Subject + actor tokens loaded; delegated MCP token <em>not yet minted</em> — held by the HITL gate.</div>
+            <div class="ac-std-fired">Fired at §2.1 + §2.2 · §3.2 mint pending user approval</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <a class="ac-std" href="https://www.rfc-editor.org/rfc/rfc7519" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">RFC 7519</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">JSON Web Token (JWT)</div>
+            <div class="ac-std-desc">Format used by the held subject + actor tokens.</div>
+            <div class="ac-std-fired">Used by both tokens in this round-trip</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <!-- NEW: CIBA -->
+        <a class="ac-std ac-std--hitl" href="https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html" target="_blank" rel="noreferrer">
+          <div class="ac-std-num ac-std-num--hitl">OIDC CIBA</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">Client-Initiated Backchannel Authentication</div>
+            <div class="ac-std-desc">Decouples the consumption device (where the agent runs) from the approval device (where the user taps). The consent challenge to <em>Demo User</em> uses CIBA Poll mode to deliver the OTP / binding message.</div>
+            <div class="ac-std-fired">Fired at 04:44:10 · awaiting <code>auth_req_id</code> resolution</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <!-- NEW: PingOne Authorize -->
+        <a class="ac-std ac-std--hitl" href="https://docs.pingidentity.com/r/en-us/pingoneservices/pingoneservices-policy" target="_blank" rel="noreferrer">
+          <div class="ac-std-num ac-std-num--hitl">PingOne Authorize</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">Policy-driven access decision</div>
+            <div class="ac-std-desc">Evaluated the transaction context (amount $1,200, type <em>transfer</em>, ACR <em>Single</em>) against the active policy. Returned <code>CONSENT</code> — the BFF surfaced the HITL gate to satisfy it.</div>
+            <div class="ac-std-fired">Fired at 04:44:10 · decision <code>CONSENT</code> · rule <code>confirm_threshold_usd ≥ $800</code></div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+        <a class="ac-std" href="https://modelcontextprotocol.io/specification" target="_blank" rel="noreferrer">
+          <div class="ac-std-num">MCP 2025-11-25</div>
+          <div class="ac-std-body">
+            <div class="ac-std-title">Model Context Protocol · JSON-RPC 2.0</div>
+            <div class="ac-std-desc">No <code>tools/call</code> sent yet — the gate held everything before transport. Will fire once the user approves.</div>
+            <div class="ac-std-fired">Pending · 0 calls so far</div>
+          </div>
+          <div class="ac-std-arrow">↗</div>
+        </a>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 17d — Errors tab with Replay action -->
+  <div class="scene-frame" style="margin-top:18px;">
+    <div class="scene-title">
+      <span class="name">Errors tab · with "Replay this call"</span>
+      <span class="tag">interactive recovery · re-fire with same args after fixing config</span>
+    </div>
+    <div style="background:var(--bg-2); padding:18px 22px;">
+      <div class="ac-err">
+        <div class="ac-err-head">
+          <div>
+            <div class="ac-err-kind">✕ TOKEN_INVALID · act claim absent</div>
+            <div class="ac-err-when">04:45:03.341 · failed at step 3 of 3 · 341 ms before failure</div>
+          </div>
+        </div>
+        <div class="ac-err-body">
+          The delegated MCP token PingOne returned does not carry a nested <code>act.sub</code> claim. No money moved.
+        </div>
+        <div class="ac-err-section">
+          <div class="ac-err-section-title">What this means</div>
+          <div class="ac-err-section-body">PingOne's resource token policy is not configured to emit the <code>act</code> claim on RFC 8693 exchanges for this agent app.</div>
+        </div>
+        <div class="ac-err-section">
+          <div class="ac-err-section-title">Likely fixes</div>
+          <ul class="ac-err-fixes">
+            <li>Verify the agent app type is <code>AI_AGENT</code> in PingOne Admin Console.</li>
+            <li>Check the MCP resource's token policy includes the <code>act</code> attribute mapping.</li>
+            <li>Confirm <code>PINGONE_MCP_TOKEN_EXCHANGER_*</code> env vars match the actor app.</li>
+          </ul>
+        </div>
+        <div class="ac-err-actions">
+          <button type="button" class="ac-err-action ac-err-action--primary">↻ Replay this call</button>
+          <button type="button" class="ac-err-action">Re-authenticate</button>
+          <button type="button" class="ac-err-action">Open Inspect tab</button>
+          <button type="button" class="ac-err-action">Copy diagnostics</button>
+        </div>
+        <div class="ac-err-replay-hint">
+          <strong>↻ Replay this call</strong> re-fires the same <code>tools/call</code> with identical arguments and prints the new token chain underneath. Useful after you flip a PingOne policy and want to test without re-typing the user prompt.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Why this works -->
+  <div style="margin: 18px 18px 0; padding: 16px 20px; background: var(--teal-tint); border: 1px solid var(--teal-soft); border-left: 3px solid var(--teal); border-radius: 6px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--teal); letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:6px;">Why these four refinements</div>
+    <div style="font-size:13.5px; color:var(--ink-2); line-height:1.55;">
+      <strong>Search</strong> turns the All tab from a passive feed into an investigation tool. A viewer can type <code>"tools/call"</code> to see only MCP, or paste a tx ID to scrub the feed for that one event. The chip row preserves the most-useful pre-built filters.<br><br>
+      <strong>Expandable MCP cards</strong> collapse the scene-15-vs-scene-16 tradeoff: depth on demand. Scan three calls in three lines; click any to see the full JSON wire payload inline. The number badge (1·2·3) gives ordinal context.<br><br>
+      <strong>HITL standards</strong> proves the demo's depth — when the gate fires, two additional standards (CIBA + PingOne Authorize) enter the chain and are listed with their precise role in this round-trip's failure-to-fire. A viewer asking "is this real CIBA?" gets the receipt.<br><br>
+      <strong>Replay</strong> turns the Errors tab from documentation into a tight loop. After flipping a PingOne policy, the user re-fires the same tool call without retyping the prompt. The new round-trip's token chain appears below the original failure card for diff.
+    </div>
+  </div>
+</section>
+
+<style>
+  /* =============================================================
+     Scene 17 — refined right-column styles
+     ============================================================= */
+
+  /* Search bar above tabs */
+  .ac-search {
+    padding: 8px 22px 6px;
+    background: #fff;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ac-search-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 6px 10px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .ac-search-input:focus-within {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-tint);
+    background: #fff;
+  }
+  .ac-search-icon {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .ac-search-input input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    outline: none;
+  }
+  .ac-search-input input::placeholder {
+    color: var(--muted);
+  }
+  .ac-search-clear {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+  .ac-search-clear:hover {
+    background: var(--rule);
+    color: var(--ink);
+  }
+  .ac-search-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .ac-search-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: #fff;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    padding: 2px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .ac-search-chip:hover {
+    color: var(--ink);
+    border-color: var(--rule-2);
+  }
+  .ac-search-chip--on {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+
+  /* Tightened feed spacing — 4px between dots instead of 8px */
+  .ac-feed--tight .ac-feed-item {
+    padding: 6px 0 7px;
+  }
+  .ac-feed--tight .ac-feed-item + .ac-feed-item::before {
+    top: -2px;
+    height: 6px;
+  }
+
+  /* Highlight matches in the filter */
+  .ac-feed mark {
+    background: var(--gold-soft);
+    color: var(--ink);
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+
+  /* Filtered-out hint */
+  .ac-feed-collapsed {
+    margin: 8px 0 0 28px;
+    padding: 8px 12px;
+    background: var(--bg-2);
+    border: 1px dashed var(--rule);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Expandable MCP cards (compact list mode) */
+  .mcp-call--compact {
+    margin-bottom: 8px;
+  }
+  .mcp-call--compact > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+  }
+  .mcp-call--compact > summary::-webkit-details-marker { display: none; }
+  .mcp-call--compact[open] > summary {
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, #fbfcfe, #fff);
+  }
+  .mcp-call-summary {
+    display: grid;
+    grid-template-columns: 28px 1fr 18px;
+    gap: 10px;
+    padding: 10px 12px;
+    align-items: center;
+  }
+  .mcp-call-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mcp-call-num--on {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--teal);
+  }
+  .mcp-call-summary-body {
+    min-width: 0;
+  }
+  .mcp-call-summary .mcp-call-name {
+    font-size: 12.5px;
+    margin-bottom: 1px;
+  }
+  .mcp-call-summary .mcp-call-sub {
+    font-size: 10.5px;
+  }
+  .mcp-call-chevron {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.15s;
+  }
+  .mcp-call-chevron--open {
+    color: var(--teal);
+  }
+  .mcp-call-body {
+    padding: 0;
+  }
+  .mcp-call-collapsed-hint {
+    display: none;
+  }
+
+  /* HITL-state standards entries */
+  .ac-std--hitl {
+    border-left: 3px solid var(--gold);
+    background: linear-gradient(90deg, rgba(247, 236, 207, 0.4), #fff 30%);
+  }
+  .ac-std--hitl:hover {
+    background: linear-gradient(90deg, rgba(247, 236, 207, 0.6), var(--teal-tint) 60%);
+  }
+  .ac-std-num--hitl {
+    color: var(--gold);
+  }
+
+  /* Errors tab — replay action variant + hint */
+  .ac-err-action--primary {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--teal);
+  }
+  .ac-err-action--primary:hover {
+    background: var(--teal-2);
+    border-color: var(--teal-2);
+  }
+  .ac-err-replay-hint {
+    margin-top: 0;
+    padding: 10px 14px;
+    background: var(--teal-tint);
+    border-top: 1px solid var(--teal-soft);
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .ac-err-replay-hint strong {
+    color: var(--teal);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .ac-err-replay-hint code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: #fff;
+    border: 1px solid var(--teal-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--teal);
+  }
+</style>
+
+<!-- STRATEGY -->
+<section class="scene-block" style="padding-bottom:60px;">
+  <h2><b>Refinement summary</b> What changed from 2B baseline</h2>
+  <div style="margin: 8px 18px 0; max-width: 80ch; font-size: 13.5px; color: var(--ink-2); line-height: 1.6;">
+    <ul style="padding-left: 20px;">
+      <li><strong style="color:var(--teal);">Density.</strong> Rail 52 → 44 px. Headline 38 → 30 px. Timeline gutter halved. Composer min-height 56 → 44 px. Goal: a real 8-12 token chain fits without scroll.</li>
+      <li><strong style="color:var(--teal);">Color.</strong> Indigo retired. Single teal accent (<code style="font-family:'JetBrains Mono',monospace; background:var(--bg-2); padding:1px 5px; border-radius:3px;">#0d6760</code>) for AI identity, session, badges, focus, links. Warning/error use gold/rose; success uses moss. Reads "private bank," not "fintech startup."</li>
+      <li><strong style="color:var(--teal);">Real states.</strong> Ten Talk states mocked: default · in-flight (skeleton + disabled composer) · HITL 428 (inline approve card + held token) · token error (rose-failed step + recovery actions) · empty (focused composer + quick paths) · expanded token (inline expand with claims, badges, decoded JWT preview) · session expired (held request preserved across re-auth) · multi-tool chained call (one prompt → 3 grouped MCP calls in the timeline) · realistic 7-message thread (older exchanges collapse to compact headers) · mobile (split stacks; Chat/Timeline toggle).</li>
+      <li><strong style="color:var(--teal);">Inspect tab.</strong> Session log on the left (read-only table). Filters + alert digest + aggregates on the right. Replaces current "ActivityLog" panel.</li>
+      <li><strong style="color:var(--teal);">Configure tab.</strong> Theme, vertical, agent placement, Authorize thresholds, feature flags in one form. Right column = live PingOne config + sanity check. Replaces top-bar dropdowns + the Authorize Rules side card + scattered config dialogs.</li>
+      <li><strong style="color:var(--teal);">Floating agent untouched.</strong> Existing <code style="font-family:'JetBrains Mono',monospace;">.banking-agent-fab</code> remains. This redesign governs the inline dashboard placement + the 3-tab cognitive model only.</li>
+    </ul>
+  </div>
+</section>
+
+</body>
+</html>

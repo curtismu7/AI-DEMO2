@@ -1,0 +1,18 @@
+{
+  "heroStats": {
+    "activePermits": 3,
+    "feesOwed": 240.0,
+    "nextInspection": "2026-07-08",
+    "licenseStatus": "Active"
+  },
+  "permits": [
+    { "id": "P-1001", "permitType": "Building", "subject": "1234 Maple St", "status": "Active", "expiresDate": "2026-12-01" },
+    { "id": "P-1002", "permitType": "Business", "subject": "Maple Cafe LLC", "status": "Active", "expiresDate": "2026-09-15" },
+    { "id": "P-1003", "permitType": "Professional", "subject": "Contractor License", "status": "Renewal Due", "expiresDate": "2026-07-01" }
+  ],
+  "filings": [
+    { "id": "F-5001", "type": "Application", "date": "2026-04-02", "status": "Approved" },
+    { "id": "F-5002", "type": "Inspection", "date": "2026-05-10", "status": "Passed" },
+    { "id": "F-5003", "type": "Renewal", "date": "2026-05-28", "status": "Pending" }
+  ]
+}

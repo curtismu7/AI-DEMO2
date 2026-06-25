@@ -1,0 +1,208 @@
+/* PingOneMcpInspector.css — page-specific additions on top of McpInspector.css */
+
+/* Collapsible sections */
+.p1mcp-section {
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.p1mcp-section > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  user-select: none;
+}
+.p1mcp-section > summary::-webkit-details-marker { display: none; }
+.p1mcp-section > summary::before {
+  content: "▸";
+  font-size: 13px;
+  color: #475569;
+  transition: transform 0.15s ease;
+}
+.p1mcp-section[open] > summary::before { transform: rotate(90deg); }
+.p1mcp-section__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.p1mcp-section__hint {
+  font-size: 13px;
+  color: #475569;
+}
+.p1mcp-section__status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.p1mcp-section__status--ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+.p1mcp-section__status--error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.p1mcp-section__body { padding: 0 16px 16px; }
+
+/* Tab bar */
+.p1mcp-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+.p1mcp-tab {
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.p1mcp-tab:hover { color: #1e293b; }
+.p1mcp-tab--active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+  font-weight: 600;
+}
+.p1mcp-tab__count {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+}
+.p1mcp-tab--active .p1mcp-tab__count {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Secondary (resource) tabs under the PingOne top tab */
+.p1mcp-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.p1mcp-subtab {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.p1mcp-subtab:hover { color: #1e293b; border-color: #cbd5e1; }
+.p1mcp-subtab--active {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  font-weight: 600;
+}
+.p1mcp-subtab--active .p1mcp-tab__count {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+/* Tool chip catalog */
+.p1mcp-chips-callbar {
+  display: flex;
+  margin-bottom: 10px;
+}
+.p1mcp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.p1mcp-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: #1e293b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.p1mcp-chip:hover { background: #e2e8f0; border-color: #94a3b8; }
+.p1mcp-chip--active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+/* Selected tool card */
+.p1mcp-tool-card {
+  margin-top: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f8fafc;
+}
+.p1mcp-tool-card__name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.p1mcp-tool-card__desc {
+  margin: 6px 0 12px;
+  font-size: 14px;
+  color: #334155;
+}
+.p1mcp-param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.p1mcp-param-row label {
+  min-width: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: #1e293b;
+}
+.p1mcp-param-row label .p1mcp-required { color: #b91c1c; }
+.p1mcp-param-row input {
+  flex: 1;
+  max-width: 480px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+}
+.p1mcp-param-row .p1mcp-param-type {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Call result status line */
+.p1mcp-call-status {
+  margin: 10px 0;
+  font-size: 13px;
+  color: #334155;
+}
+.p1mcp-call-status--error { color: #b91c1c; }

@@ -1,0 +1,383 @@
+{
+  "orders": [
+    {
+      "id": "1001",
+      "product": "AirPods Pro",
+      "sku": "BB-APP3",
+      "amount": 249,
+      "status": "Delivered",
+      "date": "2026-04-20"
+    },
+    {
+      "id": "1002",
+      "product": "MacBook Pro 14\"",
+      "sku": "BB-MBP14",
+      "amount": 1999,
+      "status": "Shipped",
+      "date": "2026-04-22"
+    },
+    {
+      "id": "1003",
+      "product": "Bose SoundLink",
+      "sku": "BB-BOSE-SL",
+      "amount": 149,
+      "status": "Processing",
+      "date": "2026-04-23"
+    },
+    {
+      "id": "1004",
+      "product": "Apple Watch Series 10",
+      "sku": "BB-AWS10",
+      "amount": 429,
+      "status": "Delivered",
+      "date": "2026-04-25"
+    },
+    {
+      "id": "1005",
+      "product": "Sony WH-1000XM5 Headphones",
+      "sku": "BB-SONYXM5",
+      "amount": 399,
+      "status": "Shipped",
+      "date": "2026-04-28"
+    },
+    {
+      "id": "1006",
+      "product": "LG 27\" 4K Monitor",
+      "sku": "BB-LG27UK",
+      "amount": 449,
+      "status": "Processing",
+      "date": "2026-05-01"
+    }
+  ],
+  "rewards": [
+    { "id": "RWD-001", "tier": "Gold", "points": 4820, "storeCredit": 150, "status": "Active" }
+  ],
+  "wishlist": [
+    {
+      "id": "501",
+      "product": "iPhone 16 Pro",
+      "price": 999
+    },
+    {
+      "id": "502",
+      "product": "iPad Pro 13\" M4",
+      "price": 1299
+    },
+    {
+      "id": "503",
+      "product": "Samsung 65\" QLED TV",
+      "price": 1299
+    },
+    {
+      "id": "504",
+      "product": "PlayStation 5",
+      "price": 499
+    },
+    {
+      "id": "505",
+      "product": "Garmin Fenix 8",
+      "price": 799
+    },
+    {
+      "id": "506",
+      "product": "ASUS ROG Gaming Laptop",
+      "price": 1199
+    }
+  ],
+  "returns": [
+    {
+      "id": "701",
+      "product": "Bluetooth Speaker",
+      "reason": "Defective",
+      "status": "Refunded",
+      "date": "2026-05-02"
+    },
+    {
+      "id": "702",
+      "product": "Running Shoes",
+      "reason": "Wrong size",
+      "status": "In Transit",
+      "date": "2026-05-18"
+    },
+    {
+      "id": "703",
+      "product": "Coffee Maker",
+      "reason": "Changed mind",
+      "status": "Approved",
+      "date": "2026-06-01"
+    },
+    {
+      "id": "704",
+      "product": "USB-C Cable",
+      "reason": "Not as described",
+      "status": "Pending",
+      "date": "2026-06-09"
+    },
+    {
+      "id": "705",
+      "product": "Desk Lamp",
+      "reason": "Damaged in shipping",
+      "status": "Refunded",
+      "date": "2026-04-25"
+    }
+  ],
+  "payment_methods": [
+    {
+      "id": "pmt-1001",
+      "type": "Visa",
+      "last4": "4242",
+      "expiry": "2028-04",
+      "is_default": "Yes"
+    },
+    {
+      "id": "pmt-1002",
+      "type": "Mastercard",
+      "last4": "8210",
+      "expiry": "2027-11",
+      "is_default": "No"
+    },
+    {
+      "id": "pmt-1003",
+      "type": "Amex",
+      "last4": "3706",
+      "expiry": "2026-09",
+      "is_default": "No"
+    },
+    {
+      "id": "pmt-1004",
+      "type": "PayPal",
+      "last4": "N/A",
+      "expiry": "N/A",
+      "is_default": "No"
+    },
+    {
+      "id": "pmt-1005",
+      "type": "Discover",
+      "last4": "6011",
+      "expiry": "2029-01",
+      "is_default": "No"
+    }
+  ],
+  "addresses": [
+    {
+      "id": "addr-201",
+      "label": "Home",
+      "street": "742 Evergreen Terrace",
+      "city": "Springfield",
+      "is_default": "Yes"
+    },
+    {
+      "id": "addr-202",
+      "label": "Work",
+      "street": "100 Tech Park Dr",
+      "city": "Austin",
+      "is_default": "No"
+    },
+    {
+      "id": "addr-203",
+      "label": "Mom's House",
+      "street": "33 Oak Lane",
+      "city": "Denver",
+      "is_default": "No"
+    },
+    {
+      "id": "addr-204",
+      "label": "Vacation",
+      "street": "99 Beach Blvd",
+      "city": "Miami",
+      "is_default": "No"
+    },
+    {
+      "id": "addr-205",
+      "label": "Office 2",
+      "street": "555 Market St",
+      "city": "San Francisco",
+      "is_default": "No"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "sub-301",
+      "product": "AA Batteries 24-pack",
+      "frequency": "Monthly",
+      "next_date": "2026-07-01",
+      "status": "Active"
+    },
+    {
+      "id": "sub-302",
+      "product": "Protein Powder 5lb",
+      "frequency": "Every 6 weeks",
+      "next_date": "2026-07-15",
+      "status": "Active"
+    },
+    {
+      "id": "sub-303",
+      "product": "Printer Ink Combo",
+      "frequency": "Quarterly",
+      "next_date": "2026-09-01",
+      "status": "Paused"
+    },
+    {
+      "id": "sub-304",
+      "product": "Coffee Pods 60ct",
+      "frequency": "Every 2 weeks",
+      "next_date": "2026-06-28",
+      "status": "Active"
+    },
+    {
+      "id": "sub-305",
+      "product": "Water Filter Cartridge",
+      "frequency": "Monthly",
+      "next_date": "2026-07-10",
+      "status": "Active"
+    }
+  ],
+  "support_tickets": [
+    {
+      "id": "tkt-401",
+      "subject": "Item arrived damaged",
+      "category": "Shipping",
+      "status": "Open",
+      "created_date": "2026-06-10"
+    },
+    {
+      "id": "tkt-402",
+      "subject": "Wrong item delivered",
+      "category": "Fulfillment",
+      "status": "In Progress",
+      "created_date": "2026-06-12"
+    },
+    {
+      "id": "tkt-403",
+      "subject": "Refund not received",
+      "category": "Billing",
+      "status": "Resolved",
+      "created_date": "2026-05-28"
+    },
+    {
+      "id": "tkt-404",
+      "subject": "Product not working",
+      "category": "Product",
+      "status": "Open",
+      "created_date": "2026-06-15"
+    },
+    {
+      "id": "tkt-405",
+      "subject": "Promo code not applied",
+      "category": "Billing",
+      "status": "Resolved",
+      "created_date": "2026-05-20"
+    }
+  ],
+  "gift_cards": [
+    {
+      "id": "gc-601",
+      "last4": "7821",
+      "balance": 50,
+      "expiry": "2027-12-31",
+      "status": "Active"
+    },
+    {
+      "id": "gc-602",
+      "last4": "3344",
+      "balance": 15.75,
+      "expiry": "2027-06-30",
+      "status": "Active"
+    },
+    {
+      "id": "gc-603",
+      "last4": "9902",
+      "balance": 0,
+      "expiry": "2026-01-01",
+      "status": "Spent"
+    },
+    {
+      "id": "gc-604",
+      "last4": "1120",
+      "balance": 100,
+      "expiry": "2028-03-31",
+      "status": "Active"
+    },
+    {
+      "id": "gc-605",
+      "last4": "4477",
+      "balance": 25,
+      "expiry": "2027-09-30",
+      "status": "Active"
+    }
+  ],
+  "price_alerts": [
+    {
+      "id": "pa-801",
+      "product": "55in 4K OLED TV",
+      "target_price": 799,
+      "current_price": 1099,
+      "status": "Watching"
+    },
+    {
+      "id": "pa-802",
+      "product": "Gaming Laptop 16in",
+      "target_price": 999,
+      "current_price": 1249,
+      "status": "Watching"
+    },
+    {
+      "id": "pa-803",
+      "product": "Robot Vacuum Pro",
+      "target_price": 299,
+      "current_price": 299,
+      "status": "Triggered"
+    },
+    {
+      "id": "pa-804",
+      "product": "Noise-Canceling Headphones",
+      "target_price": 199,
+      "current_price": 279,
+      "status": "Watching"
+    },
+    {
+      "id": "pa-805",
+      "product": "Espresso Machine",
+      "target_price": 349,
+      "current_price": 349,
+      "status": "Triggered"
+    }
+  ],
+  "recently_viewed": [
+    {
+      "id": "rv-901",
+      "product": "Air Fryer XL",
+      "price": 89.99,
+      "viewed_date": "2026-06-18",
+      "category": "Kitchen"
+    },
+    {
+      "id": "rv-902",
+      "product": "Mechanical Keyboard TKL",
+      "price": 119,
+      "viewed_date": "2026-06-18",
+      "category": "Electronics"
+    },
+    {
+      "id": "rv-903",
+      "product": "Yoga Mat Premium",
+      "price": 45,
+      "viewed_date": "2026-06-17",
+      "category": "Sports"
+    },
+    {
+      "id": "rv-904",
+      "product": "Smart Doorbell Camera",
+      "price": 179,
+      "viewed_date": "2026-06-17",
+      "category": "Home Security"
+    },
+    {
+      "id": "rv-905",
+      "product": "Portable Power Bank 20000mAh",
+      "price": 59.99,
+      "viewed_date": "2026-06-16",
+      "category": "Electronics"
+    }
+  ]
+}

@@ -1,0 +1,209 @@
+{
+  "id": "manufacturing",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Precision Works",
+    "headerTitle": "Precision Works",
+    "documentTitle": "Precision Works · PingOne AI IAM Core",
+    "logoAlt": "Precision Works logo",
+    "tagline": "AI-Powered Manufacturing Demo"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#3b5269",
+      "--app-primary-red-hover": "#314457",
+      "--app-primary-red-mid": "#5a748c",
+      "--app-primary-red-border": "#28394a",
+      "--brand-dashboard-header-start": "#334155",
+      "--brand-dashboard-header-end": "#475569",
+      "--brand-app-shell-hero-start": "#334155",
+      "--brand-app-shell-hero-end": "#475569",
+      "--theme-accent": "#f59e0b",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Work Order",
+    "accounts": "Work Orders",
+    "accountTypes": ["Assembly", "Machining", "Finishing"],
+    "transaction": "Production Run",
+    "transactions": "Production History",
+    "transactionTypes": ["Setup", "Run", "Inspection", "Shipment"],
+    "balance": "Inventory",
+    "agent": "Production Assistant",
+    "dashboard": "My Shop Floor",
+    "highValueAction": "Work Order Release",
+    "highValueLabel": "Release a work order to the production floor"
+  },
+  "agent": {
+    "persona": "Gauge",
+    "greeting": "Hi {name}! I'm Gauge. I can show your work orders and on-hand inventory, review production history, schedule a run, and release a work order to the floor — I'll walk you through the approval steps. What do you need?",
+    "systemPromptFlavor": "You are Gauge, a Precision Works production assistant. Help operators view work orders and inventory, review production history, schedule runs, and release work orders to the floor. Use manufacturing language: accounts are work orders, transactions are production runs, balance is on-hand inventory. Be concise and precise."
+  },
+  "dashboard": {
+    "kind": "manufacturing",
+    "chips": [
+      { "key": "balance", "label": "Inventory" },
+      { "key": "accounts", "label": "Work Orders" },
+      { "key": "transactions", "label": "Production History" },
+      { "key": "transfer", "label": "Release Order" },
+      { "key": "feature", "label": "Work Order Status" }
+    ],
+    "hero": {
+      "cards": [
+        { "label": "Open Work Orders", "dataKey": "heroStats.openWorkOrders", "format": "count" },
+        { "label": "Inventory Value", "dataKey": "heroStats.inventoryValue", "format": "money" },
+        { "label": "On-Time Delivery", "dataKey": "heroStats.onTimeDelivery", "format": "percent" },
+        { "label": "Next Shipment", "dataKey": "heroStats.nextShipment", "format": "date" }
+      ]
+    },
+    "chips10": [
+      { "id": "mf1", "label": "My work orders", "message": "show my work orders", "mode": "both", "tool": "view_work_orders" },
+      { "id": "mf2", "label": "Inventory", "message": "what is my on-hand inventory", "mode": "both", "tool": "view_inventory" },
+      { "id": "mf3", "label": "Production history", "message": "show my production history", "mode": "both", "tool": "view_production_history" },
+      { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
+      { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
+      { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
+      { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "both" },
+      { "id": "mf7", "label": "Inspection status", "message": "what is my latest inspection status", "mode": "both" },
+      { "id": "mf8", "label": "Capacity this week", "message": "do I have capacity to take a rush order this week", "mode": "both", "tool": "view_work_orders" },
+      { "id": "mf-direct", "label": "🔌 Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a work-order release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the work-order release ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned record tried to redirect the agent; the HITL gate + Authorize policy stopped the injected action regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in record metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved receipt on a different tool is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Work Orders": [
+        { "id": "mf_open", "label": "Open orders", "message": "Show my open work orders" },
+        { "id": "mf_overdue", "label": "Overdue", "message": "Which work orders are overdue?" }
+      ],
+      "Inventory": [
+        { "id": "mf_stock", "label": "On-hand stock", "message": "What's my on-hand inventory?" },
+        { "id": "mf_low", "label": "Low stock", "message": "Which materials are running low?" }
+      ],
+      "Production": [
+        { "id": "mf_history", "label": "Production history", "message": "Show my recent production history" },
+        { "id": "mf_inspect", "label": "Inspections", "message": "Show my latest inspection results" }
+      ],
+      "Release": [
+        { "id": "mf_release", "label": "Release an order", "message": "Release a work order to the floor" }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "workorders:read"
+  },
+  "delegation": {
+    "pageTitle": "Authorized Operator",
+    "pageDescription": "Authorize a shift lead or contractor to manage your work orders — powered by RFC 8693 token exchange",
+    "granteeLabel": "shift lead or contractor",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Work Orders",  "description": "See work order list and status" },
+      "view_balances":     { "label": "View Inventory",    "description": "See on-hand inventory" },
+      "create_deposit":    { "label": "Schedule Runs",     "description": "Schedule production runs" },
+      "create_withdrawal": { "label": "Cancel Runs",       "description": "Cancel a scheduled run" },
+      "create_transfer":   { "label": "Release Orders",    "description": "Authorize a work-order release to the floor" }
+    }
+  },
+  "render": {
+    "close_maintenance_ticket": {"type":"card","title":"Maintenance Ticket Closed","fields":[{"label":"Ticket ID","path":"id"},{"label":"Machine","path":"machineId"},{"label":"Issue","path":"issue"},{"label":"Status","path":"status"}]},
+    "complete_quality_inspection": {"type":"card","title":"Inspection Passed","fields":[{"label":"Inspection ID","path":"id"},{"label":"Work Order","path":"workOrder"},{"label":"Inspector","path":"inspector"},{"label":"Status","path":"status"}]},
+    "receive_shipment": {"type":"card","title":"Shipment Received","fields":[{"label":"Shipment ID","path":"id"},{"label":"Carrier","path":"carrier"},{"label":"Destination","path":"destination"},{"label":"Status","path":"status"}]},
+    "approve_purchase_order": {"type":"card","title":"Purchase Order Approved","fields":[{"label":"PO ID","path":"id"},{"label":"Supplier","path":"supplier"},{"label":"Total","path":"total","format":"money"},{"label":"Status","path":"status"}]},
+    "flag_defect": {"type":"card","title":"Defect Flagged","fields":[{"label":"Defect ID","path":"id"},{"label":"Work Order","path":"workOrder"},{"label":"Description","path":"description"},{"label":"Status","path":"status"}]},
+    "put_machine_offline": {"type":"card","title":"Machine Taken Offline","fields":[{"label":"Machine ID","path":"id"},{"label":"Name","path":"name"},{"label":"Cell","path":"cell"},{"label":"Status","path":"status"}]},
+    "reject_purchase_order": {"type":"card","title":"Purchase Order Rejected","fields":[{"label":"PO ID","path":"id"},{"label":"Supplier","path":"supplier"},{"label":"Total","path":"total","format":"money"},{"label":"Status","path":"status"}]},
+    "view_machines": {"type":"table","columns":[{"label":"Machine ID","path":"id","format":"text"},{"label":"Name","path":"name","format":"text"},{"label":"Cell","path":"cell","format":"text"},{"label":"Type","path":"type","format":"text"},{"label":"Utilization %","path":"utilizationPct","format":"percent"},{"label":"Status","path":"status","format":"text"}]},
+    "view_quality_inspections": {"type":"table","columns":[{"label":"Inspection ID","path":"id","format":"text"},{"label":"Work Order","path":"workOrder","format":"text"},{"label":"Type","path":"type","format":"text"},{"label":"Inspector","path":"inspector","format":"text"},{"label":"Date","path":"date","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_shipments": {"type":"table","columns":[{"label":"Shipment ID","path":"id","format":"text"},{"label":"Work Order","path":"workOrder","format":"text"},{"label":"Destination","path":"destination","format":"text"},{"label":"Carrier","path":"carrier","format":"text"},{"label":"Ship Date","path":"shipDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_purchase_orders": {"type":"table","columns":[{"label":"PO ID","path":"id","format":"text"},{"label":"Supplier","path":"supplier","format":"text"},{"label":"Material","path":"material","format":"text"},{"label":"Total","path":"total","format":"money"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_maintenance_tickets": {"type":"table","columns":[{"label":"Ticket ID","path":"id","format":"text"},{"label":"Machine","path":"machineId","format":"text"},{"label":"Issue","path":"issue","format":"text"},{"label":"Priority","path":"priority","format":"text"},{"label":"Opened","path":"openedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "expedite_shipment": {"type":"card","title":"Shipment Expedited","fields":[{"label":"Shipment ID","path":"id"},{"label":"Destination","path":"destination"},{"label":"Status","path":"status"}]},
+    "escalate_maintenance_ticket": {"type":"card","title":"Maintenance Ticket Escalated","fields":[{"label":"Ticket ID","path":"id"},{"label":"Machine","path":"machineId"},{"label":"Issue","path":"issue"},{"label":"Status","path":"status"}]},
+    "reopen_defect": {"type":"card","title":"Defect Reopened","fields":[{"label":"Defect ID","path":"id"},{"label":"Work Order","path":"workOrder"},{"label":"Description","path":"description"},{"label":"Status","path":"status"}]},
+    "void_purchase_order": {"type":"card","title":"Purchase Order Voided","fields":[{"label":"PO ID","path":"id"},{"label":"Supplier","path":"supplier"},{"label":"Status","path":"status"}]},
+    "view_defects": {"type":"table","columns":[{"label":"Defect ID","path":"id","format":"text"},{"label":"Work Order","path":"workOrder","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Severity","path":"severity","format":"text"},{"label":"Detected","path":"detectedDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_machine_utilization": {"type":"table","columns":[{"label":"Machine ID","path":"id","format":"text"},{"label":"Name","path":"name","format":"text"},{"label":"Cell","path":"cell","format":"text"},{"label":"Utilization %","path":"utilizationPct","format":"percent"},{"label":"Status","path":"status","format":"text"}]},
+    "view_scrap_report": {"type":"table","columns":[{"label":"Defect ID","path":"id","format":"text"},{"label":"Work Order","path":"workOrder","format":"text"},{"label":"Description","path":"description","format":"text"},{"label":"Severity","path":"severity","format":"text"},{"label":"Status","path":"status","format":"text"}]},
+    "view_supplier_scorecard": {"type":"table","columns":[{"label":"PO ID","path":"id","format":"text"},{"label":"Supplier","path":"supplier","format":"text"},{"label":"Material","path":"material","format":"text"},{"label":"Total","path":"total","format":"money"},{"label":"Due Date","path":"dueDate","format":"date"},{"label":"Status","path":"status","format":"text"}]},
+    "view_inventory": { "type": "fieldList", "title": "Inventory", "fields": [ { "label": "Total value", "path": "value", "format": "money" }, { "label": "Units on hand", "path": "unitsOnHand", "format": "count" }, { "label": "Low-stock items", "path": "lowStock", "format": "count" } ] },
+    "view_work_orders": { "type": "table", "columns": [ { "label": "Order", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Type", "path": "type" }, { "label": "Status", "path": "status" } ] },
+    "view_production_history": { "type": "table", "columns": [ { "label": "Run #", "path": "id" }, { "label": "Type", "path": "type" }, { "label": "Work order", "path": "workOrder" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "schedule_run": { "type": "card", "title": "Run Scheduled", "fields": [ { "label": "Work order", "path": "workOrder" }, { "label": "When", "path": "when", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "release_work_order": { "type": "card", "title": "Work Order Released", "fields": [ { "label": "Order", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_work_order",
+    "pageTitle": "Work Order Status",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#3b5269",
+    "dataKey": "workOrder",
+    "fields": [
+      { "label": "Order ID", "path": "orderId" },
+      { "label": "Product", "path": "product" },
+      { "label": "Type", "path": "type" },
+      { "label": "Line", "path": "line" },
+      { "label": "Quantity", "path": "quantity", "format": "count" },
+      { "label": "Completed", "path": "completedQty", "format": "count" },
+      { "label": "Value", "path": "value", "format": "money", "accent": true },
+      { "label": "Status", "path": "status" },
+      { "label": "Due date", "path": "dueDate" }
+    ],
+    "sectionTitle": "Work order details",
+    "emptyPrompt": "show work order status",
+    "scopeError": "The agent's access token does not carry the workorders:read scope. Sign out and sign back in to consent to work-order access, then try \"Work Order Status\" again."
+  },
+  "demoUsers": {
+    "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
+    "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  }
+}

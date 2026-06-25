@@ -1,0 +1,50 @@
+{
+  "about": "Example PingOne bootstrap manifest (legacy plan/preview path). Copy to pingone-bootstrap.manifest.json and customize. The full automated provisioner is `npm run pingone:bootstrap` (or `npm run setup:fresh`); scope-topology.json at the repo root is the source of truth for resources, scopes, and apps. See docs/SETUP_AUTOMATION_PLAN.md.",
+  "version": 1,
+  "publicUrlTemplate": "https://{your-production-host}",
+  "resourceServer": {
+    "name": "Demo API",
+    "audience": "enduser.ping.demo",
+    "scopes": [
+      { "name": "read", "description": "Read accounts, balances, transactions" },
+      { "name": "write", "description": "Write operations (deposit/withdrawal/transfer)" },
+      { "name": "transfer", "description": "Execute fund transfers" },
+      { "name": "accounts:read", "description": "Read account information and balances" },
+      { "name": "transactions:read", "description": "Read transaction history and details" },
+      { "name": "mortgage:read", "description": "Read mortgage/feature-specific data (banking vertical)" },
+      { "name": "largepurchase:read", "description": "Read large purchase data (retail vertical)" },
+      { "name": "records:read", "description": "Read health record data (healthcare vertical)" },
+      { "name": "gear:read", "description": "Read gear order data (sporting-goods vertical)" },
+      { "name": "expense:read", "description": "Read expense report data (workforce vertical)" },
+      { "name": "ai:agent:read", "description": "Agent invocation permission" },
+      { "name": "ai_agent", "description": "AI agent identity" },
+      { "name": "admin:read", "description": "Read access to administrative data" },
+      { "name": "admin:write", "description": "Write access to administrative operations" },
+      { "name": "admin:delete", "description": "Delete operations for administrative tasks" },
+      { "name": "users:read", "description": "Read access to user management data" },
+      { "name": "users:manage", "description": "Full user management capabilities" }
+    ]
+  },
+  "applications": {
+    "admin_oidc": {
+      "name": "Demo Admin App",
+      "type": "WEB_APP",
+      "note": "Redirect: {PUBLIC_URL}/api/auth/oauth/callback"
+    },
+    "user_oidc": {
+      "name": "Demo User App",
+      "type": "WEB_APP",
+      "note": "Redirect: {PUBLIC_URL}/api/auth/oauth/user/callback"
+    },
+    "authorize_worker": {
+      "name": "Demo Worker",
+      "type": "WORKER",
+      "note": "Client credentials for the PingOne Management API + Authorize decision endpoint bootstrap"
+    }
+  },
+  "demoUsers": [
+    { "username": "demoUser", "email": "demoUser@example.com" },
+    { "username": "demoAdmin", "email": "demoAdmin@example.com" },
+    { "username": "demoDelegate", "email": "demoDelegate@example.com" }
+  ]
+}

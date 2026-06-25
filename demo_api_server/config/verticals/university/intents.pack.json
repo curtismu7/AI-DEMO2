@@ -1,0 +1,1471 @@
+{
+  "intents": [
+    {
+      "action": "cancel_course_registration",
+      "type": "write",
+      "arr": "courses",
+      "idParam": "courseId",
+      "mutateStatus": "Dropped",
+      "noun": "course registration",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(cancel|drop|withdraw)\\b.*\\b(registration|enrollment|course|section|class)\\b",
+      "toolDescription": "Drop (cancel) a registered course by courseId.",
+      "render": {
+        "type": "card",
+        "title": "Course Dropped",
+        "fields": [
+          {
+            "label": "Course ID",
+            "path": "id"
+          },
+          {
+            "label": "Title",
+            "path": "title"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"drop a course\" / \"withdraw from class 101\" + courseId -> cancel_course_registration params:{courseId}",
+      "evalRows": [
+        {
+          "phrase": "drop course CS101",
+          "expect": "cancel_course_registration"
+        },
+        {
+          "phrase": "I want to withdraw from class 202",
+          "expect": "cancel_course_registration"
+        },
+        {
+          "phrase": "cancel my registration for section 305",
+          "expect": "cancel_course_registration"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "waitlist_course",
+      "type": "write",
+      "arr": "courses",
+      "idParam": "courseId",
+      "mutateStatus": "Waitlisted",
+      "noun": "course waitlist",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bwaitlist\\b.{0,25}\\b(course|class|section)\\b|\\bjoin\\b.{0,15}\\bwaitlist\\b",
+      "toolDescription": "Add a student to the waitlist for a full course by courseId.",
+      "render": {
+        "type": "card",
+        "title": "Added to Waitlist",
+        "fields": [
+          {
+            "label": "Course ID",
+            "path": "id"
+          },
+          {
+            "label": "Title",
+            "path": "title"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"waitlist course 303\" / \"join waitlist for class\" + courseId -> waitlist_course params:{courseId}",
+      "evalRows": [
+        {
+          "phrase": "put me on the waitlist for course 303",
+          "expect": "waitlist_course"
+        },
+        {
+          "phrase": "join waitlist for MATH 201",
+          "expect": "waitlist_course"
+        },
+        {
+          "phrase": "waitlist class section 410",
+          "expect": "waitlist_course"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "accept_financial_aid",
+      "type": "write",
+      "arr": "financial_aid",
+      "idParam": "aidId",
+      "mutateStatus": "Accepted",
+      "noun": "financial aid award",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\baccept\\b.{0,25}\\b(aid|grant|loan|award|scholarship)\\b",
+      "toolDescription": "Accept a pending financial aid award or loan offer by aidId.",
+      "render": {
+        "type": "card",
+        "title": "Aid Accepted",
+        "fields": [
+          {
+            "label": "Award ID",
+            "path": "id"
+          },
+          {
+            "label": "Award Name",
+            "path": "name"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"accept my financial aid\" / \"accept aid offer 2001\" + aidId -> accept_financial_aid params:{aidId}",
+      "evalRows": [
+        {
+          "phrase": "accept my financial aid award 2001",
+          "expect": "accept_financial_aid"
+        },
+        {
+          "phrase": "I want to accept my loan offer",
+          "expect": "accept_financial_aid"
+        },
+        {
+          "phrase": "accept grant 2003",
+          "expect": "accept_financial_aid"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "pay_tuition_balance",
+      "type": "write",
+      "arr": "billing",
+      "idParam": "billId",
+      "mutateStatus": "Paid",
+      "noun": "tuition bill",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(pay|make\\s+a\\s+payment|settle)\\b.{0,25}\\b(tuition|bill|balance|invoice|charge)\\b",
+      "toolDescription": "Mark a tuition bill as paid by billId.",
+      "render": {
+        "type": "card",
+        "title": "Payment Submitted",
+        "fields": [
+          {
+            "label": "Bill ID",
+            "path": "id"
+          },
+          {
+            "label": "Description",
+            "path": "description"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"pay my tuition\" / \"pay bill 3002\" + billId -> pay_tuition_balance params:{billId}",
+      "evalRows": [
+        {
+          "phrase": "pay my tuition bill 3001",
+          "expect": "pay_tuition_balance"
+        },
+        {
+          "phrase": "settle my balance for this term",
+          "expect": "pay_tuition_balance"
+        },
+        {
+          "phrase": "make a payment on invoice 3004",
+          "expect": "pay_tuition_balance"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "release_hold",
+      "type": "write",
+      "arr": "holds",
+      "idParam": "holdId",
+      "mutateStatus": "Released",
+      "noun": "account hold",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(clear|release|remove|resolve)\\b.{0,20}\\bhold\\b",
+      "toolDescription": "Request release of an account hold by holdId.",
+      "render": {
+        "type": "card",
+        "title": "Hold Released",
+        "fields": [
+          {
+            "label": "Hold ID",
+            "path": "id"
+          },
+          {
+            "label": "Hold Type",
+            "path": "holdType"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"clear my hold\" / \"release hold 4002\" + holdId -> release_hold params:{holdId}",
+      "evalRows": [
+        {
+          "phrase": "clear my financial hold 4001",
+          "expect": "release_hold"
+        },
+        {
+          "phrase": "release hold 4003 on my account",
+          "expect": "release_hold"
+        },
+        {
+          "phrase": "remove the advising hold from my account",
+          "expect": "release_hold"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "request_housing_assignment",
+      "type": "write",
+      "arr": "housing",
+      "idParam": "housingId",
+      "mutateStatus": "Requested",
+      "noun": "housing assignment",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(request|apply\\s+for|change|update)\\b.{0,25}\\b(housing|dorm|residence\\s+hall|room)\\b",
+      "toolDescription": "Submit or change a housing assignment request by housingId.",
+      "render": {
+        "type": "card",
+        "title": "Housing Request Submitted",
+        "fields": [
+          {
+            "label": "Housing ID",
+            "path": "id"
+          },
+          {
+            "label": "Hall",
+            "path": "hall"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"request housing\" / \"apply for dorm 6001\" + housingId -> request_housing_assignment params:{housingId}",
+      "evalRows": [
+        {
+          "phrase": "request a room in the dorm 6002",
+          "expect": "request_housing_assignment"
+        },
+        {
+          "phrase": "apply for on-campus housing",
+          "expect": "request_housing_assignment"
+        },
+        {
+          "phrase": "change my residence hall assignment 6003",
+          "expect": "request_housing_assignment"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "renew_parking_permit",
+      "type": "write",
+      "arr": "parking",
+      "idParam": "permitId",
+      "mutateStatus": "Renewed",
+      "noun": "parking permit",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(renew|extend|reactivate)\\b.{0,20}\\b(parking|permit)\\b",
+      "toolDescription": "Renew a campus parking permit by permitId.",
+      "render": {
+        "type": "card",
+        "title": "Parking Permit Renewed",
+        "fields": [
+          {
+            "label": "Permit ID",
+            "path": "id"
+          },
+          {
+            "label": "Zone",
+            "path": "zone"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"renew parking permit 8001\" + permitId -> renew_parking_permit params:{permitId}",
+      "evalRows": [
+        {
+          "phrase": "renew my parking permit 8002",
+          "expect": "renew_parking_permit"
+        },
+        {
+          "phrase": "extend parking permit for zone A",
+          "expect": "renew_parking_permit"
+        },
+        {
+          "phrase": "reactivate permit 8004",
+          "expect": "renew_parking_permit"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "checkout_library_item",
+      "type": "write",
+      "arr": "library",
+      "idParam": "itemId",
+      "mutateStatus": "Checked Out",
+      "noun": "library item",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(checkout|check\\s+out|borrow|reserve)\\b.{0,25}\\b(book|item|resource|material)\\b",
+      "toolDescription": "Check out or reserve a library item by itemId.",
+      "render": {
+        "type": "card",
+        "title": "Item Checked Out",
+        "fields": [
+          {
+            "label": "Item ID",
+            "path": "id"
+          },
+          {
+            "label": "Title",
+            "path": "title"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"check out book 9001\" + itemId -> checkout_library_item params:{itemId}",
+      "evalRows": [
+        {
+          "phrase": "check out book 9002 from the library",
+          "expect": "checkout_library_item"
+        },
+        {
+          "phrase": "borrow library item 9003",
+          "expect": "checkout_library_item"
+        },
+        {
+          "phrase": "reserve this resource 9005",
+          "expect": "checkout_library_item"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "apply_scholarship",
+      "type": "write",
+      "arr": "scholarships",
+      "idParam": "scholarshipId",
+      "mutateStatus": "Applied",
+      "noun": "scholarship",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(apply|submit)\\b.{0,20}\\bscholarship\\b",
+      "toolDescription": "Submit an application for a scholarship by scholarshipId.",
+      "render": {
+        "type": "card",
+        "title": "Scholarship Application Submitted",
+        "fields": [
+          {
+            "label": "Scholarship ID",
+            "path": "id"
+          },
+          {
+            "label": "Name",
+            "path": "name"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"apply for scholarship 1001\" + scholarshipId -> apply_scholarship params:{scholarshipId}",
+      "evalRows": [
+        {
+          "phrase": "apply for the merit scholarship 1001",
+          "expect": "apply_scholarship"
+        },
+        {
+          "phrase": "submit scholarship application 1003",
+          "expect": "apply_scholarship"
+        },
+        {
+          "phrase": "apply to the STEM scholarship",
+          "expect": "apply_scholarship"
+        }
+      ],
+      "resultKey": null,
+      "seedRows": null
+    },
+    {
+      "action": "view_financial_aid",
+      "type": "read",
+      "arr": "financial_aid",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bfinancial\\s+aid\\b|\\b(my\\s+)?(grants?|loans?|aid\\s+package|fafsa\\s+status)\\b",
+      "toolDescription": "View the student's financial aid awards, loans, and grants.",
+      "render": {
+        "type": "table",
+        "title": "Financial Aid",
+        "columns": [
+          {
+            "label": "Award ID",
+            "path": "id"
+          },
+          {
+            "label": "Name",
+            "path": "name",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "type",
+            "format": "text"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my financial aid\" / \"what grants do I have\" -> view_financial_aid params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my financial aid package",
+          "expect": "view_financial_aid"
+        },
+        {
+          "phrase": "what grants and loans do I have",
+          "expect": "view_financial_aid"
+        },
+        {
+          "phrase": "check my FAFSA status",
+          "expect": "view_financial_aid"
+        }
+      ],
+      "resultKey": "financial_aid",
+      "seedRows": [
+        {
+          "id": "2001",
+          "name": "Pell Grant",
+          "type": "Grant",
+          "amount": 3500,
+          "term": "Fall 2025",
+          "status": "Disbursed"
+        },
+        {
+          "id": "2002",
+          "name": "Subsidized Stafford Loan",
+          "type": "Loan",
+          "amount": 5500,
+          "term": "Fall 2025",
+          "status": "Accepted"
+        },
+        {
+          "id": "2003",
+          "name": "Merit Scholarship",
+          "type": "Scholarship",
+          "amount": 2000,
+          "term": "Fall 2025",
+          "status": "Pending"
+        },
+        {
+          "id": "2004",
+          "name": "Work-Study Award",
+          "type": "Work-Study",
+          "amount": 1200,
+          "term": "Spring 2026",
+          "status": "Offered"
+        },
+        {
+          "id": "2005",
+          "name": "Unsubsidized Stafford Loan",
+          "type": "Loan",
+          "amount": 4000,
+          "term": "Spring 2026",
+          "status": "Accepted"
+        }
+      ]
+    },
+    {
+      "action": "view_billing",
+      "type": "read",
+      "arr": "billing",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(tuition|bill|billing|balance\\s+due|invoice|charges?|fees?)\\b",
+      "toolDescription": "View the student's tuition charges, fees, and billing balance.",
+      "render": {
+        "type": "table",
+        "title": "Billing & Tuition",
+        "columns": [
+          {
+            "label": "Bill ID",
+            "path": "id"
+          },
+          {
+            "label": "Description",
+            "path": "description",
+            "format": "text"
+          },
+          {
+            "label": "Due Date",
+            "path": "dueDate",
+            "format": "date"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my tuition bill\" / \"what fees do I owe\" -> view_billing params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my tuition bill for this semester",
+          "expect": "view_billing"
+        },
+        {
+          "phrase": "what is my balance due",
+          "expect": "view_billing"
+        },
+        {
+          "phrase": "view my student account charges",
+          "expect": "view_billing"
+        }
+      ],
+      "resultKey": "billing",
+      "seedRows": [
+        {
+          "id": "3001",
+          "description": "Fall 2025 Tuition",
+          "dueDate": "2025-08-15",
+          "amount": 8400,
+          "term": "Fall 2025",
+          "status": "Unpaid"
+        },
+        {
+          "id": "3002",
+          "description": "Technology Fee",
+          "dueDate": "2025-08-15",
+          "amount": 250,
+          "term": "Fall 2025",
+          "status": "Unpaid"
+        },
+        {
+          "id": "3003",
+          "description": "Health Services Fee",
+          "dueDate": "2025-08-15",
+          "amount": 180,
+          "term": "Fall 2025",
+          "status": "Paid"
+        },
+        {
+          "id": "3004",
+          "description": "Spring 2026 Tuition",
+          "dueDate": "2026-01-10",
+          "amount": 8400,
+          "term": "Spring 2026",
+          "status": "Pending"
+        },
+        {
+          "id": "3005",
+          "description": "Parking Permit Fee",
+          "dueDate": "2025-09-01",
+          "amount": 120,
+          "term": "Fall 2025",
+          "status": "Paid"
+        }
+      ]
+    },
+    {
+      "action": "view_holds",
+      "type": "read",
+      "arr": "holds",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(my\\s+)?holds?\\b|\\b(account|registration)\\s+hold\\b",
+      "toolDescription": "View all active and resolved holds on the student's account.",
+      "render": {
+        "type": "table",
+        "title": "Account Holds",
+        "columns": [
+          {
+            "label": "Hold ID",
+            "path": "id"
+          },
+          {
+            "label": "Type",
+            "path": "holdType",
+            "format": "text"
+          },
+          {
+            "label": "Reason",
+            "path": "reason",
+            "format": "text"
+          },
+          {
+            "label": "Placed",
+            "path": "placedDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"do I have any holds\" / \"show my account holds\" -> view_holds params:{}",
+      "evalRows": [
+        {
+          "phrase": "do I have any holds on my account",
+          "expect": "view_holds"
+        },
+        {
+          "phrase": "show me my registration holds",
+          "expect": "view_holds"
+        },
+        {
+          "phrase": "what account holds are active",
+          "expect": "view_holds"
+        }
+      ],
+      "resultKey": "holds",
+      "seedRows": [
+        {
+          "id": "4001",
+          "holdType": "Financial",
+          "reason": "Unpaid tuition balance",
+          "placedDate": "2025-07-01",
+          "status": "Active"
+        },
+        {
+          "id": "4002",
+          "holdType": "Advising",
+          "reason": "Advisor signature required",
+          "placedDate": "2025-07-10",
+          "status": "Active"
+        },
+        {
+          "id": "4003",
+          "holdType": "Library",
+          "reason": "Overdue materials",
+          "placedDate": "2025-06-15",
+          "status": "Released"
+        },
+        {
+          "id": "4004",
+          "holdType": "Immunization",
+          "reason": "Missing vaccination record",
+          "placedDate": "2025-05-20",
+          "status": "Active"
+        },
+        {
+          "id": "4005",
+          "holdType": "Parking",
+          "reason": "Unpaid parking fines",
+          "placedDate": "2025-07-22",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "action": "view_degree_audit",
+      "type": "read",
+      "arr": "degree_audit",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bdegree\\s+audit\\b|\\bdegree\\s+progress\\b|\\bhow\\s+many\\s+credits\\b|\\bcredits?\\b.*\\b(to\\s+graduate|remaining|still\\s+need|need\\s+to\\s+graduat)\\w*|\\bgraduat\\w*\\s+requirements?\\b",
+      "toolDescription": "View the student's degree audit showing completed and remaining graduation requirements.",
+      "render": {
+        "type": "table",
+        "title": "Degree Audit",
+        "columns": [
+          {
+            "label": "Req ID",
+            "path": "id"
+          },
+          {
+            "label": "Requirement",
+            "path": "requirement",
+            "format": "text"
+          },
+          {
+            "label": "Credits Required",
+            "path": "creditsRequired",
+            "format": "count"
+          },
+          {
+            "label": "Credits Earned",
+            "path": "creditsEarned",
+            "format": "count"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my degree audit\" / \"how many credits do I have left\" -> view_degree_audit params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my degree audit",
+          "expect": "view_degree_audit"
+        },
+        {
+          "phrase": "how many credits do I still need to graduate",
+          "expect": "view_degree_audit"
+        },
+        {
+          "phrase": "check my graduation requirements",
+          "expect": "view_degree_audit"
+        }
+      ],
+      "resultKey": "degree_audit",
+      "seedRows": [
+        {
+          "id": "5001",
+          "requirement": "Core Curriculum",
+          "creditsRequired": 42,
+          "creditsEarned": 39,
+          "status": "In Progress"
+        },
+        {
+          "id": "5002",
+          "requirement": "Major Requirements",
+          "creditsRequired": 60,
+          "creditsEarned": 48,
+          "status": "In Progress"
+        },
+        {
+          "id": "5003",
+          "requirement": "Free Electives",
+          "creditsRequired": 18,
+          "creditsEarned": 18,
+          "status": "Completed"
+        },
+        {
+          "id": "5004",
+          "requirement": "Writing Intensive",
+          "creditsRequired": 6,
+          "creditsEarned": 6,
+          "status": "Completed"
+        },
+        {
+          "id": "5005",
+          "requirement": "Capstone/Senior Project",
+          "creditsRequired": 3,
+          "creditsEarned": 0,
+          "status": "Not Started"
+        }
+      ]
+    },
+    {
+      "action": "view_housing",
+      "type": "read",
+      "arr": "housing",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(my\\s+)?(housing|dorm|residence\\s+hall|room\\s+assignment)\\b",
+      "toolDescription": "View the student's on-campus housing assignment details.",
+      "render": {
+        "type": "table",
+        "title": "Housing Assignment",
+        "columns": [
+          {
+            "label": "Housing ID",
+            "path": "id"
+          },
+          {
+            "label": "Hall",
+            "path": "hall",
+            "format": "text"
+          },
+          {
+            "label": "Room",
+            "path": "room",
+            "format": "text"
+          },
+          {
+            "label": "Term",
+            "path": "term",
+            "format": "text"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my housing assignment\" / \"what dorm am I in\" -> view_housing params:{}",
+      "evalRows": [
+        {
+          "phrase": "what is my housing assignment",
+          "expect": "view_housing"
+        },
+        {
+          "phrase": "show me my dorm room",
+          "expect": "view_housing"
+        },
+        {
+          "phrase": "which residence hall am I in",
+          "expect": "view_housing"
+        }
+      ],
+      "resultKey": "housing",
+      "seedRows": [
+        {
+          "id": "6001",
+          "hall": "North Hall",
+          "room": "204B",
+          "roomType": "Double",
+          "term": "Fall 2025",
+          "status": "Assigned"
+        },
+        {
+          "id": "6002",
+          "hall": "East Village",
+          "room": "112A",
+          "roomType": "Single",
+          "term": "Spring 2026",
+          "status": "Requested"
+        },
+        {
+          "id": "6003",
+          "hall": "South Quad",
+          "room": "308C",
+          "roomType": "Triple",
+          "term": "Fall 2024",
+          "status": "Completed"
+        },
+        {
+          "id": "6004",
+          "hall": "West Commons",
+          "room": "215",
+          "roomType": "Suite",
+          "term": "Spring 2025",
+          "status": "Completed"
+        },
+        {
+          "id": "6005",
+          "hall": "Graduate Tower",
+          "room": "501",
+          "roomType": "Studio",
+          "term": "Fall 2025",
+          "status": "Waitlisted"
+        }
+      ]
+    },
+    {
+      "action": "view_dining",
+      "type": "read",
+      "arr": "dining",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(dining|meal\\s+plan|dining\\s+dollars|cafeteria|swipes?)\\b",
+      "toolDescription": "View the student's meal plan, dining dollar balance, and recent dining transactions.",
+      "render": {
+        "type": "table",
+        "title": "Dining & Meal Plan",
+        "columns": [
+          {
+            "label": "Transaction ID",
+            "path": "id"
+          },
+          {
+            "label": "Location",
+            "path": "location",
+            "format": "text"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Type",
+            "path": "type",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my meal plan\" / \"check my dining dollars\" -> view_dining params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my meal plan balance",
+          "expect": "view_dining"
+        },
+        {
+          "phrase": "how many dining dollars do I have left",
+          "expect": "view_dining"
+        },
+        {
+          "phrase": "view my recent cafeteria transactions",
+          "expect": "view_dining"
+        }
+      ],
+      "resultKey": "dining",
+      "seedRows": [
+        {
+          "id": "7001",
+          "location": "Main Dining Hall",
+          "date": "2025-09-10",
+          "amount": 10.5,
+          "type": "Meal Swipe",
+          "balance": 180
+        },
+        {
+          "id": "7002",
+          "location": "Campus Coffee",
+          "date": "2025-09-11",
+          "amount": 5.25,
+          "type": "Dining Dollars",
+          "balance": 174.75
+        },
+        {
+          "id": "7003",
+          "location": "Science Building Cafe",
+          "date": "2025-09-12",
+          "amount": 8,
+          "type": "Dining Dollars",
+          "balance": 166.75
+        },
+        {
+          "id": "7004",
+          "location": "Main Dining Hall",
+          "date": "2025-09-13",
+          "amount": 10.5,
+          "type": "Meal Swipe",
+          "balance": 156.25
+        },
+        {
+          "id": "7005",
+          "location": "Union Food Court",
+          "date": "2025-09-14",
+          "amount": 12.75,
+          "type": "Dining Dollars",
+          "balance": 143.5
+        }
+      ]
+    },
+    {
+      "action": "view_exam_schedule",
+      "type": "read",
+      "arr": "exams",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(exam\\s+schedule|final\\s+exams?|midterm\\s+schedule|when\\s+is\\s+my\\s+(exam|final|midterm))\\b",
+      "toolDescription": "View the student's upcoming exam schedule including finals and midterms.",
+      "render": {
+        "type": "table",
+        "title": "Exam Schedule",
+        "columns": [
+          {
+            "label": "Exam ID",
+            "path": "id"
+          },
+          {
+            "label": "Course",
+            "path": "course",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "examType",
+            "format": "text"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          },
+          {
+            "label": "Location",
+            "path": "location",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my exam schedule\" / \"when is my final exam\" -> view_exam_schedule params:{}",
+      "evalRows": [
+        {
+          "phrase": "when are my final exams",
+          "expect": "view_exam_schedule"
+        },
+        {
+          "phrase": "show me the midterm schedule",
+          "expect": "view_exam_schedule"
+        },
+        {
+          "phrase": "what is my exam schedule for this term",
+          "expect": "view_exam_schedule"
+        }
+      ],
+      "resultKey": "exams",
+      "seedRows": [
+        {
+          "id": "1101",
+          "course": "CS 301",
+          "examType": "Midterm",
+          "date": "2025-10-15",
+          "location": "Science Hall 200",
+          "duration": 90
+        },
+        {
+          "id": "1102",
+          "course": "MATH 201",
+          "examType": "Midterm",
+          "date": "2025-10-17",
+          "location": "Math Building 105",
+          "duration": 75
+        },
+        {
+          "id": "1103",
+          "course": "ENG 220",
+          "examType": "Final",
+          "date": "2025-12-12",
+          "location": "Liberal Arts 301",
+          "duration": 120
+        },
+        {
+          "id": "1104",
+          "course": "CS 301",
+          "examType": "Final",
+          "date": "2025-12-15",
+          "location": "Science Hall 200",
+          "duration": 120
+        },
+        {
+          "id": "1105",
+          "course": "HIST 110",
+          "examType": "Final",
+          "date": "2025-12-18",
+          "location": "Online",
+          "duration": 90
+        }
+      ]
+    },
+    {
+      "action": "view_parking",
+      "type": "read",
+      "arr": "parking",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "View the student's campus parking permits and citation history.",
+      "render": {
+        "type": "table",
+        "title": "Parking Permits",
+        "columns": [
+          {
+            "label": "Permit ID",
+            "path": "id"
+          },
+          {
+            "label": "Zone",
+            "path": "zone",
+            "format": "text"
+          },
+          {
+            "label": "Vehicle",
+            "path": "vehicle",
+            "format": "text"
+          },
+          {
+            "label": "Expiry",
+            "path": "expiryDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my parking permit\" / \"do I have a campus parking pass\" -> view_parking params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my campus parking permit",
+          "expect": "view_parking"
+        },
+        {
+          "phrase": "do I have a parking pass",
+          "expect": "view_parking"
+        },
+        {
+          "phrase": "view my parking permits and citations",
+          "expect": "view_parking"
+        }
+      ],
+      "resultKey": "parking",
+      "seedRows": [
+        {
+          "id": "8001",
+          "zone": "Zone A - Commuter",
+          "vehicle": "Honda Civic ABC-1234",
+          "expiryDate": "2025-12-31",
+          "status": "Active"
+        },
+        {
+          "id": "8002",
+          "zone": "Zone B - Resident",
+          "vehicle": "Toyota Corolla XYZ-5678",
+          "expiryDate": "2025-05-31",
+          "status": "Expired"
+        },
+        {
+          "id": "8003",
+          "zone": "Zone C - Faculty Lot",
+          "vehicle": "Ford F-150 DEF-9012",
+          "expiryDate": "2026-05-31",
+          "status": "Active"
+        },
+        {
+          "id": "8004",
+          "zone": "Zone A - Commuter",
+          "vehicle": "Nissan Altima GHI-3456",
+          "expiryDate": "2024-12-31",
+          "status": "Expired"
+        },
+        {
+          "id": "8005",
+          "zone": "Zone D - Visitor",
+          "vehicle": "Chevrolet Malibu JKL-7890",
+          "expiryDate": "2025-10-31",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "action": "view_library",
+      "type": "read",
+      "arr": "library",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "View the student's checked-out library items, due dates, and reservations.",
+      "render": {
+        "type": "table",
+        "title": "Library Items",
+        "columns": [
+          {
+            "label": "Item ID",
+            "path": "id"
+          },
+          {
+            "label": "Title",
+            "path": "title",
+            "format": "text"
+          },
+          {
+            "label": "Type",
+            "path": "itemType",
+            "format": "text"
+          },
+          {
+            "label": "Due Date",
+            "path": "dueDate",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show my library items\" / \"what books do I have checked out\" -> view_library params:{}",
+      "evalRows": [
+        {
+          "phrase": "what library books do I have checked out",
+          "expect": "view_library"
+        },
+        {
+          "phrase": "show my library account",
+          "expect": "view_library"
+        },
+        {
+          "phrase": "view my borrowed items and due dates",
+          "expect": "view_library"
+        }
+      ],
+      "resultKey": "library",
+      "seedRows": [
+        {
+          "id": "9001",
+          "title": "Introduction to Algorithms",
+          "itemType": "Book",
+          "dueDate": "2025-09-28",
+          "status": "Checked Out"
+        },
+        {
+          "id": "9002",
+          "title": "The Great Gatsby",
+          "itemType": "Book",
+          "dueDate": "2025-10-05",
+          "status": "Checked Out"
+        },
+        {
+          "id": "9003",
+          "title": "Physics Lab Equipment",
+          "itemType": "Equipment",
+          "dueDate": "2025-09-20",
+          "status": "Overdue"
+        },
+        {
+          "id": "9004",
+          "title": "Journal of Computer Science",
+          "itemType": "Journal",
+          "dueDate": "2025-09-25",
+          "status": "Reserved"
+        },
+        {
+          "id": "9005",
+          "title": "Data Structures Textbook",
+          "itemType": "Book",
+          "dueDate": "2025-10-10",
+          "status": "Checked Out"
+        }
+      ]
+    },
+    {
+      "action": "view_scholarships",
+      "type": "read",
+      "arr": "scholarships",
+      "idParam": null,
+      "mutateStatus": null,
+      "noun": null,
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "View available and applied-for scholarships the student can pursue.",
+      "render": {
+        "type": "table",
+        "title": "Scholarships",
+        "columns": [
+          {
+            "label": "Scholarship ID",
+            "path": "id"
+          },
+          {
+            "label": "Name",
+            "path": "name",
+            "format": "text"
+          },
+          {
+            "label": "Amount",
+            "path": "amount",
+            "format": "money"
+          },
+          {
+            "label": "Deadline",
+            "path": "deadline",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status",
+            "format": "text"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"show available scholarships\" / \"what scholarships can I apply for\" -> view_scholarships params:{}",
+      "evalRows": [
+        {
+          "phrase": "what scholarships are available to me",
+          "expect": "view_scholarships"
+        },
+        {
+          "phrase": "show me all scholarships I can apply for",
+          "expect": "view_scholarships"
+        },
+        {
+          "phrase": "list my scholarship applications",
+          "expect": "view_scholarships"
+        }
+      ],
+      "resultKey": "scholarships",
+      "seedRows": [
+        {
+          "id": "1001",
+          "name": "Dean's Merit Scholarship",
+          "amount": 5000,
+          "deadline": "2025-11-01",
+          "gpaRequired": 3.5,
+          "status": "Available"
+        },
+        {
+          "id": "1002",
+          "name": "STEM Excellence Award",
+          "amount": 3000,
+          "deadline": "2025-10-15",
+          "gpaRequired": 3,
+          "status": "Applied"
+        },
+        {
+          "id": "1003",
+          "name": "Community Service Scholarship",
+          "amount": 1500,
+          "deadline": "2025-09-30",
+          "gpaRequired": 2.5,
+          "status": "Available"
+        },
+        {
+          "id": "1004",
+          "name": "First-Generation Student Grant",
+          "amount": 2500,
+          "deadline": "2025-10-01",
+          "gpaRequired": 2,
+          "status": "Awarded"
+        },
+        {
+          "id": "1005",
+          "name": "International Student Award",
+          "amount": 4000,
+          "deadline": "2025-11-15",
+          "gpaRequired": 3.2,
+          "status": "Available"
+        }
+      ]
+    },
+    {
+      "action": "view_advisors",
+      "type": "read",
+      "arr": "advisors",
+      "resultKey": "advisors",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\badvisors?\\b|\\bmy\\s+advisor\\b|\\bacademic\\s+advisor\\b",
+      "toolDescription": "List the student's assigned academic advisors and their contact details.",
+      "render": {
+        "type": "table",
+        "title": "My Advisors",
+        "columns": [
+          {
+            "label": "Name",
+            "path": "name"
+          },
+          {
+            "label": "Department",
+            "path": "department"
+          },
+          {
+            "label": "Email",
+            "path": "email"
+          },
+          {
+            "label": "Office Hours",
+            "path": "officeHours"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my advisor\" / \"academic advisor\" / \"who is my advisor\" -> view_advisors params:{}",
+      "seedRows": [
+        {
+          "id": "ADV-5001",
+          "name": "Dr. Elena Ruiz",
+          "department": "Computer Science",
+          "email": "eruiz@superu.edu",
+          "officeHours": "Tue/Thu 2-4pm"
+        },
+        {
+          "id": "ADV-5002",
+          "name": "Prof. Daniel Kim",
+          "department": "Mathematics",
+          "email": "dkim@superu.edu",
+          "officeHours": "Mon 10-12pm"
+        },
+        {
+          "id": "ADV-5003",
+          "name": "Dr. Aisha Bello",
+          "department": "Academic Success Center",
+          "email": "abello@superu.edu",
+          "officeHours": "Wed 1-3pm"
+        },
+        {
+          "id": "ADV-5004",
+          "name": "Prof. Marco Santini",
+          "department": "Physics",
+          "email": "msantini@superu.edu",
+          "officeHours": "Fri 9-11am"
+        },
+        {
+          "id": "ADV-5005",
+          "name": "Dr. Priya Nair",
+          "department": "Career Services",
+          "email": "pnair@superu.edu",
+          "officeHours": "By appointment"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "who is my academic advisor",
+          "expect": "view_advisors"
+        },
+        {
+          "phrase": "show my advisors",
+          "expect": "view_advisors"
+        },
+        {
+          "phrase": "my advisor contact info",
+          "expect": "view_advisors"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "info": {
+    "_postman_id": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
+    "name": "Super Banking — BFF API (Vercel)",
+    "description": "Direct calls to the Super Banking BFF deployed on Vercel (banking_api_server). Covers new endpoints added in phases 29-34 that have no coverage in the existing token exchange collections.\n\nUses BANKING_API_BASE_URL_VERCEL by default.\n\nMost endpoints require an active session cookie. Run a login flow first (PKCE via the Super Banking Vercel UI or Step-by-Step collection), then re-use cookies in Postman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. GET /api/mcp/audit (BFF audit proxy)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL_VERCEL}}/api/mcp/audit?limit=20",
+          "host": [
+            "{{BANKING_API_BASE_URL_VERCEL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "audit"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "BFF proxy to MCP server /audit (Vercel deployment). Returns recent MCP tool-call audit events.\n\nQuery params:\n- agentId: filter by agent\n- operation: filter by tool name\n- eventType: tool_call | auth_challenge | consent_request | session\n- outcome: success | failure | challenge\n- limit: max 200, default 50\n\nReturns empty events array when MCP server is unreachable.\n\nAdded Phase 34."
+      },
+      "response": []
+    },
+    {
+      "name": "2. GET /api/mcp/exchange-mode",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL_VERCEL}}/api/mcp/exchange-mode",
+          "host": [
+            "{{BANKING_API_BASE_URL_VERCEL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "exchange-mode"
+          ]
+        },
+        "description": "Returns current token exchange mode from Vercel deployment. Response: { mode: '1-exchange' | '2-exchange' }."
+      },
+      "response": []
+    },
+    {
+      "name": "3. POST /api/mcp/exchange-mode (set mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"mode\": \"1-exchange\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL_VERCEL}}/api/mcp/exchange-mode",
+          "host": [
+            "{{BANKING_API_BASE_URL_VERCEL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "exchange-mode"
+          ]
+        },
+        "description": "Sets token exchange mode on Vercel deployment. Accepted values: '1-exchange' (single RFC 8693 exchange) or '2-exchange' (chained delegation). No session required."
+      },
+      "response": []
+    },
+    {
+      "name": "4. GET /api/rfc9728 (protected resource metadata)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL_VERCEL}}/api/rfc9728",
+          "host": [
+            "{{BANKING_API_BASE_URL_VERCEL}}"
+          ],
+          "path": [
+            "api",
+            "rfc9728"
+          ]
+        },
+        "description": "RFC 9728 protected resource metadata for the Vercel-deployed BFF. Returns JSON-LD metadata describing the BFF as a protected resource including resource_indicators, scopes_supported, and authorization_servers. No auth required."
+      },
+      "response": []
+    },
+    {
+      "name": "5. POST /api/mcp/inspector/invoke (invoke MCP tool)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"toolName\": \"get_account_balance\", \"args\": {\"accountType\": \"checking\"}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL_VERCEL}}/api/mcp/inspector/invoke",
+          "host": [
+            "{{BANKING_API_BASE_URL_VERCEL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "inspector",
+            "invoke"
+          ]
+        },
+        "description": "Invokes an MCP tool via the Vercel-deployed BFF inspector. Requires MCP server running at MCP_SERVER_URL_VERCEL. For the sensitive data tool, use toolName='get_sensitive_account_details' and ensure the bearer token has banking:sensitive:read scope ({{BANKING_SENSITIVE_SCOPE}}). Session cookie required."
+      },
+      "response": []
+    }
+  ]
+}

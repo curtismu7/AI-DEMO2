@@ -1,0 +1,121 @@
+/* banking_api_ui/src/components/ApiKeyPathPage.css
+   Phase 266 Plan 04 — Path A (API-key) info page. Amber visual identity. No emoji glyphs.
+   Token custody: full API key never rendered; only last-4 chars shown.
+*/
+
+.akp-container {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 24px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.akp-header {
+  border-left: 6px solid #ca8a04;
+  background: rgba(202, 138, 4, 0.06);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  border-radius: 0 4px 4px 0;
+}
+
+.akp-badge {
+  display: inline-block;
+  background: #ca8a04;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.akp-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 8px 0 0 0;
+}
+
+.akp-body {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.akp-message {
+  line-height: 1.55;
+  color: #374151;
+  margin-bottom: 16px;
+}
+
+.akp-key-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.akp-key-label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.akp-key-value {
+  font-family: monospace;
+  background: #fef3c7;
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.akp-note {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.akp-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.akp-back-btn {
+  background: #1f2937;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.akp-back-btn:hover {
+  background: #111827;
+}
+
+.akp-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.akp-loading {
+  color: #6b7280;
+  padding: 20px;
+  text-align: center;
+}

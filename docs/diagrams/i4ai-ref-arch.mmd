@@ -1,0 +1,136 @@
+%% Phase 266 R2 (2026-05-11): Three credential dispositions at the Agent Gateway.
+%% Path A (api_key): scope gate (banking:mortgage:read), OAuth bearer dropped; X-API-Key + X-User-Sub injected; calls demo_mortgage_service :8082 (Phase 267).
+%% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity — RFC 8693 + RFC 8707 + OIDC Core ss3.1.3.7.
+%% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) forwarded to banking_resource_server /accounts /transactions (SQLite-backed).
+%% banking_resource_server serves both Path B and Path C at different routes with the same authenticateToken middleware.
+
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant WA as Web Application
+    participant CB as Chatbot
+    participant A as Agent (Digital Assistant)
+    participant LLM as LLM
+    participant PID as Ping Identity IDM/IAM
+    participant AG as Agent Gateway
+    participant PA as Ping Authorize
+    participant HITL as HITL Service (demo_hitl_service)
+    participant MCP as MCP OLB (demo_mcp_server)
+    participant INV as MCP Invest (demo_mcp_invest)
+    participant RS as Resource Server (OAuth 2.1)
+
+    Note over A: Agent = BFF in-process LangGraph agent, default, /api/banking-agent.<br/>demo_agent_service port 3006 and langchain_agent port 8888 are optional alternatives.
+    Note over AG: Agent Gateway hop (demo_mcp_gateway port 3005) is active when<br/>MCP_GATEWAY_HTTP_URL is set, otherwise BFF calls demo_mcp_server port 8080 directly.
+
+    Note over U,CB: User submits prompt (two paths)
+    Note over U,CB: Path A: Click chip (e.g., "Balance") → Heuristic fast path<br/>Path B: Type natural language → Heuristic + LLM path
+
+    alt Heuristic Fast Path (Chips)
+        U->>CB: Click "Check Balance" chip
+        CB->>A: Invoke check_balance directly (via heuristic)
+        Note over A: Agent recognizes: action=balance<br/>No LLM needed — instant execution
+    else Natural Language Path
+        U->>CB: "What is my current account balance<br/>and recent transactions?"
+        CB->>A: Process user request via Agent
+        Note over A: Agent parses heuristic first<br/>If no match: invoke LLM for decision
+    end
+
+    Note over A: Agent initializes
+    A->>PID: Token request (client_credentials)
+    PID-->>A: Access token
+
+    Note over A: Request tool list
+    A->>AG: tools/list (JSON-RPC)
+    AG->>PA: Authorization check (agent token)
+    PA->>MCP: Get all tools
+    MCP-->>PA: All tools
+    PA->>PID: Introspect agent token
+    PID-->>PA: Token claims (sub, aud, scope)
+    Note over PA: Fine-grained policy evaluation:<br/>filter tools by user scopes (read/write)
+    PA-->>AG: Permitted tool list for agent
+    AG-->>A: List of available tools
+    CB->>A: Invoke check_balance tool
+    A->>LLM: Tool list + chatbot prompt
+    LLM-->>A: Determine tool to use (check_balance)
+
+    Note over A: Tool call — agent context only <br/> (no user subject token)
+    A->>AG: tools/call check_balance (JSON-RPC)
+    AG->>PA: Authorization check
+    PA-->>AG: Deny (insufficient_scope: balance, no subject token)
+    AG-->>A: JSON-RPC error (403 Forbidden: insufficient_scope: balance, no subject token)
+
+    A-->>CB: User context required (resource: agent1, scope: balance)
+
+    Note over CB,WA: User already authenticated <br/>Obtain scoped subject token
+    Note over CB,WA: If user is not authenticated,<br/>an authn event is triggered first
+    CB->>WA: Request token (resource: agent1, scope: balance)
+    WA->>PID: Token request (resource: agent1, scope: balance)
+    PID-->>WA: Subject token (sub: user, aud: agent1, may_act: {sub: agent1}, scope: balance)
+    WA-->>CB: Subject token
+    CB->>A: Subject token (sub: user, may_act: {sub: agent1})
+
+    Note over A,PID: Exchange token for Agent Gateway (RFC 8693)
+    A->>PID: "[26. Agent → PingOne] Token exchange (actor_token: agent token, subject_token: user token, aud: mcp-gw)"
+    PID-->>A: "[27. PingOne → Agent] TX token (sub: user, act: {sub: agent1}, aud: mcp-gw, scope: balance)"
+    Note over A: sub=user, act=agent1 — Agent acts on behalf of user
+    Note over A: Option: aud: mcp-olb<br/>(requires assurance only path to MCP is via gateway)
+
+    A->>AG: "[28. Agent → Gateway] tools/call check_balance (JSON-RPC) with TX token"
+
+    Note over AG,PA: Gateway authorizes TX token + tool call
+    AG->>PA: "[29. Gateway → Authorize] Authorization check (TX token, tool: check_balance)"
+    PA->>PID: "[30. Authorize → PingOne] Introspect TX token"
+    PID-->>PA: "[31. PingOne → Authorize] Token claims (sub, act, aud, scope)"
+    Note over PA: Validate: aud, scope: balance,<br/>tool call details vs. policy
+    alt High-risk tool (e.g. create_transfer) — consent required
+        PA-->>AG: "[32a. Authorize → Gateway] INDETERMINATE — human consent required"
+        AG->>HITL: "[32b. Gateway → HITL] POST /challenges (create consent challenge)"
+        HITL-->>CB: "[32c. HITL → Chatbot] Out-of-band consent prompt (428 Precondition Required)"
+        CB-->>HITL: "[32d. Chatbot → HITL] User approves (OTP) → /challenges/:id/respond"
+        HITL-->>AG: "[32e. HITL → Gateway] Approved — proceed"
+    else Low-risk tool (e.g. check_balance) — auto-permit
+        PA-->>AG: "[32. Authorize → Gateway] Permit"
+    end
+    Note over AG,PID: Phase 266 R2 — Gateway credential disposition branches
+    Note over AG: Three paths diverge here based on tool disposition:
+    Note over AG: Path A (api_key): Bearer dropped, X-API-Key and X-User-Sub injected — Gateway calls demo_mortgage_service port 8082
+    Note over AG: Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity
+    Note over AG: Path C (oauth_bearer): RFC 8693 exchange — Bearer (new aud) to banking_resource_server /accounts /transactions
+
+    alt Path B: dual_token — ACCESS + ID-TOKEN PATH
+        AG->>RS: "POST /api/resource-server/identity (Bearer + id_token in JSON-RPC body)"
+        Note over RS: banking_resource_server: bearer validated (RFC 6750), id_token decoded (OIDC Core), claims returned
+        RS-->>AG: "200 OK: accessTokenClaims + idTokenClaims (sanitized, no raw JWT)"
+    else Path C: oauth_bearer — OAUTH BEARER PATH
+        AG->>PID: "RFC 8693 exchange (subject_token: TX token, aud: banking_resource_server) RFC 8707"
+        PID-->>AG: "Backend-scoped Bearer (aud=banking_resource_server, act chain preserved)"
+        AG->>RS: "GET /api/resource-server/accounts (exchanged Bearer)"
+        Note over RS: banking_resource_server: bearer validated, SQLite query via bankingDb.getAccountsByUserId
+        RS-->>AG: "200 OK: accounts (banking-resource-server.db)"
+    else Path A: api_key — API-KEY PATH (demo_mortgage_service)
+        Note over AG: banking-mortgage-read scope enforced, OAuth bearer dropped, X-API-Key and X-User-Sub injected, Gateway calls demo_mortgage_service port 8082 — Phase 267, no user token
+    end
+
+    Note over AG,PID: Exchange token for MCP (standard path continues below)
+    AG->>PID: "[33. Gateway → PingOne] Token exchange (subject_token: TX token, aud: mcp)"
+    PID-->>AG: "[34. PingOne → Gateway] MCP token (sub: user, act: {sub: agent1}, aud: mcp, scope: balance)"
+    Note over AG,INV: Gateway routes by tool — OLB tools (check_balance, create_transfer) go to MCP OLB,<br/>investment tools (get_portfolio, get_holdings) go to MCP Invest. check_balance shown below.
+    AG->>MCP: "[35. Gateway → MCP OLB] tools/call check_balance (JSON-RPC) with MCP token"
+    Note over MCP,PID: Exchange token for Resource Server
+    MCP->>PID: "[36. MCP → PingOne] Token exchange (subject_token: MCP token, aud: resource-server)"
+    PID-->>MCP: "[37. PingOne → MCP] RS token (sub: user, act: {sub: agent1}, aud: resource-server, scope: balance)"
+    MCP->>RS: "[38. MCP → Resource Server] GET /balance (RS token)"
+    RS->>PID: "[39. Resource Server → PingOne] Introspect RS token"
+    PID-->>RS: "[40. PingOne → Resource Server] Token claims (sub, act, aud, scope)"
+    Note over RS: Validate: aud=resource-server,<br/>scope: balance, act: agent1
+    RS-->>MCP: "[41. Resource Server → MCP] Balance data"
+    MCP-->>AG: "[42. MCP → Gateway] Tool result"
+    AG-->>A: "[43. Gateway → Agent] Tool result"
+    A->>LLM: "[44. Agent → LLM] Tool result + context"
+    LLM-->>A: "[45. LLM → Agent] Natural language response"
+    A-->>CB: "[46. Agent → Chatbot] Response"
+    CB-->>U: "[47. Chatbot → User] Display in chatbot interface"
+    Note over CB,U: Chatbot shows AI response:<br/>"Your checking account balance is $2,450.32.<br/>Recent transactions: Purchase at Starbucks ($5.42),<br/>Direct deposit from employer ($2,500.00)..."
+    CB-->>WA: "[48. Chatbot → Web App] Response + context"
+    WA-->>U: "[49. Web App → User] Also sync to dashboard/full UI"
+    Note over U: User can view in both<br/>chatbot interface and main dashboard

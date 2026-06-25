@@ -1,0 +1,352 @@
+/* demo_api_ui/src/components/LlmConfig.css */
+/* Shared design system for LLM provider config panels */
+
+/* ── Page heading ───────────────────────────────────────────── */
+.cfg-page-heading {
+  margin-bottom: 1.75rem;
+}
+.cfg-page-heading h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+.cfg-page-heading p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* ── Provider selector label ────────────────────────────────── */
+.cfg-provider-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Segmented provider selector ────────────────────────────── */
+.cfg-segment-wrap {
+  display: inline-flex;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f1f5f9;
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 1.75rem;
+}
+.cfg-segment-btn {
+  padding: 9px 22px;
+  background: transparent;
+  color: #475569;
+  border: none;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.1s, box-shadow 0.1s;
+  font-family: inherit;
+}
+.cfg-segment-btn--active {
+  background: #fff;
+  color: #1e40af;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cfg-segment-status {
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.cfg-segment-status--active   { color: #16a34a; }
+.cfg-segment-status--warn     { color: #d97706; }
+.cfg-segment-status--error    { color: #dc2626; }
+.cfg-segment-status--unknown  { color: #94a3b8; }
+
+/* ── Card shell ─────────────────────────────────────────────── */
+.cfg-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  max-width: 640px;
+}
+.cfg-card-header {
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.cfg-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 2px;
+}
+.cfg-card-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0;
+}
+.cfg-card-sub a {
+  color: #2563eb;
+  text-decoration: none;
+}
+.cfg-card-sub a:hover {
+  text-decoration: underline;
+}
+.cfg-card-body {
+  padding: 1.5rem;
+}
+
+/* ── Status badge ───────────────────────────────────────────── */
+.cfg-badge {
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cfg-badge--active        { background: #dcfce7; color: #15803d; }
+.cfg-badge--unconfigured  { background: #fef9c3; color: #854d0e; }
+.cfg-badge--unreachable   { background: #fee2e2; color: #991b1b; }
+.cfg-badge--loading       { background: #f1f5f9; color: #64748b; }
+
+/* ── Field grid ─────────────────────────────────────────────── */
+.cfg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.cfg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cfg-field--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Labels & hints ─────────────────────────────────────────── */
+.cfg-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cfg-label-opt {
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+.cfg-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ── Inputs & selects ───────────────────────────────────────── */
+.cfg-input,
+.cfg-select {
+  padding: 9px 12px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.cfg-input:focus,
+.cfg-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* ── Divider ────────────────────────────────────────────────── */
+.cfg-divider {
+  border: none;
+  border-top: 1px solid #f1f5f9;
+  margin: 0 0 1.25rem;
+}
+
+/* ── Action row ─────────────────────────────────────────────── */
+.cfg-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+.cfg-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.cfg-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cfg-btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+}
+.cfg-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+.cfg-btn--green {
+  background: #059669;
+  color: #fff;
+  border: none;
+}
+.cfg-btn--green:hover:not(:disabled) { background: #047857; }
+.cfg-btn--purple {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+}
+.cfg-btn--purple:hover:not(:disabled) { background: #6d28d9; }
+.cfg-btn--secondary {
+  background: #f8fafc;
+  color: #374151;
+  border: 1.5px solid #e2e8f0;
+  font-weight: 500;
+}
+.cfg-btn--secondary:hover:not(:disabled) { background: #f1f5f9; }
+.cfg-btn--danger {
+  background: #fff;
+  color: #dc2626;
+  border: 1.5px solid #fecaca;
+  font-weight: 500;
+  margin-left: auto;
+}
+.cfg-btn--danger:hover:not(:disabled) { background: #fef2f2; }
+
+/* ── Info / setup boxes ─────────────────────────────────────── */
+.cfg-info-panel {
+  padding: 0.875rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #374151;
+}
+.cfg-info-panel strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #0f172a;
+  font-size: 0.82rem;
+}
+.cfg-info-panel ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.7;
+}
+.cfg-setup-box {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.cfg-setup-box p {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+.cfg-setup-box ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: #374151;
+  line-height: 1.8;
+}
+
+/* ── Status row (LM Studio) ─────────────────────────────────── */
+.cfg-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Loaded model box ───────────────────────────────────────── */
+.cfg-loaded-box {
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  color: #166534;
+  font-weight: 600;
+}
+
+/* ── Download progress box ──────────────────────────────────── */
+.cfg-progress-box {
+  padding: 0.875rem 1rem;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+.cfg-progress-box p {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5b21b6;
+}
+.cfg-progress-track {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.cfg-progress-fill {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.cfg-progress-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ── Code block ─────────────────────────────────────────────── */
+.cfg-code {
+  display: block;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: #1f2937;
+  user-select: all;
+  margin: 0;
+}

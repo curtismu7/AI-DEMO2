@@ -1,0 +1,557 @@
+/* OAS Demo Page */
+.oas-demo {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  font-family: var(--font-base, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  color: var(--color-text, #1a1a2e);
+}
+
+/* ── Header ── */
+.oas-demo-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  padding: 2rem 2rem 1.75rem;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.oas-demo-header-left {
+  flex: 1;
+}
+
+.oas-demo-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+
+.oas-demo-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.oas-demo-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.88;
+  line-height: 1.5;
+  max-width: 540px;
+}
+
+.oas-demo-subtitle code {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.85em;
+}
+
+.oas-demo-launch-btn {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0.65rem 1.4rem;
+  background: #fff;
+  color: #1d4ed8;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.oas-demo-launch-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+/* ── Sections ── */
+.oas-demo-section {
+  margin-bottom: 2rem;
+}
+
+.oas-demo-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Flow Diagram ── */
+.oas-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.oas-flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.7rem 1rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  min-width: 130px;
+  text-align: center;
+}
+
+.oas-flow-step--spec     { border-color: #93c5fd; background: #eff6ff; }
+.oas-flow-step--ai       { border-color: #a5b4fc; background: #eef2ff; }
+.oas-flow-step--scope    { border-color: #fcd34d; background: #fffbeb; }
+.oas-flow-step--gateway  { border-color: #6ee7b7; background: #ecfdf5; }
+.oas-flow-step--call     { border-color: #86efac; background: #f0fdf4; }
+
+.oas-flow-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.oas-flow-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #374151;
+  line-height: 1.2;
+}
+
+.oas-flow-detail {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.oas-flow-detail code {
+  font-family: inherit;
+  font-size: inherit;
+  color: #1d4ed8;
+}
+
+.oas-flow-arrow {
+  font-size: 1.2rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ── Spec Meta ── */
+.oas-spec-meta {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.oas-spec-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.oas-spec-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.oas-spec-meta-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.oas-spec-meta-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.oas-spec-meta-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.5;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+}
+
+/* ── Operations ── */
+.oas-ops-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.oas-ops-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.oas-tag-filter {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.oas-tag-btn {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.oas-tag-btn:hover {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.oas-tag-btn--active {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.oas-ops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Operation Row ── */
+.oas-op-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+
+.oas-op-row:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.oas-op-row--expanded {
+  border-color: #93c5fd;
+  box-shadow: 0 2px 12px rgba(29,78,216,0.08);
+}
+
+.oas-op-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.oas-op-header:hover {
+  background: #f8fafc;
+}
+
+.oas-method-badge {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.04em;
+  color: #fff;
+  min-width: 48px;
+  text-align: center;
+}
+
+.oas-op-path {
+  flex-shrink: 0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  color: #374151;
+}
+
+.oas-op-summary {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oas-op-badges {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.oas-permission-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.oas-scope-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #1e40af;
+  white-space: nowrap;
+}
+
+.oas-public-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #166534;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+.oas-op-chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+/* ── Operation Detail ── */
+.oas-op-detail {
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+}
+
+.oas-op-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.oas-op-detail-col h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.oas-op-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 0.75rem;
+  align-items: start;
+}
+
+.oas-op-dl dt {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 600;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+.oas-op-dl dd {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #374151;
+}
+
+.oas-op-dl code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+  background: #e5e7eb;
+  border-radius: 3px;
+  padding: 1px 4px;
+  color: #374151;
+}
+
+.oas-status-code {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.oas-status-code--ok   { background: #dcfce7; color: #166534; }
+.oas-status-code--err  { background: #fee2e2; color: #991b1b; }
+.oas-status-code--warn { background: #fef3c7; color: #92400e; }
+
+/* ── Security Scheme ── */
+.oas-scheme-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #1d4ed8;
+  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+}
+
+.oas-scheme-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.oas-scheme-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #1d4ed8;
+}
+
+.oas-scheme-type {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.oas-scheme-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* ── Raw Spec ── */
+.oas-raw-toggle {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+  transition: all 0.15s;
+}
+
+.oas-raw-toggle:hover {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.oas-raw-spec {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 500px;
+  border: 1px solid #1e293b;
+}
+
+/* ── Loading / Error ── */
+.oas-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.oas-error {
+  padding: 1rem 1.25rem;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .oas-demo-header {
+    flex-direction: column;
+  }
+  .oas-demo-launch-btn {
+    align-self: flex-start;
+  }
+  .oas-flow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .oas-flow-arrow {
+    transform: rotate(90deg);
+  }
+  .oas-flow-step {
+    min-width: unset;
+    width: 100%;
+  }
+  .oas-op-summary {
+    display: none;
+  }
+}

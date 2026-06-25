@@ -1,0 +1,23 @@
+.np-root { padding: 16px 20px; font-family: var(--font-sans, sans-serif); overflow-y: auto; height: 100%; box-sizing: border-box; }
+.np-title { font-size: 1rem; font-weight: 700; color: var(--brand-navy, #1a365d); margin-bottom: 4px; }
+.np-subtitle { font-size: 0.78rem; color: #64748b; margin-bottom: 20px; }
+.np-idle { padding: 40px 0; text-align: center; color: #94a3b8; font-size: 0.88rem; }
+.np-idle-icon { font-size: 2rem; margin-bottom: 10px; }
+.np-timeline { position: relative; padding-left: 28px; }
+.np-timeline::before { content: ''; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: #e2e8f0; }
+.np-step { position: relative; margin-bottom: 18px; }
+.np-dot { position: absolute; left: -28px; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 2px #e2e8f0; background: #94a3b8; flex-shrink: 0; }
+.np-dot--success { background: #22c55e; box-shadow: 0 0 0 2px #dcfce7; }
+.np-dot--error   { background: #ef4444; box-shadow: 0 0 0 2px #fee2e2; }
+.np-dot--pending { background: #f59e0b; box-shadow: 0 0 0 2px #fef9c3; }
+.np-step-label { font-size: 0.88rem; font-weight: 600; color: #1e293b; line-height: 1.4; }
+.np-step-body  { font-size: 0.8rem; color: #475569; margin-top: 3px; line-height: 1.5; }
+.np-step-claims { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.np-claim { font-size: 0.67rem; font-family: inherit; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 6px; color: #334155; }
+.np-claim--highlight { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.np-claim--new { background: #dcfce7; border-color: #bbf7d0; color: #15803d; }
+.np-claim--changed { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
+.np-rfc { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
+.np-rfc a { color: #3b82f6; text-decoration: none; }
+.np-rfc a:hover { text-decoration: underline; }
+.np-summary { margin-top: 20px; padding: 12px 14px; background: #eff6ff; border-radius: 8px; border-left: 3px solid #3b82f6; font-size: 0.82rem; color: #1e293b; line-height: 1.6; }

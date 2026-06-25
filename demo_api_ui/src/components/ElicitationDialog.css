@@ -1,0 +1,278 @@
+.elicit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.elicit-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.elicit-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.elicit-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.elicit-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  color: #666;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.elicit-modal__close:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.elicit-modal__close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.elicit-modal__body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.elicit-modal__message {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.elicit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.elicit-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.elicit-form__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.elicit-form__required {
+  color: #d32f2f;
+  margin-left: 2px;
+}
+
+.elicit-form__input,
+.elicit-form__select {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.elicit-form__input:focus,
+.elicit-form__select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.elicit-form__input--error,
+.elicit-form__select--error {
+  border-color: #d32f2f;
+}
+
+.elicit-form__input:disabled,
+.elicit-form__select:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.elicit-form__checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #1976d2;
+}
+
+.elicit-form__error {
+  font-size: 12px;
+  color: #d32f2f;
+  margin-top: 2px;
+}
+
+.elicit-url-box {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.elicit-url-label {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.elicit-url-display {
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 12px;
+  color: #1976d2;
+  word-break: break-all;
+  font-family: 'Monaco', 'Courier New', monospace;
+  margin-bottom: 8px;
+}
+
+.elicit-url-warning {
+  margin: 0;
+  font-size: 12px;
+  color: #d32f2f;
+  line-height: 1.4;
+}
+
+.elicit-modal__footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  justify-content: flex-end;
+}
+
+.elicit-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.elicit-btn--primary {
+  background: #1976d2;
+  color: white;
+}
+
+.elicit-btn--primary:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.elicit-btn--secondary {
+  background: #e0e0e0;
+  color: #1a1a1a;
+}
+
+.elicit-btn--secondary:hover:not(:disabled) {
+  background: #d0d0d0;
+}
+
+.elicit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .elicit-modal {
+    background: #1e1e1e;
+  }
+
+  .elicit-modal__header,
+  .elicit-modal__footer {
+    border-color: #333;
+  }
+
+  .elicit-modal__title,
+  .elicit-form__label {
+    color: #e0e0e0;
+  }
+
+  .elicit-modal__message {
+    color: #b0b0b0;
+  }
+
+  .elicit-form__input,
+  .elicit-form__select {
+    background: #2a2a2a;
+    border-color: #404040;
+    color: #e0e0e0;
+  }
+
+  .elicit-form__input:focus,
+  .elicit-form__select:focus {
+    border-color: #64b5f6;
+  }
+
+  .elicit-url-box {
+    background: #2a2a2a;
+    border-color: #404040;
+  }
+
+  .elicit-url-display {
+    background: #1e1e1e;
+    border-color: #404040;
+    color: #64b5f6;
+  }
+
+  .elicit-btn--secondary {
+    background: #333;
+    color: #e0e0e0;
+  }
+
+  .elicit-btn--secondary:hover:not(:disabled) {
+    background: #404040;
+  }
+
+  .elicit-modal__close {
+    color: #a0a0a0;
+  }
+
+  .elicit-modal__close:hover:not(:disabled) {
+    background: #333;
+  }
+}

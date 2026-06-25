@@ -1,0 +1,108 @@
+{
+  "session_id": "test-session-abc",
+  "start_time": "2026-05-25T09:29:05.686525",
+  "end_time": "2026-05-25T09:29:05.687922",
+  "total_steps": 7,
+  "total_duration_ms": 1,
+  "execution_steps": [
+    {
+      "step": 1,
+      "type": "websocket_incoming",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:29:05.686558",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "direction": "incoming",
+        "message_type": "user_message",
+        "payload": {
+          "type": "user_message",
+          "content": "What are my accounts?",
+          "session_id": "test-session-abc",
+          "timestamp": "2026-05-25T09:29:05.686545"
+        },
+        "payload_size": 137,
+        "timestamp": "2026-05-25T09:29:05.686555"
+      }
+    },
+    {
+      "step": 2,
+      "type": "user_input",
+      "component": "WebSocket Handler",
+      "timestamp": "2026-05-25T09:29:05.686592",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "message": "What are my accounts?",
+        "session_id": "test-session-abc",
+        "message_length": 21,
+        "timestamp": "2026-05-25T09:29:05.686591"
+      }
+    },
+    {
+      "step": 3,
+      "type": "agent_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:29:05.686604",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "agent_type": "LangChainMCPAgent",
+        "tools_available": 2,
+        "model": "llama3"
+      }
+    },
+    {
+      "step": 4,
+      "type": "memory_check",
+      "component": "Conversation Memory",
+      "timestamp": "2026-05-25T09:29:05.687204",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "action": "check_user_identification",
+        "user_identified": true
+      }
+    },
+    {
+      "step": 5,
+      "type": "mcp_context_setup",
+      "component": "MCP Tool Provider",
+      "timestamp": "2026-05-25T09:29:05.687222",
+      "elapsed_ms": 0,
+      "session_id": "test-session-abc",
+      "data": {
+        "session_id": "test-session-abc",
+        "action": "set_session_context"
+      }
+    },
+    {
+      "step": 6,
+      "type": "llm_start",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:29:05.687590",
+      "elapsed_ms": 1,
+      "session_id": "test-session-abc",
+      "data": {
+        "model": "llama3",
+        "context": "Processing user request with LangGraph",
+        "prompt_preview": "User: What are my accounts?",
+        "estimated_input_tokens": "[REDACTED]",
+        "temperature": "<Mock name='mock.temperature' id='4360237792'>"
+      }
+    },
+    {
+      "step": 7,
+      "type": "error",
+      "component": "LangChain Agent",
+      "timestamp": "2026-05-25T09:29:05.687844",
+      "elapsed_ms": 1,
+      "session_id": "test-session-abc",
+      "data": {
+        "error": "'async for' requires an object with __aiter__ method, got coroutine",
+        "error_type": "TypeError",
+        "error_module": "unknown"
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "id": "pingone-admin",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "PingOne Admin",
+    "headerTitle": "PingOne Admin",
+    "documentTitle": "PingOne Admin · AI IAM Core",
+    "logoAlt": "PingOne Admin logo",
+    "tagline": "AI-Driven API Discovery Demo",
+    "logoPath": "/branding/ping-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red":              "#1d4ed8",
+      "--app-primary-red-hover":        "#1e40af",
+      "--app-primary-red-mid":          "#3b82f6",
+      "--app-primary-red-border":       "#2563eb",
+      "--brand-dashboard-header-start": "#1e3a8a",
+      "--brand-dashboard-header-end":   "#1d4ed8",
+      "--brand-app-shell-hero-start":   "#1e3a8a",
+      "--brand-app-shell-hero-end":     "#1d4ed8",
+      "--theme-accent":                 "#60a5fa",
+      "--brand-dashboard-header-text":  "#ffffff"
+    }
+  },
+  "terminology": {
+    "account":         "Environment",
+    "accounts":        "Environments",
+    "accountTypes":    ["SANDBOX", "PRODUCTION"],
+    "transaction":     "API Operation",
+    "transactions":    "API Operations",
+    "balance":         "API Quota",
+    "agent":           "PingOne Admin Assistant",
+    "dashboard":       "Admin Console",
+    "highValueAction": "User Provisioning",
+    "highValueLabel":  "User creation requires write scope"
+  },
+  "agent": {
+    "persona": "PingOne Admin Assistant",
+    "greeting": "Hi {name}! I can discover PingOne API operations from the OpenAPI spec, show their security requirements (x-permission and OAuth scope), and call them through the token chain. Try: 'Show me available APIs' or 'List users in my environment'.",
+    "systemPromptFlavor": "You are a PingOne Admin Assistant that uses OpenAPI specifications to discover and call platform APIs. When asked what you can do, ALWAYS call discover_oas_operations first to read the live OAS spec. When calling an API, use call_pingone_operation with the correct operationId from the spec. In your responses, cite the operationId and x-permission annotation from the spec. Make the OAS security contract visible: mention which OAuth scope and role permission each operation requires. This demo shows how AI agents can be governed by machine-readable OpenAPI specs with x-permission annotations."
+  },
+  "dashboard": {
+    "kind": "standard",
+    "chips": [
+      { "key": "pa1", "label": "Discover APIs" },
+      { "key": "pa2", "label": "List Users" },
+      { "key": "pa3", "label": "List Apps" },
+      { "key": "pa4", "label": "Create User" },
+      { "key": "pa5", "label": "Get Environment" }
+    ],
+    "chips10": [
+      { "id": "pa1", "label": "Discover APIs",  "message": "Show me all available PingOne API operations from the OpenAPI spec",       "tool": "discover_oas_operations", "mode": "both" },
+      { "id": "pa2", "label": "List Users",      "message": "List the users in my PingOne environment",                                 "tool": "call_pingone_operation",   "mode": "both" },
+      { "id": "pa3", "label": "List Apps",       "message": "List the applications registered in my environment",                       "tool": "call_pingone_operation",   "mode": "both" },
+      { "id": "pa4", "label": "Create User",     "message": "Create a demo user named demo.user@example.com in my environment",        "tool": "call_pingone_operation",   "mode": "both" },
+      { "id": "pa5", "label": "Get Environment", "message": "Get the details of my PingOne environment",                               "tool": "call_pingone_operation",   "mode": "both" }
+    ]
+  },
+  "render": {
+    "discover_oas_operations": {
+      "type": "table",
+      "columns": [
+        { "label": "Method",         "path": "method" },
+        { "label": "Path",           "path": "path" },
+        { "label": "Summary",        "path": "summary" },
+        { "label": "x-permission",   "path": "permission" },
+        { "label": "Required Scope", "path": "scope" }
+      ]
+    },
+    "call_pingone_operation": {
+      "type": "fieldList",
+      "title": "API Call Result",
+      "fields": [
+        { "label": "Operation",      "path": "operationId" },
+        { "label": "API Path",       "path": "oasPath" },
+        { "label": "x-permission",   "path": "permission" },
+        { "label": "Required Scope", "path": "scopeRequired" },
+        { "label": "Response",       "path": "responseSummary" }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write"
+  }
+}

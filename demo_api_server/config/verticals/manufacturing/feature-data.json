@@ -1,0 +1,17 @@
+{
+  "noun": "work order record",
+  "record": {
+    "workOrder": {
+      "orderId": "WO-4001",
+      "product": "Bracket Assembly A12",
+      "type": "Assembly",
+      "line": "Line 3 — Cell B",
+      "quantity": 500,
+      "completedQty": 320,
+      "value": 42500.00,
+      "currency": "USD",
+      "status": "In Production",
+      "dueDate": "2026-07-05"
+    }
+  }
+}

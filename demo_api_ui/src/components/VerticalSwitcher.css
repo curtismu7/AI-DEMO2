@@ -1,0 +1,103 @@
+/* banking_api_ui/src/components/VerticalSwitcher.css */
+
+.vertical-switcher--nav {
+  display: inline-flex;
+  align-items: center;
+}
+
+.vertical-switcher__select {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--dash-border, #DDDDDD);
+  border-radius: 6px;
+  background: var(--dash-surface-2, var(--brand-light-gray));
+  color: var(--dash-text, var(--brand-dark-gray));
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.vertical-switcher__select:hover {
+  border-color: var(--dash-primary, var(--brand-navy));
+}
+
+.vertical-switcher__select:focus {
+  border-color: var(--dash-primary, var(--brand-navy));
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* Config page variant — pill selector */
+.vertical-switcher--config {
+  margin-bottom: 0.5rem;
+}
+
+.vertical-switcher__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.vertical-switcher__pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: 2px solid var(--dash-border, #DDDDDD);
+  border-radius: 10px;
+  background: var(--dash-surface-2, var(--brand-light-gray));
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  text-align: left;
+  min-width: 180px;
+}
+
+.vertical-switcher__pill:hover {
+  border-color: var(--dash-muted, #94a3b8);
+  background: white;
+}
+
+.vertical-switcher__pill--active {
+  border-width: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.vertical-switcher__pill:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.vertical-switcher__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vertical-switcher__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dash-text, var(--brand-dark-gray));
+  white-space: nowrap;
+}
+
+.vertical-switcher__tagline {
+  font-size: 0.72rem;
+  color: var(--dash-muted, #999999);
+  white-space: nowrap;
+}
+
+/* Admin-only per-vertical theme picker (config variant) */
+.vertical-switcher__themes {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dash-line, #e2e8f0);
+}
+
+.vertical-switcher__themes-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--dash-ink, #334155);
+  margin-bottom: 10px;
+}

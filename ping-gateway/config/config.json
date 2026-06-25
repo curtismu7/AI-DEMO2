@@ -1,0 +1,76 @@
+{
+  "heap": [
+    {
+      "name": "SecretsStore",
+      "type": "SystemAndEnvSecretStore",
+      "config": {
+        "format": "PLAIN"
+      }
+    },
+    {
+      "name": "IntrospectionProviderHandler",
+      "type": "Chain",
+      "config": {
+        "filters": [
+          {
+            "name": "IntrospectionClientAuth",
+            "type": "ClientSecretBasicAuthenticationFilter",
+            "config": {
+              "clientId": "${env['INTROSPECT_CLIENT_ID']}",
+              "clientSecretId": "introspect.client.secret",
+              "secretsProvider": "SecretsStore"
+            }
+          }
+        ],
+        "handler": { "type": "ClientHandler" }
+      }
+    },
+    {
+      "name": "RsFilterTokenResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${env['PINGONE_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": "IntrospectionProviderHandler"
+      }
+    },
+    {
+      "name": "rsFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": false,
+        "scopes": [ "${env['PG_INBOUND_SCOPE']}" ],
+        "accessTokenResolver": "RsFilterTokenResolver"
+      }
+    },
+    {
+      "name": "TokenExchangeEndpointHandler",
+      "type": "Chain",
+      "config": {
+        "filters": [
+          {
+            "name": "TokenExchangeClientAuth",
+            "type": "ClientSecretBasicAuthenticationFilter",
+            "config": {
+              "clientId": "${env['TE_CLIENT_ID']}",
+              "clientSecretId": "te.client.secret",
+              "secretsProvider": "SecretsStore"
+            }
+          }
+        ],
+        "handler": { "type": "ClientHandler" }
+      }
+    },
+    {
+      "name": "TokenExchangeFailureHandler",
+      "type": "StaticResponseHandler",
+      "config": {
+        "status": 401,
+        "headers": { "Content-Type": [ "application/json" ] },
+        "entity": "{\"error\":\"token_exchange_failed\"}"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Router"
+  }
+}

@@ -1,0 +1,312 @@
+{
+  "id": "sporting-goods",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Super Sports",
+    "headerTitle": "Super Sports",
+    "documentTitle": "Super Sports · PingOne AI IAM Core",
+    "logoAlt": "Super Sports logo",
+    "tagline": "AI-Powered Sporting Goods Demo"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#b91c1c",
+      "--app-primary-red-hover": "#991b1b",
+      "--app-primary-red-mid": "#ef4444",
+      "--app-primary-red-border": "#dc2626",
+      "--brand-dashboard-header-start": "#b91c1c",
+      "--brand-dashboard-header-end": "#dc2626",
+      "--brand-app-shell-hero-start": "#b91c1c",
+      "--brand-app-shell-hero-end": "#ef4444",
+      "--theme-accent": "#f97316",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Loyalty Account",
+    "accounts": "Loyalty Accounts",
+    "accountTypes": [
+      "Pro Member",
+      "Elite Member",
+      "Team Account"
+    ],
+    "transaction": "Purchase",
+    "transactions": "Purchases",
+    "transactionTypes": [
+      "In-Store",
+      "Online",
+      "Team Order",
+      "Return"
+    ],
+    "balance": "Reward Points",
+    "agent": "Sports Assistant",
+    "dashboard": "My Gear",
+    "highValueAction": "Team Order",
+    "highValueLabel": "High-value team order requires confirmation"
+  },
+  "agent": {
+    "persona": "Sports Assistant",
+    "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders. What do you need?",
+    "systemPromptFlavor": "You are a Super Sports Assistant. Help members check their reward points, view loyalty account details, browse purchase history, and place orders for gear and equipment. Use sports retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points. Be concise and professional."
+  },
+  "dashboard": {
+    "kind": "sporting-goods",
+    "chips": [
+      {
+        "key": "balance",
+        "label": "Reward Points"
+      },
+      {
+        "key": "accounts",
+        "label": "My Gear"
+      },
+      {
+        "key": "transactions",
+        "label": "Purchase History"
+      },
+      {
+        "key": "transfer",
+        "label": "Place Order"
+      },
+      {
+        "key": "feature",
+        "label": "Show Gear Order"
+      }
+    ],
+    "hero": {
+      "cards": [
+        {
+          "label": "Gear Value",
+          "dataKey": "heroStats.gearValue",
+          "format": "money"
+        },
+        {
+          "label": "Active Rentals",
+          "dataKey": "heroStats.activeRentals",
+          "format": "count"
+        },
+        {
+          "label": "Loyalty Tier",
+          "dataKey": "heroStats.loyaltyTier",
+          "format": "text"
+        },
+        {
+          "label": "Last Purchase",
+          "dataKey": "heroStats.lastPurchase",
+          "format": "date"
+        }
+      ]
+    },
+    "chips10": [
+      { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear" },
+      { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals" },
+      { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "tool": "extend_rental" },
+      { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status" },
+      { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance" },
+      { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order" },
+      { "id": "sg6", "label": "What's due back?", "message": "what is due back", "mode": "both" },
+      { "id": "sg7", "label": "Order history", "message": "order history", "mode": "both", "tool": "gear_order_status" },
+      { "id": "sg8", "label": "What gear matches my buys?", "message": "suggest equipment matching my recent purchases", "mode": "llm" },
+      { "id": "sg9", "label": "Close to next loyalty tier?", "message": "how close to the next tier am I", "mode": "both" },
+      { "id": "sg10", "label": "Recommend trail-ready gear", "message": "Recommend trail-ready equipment", "mode": "llm" },
+      { "id": "sg-direct", "label": "🔌 Direct MCP", "message": "show my gear order", "mode": "direct", "tool": "gear_order_status" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Gear": [
+        {
+          "id": "sg_rentals",
+          "label": "Active rentals",
+          "message": "Show my active equipment rentals"
+        },
+        {
+          "id": "sg_due",
+          "label": "Due back this week",
+          "message": "What gear is due back this week?"
+        }
+      ],
+      "Purchases": [
+        {
+          "id": "sg_last_season",
+          "label": "Last season buys",
+          "message": "What did I buy last season?"
+        },
+        {
+          "id": "sg_top_sport",
+          "label": "Top sport category",
+          "message": "Show my most purchased sport category"
+        }
+      ],
+      "Loyalty": [
+        {
+          "id": "sg_tier",
+          "label": "My loyalty tier",
+          "message": "What's my current loyalty tier?"
+        },
+        {
+          "id": "sg_next_reward",
+          "label": "Next reward level",
+          "message": "How far am I from the next reward level?"
+        }
+      ],
+      "Recommendations": [
+        {
+          "id": "sg_match",
+          "label": "Gear matches",
+          "message": "What gear matches my recent purchases?"
+        },
+        {
+          "id": "sg_trail",
+          "label": "Trail-ready gear",
+          "message": "Show trail-ready equipment for this season"
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "gear:read"
+  },
+  "delegation": {
+    "pageTitle": "Share Loyalty Access",
+    "pageDescription": "Share your Super Sports loyalty account with a family member or team member",
+    "granteeLabel": "family member or team member",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Loyalty Accounts", "description": "See loyalty account details" },
+      "view_balances":     { "label": "View Reward Points",    "description": "See reward point balances" },
+      "create_deposit":    { "label": "Make Purchases",        "description": "Make purchases on the loyalty account" },
+      "create_withdrawal": { "label": "Process Returns",       "description": "Return or exchange gear" },
+      "create_transfer":   { "label": "Place Team Orders",     "description": "Submit team equipment orders" }
+    }
+  },
+  "featurePage": {
+    "mcpTool": "show_gear_order",
+    "pageTitle": "Gear Order",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#b91c1c",
+    "dataKey": "gearOrder",
+    "fields": [
+      {
+        "label": "Order ID",
+        "path": "orderId"
+      },
+      {
+        "label": "Item",
+        "path": "item"
+      },
+      {
+        "label": "Category",
+        "path": "category"
+      },
+      {
+        "label": "Amount",
+        "path": "amount",
+        "format": "money",
+        "accent": true
+      },
+      {
+        "label": "Status",
+        "path": "status"
+      },
+      {
+        "label": "Delivered",
+        "path": "deliveredDate"
+      },
+      {
+        "label": "Loyalty points",
+        "path": "loyaltyPointsEarned"
+      },
+      {
+        "label": "Member tier",
+        "path": "memberTier"
+      }
+    ],
+    "sectionTitle": "Order details",
+    "emptyPrompt": "show gear order",
+    "scopeError": "The agent's access token does not carry the gear:read scope. Sign out and sign back in to consent to gear order access, then try \"Show Gear Order\" again."
+  },
+  "render": {
+    "cancel_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
+    "return_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
+    "cancel_rental": {"type":"card","fields":[{"label":"Rental ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
+    "redeem_points": {"type":"card","fields":[{"label":"Account ID","path":"id"},{"label":"Tier","path":"tier"},{"label":"Points","path":"points"}]},
+    "list_payments": {"type":"table","columns":[{"label":"ID","path":"id"},{"label":"Type","path":"type"},{"label":"Last 4","path":"last4"},{"label":"Expiry","path":"expiry"},{"label":"Default","path":"isDefault"}]},
+    "list_addresses": {"type":"table","columns":[{"label":"ID","path":"id"},{"label":"Label","path":"label"},{"label":"Street","path":"street"},{"label":"City","path":"city"},{"label":"Default","path":"isDefault"}]},
+    "list_invoices": {"type":"table","columns":[{"label":"Invoice ID","path":"id"},{"label":"Date","path":"date","format":"date"},{"label":"Amount","path":"amount","format":"money"},{"label":"Status","path":"status"},{"label":"Items","path":"itemCount","format":"count"}]},
+    "list_support_tickets": {"type":"table","columns":[{"label":"Ticket ID","path":"id"},{"label":"Subject","path":"subject"},{"label":"Status","path":"status"},{"label":"Created","path":"createdAt","format":"date"},{"label":"Priority","path":"priority"}]},
+    "close_support_ticket": {"type":"card","fields":[{"label":"Ticket ID","path":"id"},{"label":"Subject","path":"subject"},{"label":"Status","path":"status"}]},
+    "list_subscriptions": {"type":"table","columns":[{"label":"ID","path":"id"},{"label":"Plan","path":"plan"},{"label":"Price/mo","path":"monthlyPrice","format":"money"},{"label":"Status","path":"status"},{"label":"Renews","path":"renewalDate","format":"date"}]},
+    "cancel_subscription": {"type":"card","fields":[{"label":"Subscription ID","path":"id"},{"label":"Plan","path":"plan"},{"label":"Status","path":"status"}]},
+    "list_wishlist": {"type":"table","columns":[{"label":"ID","path":"id"},{"label":"Item","path":"item"},{"label":"Price","path":"price","format":"money"},{"label":"In Stock","path":"inStock"},{"label":"Added","path":"addedDate","format":"date"}]},
+    "remove_wishlist_item": {"type":"card","fields":[{"label":"Item ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
+    "list_promotions": {"type":"table","columns":[{"label":"Promo ID","path":"id"},{"label":"Code","path":"code"},{"label":"Discount","path":"discountPercent","format":"percent"},{"label":"Expires","path":"expiresAt","format":"date"},{"label":"Status","path":"status"}]},
+    "list_coaching_sessions": {"type":"table","columns":[{"label":"Session ID","path":"id"},{"label":"Sport","path":"sport"},{"label":"Coach","path":"coach"},{"label":"Date","path":"date","format":"date"},{"label":"Status","path":"status"}]},
+    "cancel_coaching_session": {"type":"card","fields":[{"label":"Session ID","path":"id"},{"label":"Sport","path":"sport"},{"label":"Status","path":"status"}]},
+    "list_store_credit": {"type":"table","columns":[{"label":"Credit ID","path":"id"},{"label":"Source","path":"source"},{"label":"Balance","path":"balance","format":"money"},{"label":"Expires","path":"expiresAt","format":"date"},{"label":"Status","path":"status"}]},
+    "list_gear": { "type": "table", "columns": [ { "label": "Order #", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
+    "list_rentals": { "type": "table", "columns": [ { "label": "Rental #", "path": "id" }, { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "gear_order_status": { "type": "card", "title": "Order Status", "fields": [ { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "loyalty_balance": { "type": "fieldList", "title": "Loyalty", "fields": [ { "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" } ] },
+    "extend_rental": { "type": "card", "title": "Rental Extended", "fields": [ { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] }
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

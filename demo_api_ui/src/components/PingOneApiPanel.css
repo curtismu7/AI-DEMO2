@@ -1,0 +1,167 @@
+/* PingOneApiPanel — shared collapsible request/response panels for all test pages */
+
+/* Endpoint badge — always-visible row above request/response toggles */
+.p1-api-panel-endpoint-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.p1-api-panel-method {
+  background: var(--color-primary, #005f99);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.p1-api-panel-endpoint-url {
+  font-size: 0.8rem;
+  color: #1e293b;
+  word-break: break-all;
+  font-family: inherit;
+}
+
+.p1-api-panel-docs-link {
+  font-size: 0.8rem;
+  color: var(--color-primary, #005f99);
+  text-decoration: none;
+  white-space: nowrap;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.p1-api-panel-docs-link:hover {
+  text-decoration: underline;
+}
+
+.p1-api-panel {
+  margin-top: 8px;
+}
+
+.p1-api-panel-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary, #005f99);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 0;
+  font-weight: 600;
+}
+
+.p1-api-panel-toggle:hover {
+  text-decoration: underline;
+}
+
+.p1-api-panel-meta {
+  font-size: 0.82rem;
+  color: #374151;
+  margin-bottom: 6px;
+  margin-top: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 6px 10px;
+  word-break: break-all;
+}
+
+.p1-api-panel-meta strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.p1-api-panel-body {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  margin-top: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre;
+  font-family: inherit;
+}
+
+/* Request headers table — light background */
+.p1-api-panel-headers {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+}
+
+.p1-api-panel-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+  line-height: 1.6;
+  flex-wrap: wrap;
+}
+
+.p1-api-panel-header-key {
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.p1-api-panel-header-val {
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 0.8rem;
+  word-break: break-all;
+  background: transparent;
+}
+
+/* Always-visible Content-Type header check row — light backgrounds */
+.p1-api-panel-ct-check {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: 5px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.p1-api-panel-ct-check--ok   { background: #f0fdf4; border-left-color: #16a34a; }
+.p1-api-panel-ct-check--info { background: #eff6ff; border-left-color: #3b82f6; }
+.p1-api-panel-ct-check--warn { background: #fffbeb; border-left-color: #f59e0b; }
+
+.p1-api-panel-ct-label {
+  color: #64748b;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.p1-api-panel-ct-value {
+  color: #1e293b;
+  font-family: inherit;
+  font-size: 0.8rem;
+  background: transparent;
+  word-break: break-all;
+}
+
+.p1-api-panel-ct-badge {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.p1-api-panel-ct-check--ok   .p1-api-panel-ct-badge { color: #15803d; }
+.p1-api-panel-ct-check--info .p1-api-panel-ct-badge { color: #1d4ed8; }
+.p1-api-panel-ct-check--warn .p1-api-panel-ct-badge { color: #b45309; }

@@ -1,0 +1,135 @@
+/* banking_api_ui/src/styles/draggablePanel.css
+   Shared styles for the draggable + resizable panel pattern. */
+
+/* Dim backdrop — rendered behind the floating panel; click closes the panel. */
+.drp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  /* backdrop-filter removed to prevent background blur */
+  z-index: 9990;
+}
+
+/* Bottom-right resize grip — placed absolutely inside the panel. */
+.drp-resize-grip {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: se-resize;
+  /* Diagonal stripe pattern: visible triangle in bottom-right corner */
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(148, 163, 184, 0.55) 40%,
+    rgba(148, 163, 184, 0.55) 55%,
+    transparent 55%,
+    transparent 65%,
+    rgba(148, 163, 184, 0.35) 65%
+  );
+  border-bottom-right-radius: inherit;
+  z-index: 1;
+  transition: opacity 0.15s;
+}
+
+.drp-resize-grip:hover {
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(99, 102, 241, 0.75) 40%,
+    rgba(99, 102, 241, 0.75) 55%,
+    transparent 55%,
+    transparent 65%,
+    rgba(99, 102, 241, 0.5) 65%
+  );
+}
+
+/* 8-direction resize handles container */
+.drp-resize-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Individual resize handles */
+.drp-resize-handle {
+  position: absolute;
+  background: rgba(148, 163, 184, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  border-radius: 2px;
+  pointer-events: auto;
+  transition: all 0.15s;
+  opacity: 0;
+}
+
+.drp-resize-handle:hover {
+  background: rgba(99, 102, 241, 0.8);
+  border-color: rgba(99, 102, 241, 1);
+  opacity: 1;
+}
+
+.drp-resize-handles:hover .drp-resize-handle {
+  opacity: 0.7;
+}
+
+/* Corner handles - larger squares */
+.drp-resize-handle--nw {
+  top: -3px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  cursor: nw-resize;
+}
+.drp-resize-handle--ne {
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  cursor: ne-resize;
+}
+.drp-resize-handle--sw {
+  bottom: -3px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  cursor: sw-resize;
+}
+.drp-resize-handle--se {
+  bottom: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  cursor: se-resize;
+}
+
+/* Edge handles - thinner rectangles */
+.drp-resize-handle--n {
+  top: -2px;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: n-resize;
+}
+.drp-resize-handle--s {
+  bottom: -2px;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: s-resize;
+}
+.drp-resize-handle--e {
+  top: 10px;
+  right: -2px;
+  bottom: 10px;
+  width: 4px;
+  cursor: e-resize;
+}
+.drp-resize-handle--w {
+  top: 10px;
+  left: -2px;
+  bottom: 10px;
+  width: 4px;
+  cursor: w-resize;
+}

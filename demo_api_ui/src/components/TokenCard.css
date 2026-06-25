@@ -1,0 +1,262 @@
+/* demo_api_ui/src/components/TokenCard.css */
+
+.token-card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+}
+
+/* ── Header bar ─────────────────────────────────────────────────────────── */
+.token-card__header {
+  background: var(--token-card-header-bg, #3b5bdb);
+  color: white;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.token-card__header:focus-visible {
+  outline: 2px solid white;
+  outline-offset: -2px;
+}
+
+.token-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.token-card__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.token-card__toggle {
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+
+/* ── Timing sub-bar ─────────────────────────────────────────────────────── */
+.token-card__timing {
+  background: #e7f0ff;
+  border-bottom: 1px solid #c5d4f5;
+  padding: 6px 16px;
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  color: #1c3a8a;
+  flex-wrap: wrap;
+}
+
+.token-card__timing-expired {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.token-card__body {
+  padding: 14px 16px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* ── Section ────────────────────────────────────────────────────────────── */
+.token-card__section {
+  padding-top: 12px;
+  margin-bottom: 4px;
+}
+
+.token-card__section + .token-card__section {
+  border-top: 1px solid #f1f3f5;
+}
+
+.token-card__section-title {
+  font-weight: 700;
+  font-size: 10px;
+  color: #3b5bdb;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* ── Header section badges ──────────────────────────────────────────────── */
+.token-card__header-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.token-card__alg-badge {
+  background: #e7f5ff;
+  color: #1971c2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.token-card__typ-badge {
+  background: #f3f0ff;
+  color: #6741d9;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+/* ── Claim grid ─────────────────────────────────────────────────────────── */
+.token-card__claim-grid {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 5px 10px;
+}
+
+.token-card__claim-key {
+  color: #868e96;
+  font-size: 11px;
+  padding-top: 1px;
+  word-break: keep-all;
+}
+
+.token-card__claim-key--tooltip {
+  cursor: help;
+  border-bottom: 1px dotted #94a3b8;
+}
+
+.token-card__claim-val {
+  font-family: monospace;
+  font-size: 11px;
+  word-break: break-all;
+  color: #212529;
+}
+
+/* ── Scopes ─────────────────────────────────────────────────────────────── */
+.token-card__scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.token-card__scope-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+/* ── Raw JSON ───────────────────────────────────────────────────────────── */
+.token-card__raw-toggle {
+  color: #3b5bdb;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 500;
+  list-style: none;
+  padding: 0;
+}
+
+.token-card__raw-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.token-card__raw-json {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 10px;
+  font-family: monospace;
+  color: #495057;
+  line-height: 1.6;
+  margin-top: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Loading skeleton ───────────────────────────────────────────────────── */
+.token-card__skeleton {
+  padding: 14px 16px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.token-card__skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: token-card-shimmer 1.4s infinite;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.token-card__skeleton-line--short {
+  width: 40%;
+}
+
+.token-card__skeleton-line--medium {
+  width: 70%;
+}
+
+@keyframes token-card-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Opaque token display ───────────────────────────────────────────────── */
+.token-card__opaque-explanation {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.token-card__opaque-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.token-card__opaque-pre {
+  background: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  word-break: break-all;
+  margin-top: 0.5rem;
+  border: 1px solid #ddd;
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 300px;
+}
+
+/* ── Error state ────────────────────────────────────────────────────────── */
+.token-card__error {
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  color: #b91c1c;
+  font-size: 12px;
+}

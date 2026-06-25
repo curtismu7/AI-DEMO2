@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  langchain-mcp-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: langchain-mcp-agent
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./config:/app/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mcp-network
+
+  # Optional: Redis for token caching (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: langchain-mcp-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  # redis_data:  # Uncomment if using Redis
+  logs:
+  data:
+  config:

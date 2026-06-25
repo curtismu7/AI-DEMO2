@@ -1,0 +1,55 @@
+# docker-compose.override.yml — local dev hot reload
+#
+# Docker Compose auto-merges this on top of docker-compose.yml for every
+# `docker compose up` (no -f needed). It turns the two source-mounted services
+# into live-reload dev servers:
+#
+#   - ui:              Vite dev server (HMR) instead of the nginx static build.
+#                      Edits to demo_api_ui/src/** reflect in the browser instantly,
+#                      no rebuild. Served HTTPS on :4000 via the same mkcert certs,
+#                      proxying /api, /ws and /health to the BFF (see vite.config.js).
+#   - demo-api-server: `node --watch` restarts the BFF process when any source file
+#                      under the bind-mounted /app changes (source is already mounted
+#                      in docker-compose.yml). No nodemon needed — Node 20's built-in
+#                      watcher. CLEAR_SESSIONS_ON_BOOT=false keeps users logged in
+#                      across restarts.
+#
+# First run after pulling this file (rebuilds the UI dev stage):
+#   docker compose up --build ui demo-api-server
+# Subsequent runs:
+#   docker compose up
+#
+# To run the production-equivalent stack (nginx UI, no watch), bypass the override:
+#   docker compose -f docker-compose.yml up
+#
+# Only the BFF and UI hot-reload — the other Node/Python services don't bind-mount
+# source, so they still need a rebuild (`docker compose up --build <svc>`).
+
+services:
+
+  # BFF — restart on source change (source already bind-mounted in base compose).
+  demo-api-server:
+    command: node --watch server.js
+
+  # UI — Vite dev server with HMR (Dockerfile `dev` stage) instead of nginx.
+  ui:
+    build:
+      target: dev
+    command: npm start          # = vite (listens on :4000 per vite.config.js)
+    # No ports override needed: the base ui mapping is 4000:4000 (nginx prod and
+    # the Vite dev server both listen on 4000), so the dev server is reachable
+    # through the inherited mapping. (Avoids the Compose `!override` tag, which
+    # needs Compose >= 2.24 and would otherwise break `docker compose up` on
+    # older versions.)
+    environment:
+      # Proxy /api and /ws to the BFF by compose service DNS (vite.config.js builds
+      # the target from REACT_APP_API_HOST). secure:false there tolerates the cert
+      # CN mismatch on demo-api-server.
+      REACT_APP_API_HOST: demo-api-server
+    volumes:
+      # Whole UI tree mounted so src/, vite.config.js, index.html and public/ are all
+      # live; node_modules kept from the image (anonymous volume shadows the mount).
+      - ./demo_api_ui:/app
+      - /app/node_modules
+      # vite.config.js reads ../certs/api.ping.demo+2*.pem → /certs inside the container.
+      - ./certs:/certs:ro

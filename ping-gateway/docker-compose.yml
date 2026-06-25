@@ -1,0 +1,33 @@
+services:
+  ping-gateway:
+    image: us-docker.pkg.dev/forgeops-public/images-base/ig:latest
+    container_name: ping-gateway
+    # The instance dir (/var/gateway) is a persistent named volume, so a stale
+    # tmp/*.pid left by an unclean shutdown survives restarts and makes start.sh
+    # refuse to boot ("PID file already exists ... Cannot start") — an infinite
+    # crash loop under restart: unless-stopped. Clear stale pid files first, then
+    # hand off to the stock launcher. $$ defers expansion to the container shell
+    # so the image's INSTALL_DIR/IG_INSTANCE_DIR env vars are used (not compose).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - rm -f "$${IG_INSTANCE_DIR}/tmp/"*.pid 2>/dev/null || true; exec "$${INSTALL_DIR}/bin/start.sh" "$${IG_INSTANCE_DIR}"
+    ports:
+      # Host 3006 is reserved by OrbStack on macOS — publish on 3036 instead.
+      # (IG listens on 8080 inside the container.)
+      - "3036:8080"
+    volumes:
+      # /var/gateway is IG's instance dir: writable + EPHEMERAL (the Docker container
+      # layer = the Compose equivalent of the k8s emptyDir the docs require). NOT a
+      # named volume — a persisted /var/gateway keeps a stale tmp/ig.pid after an
+      # unclean stop, blocking restart ("PID file already exists. Cannot start").
+      # Mount config + groovy as DIRECTORIES (not per-file): IG's route watcher
+      # mis-detects per-file bind mounts as changes and unloads routes at runtime
+      # (/mcp then 404s). A stable directory mount keeps routes loaded.
+      - ./config:/var/gateway/config:ro
+      - ./scripts/groovy:/var/gateway/scripts/groovy:ro
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

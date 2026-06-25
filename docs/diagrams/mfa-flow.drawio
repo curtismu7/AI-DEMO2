@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-04-07T13:00:00.000Z" agent="5.0" etag="mfa-flow-v2" version="21.0.0" type="device">
+  <diagram name="MFA Flow - deviceAuthentications API" id="mfa-flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- User -->
+        <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#01579b;fontColor=#01579b;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Banking App -->
+        <mxCell id="banking-app" value="Banking App&#xa;(BFF)&#xa;Session Management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;fontColor=#4a148c;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne Auth Server -->
+        <mxCell id="pingone-auth" value="PingOne&#xa;Auth Server&#xa;/deviceAuthentications&#xa;(RFC 8628 CIBA)&#xa;(PINGONE_MFA_POLICY_ID)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#1b5e20;fontColor=#1b5e20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="40" width="140" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- User Device -->
+        <mxCell id="user-device" value="User Device&#xa;(OTP/FIDO2/Push)&#xa;Email/SMS/Push/Biometrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#880e4f;fontColor=#880e4f;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="40" width="140" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- RFC Annotations Box -->
+        <mxCell id="rfc-box" value="RFC Annotations:&#xa;RFC 8628 - CIBA (Client Initiated Backchannel Auth)&#xa;RFC 8707 - Resource Indicators&#xa;deviceAuthentications API - PingOne MFA&#xa;STEP_UP_ACR_VALUE - Multi_factor policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#f9a825;fontColor=#f57f17;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="840" y="20" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Flow Arrows -->
+        <mxCell id="flow1" value="1. Initiate Transaction&#xa;Amount &gt; $500?" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="user" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="70" as="sourcePoint" />
+            <mxPoint x="240" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="200" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow2" value="2. POST /deviceAuthentications&#xa;{user: {id}, policy: {id}}" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="banking-app" target="pingone-auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="70" as="sourcePoint" />
+            <mxPoint x="440" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="400" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow3" value="3. Device Selection&#xa;Status: DEVICE_SELECTION_REQUIRED" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="pingone-auth" target="user-device">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="80" as="sourcePoint" />
+            <mxPoint x="640" y="80" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="610" y="80" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Method Selection -->
+        <mxCell id="method-selection" value="Method Selection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;fontColor=#e65100;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="160" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- OTP Method -->
+        <mxCell id="otp-method" value="OTP Method&#xa;Email/SMS/TOTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#1565c0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- FIDO2 Method -->
+        <mxCell id="fido2-method" value="FIDO2/WebAuthn&#xa;Biometrics/Passkeys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#1565c0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Push Method -->
+        <mxCell id="push-method" value="Push Notification&#xa;Mobile App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#1565c0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Completion -->
+        <mxCell id="completion" value="MFA Complete&#xa;Status: COMPLETED&#xa;stepUpVerified = true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontColor=#2e7d32;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="280" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Flow to Method Selection -->
+        <mxCell id="flow4" value="4. Select Device&#xa;PUT /deviceAuthentications/{daId}" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="user-device" target="method-selection">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="710" y="120" as="sourcePoint" />
+            <mxPoint x="300" y="160" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="500" y="120" />
+              <mxPoint x="500" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Method flows -->
+        <mxCell id="flow5" value="5a. Submit OTP&#xa;PUT /deviceAuthentications/{daId}&#xa;{otp: '123456'}" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;" edge="1" parent="1" source="method-selection" target="otp-method">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="220" as="sourcePoint" />
+            <mxPoint x="100" y="280" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="180" y="220" />
+              <mxPoint x="180" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow6" value="5b. FIDO2 Assertion&#xa;PUT /deviceAuthentications/{daId}&#xa;{assertion: {...}}" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;" edge="1" parent="1" source="method-selection" target="fido2-method">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="220" as="sourcePoint" />
+            <mxPoint x="300" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow7" value="5c. Push Approval&#xa;Poll /deviceAuthentications/{daId}&#xa;Status: COMPLETED" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;" edge="1" parent="1" source="method-selection" target="push-method">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="340" y="220" as="sourcePoint" />
+            <mxPoint x="500" y="280" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="420" y="220" />
+              <mxPoint x="420" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Completion flows -->
+        <mxCell id="flow8" value="6. MFA Verified&#xa;Session: stepUpVerified" style="endArrow=classic;html=1;rounded=0;strokeColor=#2e7d32;strokeWidth=2;" edge="1" parent="1" source="otp-method" target="completion">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="310" as="sourcePoint" />
+            <mxPoint x="640" y="310" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="400" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow9" value="" style="endArrow=classic;html=1;rounded=0;strokeColor=#2e7d32;strokeWidth=2;" edge="1" parent="1" source="fido2-method" target="completion">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="310" as="sourcePoint" />
+            <mxPoint x="640" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow10" value="" style="endArrow=classic;html=1;rounded=0;strokeColor=#2e7d32;strokeWidth=2;" edge="1" parent="1" source="push-method" target="completion">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="310" as="sourcePoint" />
+            <mxPoint x="640" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Return to Banking App -->
+        <mxCell id="flow11" value="7. Transaction Complete&#xa;Proceed with original action" style="endArrow=classic;html=1;rounded=0;strokeColor=#9c27b0;strokeWidth=3;" edge="1" parent="1" source="completion" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="640" y="340" as="sourcePoint" />
+            <mxPoint x="300" y="400" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="700" y="340" />
+              <mxPoint x="700" y="400" />
+              <mxPoint x="360" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Session TTL Note -->
+        <mxCell id="session-note" value="Session TTL: 5 minutes&#xa;stepUpVerified = Date.now() + 5*60*1000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#c62828;fontColor=#c62828;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

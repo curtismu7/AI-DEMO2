@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-04-07T12:00:00.000Z" agent="5.0" etag="agent-request-flow-v1" version="21.0.0" type="device">
+  <diagram name="Agent Request Flow" id="agent-request-flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- User -->
+        <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#01579b;fontColor=#01579b;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Banking App -->
+        <mxCell id="banking-app" value="Banking App&#xa;(BFF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;fontColor=#4a148c;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- AI Agent -->
+        <mxCell id="ai-agent" value="AI Agent&#xa;(MCP Client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#1b5e20;fontColor=#1b5e20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- MCP Server -->
+        <mxCell id="mcp-server" value="MCP Server&#xa;(WebSocket)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;fontColor=#e65100;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne Auth -->
+        <mxCell id="pingone-auth" value="PingOne&#xa;Auth Server&#xa;(RFC 8693)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#880e4f;fontColor=#880e4f;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne API -->
+        <mxCell id="pingone-api" value="PingOne&#xa;Management API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#616161;fontColor=#616161;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Flow Arrows -->
+        <mxCell id="flow1" value="1. User Query&#xa;'Check my balance'" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="user" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="70" as="sourcePoint" />
+            <mxPoint x="240" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="200" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow2" value="2. Validate Session&#xa;Check Subject Token" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="banking-app" target="ai-agent">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="70" as="sourcePoint" />
+            <mxPoint x="440" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="400" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow3" value="3. tools/call&#xa;WebSocket Message" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="ai-agent" target="mcp-server">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="70" as="sourcePoint" />
+            <mxPoint x="640" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="600" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow4" value="4. Token Exchange&#xa;Subject Token &#8594; MCP Token&#xa;(RFC 8693)" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="mcp-server" target="pingone-auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="70" as="sourcePoint" />
+            <mxPoint x="840" y="70" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="800" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow5" value="5. Client Credentials&#xa;MCP Server &#8594; API Token" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="mcp-server" target="pingone-api">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="110" as="sourcePoint" />
+            <mxPoint x="1040" y="110" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="900" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow6" value="6. GET /users/{id}&#xa;Account Lookup" style="endArrow=classic;html=1;rounded=0;strokeColor=#1976d2;strokeWidth=2;" edge="1" parent="1" source="pingone-api" target="mcp-server">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1040" y="150" as="sourcePoint" />
+            <mxPoint x="760" y="150" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="900" y="150" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow7" value="7. tools/call/response&#xa;Balance Data" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="mcp-server" target="ai-agent">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="640" y="190" as="sourcePoint" />
+            <mxPoint x="560" y="190" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="600" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow8" value="8. Format Response&#xa;Natural Language" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="ai-agent" target="banking-app">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="440" y="230" as="sourcePoint" />
+            <mxPoint x="360" y="230" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="400" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="flow9" value="9. Display to User&#xa;'Your balance is $2,450.00'" style="endArrow=classic;html=1;rounded=0;strokeColor=#4caf50;strokeWidth=2;dashed=1;" edge="1" parent="1" source="banking-app" target="user">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="240" y="270" as="sourcePoint" />
+            <mxPoint x="160" y="270" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="200" y="270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Token Chain Visualization -->
+        <mxCell id="token-chain" value="Token Chain:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="100" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="token1" value="Subject Token&#xa;aud: ai-agent.pingdemo.com&#xa;may_act: {sub: admin-app-id}" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1976d2;fontColor=#0d47a1;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="token2" value="MCP Token&#xa;aud: mcp-server.pingdemo.com&#xa;act: {sub: admin-app-id}" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#4caf50;fontColor=#1b5e20;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="200" y="360" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="token3" value="API Token&#xa;aud: api.pingone.com&#xa;scope: p1:read:user" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontColor=#e65100;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="360" y="360" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- RFC Annotations -->
+        <mxCell id="rfc-annotation1" value="RFC 6749&#xa;OAuth 2.0&#xa;Authorization" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="240" y="440" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rfc-annotation2" value="RFC 8693&#xa;Token Exchange&#xa;Subject &#8594; MCP" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="840" y="440" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rfc-annotation3" value="RFC 8707&#xa;Resource Indicators&#xa;Audience Binding" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="440" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rfc-annotation4" value="RFC 9728&#xa;OAuth for MCP&#xa;/.well-known/mcp-server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="640" y="440" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Security Features -->
+        <mxCell id="security-features" value="Security Features:&#xa;1. Audience restriction per token&#xa;2. Scope narrowing (least privilege)&#xa;3. Delegation audit trail (act claims)&#xa;4. Token introspection validation&#xa;5. WebSocket encryption (TLS)&#xa;6. Rate limiting per user" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f57c00;fontColor=#e65100;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="500" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Configuration -->
+        <mxCell id="config" value="Configuration:&#xa;ENDUSER_AUDIENCE=https://ai-agent.pingdemo.com&#xa;MCP_RESOURCE_URI=https://mcp-server.pingdemo.com&#xa;PINGONE_API_AUDIENCE=https://api.pingone.com&#xa;USE_AGENT_ACTOR_FOR_MCP=true&#xa;ff_two_exchange_delegation=false" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999;fontColor=#333;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="280" y="500" width="260" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Error Handling -->
+        <mxCell id="error-handling" value="Error Handling:&#xa;1. Token validation failures (401)&#xa;2. Scope insufficient (403)&#xa;3. WebSocket connection lost&#xa;4. MCP tool not found&#xa;5. PingOne API rate limits&#xa;6. Delegation chain broken" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#c62828;fontColor=#c62828;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="580" y="500" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Monitoring -->
+        <mxCell id="monitoring" value="Monitoring:&#xa;1. Token exchange latency&#xa;2. MCP tool execution time&#xa;3. WebSocket connection health&#xa;4. Authentication success rates&#xa;5. API call patterns&#xa;6. Security event logging" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#4caf50;fontColor=#1b5e20;fontSize=9;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="820" y="500" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking Agent Request Flow&#xa;MCP Protocol with Token Exchange and Resource Indicators&#xa;RFC 6749 + RFC 8693 + RFC 8707 + RFC 9728" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="620" width="600" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="690" width="80" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item1" value="Solid lines: Request flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#1976d2;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="150" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item2" value="Dashed lines: Response flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#4caf50;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="740" width="150" height="20" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

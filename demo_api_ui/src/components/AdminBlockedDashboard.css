@@ -1,0 +1,96 @@
+.admin-blocked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.admin-blocked__card {
+  max-width: 520px;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.admin-blocked__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #4338ca;
+  margin-bottom: 16px;
+}
+
+.admin-blocked__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px;
+}
+
+.admin-blocked__body {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #334155;
+  margin: 0 0 24px;
+}
+
+.admin-blocked__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.admin-blocked__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.admin-blocked__btn:hover:not(:disabled) {
+  background: #eef2f7;
+}
+
+.admin-blocked__btn--primary {
+  background: #4338ca;
+  border-color: #4338ca;
+  color: #ffffff;
+}
+
+.admin-blocked__btn--primary:hover:not(:disabled) {
+  background: #3730a3;
+}
+
+.admin-blocked__btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #475569;
+}
+
+.admin-blocked__btn--ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.admin-blocked__btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}

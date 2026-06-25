@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <!-- Demo favicon and icons (sized PNGs, generated from super-bank-icon.png) -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1e40af" />
+  <meta name="description" content="AI Demo · PingOne AI IAM Core — secure online banking" />
+  <link rel="stylesheet" href="https://assets.pingone.com/ux/end-user-nano/0.1.0-alpha.9/end-user-nano.css" />
+  <meta property="og:image" content="/logo.png" />
+  <meta property="og:title" content="PingOne AI IAM Core" />
+  <meta property="og:description" content="Secure online banking with AI-powered assistance" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>PingOne AI IAM Core</title>
+  <!-- Cache buster: 2026-v2-warm-paper-redesign -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-color: #f7f7f5;
+    }
+
+    code {
+      font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+        monospace;
+    }
+  </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+
+  <!--
+    Path A (CR-02/CR-04): the global WebSocket URL-token interceptor was
+    removed. The browser never holds a PingOne token (token custody) — the
+    BFF chat-WS proxy at /ws/langchain resolves and attaches the identity
+    token server-side. Re-introducing any client-side token injection here
+    would reopen the token-custody hole. See REGRESSION_PLAN §1
+    "BFF langchain chat-WS proxy — token custody (Path A)".
+  -->
+
+  <!-- Banking Chat Widget CSS -->
+  <link rel="stylesheet" href="/banking-chat-widget.css">
+
+  <!-- Banking Chat Widget Script -->
+  <script src="/banking-chat-widget.js"></script>
+  <script>
+    let bankingWidget;
+
+    // Global functions for easy access
+    function openChat() {
+      console.log('openChat() called');
+      if (bankingWidget) {
+        bankingWidget.open();
+      } else {
+        console.warn('Banking widget not initialized yet');
+      }
+    }
+
+    function closeChat() {
+      console.log('closeChat() called');
+      if (bankingWidget) {
+        bankingWidget.close();
+      } else {
+        console.warn('Banking widget not initialized yet');
+      }
+    }
+
+    // Debug function to find and show hidden chat widgets
+    function debugChatWidget() {
+      console.log('Debugging chat widget...');
+
+      // Find all possible chat widget elements
+      const possibleElements = [
+        ...document.querySelectorAll('[id*="chat"]'),
+        ...document.querySelectorAll('[id*="banking"]'),
+        ...document.querySelectorAll('[class*="widget"]'),
+        ...document.querySelectorAll('[class*="chat"]'),
+        ...document.querySelectorAll('div[style*="position: fixed"]'),
+        ...document.querySelectorAll('div[style*="position: absolute"]')
+      ];
+
+      console.log('Found possible widget elements:', possibleElements);
+
+      possibleElements.forEach((el, index) => {
+        const styles = window.getComputedStyle(el);
+        console.log(`Element ${index}:`, {
+          element: el,
+          id: el.id,
+          className: el.className,
+          display: styles.display,
+          visibility: styles.visibility,
+          opacity: styles.opacity,
+          zIndex: styles.zIndex,
+          position: styles.position,
+          top: styles.top,
+          right: styles.right,
+          bottom: styles.bottom,
+          left: styles.left,
+          width: styles.width,
+          height: styles.height
+        });
+
+        // Try to make it visible if it's hidden
+        if (styles.display === 'none') {
+          console.log(`Making element ${index} visible (was display: none)`);
+          el.style.display = 'block';
+        }
+        if (styles.visibility === 'hidden') {
+          console.log(`Making element ${index} visible (was visibility: hidden)`);
+          el.style.visibility = 'visible';
+        }
+        if (styles.opacity === '0') {
+          console.log(`Making element ${index} visible (was opacity: 0)`);
+          el.style.opacity = '1';
+        }
+
+        // Add a red border for identification
+        el.style.border = '2px solid red';
+        el.style.boxShadow = '0 0 10px red';
+      });
+
+      return possibleElements;
+    }
+
+    // Function to refresh dashboard data
+    function refreshDashboard(actionType, details) {
+      console.log('Refreshing dashboard from chat widget:', actionType, details);
+
+      // Dispatch custom event that React components can listen to
+      const event = new CustomEvent('chatWidgetAction', {
+        detail: {
+          type: actionType,
+          ...details
+        }
+      });
+      window.dispatchEvent(event);
+
+      // Also dispatch a simple refresh event
+      window.dispatchEvent(new CustomEvent('refreshDashboard'));
+    }
+
+    // Make functions globally available
+    window.openChat = openChat;
+    window.closeChat = closeChat;
+    window.debugChatWidget = debugChatWidget;
+
+
+    // Function to initialize chat widget only when authenticated
+    function initializeChatWidget(userToken) {
+      console.log('Initializing real banking chat widget...');
+      console.log('Auth token available:', !!userToken);
+
+      // Try different possible ways the widget might be exported
+      let initFunction = null;
+
+      // Check for different possible export patterns
+      if (window.initBankingChatWidget) {
+        initFunction = window.initBankingChatWidget;
+        console.log('Found window.initBankingChatWidget');
+      } else if (window.BankingChatWidget) {
+        if (typeof window.BankingChatWidget === 'function') {
+          initFunction = window.BankingChatWidget;
+          console.log('Found window.BankingChatWidget as function');
+        } else if (window.BankingChatWidget.init) {
+          initFunction = window.BankingChatWidget.init;
+          console.log('Found window.BankingChatWidget.init');
+        } else if (window.BankingChatWidget.create) {
+          initFunction = window.BankingChatWidget.create;
+          console.log('Found window.BankingChatWidget.create');
+        }
+      }
+
+      if (initFunction) {
+        try {
+          console.log('Calling initialization function...');
+          // Path A (CR-02/CR-04): connect to the BFF chat-WS proxy on the
+          // SAME origin as every other BFF call (cookie-authenticated). The
+          // browser never sends a token in the URL or anywhere else — the BFF
+          // resolves the PingOne identity token server-side and attaches it to
+          // session_init. ws/wss is chosen from the page protocol.
+          const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+          const wsUrl = `${wsScheme}://${window.location.host}/ws/langchain`;
+          bankingWidget = initFunction({
+            apiUrl: wsUrl,
+            position: 'bottom-right',
+            theme: 'light',
+            title: 'AI Demo Assistant',
+            autoOpen: false,
+            showFAB: true,  // Show both FAB and custom buttons
+            onOpen: () => console.log('Chat opened'),
+            onClose: () => console.log('Chat closed'),
+
+            // Callbacks for banking actions that should refresh the dashboard
+            onTransactionCompleted: (details) => {
+              console.log('Transaction completed:', details);
+              refreshDashboard('transaction_completed', details);
+            },
+            onAccountUpdated: (details) => {
+              console.log('Account updated:', details);
+              refreshDashboard('account_updated', details);
+            },
+            onBalanceChanged: (details) => {
+              console.log('Balance changed:', details);
+              refreshDashboard('balance_changed', details);
+            },
+
+            // Generic callback for any action that should refresh
+            onActionCompleted: (actionType, details) => {
+              console.log('Action completed:', actionType, details);
+              refreshDashboard(actionType, details);
+            }
+          });
+
+          // Store globally for React components
+          window.bankingWidget = bankingWidget;
+          console.log('Real banking chat widget initialized!', bankingWidget);
+
+        } catch (error) {
+          console.error('Failed to initialize real banking chat widget:', error);
+          console.log('Available window properties:', Object.keys(window).filter(key =>
+            key.toLowerCase().includes('chat') ||
+            key.toLowerCase().includes('widget') ||
+            key.toLowerCase().includes('banking')
+          ));
+        }
+      } else {
+        console.warn('No banking chat widget initialization function found');
+        console.log('Available window properties:', Object.keys(window).filter(key =>
+          key.toLowerCase().includes('chat') ||
+          key.toLowerCase().includes('widget') ||
+          key.toLowerCase().includes('banking')
+        ));
+        console.log('Checking window.BankingChatWidget:', window.BankingChatWidget);
+      }
+    }
+
+    // Function to destroy chat widget
+    function destroyChatWidget() {
+      if (bankingWidget && bankingWidget.destroy) {
+        console.log('Destroying chat widget...');
+        bankingWidget.destroy();
+        bankingWidget = null;
+      }
+    }
+
+    // Make initialization functions globally available
+    window.initializeChatWidget = initializeChatWidget;
+    window.destroyChatWidget = destroyChatWidget;
+
+    // Listen for authentication events from React.
+    // Only auto-initialize the LangChain widget on localhost — it connects to
+    // ws://localhost:8082/ws which doesn't exist on Vercel production.
+    window.addEventListener('userAuthenticated', function(event) {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalhost) return; // BankingAgent handles AI on production
+      console.log('User authenticated - initializing chat widget');
+      const userToken = event.detail && event.detail.token;
+      setTimeout(() => initializeChatWidget(userToken), 500);
+    });
+
+    window.addEventListener('userLoggedOut', function() {
+      console.log('User logged out - destroying chat widget');
+      destroyChatWidget();
+    });
+  </script>
+
+  <!-- Vite app entry point -->
+  <script type="module" src="/src/index.jsx"></script>
+</body>
+
+</html>

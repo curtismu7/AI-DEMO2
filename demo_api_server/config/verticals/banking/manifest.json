@@ -1,0 +1,307 @@
+{
+  "id": "banking",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Super Banking",
+    "headerTitle": "Super Banking",
+    "documentTitle": "Super Banking · PingOne AI IAM Core",
+    "logoAlt": "Super Banking logo",
+    "tagline": "AI-Powered Banking Demo",
+    "logoPath": "/super-bank-icon.png"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#b91c1c",
+      "--app-primary-red-hover": "#991b1b",
+      "--app-primary-red-mid": "#dc2626",
+      "--app-primary-red-border": "#7f1d1d",
+      "--brand-dashboard-header-start": "#1d4ed8",
+      "--brand-dashboard-header-end": "#1d4ed8",
+      "--brand-app-shell-hero-start": "#1d4ed8",
+      "--brand-app-shell-hero-end": "#1d4ed8",
+      "--theme-accent": "#2563eb",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Account",
+    "accounts": "Accounts",
+    "accountTypes": [
+      "Checking",
+      "Savings"
+    ],
+    "transaction": "Transaction",
+    "transactions": "Transactions",
+    "transactionTypes": [
+      "Deposit",
+      "Withdrawal",
+      "Transfer"
+    ],
+    "balance": "Balance",
+    "agent": "Banking Agent",
+    "dashboard": "Dashboard",
+    "highValueAction": "Transfer",
+    "highValueLabel": "High-value transfer"
+  },
+  "tiers": {
+    "default": "Standard",
+    "definitions": {
+      "Standard": {
+        "maxAmountUsd": 2000,
+        "restrictedTools": ["create_withdrawal"]
+      },
+      "PrivateBanking": {
+        "maxAmountUsd": 50000,
+        "restrictedTools": []
+      }
+    },
+    "groupToTier": {
+      "PrivateBanking": "PrivateBanking"
+    }
+  },
+  "agent": {
+    "persona": "Banking Agent",
+    "greeting": "Hi {name}! I can check your balances, move money between accounts, and explain the OAuth flows happening behind the scenes. What would you like to do?",
+    "systemPromptFlavor": "You are a Super Banking agent. Help customers check account balances, view transaction history, transfer funds, and manage their accounts. Use banking language: accounts are checking, savings, or loan accounts, transactions are deposits, withdrawals, or transfers, balance is account balance. Be professional and clear."
+  },
+  "dashboard": {
+    "kind": "banking",
+    "chips": [
+      {
+        "key": "balance",
+        "label": "Check Balance"
+      },
+      {
+        "key": "accounts",
+        "label": "My Accounts"
+      },
+      {
+        "key": "transactions",
+        "label": "Transactions"
+      },
+      {
+        "key": "transfer",
+        "label": "Transfer Funds"
+      },
+      {
+        "key": "feature",
+        "label": "Show Mortgage Data"
+      }
+    ],
+    "chips10": [
+      { "id": "bk1", "label": "My accounts", "message": "show my accounts", "mode": "both", "tool": "get_my_accounts" },
+      { "id": "bk2", "label": "Check balance", "message": "what is my balance", "mode": "both", "tool": "get_account_balance" },
+      { "id": "bk3", "label": "Recent transactions", "message": "recent transactions", "mode": "both", "tool": "get_my_transactions" },
+      { "id": "bk4", "label": "Transfer money", "message": "transfer $100 from checking to savings", "mode": "both", "tool": "create_transfer" },
+      { "id": "bk-hitl", "label": "🔐 Transfer $500", "message": "transfer $500 from checking to savings", "mode": "both", "hitlTrigger": true, "tool": "create_transfer" },
+      { "id": "bk5", "label": "Deposit", "message": "deposit $50 into savings", "mode": "both", "tool": "create_deposit" },
+      { "id": "bk6", "label": "Withdraw", "message": "withdraw $40 from checking", "mode": "both", "tool": "create_withdrawal" },
+      { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage" },
+      { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "both" },
+      { "id": "bk9", "label": "Check for unusual patterns", "message": "Check for unusual patterns", "mode": "llm" },
+      { "id": "bk10", "label": "Can I afford a big expense?", "message": "Could my savings cover a big upcoming expense?", "mode": "llm" },
+      { "id": "bk-direct", "label": "🔌 Direct MCP", "message": "get my accounts", "mode": "direct", "tool": "get_my_accounts" }
+    ],
+    "hero": {
+      "cards": [
+        {
+          "label": "Net Worth",
+          "dataKey": "heroStats.netWorth",
+          "format": "money"
+        },
+        {
+          "label": "Monthly Spend",
+          "dataKey": "heroStats.monthlySpend",
+          "format": "money"
+        },
+        {
+          "label": "Savings Rate",
+          "dataKey": "heroStats.savingsRate",
+          "format": "text"
+        },
+        {
+          "label": "Credit Score",
+          "dataKey": "heroStats.creditScore",
+          "format": "count"
+        }
+      ]
+    },
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "transfer $600 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "transfer $600 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "transfer $500 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my health record", "mode": "direct", "denyTool": "show_health_record", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
+            { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
+            { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
+            { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
+            { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            { "id": "p1_list_apps", "label": "List all apps", "message": "List all applications in our PingOne environment", "mode": "llm" },
+            { "id": "p1_list_envs", "label": "List environments", "message": "Show all environments I have access to in PingOne", "mode": "llm" },
+            { "id": "p1_services_enabled", "label": "What services are enabled?", "message": "What services are enabled in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_identity_count", "label": "Identity count this week", "message": "How many identities are in our PingOne environment?", "mode": "llm" },
+            { "id": "p1_ai_agent_config", "label": "Show Demo AI Agent config", "message": "Get the configuration for the Demo AI Agent application in PingOne", "mode": "llm" },
+            { "id": "p1_verify_apps", "label": "Verify all 8 demo apps", "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent", "mode": "llm" }
+          ]
+        }
+      ]
+    },
+    "llmChipGroups": {
+      "Account Insights": [
+        {
+          "id": "bank_high_yield",
+          "label": "Highest-yield account?",
+          "message": "What's my highest-yield account right now?"
+        },
+        {
+          "id": "bank_overdraft",
+          "label": "Overdraft risk",
+          "message": "Show me accounts approaching overdraft"
+        }
+      ],
+      "Spend Analysis": [
+        {
+          "id": "bank_top_spend",
+          "label": "Top spend category",
+          "message": "Where did I spend most last month?"
+        },
+        {
+          "id": "bank_unusual",
+          "label": "Unusual transactions",
+          "message": "Flag any unusual transactions this month"
+        }
+      ],
+      "Smart Actions": [
+        {
+          "id": "bank_scheduled",
+          "label": "Scheduled transfers",
+          "message": "What transfers are scheduled?"
+        },
+        {
+          "id": "bank_savings",
+          "label": "Savings goal check",
+          "message": "Am I on track for my savings goal?"
+        }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "mortgage:read"
+  },
+  "delegation": {
+    "pageTitle": "Family Delegation",
+    "pageDescription": "Grant family members scoped access to your accounts — powered by RFC 8693 token exchange and PingOne",
+    "granteeLabel": "family member",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Accounts",    "description": "See account list and details" },
+      "view_balances":     { "label": "View Balances",    "description": "See account balances" },
+      "create_deposit":    { "label": "Make Deposits",    "description": "Deposit funds into accounts" },
+      "create_withdrawal": { "label": "Make Withdrawals", "description": "Withdraw funds from accounts" },
+      "create_transfer":   { "label": "Transfer Funds",   "description": "Transfer between accounts" }
+    }
+  },
+  "featurePage": {
+    "mcpTool": "show_mortgage",
+    "pageTitle": "Mortgage Account",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#ca8a04",
+    "dataKey": "mortgage",
+    "fields": [
+      {
+        "label": "Property",
+        "path": "propertyAddress"
+      },
+      {
+        "label": "Term",
+        "path": "term"
+      },
+      {
+        "label": "Origination date",
+        "path": "originationDate"
+      },
+      {
+        "label": "Interest rate",
+        "path": "interestRate",
+        "format": "percent"
+      },
+      {
+        "label": "Original loan",
+        "path": "loanAmount",
+        "format": "money"
+      },
+      {
+        "label": "Current balance",
+        "path": "currentBalance",
+        "format": "money",
+        "accent": true
+      },
+      {
+        "label": "Monthly payment",
+        "path": "monthlyPayment",
+        "format": "money"
+      },
+      {
+        "label": "Next payment due",
+        "path": "nextPaymentDate"
+      }
+    ],
+    "sectionTitle": "Loan details",
+    "emptyPrompt": "show mortgage data",
+    "scopeError": "The agent's access token does not carry the mortgage:read scope, so the gateway refused the API key swap. Sign out and sign back in to consent to mortgage access, then try \"Show Mortgage Data\" again."
+  },
+  "render": {
+    "accounts": { "type": "table", "columns": [ { "label": "Account Type", "path": "accountType" }, { "label": "Number", "path": "accountNumber" }, { "label": "Balance", "path": "balance", "format": "money" }, { "label": "Currency", "path": "currency" } ] },
+    "balance": { "type": "fieldList", "title": "Account Balance", "fields": [ { "label": "Account Type", "path": "accountType" }, { "label": "Balance", "path": "balance", "format": "money" } ] },
+    "transactions": { "type": "table", "columns": [ { "label": "Type", "path": "type" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Description", "path": "description" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "transfer": { "type": "card", "title": "Transfer Completed", "fields": [ { "label": "From", "path": "fromAccountType" }, { "label": "To", "path": "toAccountType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "deposit": { "type": "card", "title": "Deposit Completed", "fields": [ { "label": "Account", "path": "accountType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "withdraw": { "type": "card", "title": "Withdrawal Completed", "fields": [ { "label": "Account", "path": "accountType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "sensitive_account_details": { "type": "fieldList", "title": "Sensitive Account Details", "fields": [ { "label": "Account Type", "path": "accountType" }, { "label": "Account Number", "path": "accountNumberFull" }, { "label": "Routing Number", "path": "routingNumber" }, { "label": "SWIFT Code", "path": "swiftCode" } ] },
+    "mortgage_demo": { "type": "card", "title": "Mortgage Information", "fields": [ { "label": "Property", "path": "propertyAddress" }, { "label": "Loan Amount", "path": "loanAmount", "format": "money" }, { "label": "Interest Rate", "path": "interestRate", "format": "percent" }, { "label": "Monthly Payment", "path": "monthlyPayment", "format": "money" } ] },
+    "spending_summary": { "type": "fieldList", "title": "Spending Summary", "fields": [ { "label": "Total Spent", "path": "totalSpent", "format": "money" }, { "label": "Average Transaction", "path": "averageTransaction", "format": "money" }, { "label": "Top Category", "path": "topCategory" } ] },
+    "biggest_purchase": { "type": "card", "title": "Biggest Purchase", "fields": [ { "label": "Description", "path": "description" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "vertical_feature_demo": { "type": "text", "title": "Feature Data" }
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

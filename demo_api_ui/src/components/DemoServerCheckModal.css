@@ -1,0 +1,280 @@
+/* DemoServerCheckModal.css */
+
+.dsm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 14, 26, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* backdrop-filter removed for modal/overlay compliance */
+  animation: dsm-fade-in 0.25s ease;
+}
+
+@keyframes dsm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dsm-box {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  animation: dsm-slide-up 0.25s ease;
+}
+
+@keyframes dsm-slide-up {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ── Header ── */
+.dsm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: var(
+    --modal-header-bg,
+    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+  );
+  color: var(--modal-header-text, #ffffff);
+  border-bottom: none;
+  min-height: var(--modal-header-height, 48px);
+}
+
+.dsm-header-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dsm-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--modal-header-text, #ffffff);
+  line-height: 1.3;
+}
+
+/* ── Body ── */
+.dsm-body {
+  padding: 20px 22px 16px;
+}
+
+.dsm-intro {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  color: #374151;
+  line-height: 1.55;
+}
+
+/* ── Server cards ── */
+.dsm-servers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dsm-server-card {
+  border: 1px solid #fca5a5;
+  background: #fff5f5;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.dsm-server-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.dsm-server-status {
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dsm-server-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.dsm-server-port {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-family: inherit;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 2px;
+}
+
+.dsm-server-desc {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* ── Command row ── */
+.dsm-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  border-radius: 7px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.dsm-cmd {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: #b91c1c;
+  white-space: nowrap;
+  overflow-x: auto;
+  background: transparent;
+  user-select: all;
+}
+
+.dsm-copy-btn {
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 5px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.dsm-copy-btn:hover {
+  background: #e2e8f0;
+  color: #111827;
+}
+
+.dsm-copy-btn--ok {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+/* ── Hint text ── */
+.dsm-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+/* ── Commands section ── */
+.dsm-commands-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dsm-command-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsm-command-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #6b7280;
+}
+
+/* ── Footer ── */
+.dsm-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dsm-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  animation: dsm-pulse 1.6s infinite ease-in-out;
+}
+
+@keyframes dsm-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+.dsm-checking {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.dsm-dismiss-btn {
+  margin-left: auto;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.dsm-dismiss-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsm-overlay,
+  .dsm-box {
+    animation: none;
+  }
+}

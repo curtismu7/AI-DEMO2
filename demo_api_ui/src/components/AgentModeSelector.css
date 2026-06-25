@@ -1,0 +1,88 @@
+/* banking_api_ui/src/components/AgentModeSelector.css */
+.ams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(11, 105, 163, 0.08), rgba(59, 130, 246, 0.08));
+  border: 1.5px solid rgba(11, 105, 163, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0 -4px;
+}
+.ams--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 12px;
+}
+.ams-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  letter-spacing: 0.3px;
+}
+.ams--compact .ams-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+/* Compact deltas layered on the shared .ctl-select skin (styles/controls.css):
+   border, chevron, hover/focus ring, and brand color all come from .ctl-select. */
+.ams-select {
+  height: 32px;
+  padding: 0 32px 0 12px;
+  background-position: right 11px center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ctl-brand, #0b69a3);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(11, 105, 163, 0.12);
+  transition: all 0.2s ease;
+}
+.ams-select:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(11, 105, 163, 0.18);
+  transform: translateY(-1px);
+}
+.ams-select:focus {
+  box-shadow: 0 4px 12px rgba(11, 105, 163, 0.2), 0 0 0 3px rgba(11, 105, 163, 0.1);
+}
+.ams-wiring {
+  /* no top margin in row layout — compact mode is flex-direction:row */
+}
+.ams-degraded {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+}
+.ams-degraded code {
+  background: #fef3c7;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+.ams-wiring--hidden {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  pointer-events: none;
+}
+.ams-degraded-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}

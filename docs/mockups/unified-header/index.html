@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unified header mockup · Customer / Admin / Setup</title>
+  <style>
+    :root {
+      /* These three vars are the ONLY thing a vertical manifest needs to override. */
+      --brand-dashboard-header-start: #1d4ed8;
+      --brand-dashboard-header-end:   #1d4ed8;
+      --brand-dashboard-header-text:  #ffffff;
+      --theme-accent:                 #2563eb;
+
+      /* Derived */
+      --header-h: 60px;
+      --content-bg: #f8fafc;
+      --content-fg: #1e293b;
+      --content-muted: #64748b;
+      --content-border: #e2e8f0;
+    }
+
+    [data-theme="careconnect"] {
+      --brand-dashboard-header-start: #0f766e;
+      --brand-dashboard-header-end:   #0d9488;
+      --brand-dashboard-header-text:  #ffffff;
+      --theme-accent:                 #14b8a6;
+    }
+    [data-theme="greatbuy"] {
+      --brand-dashboard-header-start: #1D1D1B;
+      --brand-dashboard-header-end:   #2d2d2b;
+      --brand-dashboard-header-text:  #FFE000;
+      --theme-accent:                 #FFE000;
+    }
+    [data-theme="banking"] {
+      --brand-dashboard-header-start: #1d4ed8;
+      --brand-dashboard-header-end:   #1d4ed8;
+      --brand-dashboard-header-text:  #ffffff;
+      --theme-accent:                 #2563eb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #eef2f7;
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    /* ───────── Mockup page chrome (not part of the design) ───────── */
+    .mockup-page {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    .mockup-page__title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      letter-spacing: -0.2px;
+    }
+    .mockup-page__lead {
+      margin: 0 0 32px;
+      color: #475569;
+      max-width: 780px;
+      line-height: 1.6;
+    }
+    .mockup-section-label {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 36px 0 12px;
+    }
+    .mockup-section-label__title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .mockup-section-label__desc {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .mockup-frame {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 22px -10px rgba(15, 23, 42, 0.18);
+      background: #fff;
+      margin-bottom: 22px;
+    }
+    .mockup-frame__caption {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #475569;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .mockup-frame__caption strong { color: #0f172a; }
+    .mockup-frame__caption-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .mockup-frame__caption-chip[data-theme="careconnect"] { color: #0f766e; border-color: #0f766e; }
+    .mockup-frame__caption-chip[data-theme="greatbuy"]    { color: #1D1D1B; border-color: #1D1D1B; background: #FFE000; }
+    .mockup-frame__caption-chip[data-theme="banking"]     { color: #1d4ed8; border-color: #1d4ed8; }
+
+    /* ──────────────────────────────────────────────────────────────────
+       THE UNIFIED HEADER — this is the actual design.
+       One row. No sticky band above. Themed by manifest CSS vars.
+    ────────────────────────────────────────────────────────────────── */
+    .uh {
+      height: var(--header-h);
+      background: linear-gradient(
+        135deg,
+        var(--brand-dashboard-header-start) 0%,
+        var(--brand-dashboard-header-end) 100%
+      );
+      color: var(--brand-dashboard-header-text);
+      display: flex;
+      align-items: stretch;
+      padding: 0 18px;
+      gap: 18px;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    .uh__group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 100%;
+    }
+    .uh__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-right: 14px;
+      border-right: 1px solid rgba(255,255,255,0.18);
+      cursor: pointer;
+    }
+    .uh__brand-icon {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    .uh__brand-name {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+    .uh__context-chip {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    .uh__nav {
+      display: flex;
+      align-items: stretch;
+      gap: 2px;
+      margin-left: 8px;
+    }
+    .uh__nav-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.78);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .15s ease, border-color .15s ease;
+    }
+    .uh__nav-link:hover {
+      color: var(--brand-dashboard-header-text);
+    }
+    .uh__nav-link--active {
+      color: var(--brand-dashboard-header-text);
+      font-weight: 600;
+      border-bottom-color: var(--brand-dashboard-header-text);
+    }
+    .uh__spacer { flex: 1; }
+    .uh__actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .uh__action,
+    .uh__action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand-dashboard-header-text);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .uh__action:hover { background: rgba(255,255,255,0.16); }
+    .uh__action--icon { padding: 6px 8px; }
+    .uh__action--danger {
+      background: rgba(220, 38, 38, 0.85);
+      border-color: rgba(255,255,255,0.18);
+      color: #fff;
+    }
+    .uh__action--danger:hover { background: rgba(220, 38, 38, 1); }
+
+    /* Theme picker — looks native to the header */
+    .uh__theme {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 6px;
+      padding: 4px 4px 4px 10px;
+      font-size: 12px;
+    }
+    .uh__theme-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .uh__theme select {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      color: var(--brand-dashboard-header-text);
+      font: inherit;
+      font-weight: 600;
+      padding: 2px 18px 2px 4px;
+      cursor: pointer;
+      background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                        linear-gradient(135deg, currentColor 50%, transparent 50%);
+      background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+      background-size: 4px 4px;
+      background-repeat: no-repeat;
+    }
+    .uh__theme select option { color: #0f172a; }
+
+    /* Token pill — replaces the orphan "session pill" + countdown */
+    .uh__token {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.22);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .uh__token-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.25);
+    }
+    .uh__token--warn .uh__token-dot { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.25); }
+    .uh__token-name { font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uh__token-time { opacity: 0.85; font-variant-numeric: tabular-nums; }
+    .uh__token-view {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      border: 0;
+      color: var(--brand-dashboard-header-text);
+      cursor: pointer;
+    }
+
+    /* User menu trigger */
+    .uh__user {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.22);
+      cursor: pointer;
+    }
+    .uh__user-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      color: var(--brand-dashboard-header-text);
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 11px;
+    }
+    .uh__user-name {
+      font-size: 12px;
+      font-weight: 600;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .uh__user-chev {
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    /* ───────── Page body stubs underneath the header ───────── */
+    .body-stub {
+      padding: 18px 22px;
+      background: var(--content-bg);
+      color: var(--content-fg);
+      min-height: 110px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .body-stub__card {
+      background: #fff;
+      border: 1px solid var(--content-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 0 rgba(15,23,42,0.03);
+    }
+    .body-stub__card-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--content-muted);
+      margin: 0 0 4px;
+    }
+    .body-stub__card-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--theme-accent);
+      letter-spacing: -0.2px;
+    }
+    .body-stub--admin {
+      grid-template-columns: 1.5fr 1fr 1fr;
+    }
+    .body-stub__card--full {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--content-muted);
+      font-size: 13px;
+    }
+    .body-stub__card--full span:first-child { color: var(--content-fg); font-weight: 600; }
+    .body-stub--setup {
+      grid-template-columns: 2fr 1fr;
+    }
+    .body-stub__list {
+      background: #fff;
+      border: 1px solid var(--content-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--content-muted);
+      line-height: 1.7;
+    }
+    .body-stub__list strong { color: var(--content-fg); display: block; margin-bottom: 4px; }
+
+    /* ───────── Footer notes block ───────── */
+    .notes {
+      margin-top: 30px;
+      padding: 18px 22px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .notes h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .notes ul { margin: 0; padding-left: 18px; color: #475569; line-height: 1.7; font-size: 13px; }
+    .notes code {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-page">
+    <h1 class="mockup-page__title">Unified header — one bar for Customer, Admin, Setup</h1>
+    <p class="mockup-page__lead">
+      Single sticky header on every page. Everything previously split across
+      <em>the gray banking band</em>, <em>the dark TopNav</em>, and <em>the in-page dashboard
+      toolbar</em> collapses into one row. The header is fully themed by the active
+      vertical manifest — only <code>--brand-dashboard-header-start</code>,
+      <code>--brand-dashboard-header-end</code>, <code>--brand-dashboard-header-text</code>,
+      and <code>--theme-accent</code> change per vertical.
+    </p>
+
+    <!-- ─────────────── CUSTOMER · CareConnect ─────────────── -->
+    <div class="mockup-section-label">
+      <span class="mockup-section-label__title">Customer dashboard</span>
+      <span class="mockup-section-label__desc">/dashboard · shown with active vertical = CareConnect</span>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Route:</strong> <code>/dashboard</code>
+        <span class="mockup-frame__caption-chip" data-theme="careconnect">CareConnect</span>
+      </div>
+      <header class="uh" data-theme="careconnect">
+        <div class="uh__group uh__brand" title="Go to home">
+          <span class="uh__brand-icon">⌂</span>
+          <span class="uh__brand-name">CareConnect</span>
+        </div>
+        <div class="uh__group">
+          <span class="uh__context-chip">Customer</span>
+        </div>
+        <nav class="uh__nav">
+          <span class="uh__nav-link uh__nav-link--active">My Health</span>
+          <span class="uh__nav-link">Records</span>
+          <span class="uh__nav-link">Appointments</span>
+          <span class="uh__nav-link">Coverage</span>
+        </nav>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__theme" title="Active vertical theme">
+            <span class="uh__theme-label">Theme</span>
+            <select>
+              <option>CareConnect</option>
+              <option>Super Banking</option>
+              <option>Great Buy</option>
+            </select>
+          </span>
+          <button class="uh__action uh__action--icon" title="Layout">▦</button>
+          <button class="uh__action uh__action--icon" title="Controls (HITL thresholds)">⚙</button>
+          <button class="uh__action uh__action--danger" title="Reset demo">Reset Demo</button>
+          <span class="uh__token" title="Session token countdown">
+            <span class="uh__token-dot"></span>
+            <span class="uh__token-name">Demo User</span>
+            <span class="uh__token-time">56m 21s</span>
+            <button class="uh__token-view">View token</button>
+          </span>
+          <span class="uh__user" title="User menu">
+            <span class="uh__user-avatar">DU</span>
+            <span class="uh__user-name">Demo User</span>
+            <span class="uh__user-chev">▾</span>
+          </span>
+        </div>
+      </header>
+      <div class="body-stub" data-theme="careconnect" style="--theme-accent:#14b8a6;">
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Next Appointment</p>
+          <p class="body-stub__card-value">Jun 3</p>
+        </div>
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Active Rx</p>
+          <p class="body-stub__card-value">3</p>
+        </div>
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Outstanding Balance</p>
+          <p class="body-stub__card-value">$142.50</p>
+        </div>
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Coverage</p>
+          <p class="body-stub__card-value">Active</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── ADMIN · Banking ─────────────── -->
+    <div class="mockup-section-label">
+      <span class="mockup-section-label__title">Admin dashboard</span>
+      <span class="mockup-section-label__desc">/admin · shown with active vertical = Super Banking · note the <code>Customer / Admin / Setup</code> context switcher</span>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Route:</strong> <code>/admin</code>
+        <span class="mockup-frame__caption-chip" data-theme="banking">Super Banking</span>
+      </div>
+      <header class="uh" data-theme="banking">
+        <div class="uh__group uh__brand">
+          <span class="uh__brand-icon">⌂</span>
+          <span class="uh__brand-name">Super Banking</span>
+        </div>
+        <div class="uh__group">
+          <span class="uh__context-chip">Admin</span>
+        </div>
+        <nav class="uh__nav">
+          <span class="uh__nav-link">Customer</span>
+          <span class="uh__nav-link uh__nav-link--active">Admin</span>
+          <span class="uh__nav-link">Setup</span>
+        </nav>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__theme">
+            <span class="uh__theme-label">Theme</span>
+            <select>
+              <option>Super Banking</option>
+              <option>CareConnect</option>
+              <option>Great Buy</option>
+            </select>
+          </span>
+          <button class="uh__action uh__action--icon" title="Layout">▦</button>
+          <button class="uh__action uh__action--icon" title="Controls">⚙</button>
+          <button class="uh__action uh__action--danger">Reset Demo</button>
+          <span class="uh__token uh__token--warn">
+            <span class="uh__token-dot"></span>
+            <span class="uh__token-name">Demo Admin</span>
+            <span class="uh__token-time">7m 35s</span>
+            <button class="uh__token-view">View token</button>
+          </span>
+          <span class="uh__user">
+            <span class="uh__user-avatar">DA</span>
+            <span class="uh__user-name">Demo Admin</span>
+            <span class="uh__user-chev">▾</span>
+          </span>
+        </div>
+      </header>
+      <div class="body-stub body-stub--admin" data-theme="banking" style="--theme-accent:#2563eb;">
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Active users</p>
+          <p class="body-stub__card-value">1,284</p>
+        </div>
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">Tools called today</p>
+          <p class="body-stub__card-value">8,612</p>
+        </div>
+        <div class="body-stub__card">
+          <p class="body-stub__card-label">HITL approvals pending</p>
+          <p class="body-stub__card-value">3</p>
+        </div>
+        <div class="body-stub__card body-stub__card--full">
+          <span>Activity log · last 5 minutes</span>
+          <span>tx-9f12 · access_token issued (act: agent-001) · 12 sec ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── SETUP · Great Buy ─────────────── -->
+    <div class="mockup-section-label">
+      <span class="mockup-section-label__title">Setup / configure</span>
+      <span class="mockup-section-label__desc">/setup · shown with active vertical = Great Buy · dashboard-only controls (theme, layout, controls, reset) are auto-hidden on Setup</span>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Route:</strong> <code>/setup</code>
+        <span class="mockup-frame__caption-chip" data-theme="greatbuy">Great Buy</span>
+      </div>
+      <header class="uh" data-theme="greatbuy">
+        <div class="uh__group uh__brand">
+          <span class="uh__brand-icon">⌂</span>
+          <span class="uh__brand-name">Great Buy</span>
+        </div>
+        <div class="uh__group">
+          <span class="uh__context-chip">Setup</span>
+        </div>
+        <nav class="uh__nav">
+          <span class="uh__nav-link">Customer</span>
+          <span class="uh__nav-link">Admin</span>
+          <span class="uh__nav-link uh__nav-link--active">Setup</span>
+        </nav>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__token">
+            <span class="uh__token-dot"></span>
+            <span class="uh__token-name">Demo Admin</span>
+            <span class="uh__token-time">52m 04s</span>
+            <button class="uh__token-view">View token</button>
+          </span>
+          <span class="uh__user">
+            <span class="uh__user-avatar">DA</span>
+            <span class="uh__user-name">Demo Admin</span>
+            <span class="uh__user-chev">▾</span>
+          </span>
+        </div>
+      </header>
+      <div class="body-stub body-stub--setup">
+        <div class="body-stub__list">
+          <strong>Deployment setup</strong>
+          Run the Vercel environment wizard on your machine, then finish PingOne values
+          in Application Configuration.
+          <br><br>
+          ✓ PingOne bootstrap complete<br>
+          ✓ MCP server reachable on :8080<br>
+          ⚠ HITL service not yet wired
+        </div>
+        <div class="body-stub__list">
+          <strong>Quick links</strong>
+          Setup checklist<br>
+          PingOne reference<br>
+          Postman collections
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────── Detail variants ─────────────── -->
+    <div class="mockup-section-label">
+      <span class="mockup-section-label__title">Token-pill states</span>
+      <span class="mockup-section-label__desc">Same header, different token states — green / amber / expired</span>
+    </div>
+
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Variant:</strong> healthy session
+      </div>
+      <header class="uh" data-theme="careconnect">
+        <div class="uh__group uh__brand"><span class="uh__brand-icon">⌂</span><span class="uh__brand-name">CareConnect</span></div>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__token">
+            <span class="uh__token-dot"></span>
+            <span class="uh__token-name">Demo User</span>
+            <span class="uh__token-time">42m 18s</span>
+            <button class="uh__token-view">View</button>
+          </span>
+          <span class="uh__user"><span class="uh__user-avatar">DU</span><span class="uh__user-name">Demo User</span><span class="uh__user-chev">▾</span></span>
+        </div>
+      </header>
+    </div>
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Variant:</strong> expiring soon (&lt; 5min)
+      </div>
+      <header class="uh" data-theme="careconnect">
+        <div class="uh__group uh__brand"><span class="uh__brand-icon">⌂</span><span class="uh__brand-name">CareConnect</span></div>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__token uh__token--warn">
+            <span class="uh__token-dot"></span>
+            <span class="uh__token-name">Demo User</span>
+            <span class="uh__token-time">2m 11s</span>
+            <button class="uh__token-view">Refresh</button>
+          </span>
+          <span class="uh__user"><span class="uh__user-avatar">DU</span><span class="uh__user-name">Demo User</span><span class="uh__user-chev">▾</span></span>
+        </div>
+      </header>
+    </div>
+    <div class="mockup-frame">
+      <div class="mockup-frame__caption">
+        <strong>Variant:</strong> expired
+      </div>
+      <header class="uh" data-theme="careconnect">
+        <div class="uh__group uh__brand"><span class="uh__brand-icon">⌂</span><span class="uh__brand-name">CareConnect</span></div>
+        <span class="uh__spacer"></span>
+        <div class="uh__actions">
+          <span class="uh__token uh__token--warn" style="background: rgba(220,38,38,0.25); border-color: rgba(220,38,38,0.6);">
+            <span class="uh__token-dot" style="background:#ef4444; box-shadow:0 0 0 2px rgba(239,68,68,0.25);"></span>
+            <span class="uh__token-name">Session expired</span>
+            <button class="uh__token-view" style="background: rgba(255,255,255,0.9); color:#1f2937;">Sign in</button>
+          </span>
+        </div>
+      </header>
+    </div>
+
+    <!-- ─────────────── Design notes ─────────────── -->
+    <div class="notes">
+      <h2>Design notes</h2>
+      <ul>
+        <li><strong>One header for every page.</strong> The standalone <em>banking-header</em> band above the TopNav is gone (it was the dead-space block). The in-page <em>dashboard-toolbar</em> row is also gone — its controls live inside this header now.</li>
+        <li><strong>Themed by manifest CSS vars.</strong> The gradient background, text color, and the active-link underline all read from the four vars at the top of <code>:root</code>. Each row above uses a real manifest's values via <code>data-theme</code>.</li>
+        <li><strong>Context chip + nav.</strong> The chip (<code>Customer / Admin / Setup</code>) is always visible. The 3-tab nav replaces the existing admin-only <code>Customer · Admin · Setup</code> quick switcher and is now visible to admins on every page.</li>
+        <li><strong>Dashboard-only controls auto-hide.</strong> Theme picker, layout toggle, HITL Controls, Reset Demo render only on <code>/dashboard</code> — they make no sense on Setup or generic admin pages. (Same conditional rule we used last turn, just inside this new bar.)</li>
+        <li><strong>Token pill + user menu always render.</strong> Token pill states: green (≥ 5min), amber (&lt; 5min), red (expired → Sign in). The user menu replaces the previous orphan "Log Out" button — all account actions live here.</li>
+        <li><strong>Height.</strong> 60px on all routes. Mobile breakpoint at 1100px collapses nav labels to icons and hides the user name.</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

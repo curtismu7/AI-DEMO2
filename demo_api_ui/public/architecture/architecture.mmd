@@ -1,0 +1,275 @@
+---
+title: Banking Digital Assistant — Architecture & Key Connections
+---
+flowchart TB
+    %% ── Phase 268 future K8s topology — DASHED = PLANNED, NOT SHIPPED ─
+    subgraph K8s["Kubernetes cluster (planned — Phase 268, NOT live today)"]
+        direction TB
+        Ingress["Ingress + cert-manager<br/>Let's Encrypt"]
+        BFFPod["demo_api_server pod<br/>Service: LoadBalancer (public)"]
+        GWPod["demo_mcp_gateway pod<br/>Service: LoadBalancer (public)"]
+        MCPPod["demo_mcp_server pod<br/>Service: ClusterIP"]
+        AgentPod["demo_agent_service pod<br/>Service: ClusterIP"]
+        HITLPod["demo_hitl_service pod<br/>Service: ClusterIP"]
+        InvestPod["demo_mcp_invest pod<br/>Service: ClusterIP"]
+        MortgagePod["demo_mortgage_service pod<br/>Service: ClusterIP"]
+    end
+
+    %% ── External Users ────────────────────────────────────────────────────────
+    AdminBrowser["Admin Browser<br/>(port 4000)"]
+    CustomerBrowser["Customer Browser<br/>(port 4000)"]
+
+    %% ── Frontend ──────────────────────────────────────────────────────────────
+    subgraph UI["demo_api_ui  (React 18 · CRA · port 4000)"]
+        direction TB
+        Login["Login Component\nOAuth PKCE redirect"]
+        Dashboard["Admin Dashboard\n/admin /transactions /users /accounts"]
+        UserDash["User Dashboard\n/dashboard"]
+        SecuritySettings["Security Settings\n/settings — Step-up + Authorize config"]
+        ChatWidget["AI Chat Widget\nWebSocket → LangChain chat\n(stream_event + reply)"]
+        McpInspector["MCP Inspector\n/mcp-inspector\nBFF tools/list · invoke"]
+        ConfigPage["Config Page\ntabs: OAuth · Verticals · Token Validation\n/api/config/validation-mode"]
+    end
+
+    %% ── API Server ────────────────────────────────────────────────────────────
+    subgraph API["demo_api_server  (Express · Node.js · port 3001)"]
+        direction TB
+        AuthRoutes["/api/auth\n/api/auth/oauth\n/api/auth/oauth/user"]
+        CibaRoutes["/api/auth/ciba/*\ninitiate · poll · notify\nOIDC CIBA"]
+        McpInspectorRoutes["/api/mcp/inspector\ncontext · tools · invoke\n+ mcpWebSocketClient"]
+        TxRoutes["/api/transactions\ndeposit · withdrawal · transfer"]
+        AdminRoutes["/api/admin/settings\nGET · PUT runtime config"]
+        UserRoutes["/api/users"]
+        AccountRoutes["/api/accounts"]
+        Health["/api/healthz  /health"]
+        ValidationRoutes["GET /api/config/validation-mode
+POST /api/config/validation-mode
+(session auth required)"]
+        IntrospectionHealth["GET /api/health/introspection
+RFC 7662 connectivity probe
+→ 200 connected | 503 failed"]
+
+        subgraph Middleware["Middleware Stack"]
+            AuthMW["authenticateToken\nJWT validation / SKIP_TOKEN_SIGNATURE_VALIDATION"]
+            ScopeMW["requireScopes\nbanking:transactions:write etc."]
+            AdminMW["requireAdmin\nazp === PINGONE_ADMIN_CLIENT_ID"]
+            RateLimiter["express-rate-limit"]
+            Session["express-session"]
+            ActivityLog["logActivity middleware"]
+        end
+
+        subgraph Gates["Security Gates  (transactions.js)"]
+            StepUpGate["Step-Up MFA Gate\namount ≥ threshold AND type in types\nACR check → 428 step_up_required"]
+            AuthorizeGate["PingOne Authorize Gate\nPDP evaluation → PERMIT / DENY / INDETERMINATE\nFail-open on error"]
+        end
+
+        subgraph RuntimeSettings["runtimeSettings.js  (in-memory singleton)"]
+            ValidationMode["validationModeConfig.js
+mode: introspection | jwt
+env: VALIDATION_MODE
+runtime switchable"]
+            RSFields["stepUpEnabled · stepUpAmountThreshold\nstepUpAcrValue · stepUpTransactionTypes\nauthorizeEnabled · authorizePolicyId"]
+            RSHistory["Change history  (last 50 entries)"]
+        end
+
+        subgraph DataStore["data/store.js  (in-memory Maps)"]
+            Users["Users Map"]
+            Accounts["Accounts Map"]
+            Transactions["Transactions Map"]
+            ActivityLogs["Activity Logs\n(persistent JSON)"]
+        end
+
+        AuthorizeService["pingOneAuthorizeService.js\nclient_credentials → worker token\nPOST /governance/policyDecisionPoints/{id}/evaluate"]
+        OAuthMonitor["oauthHealthMonitor.js\nmetrics · healthStatus"]
+    end
+
+    %% ── MCP Server ────────────────────────────────────────────────────────────
+    subgraph MCP["demo_mcp_server  (TypeScript · WebSocket · port 8080)"]
+        MCPProtocol["MCP + JSON-RPC 2.0\ninitialize · tools/list · tools/call"]
+        MCPTools["Tools: get_my_accounts · get_account_balance\nget_my_transactions\ncreate_transfer · create_deposit\ncreate_withdrawal · query_user_by_email"]
+        MCPAuth["Bearer + introspection RFC 7662\nscope per tool · optional RFC 8693 act"]
+    end
+
+    %% ── LangChain Agent ───────────────────────────────────────────────────────
+    subgraph Agent["langchain_agent  (Python · uvicorn :8888 · chat WS :8889 · health :8890)"]
+        FastAPI["uvicorn HTTP :8888<br/>chat WebSocket :8889"]
+        HealthInsp["Health :8890<br/>/health · /inspector/mcp-host"]
+        LangChain["LangChain agent<br/>streaming · tool calls"]
+        MCPClientPy["MCP Client<br/>WebSocket JSON-RPC + Bearer"]
+    end
+
+    %% ── MCP Gateway (Phase 243 + 266) ──────────────────────────────────
+    subgraph Gateway["demo_mcp_gateway  (TypeScript · port 3005 · active when MCP_GATEWAY_HTTP_URL set; else BFF → MCP :8080 direct)"]
+        direction TB
+        GwProxy["Policy-aware credential broker<br/>RFC 8693 chained exchange<br/>Paths A api_key - B dual_token - C oauth_bearer"]
+        GwAuthorize["pingAuthorizeGuard.ts<br/>per-tool-call PDP evaluation"]
+    end
+
+    %% ── Additional Node services ───────────────────────────────────────
+    AgentService["demo_agent_service<br/>TypeScript LangGraph agent :3006<br/>(optional alternative — default agent is<br/>in-process BFF LangGraph /api/banking-agent)"]
+    MCPInvestSvc["demo_mcp_invest<br/>Investment MCP server :8081"]
+    MortgageSvc["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
+    HITLSvc["demo_hitl_service<br/>Out-of-band consent :3009"]
+
+    %% ── PingGateway (Ping Identity IG) — alternative MCP gateway ──────
+    PingGW["PingGateway (IG, :3036)<br/>Alternative MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Real→mock Authorize failover (X-Authz-Simulated)<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
+
+    %% ── AG-UI agent-run streaming ──────────────────────────────────────
+    AGUIRoutes["/api/agent-run (agentRun.js)<br/>SSE stream — agent-run events<br/>Decoded token-chain events injected (never raw JWTs)<br/>In-memory trace store (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Proxies: langchain :8888, openai :8891, mastra :8892, pydantic :8893"]
+
+    %% ── Copilot Studio agent-token broker (optional, not in docker-compose) ──
+    AgentTokenSvc["agent_token_service<br/>Copilot Studio broker (Node/TS · :8097 · 127.0.0.1)<br/>Auth: static x-api-key (BROKER_API_KEY)<br/>Mints PingOne client_credentials token<br/>scope: agent:invoke, aud: agentgateway.ping.demo<br/>Endpoints: POST /token  GET /healthz<br/>Run separately — Copilot Studio only"]
+
+    %% ── Phase 269 vault ────────────────────────────────────────────────
+    Vault[("secrets.vault<br/>AEAD + Argon2id<br/>startup-load - Phase 269")]
+
+    %% ── External Services ─────────────────────────────────────────────────────
+    subgraph PingOneCloud["PingOne  (auth.pingone.com / {region})"]
+        direction LR
+        OIDC_AS["Authorization Server\n/as/authorize  /as/token  /as/userinfo\n/as/introspect  (RFC 7662)"]
+        JWKS["JWKS Endpoint\n/as/jwks  (RFC 7517)"]
+        UserMgmt["User Management API\n/v1/environments/{env}/users"]
+        AppRegistration["Dynamic Client Registration\n/as/registration  (RFC 7591)"]
+    end
+
+    subgraph PingOneAuthorize["PingOne Authorize"]
+        PDP["Policy Decision Point\n/v1/environments/{env}/governance\n/policyDecisionPoints/{id}/evaluate"]
+    end
+
+    LLM["LLM provider<br/>Helix (default) - x-api-key<br/>OpenAI - Anthropic - Groq - Gemini (optional)"]
+
+    %% ── Connections: Browser → UI ──────────────────────────────────────────────
+    AdminBrowser -->|"HTTPS"| UI
+    CustomerBrowser -->|"HTTPS"| UI
+
+    %% ── Connections: UI → API (proxied via CRA proxy :3001) ───────────────────
+    Login -->|"redirect\nOAuth PKCE  RFC 6749 + RFC 7636"| OIDC_AS
+    Login -->|"GET /api/auth/oauth/status"| AuthRoutes
+    Dashboard -->|"GET /api/admin/settings"| AdminRoutes
+    SecuritySettings -->|"GET · PUT /api/admin/settings"| AdminRoutes
+    UserDash -->|"GET /api/transactions/my"| TxRoutes
+    ChatWidget -->|"WebSocket chat\n+ stream_event"| FastAPI
+
+    McpInspector -->|"session cookie"| McpInspectorRoutes
+    McpInspector -.->|"optional: GET /inspector/mcp-host"| HealthInsp
+
+    %% ── Connections: API ↔ PingOne ────────────────────────────────────────────
+    AuthRoutes -->|"PKCE auth code exchange\nRFC 6749 §4.1 · RFC 7636"| OIDC_AS
+    CibaRoutes -->|"CIBA bc-authorize + poll token\nOIDF CIBA Core"| OIDC_AS
+    AuthMW -->|"JWKS token validation\nRFC 7519 · RFC 7517"| JWKS
+    AuthorizeService -->|"client_credentials  RFC 6749 §4.4\nPDP evaluate  POST"| PingOneAuthorize
+    AuthRoutes -->|"Dynamic registration  RFC 7591"| AppRegistration
+    AdminRoutes -->|"User Management API"| UserMgmt
+    McpInspectorRoutes -->|"optional RFC 8693"| OIDC_AS
+    McpInspectorRoutes -->|"WS MCP"| MCPProtocol
+
+    %% ── Connections: Gates → Services ─────────────────────────────────────────
+    TxRoutes --> StepUpGate
+    StepUpGate --> AuthorizeGate
+    AuthorizeGate --> AuthorizeService
+    AdminRoutes --> RuntimeSettings
+    RuntimeSettings --> Gates
+
+    %% ── Connections: API → DataStore ──────────────────────────────────────────
+    TxRoutes --> DataStore
+    UserRoutes --> DataStore
+    AccountRoutes --> DataStore
+
+    %% ── Connections: MCP → API ────────────────────────────────────────────────
+    MCPTools -->|"REST  Bearer token\nscope: banking:transactions:write etc."| TxRoutes
+    MCPAuth -->|"token validation"| AuthMW
+    MCPClientPy -->|"WebSocket  MCP Protocol"| MCPProtocol
+
+    %% ── Connections: Agent → MCP + OpenAI ─────────────────────────────────────
+    LangChain --> MCPClientPy
+    LangChain -->|"HTTPS  API Key"| LLM
+    FastAPI --> LangChain
+
+    %% ── Phase 270: edges for newly-named services ─────────────────────
+    AuthRoutes -->|"RFC 8693 exchanged Bearer"| GwProxy
+    GwProxy --> GwAuthorize
+    GwProxy -->|"WS MCP - exchanged Bearer"| MCPProtocol
+    GwProxy -->|"WS MCP - invest tools"| MCPInvestSvc
+    GwProxy -->|"X-API-Key + X-User-Sub (Path A)<br/>OAuth Bearer dropped"| MortgageSvc
+    GwProxy -->|"Bearer + id_token (Path B)<br/>Bearer exchanged (Path C)"| BankingRS
+    AuthRoutes -->|"prompt + user token"| AgentService
+    AgentService -->|"WS exchanged Bearer"| GwProxy
+    AuthRoutes -->|"consent challenge"| HITLSvc
+    HITLSvc -.->|"approval / deny callback"| AuthRoutes
+    AuthRoutes -->|"vaultLoader.js startup-load<br/>configStore.setRaw persist:false"| Vault
+    MCPInvestSvc -->|"REST exchanged Bearer"| TxRoutes
+    GwAuthorize -->|"PDP evaluate"| PDP
+
+    %% ── Connections: PingGateway (alternative MCP gateway) ───────────────────
+    AuthRoutes -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true)"| PingGW
+    PingGW -->|"PDP evaluate (UserId + McpResourceUri)<br/>real→mock failover"| PDP
+    PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPProtocol
+
+    %% ── Connections: AG-UI SSE streaming ─────────────────────────────────────
+    AuthRoutes --> AGUIRoutes
+
+    %% ── Connections: Copilot Studio agent-token broker ───────────────────────
+    AgentTokenSvc -->|"client_credentials<br/>scope: agent:invoke"| OIDC_AS
+
+    %% ── Connections: OAuthMonitor ─────────────────────────────────────────────
+    OAuthMonitor -->|"OIDC discovery ping"| OIDC_AS
+    Health --> OAuthMonitor
+
+    %% ── Connections: Token Validation Config ─────────────────────────────────
+    ConfigPage -->|"GET/POST /api/config/validation-mode"| ValidationRoutes
+    ValidationRoutes --> ValidationMode
+    IntrospectionHealth -->|"POST dummy token
+RFC 7662 probe"| OIDC_AS
+    AuthMW -->|"introspection mode:
+POST /as/introspect RFC 7662"| OIDC_AS
+
+    %% Phase 266 R2: banking_resource_server (live) — Paths B and C both terminate here.
+    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected at Gateway; calls demo_mortgage_service :8082 (Phase 267).
+    %% Path B (dual_token): Bearer + id_token forwarded to /identity — RFC 8693 + RFC 8707 + OIDC Core ss3.1.3.7.
+    %% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) to /accounts /transactions — SQLite-backed.
+    subgraph ResourceServer["banking_resource_server  (logical sub-routes on :3001)"]
+        direction TB
+        BankingRS["banking_resource_server<br/>/identity (Path B dual_token)<br/>/accounts /transactions (Path C oauth_bearer)<br/>RFC 6750 authenticateToken"]
+        BankingSQLite[("SQLite<br/>banking-resource-server.db<br/>seeded from data/store.js")]
+    end
+
+    BankingRS -->|"Bearer + id_token<br/>dual_token Path B /identity"| JWKS
+    BankingRS -->|"reads accounts + transactions"| BankingSQLite
+
+    %% ── Standards Legend ──────────────────────────────────────────────────────
+    subgraph Standards["Standards & Protocols"]
+        direction TB
+        S1["RFC 6749 — OAuth 2.0"]
+        S2["RFC 6750 — Bearer"]
+        S3["RFC 7636 — PKCE"]
+        S4["RFC 7662 — Token Introspection"]
+        S5["RFC 8693 — Token Exchange"]
+        S6["RFC 7009 — Revocation (target)"]
+        S7["RFC 7517 / 7519 — JWK / JWT"]
+        S8["OIDC Core + CIBA"]
+        S9["JSON-RPC 2.0 + MCP 2024-11-05"]
+        S10["RFC 7591 — Dynamic Client Reg"]
+        S11["Phase 97: Configurable Validation
+introspection (RFC 7662) | jwt (RFC 7519)
+env: VALIDATION_MODE · runtime switchable"]
+    end
+
+    %% ── Styling ───────────────────────────────────────────────────────────────
+    classDef external fill:#e8f4fd,stroke:#2980b9,color:#1a252f
+    classDef frontend fill:#eafaf1,stroke:#27ae60,color:#1a252f
+    classDef backend fill:#fef9e7,stroke:#f39c12,color:#1a252f
+    classDef mcp fill:#f4ecf7,stroke:#8e44ad,color:#1a252f
+    classDef agent fill:#fdebd0,stroke:#e67e22,color:#1a252f
+    classDef standard fill:#f2f3f4,stroke:#95a5a6,color:#566573
+    classDef k8s fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e,stroke-width:2px,stroke-dasharray: 6 4
+    classDef planned fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px,stroke-dasharray: 6 4
+
+    class PingOneCloud,PingOneAuthorize,LLM external
+    class UI,Login,Dashboard,UserDash,SecuritySettings,ChatWidget,McpInspector,ConfigPage frontend
+    class API,AuthRoutes,CibaRoutes,McpInspectorRoutes,TxRoutes,AdminRoutes,UserRoutes,AccountRoutes,Health,Middleware,Gates,RuntimeSettings,DataStore,AuthorizeService,OAuthMonitor,ValidationMode,ValidationRoutes,IntrospectionHealth backend
+    class MCP,MCPProtocol,MCPTools,MCPAuth mcp
+    class Agent,FastAPI,HealthInsp,LangChain,MCPClientPy agent
+    class Standards,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 standard
+    class Gateway,GwProxy,GwAuthorize,AgentService,MCPInvestSvc,MortgageSvc,HITLSvc,ResourceServer,BankingRS,BankingSQLite,PingGW,AGUIRoutes backend
+    class Vault,AgentTokenSvc planned
+    class K8s,Ingress,BFFPod,GWPod,MCPPod,AgentPod,HITLPod,InvestPod,MortgagePod k8s

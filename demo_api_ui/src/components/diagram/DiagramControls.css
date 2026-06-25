@@ -1,0 +1,187 @@
+/* ── DiagramControls ─────────────────────────────────────────────────────────
+ * Shared styles for the three shared diagram UI components:
+ *   .dc-*   — DiagramControls toolbar
+ *   .dl-*   — DiagramLegend
+ *   .pfb-*  — PathFilterBar
+ *
+ * Source: extracted from ArchitectureDiagramPage.css (.arch-zoom-*, .arch-ctrl-*)
+ * and Phase266ArchitecturePage.css (.p266-filter-*). Renamed with namespaced
+ * prefixes; no functional changes.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── DiagramControls toolbar ─────────────────────────────────────────────── */
+
+.dc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+/* Zoom block */
+.dc-zoom-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  color: #334155;
+  transition: background 0.15s;
+}
+.dc-zoom-btn:hover:not(:disabled) { background: #e2e8f0; }
+.dc-zoom-btn:disabled { color: #94a3b8; cursor: not-allowed; }
+
+.dc-zoom-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  min-width: 2.8rem;
+  text-align: center;
+}
+
+.dc-zoom-reset {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+/* Divider between zoom and step blocks */
+.dc-divider {
+  width: 1px;
+  height: 1.2rem;
+  background: #e2e8f0;
+  margin: 0 0.2rem;
+}
+
+/* Step nav block */
+.dc-step-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #004687;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 5px;
+  padding: 0.25rem 0.6rem;
+}
+.dc-step-label--paused {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.dc-ctrl-btn {
+  padding: 0.25rem 0.7rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.dc-ctrl-btn:disabled {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed;
+}
+
+.dc-ctrl-btn--simulate { background: #004687; color: #fff; }
+.dc-ctrl-btn--simulate:hover:not(:disabled) { background: #003366; }
+
+.dc-ctrl-btn--pause  { background: #f59e0b; color: #fff; }
+.dc-ctrl-btn--pause:hover:not(:disabled)  { background: #d97706; }
+
+.dc-ctrl-btn--resume { background: #22c55e; color: #fff; }
+.dc-ctrl-btn--resume:hover:not(:disabled) { background: #16a34a; }
+
+.dc-ctrl-btn--next   { background: #004687; color: #fff; }
+.dc-ctrl-btn--next:hover:not(:disabled)   { background: #003366; }
+
+.dc-ctrl-btn--stop   { background: #e2e8f0; color: #475569; }
+.dc-ctrl-btn--stop:hover:not(:disabled)   { background: #cbd5e1; }
+
+.dc-ctrl-btn--prev   { background: #fff; color: #334155; border: 1px solid #e2e8f0; }
+.dc-ctrl-btn--prev:hover:not(:disabled)   { background: #f1f5f9; }
+
+/* ── DiagramLegend ────────────────────────────────────────────────────────── */
+
+.dl-legend {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.dl-legend--column {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.dl-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #475569;
+  transition: opacity 0.2s;
+}
+
+.dl-item--dimmed {
+  opacity: 0.4;
+}
+
+.dl-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── PathFilterBar ────────────────────────────────────────────────────────── */
+
+.pfb-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pfb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.pfb-btn:not([data-active="true"]):hover {
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.pfb-btn[data-active="true"] {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #ffffff;
+}
+
+.pfb-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

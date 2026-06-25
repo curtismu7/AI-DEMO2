@@ -1,0 +1,304 @@
+/* TRiSMTrainingPanel.css — Slide-out panel for AI TRiSM training */
+
+/* Overlay */
+.trism-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: trismFadeIn 0.2s ease-out;
+}
+
+@keyframes trismFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Panel */
+.trism-panel {
+  background: #ffffff;
+  width: 680px;
+  max-width: 95vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: trismSlideIn 0.3s ease-out;
+}
+
+@keyframes trismSlideIn {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Header */
+.trism-panel-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.trism-panel-header-left h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.trism-panel-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.trism-panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.trism-glossary-toggle {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trism-glossary-toggle:hover {
+  background: #f3f4f6;
+}
+
+.trism-glossary-toggle.active {
+  background: #eff6ff;
+  border-color: #1e40af;
+  color: #1e40af;
+}
+
+.trism-panel-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 20px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.trism-panel-close:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* Content */
+.trism-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Footer */
+.trism-panel-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: #f9fafb;
+}
+
+/* Navigation Buttons */
+.trism-nav-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 110px;
+}
+
+.trism-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.trism-nav-prev {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.trism-nav-prev:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.trism-nav-next {
+  background: #1e40af;
+  color: white;
+}
+
+.trism-nav-next:hover:not(:disabled) {
+  background: #1e3a8a;
+}
+
+/* Dot Navigation */
+.trism-nav-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.trism-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.trism-dot:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.trism-dot.active {
+  border-color: #1e40af;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+}
+
+/* Glossary (inline) */
+.trism-glossary h4 {
+  font-size: 16px;
+  color: #1f2937;
+  margin: 0 0 8px;
+}
+
+.trism-glossary-intro {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 16px;
+}
+
+.trism-glossary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.trism-glossary-entry {
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.trism-glossary-entry:last-child {
+  border-bottom: none;
+}
+
+.trism-glossary-term {
+  font-weight: 700;
+  color: #1e40af;
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.trism-glossary-def {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .trism-panel {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .trism-panel-header {
+    padding: 16px;
+  }
+
+  .trism-panel-content {
+    padding: 16px;
+  }
+
+  .trism-panel-footer {
+    padding: 12px 16px;
+  }
+
+  .trism-nav-btn {
+    padding: 8px 12px;
+    min-width: 80px;
+    font-size: 13px;
+  }
+
+  .trism-dot {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .trism-panel-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trism-panel-header-right {
+    align-self: flex-end;
+  }
+
+  .trism-nav-dots {
+    gap: 4px;
+  }
+
+  .trism-dot {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+}

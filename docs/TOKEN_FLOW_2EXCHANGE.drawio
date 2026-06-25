@@ -1,0 +1,190 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="fLlkt_aw9b99AjAf5vgy" name="Page-1">
+    <mxGraphModel dx="4886" dy="1019" grid="1" gridSize="12" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#1e293b;" value="Super Banking — 2-Exchange Delegation Flow (RFC 8693)" vertex="1">
+          <mxGeometry height="40" width="1200" x="200" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-browser-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;" value="" vertex="1">
+          <mxGeometry height="960" width="160" x="60" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-browser-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#23527c;rotation=-90;" value="User Browser" vertex="1">
+          <mxGeometry height="960" width="40" x="60" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-bff-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;" value="" vertex="1">
+          <mxGeometry height="960" width="280" x="220" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-bff-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#276821;rotation=-90;" value="BFF (banking_api_server)" vertex="1">
+          <mxGeometry height="960" width="40" x="220" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pingone-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;opacity=30;" value="" vertex="1">
+          <mxGeometry height="960" width="320" x="490" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pingone-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#9e6a00;rotation=-90;" value="PingOne Authorization Server" vertex="1">
+          <mxGeometry height="960" width="40" x="500" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-mcp-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=30;" value="" vertex="1">
+          <mxGeometry height="960" width="240" x="820" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-mcp-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6a3daa;rotation=-90;" value="MCP Server (banking_mcp_server)" vertex="1">
+          <mxGeometry height="960" width="40" x="820" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-rs-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=30;" value="" vertex="1">
+          <mxGeometry height="960" width="240" x="1060" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-rs-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#921919;rotation=-90;" value="Resource Servers" vertex="1">
+          <mxGeometry height="960" width="40" x="1060" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="step1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#fff2cc;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6b4e00;whiteSpace=wrap;" value="① User Login — Authorization Code + PKCE" vertex="1">
+          <mxGeometry height="24" width="340" x="230" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="user-login" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="User clicks Login" vertex="1">
+          <mxGeometry height="50" width="120" x="80" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="bff-authorize" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="GET /api/auth/oauth/user/login&#xa;PKCE: code_challenge" vertex="1">
+          <mxGeometry height="50" width="200" x="240" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="user-login" style="edgeStyle=orthogonalEdgeStyle;" target="bff-authorize">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pingone-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=10;" value="Auth Code + PKCE&#xa;POST /as/token&#xa;→ Access Token + ID Token + Refresh Token" vertex="1">
+          <mxGeometry height="60" width="260" x="520" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="bff-authorize" style="edgeStyle=orthogonalEdgeStyle;" target="pingone-auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="user-at" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;align=left;" value="✔ User Access Token&#xa;aud: ai-agent.pingdemo.com&#xa;scope: openid profile email offline_access&#xa;        banking:read banking:write banking:ai:agent&#xa;may_act.sub: ai-agent-client-id" vertex="1">
+          <mxGeometry height="80" width="260" x="240" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="pingone-auth" style="edgeStyle=orthogonalEdgeStyle;" target="user-at">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3b" edge="1" parent="1" source="user-at" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontColor=#276821;" target="bff-authorize" value="stored server-side&#xa;httpOnly session">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step2-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#fff2cc;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6b4e00;whiteSpace=wrap;" value="② AI Agent Invoked — POST /api/banking-agent/message" vertex="1">
+          <mxGeometry height="24" width="400" x="230" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="user-prompt" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="User sends chat prompt" vertex="1">
+          <mxGeometry height="50" width="120" x="80" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="bff-agent" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="POST /api/banking-agent/message&#xa;Check: scopeCount ≥ 5&#xa;Check: mcp_resource_uri set&#xa;Check: may_act.sub = AI Agent client" vertex="1">
+          <mxGeometry height="70" width="220" x="240" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="user-prompt" style="edgeStyle=orthogonalEdgeStyle;" target="bff-agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step3-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6a3daa;whiteSpace=wrap;" value="③ Exchange #1 — User AT → AI Agent Delegation" vertex="1">
+          <mxGeometry height="24" width="400" x="230" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="ai-cc-token" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" value="AI Agent CC Token&#xa;Client Credentials&#xa;aud: agent-gateway.pingdemo.com" vertex="1">
+          <mxGeometry height="60" width="240" x="520" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="bff-ex1-req" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;align=left;" value="RFC 8693 Exchange #1&#xa;subject_token = User AT&#xa;actor_token = AI Agent CC Token&#xa;audience = ai-agent.pingdemo.com&#xa;client_id = PINGONE_AI_AGENT_CLIENT_ID" vertex="1">
+          <mxGeometry height="80" width="240" x="240" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="bff-agent" style="edgeStyle=orthogonalEdgeStyle;" target="bff-ex1-req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="bff-ex1-req" style="edgeStyle=orthogonalEdgeStyle;" target="ai-cc-token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="intermediate-token" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#9673a6;fontSize=9;align=left;" value="✔ Intermediate Agent Token&#xa;sub: &lt;user-sub&gt;  (preserved)&#xa;aud: ai-agent.pingdemo.com&#xa;act: { sub: &quot;ai-agent-client-id&quot; }&#xa;scope: banking:read banking:write" vertex="1">
+          <mxGeometry height="80" width="260" x="240" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="ai-cc-token" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="intermediate-token" value="issues">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step4-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6a3daa;whiteSpace=wrap;" value="④ Exchange #2 — Agent Token → MCP Delegation" vertex="1">
+          <mxGeometry height="24" width="400" x="230" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-cc-token" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" value="MCP Exchanger CC Token&#xa;Client Credentials&#xa;aud: mcp-gateway.pingdemo.com" vertex="1">
+          <mxGeometry height="60" width="240" x="520" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="bff-ex2-req" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;align=left;" value="RFC 8693 Exchange #2&#xa;subject_token = Intermediate Token&#xa;actor_token = MCP Exchanger CC Token&#xa;audience = resource-server.pingdemo.com&#xa;scope = banking:read  (tool-specific)&#xa;client_id = MCP_TOKEN_EXCHANGER_CLIENT_ID" vertex="1">
+          <mxGeometry height="90" width="240" x="240" y="715" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="intermediate-token" style="edgeStyle=orthogonalEdgeStyle;" target="bff-ex2-req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="bff-ex2-req" style="edgeStyle=orthogonalEdgeStyle;" target="mcp-cc-token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="final-mcp-token" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#9673a6;fontSize=9;align=left;" value="✔ Final MCP Token&#xa;sub: &lt;user-sub&gt;  (preserved end-to-end)&#xa;aud: resource-server.pingdemo.com&#xa;act: {&#xa;  sub: &quot;mcp-exchanger-client-id&quot;,&#xa;  act: { sub: &quot;ai-agent-client-id&quot; }&#xa;}&#xa;scope: banking:read  (narrowed)" vertex="1">
+          <mxGeometry height="100" width="260" x="240" y="825" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="mcp-cc-token" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="final-mcp-token" value="issues">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step5-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#921919;whiteSpace=wrap;" value="⑤ MCP Tool Call — Bearer = Final MCP Token" vertex="1">
+          <mxGeometry height="24" width="380" x="840" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-validate" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" value="Validate:&#xa;aud ✓ resource-server.pingdemo.com&#xa;scope ✓ banking:read&#xa;act chain ✓ (user→agent→mcp)" vertex="1">
+          <mxGeometry height="70" width="200" x="840" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="final-mcp-token" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="mcp-validate" value="Bearer token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="banking-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" value="Banking API&#xa;resource-server.pingdemo.com&#xa;Returns account data / executes transaction" vertex="1">
+          <mxGeometry height="70" width="200" x="1080" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="mcp-validate" style="edgeStyle=orthogonalEdgeStyle;" target="banking-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step6-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#23527c;whiteSpace=wrap;" value="⑥ Decoded Claims Only → UI (never raw tokens)" vertex="1">
+          <mxGeometry height="24" width="460" x="80" y="940" as="geometry" />
+        </mxCell>
+        <mxCell id="ui-display" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="tokenEvents[]&#xa;decoded JWT claims&#xa;(no raw tokens)" vertex="1">
+          <mxGeometry height="60" width="140" x="80" y="967" as="geometry" />
+        </mxCell>
+        <mxCell id="bff-preview" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="GET /api/tokens/session-preview&#xa;GET /api/token-chain&#xa;POST agent message response" vertex="1">
+          <mxGeometry height="60" width="220" x="240" y="967" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="bff-preview" style="edgeStyle=orthogonalEdgeStyle;" target="ui-display">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="" vertex="1">
+          <mxGeometry height="200" width="220" x="1080" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=1;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="200" x="1090" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="14" width="20" x="1090" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;fontSize=10;strokeColor=none;fillColor=none;" value="Token (claims)" vertex="1">
+          <mxGeometry height="18" width="160" x="1116" y="133" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="14" width="20" x="1090" y="158" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;fontSize=10;strokeColor=none;fillColor=none;" value="BFF action / request" vertex="1">
+          <mxGeometry height="18" width="160" x="1116" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="1" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="14" width="20" x="1090" y="181" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;fontSize=10;strokeColor=none;fillColor=none;" value="PingOne AS operation" vertex="1">
+          <mxGeometry height="18" width="160" x="1116" y="179" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="1" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="14" width="20" x="1090" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;fontSize=10;strokeColor=none;fillColor=none;" value="MCP Server" vertex="1">
+          <mxGeometry height="18" width="160" x="1116" y="202" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="14" width="20" x="1090" y="227" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="1" style="text;fontSize=10;strokeColor=none;fillColor=none;" value="Browser / User" vertex="1">
+          <mxGeometry height="18" width="160" x="1116" y="225" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" parent="1" style="text;fontSize=9;strokeColor=none;fillColor=none;fontColor=#444;" value="RFC 8693 §3: sub preserved end-to-end&#xa;RFC 8693 §4.2: act = delegation chain&#xa;RFC 8693 §4.3: may_act = prospective" vertex="1">
+          <mxGeometry height="46" width="200" x="1090" y="252" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

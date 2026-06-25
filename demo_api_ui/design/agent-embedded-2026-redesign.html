@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Super Banking — Customer dashboard · Embedded agent (refined)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* Refined institutional palette — warm paper, ink text, one deep-blue accent */
+      --paper:        #f6f4ef;   /* warm off-white page */
+      --surface:      #fffefb;   /* card */
+      --surface-sunk: #f1eee7;   /* recessed wells */
+      --ink:          #1a1a17;   /* near-black text */
+      --ink-soft:     #57534c;   /* secondary text */
+      --ink-faint:    #8a857c;   /* tertiary / labels */
+      --line:         #e3ddd2;   /* hairline */
+      --line-strong:  #d4cdbf;
+      --accent:       #1b3a6b;   /* deep institutional blue */
+      --accent-ink:   #15305a;
+      --accent-soft:  #eef1f6;
+      --positive:     #1f6b4a;
+      --negative:     #9a3526;
+      --gold:         #9a7b3f;   /* restrained metallic accent */
+      --radius:       4px;
+      --radius-lg:    8px;
+      --shadow-card:  0 1px 0 rgba(26,26,23,.03), 0 1px 2px rgba(26,26,23,.04);
+      --shadow-lift:  0 12px 40px -18px rgba(26,26,23,.35);
+      --dock-h:       232px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      padding-bottom: calc(var(--dock-h) + 24px);
+    }
+    /* faint paper grain via layered gradients */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(120% 80% at 12% -10%, rgba(27,58,107,.05), transparent 60%),
+        radial-gradient(100% 70% at 100% 0%, rgba(154,123,63,.05), transparent 55%);
+    }
+    .wrap { position: relative; z-index: 1; }
+
+    a { color: inherit; }
+    ::selection { background: rgba(27,58,107,.16); }
+
+    /* ---------- Top bar ---------- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px clamp(20px, 5vw, 56px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,254,251,.72);
+      backdrop-filter: saturate(140%) blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--accent);
+      color: #f6f4ef;
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: .02em;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.18);
+    }
+    .brand-name {
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: 1.18rem;
+      letter-spacing: -.01em;
+    }
+    .brand-sub {
+      display: block;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .58rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-top: 1px;
+    }
+    .topnav { display: flex; align-items: center; gap: 4px; }
+    .topnav a {
+      text-decoration: none;
+      color: var(--ink-soft);
+      font-size: .86rem;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      position: relative;
+    }
+    .topnav a:hover { color: var(--ink); background: var(--surface-sunk); }
+    .topnav a.active { color: var(--accent); }
+    .topnav a.active::after {
+      content: ""; position: absolute; left: 14px; right: 14px; bottom: 2px;
+      height: 1.5px; background: var(--gold);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .who {
+      display: flex; align-items: center; gap: 9px;
+      padding: 5px 6px 5px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: .82rem; color: var(--ink-soft);
+    }
+    .who .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(150deg, #2b4a7e, #1b3a6b);
+      color: #fff; display: grid; place-items: center;
+      font-size: .72rem; font-weight: 600;
+    }
+    .icon-btn {
+      width: 36px; height: 36px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius);
+      cursor: pointer; color: var(--ink-soft);
+      display: grid; place-items: center;
+    }
+    .icon-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+
+    /* ---------- Layout ---------- */
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: clamp(24px, 4vw, 44px) clamp(20px, 5vw, 56px) 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 332px;
+      gap: clamp(24px, 3vw, 40px);
+      align-items: start;
+    }
+    @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+    .col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+    .eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .64rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    /* ---------- Hero balance ---------- */
+    .hero {
+      padding: 4px 2px 6px;
+    }
+    .hero .greet {
+      font-family: "Newsreader", serif;
+      font-weight: 400;
+      font-size: clamp(1.5rem, 3.2vw, 2.1rem);
+      letter-spacing: -.015em;
+      margin: 10px 0 2px;
+      line-height: 1.12;
+    }
+    .hero .greet em { font-style: italic; color: var(--accent); }
+    .hero .sub { color: var(--ink-soft); font-size: .94rem; max-width: 46ch; margin: 0; }
+
+    .balance-band {
+      margin-top: 26px;
+      display: flex;
+      align-items: flex-end;
+      gap: 34px;
+      flex-wrap: wrap;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .balance-main .label { display: block; }
+    .balance-main .figure {
+      font-family: "Newsreader", serif;
+      font-weight: 500;
+      font-size: clamp(2.6rem, 6.5vw, 3.6rem);
+      letter-spacing: -.03em;
+      line-height: 1;
+      margin: 8px 0 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .balance-main .figure .cents { color: var(--ink-faint); font-size: .55em; }
+    .balance-delta {
+      font-size: .82rem; color: var(--positive);
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+    }
+    .balance-delta .arrow { font-size: .9em; }
+    .spark { display: flex; align-items: flex-end; gap: 5px; height: 52px; margin-left: auto; }
+    .spark span {
+      width: 8px; border-radius: 2px 2px 0 0;
+      background: linear-gradient(180deg, #2b4a7e, #1b3a6b);
+      opacity: .85;
+    }
+    .spark span:last-child { background: var(--gold); opacity: 1; }
+
+    /* ---------- Stat row ---------- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    @media (max-width: 620px){ .stats{ grid-template-columns: repeat(2,1fr);} }
+    .stat {
+      padding: 18px 20px;
+      border-right: 1px solid var(--line);
+    }
+    .stat:last-child { border-right: none; }
+    @media (max-width: 620px){
+      .stat:nth-child(2){ border-right:none; }
+      .stat:nth-child(1),.stat:nth-child(2){ border-bottom:1px solid var(--line);}
+    }
+    .stat .k { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+    .stat .v {
+      font-family: "Newsreader", serif;
+      font-size: 1.5rem; font-weight: 500; margin-top: 6px;
+      letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+    }
+    .stat .v small { font-size: .6em; color: var(--ink-faint); font-family: inherit; }
+
+    /* ---------- Cards ---------- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-title {
+      font-family: "Fraunces", serif;
+      font-weight: 600; font-size: 1.02rem; letter-spacing: -.01em;
+      margin: 0;
+    }
+    .card-link { font-size: .8rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+    .card-link:hover { text-decoration: underline; }
+
+    /* accounts */
+    .acct { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+    .acct:last-child { border-bottom: none; }
+    .acct-id { display: flex; align-items: center; gap: 14px; }
+    .acct-emblem {
+      width: 40px; height: 40px; border-radius: var(--radius);
+      background: var(--surface-sunk);
+      border: 1px solid var(--line);
+      display: grid; place-items: center;
+      color: var(--accent);
+      font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 500;
+    }
+    .acct-name { font-weight: 600; font-size: .94rem; }
+    .acct-meta { font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: var(--ink-faint); margin-top: 2px; }
+    .acct-bal { font-family: "Newsreader", serif; font-size: 1.25rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+    /* transactions */
+    table.tx { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    .tx th {
+      text-align: left; font-size: .64rem; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-faint); font-weight: 600; padding: 12px 20px; border-bottom: 1px solid var(--line);
+    }
+    .tx td { padding: 13px 20px; border-bottom: 1px solid var(--line); }
+    .tx tr:last-child td { border-bottom: none; }
+    .tx tr:hover td { background: rgba(241,238,231,.55); }
+    .tx .desc { font-weight: 500; }
+    .tx-tag {
+      font-family: "IBM Plex Mono", monospace; font-size: .66rem; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--ink-soft); padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-sunk);
+    }
+    .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+    .amt.pos { color: var(--positive); }
+    .amt.neg { color: var(--negative); }
+
+    /* ---------- Right rail: token chain ---------- */
+    aside { display: flex; flex-direction: column; gap: 24px; }
+    .rail-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); overflow: hidden; }
+    .rail-card .card-head { background: linear-gradient(180deg, var(--surface), var(--surface-sunk)); }
+    .chain { padding: 6px 20px 18px; position: relative; }
+    .chain-step { display: flex; gap: 14px; padding: 14px 0 2px; position: relative; }
+    .chain-step::before {
+      content: ""; position: absolute; left: 7px; top: 26px; bottom: -14px; width: 1px; background: var(--line-strong);
+    }
+    .chain-step:last-child::before { display: none; }
+    .chain-dot {
+      width: 15px; height: 15px; border-radius: 50%; margin-top: 3px; flex: none;
+      border: 2px solid var(--accent); background: var(--surface);
+    }
+    .chain-step.done .chain-dot { background: var(--accent); }
+    .chain-label { font-weight: 600; font-size: .86rem; }
+    .chain-meta { font-family: "IBM Plex Mono", monospace; font-size: .68rem; color: var(--ink-faint); margin-top: 3px; word-break: break-all; }
+    .chain-badge {
+      margin-left: auto; align-self: flex-start; margin-top: 2px;
+      font-family: "IBM Plex Mono", monospace; font-size: .6rem; letter-spacing: .06em;
+      color: var(--positive); border: 1px solid rgba(31,107,74,.3); background: rgba(31,107,74,.07);
+      padding: 2px 7px; border-radius: 999px;
+    }
+    .rail-note { padding: 14px 20px; border-top: 1px solid var(--line); font-size: .76rem; color: var(--ink-soft); background: var(--surface-sunk); }
+    .rail-note code { font-family: "IBM Plex Mono", monospace; font-size: .92em; color: var(--accent-ink); }
+
+    /* ---------- Embedded agent dock ---------- */
+    .dock {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      min-height: var(--dock-h);
+      background: var(--surface);
+      border-top: 1px solid var(--line-strong);
+      box-shadow: 0 -16px 44px -28px rgba(26,26,23,.5);
+    }
+    .dock::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 60%, transparent 100%);
+    }
+    .dock-inner { max-width: 1240px; margin: 0 auto; padding: 18px clamp(20px, 5vw, 56px) 22px; display: grid; grid-template-columns: 210px minmax(0,1fr); gap: clamp(20px,3vw,40px); }
+    @media (max-width: 760px){ .dock-inner{ grid-template-columns: 1fr; gap: 14px; } }
+
+    .dock-identity { border-right: 1px solid var(--line); padding-right: 24px; }
+    @media (max-width: 760px){ .dock-identity{ border-right:none; padding-right:0; border-bottom:1px solid var(--line); padding-bottom:14px; } }
+    .dock-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-family: "IBM Plex Mono", monospace; font-size: .6rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); background: var(--accent-soft); border: 1px solid var(--line);
+      padding: 4px 9px; border-radius: 999px;
+    }
+    .dock-badge .live { width: 7px; height: 7px; border-radius: 50%; background: var(--positive); box-shadow: 0 0 0 3px rgba(31,107,74,.18); }
+    .dock-agent-name {
+      font-family: "Fraunces", serif; font-weight: 600; font-size: 1.18rem; letter-spacing: -.01em; margin: 12px 0 4px;
+    }
+    .dock-agent-desc { font-size: .8rem; color: var(--ink-soft); margin: 0; }
+    .dock-meta { font-family: "IBM Plex Mono", monospace; font-size: .64rem; color: var(--ink-faint); margin-top: 12px; display: flex; flex-direction: column; gap: 3px; }
+    .dock-meta b { color: var(--ink-soft); font-weight: 500; }
+
+    .dock-convo { display: flex; flex-direction: column; min-width: 0; }
+    .chips-label { font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 9px; font-family: "IBM Plex Mono", monospace; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .chip {
+      font-size: .82rem; font-weight: 500; color: var(--ink);
+      padding: 8px 14px; border-radius: 999px;
+      border: 1px solid var(--line-strong); background: var(--surface);
+      cursor: pointer; transition: all .14s ease;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .chip::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .55; }
+    .chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+    .chip.alt::before { background: var(--gold); }
+
+    .composer {
+      display: flex; align-items: center; gap: 10px;
+      border: 1px solid var(--line-strong); border-radius: 999px;
+      background: var(--surface-sunk);
+      padding: 6px 6px 6px 18px;
+      transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
+    }
+    .composer:focus-within { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px rgba(27,58,107,.08); }
+    .composer .glyph { color: var(--ink-faint); font-size: 1rem; flex: none; }
+    .composer input {
+      flex: 1; border: none; background: transparent; outline: none;
+      font-family: inherit; font-size: .94rem; color: var(--ink); min-width: 0;
+    }
+    .composer input::placeholder { color: var(--ink-faint); }
+    .send {
+      flex: none; border: none; cursor: pointer;
+      height: 42px; padding: 0 22px; border-radius: 999px;
+      background: var(--accent); color: #f6f4ef;
+      font-family: inherit; font-weight: 600; font-size: .88rem;
+      display: inline-flex; align-items: center; gap: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    }
+    .send:hover { background: var(--accent-ink); }
+    .composer-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      margin-top: 11px;
+    }
+    .foot-trust { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .72rem; color: var(--ink-faint); }
+    .foot-trust .pip { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: .6; }
+    .foot-trust b { font-weight: 500; color: var(--ink-soft); }
+    .foot-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+    .foot-toggle button {
+      border: none; background: var(--surface); color: var(--ink-soft);
+      font-family: "IBM Plex Mono", monospace; font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
+      padding: 7px 12px; cursor: pointer;
+    }
+    .foot-toggle button[aria-pressed="true"] { background: var(--accent); color: #f6f4ef; }
+
+    /* ---------- Placement modes ---------- */
+    /* Embedded (default): dock shown, FAB hidden, body padded for dock */
+    body[data-agent="embedded"] .dock { display: block; }
+    body[data-agent="embedded"] .float-root { display: none; }
+
+    /* Floating: dock hidden, FAB shown, no bottom padding reserved */
+    body[data-agent="floating"] { padding-bottom: 24px; }
+    body[data-agent="floating"] .dock { display: none; }
+    body[data-agent="floating"] .float-root { display: block; }
+
+    /* Both: dock shown AND FAB shown */
+    body[data-agent="both"] .dock { display: block; }
+    body[data-agent="both"] .float-root { display: block; }
+    /* in 'both', lift the FAB above the dock */
+    body[data-agent="both"] .float-fab { bottom: calc(var(--dock-h) + 22px); }
+    body[data-agent="both"] .float-panel { bottom: calc(var(--dock-h) + 92px); }
+
+    /* ---------- Floating agent (bottom-right) ---------- */
+    .float-root { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+    .float-root > * { pointer-events: auto; }
+
+    .float-fab {
+      position: fixed; right: 28px; bottom: 28px;
+      height: 56px; padding: 0 22px 0 18px;
+      border: 1px solid var(--accent-ink);
+      border-radius: 999px; cursor: pointer;
+      background: var(--accent); color: #f6f4ef;
+      display: inline-flex; align-items: center; gap: 11px;
+      font-family: "Fraunces", serif; font-weight: 600; font-size: .96rem; letter-spacing: -.01em;
+      box-shadow: 0 14px 34px -14px rgba(27,58,107,.7), inset 0 0 0 1px rgba(255,255,255,.12);
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .float-fab:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -14px rgba(27,58,107,.75), inset 0 0 0 1px rgba(255,255,255,.14); }
+    .float-fab .fab-emblem {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: grid; place-items: center; flex: none;
+      background: rgba(255,255,255,.14); color: #fff; font-size: 1rem;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+    }
+    .float-fab .fab-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #6ee7a8;
+      box-shadow: 0 0 0 3px rgba(110,231,168,.25);
+    }
+    .float-root.open .float-fab { background: var(--accent-ink); }
+
+    .float-panel {
+      position: fixed; right: 28px; bottom: 96px;
+      width: min(404px, calc(100vw - 40px));
+      max-height: min(560px, calc(100vh - 140px));
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      box-shadow: var(--shadow-lift);
+      overflow: hidden;
+      opacity: 0; transform: translateY(14px) scale(.98);
+      transform-origin: bottom right;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .float-panel::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--gold) 70%, transparent);
+    }
+    .float-root.open .float-panel { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+
+    .float-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 15px 16px; border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--surface), var(--surface-sunk));
+    }
+    .float-emblem {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--accent); color: #f6f4ef;
+      display: grid; place-items: center; flex: none;
+      font-family: "Fraunces", serif; font-weight: 600;
+    }
+    .float-head-text { flex: 1; min-width: 0; }
+    .float-head-name { font-family: "Fraunces", serif; font-weight: 600; font-size: 1rem; letter-spacing: -.01em; }
+    .float-head-status { font-family: "IBM Plex Mono", monospace; font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--positive); display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .float-head-status .live { width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+    .float-close {
+      width: 32px; height: 32px; flex: none;
+      border: 1px solid var(--line); background: var(--surface);
+      border-radius: var(--radius); color: var(--ink-soft);
+      cursor: pointer; font-size: 1.05rem; line-height: 1;
+    }
+    .float-close:hover { color: var(--ink); border-color: var(--line-strong); }
+
+    .float-body { padding: 16px; overflow-y: auto; flex: 1; }
+    .float-greet {
+      font-size: .9rem; color: var(--ink-soft);
+      padding: 13px 15px; border-radius: 10px 10px 10px 2px;
+      background: var(--accent-soft); border: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .float-greet b { color: var(--ink); font-weight: 600; }
+    .float-body .chips { margin-bottom: 0; }
+
+    .float-foot { border-top: 1px solid var(--line); padding: 12px 14px 14px; background: var(--surface); }
+    .float-foot .composer { padding: 5px 5px 5px 14px; }
+    .float-foot .send { height: 38px; padding: 0 16px; }
+    .float-foot-note { font-size: .68rem; color: var(--ink-faint); margin: 9px 2px 0; display: flex; align-items: center; gap: 7px; }
+    .float-foot-note .pip { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: .6; }
+  </style>
+</head>
+<body data-agent="embedded">
+  <div class="wrap">
+    <!-- ===== Top bar ===== -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>
+          <span class="brand-name">Super Banking</span>
+          <span class="brand-sub">Private · Member FDIC</span>
+        </span>
+      </div>
+      <nav class="topnav" aria-label="Primary">
+        <a href="#" class="active">Overview</a>
+        <a href="#">Accounts</a>
+        <a href="#">Move money</a>
+        <a href="#">Statements</a>
+        <a href="#">Settings</a>
+      </nav>
+      <div class="topbar-right">
+        <div class="foot-toggle mode-toggle" role="group" aria-label="Agent placement">
+          <button type="button" data-mode="floating">Floating</button>
+          <button type="button" data-mode="embedded" aria-pressed="true">Embedded</button>
+          <button type="button" data-mode="both">Both</button>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Notifications">◔</button>
+        <div class="who">
+          <span class="avatar" aria-hidden="true">DB</span>
+          <span>Demo Bankuser</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- ===== Main column ===== -->
+      <div class="col">
+        <!-- Hero -->
+        <section class="hero">
+          <p class="eyebrow">Thursday · 29 May 2026</p>
+          <h1 class="greet">Good afternoon, Demo.<br />Everything looks <em>in order</em> today.</h1>
+          <p class="sub">A calm, consolidated view of your relationship — with the banking agent on call below whenever you need it.</p>
+
+          <div class="balance-band">
+            <div class="balance-main">
+              <span class="eyebrow">Total relationship balance</span>
+              <p class="figure">$17,161<span class="cents">.50</span></p>
+              <span class="balance-delta"><span class="arrow">▲</span> $612.40 this month · across 2 accounts</span>
+            </div>
+            <div class="spark" aria-hidden="true">
+              <span style="height:42%"></span><span style="height:58%"></span><span style="height:50%"></span>
+              <span style="height:70%"></span><span style="height:61%"></span><span style="height:82%"></span>
+              <span style="height:74%"></span><span style="height:90%"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Stat row -->
+        <section class="stats" aria-label="Key figures">
+          <div class="stat"><div class="k">Net worth</div><div class="v">$47,320</div></div>
+          <div class="stat"><div class="k">Monthly spend</div><div class="v">$2,840<small>.15</small></div></div>
+          <div class="stat"><div class="k">Savings rate</div><div class="v">12.4<small>%</small></div></div>
+          <div class="stat"><div class="k">Credit score</div><div class="v">742</div></div>
+        </section>
+
+        <!-- Accounts -->
+        <section class="card" aria-labelledby="acct-h">
+          <div class="card-head">
+            <h2 class="card-title" id="acct-h">Your accounts</h2>
+            <a href="#" class="card-link">Manage →</a>
+          </div>
+          <div class="acct">
+            <div class="acct-id">
+              <span class="acct-emblem" aria-hidden="true">CHK</span>
+              <span>
+                <span class="acct-name">Checking Account</span>
+                <span class="acct-meta">CHK-DEMO-0001 · ****0001</span>
+              </span>
+            </div>
+            <span class="acct-bal">$4,821.50</span>
+          </div>
+          <div class="acct">
+            <div class="acct-id">
+              <span class="acct-emblem" aria-hidden="true">SAV</span>
+              <span>
+                <span class="acct-name">Savings Account</span>
+                <span class="acct-meta">SAV-DEMO-0001 · ****0001 · 4.10% APY</span>
+              </span>
+            </div>
+            <span class="acct-bal">$12,340.00</span>
+          </div>
+        </section>
+
+        <!-- Transactions -->
+        <section class="card" aria-labelledby="tx-h">
+          <div class="card-head">
+            <h2 class="card-title" id="tx-h">Recent transactions</h2>
+            <a href="#" class="card-link">View all →</a>
+          </div>
+          <table class="tx">
+            <thead>
+              <tr><th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>25 Mar</td><td class="desc">Payroll deposit</td><td><span class="tx-tag">Deposit</span></td><td class="amt pos">+$2,500.00</td></tr>
+              <tr><td>24 Mar</td><td class="desc">ATM withdrawal</td><td><span class="tx-tag">Withdrawal</span></td><td class="amt neg">−$150.00</td></tr>
+              <tr><td>23 Mar</td><td class="desc">Transfer to savings</td><td><span class="tx-tag">Transfer</span></td><td class="amt neg">−$500.00</td></tr>
+              <tr><td>21 Mar</td><td class="desc">Refund — online purchase</td><td><span class="tx-tag">Deposit</span></td><td class="amt pos">+$75.00</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- ===== Right rail ===== -->
+      <aside aria-label="Security">
+        <div class="rail-card">
+          <div class="card-head">
+            <h2 class="card-title">Token chain</h2>
+            <span class="eyebrow">Live</span>
+          </div>
+          <div class="chain">
+            <div class="chain-step done">
+              <span class="chain-dot" aria-hidden="true"></span>
+              <span>
+                <span class="chain-label">User token</span>
+                <span class="chain-meta">BFF session · sub=demo-bankuser</span>
+              </span>
+              <span class="chain-badge">masked</span>
+            </div>
+            <div class="chain-step done">
+              <span class="chain-dot" aria-hidden="true"></span>
+              <span>
+                <span class="chain-label">RFC 8693 exchange</span>
+                <span class="chain-meta">act → mcp-token-exchanger</span>
+              </span>
+              <span class="chain-badge">act valid</span>
+            </div>
+            <div class="chain-step">
+              <span class="chain-dot" aria-hidden="true"></span>
+              <span>
+                <span class="chain-label">MCP token</span>
+                <span class="chain-meta">aud=mcp-server · scope=read write</span>
+              </span>
+              <span class="chain-badge">scoped</span>
+            </div>
+          </div>
+          <p class="rail-note">Tokens never reach the browser — the BFF is the sole custodian via <code>bffAxios</code>.</p>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- ===== Embedded agent dock ===== -->
+  <section class="dock" role="region" aria-label="Banking agent">
+    <div class="dock-inner">
+      <div class="dock-identity">
+        <span class="dock-badge"><span class="live" aria-hidden="true"></span> Embedded · on call</span>
+        <p class="dock-agent-name">Banking Agent</p>
+        <p class="dock-agent-desc">Check balances, move money, and see the OAuth flow behind every action.</p>
+        <div class="dock-meta">
+          <span><b>Model</b> · Helix gpt-4o</span>
+          <span><b>Tools</b> · 5 banking · scoped read/write</span>
+        </div>
+      </div>
+
+      <div class="dock-convo">
+        <p class="chips-label">Suggested</p>
+        <div class="chips" aria-label="Suggested prompts">
+          <button type="button" class="chip">Check Balance</button>
+          <button type="button" class="chip">My Accounts</button>
+          <button type="button" class="chip">Transactions</button>
+          <button type="button" class="chip alt">Transfer $50 to savings</button>
+          <button type="button" class="chip alt">Highest-yield account?</button>
+        </div>
+
+        <div class="composer">
+          <span class="glyph" aria-hidden="true">✦</span>
+          <input type="text" placeholder="Ask about balances, transfers, or transactions…" aria-label="Message to banking agent" />
+          <button class="send" type="button">Send <span aria-hidden="true">→</span></button>
+        </div>
+
+        <div class="composer-foot">
+          <div class="foot-trust">
+            <span>Session secured (OAuth)</span><span class="pip"></span>
+            <span><b>Step-up</b> when risk warrants</span><span class="pip"></span>
+            <span>High-value transfers need consent</span>
+          </div>
+          <div class="foot-toggle mode-toggle" role="group" aria-label="Agent placement">
+            <button type="button" data-mode="floating">Floating</button>
+            <button type="button" data-mode="embedded" aria-pressed="true">Embedded</button>
+            <button type="button" data-mode="both">Both</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Floating agent (bottom-right) ===== -->
+  <div class="float-root" id="floatRoot" aria-label="Floating banking agent">
+    <div class="float-panel" id="floatPanel" role="dialog" aria-modal="false" aria-labelledby="floatName" aria-hidden="true">
+      <div class="float-head">
+        <span class="float-emblem" aria-hidden="true">S</span>
+        <span class="float-head-text">
+          <span class="float-head-name" id="floatName">Banking Agent</span>
+          <span class="float-head-status"><span class="live" aria-hidden="true"></span> Floating · on call</span>
+        </span>
+        <button type="button" class="float-close" id="floatClose" aria-label="Close assistant">×</button>
+      </div>
+      <div class="float-body">
+        <p class="float-greet"><b>Hi Demo!</b> I can check your balances, move money between accounts, and explain the OAuth flows happening behind the scenes. What would you like to do?</p>
+        <p class="chips-label">Suggested</p>
+        <div class="chips" aria-label="Suggested prompts">
+          <button type="button" class="chip">Check Balance</button>
+          <button type="button" class="chip">My Accounts</button>
+          <button type="button" class="chip">Transactions</button>
+          <button type="button" class="chip alt">Transfer $50 to savings</button>
+        </div>
+      </div>
+      <div class="float-foot">
+        <div class="composer">
+          <span class="glyph" aria-hidden="true">✦</span>
+          <input type="text" placeholder="Ask the banking agent…" aria-label="Message to banking agent" />
+          <button type="button" class="send">Send <span aria-hidden="true">→</span></button>
+        </div>
+        <p class="float-foot-note">Session secured (OAuth) <span class="pip"></span> High-value transfers need consent</p>
+      </div>
+    </div>
+    <button type="button" class="float-fab" id="floatFab" aria-expanded="false" aria-controls="floatPanel">
+      <span class="fab-emblem" aria-hidden="true">✦</span>
+      Ask Banking Agent
+      <span class="fab-dot" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  <script>
+    (function () {
+      var body = document.body;
+      var floatRoot = document.getElementById("floatRoot");
+      var floatFab = document.getElementById("floatFab");
+      var floatPanel = document.getElementById("floatPanel");
+      var floatClose = document.getElementById("floatClose");
+      var modeBtns = document.querySelectorAll(".mode-toggle button");
+
+      function setPanel(open) {
+        floatRoot.classList.toggle("open", open);
+        floatFab.setAttribute("aria-expanded", open ? "true" : "false");
+        floatPanel.setAttribute("aria-hidden", open ? "false" : "true");
+      }
+
+      function setMode(mode) {
+        body.dataset.agent = mode;
+        modeBtns.forEach(function (b) {
+          b.setAttribute("aria-pressed", b.dataset.mode === mode ? "true" : "false");
+        });
+        // when leaving floating-capable modes, collapse the panel
+        if (mode === "embedded") setPanel(false);
+      }
+
+      modeBtns.forEach(function (b) {
+        b.addEventListener("click", function () { setMode(b.dataset.mode); });
+      });
+
+      floatFab.addEventListener("click", function () {
+        setPanel(!floatRoot.classList.contains("open"));
+      });
+      floatClose.addEventListener("click", function () { setPanel(false); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && floatRoot.classList.contains("open")) setPanel(false);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,462 @@
+/**
+ * AccountDetailsPanel.css — Draggable side panel for displaying account details
+ * Mirrors TokenChainDisplay styling with banking-specific colors and layout
+ */
+
+/* Container — fixed positioned, draggable panel */
+.adp-panel {
+  position: fixed;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  z-index: 1100;
+  max-height: 90vh;
+}
+
+.adp-panel--collapsed {
+  height: auto !important;
+}
+
+/* Header — drag handle + title + buttons */
+.adp-header {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.adp-header:active {
+  cursor: grabbing;
+}
+
+.adp-header-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.adp-header-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.adp-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.adp-subtitle {
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adp-header-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.adp-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.adp-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.adp-btn:active {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.adp-btn--close:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+/* Body — scrollable content */
+.adp-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #f9fafb;
+}
+
+/* Custom scrollbar */
+.adp-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.adp-body::-webkit-scrollbar-track {
+  background: #e5e7eb;
+  border-radius: 2px;
+}
+
+.adp-body::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 2px;
+}
+
+.adp-body::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Sections */
+.adp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adp-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #374151;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 8px;
+}
+
+/* Profile section */
+.adp-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.adp-profile-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.adp-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.adp-value {
+  font-size: 13px;
+  color: #1f2937;
+  word-break: break-word;
+}
+
+.adp-value--email {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.adp-value--role {
+  display: inline-block;
+  background: #dbeafe;
+  color: #0c4a6e;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Accounts section */
+.adp-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adp-account-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  border: var(--inner-card-border, 1px solid #e5e7eb);
+  border-left: var(--inner-card-accent, 4px) solid #d1d5db;
+  border-radius: var(--inner-card-radius, 8px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--inner-card-shadow, 0 2px 6px rgba(15, 23, 42, 0.05));
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+.adp-account-card:hover {
+  border-color: #bfdbfe;
+  border-left-color: #93c5fd;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.adp-account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.adp-account-type {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #1e40af;
+}
+
+.adp-account-status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.adp-account-status--active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.adp-account-status--inactive {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.adp-account-status--frozen {
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.adp-account-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.adp-account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.adp-detail-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  overflow: hidden;
+}
+
+.adp-detail-label {
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 11px;
+}
+
+.adp-detail-value {
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 11px;
+  word-break: break-all;
+  background: #f3f4f6;
+  padding: 3px 6px;
+  border-radius: 2px;
+}
+
+.adp-detail-value--sensitive {
+  background: #fef3c7;
+  color: #78350f;
+  font-weight: 600;
+}
+
+/* Empty state */
+.adp-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+/* Resize handles — positioned on panel edges */
+.drp-resize-handle {
+  position: absolute;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 500;
+}
+
+/* Corner resize handles */
+.drp-resize-handle--nw {
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: nw-resize;
+}
+
+.drp-resize-handle--ne {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: ne-resize;
+}
+
+.drp-resize-handle--sw {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: sw-resize;
+}
+
+.drp-resize-handle--se {
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: se-resize;
+}
+
+/* Edge resize handles */
+.drp-resize-handle--n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: n-resize;
+}
+
+.drp-resize-handle--s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 4px;
+  cursor: s-resize;
+}
+
+.drp-resize-handle--e {
+  top: 10px;
+  right: 0;
+  bottom: 10px;
+  width: 4px;
+  cursor: e-resize;
+}
+
+.drp-resize-handle--w {
+  top: 10px;
+  left: 0;
+  bottom: 10px;
+  width: 4px;
+  cursor: w-resize;
+}
+
+/* Show resize handles on panel hover */
+.adp-panel:hover .drp-resize-handle {
+  opacity: 1;
+}
+
+/* Improve resize handle visibility with subtle background on hover */
+.adp-panel:hover .drp-resize-handle--n,
+.adp-panel:hover .drp-resize-handle--s,
+.adp-panel:hover .drp-resize-handle--e,
+.adp-panel:hover .drp-resize-handle--w {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .adp-profile-row,
+  .adp-detail-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .adp-label,
+  .adp-detail-label {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+
+  .adp-value,
+  .adp-detail-value {
+    font-size: 12px;
+  }
+}
+
+/* ── RFC educational footer ──────────────────────────────────────────── */
+.adp-rfc-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 8px 14px;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 6px 6px;
+  font-size: 11px;
+}
+
+.adp-rfc-label {
+  color: #94a3b8;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.adp-rfc-item {
+  color: #60a5fa;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: help;
+  border-bottom: 1px dotted #3b82f6;
+  padding-bottom: 1px;
+}
+
+.adp-rfc-sep {
+  color: #475569;
+}

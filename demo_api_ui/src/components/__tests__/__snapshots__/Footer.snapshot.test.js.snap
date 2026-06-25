@@ -1,0 +1,63 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Footer snapshot > renders light theme without change 1`] = `
+<div>
+  <footer
+    class="footer"
+  >
+    <div
+      class="footer-content"
+    >
+      <svg
+        data-testid="brand-logo"
+      />
+      <span
+        class="footer-brand-text"
+        style="font-weight: bold; font-size: 18px; vertical-align: middle;"
+      >
+        Super Banking
+         Demo
+      </span>
+      <span
+        class="footer-copyright"
+        style="margin-left: 16px; font-size: 14px;"
+      >
+        © 
+        2026
+         All rights reserved.
+      </span>
+    </div>
+  </footer>
+</div>
+`;
+
+exports[`Footer snapshot > renders without user (logged out) without change 1`] = `
+<div>
+  <footer
+    class="footer"
+  >
+    <div
+      class="footer-content"
+    >
+      <svg
+        data-testid="brand-logo"
+      />
+      <span
+        class="footer-brand-text"
+        style="font-weight: bold; font-size: 18px; vertical-align: middle;"
+      >
+        Super Banking
+         Demo
+      </span>
+      <span
+        class="footer-copyright"
+        style="margin-left: 16px; font-size: 14px;"
+      >
+        © 
+        2026
+         All rights reserved.
+      </span>
+    </div>
+  </footer>
+</div>
+`;

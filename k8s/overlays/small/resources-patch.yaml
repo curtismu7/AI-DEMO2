@@ -1,0 +1,93 @@
+# Small-machine resource overrides (16Gi RAM / 8 CPU — e.g. MacBook Pro, cloud t3.xlarge)
+# Apply with: kubectl apply -f k8s/overlays/small/
+# Reverts the api-server, agent-service, and python agent limits to conservative values.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-api-server
+  namespace: ai-demo
+spec:
+  template:
+    spec:
+      containers:
+      - name: demo-api-server
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langchain-agent
+  namespace: ai-demo
+spec:
+  template:
+    spec:
+      containers:
+      - name: langchain-agent
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pydantic-agent
+  namespace: ai-demo
+spec:
+  template:
+    spec:
+      containers:
+      - name: pydantic-agent
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openai-agent
+  namespace: ai-demo
+spec:
+  template:
+    spec:
+      containers:
+      - name: openai-agent
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mastra-agent
+  namespace: ai-demo
+spec:
+  template:
+    spec:
+      containers:
+      - name: mastra-agent
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

@@ -1,0 +1,2205 @@
+{
+  "info": {
+    "_postman_id": "a3802f4a-92ee-4ff1-88eb-ec8d6e291d0d",
+    "name": "PingOne Authentication v4 - MFA included",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1648215",
+    "_collection_link": "https://go.postman.co/collection/1648215-a3802f4a-92ee-4ff1-88eb-ec8d6e291d0d?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Authentication -AA",
+      "item": [
+        {
+          "name": "Start Auth Code Flow",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envIDAA}}/as/authorize?response_mode=pi.flow&scope=openid profile email&response_type=code&client_id={{authClientIDAA}}&acr_values=Bode",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envIDAA}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{authClientIDAA}}"
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "acr_values",
+                  "value": "Bode"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Auth Code Flow Copy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                {
+                  "key": "redirect_uri",
+                  "value": "https://oauth.pstmn.io/v1/callback",
+                  "type": "string"
+                },
+                {
+                  "key": "clientId",
+                  "value": "2b1d9eeb-6d4c-405e-87fd-bb22c7b985cd",
+                  "type": "string"
+                },
+                {
+                  "key": "clientSecret",
+                  "value": "ruI9AEbYehj4TbyzO6KW1yVptv_KNIQ-5X1itk82Nui~FS3Uptp6.5ACv77ZfhAM",
+                  "type": "string"
+                },
+                {
+                  "key": "accessTokenUrl",
+                  "value": "https://auth.pingone.com/e2923c73-60ed-4273-a04a-90bda64ee794/as/token",
+                  "type": "string"
+                },
+                {
+                  "key": "authUrl",
+                  "value": "https://auth.pingone.com/e2923c73-60ed-4273-a04a-90bda64ee794/as/authorize",
+                  "type": "string"
+                },
+                {
+                  "key": "addTokenTo",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envIDAA}}/as/authorize?response_mode=pi.flow&scope=openid profile email&response_type=code&client_id={{authClientIDAA}}&acr_values=Bode",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envIDAA}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{authClientIDAA}}"
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "acr_values",
+                  "value": "Bode"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Username/Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"sessionId\", pm.response.json().session.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.usernamePassword.check+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"Project7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Code returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "",
+                  "    pm.environment.set(\"code\", pm.response.json().authorizeResponse.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "resume"
+              ],
+              "query": [
+                {
+                  "key": "flowId",
+                  "value": "{{flowID}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Code for Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access token returned)\", function () {",
+                  "    pm.environment.set(\"Authaccess_token\", pm.response.json().access_token);",
+                  "    pm.environment.set(\"AuthID_token\", pm.response.json().id_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{authClientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{authClientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "default"
+                },
+                {
+                  "key": "code",
+                  "value": "{{code}}",
+                  "type": "default"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "",
+                  "type": "default",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/token",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Session Reset (updates (or resets) a flow session)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.session.reset+json",
+                "type": "default"
+              }
+            ],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Password Change Flow (MUST_CHANGE_PASSWORD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Password (Self)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{apiPath}}/environments/{{envID}}/users/{{userID}}/password",
+              "host": [
+                "{{apiPath}}"
+              ],
+              "path": [
+                "environments",
+                "{{envID}}",
+                "users",
+                "{{userID}}",
+                "password"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Start Auth Code Flow",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/authorize?response_mode=pi.flow&response_type=code&client_id={{authClientID}}&scope=openid profile email ",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "{{loginHintJwt}}",
+                  "disabled": true
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{authClientID}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email "
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Username/Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.usernamePassword.check+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"curtis7\",\n    \"password\": \"Wolverine7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Code returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "",
+                  "    pm.environment.set(\"code\", pm.response.json().authorizeResponse.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "resume"
+              ],
+              "query": [
+                {
+                  "key": "flowId",
+                  "value": "{{flowID}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Code for Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access token returned)\", function () {",
+                  "    pm.environment.set(\"Authaccess_token\", pm.response.json().access_token);",
+                  "    pm.environment.set(\"AuthID_token\", pm.response.json().id_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{authClientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{authClientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "default"
+                },
+                {
+                  "key": "code",
+                  "value": "{{code}}",
+                  "type": "default"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "",
+                  "type": "default",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/token",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Session Reset (updates (or resets) a flow session)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.session.reset+json",
+                "type": "default"
+              }
+            ],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Password Change Flow (MUST_CHANGE_PASSWORD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"P@ssword1!\",\n    \"newPassword\": \"AVTestPass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Password (Self)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{apiPath}}/environments/{{envID}}/users/{{userID}}/password",
+              "host": [
+                "{{apiPath}}"
+              ],
+              "path": [
+                "environments",
+                "{{envID}}",
+                "users",
+                "{{userID}}",
+                "password"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication Copy",
+      "item": [
+        {
+          "name": "Start Auth Code Flow",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/authorize?response_mode=pi.flow&scope=openid profile email&client_id={{authClientID}}&response_type=code",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "{{loginHintJwt}}",
+                  "disabled": true
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{authClientID}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Username/Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.usernamePassword.check+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"curtis7\",\n    \"password\": \"Wolverine7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Code returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "",
+                  "    pm.environment.set(\"code\", pm.response.json().authorizeResponse.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true,
+            "disabledSystemHeaders": {
+              "content-type": true
+            }
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.usernamePassword.check+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"Sluggers7&\"\n}"
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "resume"
+              ],
+              "query": [
+                {
+                  "key": "flowId",
+                  "value": "{{flowID}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Code for Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access token returned)\", function () {",
+                  "    pm.environment.set(\"Authaccess_token\", pm.response.json().access_token);",
+                  "    pm.environment.set(\"AuthID_token\", pm.response.json().id_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{authClientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{authClientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "default"
+                },
+                {
+                  "key": "code",
+                  "value": "{{code}}",
+                  "type": "default"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "",
+                  "type": "default",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/token",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Session Reset (updates (or resets) a flow session)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.session.reset+json",
+                "type": "default"
+              }
+            ],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Password Change Flow (MUST_CHANGE_PASSWORD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"P@ssword1!\",\n    \"newPassword\": \"AVTestPass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Password (Self)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{apiPath}}/environments/{{envID}}/users/{{userID}}/password",
+              "host": [
+                "{{apiPath}}"
+              ],
+              "path": [
+                "environments",
+                "{{envID}}",
+                "users",
+                "{{userID}}",
+                "password"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Introspection",
+      "item": [
+        {
+          "name": "Token Introspection",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{authClientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{authClientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "default"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/introspect",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "introspect"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Token Introspection ID Token",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{authClientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{authClientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{AuthID_token}}",
+                  "type": "default"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/introspect",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "introspect"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User Info",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/userinfo",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "userinfo"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Forgot Password",
+      "item": [
+        {
+          "name": "Forgot Password (sends OTP to a user's email to reset Password)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{Authaccess_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.forgot+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"p1sso-ggg\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Recovery Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.sendRecoveryCode+json",
+                "type": "default"
+              },
+              {
+                "key": "",
+                "value": "",
+                "type": "default"
+              }
+            ],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Recover Password (submit recovery code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.recover+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\t\"recoveryCode\": \"xxxxxx\",\n\t\"newPassword\": \"NewPassword\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Registration and Verification",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.user.register+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"wtUser\",\n    \"email\": \"cjmuir+wtUser@pignone.com\",\n    \"password\": \"wtUserPassword1!\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send (Resend) Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.user.sendVerificationCode+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"verificationCode\": \"xxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User Profile Update (progressive profiling)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.user.update+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"emailaddress@domain.com\",\n  \"name\": {\n    \"given\": \"FirstName\",\n    \"family\": \"LastName\"\n    },\n  \"address\": {\n    \"postalCode\": \"78613\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.user.verify+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"verificationCode\": \"xxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication With MFA",
+      "item": [
+        {
+          "name": "Start Auth Code Flow",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/authorize?response_mode=pi.flow&scope=openid profile email&client_id={{MFAclientID}}&response_type=code",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email"
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "{{loginHintJwt}}",
+                  "disabled": true
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{MFAclientID}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Username/Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"DeviceID Returned)\", function () {",
+                  "    pm.environment.set(\"deviceID\", pm.response.json()._embedded.devices[0].id);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.usernamePassword.check+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"curtis7\",\n    \"password\": \"Wolverine7&\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Select MFA Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.device.select+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"device\": {\n        \"id\": \"{{deviceID}}\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.otp.check+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp\": \"534715\"\n}"
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Code returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "",
+                  "    pm.environment.set(\"code\", pm.response.json().authorizeResponse.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "resume"
+              ],
+              "query": [
+                {
+                  "key": "flowId",
+                  "value": "{{flowID}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Code for Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access token returned)\", function () {",
+                  "    pm.environment.set(\"Authaccess_token\", pm.response.json().access_token);",
+                  "    pm.environment.set(\"AuthID_token\", pm.response.json().id_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "password",
+                  "value": "{{MFAclientSecret}}",
+                  "type": "string"
+                },
+                {
+                  "key": "username",
+                  "value": "{{MFAclientID}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "default"
+                },
+                {
+                  "key": "code",
+                  "value": "{{code}}",
+                  "type": "default"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "",
+                  "type": "default",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/token",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Session Reset (updates (or resets) a flow session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.session.reset+json",
+                "type": "default"
+              }
+            ],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Password Change Flow (MUST_CHANGE_PASSWORD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.password.reset+json",
+                "type": "default"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentPassword\": \"P@ssword1!\",\n    \"newPassword\": \"AVTestPass1!\"\n}"
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactional MFA",
+      "item": [
+        {
+          "name": "Send Transaction MFA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// This script is used to construct the complete payload of the desired call",
+                  "// Use the jwtPayload object to create what you'd normally expect to go into the Request Body itself",
+                  "// There's a pre-request script on the Collection that will handle the Header and JWT signing",
+                  "",
+                  "// *Note:* You should *save* the call before you send it if you make changes to the reqBody ",
+                  "",
+                  "// Different calls will need different jwtPayload objects in the script",
+                  "",
+                  "var removeIllegalCharacters = function(input) {",
+                  "    return input",
+                  "        .replace(/=/g, '')",
+                  "        .replace(/\\+/g, '-')",
+                  "        .replace(/\\//g, '_');",
+                  "};",
+                  "",
+                  "// Base64url Encoding function",
+                  "var base64object = function(input) {",
+                  "    var inputWords = CryptoJS.enc.Utf8.parse(JSON.stringify(input));",
+                  "    var base64 = CryptoJS.enc.Base64.stringify(inputWords);",
+                  "    var output = removeIllegalCharacters(base64);",
+                  "    return output;",
+                  "};",
+                  "",
+                  "var currentTime = +new Date(); // the current time in milliseconds",
+                  "var issuedAtTimeSeconds = currentTime/1000;",
+                  "var expirationTimeSeconds = currentTime/1000 + 3600;",
+                  "",
+                  "// Construct JWT Header",
+                  "var jwtHeader =  {",
+                  "                \"alg\": \"HS256\",",
+                  "                \"typ\": \"JWT\"",
+                  "                };",
+                  "",
+                  "// Below is the content of the Call you want",
+                  "// Change it to match the request you are making",
+                  "",
+                  "var jwtPayload =  {",
+                  "    \"iss\": pm.variables.get(\"StepUpClientID\"),",
+                  "    \"sub\": pm.variables.get(\"userID\"),",
+                  "    \"aud\": \"https://auth.pingone.com/\" + pm.variables.get(\"envID\") + \"/as\",",
+                  "    \"exp\" : Math.ceil(expirationTimeSeconds),",
+                  "    \"iat\" : Math.ceil(issuedAtTimeSeconds)",
+                  "    }",
+                  "",
+                  "// Above is the content of the Call you want",
+                  "// Change it to match the request you are making",
+                  "",
+                  "// Create Request JWT as well",
+                  "",
+                  "// Construct JWT Header",
+                  "var requestHeader =  {",
+                  "                \"alg\": \"HS256\",",
+                  "                \"typ\": \"JWT\"",
+                  "                };",
+                  "",
+                  "// Below is the content of the Call you want",
+                  "// Change it to match the request you are making",
+                  "",
+                  "var requestPayload =  {",
+                  "    \"iss\": pm.variables.get(\"StepUpClientID\"),",
+                  "    \"sub\": pm.variables.get(\"userID\"),",
+                  "    \"aud\": \"https://auth.pingone.com/\" + pm.variables.get(\"envID\") + \"/as\",",
+                  "    \"exp\" : Math.ceil(expirationTimeSeconds),",
+                  "    \"iat\" : Math.ceil(issuedAtTimeSeconds),",
+                  "    \"pi.template\": {",
+                  "        \"name\": \"transaction\",",
+                  "        \"variables\": {",
+                  "            \"envName\": pm.variables.get(\"envName\")",
+                  "        }",
+                  "    }",
+                  "}",
+                  "",
+                  "",
+                  "// Create JWT",
+                  "var unsignedHint = base64object(jwtHeader) + \".\" + base64object(jwtPayload);",
+                  "",
+                  "var unsignedRequest = base64object(requestHeader) + \".\" + base64object(requestPayload);",
+                  "",
+                  "//console.log(\"unsignedRequest\", unsignedRequest);",
+                  "",
+                  "// Decode the use_base64_key",
+                  "//var key = CryptoJS.enc.Base64.parse(pm.variables.get(\"use_base64_key\"));",
+                  "",
+                  "// Sign the JWT  ",
+                  "// var signatureHash = CryptoJS.HmacSHA256(unsignedRequest, pm.variables.get(\"use_base64_key\"));",
+                  "var signatureHash = CryptoJS.HmacSHA256(unsignedHint, pm.variables.get(\"StepUpClientSecret\"));",
+                  "var signature = CryptoJS.enc.Base64.stringify(signatureHash);",
+                  "var signature = removeIllegalCharacters(signature);",
+                  "",
+                  "pm.environment.set(\"login_hint_token\", unsignedHint + '.' + signature);",
+                  "",
+                  "var signatureHash = CryptoJS.HmacSHA256(unsignedRequest, pm.variables.get(\"StepUpClientSecret\"));",
+                  "var signature = CryptoJS.enc.Base64.stringify(signatureHash);",
+                  "var signature = removeIllegalCharacters(signature);",
+                  "",
+                  "pm.environment.set(\"request\", unsignedRequest + '.' + signature);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FlowId returned)\", function () {",
+                  "    pm.environment.set(\"flowID\", pm.response.json().id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/as/authorize?response_mode=pi.flow&response_type=token%20id_token&client_id={{StepUpClientID}}&scope=openid%20profile%20email&login_hint_token={{login_hint_token}}&acr_values=Step_Up&request={{request}}",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "as",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_mode",
+                  "value": "pi.flow"
+                },
+                {
+                  "key": "response_type",
+                  "value": "token%20id_token"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{StepUpClientID}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid%20profile%20email"
+                },
+                {
+                  "key": "state",
+                  "value": "{{$guid}}",
+                  "disabled": true
+                },
+                {
+                  "key": "login_hint_token",
+                  "value": "{{login_hint_token}}"
+                },
+                {
+                  "key": "acr_values",
+                  "value": "Step_Up"
+                },
+                {
+                  "key": "request",
+                  "value": "{{request}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check OTP (Transactional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.pingidentity.otp.check+json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp\": \"xxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "https://auth.pingone.com/{{envID}}/flows/{{flowID}}",
+              "protocol": "https",
+              "host": [
+                "auth",
+                "pingone",
+                "com"
+              ],
+              "path": [
+                "{{envID}}",
+                "flows",
+                "{{flowID}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "SAML",
+      "item": [
+        {
+          "name": "SAML SSO Using GET",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/saml20/idp/sso?SAMLRequest={{SAMLRequest}}&RelayState=token",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "saml20",
+                "idp",
+                "sso"
+              ],
+              "query": [
+                {
+                  "key": "SAMLRequest",
+                  "value": "{{SAMLRequest}}"
+                },
+                {
+                  "key": "RelayState",
+                  "value": "token"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Identity Provider Initiated SSO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/saml20/idp/startsso?spEntityId={{spEntityIdValue}}&applicationUrl={{AppUrl}}\n",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "saml20",
+                "idp",
+                "startsso"
+              ],
+              "query": [
+                {
+                  "key": "spEntityId",
+                  "value": "{{spEntityIdValue}}"
+                },
+                {
+                  "key": "applicationUrl",
+                  "value": "{{AppUrl}}\n"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SAML SSO Using POST",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "--data-urlencode",
+                  "value": "SAMLRequest={{SAMLRequest}}",
+                  "type": "text"
+                },
+                {
+                  "key": "--data-urlencode",
+                  "value": "RelayState=token",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authPath}}/{{envID}}/saml20/idp/sso",
+              "host": [
+                "{{authPath}}"
+              ],
+              "path": [
+                "{{envID}}",
+                "saml20",
+                "idp",
+                "sso"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,293 @@
+.actorTokenEducation {
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, var(--brand-light-gray) 100%);
+  border-radius: 12px;
+  margin: 20px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.actorTokenEducation h2 {
+  color: #1a3a52;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.actorTokenEducation h3 {
+  color: #2c5aa0;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.actorTokenEducation h4 {
+  color: #0066cc;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.introduction {
+  background: white;
+  padding: 16px;
+  border-left: 4px solid #0066cc;
+  border-radius: 6px;
+  margin-bottom: 24px;
+}
+
+.introduction p {
+  margin: 0;
+  color: #333;
+  line-height: 1.6;
+}
+
+.introduction strong {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.visualSection {
+  margin: 24px 0;
+}
+
+.diagram {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 16px 0;
+  border: 1px solid #e0e6ed;
+}
+
+.step {
+  background: #f9fbfc;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #d4dce6;
+  margin-bottom: 12px;
+}
+
+.stepLabel {
+  font-weight: 600;
+  color: #0066cc;
+  margin-bottom: 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stepContent {
+  color: #333;
+  line-height: 1.5;
+}
+
+.token {
+  display: block;
+  background: var(--brand-light-gray);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #2c5aa0;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.arrow {
+  text-align: center;
+  color: #0066cc;
+  font-size: 20px;
+  font-weight: bold;
+  margin: 8px 0;
+}
+
+.diagramExplanation {
+  background: #fffbf0;
+  padding: 16px;
+  border-left: 4px solid #ff9800;
+  border-radius: 4px;
+  margin-top: 16px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.diagramExplanation ul {
+  margin: 12px 0 0 0;
+  padding-left: 20px;
+}
+
+.diagramExplanation li {
+  margin: 8px 0;
+}
+
+.diagramExplanation strong {
+  color: #0066cc;
+}
+
+.terminology {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+  border: 1px solid #e0e6ed;
+}
+
+.term {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--brand-light-gray);
+}
+
+.term:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.term h4 {
+  margin: 0 0 8px 0;
+}
+
+.term p {
+  margin: 0;
+  color: #555;
+  line-height: 1.6;
+}
+
+.inline {
+  background: var(--brand-light-gray);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: #0066cc;
+}
+
+.faqSection {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+  border: 1px solid #e0e6ed;
+}
+
+.faqList {
+  margin-top: 16px;
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--brand-light-gray);
+  margin-bottom: 0;
+}
+
+.faqItem:last-child {
+  border-bottom: none;
+}
+
+.faqQuestion {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 16px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  font-size: 16px;
+  color: #0066cc;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.faqQuestion:hover {
+  color: #003d99;
+}
+
+.faqQuestion.expanded {
+  color: #003d99;
+}
+
+.icon {
+  display: inline-block;
+  margin-right: 12px;
+  transition: transform 0.3s ease;
+  width: 16px;
+  text-align: center;
+}
+
+.expanded .icon {
+  transform: rotate(90deg);
+}
+
+.faqAnswer {
+  padding: 0 0 16px 28px;
+  color: #555;
+  line-height: 1.6;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.relatedResources {
+  background: #e3f2fd;
+  padding: 16px;
+  border-radius: 6px;
+  margin-top: 20px;
+  border-left: 4px solid #0066cc;
+}
+
+.relatedResources h3 {
+  margin-top: 0;
+  color: #0066cc;
+}
+
+.relatedResources ul {
+  margin: 12px 0 0 0;
+  padding-left: 20px;
+}
+
+.relatedResources li {
+  margin: 8px 0;
+  color: #333;
+  line-height: 1.5;
+}
+
+.relatedResources a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.relatedResources a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .actorTokenEducation {
+    padding: 16px;
+  }
+
+  .actorTokenEducation h2 {
+    font-size: 20px;
+  }
+
+  .diagram {
+    padding: 12px;
+  }
+
+  .token {
+    font-size: 11px;
+  }
+}

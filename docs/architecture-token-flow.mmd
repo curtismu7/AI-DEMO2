@@ -1,0 +1,103 @@
+%% AI-Demo · System architecture with token flow
+%%
+%% Static reference. For the interactive version (layer toggles, scenario
+%% highlighting, JWT payload cards, token-issue connector lines), open:
+%%   /architecture/token-flow.html  (served by demo_api_ui)
+%%   demo_api_ui/public/architecture/token-flow.html  (source)
+%%   docs/superpowers/specs/2026-05-29-architecture-diagram-token-overlay-design.md  (spec)
+%%
+%% Conventions:
+%%   Solid edges  = primary call paths
+%%   Dotted edges = optional / fallback / out-of-band
+%%   Edge label   = transport (HTTPS / WS / SSE / REST + auth method)
+%%
+flowchart LR
+  classDef client    fill:#fbfcff,stroke:#c9d1e3,color:#0e1a2b
+  classDef bff       fill:#ecf6f5,stroke:#d8eceb,color:#0a5550
+  classDef agent     fill:#eef0fa,stroke:#dde2f2,color:#3a4a8c
+  classDef gw        fill:#fff6f0,stroke:#f5d9c4,color:#b35a1f
+  classDef hitl      fill:#f5dde2,stroke:#e9b8c2,color:#a13348
+  classDef mcp       fill:#dfeada,stroke:#bbcfae,color:#4a6b3a
+  classDef ping      fill:#f7eccf,stroke:#e8d4a8,color:#a87317
+  classDef store    fill:#f6f4fc,stroke:#c9c2e0,color:#4a3b8c
+
+  subgraph Client["Client"]
+    UI["demo_api_ui :4000<br/>React SPA · bffAxios<br/>cookie session only"]:::client
+  end
+
+  subgraph BFF["BFF · token custodian"]
+    direction TB
+    SRV["demo_api_server :3001<br/>Express · agentMcpTokenService.js<br/>resolveAgentTarget"]:::bff
+    LMDB["Session store: LMDB"]:::store
+    DATA["Banking data: in-memory store.js"]:::store
+    SRV --- LMDB
+    SRV --- DATA
+  end
+
+  subgraph Agents["Agent runtimes"]
+    direction TB
+    AGSVC["demo_agent_service :3006<br/>AG-UI runner · /run · text/event-stream"]:::agent
+    LC["langchain_agent :8888 / :8889 / :8890"]:::agent
+    OA["openai_agent :8891"]:::agent
+    MS["mastra_agent :8892"]:::agent
+    PD["pydantic_agent :8893"]:::agent
+  end
+
+  EXT["External agent<br/>N8N · Bedrock · custom<br/>POST /api/agent/delegate"]:::agent
+
+  subgraph GW["Ping Agent Gateway · HITL"]
+    direction TB
+    GATE["Ping Agent Gateway :3005<br/>JSON-RPC over WS<br/>token passthrough (no re-exchange)<br/>PingOne Authorize policy gate"]:::gw
+    HITL["HITL Service :3009<br/>POST /challenges · poll"]:::hitl
+  end
+
+  subgraph MCP["MCP servers · resource APIs"]
+    direction TB
+    MBANK["demo_mcp_server :8080<br/>Banking MCP (WS)<br/>aud: mcp_banking"]:::mcp
+    MINV["demo_mcp_invest :8081<br/>Invest MCP (WS)<br/>aud: mcp_invest"]:::mcp
+    MMORT["demo_mortgage_service :8082<br/>REST · X-API-Key"]:::mcp
+  end
+
+  subgraph Ping["PingOne"]
+    direction TB
+    POAUTH["PingOne OAuth / AS<br/>authorize · token<br/>RFC 8693 · RFC 7662 · JWKS"]:::ping
+    PAAM["PingOne Authorization Server<br/>Authorize policy<br/>PERMIT · DENY · INDETERMINATE<br/>(mock: authz-server :9001)"]:::ping
+  end
+
+  %% Browser → BFF
+  UI -->|"HTTPS · cookie"| SRV
+
+  %% BFF → AG-UI agent service
+  SRV -->|"AG-UI · SSE · STATE_DELTA"| AGSVC
+
+  %% BFF → runtimes
+  SRV -.->|"HTTP /run · WS :8889"| LC
+  SRV -.->|"HTTP /run"| OA
+  SRV -.->|"HTTP /run"| MS
+  SRV -.->|"HTTP /run"| PD
+
+  %% External agent → BFF (scenario I)
+  EXT -.->|"POST /api/agent/delegate"| SRV
+
+  %% BFF → Ping Agent Gateway (delegated token from RFC 8693 exchange, forwarded unchanged)
+  SRV -->|"WS · JSON-RPC + delegated token (aud=mcp-gw)"| GATE
+
+  %% BFF → PingOne (RFC 8693 only — introspect happens at gateway, not BFF)
+  SRV -->|"RFC 8693 token exchange (subject=user AT + actor=agent AT)"| POAUTH
+
+  %% Browser ↔ PingOne (PKCE redirect)
+  UI -.->|"302 → /authorize · PKCE · code back"| POAUTH
+
+  %% Gateway → MCP servers
+  GATE -->|"WS · aud:mcp_banking"| MBANK
+  GATE -->|"WS · aud:mcp_invest"| MINV
+  GATE -.->|"REST · X-API-Key"| MMORT
+
+  %% Gateway → PingOne Authorization Server (introspect first, then policy decision)
+  GATE -->|"RFC 7662 introspect · Authorize policy decision"| PAAM
+
+  %% Gateway → HITL (INDETERMINATE only)
+  GATE -.->|"/challenges · poll"| HITL
+
+  %% MCP banking → BFF callback (banking data fetch)
+  MBANK -.->|"BFF /api/* callback · banking data fetch"| SRV

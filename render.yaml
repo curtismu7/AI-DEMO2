@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: demo-mcp-server
+    runtime: docker
+    rootDir: demo_mcp_server
+    dockerfilePath: ./Dockerfile
+    startCommand: node dist/index.js
+    region: oregon
+    plan: free          # upgrade to starter ($7/mo) to avoid 15-min sleep on inactivity
+
+    # Health check — Render uses this to decide if deploy succeeded
+    healthCheckPath: /.well-known/mcp-server
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: MCP_SERVER_HOST
+        value: 0.0.0.0
+
+      - key: PORT
+        value: 10000       # Render internal port (Render maps this to 443 externally)
+
+      - key: MCP_SERVER_PORT
+        value: 10000       # demo_mcp_server reads MCP_SERVER_PORT
+
+      # ── Set these in the Render dashboard (sensitive values) ──
+      - key: BANKING_API_URL
+        sync: false        # Render will prompt you to enter this value
+
+      - key: PINGONE_AUTH_URL
+        sync: false
+
+      - key: ADMIN_CLIENT_ID
+        sync: false
+
+      - key: ADMIN_CLIENT_SECRET
+        sync: false
+
+      # Optional — only needed if MFA step-up (CIBA) is used
+      - key: PINGONE_CLIENT_ID
+        sync: false
+
+      - key: PINGONE_CLIENT_SECRET
+        sync: false

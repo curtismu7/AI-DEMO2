@@ -1,0 +1,527 @@
+/* ── Use-Case Launcher Page ── Plan A · A5 ─────────────────────────────── */
+
+.uc-launcher {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.uc-launcher__header {
+  margin-bottom: 2rem;
+}
+
+.uc-launcher__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--color-text-primary, #111);
+}
+
+.uc-launcher__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary, #555);
+  margin: 0;
+}
+
+.uc-launcher__loading,
+.uc-launcher__error {
+  padding: 2rem;
+  color: var(--color-text-secondary, #555);
+}
+
+/* ── Track section ─────────────────────────────────────────────────────── */
+
+.uc-track {
+  margin-bottom: 2.5rem;
+}
+
+.uc-track__heading {
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-border, #e0e0e0);
+  padding-bottom: 0.5rem;
+  margin: 0 0 1rem;
+  color: var(--color-text-primary, #111);
+}
+
+.uc-track__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Use Case card ─────────────────────────────────────────────────────── */
+
+.uc-card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.uc-card--advanced {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.uc-card__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.uc-card__id {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #555);
+  min-width: 2.5rem;
+}
+
+.uc-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  color: var(--color-text-primary, #111);
+}
+
+.uc-card__advanced-label {
+  font-size: 0.7rem;
+  background: var(--color-muted-bg, #f0f0f0);
+  color: var(--color-text-secondary, #666);
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* OWASP badge — no emoji, CSS chip */
+.uc-owasp-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: #e8f0fe;
+  color: #1a56db;
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.uc-card__buyer-story {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #555);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.uc-card__prompt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.uc-card__prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.uc-card__what-to-say-label {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.uc-card__copy-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.uc-card__copy-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.uc-card__copy-btn--copied {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.uc-card__what-to-say {
+  font-size: 0.82rem;
+  color: var(--color-text-primary, #333);
+  margin: 0;
+  font-style: italic;
+}
+
+/* Maturity labels */
+.uc-maturity {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 0.1rem 0.5rem;
+  width: fit-content;
+}
+
+.uc-maturity--works          { background: #dcfce7; color: #166534; }
+.uc-maturity--flag           { background: #fef3c7; color: #92400e; }
+.uc-maturity--needs-console  { background: #dbeafe; color: #1e40af; }
+.uc-maturity--needs-build    { background: #f3f4f6; color: #374151; }
+
+/* Run button */
+.uc-card__actions {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.uc-run-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 1.2rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--color-ping-blue, #1a56db);
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.uc-run-btn:hover:not(:disabled) {
+  background: var(--color-ping-blue-dark, #1345b5);
+}
+
+/* Attack buttons (disabled until A6) */
+.uc-run-btn--disabled,
+.uc-run-btn:disabled {
+  background: var(--color-muted-bg, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+  cursor: not-allowed;
+}
+
+.uc-card__no-trigger {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+/* ── Attack sim result ─────────────────────────────────────────────────── */
+
+.uc-sim-result {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.uc-sim-result__verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.uc-sim-result__status-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.15rem 0.5rem;
+  letter-spacing: 0.03em;
+}
+
+.uc-sim-result__status-chip--deny {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.uc-sim-result__error-code {
+  font-size: 0.72rem;
+  font-family: monospace;
+  color: var(--color-text-secondary, #555);
+}
+
+.uc-sim-result__reason {
+  font-size: 0.82rem;
+  color: var(--color-text-primary, #333);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.uc-sim-result__events {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.uc-sim-result__event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: var(--color-muted-bg, #f9fafb);
+}
+
+.uc-sim-result__event--deny {
+  background: #fee2e2;
+}
+
+.uc-sim-result__event-label {
+  color: var(--color-text-primary, #333);
+}
+
+.uc-sim-result__event-status {
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0.1rem 0.35rem;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.uc-sim-result__event-status--deny,
+.uc-sim-result__event-status--fail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.uc-sim-result__event-status--ok,
+.uc-sim-result__event-status--pass,
+.uc-sim-result__event-status--permit {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.uc-sim-result__fetch-error {
+  font-size: 0.8rem;
+  color: #991b1b;
+  margin: 0.5rem 0 0;
+}
+
+/* ── Attack anatomy explainer — A7.1 ──────────────────────────────────────── */
+
+.attack-anatomy-explainer {
+  margin-top: 2.5rem;
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--color-surface, #fff);
+  overflow: hidden;
+}
+
+.aae-header {
+  background: #fee2e2;
+  padding: 0.9rem 1.25rem 0.75rem;
+  border-bottom: 1px solid #fca5a5;
+}
+
+.aae-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+  color: #7f1d1d;
+}
+
+.aae-caption {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #991b1b;
+  margin: 0;
+}
+
+.aae-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.aae-row {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  align-items: start;
+}
+
+.aae-row:last-child {
+  border-bottom: none;
+}
+
+.aae-row__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #6b7280);
+  padding-top: 0.1rem;
+}
+
+.aae-row__body {
+  font-size: 0.85rem;
+  color: var(--color-text-primary, #333);
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.aae-row__detail {
+  color: var(--color-text-secondary, #555);
+}
+
+.aae-code-badge {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.78rem;
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 3px;
+  padding: 0.1rem 0.45rem;
+  width: fit-content;
+}
+
+.aae-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1.25rem;
+  background: #fafafa;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+}
+
+.aae-status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.15rem 0.5rem;
+  letter-spacing: 0.03em;
+}
+
+.aae-status-badge--deny {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.aae-status-badge--permit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.aae-owasp-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #e8f0fe;
+  color: #1a56db;
+  border-radius: 3px;
+  padding: 0.1rem 0.45rem;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── FF gate notice ─────────────────────────────────────────────────────── */
+.uc-ff-gate {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+.uc-ff-gate--off {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+.uc-ff-gate--on {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+.uc-ff-gate__text {
+  flex: 1;
+  line-height: 1.3;
+}
+.uc-ff-gate__flag {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 600;
+}
+
+/* Ping2026 toggle switch — PingOne-blue, state via .is-on (not :checked) */
+.ctl-switch {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  border-radius: 11px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex: none;
+  user-select: none;
+}
+.ctl-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: left 0.15s;
+}
+.ctl-switch.is-on {
+  background: #1a56db;
+}
+.ctl-switch.is-on .ctl-switch__knob {
+  left: 19px;
+}
+
+/* A8 -- Ping product attribution row */
+.uc-card__products {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+.uc-card__plabel {
+  font-size: 0.68rem;
+  color: #8a96b4;
+  font-weight: 600;
+  margin-right: 0.1rem;
+  align-self: center;
+}
+
+/* A9 — Explain button */
+.uc-explain-btn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #1d6bf3;
+  color: #1d6bf3;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.uc-explain-btn:hover {
+  background: #e8f0fe;
+}

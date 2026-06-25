@@ -1,0 +1,487 @@
+/* banking_api_ui/src/components/TransactionConsentPage.css */
+
+.transaction-consent-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100070;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.transaction-consent-popup {
+  max-width: 28rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #dddddd;
+}
+
+.transaction-consent-popup__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.transaction-consent-popup__lead {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.transaction-consent-popup__learn {
+  margin: 0 0 0.6rem;
+}
+
+.transaction-consent-learn-btn--dark {
+  background: var(--brand-navy);
+  border: 1px solid var(--brand-navy);
+  color: #fff;
+}
+
+.transaction-consent-learn-btn--dark:hover {
+  background: var(--brand-navy);
+}
+
+.transaction-consent-card--in-popup {
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid #dddddd;
+  padding: 0.85rem 1rem;
+}
+
+.hitl-consent-banner {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+}
+
+.hitl-consent-banner__inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+}
+
+.hitl-consent-banner__copy {
+  flex: 1;
+  min-width: min(100%, 18rem);
+}
+
+.hitl-consent-banner__title {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--brand-light-gray);
+  letter-spacing: 0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.hitl-consent-banner__text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(248, 250, 252, 0.88);
+}
+
+.hitl-consent-banner__btn {
+  flex-shrink: 0;
+  padding: 0.55rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: none;
+  background: #fbbf24;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.hitl-consent-banner__btn:hover:not(:disabled) {
+  background: #f59e0b;
+}
+
+.hitl-consent-banner__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.transaction-consent-page__hero {
+  margin-bottom: 0.5rem;
+}
+
+.transaction-consent-page__learn {
+  margin: 0.75rem 0 0;
+}
+
+.transaction-consent-learn-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.transaction-consent-learn-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.transaction-consent-card__loading {
+  padding: 1rem 0;
+  color: #666666;
+}
+
+.transaction-consent-learn-btn--inline {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  background: var(--brand-navy);
+  color: #fff !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.transaction-consent-learn-btn--inline:hover {
+  background: var(--brand-navy);
+}
+
+.transaction-consent-card {
+  max-width: 36rem;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid #dddddd;
+}
+
+.transaction-consent-card__h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.transaction-consent-card__summary {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  color: var(--brand-dark-gray);
+  line-height: 1.55;
+  font-size: 1rem;
+}
+
+.transaction-consent-card__summary li {
+  margin-bottom: 0.25rem;
+}
+
+.transaction-consent-card__legal {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.45;
+  margin-bottom: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--brand-light-gray);
+  border-radius: 8px;
+  border: 1px solid #dddddd;
+}
+
+.transaction-consent-card__legal p {
+  margin: 0;
+}
+
+.transaction-consent-card__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--brand-dark-gray);
+  line-height: 1.45;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.transaction-consent-card__check input {
+  flex-shrink: 0;
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #dc2626;
+}
+
+.transaction-consent-card__error {
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.transaction-consent-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.transaction-consent-btn {
+  padding: 0.55rem 1.15rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.transaction-consent-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.transaction-consent-btn--ghost {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border-color: transparent;
+  color: #fff;
+}
+
+.transaction-consent-rfc-note {
+  margin-top: 1.75rem;
+  padding: 0.4rem 0.65rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #1e40af;
+  line-height: 1.45;
+}
+
+.transaction-consent-rfc-note a {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-underline-offset: 2px;
+}
+
+.transaction-consent-btn--ghost:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.transaction-consent-btn--primary {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
+}
+
+.transaction-consent-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+.transaction-consent-btn--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.transaction-consent-btn--danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.transaction-consent-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100070;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.transaction-consent-modal {
+  max-width: 26rem;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #dddddd;
+}
+
+.transaction-consent-modal__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.transaction-consent-modal__body {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--brand-dark-gray);
+}
+
+.transaction-consent-modal__body--emphasis {
+  font-weight: 600;
+  color: #7f1d1d;
+  background: #fef2f2;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+
+.transaction-consent-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* ── OTP verification panel ──────────────────────────────────────────────── */
+.tx-otp-panel {
+  padding: 1.25rem 1.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tx-otp-panel__lead {
+  font-size: 0.875rem;
+  color: #374151;
+  margin: 0 0 1rem;
+  line-height: 1.55;
+}
+
+.tx-otp-panel__lead--warn {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  color: #92400e;
+  font-size: 0.82rem;
+}
+
+.tx-otp-panel__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+  color: #1e40af;
+  line-height: 1.5;
+}
+
+.tx-otp-panel__summary-line {
+  display: block;
+}
+
+.tx-otp-panel__input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.tx-otp-panel__input {
+  width: 100%;
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  padding: 0.65rem 0.5rem;
+  outline: none;
+  background: #fff;
+  color: #111827;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.tx-otp-panel__input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.tx-otp-panel__input--error {
+  border-color: #dc2626;
+  background: #fff5f5;
+  color: #991b1b;
+}
+
+.tx-otp-panel__input--error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.tx-otp-panel__verify-btn {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tx-otp-panel__error {
+  font-size: 0.82rem;
+  color: #dc2626;
+  margin: 0.2rem 0 0.65rem;
+  font-weight: 500;
+}
+
+.tx-otp-panel__expiry {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: center;
+  margin: 0.25rem 0 1rem;
+}
+
+.tx-otp-panel__back-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tx-otp-panel__back-btn:hover:not(:disabled) {
+  color: #374151;
+}
+
+.tx-otp-panel__back-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

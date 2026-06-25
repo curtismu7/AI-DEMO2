@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net" version="29.6.6">
+  <diagram id="marketing-login-agent-vs-button" name="Marketing — login via agent vs login button">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="&lt;b&gt;Super Banking — Marketing home: sign-in &lt;i&gt;through the agent&lt;/i&gt; vs &lt;i&gt;Customer login button&lt;/i&gt; first&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;SPA routes &lt;code&gt;/&lt;/code&gt; and &lt;code&gt;/marketing&lt;/code&gt; · BFF &lt;code&gt;banking_api_server&lt;/code&gt; · Customer OAuth &lt;code&gt;/api/auth/oauth/user/login&lt;/code&gt; · Session &lt;code&gt;postLoginReturnToPath&lt;/code&gt; from &lt;code&gt;return_to&lt;/code&gt; &lt;b&gt;only&lt;/b&gt; when login starts from &lt;code&gt;BankingAgent.handleLoginAction&lt;/code&gt; — not from &lt;code&gt;LandingPage&lt;/code&gt; buttons.&lt;br&gt;Open in &lt;a href=&quot;https://app.diagrams.net&quot;&gt;diagrams.net&lt;/a&gt;. Related: &lt;code&gt;LandingPage.js&lt;/code&gt;, &lt;code&gt;BankingAgent.js&lt;/code&gt;, &lt;code&gt;embeddedAgentFabVisibility.js&lt;/code&gt; (&lt;code&gt;isPublicMarketingAgentPath&lt;/code&gt;).&lt;/font&gt;" vertex="1">
+          <mxGeometry height="72" width="1520" x="40" y="16" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlane A -->
+        <mxCell id="laneA" parent="1" style="swimlane;horizontal=1;startSize=32;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;fontSize=13;" value="A — NEW: Login triggered from BankingAgent (main / marketing)" vertex="1">
+          <mxGeometry x="40" y="104" width="740" height="920" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=11;" value="&lt;b&gt;Guest&lt;/b&gt; opens SPA&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Path &lt;code&gt;/&lt;/code&gt; or &lt;code&gt;/marketing&lt;/code&gt;&lt;br&gt;BankingAgent: &lt;b&gt;floating FAB&lt;/b&gt; + &lt;b&gt;bottom dock&lt;/b&gt; (marketing surfaces)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="48" width="280" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=11;" value="&lt;b&gt;Explore agent first&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Natural language (e.g. balance, transfer) or tap &lt;b&gt;Customer&lt;/b&gt; login in chat UI&lt;br&gt;&lt;code&gt;BankingAgent.handleLoginAction&lt;/code&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry x="400" y="48" width="300" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a1-a2" edge="1" parent="laneA" source="a1" target="a2" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#2E7D32;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#1B5E20;fontSize=11;" value="&lt;b&gt;BFF redirect&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;&lt;code&gt;GET /api/auth/oauth/user/login&lt;/code&gt;&lt;br&gt;If &lt;code&gt;isPublicMarketingAgentPath&lt;/code&gt;: append&lt;br&gt;&lt;code&gt;?return_to=&lt;/code&gt;&lt;code&gt;/marketing&lt;/code&gt; &lt;i&gt;(encoded)&lt;/i&gt;&lt;br&gt;So after PingOne, user returns to marketing view, not only dashboard.&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="180" width="660" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a2-a3" edge="1" parent="laneA" source="a2" target="a3" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#2E7D32;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=11;" value="&lt;b&gt;PingOne&lt;/b&gt; — OIDC + PKCE (BFF-managed)&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;End user authenticates&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="312" width="300" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a3-a4" edge="1" parent="laneA" source="a3" target="a4" style="endArrow=classic;html=1;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57F17;fontSize=11;" value="&lt;b&gt;OAuth callback&lt;/b&gt; (BFF)&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;&lt;code&gt;oauthUser&lt;/code&gt;: read &lt;code&gt;postLoginReturnToPath&lt;/code&gt; from session (&lt;code&gt;return_to&lt;/code&gt; was sanitized at login start)&lt;br&gt;Redirect: &lt;code&gt;origin + /marketing?oauth=success&lt;/code&gt; &lt;i&gt;when return_to set&lt;/i&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry x="380" y="300" width="320" height="96" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a4-a5" edge="1" parent="laneA" source="a4" target="a5" style="endArrow=classic;html=1;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a6" parent="laneA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=11;" value="&lt;b&gt;Signed-in on marketing&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Continue with BankingAgent — MCP / banking tools now allowed per session&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="430" width="660" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a5-a6" edge="1" parent="laneA" source="a5" target="a6" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#2E7D32;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a-note" parent="laneA" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#9E9E9E;align=left;spacingLeft=8;fontSize=10;" value="&lt;b&gt;UX intent:&lt;/b&gt; User discovers the assistant &lt;i&gt;before&lt;/i&gt; committing to full-page login. Auth errors / “sign in” nudges can scroll to &lt;code&gt;#marketing-login&lt;/code&gt; as a secondary hint.&lt;br&gt;&lt;b&gt;Note:&lt;/b&gt; Agent-initiated customer login on &lt;code&gt;/&lt;/code&gt; or &lt;code&gt;/marketing&lt;/code&gt; uses the same &lt;code&gt;return_to=/marketing&lt;/code&gt; behavior in current code." vertex="1">
+          <mxGeometry x="40" y="530" width="660" height="88" as="geometry" />
+        </mxCell>
+
+        <!-- Swimlane B -->
+        <mxCell id="laneB" parent="1" style="swimlane;horizontal=1;startSize=32;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=1;fontSize=13;" value="B — TRADITIONAL: Customer login button / inline section before (or without) agent-first" vertex="1">
+          <mxGeometry x="820" y="104" width="740" height="920" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=11;" value="&lt;b&gt;Guest&lt;/b&gt; on marketing UI&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;&lt;code&gt;LandingPage&lt;/code&gt; — hero, features, showcase&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="48" width="300" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" parent="laneB" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=10;" value="&lt;b&gt;Where&lt;/b&gt; user clicks?" vertex="1">
+          <mxGeometry x="400" y="40" width="140" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b1-b2" edge="1" parent="laneB" source="b1" target="b2" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b3a" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#0D47A1;fontSize=10;" value="&lt;b&gt;Header&lt;/b&gt; — &lt;i&gt;Customer sign in&lt;/i&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Typically &lt;b&gt;no&lt;/b&gt; &lt;code&gt;return_to&lt;/code&gt; → post-login &lt;code&gt;/dashboard&lt;/code&gt; (default full app)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="180" width="240" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="b3b" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#0D47A1;fontSize=10;" value="&lt;b&gt;#marketing-login&lt;/b&gt; section&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Customer + Admin · &lt;b&gt;no&lt;/b&gt; &lt;code&gt;return_to&lt;/code&gt; → &lt;code&gt;/dashboard&lt;/code&gt; / &lt;code&gt;/admin&lt;/code&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry x="300" y="180" width="280" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="b3c" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#0D47A1;fontSize=10;" value="&lt;b&gt;Showcase&lt;/b&gt; demo card&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;Same as other page buttons — no &lt;code&gt;return_to&lt;/code&gt; (dashboard / admin)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="600" y="180" width="300" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b2-b3a" edge="1" parent="laneB" source="b2" target="b3a" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b2-b3b" edge="1" parent="laneB" source="b2" target="b3b" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b2-b3c" edge="1" parent="laneB" source="b2" target="b3c" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=11;" value="&lt;b&gt;PingOne&lt;/b&gt; — same BFF OAuth flow&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;These entry points omit &lt;code&gt;return_to&lt;/code&gt; (contrast lane A)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="310" width="660" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b3a-b4" edge="1" parent="laneB" source="b3a" target="b4" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b3b-b4" edge="1" parent="laneB" source="b3b" target="b4" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b3c-b4" edge="1" parent="laneB" source="b3c" target="b4" style="endArrow=classic;html=1;strokeWidth=1;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b5" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57F17;fontSize=11;" value="&lt;b&gt;Landing after callback&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;&lt;b&gt;With&lt;/b&gt; &lt;code&gt;return_to&lt;/code&gt;: &lt;code&gt;/marketing?oauth=success&lt;/code&gt; · &lt;b&gt;Without&lt;/b&gt;: &lt;code&gt;/dashboard&lt;/code&gt; (customer) / &lt;code&gt;/admin&lt;/code&gt; (admin)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="404" width="660" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b4-b5" edge="1" parent="laneB" source="b4" target="b5" style="endArrow=classic;html=1;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b6" parent="laneB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=11;" value="&lt;b&gt;Then&lt;/b&gt; use BankingAgent&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;User already has session — agent on dashboard or marketing depending on choice&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="510" width="660" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b5-b6" edge="1" parent="laneB" source="b5" target="b6" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1565C0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b-note" parent="laneB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#9E9E9E;align=left;spacingLeft=8;fontSize=10;" value="&lt;b&gt;UX intent:&lt;/b&gt; Page CTAs → full app after PingOne. “Stay on marketing” is &lt;b&gt;not&lt;/b&gt; a button choice — only agent-initiated login sets &lt;code&gt;return_to&lt;/code&gt; (lane A).&lt;br&gt;Same BFF session and tokens; &lt;i&gt;return URL&lt;/i&gt; differs agent vs buttons." vertex="1">
+          <mxGeometry x="40" y="610" width="660" height="72" as="geometry" />
+        </mxCell>
+
+        <!-- Bottom comparison -->
+        <mxCell id="compare" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=11;" value="&lt;b&gt;Summary&lt;/b&gt;&lt;br&gt;&lt;table cellpadding=&quot;4&quot; style=&quot;font-size:10px;width:100%&quot;&gt;&lt;tr&gt;&lt;td align=&quot;left&quot;&gt;&lt;b&gt;Agent-first (A)&lt;/b&gt;&lt;/td&gt;&lt;td align=&quot;left&quot;&gt;Motivation-led: try assistant → auth when needed → &lt;code&gt;return_to&lt;/code&gt; from agent preserves marketing context.&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td align=&quot;left&quot;&gt;&lt;b&gt;Button-first (B)&lt;/b&gt;&lt;/td&gt;&lt;td align=&quot;left&quot;&gt;Header / inline / showcase — PingOne then &lt;code&gt;/dashboard&lt;/code&gt; (customer) or &lt;code&gt;/admin&lt;/code&gt;; no marketing &lt;code&gt;return_to&lt;/code&gt;.&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" vertex="1">
+          <mxGeometry x="40" y="1040" width="1520" height="88" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

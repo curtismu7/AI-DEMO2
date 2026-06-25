@@ -1,0 +1,41 @@
+/* demo_api_ui/src/components/AuthButton.css */
+.auth-btn {
+  display: block;
+  width: 100%;
+  padding: 11px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+
+.auth-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.auth-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-btn--customer {
+  background: #004687;
+  color: #ffffff;
+}
+
+.auth-btn--admin {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.auth-btn--ghost {
+  background: transparent;
+  color: #374151;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}

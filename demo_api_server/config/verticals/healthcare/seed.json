@@ -1,0 +1,670 @@
+{
+  "patientRecords": [
+    {
+      "id": "101",
+      "recordType": "Primary Care",
+      "provider": "Dr. Sarah Mitchell, MD",
+      "facility": "Springfield Family Health",
+      "lastVisit": "2026-04-18",
+      "status": "Active"
+    },
+    {
+      "id": "102",
+      "recordType": "Cardiology",
+      "provider": "Dr. Alan Greene, MD",
+      "facility": "Springfield Heart Center",
+      "lastVisit": "2026-03-02",
+      "status": "Active"
+    },
+    {
+      "id": "103",
+      "recordType": "Dermatology",
+      "provider": "Dr. Lisa Park, MD",
+      "facility": "ClearSkin Dermatology Clinic",
+      "lastVisit": "2026-01-15",
+      "status": "Active"
+    },
+    {
+      "id": "104",
+      "recordType": "Orthopedics",
+      "provider": "Dr. James Okafor, MD",
+      "facility": "Midwest Bone & Joint",
+      "lastVisit": "2025-11-20",
+      "status": "Released"
+    },
+    {
+      "id": "105",
+      "recordType": "Neurology",
+      "provider": "Dr. Priya Nair, MD",
+      "facility": "Neuro Care Associates",
+      "lastVisit": "2026-02-28",
+      "status": "Active"
+    },
+    {
+      "id": "106",
+      "recordType": "Endocrinology",
+      "provider": "Dr. Marcus Webb, MD",
+      "facility": "Diabetes & Thyroid Center",
+      "lastVisit": "2026-05-07",
+      "status": "Active"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "201",
+      "provider": "Dr. Sarah Mitchell, MD",
+      "clinic": "Springfield Family Health",
+      "when": "2026-06-03",
+      "reason": "Annual physical",
+      "status": "Confirmed"
+    },
+    {
+      "id": "202",
+      "provider": "Dr. Alan Greene, MD",
+      "clinic": "Springfield Heart Center",
+      "when": "2026-06-17",
+      "reason": "Follow-up EKG review",
+      "status": "Scheduled"
+    },
+    {
+      "id": "203",
+      "provider": "Dr. Lisa Park, MD",
+      "clinic": "ClearSkin Dermatology Clinic",
+      "when": "2026-07-01",
+      "reason": "Skin lesion evaluation",
+      "status": "Scheduled"
+    },
+    {
+      "id": "204",
+      "provider": "Dr. Priya Nair, MD",
+      "clinic": "Neuro Care Associates",
+      "when": "2026-05-14",
+      "reason": "Migraine management",
+      "status": "Completed"
+    },
+    {
+      "id": "205",
+      "provider": "Dr. Marcus Webb, MD",
+      "clinic": "Diabetes & Thyroid Center",
+      "when": "2026-05-28",
+      "reason": "HbA1c result review",
+      "status": "Completed"
+    },
+    {
+      "id": "206",
+      "provider": "Dr. James Okafor, MD",
+      "clinic": "Midwest Bone & Joint",
+      "when": "2026-07-15",
+      "reason": "Post-surgery follow-up",
+      "status": "Scheduled"
+    }
+  ],
+  "coverage": {
+    "plan": "BlueShield PPO Gold",
+    "status": "Active",
+    "referralRequired": "Not required — PPO plan lets you see in-network specialists directly",
+    "deductibleMet": 640,
+    "deductibleTotal": 1500,
+    "outOfPocket": 142.5
+  },
+  "claims": [
+    {
+      "id": "301",
+      "procedure": "Annual Wellness Visit",
+      "date": "2026-04-18",
+      "billed": 380,
+      "covered": 360,
+      "copay": 20,
+      "status": "Processed"
+    },
+    {
+      "id": "302",
+      "procedure": "EKG (12-Lead)",
+      "date": "2026-03-02",
+      "billed": 210,
+      "covered": 185,
+      "copay": 25,
+      "status": "Processed"
+    },
+    {
+      "id": "303",
+      "procedure": "Office Visit – Established Patient",
+      "date": "2026-02-28",
+      "billed": 165,
+      "covered": 145,
+      "copay": 20,
+      "status": "Processed"
+    },
+    {
+      "id": "304",
+      "procedure": "Hemoglobin A1c Lab Panel",
+      "date": "2026-05-07",
+      "billed": 95,
+      "covered": 95,
+      "copay": 0,
+      "status": "Processed"
+    },
+    {
+      "id": "305",
+      "procedure": "Skin Biopsy",
+      "date": "2026-01-15",
+      "billed": 440,
+      "covered": 390,
+      "copay": 50,
+      "status": "Pending"
+    },
+    {
+      "id": "306",
+      "procedure": "Physical Therapy Session x3",
+      "date": "2025-11-20",
+      "billed": 510,
+      "covered": 460,
+      "copay": 50,
+      "status": "Processed"
+    }
+  ],
+  "billingHistory": [
+    {
+      "id": "401",
+      "description": "Annual Wellness Visit copay",
+      "date": "2026-04-18",
+      "amountDue": 20,
+      "status": "Paid"
+    },
+    {
+      "id": "402",
+      "description": "EKG (12-Lead) copay",
+      "date": "2026-03-02",
+      "amountDue": 25,
+      "status": "Due"
+    },
+    {
+      "id": "403",
+      "description": "Skin Biopsy coinsurance",
+      "date": "2026-01-15",
+      "amountDue": 50,
+      "status": "Due"
+    },
+    {
+      "id": "404",
+      "description": "Physical Therapy x3 copay",
+      "date": "2025-11-20",
+      "amountDue": 50,
+      "status": "Overdue"
+    },
+    {
+      "id": "405",
+      "description": "Office Visit copay",
+      "date": "2026-02-28",
+      "amountDue": 20,
+      "status": "Paid"
+    }
+  ],
+  "medications": [
+    {
+      "id": "501",
+      "name": "Lisinopril",
+      "dosage": "10mg",
+      "frequency": "Once daily",
+      "status": "Active",
+      "refillsRemaining": "3"
+    },
+    {
+      "id": "502",
+      "name": "Metformin",
+      "dosage": "500mg",
+      "frequency": "Twice daily",
+      "status": "Active",
+      "refillsRemaining": "2"
+    },
+    {
+      "id": "503",
+      "name": "Atorvastatin",
+      "dosage": "20mg",
+      "frequency": "Once daily at bedtime",
+      "status": "Active",
+      "refillsRemaining": "0"
+    },
+    {
+      "id": "504",
+      "name": "Albuterol Inhaler",
+      "dosage": "90mcg/actuation",
+      "frequency": "As needed",
+      "status": "Active",
+      "refillsRemaining": "1"
+    },
+    {
+      "id": "505",
+      "name": "Sertraline",
+      "dosage": "50mg",
+      "frequency": "Once daily",
+      "status": "On Hold",
+      "refillsRemaining": "0"
+    }
+  ],
+  "labResults": [
+    {
+      "id": "601",
+      "test": "Hemoglobin A1c",
+      "date": "2026-05-14",
+      "value": "6.8%",
+      "referenceRange": "< 5.7%",
+      "status": "High"
+    },
+    {
+      "id": "602",
+      "test": "Comprehensive Metabolic Panel",
+      "date": "2026-05-14",
+      "value": "Normal",
+      "referenceRange": "See report",
+      "status": "Normal"
+    },
+    {
+      "id": "603",
+      "test": "Lipid Panel - LDL",
+      "date": "2026-03-22",
+      "value": "142 mg/dL",
+      "referenceRange": "< 100 mg/dL",
+      "status": "High"
+    },
+    {
+      "id": "604",
+      "test": "TSH (Thyroid Stimulating Hormone)",
+      "date": "2026-01-09",
+      "value": "2.1 mIU/L",
+      "referenceRange": "0.4–4.0 mIU/L",
+      "status": "Normal"
+    },
+    {
+      "id": "605",
+      "test": "Complete Blood Count (CBC)",
+      "date": "2025-11-30",
+      "value": "Normal",
+      "referenceRange": "See report",
+      "status": "Normal"
+    }
+  ],
+  "vitals": [
+    {
+      "id": "1101",
+      "type": "Blood Pressure",
+      "value": "118/76",
+      "unit": "mmHg",
+      "recordedDate": "2026-06-10",
+      "recordedBy": "Dr. Anita Patel"
+    },
+    {
+      "id": "1102",
+      "type": "Heart Rate",
+      "value": "72",
+      "unit": "bpm",
+      "recordedDate": "2026-06-10",
+      "recordedBy": "Dr. Anita Patel"
+    },
+    {
+      "id": "1103",
+      "type": "Weight",
+      "value": "174",
+      "unit": "lbs",
+      "recordedDate": "2026-05-22",
+      "recordedBy": "Nurse J. Torres"
+    },
+    {
+      "id": "1104",
+      "type": "Oxygen Saturation",
+      "value": "98",
+      "unit": "%",
+      "recordedDate": "2026-05-22",
+      "recordedBy": "Nurse J. Torres"
+    },
+    {
+      "id": "1105",
+      "type": "Temperature",
+      "value": "98.4",
+      "unit": "°F",
+      "recordedDate": "2026-04-15",
+      "recordedBy": "Nurse J. Torres"
+    }
+  ],
+  "careTeam": [
+    {
+      "id": "1201",
+      "name": "Dr. Sarah Okonkwo",
+      "specialty": "Primary Care Physician",
+      "clinic": "Riverside Family Health",
+      "phone": "(555) 204-1100",
+      "nextAvailable": "2026-07-08"
+    },
+    {
+      "id": "1202",
+      "name": "Dr. Marcus Delgado",
+      "specialty": "Cardiologist",
+      "clinic": "Heart & Vascular Center",
+      "phone": "(555) 318-4422",
+      "nextAvailable": "2026-07-15"
+    },
+    {
+      "id": "1203",
+      "name": "Dr. Emily Tran",
+      "specialty": "Endocrinologist",
+      "clinic": "Riverside Diabetes & Hormone Clinic",
+      "phone": "(555) 427-6633",
+      "nextAvailable": "2026-08-03"
+    },
+    {
+      "id": "1204",
+      "name": "Dr. James Weatherby",
+      "specialty": "Orthopedic Surgeon",
+      "clinic": "Summit Orthopedics",
+      "phone": "(555) 509-8811",
+      "nextAvailable": "2026-07-22"
+    },
+    {
+      "id": "1205",
+      "name": "Nurse Practitioner Linda Park",
+      "specialty": "Care Coordinator",
+      "clinic": "Riverside Family Health",
+      "phone": "(555) 204-1101",
+      "nextAvailable": "2026-07-01"
+    }
+  ],
+  "messages": [
+    {
+      "id": "701",
+      "from": "Dr. Sarah Chen",
+      "subject": "Follow-up on your recent bloodwork",
+      "date": "2026-06-10",
+      "status": "unread",
+      "preview": "Your lab results from June 8 are ready for review..."
+    },
+    {
+      "id": "702",
+      "from": "Billing Department",
+      "subject": "Statement ready for account #A-4421",
+      "date": "2026-06-05",
+      "status": "read",
+      "preview": "Your June statement is now available in the portal..."
+    },
+    {
+      "id": "703",
+      "from": "Nurse Practitioner Amy Reyes",
+      "subject": "Pre-appointment instructions for July 2",
+      "date": "2026-06-01",
+      "status": "read",
+      "preview": "Please remember to fast for 12 hours before your appointment..."
+    },
+    {
+      "id": "704",
+      "from": "CareConnect Health System",
+      "subject": "Your care plan has been updated",
+      "date": "2026-05-28",
+      "status": "unread",
+      "preview": "Dr. Patel has made updates to your ongoing care plan..."
+    },
+    {
+      "id": "705",
+      "from": "Referral Coordination",
+      "subject": "Specialist referral approved - Dr. James Okafor",
+      "date": "2026-05-20",
+      "status": "read",
+      "preview": "Your referral to cardiology has been approved and scheduled..."
+    }
+  ],
+  "referrals": [
+    {
+      "id": "801",
+      "specialty": "Cardiology",
+      "toProvider": "Dr. Helen Park",
+      "facility": "Summit Heart Center",
+      "referredDate": "2025-11-03",
+      "expiryDate": "2026-11-03",
+      "status": "Active"
+    },
+    {
+      "id": "802",
+      "specialty": "Orthopedics",
+      "toProvider": "Dr. Marcus Webb",
+      "facility": "Eastside Orthopedic Group",
+      "referredDate": "2025-09-14",
+      "expiryDate": "2026-09-14",
+      "status": "Pending"
+    },
+    {
+      "id": "803",
+      "specialty": "Dermatology",
+      "toProvider": "Dr. Aisha Thornton",
+      "facility": "ClearSkin Dermatology",
+      "referredDate": "2025-07-22",
+      "expiryDate": "2026-07-22",
+      "status": "Completed"
+    },
+    {
+      "id": "804",
+      "specialty": "Gastroenterology",
+      "toProvider": "Dr. James Okafor",
+      "facility": "Riverside GI Associates",
+      "referredDate": "2026-01-08",
+      "expiryDate": "2027-01-08",
+      "status": "Active"
+    },
+    {
+      "id": "805",
+      "specialty": "Neurology",
+      "toProvider": "Dr. Sofia Delgado",
+      "facility": "Metro Neurology Clinic",
+      "referredDate": "2026-03-19",
+      "expiryDate": "2027-03-19",
+      "status": "Pending"
+    }
+  ],
+  "documents": [
+    {
+      "id": "901",
+      "title": "Discharge Summary - General Hospital",
+      "type": "Discharge Summary",
+      "date": "2025-11-03",
+      "status": "Final",
+      "uploadedBy": "Dr. Patel"
+    },
+    {
+      "id": "902",
+      "title": "Radiology Report - Chest X-Ray",
+      "type": "Radiology Report",
+      "date": "2026-01-15",
+      "status": "Final",
+      "uploadedBy": "Dr. Kim"
+    },
+    {
+      "id": "903",
+      "title": "Operative Report - Knee Arthroscopy",
+      "type": "Operative Report",
+      "date": "2025-09-22",
+      "status": "Final",
+      "uploadedBy": "Dr. Nguyen"
+    },
+    {
+      "id": "904",
+      "title": "Consent Form - Colonoscopy Procedure",
+      "type": "Consent Form",
+      "date": "2026-03-08",
+      "status": "Signed",
+      "uploadedBy": "Admin Staff"
+    },
+    {
+      "id": "905",
+      "title": "Physical Therapy Notes - Lumbar Rehab",
+      "type": "Clinical Notes",
+      "date": "2026-05-19",
+      "status": "Pending Review",
+      "uploadedBy": "Sarah Mills, PT"
+    }
+  ],
+  "immunizations": [
+    {
+      "id": "1301",
+      "vaccine": "Influenza (Flu)",
+      "date": "2025-10-14",
+      "dose": "1 of 1",
+      "manufacturer": "Sanofi",
+      "status": "Completed"
+    },
+    {
+      "id": "1302",
+      "vaccine": "COVID-19 (mRNA)",
+      "date": "2025-09-03",
+      "dose": "Booster 3",
+      "manufacturer": "Moderna",
+      "status": "Completed"
+    },
+    {
+      "id": "1303",
+      "vaccine": "Tdap",
+      "date": "2024-03-22",
+      "dose": "1 of 1",
+      "manufacturer": "GlaxoSmithKline",
+      "status": "Completed"
+    },
+    {
+      "id": "1304",
+      "vaccine": "Pneumococcal (PPSV23)",
+      "date": "2023-11-07",
+      "dose": "1 of 1",
+      "manufacturer": "Merck",
+      "status": "Completed"
+    },
+    {
+      "id": "1305",
+      "vaccine": "Shingrix (Shingles)",
+      "date": "2026-01-15",
+      "dose": "2 of 2",
+      "manufacturer": "GlaxoSmithKline",
+      "status": "Completed"
+    }
+  ],
+  "allergies": [
+    {
+      "id": "1401",
+      "allergen": "Penicillin",
+      "reaction": "Hives, anaphylaxis",
+      "severity": "Severe",
+      "status": "Active",
+      "onsetDate": "2018-03-12"
+    },
+    {
+      "id": "1402",
+      "allergen": "Peanuts",
+      "reaction": "Throat swelling, hives",
+      "severity": "Severe",
+      "status": "Active",
+      "onsetDate": "2005-06-20"
+    },
+    {
+      "id": "1403",
+      "allergen": "Latex",
+      "reaction": "Contact dermatitis",
+      "severity": "Moderate",
+      "status": "Active",
+      "onsetDate": "2021-09-05"
+    },
+    {
+      "id": "1404",
+      "allergen": "Ibuprofen",
+      "reaction": "Stomach pain, rash",
+      "severity": "Mild",
+      "status": "Active",
+      "onsetDate": "2019-11-30"
+    },
+    {
+      "id": "1405",
+      "allergen": "Sulfa drugs",
+      "reaction": "Rash, fever",
+      "severity": "Moderate",
+      "status": "Inactive",
+      "onsetDate": "2012-04-17"
+    }
+  ],
+  "dependents": [
+    {
+      "id": "1501",
+      "name": "Olivia Mercer",
+      "relationship": "Daughter",
+      "dob": "2015-03-22",
+      "coverageStatus": "Active",
+      "plan": "BlueShield Family PPO"
+    },
+    {
+      "id": "1502",
+      "name": "Ethan Mercer",
+      "relationship": "Son",
+      "dob": "2018-09-10",
+      "coverageStatus": "Active",
+      "plan": "BlueShield Family PPO"
+    },
+    {
+      "id": "1503",
+      "name": "Sandra Mercer",
+      "relationship": "Spouse",
+      "dob": "1983-07-04",
+      "coverageStatus": "Active",
+      "plan": "BlueShield Family PPO"
+    },
+    {
+      "id": "1504",
+      "name": "Thomas Mercer",
+      "relationship": "Son",
+      "dob": "2021-11-30",
+      "coverageStatus": "Active",
+      "plan": "BlueShield Family PPO"
+    },
+    {
+      "id": "1505",
+      "name": "Margaret Holt",
+      "relationship": "Domestic Partner",
+      "dob": "1980-02-14",
+      "coverageStatus": "Inactive",
+      "plan": "None"
+    }
+  ],
+  "carePlan": [
+    {
+      "id": "1601",
+      "goal": "Reduce HbA1c to below 7.0%",
+      "target": "HbA1c < 7.0%",
+      "dueDate": "2026-03-31",
+      "status": "In Progress",
+      "assignedTo": "Dr. Sarah Chen"
+    },
+    {
+      "id": "1602",
+      "goal": "Achieve blood pressure under 130/80 mmHg",
+      "target": "BP < 130/80",
+      "dueDate": "2026-02-28",
+      "status": "On Track",
+      "assignedTo": "Dr. Marcus Webb"
+    },
+    {
+      "id": "1603",
+      "goal": "Increase physical activity to 150 min/week",
+      "target": "150 min aerobic/week",
+      "dueDate": "2026-06-30",
+      "status": "In Progress",
+      "assignedTo": "Physical Therapist"
+    },
+    {
+      "id": "1604",
+      "goal": "Lose 10 lbs through dietary changes",
+      "target": "Weight 178 lbs",
+      "dueDate": "2026-04-15",
+      "status": "At Risk",
+      "assignedTo": "Nutritionist Patel"
+    },
+    {
+      "id": "1605",
+      "goal": "Complete annual eye exam for diabetic screening",
+      "target": "Ophthalmology visit completed",
+      "dueDate": "2025-12-31",
+      "status": "Completed",
+      "assignedTo": "Dr. Linda Zhao"
+    }
+  ]
+}

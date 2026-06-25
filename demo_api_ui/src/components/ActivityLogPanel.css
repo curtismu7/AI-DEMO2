@@ -1,0 +1,247 @@
+/* ─── Activity Log Panel ──────────────────────────────────────────────────── */
+.alp-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+/* ─── Toolbar ──────────────────────────────────────────────────────────────── */
+.alp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.alp-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 99px;
+  user-select: none;
+}
+
+.alp-status--live {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.alp-status--reconnecting {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.alp-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.alp-status--live .alp-status-dot {
+  animation: alp-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes alp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.alp-btn {
+  padding: 3px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.alp-btn:hover { background: #f1f5f9; }
+
+.alp-spacer { flex: 1; }
+
+/* ─── Filter bar ───────────────────────────────────────────────────────────── */
+.alp-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.alp-filter-all {
+  padding: 2px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 99px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.alp-filter-all:hover { background: #e2e8f0; }
+
+.alp-pill {
+  padding: 2px 8px;
+  border: 1.5px solid transparent;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+.alp-pill--off {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+/* ─── Per-category pill colours ────────────────────────────────────────────── */
+.alp-cat--oauth         { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.alp-cat--mcp           { background: #ede9fe; color: #4c1d95; border-color: #c4b5fd; }
+.alp-cat--token_exchange{ background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
+.alp-cat--delegation    { background: #fae8ff; color: #86198f; border-color: #e879f9; }
+.alp-cat--hitl          { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.alp-cat--authorize     { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+.alp-cat--gateway_path  { background: #ccfbf1; color: #0f766e; border-color: #5eead4; }
+.alp-cat--threshold     { background: #ffe4e6; color: #9f1239; border-color: #fda4af; }
+.alp-cat--introspection { background: #cffafe; color: #164e63; border-color: #67e8f9; }
+.alp-cat--helix         { background: #dcfce7; color: #14532d; border-color: #86efac; }
+.alp-cat--agent         { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+.alp-cat--agent_prompt  { background: #ecfccb; color: #365314; border-color: #bef264; }
+.alp-cat--session       { background: #f1f5f9; color: #334155; border-color: #94a3b8; }
+.alp-cat--jwks          { background: #f4f4f5; color: #3f3f46; border-color: #a1a1aa; }
+.alp-cat--auth_lifecycle{ background: #f9fafb; color: #374151; border-color: #9ca3af; }
+
+/* ─── Event list ───────────────────────────────────────────────────────────── */
+.alp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.alp-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* ─── Event card ───────────────────────────────────────────────────────────── */
+.alp-card {
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  border-left-width: 3px;
+  margin: 4px 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.alp-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: default;
+}
+
+.alp-card-header--expandable {
+  cursor: pointer;
+}
+
+.alp-card-header--expandable:hover {
+  background: #f8fafc;
+}
+
+.alp-card-msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.alp-row-time {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.alp-row-sev {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.alp-row-expand-icon {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.15s;
+}
+.alp-row-expand-icon--open {
+  transform: rotate(90deg);
+}
+
+/* ─── Per-category left border colours ─────────────────────────────────────── */
+.alp-cat-border--oauth          { border-left-color: #3b82f6; }
+.alp-cat-border--mcp            { border-left-color: #7c3aed; }
+.alp-cat-border--token_exchange { border-left-color: #9333ea; }
+.alp-cat-border--delegation     { border-left-color: #d946ef; }
+.alp-cat-border--hitl           { border-left-color: #f59e0b; }
+.alp-cat-border--authorize      { border-left-color: #f97316; }
+.alp-cat-border--gateway_path   { border-left-color: #14b8a6; }
+.alp-cat-border--threshold      { border-left-color: #f43f5e; }
+.alp-cat-border--introspection  { border-left-color: #06b6d4; }
+.alp-cat-border--helix          { border-left-color: #22c55e; }
+.alp-cat-border--agent          { border-left-color: #0ea5e9; }
+.alp-cat-border--agent_prompt   { border-left-color: #84cc16; }
+.alp-cat-border--session        { border-left-color: #94a3b8; }
+.alp-cat-border--jwks           { border-left-color: #a1a1aa; }
+.alp-cat-border--auth_lifecycle { border-left-color: #9ca3af; }
+.alp-cat-border--unknown        { border-left-color: #cbd5e1; }
+
+/* ─── Metadata expand ──────────────────────────────────────────────────────── */
+.alp-row-detail {
+  padding: 0 12px 8px 12px;
+}
+
+.alp-row-detail pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+  font-size: 11px;
+  color: #1e293b;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}

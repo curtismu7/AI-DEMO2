@@ -1,0 +1,19 @@
+{
+  "heroStats": {
+    "enrolledCourses": 4,
+    "creditsEarned": 78,
+    "holds": 0,
+    "standing": "Good Standing"
+  },
+  "courses": [
+    { "id": "C-CS301", "title": "Algorithms", "courseType": "Core", "credits": 4, "grade": "In Progress" },
+    { "id": "C-ENG210", "title": "Technical Writing", "courseType": "Elective", "credits": 3, "grade": "In Progress" },
+    { "id": "C-PHY150", "title": "Physics II Lab", "courseType": "Lab", "credits": 1, "grade": "In Progress" },
+    { "id": "C-HIS101", "title": "World History", "courseType": "Elective", "credits": 3, "grade": "A-" }
+  ],
+  "enrollmentHistory": [
+    { "id": "E-9001", "type": "Registration", "course": "CS301", "date": "2026-01-12", "status": "Confirmed" },
+    { "id": "E-9002", "type": "Drop", "course": "MAT220", "date": "2026-01-20", "status": "Processed" },
+    { "id": "E-9003", "type": "Grade Posted", "course": "HIS101", "date": "2026-05-15", "status": "Final" }
+  ]
+}

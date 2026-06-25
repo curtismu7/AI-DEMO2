@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/nodemon.json",
+  "watch": [
+    "server.js",
+    "routes",
+    "services",
+    "middleware",
+    "lib",
+    "config"
+  ],
+  "ext": "js,json,mjs",
+  "ignore": [
+    "data",
+    "logs",
+    "coverage",
+    "__tests__",
+    "tests",
+    "scripts",
+    "node_modules",
+    "**/*.test.js",
+    "**/*.bak"
+  ],
+  "delay": 600
+}

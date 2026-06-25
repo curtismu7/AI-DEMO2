@@ -1,0 +1,91 @@
+{
+  "id": "admin",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Admin Console",
+    "headerTitle": "Admin Console",
+    "documentTitle": "Admin Console · PingOne AI IAM Core",
+    "logoAlt": "Admin Console",
+    "tagline": "Administrative Operations",
+    "logoPath": "/super-bank-icon.png"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#1e293b",
+      "--app-primary-red-hover": "#0f172a",
+      "--app-primary-red-mid": "#334155",
+      "--app-primary-red-border": "#0f172a",
+      "--brand-dashboard-header-start": "#0f172a",
+      "--brand-dashboard-header-end": "#1e3a5f",
+      "--brand-app-shell-hero-start": "#0f172a",
+      "--brand-app-shell-hero-end": "#1e3a5f",
+      "--theme-accent": "#f59e0b",
+      "--brand-dashboard-header-text": "#f1f5f9"
+    }
+  },
+  "terminology": {
+    "account": "Account",
+    "accounts": "Accounts",
+    "accountTypes": [
+      "Checking",
+      "Savings"
+    ],
+    "transaction": "Transaction",
+    "transactions": "Transactions",
+    "transactionTypes": [
+      "Deposit",
+      "Withdrawal",
+      "Transfer"
+    ],
+    "balance": "Balance",
+    "agent": "Admin Agent",
+    "dashboard": "Admin Console",
+    "highValueAction": "Delete Customer",
+    "highValueLabel": "Destructive admin action"
+  },
+  "agent": {
+    "persona": "Admin Agent",
+    "greeting": "Hi {name}! I can look up customers, inspect their accounts and transactions, and perform administrative actions. What would you like to do?",
+    "systemPromptFlavor": "You are an administrative assistant with elevated privileges. You can look up customers, inspect accounts and transactions, freeze accounts, adjust balances, reset passwords, and delete customers. Always confirm destructive actions before executing them."
+  },
+  "dashboard": {
+    "kind": "admin",
+    "chips": [
+      { "key": "lookup_customer", "label": "Look Up Customer" },
+      { "key": "get_customer_transactions", "label": "View Transactions" },
+      { "key": "get_customer_profile", "label": "View Profile" },
+      { "key": "freeze_account", "label": "Freeze Account" },
+      { "key": "delete_customer", "label": "Delete Customer" }
+    ],
+    "hero": {
+      "cards": [
+        { "label": "Total Customers", "dataKey": "heroStats.totalCustomers", "format": "count" },
+        { "label": "Frozen Accounts", "dataKey": "heroStats.frozenAccounts", "format": "count" },
+        { "label": "Pending Reviews", "dataKey": "heroStats.pendingReviews", "format": "count" },
+        { "label": "Last Audit", "dataKey": "heroStats.lastAudit", "format": "date" }
+      ]
+    },
+    "chips10": [
+      { "id": "adm1", "label": "Look Up Customer", "message": "look up a customer", "mode": "both", "tool": "lookup_customer" },
+      { "id": "adm2", "label": "View Transactions", "message": "show last 5 transactions for this customer", "mode": "both", "tool": "get_customer_transactions" },
+      { "id": "adm3", "label": "View Profile", "message": "show full profile for this customer", "mode": "both", "tool": "get_customer_profile" },
+      { "id": "adm4", "label": "View Accounts", "message": "show all accounts for this customer", "mode": "both", "tool": "get_customer_accounts" },
+      { "id": "adm5", "label": "Freeze Account", "message": "freeze this account", "mode": "both", "tool": "freeze_account" },
+      { "id": "adm6", "label": "Adjust Balance", "message": "adjust account balance", "mode": "both", "tool": "adjust_balance" },
+      { "id": "adm7", "label": "Reset Password", "message": "reset password for this customer", "mode": "both", "tool": "reset_customer_password" },
+      { "id": "adm8", "label": "Delete Customer", "message": "delete this customer", "mode": "both", "tool": "delete_customer" }
+    ]
+  },
+  "scopes": {
+    "read": "admin:read",
+    "write": "admin:write",
+    "transfer": "transfer",
+    "featureScope": "users:manage"
+  },
+  "demoUsers": {
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

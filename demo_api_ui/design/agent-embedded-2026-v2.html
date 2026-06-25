@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Super Banking — Dashboard v2 (clean institutional)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ────────────────────────────────────────────────
+       TOKENS
+       Vertical accent cascades via --theme-accent.
+       Everything else is neutral institutional grey.
+    ──────────────────────────────────────────────── */
+    :root {
+      /* Surface */
+      --bg:         #f7f7f5;
+      --surface:    #ffffff;
+      --surface-2:  #f3f3f1;
+      --surface-3:  #ebebea;
+
+      /* Text */
+      --ink-1:   #111110;
+      --ink-2:   #4c4c48;
+      --ink-3:   #8c8c88;
+
+      /* Borders */
+      --line-1:  #e4e4e0;
+      --line-2:  #d5d5d0;
+
+      /* Accent — vertical will override this */
+      --theme-accent: #1b3a6b;
+      --accent: var(--theme-accent);
+      --accent-text: #ffffff;
+      --accent-muted: color-mix(in srgb, var(--accent) 8%, white);
+      --accent-ring:  color-mix(in srgb, var(--accent) 20%, white);
+
+      /* Semantic */
+      --positive: #1a6b49;
+      --negative: #a33020;
+
+      /* Shape */
+      --r-sm: 4px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-xl: 16px;
+
+      /* Elevation */
+      --shadow-1: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-2: 0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+      --shadow-3: 0 20px 60px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.06);
+
+      /* Dock height */
+      --dock-h: 220px;
+    }
+
+    /* ────────────────────────────────────────────────
+       RESET
+    ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--ink-1);
+      font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: calc(var(--dock-h) + 24px);
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+    ::selection { background: var(--accent-ring); }
+
+    /* ────────────────────────────────────────────────
+       TOP BAR
+    ──────────────────────────────────────────────── */
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(16px, 4vw, 48px);
+      background: var(--surface);
+      border-bottom: 1px solid var(--line-1);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: grid;
+      place-items: center;
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: .85rem;
+    }
+    .brand-name {
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: -.015em;
+    }
+    .topnav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .topnav a {
+      font-size: .84rem;
+      font-weight: 500;
+      color: var(--ink-2);
+      padding: 6px 12px;
+      border-radius: var(--r-sm);
+    }
+    .topnav a:hover { background: var(--surface-2); color: var(--ink-1); }
+    .topnav a.active {
+      color: var(--ink-1);
+      background: var(--surface-2);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line-1);
+      background: var(--surface);
+      border-radius: var(--r-sm);
+      display: grid;
+      place-items: center;
+      color: var(--ink-2);
+    }
+    .icon-btn:hover { background: var(--surface-2); color: var(--ink-1); border-color: var(--line-2); }
+    .avatar-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px 4px 4px;
+      border: 1px solid var(--line-1);
+      border-radius: 999px;
+      background: var(--surface);
+    }
+    .avatar-btn:hover { border-color: var(--line-2); background: var(--surface-2); }
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: grid;
+      place-items: center;
+      font-size: .7rem;
+      font-weight: 600;
+    }
+    .avatar-name { font-size: .82rem; font-weight: 500; color: var(--ink-2); }
+
+    /* ────────────────────────────────────────────────
+       PAGE LAYOUT
+    ──────────────────────────────────────────────── */
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: clamp(20px, 3.5vw, 40px) clamp(16px, 4vw, 48px) 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: clamp(20px, 2.5vw, 36px);
+      align-items: start;
+    }
+    @media (max-width: 900px) { .page { grid-template-columns: 1fr; } }
+    .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+    /* ────────────────────────────────────────────────
+       HERO / BALANCE
+    ──────────────────────────────────────────────── */
+    .hero {
+      padding: 0 0 20px;
+      border-bottom: 1px solid var(--line-1);
+      margin-bottom: 4px;
+    }
+    .hero-eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .62rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 10px;
+    }
+    .hero-balance {
+      font-family: "Newsreader", serif;
+      font-weight: 300;
+      font-size: clamp(2.8rem, 7vw, 4rem);
+      letter-spacing: -.04em;
+      line-height: 1;
+      color: var(--ink-1);
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-balance .cents {
+      color: var(--ink-3);
+      font-size: .5em;
+      font-weight: 400;
+    }
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 12px;
+      font-size: .82rem;
+      color: var(--ink-2);
+    }
+    .hero-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--positive);
+      font-weight: 500;
+    }
+    .hero-delta svg { width: 12px; height: 12px; }
+    .hero-spark {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 40px;
+      margin-left: auto;
+    }
+    .hero-spark span {
+      width: 7px;
+      border-radius: 2px 2px 0 0;
+      background: var(--accent);
+      opacity: .18;
+    }
+    .hero-spark span.hi { opacity: .65; }
+    .hero-spark span.cur { background: var(--accent); opacity: 1; }
+
+    /* ────────────────────────────────────────────────
+       STAT ROW
+    ──────────────────────────────────────────────── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--surface);
+      border: 1px solid var(--line-1);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-1);
+      overflow: hidden;
+    }
+    @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    .stat {
+      padding: 16px 18px;
+      border-right: 1px solid var(--line-1);
+    }
+    .stat:last-child { border-right: none; }
+    @media (max-width: 560px) {
+      .stat:nth-child(2) { border-right: none; }
+      .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid var(--line-1); }
+    }
+    .stat-label {
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-weight: 500;
+    }
+    .stat-value {
+      font-family: "Newsreader", serif;
+      font-size: 1.4rem;
+      font-weight: 400;
+      letter-spacing: -.015em;
+      font-variant-numeric: tabular-nums;
+      margin-top: 5px;
+      color: var(--ink-1);
+    }
+    .stat-value small {
+      font-size: .62em;
+      color: var(--ink-3);
+      font-family: inherit;
+    }
+
+    /* ────────────────────────────────────────────────
+       CARD SHELL
+    ──────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line-1);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-1);
+      overflow: hidden;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line-1);
+    }
+    .card-title {
+      font-size: .88rem;
+      font-weight: 600;
+      letter-spacing: -.01em;
+      color: var(--ink-1);
+    }
+    .card-action {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--accent);
+    }
+    .card-action:hover { text-decoration: underline; }
+
+    /* ────────────────────────────────────────────────
+       ACCOUNTS
+    ──────────────────────────────────────────────── */
+    .acct {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line-1);
+    }
+    .acct:last-child { border-bottom: none; }
+    .acct-id { display: flex; align-items: center; gap: 12px; }
+    .acct-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      border: 1px solid var(--line-1);
+      display: grid;
+      place-items: center;
+      color: var(--ink-3);
+    }
+    .acct-icon svg { width: 16px; height: 16px; }
+    .acct-name { font-size: .88rem; font-weight: 600; color: var(--ink-1); }
+    .acct-num {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .7rem;
+      color: var(--ink-3);
+      margin-top: 2px;
+    }
+    .acct-bal {
+      font-family: "Newsreader", serif;
+      font-size: 1.15rem;
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      color: var(--ink-1);
+    }
+
+    /* ────────────────────────────────────────────────
+       TRANSACTIONS
+    ──────────────────────────────────────────────── */
+    table.tx { width: 100%; border-collapse: collapse; }
+    .tx th {
+      text-align: left;
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-weight: 500;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--line-1);
+    }
+    .tx td { padding: 12px 18px; border-bottom: 1px solid var(--line-1); }
+    .tx tr:last-child td { border-bottom: none; }
+    .tx tr:hover td { background: var(--surface-2); }
+    .tx-name { font-size: .88rem; font-weight: 500; color: var(--ink-1); }
+    .tx-date { font-size: .8rem; color: var(--ink-3); }
+    .tx-cat {
+      display: inline-block;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .64rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line-1);
+      background: var(--surface-2);
+      color: var(--ink-2);
+    }
+    .tx-amt { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: .88rem; white-space: nowrap; }
+    .tx-amt.pos { color: var(--positive); }
+    .tx-amt.neg { color: var(--ink-1); }
+
+    /* ────────────────────────────────────────────────
+       RIGHT RAIL — TOKEN CHAIN
+    ──────────────────────────────────────────────── */
+    .rail { display: flex; flex-direction: column; gap: 20px; }
+    .chain-body { padding: 8px 18px 18px; }
+    .chain-step {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0 0;
+      position: relative;
+    }
+    .chain-step::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 24px;
+      bottom: -12px;
+      width: 1px;
+      background: var(--line-2);
+    }
+    .chain-step:last-child::before { display: none; }
+    .chain-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex: none;
+      border: 2px solid var(--line-2);
+      background: var(--surface);
+    }
+    .chain-step.done .chain-dot {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .chain-step.warn .chain-dot {
+      background: #d97706;
+      border-color: #d97706;
+    }
+    .chain-info { min-width: 0; }
+    .chain-name { font-size: .84rem; font-weight: 600; color: var(--ink-1); }
+    .chain-sub {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .65rem;
+      color: var(--ink-3);
+      margin-top: 2px;
+      word-break: break-all;
+    }
+    .chain-badge {
+      margin-left: auto;
+      align-self: flex-start;
+      margin-top: 3px;
+      flex: none;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .6rem;
+      letter-spacing: .04em;
+      padding: 2px 7px;
+      border-radius: 999px;
+    }
+    .chain-badge.ok {
+      color: var(--positive);
+      border: 1px solid color-mix(in srgb, var(--positive) 25%, white);
+      background: color-mix(in srgb, var(--positive) 6%, white);
+    }
+    .chain-badge.warn {
+      color: #a16207;
+      border: 1px solid #fde68a;
+      background: #fefce8;
+    }
+    .chain-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--line-1);
+      font-size: .76rem;
+      color: var(--ink-3);
+      background: var(--surface-2);
+    }
+    .chain-footer code {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .92em;
+      color: var(--ink-2);
+    }
+
+    /* ────────────────────────────────────────────────
+       AGENT STATUS CARD (right rail)
+    ──────────────────────────────────────────────── */
+    .agent-card-body { padding: 16px 18px; }
+    .agent-status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--positive);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 20%, white);
+    }
+    .status-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .64rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--positive);
+    }
+    .agent-name {
+      font-family: "Fraunces", serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -.015em;
+      color: var(--ink-1);
+      margin-bottom: 4px;
+    }
+    .agent-desc { font-size: .82rem; color: var(--ink-2); line-height: 1.45; }
+    .agent-meta-list {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .agent-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: .78rem;
+    }
+    .agent-meta-key { color: var(--ink-3); }
+    .agent-meta-val {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .72rem;
+      color: var(--ink-2);
+    }
+
+    /* ────────────────────────────────────────────────
+       EMBEDDED AGENT DOCK
+    ──────────────────────────────────────────────── */
+    .dock {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 40;
+      height: var(--dock-h);
+      background: var(--surface);
+      border-top: 1px solid var(--line-2);
+      box-shadow: 0 -8px 32px rgba(0,0,0,.07);
+    }
+    /* Thin accent line at top of dock */
+    .dock::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: .8;
+    }
+    .dock-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 100%;
+      display: grid;
+      grid-template-columns: 200px minmax(0, 1fr);
+      gap: clamp(16px, 2.5vw, 36px);
+    }
+    @media (max-width: 700px) { .dock-inner { grid-template-columns: 1fr; } }
+
+    /* Left: identity */
+    .dock-id {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0;
+      padding: 18px 20px 18px 0;
+      border-right: 1px solid var(--line-1);
+    }
+    @media (max-width: 700px) { .dock-id { border-right: none; border-bottom: 1px solid var(--line-1); padding: 14px 0 10px; } }
+    .dock-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .6rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 8px;
+    }
+    .dock-tag .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--positive);
+    }
+    .dock-agent-name {
+      font-family: "Fraunces", serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -.015em;
+      color: var(--ink-1);
+      margin-bottom: 3px;
+    }
+    .dock-agent-desc { font-size: .78rem; color: var(--ink-2); }
+    .dock-agent-scope {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .scope-pill {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .6rem;
+      letter-spacing: .04em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line-1);
+      background: var(--surface-2);
+      color: var(--ink-2);
+    }
+
+    /* Right: conversation area */
+    .dock-chat {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 16px 0;
+      gap: 12px;
+    }
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--ink-1);
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--line-2);
+      background: var(--surface);
+      cursor: pointer;
+      transition: background .1s, border-color .1s, color .1s;
+    }
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-muted);
+    }
+    .chip-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: .5;
+      flex: none;
+    }
+
+    /* Composer */
+    .composer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line-2);
+      border-radius: 999px;
+      background: var(--surface-2);
+      padding: 5px 5px 5px 16px;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .composer:focus-within {
+      border-color: var(--accent);
+      background: var(--surface);
+      box-shadow: 0 0 0 3px var(--accent-ring);
+    }
+    .composer-icon { color: var(--ink-3); flex: none; }
+    .composer-icon svg { width: 15px; height: 15px; }
+    .composer input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: inherit;
+      font-size: .9rem;
+      color: var(--ink-1);
+      min-width: 0;
+    }
+    .composer input::placeholder { color: var(--ink-3); }
+    .send-btn {
+      flex: none;
+      height: 38px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--accent-text);
+      font-size: .84rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: opacity .15s;
+    }
+    .send-btn:hover { opacity: .88; }
+    .send-btn svg { width: 13px; height: 13px; }
+
+    .composer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .trust-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .72rem;
+      color: var(--ink-3);
+      flex-wrap: wrap;
+    }
+    .trust-line b { font-weight: 500; color: var(--ink-2); }
+    .trust-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--line-2); }
+    .mode-toggle {
+      display: inline-flex;
+      border: 1px solid var(--line-1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .mode-toggle button {
+      border: none;
+      background: var(--surface);
+      color: var(--ink-3);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .6rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 6px 11px;
+    }
+    .mode-toggle button[aria-pressed="true"] {
+      background: var(--ink-1);
+      color: white;
+    }
+
+    /* ────────────────────────────────────────────────
+       FLOATING AGENT — FAB + PANEL
+    ──────────────────────────────────────────────── */
+    .float-root { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+    .float-root > * { pointer-events: auto; }
+
+    .float-fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      height: 52px;
+      padding: 0 20px 0 16px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "Inter", sans-serif;
+      font-size: .88rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent), var(--shadow-1);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .float-fab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow-1);
+    }
+    .fab-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+    .fab-icon svg { width: 14px; height: 14px; }
+    .fab-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6ee7a8;
+      box-shadow: 0 0 0 3px rgba(110,231,168,.3);
+    }
+
+    .float-panel {
+      position: fixed;
+      right: 24px;
+      bottom: 88px;
+      width: min(380px, calc(100vw - 32px));
+      max-height: min(540px, calc(100vh - 120px));
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--line-2);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-3);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(12px) scale(.97);
+      transform-origin: bottom right;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .float-panel::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+    .float-root.open .float-panel {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+    .float-root.open .float-fab { opacity: .7; }
+
+    .float-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line-1);
+    }
+    .float-emblem {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: grid;
+      place-items: center;
+      flex: none;
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: .84rem;
+    }
+    .float-head-text { flex: 1; min-width: 0; }
+    .float-head-name {
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--ink-1);
+      letter-spacing: -.01em;
+    }
+    .float-head-status {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .62rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--positive);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 1px;
+    }
+    .float-head-status .live {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--positive);
+    }
+    .close-btn {
+      width: 30px; height: 30px;
+      border: 1px solid var(--line-1);
+      background: var(--surface);
+      border-radius: var(--r-sm);
+      display: grid; place-items: center;
+      color: var(--ink-3);
+      flex: none;
+    }
+    .close-btn:hover { color: var(--ink-1); border-color: var(--line-2); }
+    .close-btn svg { width: 12px; height: 12px; }
+
+    .float-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .agent-msg {
+      font-size: .88rem;
+      color: var(--ink-1);
+      line-height: 1.55;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--line-1);
+      border-radius: 10px 10px 10px 2px;
+      max-width: 92%;
+    }
+    .agent-msg b { font-weight: 600; }
+    .user-msg {
+      align-self: flex-end;
+      font-size: .88rem;
+      color: var(--accent-text);
+      background: var(--accent);
+      padding: 10px 14px;
+      border-radius: 10px 10px 2px 10px;
+      max-width: 85%;
+    }
+    .float-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .float-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .8rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line-2);
+      background: var(--surface);
+      color: var(--ink-1);
+      cursor: pointer;
+    }
+    .float-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-muted);
+    }
+
+    .float-foot {
+      border-top: 1px solid var(--line-1);
+      padding: 10px 12px;
+    }
+    .float-composer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line-2);
+      border-radius: 999px;
+      background: var(--surface-2);
+      padding: 5px 5px 5px 14px;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .float-composer:focus-within {
+      border-color: var(--accent);
+      background: var(--surface);
+      box-shadow: 0 0 0 3px var(--accent-ring);
+    }
+    .float-composer input {
+      flex: 1; border: none; background: transparent; outline: none;
+      font-family: inherit; font-size: .88rem; color: var(--ink-1); min-width: 0;
+    }
+    .float-composer input::placeholder { color: var(--ink-3); }
+    .float-send {
+      flex: none;
+      width: 34px; height: 34px;
+      border: none; border-radius: 999px;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: grid; place-items: center;
+    }
+    .float-send:hover { opacity: .88; }
+    .float-send svg { width: 13px; height: 13px; }
+
+    /* ────────────────────────────────────────────────
+       PLACEMENT MODES
+    ──────────────────────────────────────────────── */
+    body[data-agent="embedded"] .dock { display: block; }
+    body[data-agent="embedded"] .float-root { display: none; }
+    body[data-agent="floating"]  { padding-bottom: 24px; }
+    body[data-agent="floating"] .dock { display: none; }
+    body[data-agent="floating"] .float-root { display: block; }
+    body[data-agent="both"] .dock { display: block; }
+    body[data-agent="both"] .float-root { display: block; }
+    body[data-agent="both"] .float-fab { bottom: calc(var(--dock-h) + 20px); }
+    body[data-agent="both"] .float-panel { bottom: calc(var(--dock-h) + 84px); }
+
+    /* ────────────────────────────────────────────────
+       DEMO CONTROLS
+    ──────────────────────────────────────────────── */
+    .demo-bar {
+      position: fixed;
+      top: 56px;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      background: var(--surface);
+      border-left: 1px solid var(--line-1);
+      border-bottom: 1px solid var(--line-1);
+      border-radius: 0 0 0 var(--r-md);
+      box-shadow: var(--shadow-1);
+    }
+    .demo-bar label {
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-weight: 500;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .demo-select {
+      font-family: inherit;
+      font-size: .78rem;
+      color: var(--ink-1);
+      border: 1px solid var(--line-2);
+      background: var(--surface-2);
+      border-radius: var(--r-sm);
+      padding: 4px 8px;
+      cursor: pointer;
+      width: 140px;
+    }
+  </style>
+</head>
+<body data-agent="embedded">
+
+<!-- Demo controls -->
+<div class="demo-bar" aria-label="Demo controls">
+  <label for="agent-mode">Agent placement</label>
+  <select id="agent-mode" class="demo-select" onchange="document.body.dataset.agent=this.value">
+    <option value="embedded">Embedded dock</option>
+    <option value="floating">Floating FAB</option>
+    <option value="both">Both</option>
+  </select>
+  <label for="vertical-select" style="margin-top:6px">Vertical accent</label>
+  <select id="vertical-select" class="demo-select" onchange="setAccent(this.value)">
+    <option value="#1b3a6b">Banking (blue)</option>
+    <option value="#0f5a4a">Healthcare (teal)</option>
+    <option value="#7c3a00">Retail (amber)</option>
+    <option value="#4a1070">Gov (purple)</option>
+  </select>
+  <label style="margin-top:6px">Float panel</label>
+  <button class="demo-select" onclick="document.querySelector('.float-root').classList.toggle('open')">Toggle open</button>
+</div>
+
+<!-- Top bar -->
+<header class="topbar" role="banner">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">SB</div>
+    <span class="brand-name">Super Banking</span>
+  </div>
+  <nav class="topnav" aria-label="Main">
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Accounts</a>
+    <a href="#">Transfers</a>
+    <a href="#">Payments</a>
+  </nav>
+  <div class="topbar-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7.5 1a4.5 4.5 0 00-4.5 4.5v3l-1 1.5h11l-1-1.5v-3A4.5 4.5 0 007.5 1zM7.5 13a1.5 1.5 0 001.5-1.5h-3A1.5 1.5 0 007.5 13z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="avatar-btn" aria-label="Account menu">
+      <div class="avatar" aria-hidden="true">JD</div>
+      <span class="avatar-name">Jane D.</span>
+    </button>
+  </div>
+</header>
+
+<!-- Main content -->
+<main class="page" role="main">
+  <div class="col">
+
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="balance-label">
+      <p class="hero-eyebrow">Total portfolio balance</p>
+      <div class="hero-balance" id="balance-label" aria-label="$128,450.32">
+        $128,450<span class="cents">.32</span>
+      </div>
+      <div class="hero-meta" aria-live="polite">
+        <span class="hero-delta" aria-label="Up 2.4% this month">
+          <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 2l4 5H2l4-5z" fill="currentColor"/></svg>
+          +2.4% this month
+        </span>
+        <span style="color:var(--ink-3)">Updated&nbsp;now</span>
+        <div class="hero-spark" aria-hidden="true">
+          <span style="height:28%"></span>
+          <span style="height:42%"></span>
+          <span style="height:35%"></span>
+          <span style="height:60%"></span>
+          <span style="height:52%"></span>
+          <span style="height:75%" class="hi"></span>
+          <span style="height:65%"></span>
+          <span style="height:80%" class="hi"></span>
+          <span style="height:100%" class="cur"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats" role="region" aria-label="Account summary">
+      <div class="stat">
+        <div class="stat-label">Checking</div>
+        <div class="stat-value">$14,220<small>.18</small></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Savings</div>
+        <div class="stat-value">$48,910<small>.00</small></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Investments</div>
+        <div class="stat-value">$61,320<small>.14</small></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Credit used</div>
+        <div class="stat-value">$4,000<small>/8,000</small></div>
+      </div>
+    </div>
+
+    <!-- Accounts -->
+    <div class="card" role="region" aria-labelledby="accounts-heading">
+      <div class="card-head">
+        <h2 class="card-title" id="accounts-heading">Accounts</h2>
+        <a href="#" class="card-action">Manage</a>
+      </div>
+      <div class="acct">
+        <div class="acct-id">
+          <div class="acct-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="4" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M1 7h14" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div class="acct-name">Everyday Checking</div>
+            <div class="acct-num">••••&nbsp;4821</div>
+          </div>
+        </div>
+        <div class="acct-bal">$14,220.18</div>
+      </div>
+      <div class="acct">
+        <div class="acct-id">
+          <div class="acct-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3l2 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div class="acct-name">High-Yield Savings</div>
+            <div class="acct-num">••••&nbsp;9302</div>
+          </div>
+        </div>
+        <div class="acct-bal">$48,910.00</div>
+      </div>
+      <div class="acct">
+        <div class="acct-id">
+          <div class="acct-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,12 6,7 9,10 14,4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div class="acct-name">Investment Portfolio</div>
+            <div class="acct-num">••••&nbsp;1107</div>
+          </div>
+        </div>
+        <div class="acct-bal">$61,320.14</div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card" role="region" aria-labelledby="tx-heading">
+      <div class="card-head">
+        <h2 class="card-title" id="tx-heading">Recent transactions</h2>
+        <a href="#" class="card-action">View all</a>
+      </div>
+      <table class="tx" aria-label="Recent transactions">
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col">Category</th>
+            <th scope="col" style="text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="tx-name">Whole Foods Market</div>
+              <div class="tx-date">Today, 11:24 am</div>
+            </td>
+            <td><span class="tx-cat">Groceries</span></td>
+            <td class="tx-amt neg">−$86.42</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="tx-name">Monthly Salary</div>
+              <div class="tx-date">Yesterday, 9:00 am</div>
+            </td>
+            <td><span class="tx-cat">Income</span></td>
+            <td class="tx-amt pos">+$6,400.00</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="tx-name">Netflix</div>
+              <div class="tx-date">May 28</div>
+            </td>
+            <td><span class="tx-cat">Subscription</span></td>
+            <td class="tx-amt neg">−$15.99</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="tx-name">Transfer to Savings</div>
+              <div class="tx-date">May 27</div>
+            </td>
+            <td><span class="tx-cat">Transfer</span></td>
+            <td class="tx-amt neg">−$2,000.00</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="tx-name">Chase Sapphire Payment</div>
+              <div class="tx-date">May 26</div>
+            </td>
+            <td><span class="tx-cat">Credit card</span></td>
+            <td class="tx-amt neg">−$412.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /col -->
+
+  <!-- Right rail -->
+  <aside class="rail" role="complementary" aria-label="Agent and security panel">
+
+    <!-- Agent identity card -->
+    <div class="card" role="region" aria-labelledby="agent-heading">
+      <div class="card-head">
+        <h2 class="card-title" id="agent-heading">Banking Agent</h2>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="status-dot" aria-hidden="true"></div>
+          <span class="status-label">Active</span>
+        </div>
+      </div>
+      <div class="agent-card-body">
+        <div class="agent-name">Super Banking Agent</div>
+        <p class="agent-desc">AI-powered assistant with read access to your accounts, balances, and transactions. Transfer requests require your confirmation.</p>
+        <div class="agent-meta-list" aria-label="Agent details">
+          <div class="agent-meta-row">
+            <span class="agent-meta-key">Framework</span>
+            <span class="agent-meta-val">LangChain</span>
+          </div>
+          <div class="agent-meta-row">
+            <span class="agent-meta-key">Model</span>
+            <span class="agent-meta-val">claude-sonnet-4-6</span>
+          </div>
+          <div class="agent-meta-row">
+            <span class="agent-meta-key">Session</span>
+            <span class="agent-meta-val">4b2a…f190</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token chain -->
+    <div class="card" role="region" aria-labelledby="chain-heading">
+      <div class="card-head">
+        <h2 class="card-title" id="chain-heading">Token chain</h2>
+      </div>
+      <div class="chain-body">
+
+        <div class="chain-step done">
+          <div class="chain-dot" aria-hidden="true"></div>
+          <div class="chain-info">
+            <div class="chain-name">User token</div>
+            <div class="chain-sub">sub: jane@demo.com · exp: 23m</div>
+          </div>
+          <div class="chain-badge ok" aria-label="Valid">Valid</div>
+        </div>
+
+        <div class="chain-step done">
+          <div class="chain-dot" aria-hidden="true"></div>
+          <div class="chain-info">
+            <div class="chain-name">RFC&nbsp;8693 exchange</div>
+            <div class="chain-sub">actor: agent-client · resource: mcp-server</div>
+          </div>
+          <div class="chain-badge ok" aria-label="OK">OK</div>
+        </div>
+
+        <div class="chain-step done">
+          <div class="chain-dot" aria-hidden="true"></div>
+          <div class="chain-info">
+            <div class="chain-name">MCP access token</div>
+            <div class="chain-sub">act.sub: agent-client · scopes: read write</div>
+          </div>
+          <div class="chain-badge ok" aria-label="act valid">act valid</div>
+        </div>
+
+        <div class="chain-step warn">
+          <div class="chain-dot" aria-hidden="true"></div>
+          <div class="chain-info">
+            <div class="chain-name">HITL gate</div>
+            <div class="chain-sub">Awaiting consent for transfer $2,000</div>
+          </div>
+          <div class="chain-badge warn" aria-label="Pending">Pending</div>
+        </div>
+
+      </div>
+      <div class="chain-footer">
+        PingOne &middot; <code>RFC 8693</code> delegation
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<!-- ─── Embedded agent dock ──────────────────────────── -->
+<section class="dock" role="complementary" aria-label="Banking agent dock">
+  <div class="dock-inner">
+
+    <!-- Identity panel -->
+    <div class="dock-id">
+      <div class="dock-tag">
+        <span class="dot" aria-hidden="true"></span>
+        Active
+      </div>
+      <div class="dock-agent-name">Banking Agent</div>
+      <p class="dock-agent-desc">Secured via PingOne &middot; RFC&nbsp;8693</p>
+      <div class="dock-agent-scope" aria-label="Granted scopes">
+        <span class="scope-pill">read</span>
+        <span class="scope-pill">write</span>
+        <span class="scope-pill">admin</span>
+      </div>
+    </div>
+
+    <!-- Chat panel -->
+    <div class="dock-chat">
+      <div class="chips-row" role="group" aria-label="Quick actions">
+        <button class="chip"><span class="chip-dot" aria-hidden="true"></span>My accounts</button>
+        <button class="chip"><span class="chip-dot" aria-hidden="true"></span>Recent transactions</button>
+        <button class="chip"><span class="chip-dot" aria-hidden="true"></span>Make a transfer</button>
+        <button class="chip"><span class="chip-dot" aria-hidden="true"></span>Check balance</button>
+      </div>
+      <div class="composer" role="group" aria-label="Message composer">
+        <div class="composer-icon" aria-hidden="true">
+          <svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 5v3l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <input type="text" placeholder="Ask me anything about your finances…" aria-label="Message to banking agent" autocomplete="off" spellcheck="false" />
+        <button class="send-btn" type="button" aria-label="Send message">
+          Send
+          <svg viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 12L12 1M12 1H5M12 1v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="composer-footer">
+        <div class="trust-line">
+          <b>PingOne</b>
+          <span class="trust-sep" aria-hidden="true"></span>
+          Delegated &middot; RFC&nbsp;8693
+          <span class="trust-sep" aria-hidden="true"></span>
+          HITL enabled
+        </div>
+        <div class="mode-toggle" role="group" aria-label="Agent mode">
+          <button aria-pressed="true">Embedded</button>
+          <button aria-pressed="false" onclick="document.body.dataset.agent='floating';document.getElementById('agent-mode').value='floating'">Float</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── Floating agent ───────────────────────────────── -->
+<div class="float-root" role="complementary" aria-label="Floating banking agent">
+  <button class="float-fab" type="button" aria-label="Open Banking Agent" onclick="this.closest('.float-root').classList.toggle('open')">
+    <div class="fab-icon" aria-hidden="true">
+      <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1a6 6 0 100 12A6 6 0 007 1zM4 7l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    Banking Agent
+    <div class="fab-pulse" aria-hidden="true"></div>
+  </button>
+
+  <div class="float-panel" role="dialog" aria-modal="true" aria-labelledby="float-panel-heading">
+    <div class="float-head">
+      <div class="float-emblem" aria-hidden="true">BA</div>
+      <div class="float-head-text">
+        <div class="float-head-name" id="float-panel-heading">Banking Agent</div>
+        <div class="float-head-status">
+          <span class="live" aria-hidden="true"></span>
+          Connected
+        </div>
+      </div>
+      <button class="close-btn" type="button" aria-label="Close panel" onclick="this.closest('.float-root').classList.remove('open')">
+        <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="float-body" aria-live="polite" aria-label="Conversation">
+      <div class="agent-msg">
+        <b>Hello, Jane.</b> I have read access to your accounts and can help with balance checks, transaction history, and transfers — all requiring your approval.
+      </div>
+      <div class="float-chips" role="group" aria-label="Quick actions">
+        <button class="float-chip">My balance</button>
+        <button class="float-chip">Recent transfers</button>
+        <button class="float-chip">Pay a bill</button>
+      </div>
+      <div class="user-msg">Show me my savings account balance</div>
+      <div class="agent-msg">Your <b>High-Yield Savings</b> (••••&nbsp;9302) has a current balance of <b>$48,910.00</b>. Your rate is 4.75% APY.</div>
+    </div>
+
+    <div class="float-foot">
+      <div class="float-composer" role="group" aria-label="Message composer">
+        <input type="text" placeholder="Ask about your finances…" aria-label="Message to banking agent" autocomplete="off" spellcheck="false" />
+        <button class="float-send" type="button" aria-label="Send message">
+          <svg viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 12L12 1M12 1H5M12 1v7" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setAccent(hex) {
+    document.documentElement.style.setProperty('--theme-accent', hex);
+    document.documentElement.style.setProperty('--accent', 'var(--theme-accent)');
+  }
+</script>
+</body>
+</html>

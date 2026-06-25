@@ -1,0 +1,1621 @@
+openapi: 3.0.3
+info:
+  title: Banking Demo API
+  description: |
+    REST API for banking operations with PingOne authentication and RFC 8693 token exchange.
+    
+    ## Authentication
+    
+    This API uses OAuth 2.0 with JWT tokens. Include the token in the Authorization header:
+    
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Token Exchange
+    
+    The API supports RFC 8693 token exchange for delegated access. See the token exchange endpoints for details.
+    
+    ## Rate Limiting
+    
+    API requests are rate limited to 100 requests per minute per authenticated user.
+    
+    ## Errors
+    
+    The API uses standard HTTP status codes and returns detailed error responses in JSON format.
+  version: 1.0.0
+  contact:
+    name: Banking Demo Team
+    email: support@banking-demo.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Development server
+  - url: https://banking-api-demo.vercel.app
+    description: Production server
+  - url: https://staging-banking-api.vercel.app
+    description: Staging server
+
+tags:
+  - name: Authentication
+    description: OAuth 2.0 authentication and token management
+  - name: Accounts
+    description: Bank account management and operations
+  - name: Transactions
+    description: Transaction management and history
+  - name: Token Exchange
+    description: RFC 8693 token exchange operations
+  - name: Health
+    description: Health check and monitoring endpoints
+
+paths:
+  /auth/authorize:
+    get:
+      summary: Initiate OAuth authorization
+      description: |
+        Initiates the OAuth 2.0 authorization code flow with PKCE.
+        Redirects the user to PingOne for authentication.
+        
+        ## Required Parameters
+        
+        - `response_type`: Must be "code"
+        - `client_id`: Your application's client ID
+        - `redirect_uri`: Where to redirect after authentication
+        - `scope`: Space-separated list of requested scopes
+        - `state`: Random string to prevent CSRF attacks
+        - `code_challenge`: PKCE code challenge
+        - `code_challenge_method`: Must be "S256"
+        
+        ## Example
+        
+        ```
+        GET /auth/authorize?response_type=code&client_id=your-client-id&redirect_uri=https://your-app.com/callback&scope=banking:accounts:read&state=random-string&code_challenge=your-challenge&code_challenge_method=S256
+        ```
+      tags:
+        - Authentication
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [code]
+          example: code
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "your-client-id"
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+          example: "https://your-app.com/callback"
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "banking:accounts:read banking:transactions:read"
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "random-state-string"
+        - name: code_challenge
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "your-pkce-challenge"
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S256]
+          example: S256
+        - name: acr_values
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Step-up authentication request
+          example: "urn:pingone:acr:mfa"
+        - name: login_hint
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+          description: User's email for pre-fill
+          example: "user@example.com"
+      responses:
+        '302':
+          description: Redirect to PingOne authorization
+          headers:
+            Location:
+              description: Redirect URL to PingOne
+              schema:
+                type: string
+                format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/token:
+    post:
+      summary: Exchange authorization code for tokens
+      description: |
+        Exchanges an authorization code for JWT access and refresh tokens.
+        This endpoint implements the OAuth 2.0 authorization code flow with PKCE.
+        
+        ## Request Body
+        
+        The request must be URL-encoded with the following parameters:
+        
+        - `grant_type`: Must be "authorization_code"
+        - `code`: Authorization code received from /auth/authorize
+        - `redirect_uri`: Must match the redirect_uri used in the authorize request
+        - `client_id`: Your application's client ID
+        - `client_secret`: Your application's client secret
+        - `code_verifier`: PKCE code verifier
+        
+        ## Response
+        
+        Returns JWT tokens:
+        - `access_token`: JWT access token for API calls
+        - `refresh_token`: JWT refresh token for getting new access tokens
+        - `id_token`: JWT ID token with user information
+        - `token_type`: Always "Bearer"
+        - `expires_in`: Token expiration time in seconds
+        - `scope`: Granted scopes
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - code
+                - redirect_uri
+                - client_id
+                - client_secret
+                - code_verifier
+              properties:
+                grant_type:
+                  type: string
+                  enum: [authorization_code]
+                  example: authorization_code
+                code:
+                  type: string
+                  description: Authorization code from the authorize endpoint
+                  example: "auth-code-123"
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: Must match the original redirect_uri
+                  example: "https://your-app.com/callback"
+                client_id:
+                  type: string
+                  description: Your application's client ID
+                  example: "your-client-id"
+                client_secret:
+                  type: string
+                  description: Your application's client secret
+                  example: "your-client-secret"
+                code_verifier:
+                  type: string
+                  description: PKCE code verifier
+                  example: "your-code-verifier"
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                success:
+                  summary: Successful token exchange
+                  value:
+                    access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    token_type: Bearer
+                    expires_in: 3600
+                    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    scope: "banking:accounts:read banking:transactions:read"
+                    id_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/token-exchange:
+    post:
+      summary: Exchange tokens using RFC 8693
+      description: |
+        Exchanges tokens according to RFC 8693 Token Exchange.
+        Supports delegation and actor token patterns.
+        
+        ## Use Cases
+        
+        - **Delegation**: Exchange a user token for a delegated token with limited scopes
+        - **Actor Token**: Exchange an agent token for a token that can act on behalf of a user
+        - **Multi-hop**: Support multiple levels of delegation
+        
+        ## Request Parameters
+        
+        - `grant_type`: Must be "urn:ietf:params:oauth:grant-type:token-exchange"
+        - `subject_token`: The token being exchanged
+        - `subject_token_type`: Type of subject token (usually "urn:ietf:params:oauth:token-type:access_token")
+        - `actor_token`: Optional actor token for delegation
+        - `actor_token_type`: Type of actor token
+        - `requested_token_type`: Type of token being requested
+        - `resource`: Resource URI for RFC 8707 resource indicators
+        - `audience`: Audience for the token
+        - `scope`: Requested scopes
+      tags:
+        - Token Exchange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenExchangeRequest'
+            examples:
+              delegation:
+                summary: Token delegation
+                value:
+                  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
+                  subject_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  subject_token_type: "urn:ietf:params:oauth:token-type:access_token"
+                  requested_token_type: "urn:ietf:params:oauth:token-type:access_token"
+                  scope: "banking:accounts:read"
+                  resource: "https://api.banking-demo.com"
+              actor:
+                summary: Actor token exchange
+                value:
+                  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
+                  subject_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  subject_token_type: "urn:ietf:params:oauth:token-type:access_token"
+                  actor_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  actor_token_type: "urn:ietf:params:oauth:token-type:access_token"
+                  requested_token_type: "urn:ietf:params:oauth:token-type:access_token"
+                  scope: "banking:accounts:read banking:transactions:read"
+                  audience: "https://api.banking-demo.com"
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenExchangeResponse'
+              examples:
+                success:
+                  summary: Successful token exchange
+                  value:
+                    access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    token_type: Bearer
+                    expires_in: 3600
+                    scope: "banking:accounts:read"
+                    issued_token_type: "urn:ietf:params:oauth:token-type:access_token"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: |
+        Uses a refresh token to obtain a new access token.
+        The refresh token must be valid and not expired.
+        
+        ## Request
+        
+        - `grant_type`: Must be "refresh_token"
+        - `refresh_token`: The refresh token received from the original token exchange
+        - `client_id`: Your application's client ID
+        - `client_secret`: Your application's client secret
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - refresh_token
+                - client_id
+                - client_secret
+              properties:
+                grant_type:
+                  type: string
+                  enum: [refresh_token]
+                  example: refresh_token
+                refresh_token:
+                  type: string
+                  description: Refresh token from original token exchange
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                client_id:
+                  type: string
+                  description: Your application's client ID
+                  example: "your-client-id"
+                client_secret:
+                  type: string
+                  description: Your application's client secret
+                  example: "your-client-secret"
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/revoke:
+    post:
+      summary: Revoke token
+      description: |
+        Revokes an access or refresh token according to RFC 7009.
+        The token cannot be used after revocation.
+        
+        ## Request
+        
+        - `token`: The token to revoke
+        - `token_type_hint`: Optional hint about the token type
+        - `client_id`: Your application's client ID
+        - `client_secret`: Your application's client secret
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+                - client_id
+                - client_secret
+              properties:
+                token:
+                  type: string
+                  description: Token to revoke (access or refresh token)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type_hint:
+                  type: string
+                  enum: [access_token, refresh_token]
+                  description: Optional hint about the token type
+                  example: access_token
+                client_id:
+                  type: string
+                  description: Your application's client ID
+                  example: "your-client-id"
+                client_secret:
+                  type: string
+                  description: Your application's client secret
+                  example: "your-client-secret"
+      responses:
+        '200':
+          description: Token revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "revoked"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts:
+    get:
+      summary: Get user accounts
+      description: |
+        Retrieves all bank accounts associated with the authenticated user.
+        Requires the `banking:accounts:read` scope.
+        
+        ## Response
+        
+        Returns an array of account objects with:
+        - Account ID and type
+        - Current balance
+        - Account status
+        - Account metadata
+      tags:
+        - Accounts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Accounts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountsResponse'
+              examples:
+                success:
+                  summary: Successful accounts retrieval
+                  value:
+                    accounts:
+                      - id: "acc-123"
+                        type: "checking"
+                        name: "Primary Checking"
+                        balance: 1250.75
+                        currency: "USD"
+                        status: "active"
+                        created_at: "2023-01-15T10:30:00Z"
+                        last_updated: "2023-04-07T15:22:30Z"
+                      - id: "acc-456"
+                        type: "savings"
+                        name: "High-Yield Savings"
+                        balance: 5000.00
+                        currency: "USD"
+                        status: "active"
+                        created_at: "2023-02-20T14:15:00Z"
+                        last_updated: "2023-04-07T15:22:30Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/{accountId}:
+    get:
+      summary: Get account details
+      description: |
+        Retrieves detailed information for a specific account.
+        Requires the `banking:accounts:read` scope.
+        
+        ## Response
+        
+        Returns detailed account information including:
+        - Account details and metadata
+        - Transaction history summary
+        - Account limits and restrictions
+        - Recent activity
+      tags:
+        - Accounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the account to retrieve
+          example: "acc-123"
+      responses:
+        '200':
+          description: Account details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+              examples:
+                success:
+                  summary: Successful account retrieval
+                  value:
+                    account:
+                      id: "acc-123"
+                      type: "checking"
+                      name: "Primary Checking"
+                      balance: 1250.75
+                      currency: "USD"
+                      status: "active"
+                      created_at: "2023-01-15T10:30:00Z"
+                      last_updated: "2023-04-07T15:22:30Z"
+                      account_number: "****1234"
+                      routing_number: "****5678"
+                      limits:
+                        daily_withdrawal: 1000.00
+                        daily_deposit: 5000.00
+                        transaction_limit: 500.00
+                      metadata:
+                        account_holder: "John Doe"
+                        branch: "Main Street Branch"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/{accountId}/balance:
+    get:
+      summary: Get account balance
+      description: |
+        Retrieves the current balance for a specific account.
+        Requires the `banking:accounts:read` scope.
+        
+        ## Response
+        
+        Returns the current balance including:
+        - Available balance
+        - Pending balance
+        - Currency information
+        - Last updated timestamp
+      tags:
+        - Accounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the account
+          example: "acc-123"
+      responses:
+        '200':
+          description: Balance retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+              examples:
+                success:
+                  summary: Successful balance retrieval
+                  value:
+                    account_id: "acc-123"
+                    available_balance: 1250.75
+                    pending_balance: 1325.75
+                    currency: "USD"
+                    last_updated: "2023-04-07T15:22:30Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /transactions:
+    get:
+      summary: Get transaction history
+      description: |
+        Retrieves transaction history for the authenticated user.
+        Requires the `banking:transactions:read` scope.
+        
+        ## Parameters
+        
+        - `account_id`: Optional account ID to filter transactions
+        - `limit`: Maximum number of transactions to return (default: 50)
+        - `offset`: Number of transactions to skip (default: 0)
+        - `from_date`: Filter transactions from this date
+        - `to_date`: Filter transactions to this date
+        - `type`: Filter by transaction type (credit/debit)
+        
+        ## Response
+        
+        Returns paginated transaction history with:
+        - Transaction details
+        - Pagination information
+        - Filtering metadata
+      tags:
+        - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: account_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter transactions by account ID
+          example: "acc-123"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of transactions to return
+          example: 25
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of transactions to skip
+          example: 0
+        - name: from_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Filter transactions from this date
+          example: "2023-04-01T00:00:00Z"
+        - name: to_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Filter transactions to this date
+          example: "2023-04-07T23:59:59Z"
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [credit, debit]
+          description: Filter by transaction type
+          example: "debit"
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionsResponse'
+              examples:
+                success:
+                  summary: Successful transactions retrieval
+                  value:
+                    transactions:
+                      - id: "txn-789"
+                        account_id: "acc-123"
+                        type: "debit"
+                        amount: 50.00
+                        currency: "USD"
+                        description: "Coffee Shop"
+                        date: "2023-04-07T14:30:00Z"
+                        status: "completed"
+                        category: "food"
+                        merchant: "Coffee Shop Inc"
+                        metadata:
+                          location: "New York, NY"
+                    pagination:
+                      total: 150
+                      limit: 50
+                      offset: 0
+                      has_more: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /transactions:
+    post:
+      summary: Create transaction
+      description: |
+        Creates a new transaction (debit or credit).
+        Requires the `banking:transactions:write` scope.
+        
+        ## Request
+        
+        - `account_id`: Account to create transaction for
+        - `type`: Transaction type (credit/debit)
+        - `amount`: Transaction amount
+        - `description`: Transaction description
+        - `category`: Optional transaction category
+        - `metadata`: Optional transaction metadata
+        
+        ## Response
+        
+        Returns the created transaction details including:
+        - Transaction ID
+        - Processing status
+        - Updated account balance
+      tags:
+        - Transactions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+            examples:
+              debit:
+                summary: Create debit transaction
+                value:
+                  account_id: "acc-123"
+                  type: "debit"
+                  amount: 25.50
+                  description: "Lunch at restaurant"
+                  category: "food"
+                  metadata:
+                    merchant: "Restaurant Corp"
+                    location: "New York, NY"
+              credit:
+                summary: Create credit transaction
+                value:
+                  account_id: "acc-123"
+                  type: "credit"
+                  amount: 1000.00
+                  description: "Salary deposit"
+                  category: "income"
+                  metadata:
+                    employer: "Tech Corp"
+                    payment_type: "direct_deposit"
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+              examples:
+                success:
+                  summary: Successful transaction creation
+                  value:
+                    transaction:
+                      id: "txn-456"
+                      account_id: "acc-123"
+                      type: "debit"
+                      amount: 25.50
+                      currency: "USD"
+                      description: "Lunch at restaurant"
+                      date: "2023-04-07T16:45:00Z"
+                      status: "pending"
+                      category: "food"
+                      merchant: "Restaurant Corp"
+                      metadata:
+                        location: "New York, NY"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /transactions/{transactionId}:
+    get:
+      summary: Get transaction details
+      description: |
+        Retrieves detailed information for a specific transaction.
+        Requires the `banking:transactions:read` scope.
+        
+        ## Response
+        
+        Returns complete transaction details including:
+        - Transaction metadata
+        - Processing history
+        - Related account information
+      tags:
+        - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the transaction
+          example: "txn-789"
+      responses:
+        '200':
+          description: Transaction details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+              examples:
+                success:
+                  summary: Successful transaction retrieval
+                  value:
+                    transaction:
+                      id: "txn-789"
+                      account_id: "acc-123"
+                      type: "debit"
+                      amount: 50.00
+                      currency: "USD"
+                      description: "Coffee Shop"
+                      date: "2023-04-07T14:30:00Z"
+                      status: "completed"
+                      category: "food"
+                      merchant: "Coffee Shop Inc"
+                      metadata:
+                        location: "New York, NY"
+                        receipt_number: "R-12345"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /health:
+    get:
+      summary: Health check
+      description: |
+        Basic health check endpoint for monitoring and load balancers.
+        Returns service status and basic metrics.
+        
+        ## Response
+        
+        Returns health status including:
+        - Service status
+        - Database connectivity
+        - External service status
+        - Version information
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Service is healthy
+                  value:
+                    status: "healthy"
+                    timestamp: "2023-04-07T16:45:00Z"
+                    version: "1.0.0"
+                    services:
+                      database: "healthy"
+                      pingone: "healthy"
+                      redis: "healthy"
+                    uptime: 86400
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unhealthy:
+                  summary: Service is unhealthy
+                  value:
+                    status: "unhealthy"
+                    timestamp: "2023-04-07T16:45:00Z"
+                    version: "1.0.0"
+                    services:
+                      database: "unhealthy"
+                      pingone: "healthy"
+                      redis: "healthy"
+                    uptime: 86400
+                    error: "Database connection failed"
+
+  /health/ready:
+    get:
+      summary: Readiness probe
+      description: |
+        Kubernetes readiness probe endpoint.
+        Returns whether the service is ready to accept traffic.
+        
+        ## Response
+        
+        Returns readiness status including:
+        - Service readiness
+        - Dependency status
+        - Configuration status
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              examples:
+                ready:
+                  summary: Service is ready
+                  value:
+                    ready: true
+                    timestamp: "2023-04-07T16:45:00Z"
+                    checks:
+                      database: "ready"
+                      pingone: "ready"
+                      configuration: "ready"
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              examples:
+                not_ready:
+                  summary: Service is not ready
+                  value:
+                    ready: false
+                    timestamp: "2023-04-07T16:45:00Z"
+                    checks:
+                      database: "ready"
+                      pingone: "not_ready"
+                      configuration: "ready"
+                    error: "PingOne API not responding"
+
+  /health/live:
+    get:
+      summary: Liveness probe
+      description: |
+        Kubernetes liveness probe endpoint.
+        Returns whether the service is alive.
+        
+        ## Response
+        
+        Returns liveness status:
+        - Service liveness
+        - Basic process information
+        - Last activity timestamp
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+              examples:
+                alive:
+                  summary: Service is alive
+                  value:
+                    alive: true
+                    timestamp: "2023-04-07T16:45:00Z"
+                    uptime: 86400
+                    last_activity: "2023-04-07T16:44:30Z"
+        '503':
+          description: Service is not alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+              examples:
+                not_alive:
+                  summary: Service is not alive
+                  value:
+                    alive: false
+                    timestamp: "2023-04-07T16:45:00Z"
+                    uptime: 86400
+                    last_activity: "2023-04-07T16:30:00Z"
+                    error: "Service not responding"
+
+components:
+  schemas:
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: JWT access token for API calls
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+          example: 3600
+        refresh_token:
+          type: string
+          description: JWT refresh token for getting new access tokens
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        scope:
+          type: string
+          description: Granted scopes
+          example: "banking:accounts:read banking:transactions:read"
+        id_token:
+          type: string
+          description: JWT ID token with user information
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+
+    TokenExchangeRequest:
+      type: object
+      required:
+        - grant_type
+        - subject_token
+        - subject_token_type
+      properties:
+        grant_type:
+          type: string
+          enum: ["urn:ietf:params:oauth:grant-type:token-exchange"]
+          description: OAuth grant type for token exchange
+          example: "urn:ietf:params:oauth:grant-type:token-exchange"
+        subject_token:
+          type: string
+          description: The token being exchanged
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        subject_token_type:
+          type: string
+          enum: ["urn:ietf:params:oauth:token-type:access_token"]
+          description: Type of subject token
+          example: "urn:ietf:params:oauth:token-type:access_token"
+        actor_token:
+          type: string
+          description: Optional actor token for delegation
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        actor_token_type:
+          type: string
+          enum: ["urn:ietf:params:oauth:token-type:access_token"]
+          description: Type of actor token
+          example: "urn:ietf:params:oauth:token-type:access_token"
+        requested_token_type:
+          type: string
+          enum: ["urn:ietf:params:oauth:token-type:access_token"]
+          description: Type of token being requested
+          example: "urn:ietf:params:oauth:token-type:access_token"
+        resource:
+          type: string
+          format: uri
+          description: Resource URI for RFC 8707 resource indicators
+          example: "https://api.banking-demo.com"
+        audience:
+          type: string
+          description: Audience for the token
+          example: "https://api.banking-demo.com"
+        scope:
+          type: string
+          description: Requested scopes
+          example: "banking:accounts:read banking:transactions:read"
+
+    TokenExchangeResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - issued_token_type
+      properties:
+        access_token:
+          type: string
+          description: Exchanged access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+          example: 3600
+        scope:
+          type: string
+          description: Granted scopes
+          example: "banking:accounts:read"
+        issued_token_type:
+          type: string
+          description: Type of token issued
+          example: "urn:ietf:params:oauth:token-type:access_token"
+        refresh_token:
+          type: string
+          description: Refresh token (if applicable)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    AccountsResponse:
+      type: object
+      required:
+        - accounts
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+          description: Array of user accounts
+
+    Account:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - balance
+        - currency
+        - status
+      properties:
+        id:
+          type: string
+          description: Account ID
+          example: "acc-123"
+        type:
+          type: string
+          enum: [checking, savings, credit, investment]
+          description: Account type
+          example: "checking"
+        name:
+          type: string
+          description: Account name
+          example: "Primary Checking"
+        balance:
+          type: number
+          format: double
+          description: Account balance
+          example: 1250.75
+        currency:
+          type: string
+          description: Currency code
+          example: "USD"
+        status:
+          type: string
+          enum: [active, inactive, frozen, closed]
+          description: Account status
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation date
+          example: "2023-01-15T10:30:00Z"
+        last_updated:
+          type: string
+          format: date-time
+          description: Last update date
+          example: "2023-04-07T15:22:30Z"
+
+    AccountResponse:
+      type: object
+      required:
+        - account
+      properties:
+        account:
+          $ref: '#/components/schemas/Account'
+
+    BalanceResponse:
+      type: object
+      required:
+        - account_id
+        - available_balance
+        - currency
+        - last_updated
+      properties:
+        account_id:
+          type: string
+          description: Account ID
+          example: "acc-123"
+        available_balance:
+          type: number
+          format: double
+          description: Available balance
+          example: 1250.75
+        pending_balance:
+          type: number
+          format: double
+          description: Pending balance
+          example: 1325.75
+        currency:
+          type: string
+          description: Currency code
+          example: "USD"
+        last_updated:
+          type: string
+          format: date-time
+          description: Last update date
+          example: "2023-04-07T15:22:30Z"
+
+    TransactionsResponse:
+      type: object
+      required:
+        - transactions
+        - pagination
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+          description: Array of transactions
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Transaction:
+      type: object
+      required:
+        - id
+        - account_id
+        - type
+        - amount
+        - currency
+        - date
+        - status
+      properties:
+        id:
+          type: string
+          description: Transaction ID
+          example: "txn-789"
+        account_id:
+          type: string
+          description: Account ID
+          example: "acc-123"
+        type:
+          type: string
+          enum: [credit, debit]
+          description: Transaction type
+          example: "debit"
+        amount:
+          type: number
+          format: double
+          description: Transaction amount
+          example: 50.00
+        currency:
+          type: string
+          description: Currency code
+          example: "USD"
+        description:
+          type: string
+          description: Transaction description
+          example: "Coffee Shop"
+        date:
+          type: string
+          format: date-time
+          description: Transaction date
+          example: "2023-04-07T14:30:00Z"
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: Transaction status
+          example: "completed"
+        category:
+          type: string
+          description: Transaction category
+          example: "food"
+        merchant:
+          type: string
+          description: Merchant name
+          example: "Coffee Shop Inc"
+        metadata:
+          type: object
+          description: Additional transaction metadata
+          example:
+            location: "New York, NY"
+            receipt_number: "R-12345"
+
+    TransactionResponse:
+      type: object
+      required:
+        - transaction
+      properties:
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - account_id
+        - type
+        - amount
+        - description
+      properties:
+        account_id:
+          type: string
+          description: Account ID
+          example: "acc-123"
+        type:
+          type: string
+          enum: [credit, debit]
+          description: Transaction type
+          example: "debit"
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Transaction amount
+          example: 25.50
+        description:
+          type: string
+          description: Transaction description
+          example: "Lunch at restaurant"
+        category:
+          type: string
+          description: Transaction category
+          example: "food"
+        metadata:
+          type: object
+          description: Additional transaction metadata
+          example:
+            merchant: "Restaurant Corp"
+            location: "New York, NY"
+
+    Pagination:
+      type: object
+      required:
+        - total
+        - limit
+        - offset
+        - has_more
+      properties:
+        total:
+          type: integer
+          description: Total number of transactions
+          example: 150
+        limit:
+          type: integer
+          description: Number of transactions returned
+          example: 50
+        offset:
+          type: integer
+          description: Number of transactions skipped
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether there are more transactions
+          example: true
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Service health status
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+          example: "2023-04-07T16:45:00Z"
+        version:
+          type: string
+          description: Service version
+          example: "1.0.0"
+        services:
+          type: object
+          description: Status of external services
+          example:
+            database: "healthy"
+            pingone: "healthy"
+            redis: "healthy"
+        uptime:
+          type: integer
+          description: Service uptime in seconds
+          example: 86400
+        error:
+          type: string
+          description: Error message if unhealthy
+          example: "Database connection failed"
+
+    ReadinessResponse:
+      type: object
+      required:
+        - ready
+        - timestamp
+        - checks
+      properties:
+        ready:
+          type: boolean
+          description: Service readiness status
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Readiness check timestamp
+          example: "2023-04-07T16:45:00Z"
+        checks:
+          type: object
+          description: Status of readiness checks
+          example:
+            database: "ready"
+            pingone: "ready"
+            configuration: "ready"
+        error:
+          type: string
+          description: Error message if not ready
+          example: "PingOne API not responding"
+
+    LivenessResponse:
+      type: object
+      required:
+        - alive
+        - timestamp
+      properties:
+        alive:
+          type: boolean
+          description: Service liveness status
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Liveness check timestamp
+          example: "2023-04-07T16:45:00Z"
+        uptime:
+          type: integer
+          description: Service uptime in seconds
+          example: 86400
+        last_activity:
+          type: string
+          format: date-time
+          description: Last activity timestamp
+          example: "2023-04-07T16:44:30Z"
+        error:
+          type: string
+          description: Error message if not alive
+          example: "Service not responding"
+
+    Error:
+      type: object
+      required:
+        - error
+        - error_description
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "invalid_request"
+        error_description:
+          type: string
+          description: Human-readable error description
+          example: "The request is missing a required parameter"
+        error_code:
+          type: integer
+          description: Machine-readable error code
+          example: 400
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-04-07T16:45:00Z"
+        request_id:
+          type: string
+          description: Request ID for tracking
+          example: "req-123456"
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid parameters or request body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalid_params:
+              summary: Invalid parameters
+              value:
+                error: "invalid_request"
+                error_description: "The request is missing a required parameter"
+                error_code: 400
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalid_token:
+              summary: Invalid token
+              value:
+                error: "unauthorized"
+                error_description: "The provided token is invalid or expired"
+                error_code: 401
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            insufficient_scope:
+              summary: Insufficient scope
+              value:
+                error: "insufficient_scope"
+                error_description: "The token does not have the required scope"
+                error_code: 403
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+    NotFound:
+      description: Not found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            not_found:
+              summary: Resource not found
+              value:
+                error: "not_found"
+                error_description: "The requested resource does not exist"
+                error_code: 404
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+    UnprocessableEntity:
+      description: Unprocessable entity - Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation_failed:
+              summary: Validation failed
+              value:
+                error: "validation_failed"
+                error_description: "The request data failed validation"
+                error_code: 422
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            server_error:
+              summary: Internal server error
+              value:
+                error: "server_error"
+                error_description: "An internal server error occurred"
+                error_code: 500
+                timestamp: "2023-04-07T16:45:00Z"
+                request_id: "req-123456"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token authentication. Include the token in the Authorization header:
+        
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+
+security:
+  - BearerAuth: []

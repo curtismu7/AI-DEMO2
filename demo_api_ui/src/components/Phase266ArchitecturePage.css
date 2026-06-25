@@ -1,0 +1,177 @@
+/* Phase266ArchitecturePage.css — Mermaid-rendered three-path architecture page */
+
+.p266-arch-page {
+  padding: 1.5rem 2rem 4rem;
+  background: #f8fafc;
+  min-height: calc(100vh - 64px);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  color: #1f2937;
+}
+
+.p266-arch-header {
+  max-width: 1280px;
+  margin: 0 auto 1.5rem;
+}
+
+.p266-arch-eyebrow {
+  display: inline-block;
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+
+.p266-arch-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 6px 0 4px 0;
+}
+
+.p266-arch-subtitle {
+  font-size: 15px;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.p266-arch-diagram-wrapper {
+  max-width: 1480px;
+  margin: 0 auto 2rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.p266-arch-diagram {
+  display: flex;
+  justify-content: center;
+}
+
+.p266-arch-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.p266-arch-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.p266-arch-spec-section,
+.p266-arch-notes {
+  max-width: 1280px;
+  margin: 0 auto 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 22px 26px;
+}
+
+.p266-arch-spec-section h2,
+.p266-arch-notes h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+}
+
+.p266-arch-spec-intro {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 0 0 16px 0;
+  line-height: 1.55;
+}
+
+.p266-arch-spec-list {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 2fr;
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.p266-arch-spec-row {
+  display: contents;
+}
+
+.p266-arch-spec-list dt {
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+  padding: 6px 10px;
+  background: #eff6ff;
+  border-radius: 4px;
+  align-self: start;
+}
+
+.p266-arch-spec-list dd {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.p266-arch-notes ul {
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+
+.p266-arch-notes li {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.p266-arch-notes li:last-child {
+  margin-bottom: 0;
+}
+
+.p266-arch-notes code {
+  background: #f3f4f6;
+  color: #1f2937;
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── PathFilterBar ─────────────────────────────────────────────── */
+
+/* Wrapper layout — button styles come from DiagramControls.css (.pfb-*) */
+.p266-filter-bar {
+  max-width: 1280px;
+  margin: 0 auto 1.5rem;
+}
+
+/* ── Path dimming ───────────────────────────────────────────────── */
+
+/* When a path is selected, dim all tagged nodes that are NOT shared */
+.p266-path-active [data-path]:not([data-path="shared"]) {
+  opacity: 0.15;
+  transition: opacity 0.2s ease;
+}
+
+/* Un-dim nodes that belong to the selected path */
+.p266-path-active[data-selected-path="A"] [data-path="A"],
+.p266-path-active[data-selected-path="B"] [data-path="B"],
+.p266-path-active[data-selected-path="C"] [data-path="C"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p266-path-active [data-path] { transition: none; }
+}

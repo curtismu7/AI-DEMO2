@@ -1,0 +1,227 @@
+<mxfile host="app.diagrams.net" version="21.0.0" pages="1">
+  <diagram id="bx-agent-flow" name="Super Banking Agent Flow">
+    <mxGraphModel dx="1600" dy="900" grid="0" gridSize="10" guides="0" tooltips="1" connect="0" arrows="0" fold="0" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ─── PAGE BACKGROUND ─── -->
+        <mxCell id="bg" value="" style="fillColor=#080818;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1600" height="900" as="geometry" />
+        </mxCell>
+
+        <!-- ─── TITLE ─── -->
+        <mxCell id="title" value="Super Banking — AI Banking Agent" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="300" y="14" width="860" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle_right" value="Banking Tools" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="14" width="200" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ─── USERS ─── -->
+        <mxCell id="users_icon" value="" style="shape=mxgraph.cisco.users.users;html=1;fillColor=#ffffff;strokeColor=none;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="28" y="330" width="90" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="users_lbl" value="Users" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=13;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="28" y="424" width="90" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ─── TRUST BOUNDARY BAR ─── -->
+        <mxCell id="trust_bar" value="" style="fillColor=#c41e3a;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="204" y="60" width="24" height="780" as="geometry" />
+        </mxCell>
+        <mxCell id="trust_lbl" value="Trust Boundary" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#ffffff;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="140" y="392" width="152" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ─── BFF + LANGCHAIN AGENT ─── -->
+        <mxCell id="agent_bg" value="" style="rounded=2;whiteSpace=wrap;html=1;fillColor=#111130;strokeColor=#e3002b;strokeWidth=3;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="276" y="268" width="248" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_robot" value="" style="shape=mxgraph.cisco.servers.standard_server;html=1;fillColor=#e3002b;strokeColor=#e3002b;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="354" y="278" width="52" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_name" value="LangChain Agent" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="276" y="350" width="248" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_sub" value="banking_api_server  ·  Express BFF" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=11;fontStyle=0;fontColor=#aaaaaa;" vertex="1" parent="1">
+          <mxGeometry x="276" y="373" width="248" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_sub2" value="Vercel · Node.js" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontStyle=2;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="276" y="392" width="248" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Agent Certificate badge -->
+        <mxCell id="agent_cert" value="Agent Certificate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0d1020;strokeColor=#c41e3a;strokeWidth=1;strokeDasharray=4 4;fontColor=#cccccc;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="316" y="486" width="168" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ─── PINGONE AS ─── -->
+        <mxCell id="pingone_as" value="&lt;b style=&quot;font-size:15px;&quot;&gt;Ping Identity&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;color:#ffbbbb;&quot;&gt;PingOne OAuth AS / IdP&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c41e3a;strokeColor=#e3002b;strokeWidth=2;fontColor=#ffffff;fontSize=13;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="46" width="210" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ─── PINGONE AUTHORIZE (fine-grained AZ) ─── -->
+        <mxCell id="pingone_az" value="&lt;b&gt;Ping Identity&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;color:#ffbbbb;&quot;&gt;PingOne Authorize&lt;br&gt;Fine-Grained AZ&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7a0020;strokeColor=#e3002b;strokeWidth=1;strokeDasharray=5 3;fontColor=#ffffff;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="168" width="210" height="76" as="geometry" />
+        </mxCell>
+
+        <!-- ─── MCP SERVER (dashed vertical container) ─── -->
+        <mxCell id="mcp_outer" value="" style="fillColor=none;strokeColor=#e3002b;strokeWidth=2;strokeDasharray=8 4;" vertex="1" parent="1">
+          <mxGeometry x="842" y="60" width="116" height="780" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp_lbl_top" value="MCP Server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="822" y="390" width="160" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp_sub_lbl" value="banking_mcp_server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#888888;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="808" y="390" width="160" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ─── TOOL BOXES ─── -->
+        <mxCell id="tool_lbl_a" value="get_my_accounts" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#aaaaaa;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="970" y="106" width="170" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tool1" value="&lt;b&gt;Accounts&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111130;strokeColor=#334455;strokeWidth=1;fontColor=#ffffff;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="970" y="126" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tool1_tag" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a3a;strokeColor=#334455;fontColor=#88aacc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="141" width="34" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tool_lbl_b" value="get_my_transactions" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#aaaaaa;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="970" y="258" width="170" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tool2" value="&lt;b&gt;Transactions&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111130;strokeColor=#334455;strokeWidth=1;fontColor=#ffffff;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="970" y="278" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tool2_tag" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a3a;strokeColor=#334455;fontColor=#88aacc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="293" width="34" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tool_lbl_c" value="create_transfer" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#aaaaaa;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="970" y="406" width="170" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tool3" value="&lt;b&gt;Transfers&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111130;strokeColor=#334455;strokeWidth=1;fontColor=#ffffff;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="970" y="426" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tool3_tag" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a3a;strokeColor=#334455;fontColor=#88aacc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="441" width="34" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tool_lbl_d" value="get_account_balance" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#aaaaaa;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="970" y="554" width="170" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tool4" value="&lt;b&gt;Balance&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#111130;strokeColor=#334455;strokeWidth=1;fontColor=#ffffff;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="970" y="574" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tool4_tag" value="MCP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a2a3a;strokeColor=#334455;fontColor=#88aacc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1136" y="589" width="34" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════ ARROWS ═══════════ -->
+
+        <!-- 1. User → BFF: Login (PKCE) -->
+        <mxCell id="a1" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="users_icon" target="agent_bg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a1_lbl" value="1. Login (PKCE)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="134" y="300" width="130" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 2. BFF → User: Access Token  -->
+        <mxCell id="a2" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=1;entryY=0.6;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent_bg" target="users_icon">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2_lbl" value="2. Access Token (UserID)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="134" y="406" width="170" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 3a. BFF → PingOne AS: redirect for auth -->
+        <mxCell id="a3a" value="" style="edgeStyle=elbowEdgeStyle;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=0.7;exitY=0;exitDx=0;exitDy=0;entryX=0.1;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent_bg" target="pingone_as">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3a_lbl" value="3a. Access Token (UserID)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="390" y="196" width="184" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 3b. BFF → PingOne Authorize: Fine-Grained AZ -->
+        <mxCell id="a3b" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=6 3;strokeColor=#ff6666;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent_bg" target="pingone_az">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3b_lbl" value="3b. Fine-Grained AZ" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontColor=#ff9999;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="534" y="264" width="150" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 3. BFF → PingOne AS: Token Exchange (RFC 8693) -->
+        <mxCell id="a3" value="" style="edgeStyle=elbowEdgeStyle;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.85;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent_bg" target="pingone_as">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3_lbl" value="3. mTLS Client Auth + Token Exchange (RFC 8693)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="430" y="120" width="280" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 3c. PingOne AS → BFF: TX Token -->
+        <mxCell id="a3c" value="" style="edgeStyle=elbowEdgeStyle;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.9;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="pingone_as" target="agent_bg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3c_lbl" value="3c. TX Token (UserID, act=AgentID)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="394" y="148" width="240" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 4. BFF → MCP Server: TX Token via WebSocket -->
+        <mxCell id="a4" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent_bg" target="mcp_outer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4_lbl" value="4. TX Token (UserID, act=AgentID)  wss://" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="544" y="348" width="290" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 5. MCP Server → PingOne AS: Validate aud -->
+        <mxCell id="a5" value="" style="edgeStyle=elbowEdgeStyle;html=1;dashed=1;dashPattern=8 4;strokeColor=#e3002b;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp_outer" target="pingone_as">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5_lbl" value="5. Validate aud" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontColor=#ffffff;labelBackgroundColor=#080818;" vertex="1" parent="1">
+          <mxGeometry x="700" y="46" width="130" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 5a. MCP → Accounts -->
+        <mxCell id="a5a" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=6 3;strokeColor=#e3002b;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp_outer" target="tool1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5a_lbl" value="5a." style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="962" y="130" width="30" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 5b. MCP → Transactions -->
+        <mxCell id="a5b" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=6 3;strokeColor=#e3002b;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp_outer" target="tool2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5b_lbl" value="5b." style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="962" y="282" width="30" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 5c. MCP → Transfers -->
+        <mxCell id="a5c" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=6 3;strokeColor=#e3002b;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp_outer" target="tool3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5c_lbl" value="5c." style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="962" y="430" width="30" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 5d. MCP → Balance -->
+        <mxCell id="a5d" value="" style="edgeStyle=none;html=1;dashed=1;dashPattern=6 3;strokeColor=#e3002b;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.76;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp_outer" target="tool4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5d_lbl" value="5d." style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="962" y="578" width="30" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ─── COPYRIGHT ─── -->
+        <mxCell id="copyright" value="©2025 Super Banking Demo" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#444455;" vertex="1" parent="1">
+          <mxGeometry x="16" y="876" width="200" height="16" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,1074 @@
+{
+  "info": {
+    "_postman_id": "9f9ba0be-473c-4581-9411-42cf66c0ee6e",
+    "name": "PingOne Authorization Code — pi.flow",
+    "description": "PingOne 3-Token Delegated Chain — PINGONE_MAY_ACT_SETUP.md\n\nToken Chain:\n  Steps 1–4 — Subject Token (Authorization Code + PKCE via pi.flow)\n  Step 5     — MCP Token (RFC 8693 Token Exchange: Subject → MCP)\n  Step 6     — PingOne API Token (Client Credentials: MCP Service)\n  Step 7     — User Lookup (PingOne Management API)\n  Utility A  — Introspect any saved token\n  Utility B  — Set mayAct on user record\n\nIMPORTANT: For the token exchange chain, the resource param in step 1 must be\nhttps://ai-agent.pingdemo.com (the Super Banking AI Agent audience) so the Subject\nToken gets aud=[\"https://ai-agent.pingdemo.com\"] and may_act is present.\n\nVariables to fill in before running:\n  client_id / client_secret     — Super Banking User app\n  banking_app_client_id/secret  — Super Banking App (exchanger)\n  mcp_client_id/secret          — Super Banking MCP Service app\n  username / password           — test user credentials",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1648215"
+  },
+  "item": [
+    {
+      "name": "1. Initiate Authorization (pi.flow)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// --- PKCE + state generation (fully synchronous) ---",
+              "// crypto.subtle.digest is async — Postman fires the request before it resolves.",
+              "// Use CryptoJS.SHA256 (synchronous). Deprecation warning is harmless.",
+              "",
+              "// 1. code_verifier — 48 random bytes, base64url-encoded",
+              "const verifierBytes = new Uint8Array(48);",
+              "crypto.getRandomValues(verifierBytes);",
+              "const codeVerifier = btoa(String.fromCharCode(...verifierBytes))",
+              "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, '');",
+              "",
+              "// 2. code_challenge — SHA-256(verifier), base64url-encoded",
+              "const hashWords = CryptoJS.SHA256(codeVerifier);",
+              "const codeChallenge = CryptoJS.enc.Base64.stringify(hashWords)",
+              "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, '');",
+              "",
+              "// 3. state — CSRF token",
+              "const stateBytes = new Uint8Array(24);",
+              "crypto.getRandomValues(stateBytes);",
+              "const state = Array.from(stateBytes).map(b => b.toString(16).padStart(2,'0')).join('');",
+              "",
+              "pm.collectionVariables.set('code_verifier',  codeVerifier);",
+              "pm.collectionVariables.set('code_challenge', codeChallenge);",
+              "pm.collectionVariables.set('state',          state);",
+              "",
+              "console.log('[Step 1] code_verifier:',  codeVerifier);",
+              "console.log('[Step 1] code_challenge:', codeChallenge);",
+              "console.log('[Step 1] state:',          state);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 1] Full response:', JSON.stringify(body, null, 2));",
+              "",
+              "pm.test('Response contains flow id', () => pm.expect(body).to.have.property('id'));",
+              "pm.collectionVariables.set('flow_id', body.id);",
+              "console.log('[Step 1] flow_id:', body.id);",
+              "",
+              "// Prefer usernamePassword.check link; fall back to self",
+              "const links = body._links || {};",
+              "const flowHref = (links['usernamePassword.check'] && links['usernamePassword.check'].href)",
+              "  || (links.self && links.self.href)",
+              "  || `${pm.collectionVariables.get('base_url')}/${pm.collectionVariables.get('env_id')}/flows/${body.id}`;",
+              "pm.collectionVariables.set('flow_href', flowHref);",
+              "console.log('[Step 1] flow_href:', flowHref);",
+              "",
+              "pm.test('Flow status is present', () => pm.expect(body).to.have.property('status'));",
+              "console.log('[Step 1] status:', body.status);",
+              "",
+              "// PingOne returns COMPLETED immediately when an ST session cookie exists.",
+              "// In that case: auth_code is already available, skip steps 2 and 3.",
+              "if (body.status === 'COMPLETED') {",
+              "  // Clear flow_href so step 2 will throw a helpful error if accidentally run",
+              "  pm.collectionVariables.set('flow_href', '');",
+              "  if (body.resumeUrl) pm.collectionVariables.set('resume_url', body.resumeUrl);",
+              "  if (body.authorizeResponse && body.authorizeResponse.code) {",
+              "    pm.collectionVariables.set('auth_code', body.authorizeResponse.code);",
+              "    console.log('[Step 1] Session active — COMPLETED. auth_code:', body.authorizeResponse.code);",
+              "    console.log('[Step 1] *** SKIP steps 2 and 3 — go straight to step 4. ***');",
+              "  } else {",
+              "    console.log('[Step 1] COMPLETED but no auth_code in response — try step 3 (resume).');",
+              "  }",
+              "} else {",
+              "  console.log('[Step 1] status:', body.status, '— proceed to step 2.');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/{{env_id}}/as/authorize?response_mode=pi.flow&response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&state={{state}}&code_challenge={{code_challenge}}&code_challenge_method=S256&resource={{resource}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "{{env_id}}",
+            "as",
+            "authorize"
+          ],
+          "query": [
+            {
+              "key": "response_mode",
+              "value": "pi.flow"
+            },
+            {
+              "key": "response_type",
+              "value": "code"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "{{redirect_uri}}"
+            },
+            {
+              "key": "scope",
+              "value": "{{scope}}"
+            },
+            {
+              "key": "state",
+              "value": "{{state}}"
+            },
+            {
+              "key": "code_challenge",
+              "value": "{{code_challenge}}"
+            },
+            {
+              "key": "code_challenge_method",
+              "value": "S256"
+            },
+            {
+              "key": "resource",
+              "value": "{{resource}}"
+            }
+          ]
+        },
+        "description": "Returns JSON flow instead of a browser redirect.\n\nExpected response:\n```json\n{\n  \"id\": \"<flow-id>\",\n  \"status\": \"USERNAME_PASSWORD_REQUIRED\",\n  \"_links\": {\n    \"usernamePassword.check\": { \"href\": \"https://auth.pingone.com/{envId}/flows/{flowId}\" }\n  }\n}\n```"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Submit Username + Password",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const flowHref = pm.collectionVariables.get('flow_href');",
+              "if (!flowHref) {",
+              "  const authCode = pm.collectionVariables.get('auth_code');",
+              "  if (authCode) {",
+              "    throw new Error('flow_href is empty — step 1 returned COMPLETED (session active). Skip to step 4.');",
+              "  }",
+              "  throw new Error('flow_href is empty — run request 1 first');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 2] Full response:', JSON.stringify(body, null, 2));",
+              "console.log('[Step 2] status:', body.status);",
+              "",
+              "if (body.code || body.error) {",
+              "  console.error('[Step 2] Error:', body.code || body.error, body.message || '');",
+              "}",
+              "",
+              "// Save resumeUrl so step 3 uses the correct flow — avoids stale flow_id variable",
+              "if (body.resumeUrl) {",
+              "  pm.collectionVariables.set('resume_url', body.resumeUrl);",
+              "  console.log('[Step 2] resume_url:', body.resumeUrl);",
+              "}",
+              "",
+              "// Auth code may come here directly (some flows) or from step 3 resume",
+              "if (body.authorizeResponse && body.authorizeResponse.code) {",
+              "  pm.collectionVariables.set('auth_code', body.authorizeResponse.code);",
+              "  console.log('[Step 2] auth_code (direct):', body.authorizeResponse.code);",
+              "  console.log('[Step 2] Skip step 3 — go straight to step 4.');",
+              "} else {",
+              "  console.log('[Step 2] No direct auth code — proceed to step 3 (resume).');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.pingidentity.usernamePassword.check+json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{flow_href}}",
+          "host": [
+            "{{flow_href}}"
+          ]
+        },
+        "description": "Submits credentials to the flow URL from step 1.\n\nNo Authorization header — the flow ID in the URL is the implicit context.\nContent-Type must be application/vnd.pingidentity.usernamePassword.check+json.\n\nIf auth code is not in the response, run step 3 (resume) to retrieve it."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Resume Flow (Get Auth Code)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const resumeUrl = pm.collectionVariables.get('resume_url');",
+              "if (!resumeUrl) {",
+              "  const authCode = pm.collectionVariables.get('auth_code');",
+              "  if (authCode) {",
+              "    throw new Error('resume_url is empty but auth_code is already set — skip to step 4.');",
+              "  }",
+              "  throw new Error('resume_url is empty — run requests 1 and 2 first');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "",
+              "// Resume may return JSON (pi.flow) or redirect with ?code= in query string",
+              "const contentType = pm.response.headers.get('content-type') || '';",
+              "",
+              "if (contentType.includes('application/json')) {",
+              "  const body = pm.response.json();",
+              "  console.log('[Step 3] Full response:', JSON.stringify(body, null, 2));",
+              "  if (body.authorizeResponse && body.authorizeResponse.code) {",
+              "    pm.collectionVariables.set('auth_code', body.authorizeResponse.code);",
+              "    console.log('[Step 3] auth_code:', body.authorizeResponse.code);",
+              "  } else {",
+              "    console.warn('[Step 3] No auth code in JSON response:', JSON.stringify(body));",
+              "  }",
+              "} else {",
+              "  // Redirect followed by Postman — code may be in the URL",
+              "  const url = pm.response.url || '';",
+              "  const match = url.match(/[?&]code=([^&]+)/);",
+              "  if (match) {",
+              "    pm.collectionVariables.set('auth_code', match[1]);",
+              "    console.log('[Step 3] auth_code (from redirect URL):', match[1]);",
+              "  } else {",
+              "    console.warn('[Step 3] Could not find code. Response URL:', url);",
+              "    console.warn('[Step 3] Response body:', pm.response.text().substring(0, 500));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{resume_url}}",
+          "host": [
+            "{{resume_url}}"
+          ]
+        },
+        "description": "Resumes the flow after credential submission, returning the authorization code.\n\nPingOne may return JSON with authorizeResponse.code, or redirect to redirect_uri?code=...\nPostman follows redirects automatically — the test script handles both cases."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Exchange Code for Token (client_secret_post + PKCE)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('auth_code')) {",
+              "  throw new Error('auth_code is empty — run requests 1, 2, and 3 first');",
+              "}",
+              "if (!pm.collectionVariables.get('code_verifier')) {",
+              "  throw new Error('code_verifier is empty — re-run request 1 to regenerate PKCE');",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 4] Token response:', JSON.stringify(body, null, 2));",
+              "",
+              "if (body.error) {",
+              "  console.error('[Step 4] Token error:', body.error, body.error_description || '');",
+              "}",
+              "",
+              "pm.test('access_token present', () => pm.expect(body).to.have.property('access_token'));",
+              "pm.test('token_type is Bearer', () => pm.expect(body.token_type).to.equal('Bearer'));",
+              "",
+              "if (body.access_token)  pm.collectionVariables.set('access_token',  body.access_token);",
+              "if (body.id_token)      pm.collectionVariables.set('id_token',      body.id_token);",
+              "if (body.refresh_token) pm.collectionVariables.set('refresh_token', body.refresh_token);",
+              "",
+              "console.log('[Step 4] expires_in:', body.expires_in, '| scope:', body.scope);",
+              "",
+              "// Save as subject_token (Token 1) and decode claims for token exchange",
+              "if (body.access_token) {",
+              "  pm.collectionVariables.set('subject_token', body.access_token);",
+              "  try {",
+              "    const parts = body.access_token.split('.');",
+              "    const pad = s => s + '=='.slice(0, (4 - s.length % 4) % 4);",
+              "    const claims = JSON.parse(atob(pad(parts[1].replace(/-/g,'+').replace(/_/g,'/'))));",
+              "    console.log('[Step 4] Subject Token claims:', JSON.stringify(claims, null, 2));",
+              "    if (claims.sub) {",
+              "      pm.collectionVariables.set('user_sub', claims.sub);",
+              "      console.log('[Step 4] user_sub:', claims.sub);",
+              "    }",
+              "    pm.test('Subject Token aud is AI Agent', () => {",
+              "      const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];",
+              "      pm.expect(aud).to.include('https://ai-agent.pingdemo.com');",
+              "    });",
+              "    if (claims.may_act) {",
+              "      console.log('[Step 4] may_act:', JSON.stringify(claims.may_act));",
+              "      pm.test('may_act.sub present', () => pm.expect(claims.may_act).to.have.property('sub'));",
+              "    } else {",
+              "      console.warn('[Step 4] WARNING: may_act claim missing — set mayAct on the user record (doc Part 3c) and re-run');",
+              "    }",
+              "  } catch(e) {",
+              "    console.warn('[Step 4] Could not decode access token JWT:', e.message);",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "authorization_code"
+            },
+            {
+              "key": "code",
+              "value": "{{auth_code}}"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "{{redirect_uri}}"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{client_secret}}"
+            },
+            {
+              "key": "code_verifier",
+              "value": "{{code_verifier}}"
+            },
+            {
+              "key": "scope ",
+              "value": "{{scope}}",
+              "type": "text",
+              "uuid": "0c42143f-7afd-44f4-9df9-bfec4c14898e"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/{{env_id}}/as/token",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "{{env_id}}",
+            "as",
+            "token"
+          ]
+        },
+        "description": "client_secret_post: client_id + client_secret in form body, no Authorization header.\nPKCE: code_verifier proves possession of the code_challenge from step 1.\n\nAfter success: subject_token and user_sub are saved. Check console for may_act claim.\nIf may_act is missing, run Utility B (Set mayAct) then re-run step 1."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Token Exchange — Subject Token → MCP Token (RFC 8693)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('subject_token')) {",
+              "  throw new Error('subject_token is empty — run steps 1-4 first');",
+              "}",
+              "if (!pm.collectionVariables.get('banking_app_client_id') || pm.collectionVariables.get('banking_app_client_id') === 'YOUR_BANKING_APP_CLIENT_ID') {",
+              "  throw new Error('banking_app_client_id not set — fill in Super Banking App client ID');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 5] Token Exchange response:', JSON.stringify(body, null, 2));",
+              "",
+              "if (body.error) {",
+              "  console.error('[Step 5] Error:', body.error, body.error_description || '');",
+              "  if (body.error === 'invalid_grant') console.error('[Step 5] FIX: may_act.sub on user does not match banking_app_client_id — run Utility B');",
+              "  if (body.error === 'unauthorized_client') console.error('[Step 5] FIX: Token Exchange grant not enabled on Super Banking App (doc Part 2b)');",
+              "}",
+              "",
+              "pm.test('access_token present', () => pm.expect(body).to.have.property('access_token'));",
+              "",
+              "if (body.access_token) {",
+              "  pm.collectionVariables.set('mcp_token', body.access_token);",
+              "  try {",
+              "    const parts = body.access_token.split('.');",
+              "    const pad = s => s + '=='.slice(0, (4 - s.length % 4) % 4);",
+              "    const claims = JSON.parse(atob(pad(parts[1].replace(/-/g,'+').replace(/_/g,'/'))));",
+              "    console.log('[Step 5] MCP Token claims:', JSON.stringify(claims, null, 2));",
+              "    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];",
+              "    pm.test('MCP Token aud is MCP Server', () => pm.expect(aud).to.include('https://mcp-server.pingdemo.com'));",
+              "    pm.test('act.sub present (delegation proof)', () => pm.expect(claims).to.have.nested.property('act.sub'));",
+              "    if (claims.act) console.log('[Step 5] act:', JSON.stringify(claims.act));",
+              "    pm.test('sub preserved from Subject Token', () => pm.expect(claims.sub).to.equal(pm.collectionVariables.get('user_sub')));",
+              "  } catch(e) {",
+              "    console.warn('[Step 5] Could not decode MCP token:', e.message);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "urn:ietf:params:oauth:grant-type:token-exchange",
+              "description": "RFC 8693 token exchange"
+            },
+            {
+              "key": "subject_token",
+              "value": "{{subject_token}}",
+              "description": "Token 1 — user's Subject Token from step 4"
+            },
+            {
+              "key": "subject_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token"
+            },
+            {
+              "key": "requested_token_type",
+              "value": "urn:ietf:params:oauth:token-type:access_token"
+            },
+            {
+              "key": "audience",
+              "value": "https://mcp-server.pingdemo.com",
+              "description": "Super Banking MCP Server audience"
+            },
+            {
+              "key": "scope",
+              "value": "banking:read banking:write"
+            },
+            {
+              "key": "client_id",
+              "value": "{{banking_app_client_id}}",
+              "description": "Super Banking App — exchanger identity"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{banking_app_client_secret}}",
+              "description": "client_secret_post"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/{{env_id}}/as/token",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "{{env_id}}",
+            "as",
+            "token"
+          ]
+        },
+        "description": "RFC 8693 Token Exchange: Subject Token → MCP Token.\n\nPingOne validates subject_token.may_act.sub === banking_app_client_id.\nIf they match, issues MCP Token with act.sub = banking_app_client_id.\n\nRequires Token Exchange grant on Super Banking App (doc Part 2b)."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Client Credentials — MCP Service → PingOne API Token",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('mcp_client_id') || pm.collectionVariables.get('mcp_client_id') === 'YOUR_MCP_CLIENT_ID') {",
+              "  throw new Error('mcp_client_id not set — fill in Super Banking MCP Service client ID');",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 6] Client Credentials response:', JSON.stringify(body, null, 2));",
+              "",
+              "if (body.error) {",
+              "  console.error('[Step 6] Error:', body.error, body.error_description || '');",
+              "  if (body.error === 'invalid_scope') console.error('[Step 6] FIX: p1:read:user / p1:update:user not enabled on MCP Service app (doc Part 2c)');",
+              "  if (body.error === 'unauthorized_client') console.error('[Step 6] FIX: App type may be Worker — must be Native or Web App (doc Part 2c)');",
+              "}",
+              "",
+              "pm.test('access_token present', () => pm.expect(body).to.have.property('access_token'));",
+              "",
+              "if (body.access_token) {",
+              "  pm.collectionVariables.set('pingone_api_token', body.access_token);",
+              "  try {",
+              "    const parts = body.access_token.split('.');",
+              "    const pad = s => s + '=='.slice(0, (4 - s.length % 4) % 4);",
+              "    const claims = JSON.parse(atob(pad(parts[1].replace(/-/g,'+').replace(/_/g,'/'))));",
+              "    console.log('[Step 6] PingOne API Token claims:', JSON.stringify(claims, null, 2));",
+              "    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];",
+              "    pm.test('PingOne API Token aud is api.pingone.com', () => pm.expect(aud.join(',')).to.include('api.pingone.com'));",
+              "    pm.test('scope includes p1:read:user', () => pm.expect(body.scope || '').to.include('p1:read:user'));",
+              "  } catch(e) {",
+              "    console.warn('[Step 6] Could not decode token:', e.message);",
+              "  }",
+              "  console.log('[Step 6] scope:', body.scope);",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "key": "client_id",
+              "value": "{{mcp_client_id}}",
+              "description": "Super Banking MCP Service"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{mcp_client_secret}}",
+              "description": "client_secret_post"
+            },
+            {
+              "key": "scope",
+              "value": "openid"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/{{env_id}}/as/token",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "{{env_id}}",
+            "as",
+            "token"
+          ]
+        },
+        "description": "Client Credentials grant: Super Banking MCP Service → PingOne API Token (Token 3).\n\nThis is NOT a token exchange — independent credential grant.\nScopes p1:read:user and p1:update:user must be enabled on the app's Resources tab (doc Part 2c).\nApp type must be Native or Web App — NOT Worker (doc Part 2c)."
+      },
+      "response": []
+    },
+    {
+      "name": "7. User Lookup (PingOne Management API)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('pingone_api_token')) {",
+              "  throw new Error('pingone_api_token is empty — run step 6 first');",
+              "}",
+              "if (!pm.collectionVariables.get('user_sub')) {",
+              "  throw new Error('user_sub is empty — run steps 1-4 first to decode the Subject Token');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON',   () => pm.response.to.be.json);",
+              "",
+              "const body = pm.response.json();",
+              "console.log('[Step 7] User record:', JSON.stringify(body, null, 2));",
+              "",
+              "const expectedSub = pm.collectionVariables.get('banking_app_client_id');",
+              "if (body.mayAct) {",
+              "  console.log('[Step 7] mayAct:', JSON.stringify(body.mayAct));",
+              "  pm.test('mayAct.sub matches banking_app_client_id', () => {",
+              "    pm.expect(body.mayAct.sub).to.equal(expectedSub);",
+              "  });",
+              "} else {",
+              "  console.warn('[Step 7] WARNING: mayAct attribute not set on user — run Utility B to set it');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{pingone_api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "https://api.pingone.com/v1/environments/{{env_id}}/users/{{user_sub}}",
+          "protocol": "https",
+          "host": [
+            "api",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "v1",
+            "environments",
+            "{{env_id}}",
+            "users",
+            "{{user_sub}}"
+          ]
+        },
+        "description": "Calls PingOne Management API to fetch the user record.\nUses Token 3 (PingOne API Token) — Bearer auth.\nValidates that mayAct.sub equals banking_app_client_id."
+      },
+      "response": []
+    },
+    {
+      "name": "Utility A — Introspect Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "console.log('[Utility A] Introspection result:', JSON.stringify(body, null, 2));",
+              "if (!body.active) console.warn('[Utility A] Token is NOT active (expired or revoked)');",
+              "else console.log('[Utility A] Token active — sub:', body.sub, '| aud:', body.aud, '| scope:', body.scope);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{banking_app_client_id}}",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{banking_app_client_secret}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "token",
+              "value": "{{subject_token}}",
+              "description": "Change to mcp_token or pingone_api_token to inspect those"
+            },
+            {
+              "key": "token_type_hint",
+              "value": "access_token"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/{{env_id}}/as/introspect",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "{{env_id}}",
+            "as",
+            "introspect"
+          ]
+        },
+        "description": "Introspects a saved token (RFC 7662).\n\nChange the token body param to subject_token, mcp_token, or pingone_api_token.\nUses Banking App credentials for Basic auth (any confidential client works)."
+      },
+      "response": []
+    },
+    {
+      "name": "Utility B — Set mayAct on User",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('pingone_api_token')) {",
+              "  throw new Error('pingone_api_token is empty — run step 6 first');",
+              "}",
+              "if (!pm.collectionVariables.get('user_sub')) {",
+              "  throw new Error('user_sub is empty — run steps 1-4 first');",
+              "}",
+              "if (!pm.collectionVariables.get('banking_app_client_id') || pm.collectionVariables.get('banking_app_client_id') === 'YOUR_BANKING_APP_CLIENT_ID') {",
+              "  throw new Error('banking_app_client_id not set');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response is 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "console.log('[Utility B] PATCH response:', JSON.stringify(body, null, 2));",
+              "if (body.mayAct) {",
+              "  console.log('[Utility B] mayAct set to:', JSON.stringify(body.mayAct));",
+              "  console.log('[Utility B] Now re-run steps 1-4 to get a fresh Subject Token with may_act claim.');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{pingone_api_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mayAct\": { \"sub\": \"{{banking_app_client_id}}\" }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://api.pingone.com/v1/environments/{{env_id}}/users/{{user_sub}}",
+          "protocol": "https",
+          "host": [
+            "api",
+            "pingone",
+            "com"
+          ],
+          "path": [
+            "v1",
+            "environments",
+            "{{env_id}}",
+            "users",
+            "{{user_sub}}"
+          ]
+        },
+        "description": "PATCHes mayAct = { sub: banking_app_client_id } onto the user record.\n\nRun this if step 4 warns that may_act is missing from the Subject Token.\nAfter patching, re-run steps 1–4 to get a fresh Subject Token with the may_act claim.\n\nRequires pingone_api_token (run step 6 first) and user_sub (run steps 1-4 first)."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://auth.pingone.com",
+      "description": "Change TLD for region: .ca .eu .com.au .sg .asia"
+    },
+    {
+      "key": "env_id",
+      "value": "d02d2305-f445-406d-82ee-7cdbf6eeabfd",
+      "description": "PingOne environment ID (GUID)"
+    },
+    {
+      "key": "client_id",
+      "value": "62d5fb56-5a0a-406e-9005-eec2fee23b8f",
+      "description": "OAuth application client ID"
+    },
+    {
+      "key": "client_secret",
+      "value": "YOUR_CLIENT_SECRET",
+      "description": "OAuth application client secret"
+    },
+    {
+      "key": "redirect_uri",
+      "value": "https://api.ping.demo:4000/api/auth/oauth/user/callback",
+      "description": "Must be registered on the PingOne application"
+    },
+    {
+      "key": "scope",
+      "value": "openid profile email banking:read banking:write",
+      "description": "Space-separated scopes"
+    },
+    {
+      "key": "resource",
+      "value": "https://ai-agent.pingdemo.com",
+      "description": "Subject Token audience — must match Super Banking AI Agent resource server audience for token exchange chain"
+    },
+    {
+      "key": "username",
+      "value": "bankuser",
+      "description": "End-user username"
+    },
+    {
+      "key": "password",
+      "value": "Tigers7&",
+      "description": "End-user password"
+    },
+    {
+      "key": "state",
+      "value": "",
+      "description": "Auto-generated CSRF token"
+    },
+    {
+      "key": "code_verifier",
+      "value": "",
+      "description": "Auto-generated PKCE verifier"
+    },
+    {
+      "key": "code_challenge",
+      "value": "",
+      "description": "Auto-generated PKCE S256 challenge"
+    },
+    {
+      "key": "flow_id",
+      "value": "",
+      "description": "Set automatically from authorize response"
+    },
+    {
+      "key": "flow_href",
+      "value": "",
+      "description": "Set automatically — _links.usernamePassword.check.href from authorize response"
+    },
+    {
+      "key": "resume_url",
+      "value": "",
+      "description": "Set automatically from credential submission response (resumeUrl)"
+    },
+    {
+      "key": "auth_code",
+      "value": "",
+      "description": "Set automatically from resume response"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "description": "Set automatically from token response (Subject Token)"
+    },
+    {
+      "key": "id_token",
+      "value": "",
+      "description": "Set automatically from token response"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "description": "Set automatically from token response"
+    },
+    {
+      "key": "subject_token",
+      "value": "",
+      "description": "Subject Token (Token 1) — copy of access_token, set by step 4"
+    },
+    {
+      "key": "user_sub",
+      "value": "",
+      "description": "User subject UUID — decoded from Subject Token, set by step 4"
+    },
+    {
+      "key": "banking_app_client_id",
+      "value": "YOUR_BANKING_APP_CLIENT_ID",
+      "description": "Client ID of Super Banking App (exchanges Subject Token → MCP Token)"
+    },
+    {
+      "key": "banking_app_client_secret",
+      "value": "YOUR_BANKING_APP_CLIENT_SECRET",
+      "description": "Client Secret of Super Banking App"
+    },
+    {
+      "key": "mcp_client_id",
+      "value": "YOUR_MCP_CLIENT_ID",
+      "description": "Client ID of Super Banking MCP Service (client credentials → PingOne API Token)"
+    },
+    {
+      "key": "mcp_client_secret",
+      "value": "YOUR_MCP_CLIENT_SECRET",
+      "description": "Client Secret of Super Banking MCP Service"
+    },
+    {
+      "key": "mcp_token",
+      "value": "",
+      "description": "MCP Token (Token 2) — set by step 5 (token exchange)"
+    },
+    {
+      "key": "pingone_api_token",
+      "value": "",
+      "description": "PingOne API Token (Token 3) — set by step 6 (client credentials)"
+    }
+  ]
+}

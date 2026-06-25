@@ -1,0 +1,141 @@
+/* demo_api_ui/src/components/CopyableValue.css */
+
+.copyable-value-wrapper {
+  margin-bottom: 14px;
+}
+
+.copyable-value-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.copyable-value-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+/* Source chip: "From Step 2" — blue */
+.copyable-value-chip--source {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+/* Auto-filled chip — green */
+.copyable-value-chip--autofill {
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+/* Required badge — amber */
+.copyable-value-chip--required {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9px;
+  border: 1px solid #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* The field row: input + copy button side by side */
+.copyable-value-field {
+  display: flex;
+  align-items: stretch;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Required/empty state */
+.copyable-value-field--required {
+  border: 1.5px solid #f59e0b;
+}
+
+/* Filled by user */
+.copyable-value-field--filled {
+  border: 1.5px solid #6366f1;
+}
+
+/* Auto-filled / read-only */
+.copyable-value-field--autofill {
+  border: 1px solid #a7f3d0;
+}
+
+.copyable-value-input {
+  flex: 1;
+  padding: 9px 12px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  min-width: 0;
+}
+
+.copyable-value-input--mono {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, 'Courier New', monospace;
+  letter-spacing: 0.03em;
+}
+
+/* Background tints per state */
+.copyable-value-field--required .copyable-value-input  { background: #fffbeb; color: #92400e; }
+.copyable-value-field--filled .copyable-value-input    { background: #eef2ff; color: #3730a3; }
+.copyable-value-field--autofill .copyable-value-input  { background: #f0fdf4; color: #065f46; }
+
+.copyable-value-copy-btn {
+  padding: 0 14px;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+  transition: opacity 0.1s;
+}
+
+.copyable-value-copy-btn:hover { opacity: 0.8; }
+
+.copyable-value-field--filled .copyable-value-copy-btn {
+  background: #e0e7ff;
+  color: #3730a3;
+  border-left: 1px solid #c7d2fe;
+}
+
+.copyable-value-field--autofill .copyable-value-copy-btn {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 1px solid #a7f3d0;
+}
+
+.copyable-value-hint {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+
+.copyable-value-hint code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 11px;
+}

@@ -1,0 +1,18 @@
+{
+  "name": "oauth-passthrough",
+  "condition": "${find(request.uri.path, '^/as/token')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "PassthroughTokenFilter",
+          "type": "ClientHandler"
+        }
+      ],
+      "handler": {
+        "type": "ClientHandler"
+      }
+    }
+  }
+}

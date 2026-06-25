@@ -1,0 +1,768 @@
+/* banking_api_ui/src/components/Config.css
+ * Configuration page styling aligned with PingOne UX (end-user-nano.css loaded in public/index.html).
+ * Primary brand: #277ba5 — matches index.css .btn-primary and Ping One patterns.
+ */
+
+/* When paired with appShellPages.css, body column stays centered under the hero */
+.config-page.app-page-shell .app-page-shell__body .config-page__main {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.config-page__hero-actions {
+  justify-content: flex-end;
+}
+
+.config-page {
+  --p1-primary: #277ba5;
+  --p1-primary-dark: #1e5f82;
+  --p1-primary-soft: rgba(39, 123, 165, 0.12);
+  --p1-surface: #ffffff;
+  --p1-surface-muted: #f0f7fb;
+  --p1-surface-accent: #e8f4fa;
+  --p1-border: rgba(39, 123, 165, 0.2);
+  --p1-text: #0f172a;
+  --p1-text-secondary: #666666;
+  --p1-indigo-deep: #312e81;
+  --p1-indigo-mid: #4338ca;
+
+  min-height: 100vh;
+  background: linear-gradient(165deg, #f5fafd 0%, #eef6fb 45%, #e4f0f8 100%);
+  color: var(--p1-text);
+}
+
+.config-page--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Hero (uses app-page-shell__hero from appShellPages.css; tint to PingOne brand) ── */
+.config-page__hero-shell.app-page-shell__hero {
+  background: linear-gradient(
+    128deg,
+    #1a5d80 0%,
+    var(--p1-primary) 42%,
+    #236f96 100%
+  );
+  box-shadow: 0 8px 24px rgba(26, 93, 128, 0.35);
+}
+
+.config-page__badge {
+  font-size: 0.75rem;
+  padding: 0.28rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.config-page__badge--ok {
+  background: rgba(209, 250, 229, 0.98);
+  color: #065f46;
+  box-shadow: 0 1px 2px rgba(6, 95, 70, 0.12);
+}
+
+.config-page__badge--warn {
+  background: rgba(254, 243, 199, 0.98);
+  color: #92400e;
+  box-shadow: 0 1px 2px rgba(146, 64, 14, 0.1);
+}
+
+/* ── Main column ─────────────────────────────────────────── */
+.config-page__main {
+  padding: 2rem 20px 3rem;
+  max-width: 880px;
+}
+
+/* ── Cards (scoped) ─────────────────────────────────────── */
+.config-page .card {
+  background: var(--p1-surface);
+  border: 1px solid var(--p1-border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px rgba(39, 123, 165, 0.07);
+  padding: 1.35rem 1.45rem;
+  margin-bottom: 1.35rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.config-page .card:hover {
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 14px 36px rgba(39, 123, 165, 0.1);
+}
+
+.config-page .card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--p1-primary-soft);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.config-page .card-title {
+  color: var(--p1-primary-dark);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.config-page .form-label {
+  color: var(--p1-text-secondary);
+  font-weight: 500;
+}
+
+.config-page .form-input:focus,
+.config-page select.form-input:focus {
+  outline: none;
+  border-color: var(--p1-primary);
+  box-shadow: 0 0 0 3px rgba(39, 123, 165, 0.22);
+}
+
+/* ── Banners ───────────────────────────────────────────── */
+.config-page__banner {
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.35rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  border: 1px solid transparent;
+}
+
+.config-page__banner--info {
+  background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #1e3a5f;
+}
+
+.config-page__banner--success {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #065f46;
+}
+
+.config-page__banner--hosted {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #065f46;
+}
+
+.config-page__banner--warning {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #92400e;
+}
+
+.config-page__banner--danger {
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #991b1b;
+}
+
+/* ── Checklist card ─────────────────────────────────────── */
+.config-page__card--steps {
+  border-color: rgba(99, 102, 241, 0.25);
+  background: linear-gradient(
+    180deg,
+    var(--brand-light-gray) 0%,
+    var(--brand-light-gray) 100%
+  );
+}
+
+.config-page__card--steps .card-title {
+  color: var(--p1-text);
+}
+
+.config-page__steps-list {
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--p1-text-secondary);
+  line-height: 1.65;
+}
+
+.config-page__steps-intro {
+  font-size: 0.8rem;
+  color: var(--p1-text-secondary);
+  margin: 0;
+}
+
+/* ── PingOne redirect URIs card ─────────────────────────── */
+.config-page__card--redirect {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: linear-gradient(165deg, #eef2ff 0%, #e0e7ff 55%, #dbeafe 100%);
+  box-shadow:
+    0 2px 8px rgba(67, 56, 202, 0.12),
+    0 12px 32px rgba(99, 102, 241, 0.1);
+}
+
+.config-page__card--redirect .card-title {
+  color: var(--p1-indigo-deep);
+}
+
+.config-page__redirect-lede {
+  font-size: 0.85rem;
+  color: var(--p1-indigo-deep);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.config-page__redirect-steps {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--p1-indigo-deep);
+  line-height: 1.6;
+}
+
+.config-page__redirect-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--p1-indigo-deep);
+  margin-bottom: 0.35rem;
+}
+
+.config-page__code-block {
+  flex: 1 1 240px;
+  font-size: 0.78rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  border: 1px solid #c7d2fe;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.config-page__redirect-foot {
+  font-size: 0.75rem;
+  color: var(--p1-indigo-mid);
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.config-page__redirect-warn {
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+/* ── Hosted OAuth card ──────────────────────────────────── */
+.config-page__card--oauth-hosted {
+  border-color: rgba(52, 211, 153, 0.4);
+  background: linear-gradient(180deg, #f8fffc 0%, #ecfdf5 100%);
+}
+
+.config-page__card--oauth-hosted .card-title {
+  color: #047857;
+}
+
+.config-page__oauth-split {
+  padding: 0 0 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.config-page__oauth-mini {
+  padding: 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--p1-border);
+  background: var(--p1-surface);
+  box-shadow: 0 1px 3px rgba(39, 123, 165, 0.08);
+}
+
+.config-page__oauth-mini-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--p1-text);
+}
+
+.config-page__oauth-mini-text {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--p1-text-secondary);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .config-page__oauth-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Grids ─────────────────────────────────────────────── */
+.config-page__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.config-page__grid-span-2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .config-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── OAuth smoke / nested panels ───────────────────────── */
+.config-page__panel {
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--p1-border);
+  background: linear-gradient(180deg, #fbfdff 0%, var(--p1-surface-muted) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.config-page__panel-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--p1-text);
+}
+
+.config-page__panel-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--p1-text-secondary);
+  line-height: 1.55;
+}
+
+/* ── PingOne Authorize note ────────────────────────────── */
+.config-page__note-box {
+  font-size: 0.85rem;
+  color: var(--p1-text-secondary);
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--p1-surface-muted);
+  border-radius: 8px;
+  border: 1px solid var(--p1-border);
+}
+
+/* ── Advanced / Vercel callouts ────────────────────────── */
+.config-page__callout {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
+.config-page__callout--purple {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: rgba(100, 116, 139, 0.35);
+  color: #334155;
+}
+
+.config-page__divider {
+  margin-top: 1rem;
+  border-top: 1px solid var(--p1-border);
+  padding-top: 1rem;
+}
+
+/* ── Test connection result ────────────────────────────── */
+.config-page__test-row {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.config-page__test-result {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.config-page__test-result--ok {
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.config-page__test-result--err {
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  color: #7f1d1d;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.config-page__test-issuer {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin-top: 0.2rem;
+}
+
+/* ── Footer actions ─────────────────────────────────────── */
+.config-page__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.config-page__actions--footer {
+  margin-top: 2.5rem;
+  margin-bottom: 0;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-top: 1px solid var(--p1-border);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--p1-surface-muted) 100%
+  );
+  border-radius: 0 0 12px 12px;
+}
+
+.config-page__card-subtitle {
+  font-size: 0.8rem;
+  color: var(--p1-text-secondary);
+}
+
+.config-page__card-subtitle--tight {
+  font-size: 0.75rem;
+}
+
+/* ── Collapsible section cards ──────────────────────────── */
+.config-page__section {
+  padding: 0 !important; /* toggle button owns the padding */
+  overflow: hidden;
+}
+
+.config-page__section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.85rem 1.45rem;
+  cursor: pointer;
+  text-align: left;
+  gap: 0.75rem;
+  transition: background 0.15s;
+}
+
+.config-page__section-toggle:hover {
+  background: rgba(39, 123, 165, 0.05);
+}
+
+.config-page__section-toggle-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.config-page__section-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--p1-primary-dark);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.config-page__section-subtitle {
+  font-size: 0.725rem;
+  color: var(--p1-text-secondary);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(520px, calc(100% - 1rem));
+}
+
+.config-page__section-chevron {
+  font-size: 0.65rem;
+  color: var(--p1-text-secondary);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.config-page__section-body {
+  padding: 0 1.45rem 1.35rem;
+  border-top: 1px solid var(--p1-primary-soft);
+}
+
+/* When a section-body wraps a wizard/component that renders its own card,
+   strip the inner card's shadow and border so it doesn't double-nest */
+.config-page__section-body--passthrough {
+  padding: 0;
+  border-top: none;
+}
+
+.config-page__section-body--passthrough > .card {
+  margin-bottom: 0;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Run Your Own Instance ──────────────────────────────── */
+.config-page__expand-wrap {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.config-page__expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--p1-border);
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.config-page__expand-btn:hover {
+  background: var(--brand-light-gray);
+  border-color: var(--p1-primary);
+}
+
+.config-page__expand-chevron {
+  font-size: 0.75rem;
+  color: var(--p1-text-secondary);
+  margin-left: 0.5rem;
+}
+
+.config-page__self-host-card {
+  margin-top: 1rem;
+}
+
+.config-page__self-host-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.config-page__path-card {
+  border-radius: 10px;
+  padding: 1.25rem;
+  border: 1px solid transparent;
+}
+
+.config-page__path-card--indigo {
+  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  border-color: #c7d2fe;
+}
+
+.config-page__path-card--green {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #bbf7d0;
+}
+
+.config-page__path-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.config-page__path-card--indigo .config-page__path-title {
+  color: var(--brand-navy);
+}
+.config-page__path-card--green .config-page__path-title {
+  color: #14532d;
+}
+
+.config-page__path-desc {
+  font-size: 0.8rem;
+  margin: 0 0 0.85rem;
+}
+
+.config-page__path-card--indigo .config-page__path-desc {
+  color: #4338ca;
+}
+.config-page__path-card--green .config-page__path-desc {
+  color: #166534;
+}
+
+.config-page__path-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.config-page__path-card--indigo .config-page__path-steps {
+  color: #312e81;
+}
+.config-page__path-card--green .config-page__path-steps {
+  color: #14532d;
+}
+
+.config-page__env-table {
+  width: 100%;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  border-collapse: collapse;
+}
+
+.config-page__env-key {
+  font-family: var(--p1-mono);
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.config-page__env-val {
+  padding: 0.15rem 0;
+  vertical-align: top;
+}
+
+.config-page__path-card--indigo .config-page__env-val {
+  color: #4338ca;
+}
+.config-page__path-card--green .config-page__env-val {
+  color: #166534;
+}
+
+@media (max-width: 700px) {
+  .config-page__self-host-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Industry / white-label presets */
+.config-page__industry-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.config-page__industry-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  cursor: pointer;
+  border: 1px solid var(--p1-border);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: var(--p1-surface);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.config-page__industry-option:hover {
+  border-color: rgba(39, 123, 165, 0.45);
+}
+
+.config-page__industry-option--active {
+  border-color: var(--p1-primary);
+  box-shadow: 0 0 0 2px var(--p1-primary-soft);
+}
+
+.config-page__industry-option-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.config-page__industry-logo {
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.config-page__industry-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.config-page__industry-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--p1-text);
+}
+
+.config-page__industry-desc {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--p1-text-secondary);
+}
+
+.config-page__agent-scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.config-page__agent-scope-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--p1-border, #dddddd);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background: var(--p1-surface, #fff);
+}
+
+.config-page__agent-scope-row:hover {
+  border-color: #cccccc;
+}
+
+.config-page__agent-scope-row--on {
+  border-color: #93c5fd;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.config-page__agent-scope-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.config-page__agent-scope-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--p1-text);
+}
+
+.config-page__agent-scope-code {
+  font-size: 0.72rem;
+  color: #374151;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.config-page__agent-scope-desc {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--p1-text-secondary);
+}

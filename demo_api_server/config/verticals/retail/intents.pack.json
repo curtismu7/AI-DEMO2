@@ -1,0 +1,1112 @@
+{
+  "intents": [
+    {
+      "action": "initiate_return",
+      "type": "write",
+      "arr": "returns",
+      "idParam": "returnId",
+      "mutateStatus": "Requested",
+      "noun": "return",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(start|initiate|request|begin|open)\\b.{0,20}\\breturn\\b",
+      "toolDescription": "Initiate a new return request for a product by returnId.",
+      "render": {
+        "type": "card",
+        "title": "Return Initiated",
+        "fields": [
+          {
+            "label": "Return #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"start a return\" / \"initiate return 701\" + returnId -> initiate_return params:{returnId}",
+      "evalRows": [
+        {
+          "phrase": "I want to start a return for order 701",
+          "expect": "initiate_return"
+        },
+        {
+          "phrase": "initiate return 702",
+          "expect": "initiate_return"
+        },
+        {
+          "phrase": "request a return on my item",
+          "expect": "initiate_return"
+        }
+      ]
+    },
+    {
+      "action": "add_to_wishlist",
+      "type": "write",
+      "arr": "wishlist",
+      "idParam": "wishlistId",
+      "mutateStatus": "Added",
+      "noun": "wishlist item",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\badd\\b.{0,20}\\bwish\\s*list\\b|\\bsave\\b.{0,20}\\bwish\\s*list\\b",
+      "toolDescription": "Add an item to the shopper's wishlist by wishlistId.",
+      "render": {
+        "type": "card",
+        "title": "Added to Wishlist",
+        "fields": [
+          {
+            "label": "Item #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"add to wishlist\" / \"save to wishlist 501\" + wishlistId -> add_to_wishlist params:{wishlistId}",
+      "evalRows": [
+        {
+          "phrase": "add item 501 to my wishlist",
+          "expect": "add_to_wishlist"
+        },
+        {
+          "phrase": "save this to my wish list",
+          "expect": "add_to_wishlist"
+        }
+      ]
+    },
+    {
+      "action": "reorder",
+      "type": "write",
+      "arr": "orders",
+      "idParam": "orderId",
+      "mutateStatus": "Reordered",
+      "noun": "order",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\breorder\\b|\\brepeat\\b.{0,15}\\border\\b|\\border\\s+again\\b",
+      "toolDescription": "Place a reorder for a previously completed order by orderId.",
+      "render": {
+        "type": "card",
+        "title": "Order Resubmitted",
+        "fields": [
+          {
+            "label": "Order #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"reorder\" / \"order again 1002\" + orderId -> reorder params:{orderId}",
+      "evalRows": [
+        {
+          "phrase": "reorder my last purchase 1002",
+          "expect": "reorder"
+        },
+        {
+          "phrase": "order again 1003",
+          "expect": "reorder"
+        },
+        {
+          "phrase": "I want to reorder",
+          "expect": "reorder"
+        }
+      ]
+    },
+    {
+      "action": "remove_payment_method",
+      "type": "write",
+      "arr": "payment_methods",
+      "idParam": "paymentId",
+      "mutateStatus": "Removed",
+      "noun": "payment method",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Remove a saved payment method by paymentId.",
+      "render": {
+        "type": "card",
+        "title": "Payment Method Removed",
+        "fields": [
+          {
+            "label": "Card #",
+            "path": "id"
+          },
+          {
+            "label": "Type",
+            "path": "type"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"remove card\" / \"delete payment method pmt-1002\" + paymentId -> remove_payment_method params:{paymentId}",
+      "evalRows": [
+        {
+          "phrase": "remove my Mastercard pmt-1002",
+          "expect": "remove_payment_method"
+        },
+        {
+          "phrase": "delete saved card pmt-1003",
+          "expect": "remove_payment_method"
+        }
+      ]
+    },
+    {
+      "action": "pause_subscription",
+      "type": "write",
+      "arr": "subscriptions",
+      "idParam": "subscriptionId",
+      "mutateStatus": "Paused",
+      "noun": "subscription",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Pause an active product subscription by subscriptionId.",
+      "render": {
+        "type": "card",
+        "title": "Subscription Paused",
+        "fields": [
+          {
+            "label": "Sub #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"pause subscription\" / \"pause sub-301\" + subscriptionId -> pause_subscription params:{subscriptionId}",
+      "evalRows": [
+        {
+          "phrase": "pause my subscription sub-301",
+          "expect": "pause_subscription"
+        },
+        {
+          "phrase": "hold my auto-ship for sub-302",
+          "expect": "pause_subscription"
+        }
+      ]
+    },
+    {
+      "action": "close_support_ticket",
+      "type": "write",
+      "arr": "support_tickets",
+      "idParam": "ticketId",
+      "mutateStatus": "Closed",
+      "noun": "support ticket",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Close an open support ticket by ticketId.",
+      "render": {
+        "type": "card",
+        "title": "Ticket Closed",
+        "fields": [
+          {
+            "label": "Ticket #",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"close ticket\" / \"close support ticket tkt-401\" + ticketId -> close_support_ticket params:{ticketId}",
+      "evalRows": [
+        {
+          "phrase": "close ticket tkt-401",
+          "expect": "close_support_ticket"
+        },
+        {
+          "phrase": "mark my case tkt-402 as resolved",
+          "expect": "close_support_ticket"
+        }
+      ]
+    },
+    {
+      "action": "remove_price_alert",
+      "type": "write",
+      "arr": "price_alerts",
+      "idParam": "alertId",
+      "mutateStatus": "Removed",
+      "noun": "price alert",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Remove a price drop alert by alertId.",
+      "render": {
+        "type": "card",
+        "title": "Price Alert Removed",
+        "fields": [
+          {
+            "label": "Alert #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"remove price alert\" / \"stop watching pa-801\" + alertId -> remove_price_alert params:{alertId}",
+      "evalRows": [
+        {
+          "phrase": "remove price alert pa-801",
+          "expect": "remove_price_alert"
+        },
+        {
+          "phrase": "stop watching pa-802",
+          "expect": "remove_price_alert"
+        }
+      ]
+    },
+    {
+      "action": "redeem_store_credit",
+      "type": "write",
+      "arr": "rewards",
+      "idParam": "rewardId",
+      "mutateStatus": "Redeemed",
+      "noun": "store credit",
+      "needsHeuristic": false,
+      "heuristicRegex": null,
+      "toolDescription": "Redeem accumulated rewards points as store credit by rewardId.",
+      "render": {
+        "type": "card",
+        "title": "Store Credit Redeemed",
+        "fields": [
+          {
+            "label": "Reward #",
+            "path": "id"
+          },
+          {
+            "label": "Tier",
+            "path": "tier"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"redeem store credit\" / \"redeem points for credit\" + rewardId -> redeem_store_credit params:{rewardId}",
+      "evalRows": [
+        {
+          "phrase": "redeem my points as store credit",
+          "expect": "redeem_store_credit"
+        },
+        {
+          "phrase": "use my rewards points for a discount",
+          "expect": "redeem_store_credit"
+        }
+      ]
+    },
+    {
+      "action": "cancel_order",
+      "type": "write",
+      "arr": "orders",
+      "idParam": "orderId",
+      "mutateStatus": "Cancelled",
+      "noun": "order",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bcancel\\b.*\\border\\b",
+      "toolDescription": "Cancel an existing order by orderId.",
+      "render": {
+        "type": "card",
+        "title": "Order Cancelled",
+        "fields": [
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"cancel my order\" / \"cancel order 1001\" + orderId -> cancel_order {orderId}",
+      "evalRows": [
+        {
+          "phrase": "cancel order 1001",
+          "expect": "cancel_order"
+        },
+        {
+          "phrase": "cancel my order",
+          "expect": "cancel_order"
+        }
+      ]
+    },
+    {
+      "action": "view_payment_methods",
+      "type": "read",
+      "arr": "payment_methods",
+      "resultKey": "payment_methods",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bpayment\\s+method(s)?\\b|\\bsaved\\s+(card|payment)s?\\b|\\b(credit|debit)\\s+cards?\\b",
+      "toolDescription": "List the shopper's saved payment methods.",
+      "render": {
+        "type": "table",
+        "title": "Payment Methods",
+        "columns": [
+          {
+            "label": "Card #",
+            "path": "id"
+          },
+          {
+            "label": "Type",
+            "path": "type"
+          },
+          {
+            "label": "Last 4",
+            "path": "last4"
+          },
+          {
+            "label": "Expiry",
+            "path": "expiry"
+          },
+          {
+            "label": "Default",
+            "path": "is_default"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my payment methods\" / \"saved cards\" -> view_payment_methods params:{}",
+      "seedRows": [
+        {
+          "id": "pmt-1001",
+          "type": "Visa",
+          "last4": "4242",
+          "expiry": "2028-04",
+          "is_default": "Yes"
+        },
+        {
+          "id": "pmt-1002",
+          "type": "Mastercard",
+          "last4": "8210",
+          "expiry": "2027-11",
+          "is_default": "No"
+        },
+        {
+          "id": "pmt-1003",
+          "type": "Amex",
+          "last4": "3706",
+          "expiry": "2026-09",
+          "is_default": "No"
+        },
+        {
+          "id": "pmt-1004",
+          "type": "PayPal",
+          "last4": "N/A",
+          "expiry": "N/A",
+          "is_default": "No"
+        },
+        {
+          "id": "pmt-1005",
+          "type": "Discover",
+          "last4": "6011",
+          "expiry": "2029-01",
+          "is_default": "No"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my payment methods",
+          "expect": "view_payment_methods"
+        },
+        {
+          "phrase": "what credit cards do I have saved",
+          "expect": "view_payment_methods"
+        },
+        {
+          "phrase": "my saved cards",
+          "expect": "view_payment_methods"
+        }
+      ]
+    },
+    {
+      "action": "view_addresses",
+      "type": "read",
+      "arr": "addresses",
+      "resultKey": "addresses",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\b(saved|my|shipping|delivery)\\s+address(es)?\\b",
+      "toolDescription": "List the shopper's saved shipping and billing addresses.",
+      "render": {
+        "type": "table",
+        "title": "Saved Addresses",
+        "columns": [
+          {
+            "label": "Address #",
+            "path": "id"
+          },
+          {
+            "label": "Label",
+            "path": "label"
+          },
+          {
+            "label": "Street",
+            "path": "street"
+          },
+          {
+            "label": "City",
+            "path": "city"
+          },
+          {
+            "label": "Default",
+            "path": "is_default"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my addresses\" / \"saved shipping addresses\" -> view_addresses params:{}",
+      "seedRows": [
+        {
+          "id": "addr-201",
+          "label": "Home",
+          "street": "742 Evergreen Terrace",
+          "city": "Springfield",
+          "is_default": "Yes"
+        },
+        {
+          "id": "addr-202",
+          "label": "Work",
+          "street": "100 Tech Park Dr",
+          "city": "Austin",
+          "is_default": "No"
+        },
+        {
+          "id": "addr-203",
+          "label": "Mom's House",
+          "street": "33 Oak Lane",
+          "city": "Denver",
+          "is_default": "No"
+        },
+        {
+          "id": "addr-204",
+          "label": "Vacation",
+          "street": "99 Beach Blvd",
+          "city": "Miami",
+          "is_default": "No"
+        },
+        {
+          "id": "addr-205",
+          "label": "Office 2",
+          "street": "555 Market St",
+          "city": "San Francisco",
+          "is_default": "No"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my saved addresses",
+          "expect": "view_addresses"
+        },
+        {
+          "phrase": "what shipping addresses do I have",
+          "expect": "view_addresses"
+        },
+        {
+          "phrase": "my delivery addresses",
+          "expect": "view_addresses"
+        }
+      ]
+    },
+    {
+      "action": "view_subscriptions",
+      "type": "read",
+      "arr": "subscriptions",
+      "resultKey": "subscriptions",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bsubscription(s)?\\b|\\bauto.?ship\\b|\\brepeat\\s+deliver(y|ies)\\b",
+      "toolDescription": "List the shopper's active and paused product subscriptions.",
+      "render": {
+        "type": "table",
+        "title": "My Subscriptions",
+        "columns": [
+          {
+            "label": "Sub #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Frequency",
+            "path": "frequency"
+          },
+          {
+            "label": "Next Delivery",
+            "path": "next_date",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my subscriptions\" / \"auto-ship orders\" -> view_subscriptions params:{}",
+      "seedRows": [
+        {
+          "id": "sub-301",
+          "product": "AA Batteries 24-pack",
+          "frequency": "Monthly",
+          "next_date": "2026-07-01",
+          "status": "Active"
+        },
+        {
+          "id": "sub-302",
+          "product": "Protein Powder 5lb",
+          "frequency": "Every 6 weeks",
+          "next_date": "2026-07-15",
+          "status": "Active"
+        },
+        {
+          "id": "sub-303",
+          "product": "Printer Ink Combo",
+          "frequency": "Quarterly",
+          "next_date": "2026-09-01",
+          "status": "Paused"
+        },
+        {
+          "id": "sub-304",
+          "product": "Coffee Pods 60ct",
+          "frequency": "Every 2 weeks",
+          "next_date": "2026-06-28",
+          "status": "Active"
+        },
+        {
+          "id": "sub-305",
+          "product": "Water Filter Cartridge",
+          "frequency": "Monthly",
+          "next_date": "2026-07-10",
+          "status": "Active"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my subscriptions",
+          "expect": "view_subscriptions"
+        },
+        {
+          "phrase": "what auto-ship orders do I have",
+          "expect": "view_subscriptions"
+        },
+        {
+          "phrase": "my repeat deliveries",
+          "expect": "view_subscriptions"
+        }
+      ]
+    },
+    {
+      "action": "view_support_tickets",
+      "type": "read",
+      "arr": "support_tickets",
+      "resultKey": "support_tickets",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bsupport\\s+ticket(s)?\\b|\\bopen\\s+(case|ticket|issue)(s)?\\b|\\bmy\\s+(case|ticket|complaint)(s)?\\b",
+      "toolDescription": "List the shopper's open and resolved customer support tickets.",
+      "render": {
+        "type": "table",
+        "title": "Support Tickets",
+        "columns": [
+          {
+            "label": "Ticket #",
+            "path": "id"
+          },
+          {
+            "label": "Subject",
+            "path": "subject"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Created",
+            "path": "created_date",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my support tickets\" / \"open cases\" -> view_support_tickets params:{}",
+      "seedRows": [
+        {
+          "id": "tkt-401",
+          "subject": "Item arrived damaged",
+          "category": "Shipping",
+          "status": "Open",
+          "created_date": "2026-06-10"
+        },
+        {
+          "id": "tkt-402",
+          "subject": "Wrong item delivered",
+          "category": "Fulfillment",
+          "status": "In Progress",
+          "created_date": "2026-06-12"
+        },
+        {
+          "id": "tkt-403",
+          "subject": "Refund not received",
+          "category": "Billing",
+          "status": "Resolved",
+          "created_date": "2026-05-28"
+        },
+        {
+          "id": "tkt-404",
+          "subject": "Product not working",
+          "category": "Product",
+          "status": "Open",
+          "created_date": "2026-06-15"
+        },
+        {
+          "id": "tkt-405",
+          "subject": "Promo code not applied",
+          "category": "Billing",
+          "status": "Resolved",
+          "created_date": "2026-05-20"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my support tickets",
+          "expect": "view_support_tickets"
+        },
+        {
+          "phrase": "do I have any open cases",
+          "expect": "view_support_tickets"
+        },
+        {
+          "phrase": "my complaints and tickets",
+          "expect": "view_support_tickets"
+        }
+      ]
+    },
+    {
+      "action": "view_gift_cards",
+      "type": "read",
+      "arr": "gift_cards",
+      "resultKey": "gift_cards",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bgift\\s+card(s)?\\b|\\bgc\\s+balance\\b",
+      "toolDescription": "List the shopper's gift cards and their remaining balances.",
+      "render": {
+        "type": "table",
+        "title": "Gift Cards",
+        "columns": [
+          {
+            "label": "Card #",
+            "path": "id"
+          },
+          {
+            "label": "Last 4",
+            "path": "last4"
+          },
+          {
+            "label": "Balance",
+            "path": "balance",
+            "format": "money"
+          },
+          {
+            "label": "Expires",
+            "path": "expiry",
+            "format": "date"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my gift cards\" / \"gift card balance\" -> view_gift_cards params:{}",
+      "seedRows": [
+        {
+          "id": "gc-601",
+          "last4": "7821",
+          "balance": 50,
+          "expiry": "2027-12-31",
+          "status": "Active"
+        },
+        {
+          "id": "gc-602",
+          "last4": "3344",
+          "balance": 15.75,
+          "expiry": "2027-06-30",
+          "status": "Active"
+        },
+        {
+          "id": "gc-603",
+          "last4": "9902",
+          "balance": 0,
+          "expiry": "2026-01-01",
+          "status": "Spent"
+        },
+        {
+          "id": "gc-604",
+          "last4": "1120",
+          "balance": 100,
+          "expiry": "2028-03-31",
+          "status": "Active"
+        },
+        {
+          "id": "gc-605",
+          "last4": "4477",
+          "balance": 25,
+          "expiry": "2027-09-30",
+          "status": "Active"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my gift cards",
+          "expect": "view_gift_cards"
+        },
+        {
+          "phrase": "what is my gift card balance",
+          "expect": "view_gift_cards"
+        },
+        {
+          "phrase": "do I have any gift cards",
+          "expect": "view_gift_cards"
+        }
+      ]
+    },
+    {
+      "action": "view_price_alerts",
+      "type": "read",
+      "arr": "price_alerts",
+      "resultKey": "price_alerts",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bprice\\s+(alerts?|drops?)\\b|\\bprice\\s+watch\\w*\\b|\\bwatching\\b.{0,15}\\bprices?\\b",
+      "toolDescription": "List the shopper's price drop alerts on watched products.",
+      "render": {
+        "type": "table",
+        "title": "Price Alerts",
+        "columns": [
+          {
+            "label": "Alert #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Target Price",
+            "path": "target_price",
+            "format": "money"
+          },
+          {
+            "label": "Current Price",
+            "path": "current_price",
+            "format": "money"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my price alerts\" / \"price drop notifications\" -> view_price_alerts params:{}",
+      "seedRows": [
+        {
+          "id": "pa-801",
+          "product": "55in 4K OLED TV",
+          "target_price": 799,
+          "current_price": 1099,
+          "status": "Watching"
+        },
+        {
+          "id": "pa-802",
+          "product": "Gaming Laptop 16in",
+          "target_price": 999,
+          "current_price": 1249,
+          "status": "Watching"
+        },
+        {
+          "id": "pa-803",
+          "product": "Robot Vacuum Pro",
+          "target_price": 299,
+          "current_price": 299,
+          "status": "Triggered"
+        },
+        {
+          "id": "pa-804",
+          "product": "Noise-Canceling Headphones",
+          "target_price": 199,
+          "current_price": 279,
+          "status": "Watching"
+        },
+        {
+          "id": "pa-805",
+          "product": "Espresso Machine",
+          "target_price": 349,
+          "current_price": 349,
+          "status": "Triggered"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my price alerts",
+          "expect": "view_price_alerts"
+        },
+        {
+          "phrase": "what price drops am I watching",
+          "expect": "view_price_alerts"
+        },
+        {
+          "phrase": "any price drop notifications for me",
+          "expect": "view_price_alerts"
+        }
+      ]
+    },
+    {
+      "action": "view_recently_viewed",
+      "type": "read",
+      "arr": "recently_viewed",
+      "resultKey": "recently_viewed",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\brecently\\s+(viewed|browsed?|browse)\\b|\\bbrowsing\\s+history\\b|\\bview\\s+history\\b",
+      "toolDescription": "List the products the shopper recently viewed.",
+      "render": {
+        "type": "table",
+        "title": "Recently Viewed",
+        "columns": [
+          {
+            "label": "Item #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Price",
+            "path": "price",
+            "format": "money"
+          },
+          {
+            "label": "Viewed",
+            "path": "viewed_date",
+            "format": "date"
+          },
+          {
+            "label": "Category",
+            "path": "category"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"recently viewed\" / \"browsing history\" -> view_recently_viewed params:{}",
+      "seedRows": [
+        {
+          "id": "rv-901",
+          "product": "Air Fryer XL",
+          "price": 89.99,
+          "viewed_date": "2026-06-18",
+          "category": "Kitchen"
+        },
+        {
+          "id": "rv-902",
+          "product": "Mechanical Keyboard TKL",
+          "price": 119,
+          "viewed_date": "2026-06-18",
+          "category": "Electronics"
+        },
+        {
+          "id": "rv-903",
+          "product": "Yoga Mat Premium",
+          "price": 45,
+          "viewed_date": "2026-06-17",
+          "category": "Sports"
+        },
+        {
+          "id": "rv-904",
+          "product": "Smart Doorbell Camera",
+          "price": 179,
+          "viewed_date": "2026-06-17",
+          "category": "Home Security"
+        },
+        {
+          "id": "rv-905",
+          "product": "Portable Power Bank 20000mAh",
+          "price": 59.99,
+          "viewed_date": "2026-06-16",
+          "category": "Electronics"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my recently viewed items",
+          "expect": "view_recently_viewed"
+        },
+        {
+          "phrase": "what did I recently browse",
+          "expect": "view_recently_viewed"
+        },
+        {
+          "phrase": "my browsing history",
+          "expect": "view_recently_viewed"
+        }
+      ]
+    },
+    {
+      "action": "view_wishlist",
+      "type": "read",
+      "arr": "wishlist",
+      "resultKey": "wishlist",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\bwish\\s*list\\b|\\bsaved\\s+items?\\b",
+      "toolDescription": "List the items on the shopper's wishlist.",
+      "render": {
+        "type": "table",
+        "title": "My Wishlist",
+        "columns": [
+          {
+            "label": "Item #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Price",
+            "path": "price",
+            "format": "money"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my wishlist\" / \"saved items\" -> view_wishlist params:{}",
+      "evalRows": [
+        {
+          "phrase": "show my wishlist",
+          "expect": "view_wishlist"
+        },
+        {
+          "phrase": "what is on my wishlist",
+          "expect": "view_wishlist"
+        },
+        {
+          "phrase": "show my saved items",
+          "expect": "view_wishlist"
+        }
+      ]
+    },
+    {
+      "action": "view_returns",
+      "type": "read",
+      "arr": "returns",
+      "resultKey": "returns",
+      "needsHeuristic": true,
+      "heuristicRegex": "\\breturns?\\b|\\breturn\\s+history\\b|\\breturn\\s+an?\\s+item\\b",
+      "toolDescription": "List the shopper's product returns and their status.",
+      "render": {
+        "type": "table",
+        "title": "My Returns",
+        "columns": [
+          {
+            "label": "Return #",
+            "path": "id"
+          },
+          {
+            "label": "Product",
+            "path": "product"
+          },
+          {
+            "label": "Reason",
+            "path": "reason"
+          },
+          {
+            "label": "Status",
+            "path": "status"
+          },
+          {
+            "label": "Date",
+            "path": "date",
+            "format": "date"
+          }
+        ]
+      },
+      "directiveIntentLine": "\"my returns\" / \"return history\" / \"return an item\" -> view_returns params:{}",
+      "seedRows": [
+        {
+          "id": "701",
+          "product": "Bluetooth Speaker",
+          "reason": "Defective",
+          "status": "Refunded",
+          "date": "2026-05-02"
+        },
+        {
+          "id": "702",
+          "product": "Running Shoes",
+          "reason": "Wrong size",
+          "status": "In Transit",
+          "date": "2026-05-18"
+        },
+        {
+          "id": "703",
+          "product": "Coffee Maker",
+          "reason": "Changed mind",
+          "status": "Approved",
+          "date": "2026-06-01"
+        },
+        {
+          "id": "704",
+          "product": "USB-C Cable",
+          "reason": "Not as described",
+          "status": "Pending",
+          "date": "2026-06-09"
+        },
+        {
+          "id": "705",
+          "product": "Desk Lamp",
+          "reason": "Damaged in shipping",
+          "status": "Refunded",
+          "date": "2026-04-25"
+        }
+      ],
+      "evalRows": [
+        {
+          "phrase": "show my returns",
+          "expect": "view_returns"
+        },
+        {
+          "phrase": "my return history",
+          "expect": "view_returns"
+        }
+      ]
+    }
+  ]
+}

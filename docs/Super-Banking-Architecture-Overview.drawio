@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-04-06T21:00:00.000Z" agent="5.0" etag="drawio" version="21.1.2" type="device">
+  <diagram name="Super Banking Architecture Overview" id="overview">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Browser Layer -->
+        <mxCell id="browser-layer" value="Browser Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="50" width="700" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- React SPA -->
+        <mxCell id="react-spa" value="React SPA&#xa;(banking_api_ui)&#xa;• Dashboard&#xa;• Admin Panel&#xa;• Education Panels&#xa;• AI Agent FAB&#xa;• Self-Service UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="200" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- Browser Security -->
+        <mxCell id="browser-security" value="Browser Security&#xa;• httpOnly Session Cookie&#xa;• SameSite=Lax&#xa;• XSS Protection&#xa;• CSRF Protection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="320" y="130" width="180" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- User Interface -->
+        <mxCell id="user-interface" value="User Interface&#xa;• Profile Management&#xa;• Account Overview&#xa;• Transaction History&#xa;• Security Center&#xa;• Education Content" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="540" y="130" width="180" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- BFF Layer -->
+        <mxCell id="bff-layer" value="Backend-for-Frontend (BFF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="300" width="700" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Express Server -->
+        <mxCell id="express-server" value="Express Server&#xa;(banking_api_server)&#xa;• OAuth Flows&#xa;• Session Management&#xa;• Token Custodian&#xa;• MCP Proxy&#xa;• CIBA Gateway&#xa;• API Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="80" y="380" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- OAuth Service -->
+        <mxCell id="oauth-service" value="OAuth Service&#xa;• PKCE Login&#xa;• Token Exchange&#xa;• Token Refresh&#xa;• CIBA Initiation&#xa;• MFA Step-Up" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="320" y="380" width="180" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Session Store -->
+        <mxCell id="session-store" value="Session Store&#xa;• Redis (Vercel)&#xa;• SQLite (Local)&#xa;• Token Storage&#xa;• Session Persistence&#xa;• Serverless Support" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="540" y="380" width="180" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- MCP Layer -->
+        <mxCell id="mcp-layer" value="MCP Server Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="570" width="700" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- MCP Server -->
+        <mxCell id="mcp-server" value="MCP Server&#xa;(banking_mcp_server)&#xa;• WebSocket Connections&#xa;• Tool Registry&#xa;• Tool Execution&#xa;• Auth Challenge Gating&#xa;• Request Routing&#xa;• Token Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="80" y="650" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Agent Integration -->
+        <mxCell id="agent-integration" value="Agent Integration&#xa;• LangChain Integration&#xa;• Tool Orchestration&#xa;• Request Processing&#xa;• Response Generation&#xa;• State Management&#xa;• Error Handling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="320" y="650" width="180" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Tool Registry -->
+        <mxCell id="tool-registry" value="Tool Registry&#xa;• Banking Tools&#xa;• Account Management&#xa;• Transaction Processing&#xa;• Security Operations&#xa;• Educational Tools&#xa;• Audit Functions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="540" y="650" width="180" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- External Services -->
+        <mxCell id="external-layer" value="External Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="850" y="50" width="700" height="660" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne Identity -->
+        <mxCell id="pingone-identity" value="PingOne Identity&#xa;• OAuth Provider&#xa;• User Management&#xa;• MFA Services&#xa;• Token Validation&#xa;• Policy Enforcement&#xa;• CIBA Support" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="880" y="80" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- PingOne Authorize -->
+        <mxCell id="pingone-authorize" value="PingOne Authorize&#xa;• Transaction Authorization&#xa;• MCP Delegation&#xa;• Policy Decisions&#xa;• Step-Up Requirements&#xa;• Risk Assessment&#xa;• Audit Logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="1120" y="80" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- LangChain Agent -->
+        <mxCell id="langchain-agent" value="LangChain Agent&#xa;• Python Process&#xa;• Tool Execution&#xa;• Context Management&#xa;• Response Generation&#xa;• Error Handling&#xa;• Local Only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="880" y="260" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Vercel Platform -->
+        <mxCell id="vercel-platform" value="Vercel Platform&#xa;• Serverless Functions&#xa;• Edge Deployment&#xa;• Environment Variables&#xa;• Build Process&#xa;• CDN Distribution&#xa;• Analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="1120" y="260" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Database -->
+        <mxCell id="database" value="Data Store&#xa;• Demo Accounts&#xa;• Transaction Records&#xa;• User Profiles&#xa;• Audit Logs&#xa;• Configuration&#xa;• Session Data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="880" y="440" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Monitoring -->
+        <mxCell id="monitoring" value="Monitoring & Logging&#xa;• Application Logs&#xa;• Error Tracking&#xa;• Performance Metrics&#xa;• User Analytics&#xa;• Security Events&#xa;• System Health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="1120" y="440" width="200" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- Security Boundaries -->
+        <mxCell id="security-boundary-1" value="" style="endArrow=none;dashed=1;html=1;strokeColor=#ff0000;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="40" y="40" as="sourcePoint" />
+            <mxPoint x="760" y="40" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="security-boundary-2" value="" style="endArrow=none;dashed=1;html=1;strokeColor=#ff0000;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="40" y="290" as="sourcePoint" />
+            <mxPoint x="760" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="security-boundary-3" value="" style="endArrow=none;dashed=1;html=1;strokeColor=#ff0000;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="40" y="560" as="sourcePoint" />
+            <mxPoint x="760" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Connection Lines -->
+        <mxCell id="connection-1" value="HTTPS/WebSocket" style="endArrow=classic;html=1;strokeColor=#2E7D32;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="250" as="sourcePoint" />
+            <mxPoint x="180" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-2" value="Session Cookie" style="endArrow=classic;html=1;strokeColor=#1565C0;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="410" y="250" as="sourcePoint" />
+            <mxPoint x="410" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-3" value="User Data" style="endArrow=classic;html=1;strokeColor=#2E7D32;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="630" y="250" as="sourcePoint" />
+            <mxPoint x="630" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-4" value="WebSocket" style="endArrow=classic;html=1;strokeColor=#2E7D32;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="520" as="sourcePoint" />
+            <mxPoint x="180" y="650" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-5" value="Token Exchange" style="endArrow=classic;html=1;strokeColor=#1565C0;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="410" y="520" as="sourcePoint" />
+            <mxPoint x="410" y="650" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-6" value="Session Data" style="endArrow=classic;html=1;strokeColor=#2E7D32;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="630" y="520" as="sourcePoint" />
+            <mxPoint x="630" y="650" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- External Service Connections -->
+        <mxCell id="connection-7" value="OAuth 2.0/OIDC" style="endArrow=classic;html=1;strokeColor=#F57C00;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="450" as="sourcePoint" />
+            <mxPoint x="880" y="150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-8" value="PAZ Decisions" style="endArrow=classic;html=1;strokeColor=#F57C00;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="450" as="sourcePoint" />
+            <mxPoint x="1120" y="150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-9" value="Tool Execution" style="endArrow=classic;html=1;strokeColor=#F57C00;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="500" y="720" as="sourcePoint" />
+            <mxPoint x="880" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-10" value="Deployment" style="endArrow=classic;html=1;strokeColor=#F57C00;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="760" y="450" as="sourcePoint" />
+            <mxPoint x="1120" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-11" value="Data Access" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="760" y="450" as="sourcePoint" />
+            <mxPoint x="880" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="connection-12" value="Log Events" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="760" y="450" as="sourcePoint" />
+            <mxPoint x="1120" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#dee2e6;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="850" width="700" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item-1" value="🔐 Security Boundary" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;wrapWord=0;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="70" y="860" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item-2" value="🔗 HTTPS/WebSocket" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;wrapWord=0;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="200" y="860" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item-3" value="🍪 Session Cookie" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;wrapWord=0;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="330" y="860" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item-4" value="🔄 Token Exchange" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;wrapWord=0;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="460" y="860" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend-item-5" value="🌐 External Service" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;wrapWord=0;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="590" y="860" width="120" height="20" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

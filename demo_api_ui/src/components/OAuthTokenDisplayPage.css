@@ -1,0 +1,417 @@
+/* banking_api_ui/src/components/OAuthTokenDisplayPage.css */
+
+.otdp-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.otdp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.otdp-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.otdp-status {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.otdp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.otdp-badge--active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.otdp-badge--expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.otdp-badge--provider {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.otdp-loading {
+  text-align: center;
+  padding: 4rem 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.otdp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.otdp-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.otdp-card--error {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 480px;
+  margin: 2rem auto;
+}
+
+.otdp-card--error h3 {
+  margin: 0.75rem 0 0.5rem;
+  color: #1e293b;
+}
+
+.otdp-card--error p {
+  color: #64748b;
+  margin: 0;
+}
+
+.otdp-error-icon {
+  font-size: 2.5rem;
+}
+
+.otdp-card-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* ── Collapsible card header ── */
+.otdp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem -1.25rem 0 -1.25rem;
+  margin: -1.25rem -1.25rem 0 -1.25rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-radius: 0.75rem 0.75rem 0 0;
+  transition: background-color 0.15s;
+}
+
+.otdp-card-header:hover {
+  background-color: #f8fafc;
+}
+
+.otdp-toggle-icon {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.otdp-card-content {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.otdp-claim-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.otdp-claim-row + .otdp-claim-row {
+  border-top: 1px solid #f8fafc;
+}
+
+.otdp-claim-key {
+  flex-shrink: 0;
+  width: 120px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.otdp-claim-value {
+  color: #1e293b;
+  word-break: break-all;
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+.otdp-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.otdp-scope-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.otdp-muted {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+.otdp-expired-text {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.otdp-active-text {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.otdp-raw-section {
+  margin-top: 1rem;
+}
+
+/* ── No-session: MCP flow start card ── */
+.otdp-flow-start-card {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  max-width: 560px;
+  margin: 2rem auto;
+}
+
+.otdp-flow-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.otdp-flow-start-card h3 {
+  margin: 0 0 0.75rem;
+  color: #1e293b;
+  font-size: 1.25rem;
+}
+
+.otdp-flow-desc {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0 0 1.75rem;
+}
+
+.otdp-flow-desc code {
+  background: #f1f5f9;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-size: 0.875em;
+  color: #0f172a;
+}
+
+/* Step indicators */
+.otdp-flow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.otdp-flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.875rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+  text-align: left;
+  min-width: 140px;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.otdp-flow-step--active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.otdp-flow-step--warn {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.otdp-flow-step--ok {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.otdp-flow-step--done {
+  border-color: #10b981;
+  opacity: 0.75;
+}
+
+.otdp-flow-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.otdp-flow-step--active .otdp-flow-step-num {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.otdp-flow-step--warn .otdp-flow-step-num {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.otdp-flow-step--ok .otdp-flow-step-num,
+.otdp-flow-step--done .otdp-flow-step-num {
+  background: #10b981;
+  color: #fff;
+}
+
+.otdp-flow-step-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.otdp-flow-step-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+
+.otdp-flow-arrow {
+  font-size: 1.125rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.otdp-flow-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.otdp-flow-login-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 2rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.otdp-flow-login-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.otdp-flow-login-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+
+.otdp-raw-json {
+  margin-top: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  color: #334155;
+  font-family: inherit;
+}
+
+/* ── Wider scrollbar for JSON section ── */
+.otdp-raw-json::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.otdp-raw-json::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+}
+
+.otdp-raw-json::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 0.5rem;
+  border: 2px solid #f8fafc;
+  transition: background 0.2s;
+}
+
+.otdp-raw-json::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* PingOne Enrichment source label */
+.otdp-source-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+  margin-left: 0.5rem;
+}

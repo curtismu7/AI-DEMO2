@@ -1,0 +1,230 @@
+.token-exchange-tester-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.page-header p {
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.no-session-message {
+  padding: 2rem;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  text-align: center;
+  color: #666;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.form-section {
+  background-color: #f9f9f9;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.form-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.audience-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.audience-selector select,
+.audience-selector input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.audience-selector select {
+  flex: 0 0 auto;
+}
+
+.audience-selector .separator {
+  color: #999;
+  font-weight: 500;
+}
+
+.audience-selector .custom-input {
+  flex: 1;
+}
+
+#scopes {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: monospace;
+}
+
+.exchange-button {
+  padding: 0.75rem 2rem;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.exchange-button:hover:not(:disabled) {
+  background-color: #0052a3;
+}
+
+.exchange-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-section {
+  padding: 1.5rem;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+}
+
+.error-section h3 {
+  margin-top: 0;
+  color: #856404;
+}
+
+.error-box {
+  padding: 1rem;
+  background-color: #fff;
+  border-left: 3px solid #ff6b6b;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #d32f2f;
+}
+
+.result-section {
+  padding: 2rem;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.result-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.token-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .token-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+.token-card {
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.token-card.original {
+  border-left-color: #0066cc;
+}
+
+.token-card.exchanged {
+  border-left-color: #00b300;
+}
+
+.token-card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.token-display {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.token-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.claim {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.claim-label {
+  font-weight: 600;
+  color: #333;
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+
+.claim-value {
+  color: #666;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.request-section,
+.raw-response-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.request-section h3,
+.raw-response-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}

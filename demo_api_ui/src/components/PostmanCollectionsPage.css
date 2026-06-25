@@ -1,0 +1,483 @@
+/* banking_api_ui/src/components/PostmanCollectionsPage.css */
+
+.postman-page {
+  min-height: 100vh;
+  background: linear-gradient(165deg, #ffffff 0%, var(--brand-light-gray) 48%, var(--brand-light-gray) 100%);
+}
+
+.postman-page__main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.postman-page__header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.postman-page__header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.postman-page__subtitle {
+  font-size: 1.125rem;
+  color: #999999;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.postman-section {
+  margin-bottom: 3rem;
+}
+
+.postman-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.postman-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.postman-card {
+  background: white;
+  border: 1px solid #DDDDDD;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.postman-card:hover {
+  border-color: var(--brand-navy);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.postman-card--environment {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: var(--brand-navy);
+}
+
+.postman-card__content {
+  flex: 1;
+  margin-bottom: 1.5rem;
+}
+
+.postman-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.postman-card__header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.postman-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.postman-card__difficulty {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.postman-card__audience {
+  font-size: 0.875rem;
+  color: #999999;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.postman-card__badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.postman-card__badge--required {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.postman-card__badge--optional {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #bae6fd;
+}
+
+.postman-card__description {
+  color: #999999;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.postman-card__features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.postman-card__feature {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--brand-light-gray);
+  border: 1px solid #DDDDDD;
+  border-radius: 6px;
+  color: #666666;
+}
+
+.postman-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.postman-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+}
+
+.postman-btn--primary {
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
+  color: white;
+  border: 1px solid var(--brand-navy);
+}
+
+.postman-btn--primary:hover {
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.postman-btn:active {
+  transform: translateY(0);
+}
+
+.postman-card__download-count {
+  font-size: 0.75rem;
+  color: #999999;
+  text-align: center;
+  font-style: italic;
+}
+
+.postman-guide {
+  background: white;
+  border: 1px solid #DDDDDD;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.postman-guide__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.postman-guide__step {
+  display: flex;
+  gap: 1rem;
+}
+
+.postman-guide__step-number {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.postman-guide__step-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin: 0 0 0.5rem 0;
+}
+
+.postman-guide__step-content p {
+  font-size: 0.875rem;
+  color: #999999;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.postman-guide__tips {
+  background: var(--brand-light-gray);
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.postman-guide__tips h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin: 0 0 1rem 0;
+}
+
+.postman-guide__tips ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.postman-guide__tips li {
+  font-size: 0.875rem;
+  color: #999999;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.postman-guide__tips code {
+  background: var(--brand-light-gray);
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.8em;
+  color: var(--brand-dark-gray);
+}
+
+.postman-resources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.postman-resource-link {
+  background: white;
+  border: 1px solid #DDDDDD;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  gap: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.postman-resource-link:hover {
+  border-color: var(--brand-navy);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  text-decoration: none;
+  color: inherit;
+}
+
+.postman-resource-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.postman-resource-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin: 0 0 0.5rem 0;
+}
+
+.postman-resource-content p {
+  font-size: 0.875rem;
+  color: #999999;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .postman-page__main {
+    padding: 1rem;
+  }
+  
+  .postman-page__header h1 {
+    font-size: 2rem;
+  }
+  
+  .postman-page__subtitle {
+    font-size: 1rem;
+  }
+  
+  .postman-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .postman-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .postman-card__meta {
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .postman-guide__steps {
+    grid-template-columns: 1fr;
+  }
+  
+  .postman-guide__step {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .postman-resources {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .postman-page {
+    background: linear-gradient(165deg, #0f172a 0%, var(--brand-dark-gray) 48%, var(--brand-dark-gray) 100%);
+  }
+  
+  .postman-page__header h1 {
+    background: linear-gradient(135deg, var(--brand-navy-light) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .postman-page__subtitle {
+    color: #94a3b8;
+  }
+  
+  .postman-section h2 {
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-card {
+    background: var(--brand-dark-gray);
+    border-color: #666666;
+  }
+  
+  .postman-card:hover {
+    border-color: var(--brand-navy);
+  }
+  
+  .postman-card--environment {
+    background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
+    border-color: var(--brand-navy);
+  }
+  
+  .postman-card__header h3 {
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-card__description {
+    color: #94a3b8;
+  }
+  
+  .postman-card__feature {
+    background: var(--brand-dark-gray);
+    border-color: #666666;
+    color: #CCCCCC;
+  }
+  
+  .postman-guide {
+    background: var(--brand-dark-gray);
+    border-color: #666666;
+  }
+  
+  .postman-guide__step-content h4 {
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-guide__step-content p {
+    color: #94a3b8;
+  }
+  
+  .postman-guide__tips {
+    background: var(--brand-dark-gray);
+    border-color: #666666;
+  }
+  
+  .postman-guide__tips h4 {
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-guide__tips li {
+    color: #94a3b8;
+  }
+  
+  .postman-guide__tips code {
+    background: #666666;
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-resource-link {
+    background: var(--brand-dark-gray);
+    border-color: #666666;
+  }
+  
+  .postman-resource-link:hover {
+    border-color: var(--brand-navy);
+  }
+  
+  .postman-resource-content h4 {
+    color: var(--brand-light-gray);
+  }
+  
+  .postman-resource-content p {
+    color: #94a3b8;
+  }
+}

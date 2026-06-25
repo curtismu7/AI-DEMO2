@@ -1,0 +1,145 @@
+/* banking_api_ui/src/components/AccessIdTokenPathPage.css
+   Phase 266 Plan 04 — Path B (Access + ID-Token) info page. Teal visual identity. No emoji glyphs.
+   Token custody: raw JWTs never in DOM; only sanitized claims objects rendered.
+*/
+
+.aitp-container {
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 24px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.aitp-header {
+  border-left: 6px solid #0d9488;
+  background: rgba(13, 148, 136, 0.06);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  border-radius: 0 4px 4px 0;
+}
+
+.aitp-badge {
+  display: inline-block;
+  background: #0d9488;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.aitp-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 8px 0 0 0;
+}
+
+.aitp-body {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.aitp-message {
+  line-height: 1.55;
+  color: #374151;
+  margin-bottom: 16px;
+}
+
+.aitp-claims-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 760px) {
+  .aitp-claims-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aitp-claims-col {
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.aitp-claims-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f766e;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.aitp-claims-list {
+  display: grid;
+  grid-template-columns: minmax(100px, auto) 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.aitp-claim-key {
+  font-weight: 600;
+  color: #4b5563;
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.aitp-claim-value {
+  color: #1f2937;
+  word-break: break-all;
+  font-size: 13px;
+}
+
+.aitp-claims-empty {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.aitp-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.aitp-back-btn {
+  background: #1f2937;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.aitp-back-btn:hover {
+  background: #111827;
+}
+
+.aitp-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.aitp-loading {
+  color: #6b7280;
+  padding: 20px;
+  text-align: center;
+}

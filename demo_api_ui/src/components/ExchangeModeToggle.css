@@ -1,0 +1,220 @@
+/* banking_api_ui/src/components/ExchangeModeToggle.css */
+.emt-root {
+  background: #fff0f0;
+  border: 1px solid #f5c0c0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.emt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--brand-navy, #1e3a5f);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: -10px -14px 12px -14px;
+}
+
+.emt-header--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.emt-header--collapsed {
+  margin-bottom: 0;
+  border-radius: 6px;
+}
+
+.emt-header--clickable:hover {
+  background: #16304f;
+}
+
+.emt-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emt-chevron {
+  font-size: 1.1rem;
+  color: #ffffff;
+}
+
+.emt-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.emt-rfc {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brand-navy);
+  font-family: inherit;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.emt-desc-main {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--color-text-secondary, #666666);
+}
+
+.emt-desc-main code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+/* Token Types Table */
+.emt-tokens-table {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--color-border, #EEEEEE);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+}
+
+.emt-tokens-header {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1.1fr 1.2fr;
+  gap: 0;
+  background: var(--brand-navy);
+  color: white;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border, #DDDDDD);
+}
+
+.emt-tokens-col-name,
+.emt-tokens-col-noun,
+.emt-tokens-col-source,
+.emt-tokens-col-use {
+  padding: 8px 10px;
+}
+
+.emt-token-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1.1fr 1.2fr;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border, #EEEEEE);
+  align-items: start;
+}
+
+.emt-token-row:last-child {
+  border-bottom: none;
+}
+
+.emt-token-row--user {
+  background: rgba(37, 99, 235, 0.04); /* User token highlight */
+}
+
+.emt-token-row--user .emt-tokens-col-name {
+  color: var(--brand-navy);
+  font-weight: 600;
+}
+
+.emt-token-row--agent {
+  background: rgba(168, 85, 247, 0.04); /* Agent token highlight */
+}
+
+.emt-token-row--agent .emt-tokens-col-name {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.emt-token-row--mcp {
+  background: rgba(34, 197, 94, 0.04); /* MCP token highlight */
+}
+
+.emt-token-row--mcp .emt-tokens-col-name {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.emt-tokens-col-name,
+.emt-tokens-col-noun,
+.emt-tokens-col-source,
+.emt-tokens-col-use {
+  padding: 8px 10px;
+  line-height: 1.4;
+}
+
+.emt-token-row code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.emt-note {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.05);
+  border-left: 2px solid var(--brand-navy);
+  color: var(--color-text-secondary, #666666);
+  border-radius: 4px;
+}
+
+/* ── Dual-Mode Additions (Phase 198) ──────────────────────────── */
+
+/* Transaction mode badge */
+.emt-rfc--transaction {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.emt-rfc--loading {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  font-style: italic;
+}
+
+/* Transaction token row — amber accent */
+.emt-token-row--transaction {
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.emt-token-row--transaction .emt-tokens-col-name {
+  color: #b45309;
+  font-weight: 600;
+}
+
+/* Truncate long transaction IDs */
+.emt-txn-id {
+  font-size: 0.78rem;
+  word-break: break-all;
+  max-width: 140px;
+  display: inline-block;
+}
+
+/* Mode notes variant for draft mode */
+.emt-note code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.7rem;
+  font-family: inherit;
+}
+
+/* Responsive: stack table on small screens */
+@media (max-width: 640px) {
+  .emt-tokens-header,
+  .emt-token-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .emt-tokens-col-use {
+    grid-column: 1 / -1;
+  }
+}

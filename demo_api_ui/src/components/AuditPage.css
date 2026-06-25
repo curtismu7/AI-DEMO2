@@ -1,0 +1,714 @@
+/* ============================================================
+   AuditPage.css — MCP Audit Trail floating window
+   ============================================================ */
+
+/* ── Floating window shell ── */
+.audit-float-window {
+  position: fixed;
+  z-index: 9000;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* No min/max — constrained by JS */
+}
+
+/* ── Title bar (drag handle) ── */
+.audit-float-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 10px 16px;
+  background: var(--color-header-bg, #f3f4f6);
+  border-bottom: 1px solid var(--color-border, #d1d5db);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.audit-float-titlebar:active {
+  cursor: grabbing;
+}
+
+.audit-float-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary, #1a1a2e);
+}
+
+.audit-float-titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audit-float-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--color-text-secondary, #374151);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 7px;
+  line-height: 1.4;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.audit-float-btn:hover:not(:disabled) {
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+}
+
+.audit-float-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.audit-float-close {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--color-text-secondary, #374151);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 6px 2px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.audit-float-close:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* ── Scrollable content ── */
+.audit-float-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+}
+
+/* ── Resize handles (8-directional) ── */
+.audit-resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+/* Corners — 12×12 */
+.audit-resize-nw {
+  top: -5px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  cursor: nw-resize;
+}
+.audit-resize-ne {
+  top: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  cursor: ne-resize;
+}
+.audit-resize-se {
+  bottom: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  cursor: se-resize;
+}
+.audit-resize-sw {
+  bottom: -5px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  cursor: sw-resize;
+}
+
+/* Edges */
+.audit-resize-n {
+  top: -4px;
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  cursor: n-resize;
+}
+.audit-resize-s {
+  bottom: -4px;
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  cursor: s-resize;
+}
+.audit-resize-e {
+  top: 12px;
+  bottom: 12px;
+  right: -4px;
+  width: 8px;
+  cursor: e-resize;
+}
+.audit-resize-w {
+  top: 12px;
+  bottom: 12px;
+  left: -4px;
+  width: 8px;
+  cursor: w-resize;
+}
+
+/* ── Summary stats bar ── */
+.audit-page__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.audit-stat {
+  background: var(--color-surface, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 10px 16px;
+  text-align: center;
+  min-width: 80px;
+}
+
+.audit-stat__value {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a2e);
+}
+
+.audit-stat__label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary, #374151);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.audit-stat--success {
+  border-color: #22c55e;
+}
+.audit-stat--failure {
+  border-color: #ef4444;
+}
+.audit-stat--partial {
+  border-color: #f59e0b;
+}
+.audit-stat--type {
+  border-color: #64748b;
+}
+
+/* ── Filters row ── */
+.audit-page__filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.audit-filter-select {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-surface, #fff);
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #1a1a2e);
+  cursor: pointer;
+}
+
+.audit-filter-select:focus {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: 2px;
+}
+
+/* ── Error ── */
+.audit-page__error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #b91c1c;
+  margin-bottom: 14px;
+  font-size: 0.875rem;
+}
+
+/* ── Table ── */
+.audit-page__table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--color-surface, #fff);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.audit-table thead {
+  background: var(--color-header-bg, #f3f4f6);
+}
+
+.audit-table th {
+  text-align: left;
+  padding: 9px 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #374151);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.audit-table td {
+  padding: 9px 12px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  vertical-align: top;
+}
+
+.audit-table__empty {
+  text-align: center;
+  color: var(--color-text-secondary, #374151);
+  padding: 28px !important;
+}
+
+/* Row outcome coloring */
+.audit-row--failure td:first-child {
+  border-left: 3px solid #ef4444;
+}
+.audit-row--partial td:first-child {
+  border-left: 3px solid #f59e0b;
+}
+.audit-row--success td:first-child {
+  border-left: 3px solid #22c55e;
+}
+
+.audit-cell--time {
+  white-space: nowrap;
+  color: var(--color-text-secondary, #374151);
+  font-size: 0.78rem;
+}
+
+.audit-cell--user {
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #374151);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-cell--details {
+  min-width: 70px;
+}
+
+/* ── Badges ── */
+.audit-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.audit-badge--type {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.audit-badge--outcome--success {
+  background: #dcfce7;
+  color: #15803d;
+}
+.audit-badge--outcome--failure {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.audit-badge--outcome--partial {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+/* Scenario 4 — unauthorized-tool (insufficient scope) alert */
+.audit-badge--alert {
+  margin-left: 8px;
+  background: #7f1d1d;
+  color: #fee2e2;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Scenario 5 — Compliance Report tab + table */
+.audit-view-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.audit-view-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #64748b;
+  cursor: pointer;
+}
+.audit-view-tab.active {
+  background: #fff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.audit-export-btn {
+  background: #1f6feb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.audit-export-btn:hover { background: #1a5fd0; }
+.audit-badge--status--permit { background: #dcfce7; color: #15803d; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
+.audit-badge--status--deny { background: #fee2e2; color: #b91c1c; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
+.audit-badge--status--stepup { background: #fef9c3; color: #92400e; border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; }
+.audit-group--pass { color: #15803d; font-weight: 700; }
+.audit-group--fail { color: #b91c1c; font-weight: 700; }
+.audit-row--alert td:first-child {
+  border-left: 3px solid #b91c1c;
+}
+.audit-row--alert td {
+  background: #fef2f2;
+}
+
+/* ── Details pre ── */
+.audit-details-pre {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  background: var(--color-header-bg, #f3f4f6);
+  border-radius: 4px;
+  padding: 8px;
+  overflow-x: auto;
+  max-width: 320px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Details toggle + full-width JSON detail row ── */
+.audit-details-toggle {
+  border: 1px solid var(--color-border, #d1d5db);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary, #1a1a2e);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.audit-details-toggle:hover {
+  background: var(--color-header-bg, #f3f4f6);
+}
+
+tr.audit-detail-row > td {
+  padding: 0 12px 12px;
+  background: #f9fafb;
+  border-top: none;
+}
+
+.audit-json {
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  background: #1e2433;
+  color: #e6edf3;
+  border-radius: 6px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Popout page mode (standalone OS window) ── */
+.audit-popout-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-surface, #fff);
+}
+
+.audit-popout-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--color-header-bg, #f3f4f6);
+  border-bottom: 1px solid var(--color-border, #d1d5db);
+  flex-shrink: 0;
+}
+
+.audit-popout-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.audit-cell--duration {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+  color: var(--text-muted, #374151);
+}
+
+/* ── Token chain row styles ── */
+tr.token-chain-row {
+  background-color: #f0f7ff;
+  border-left: 4px solid #0066cc;
+}
+
+tr.token-chain-row:hover {
+  background-color: #e0f0ff;
+}
+
+.token-chain-row .tool-name {
+  font-weight: 600;
+  color: #0066cc;
+}
+
+.token-chain-row .scopes {
+  font-size: 0.85em;
+  color: #666;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.token-chain-row .exchanged-token {
+  font-family: inherit;
+  font-size: 0.85em;
+}
+
+.token-chain-row .no-exchange {
+  color: #374151;
+  font-style: italic;
+}
+
+tr.token-chain-detail-row td {
+  padding: 12px;
+  background-color: #f9f9f9;
+  border: none;
+}
+
+.token-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.token-detail .token-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9em;
+  color: #0066cc;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .token-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Ping2026 admin skin — MCP Audit Trail window.
+   Scoped under body.admin-skin-p1 (toggled by useAdminSkin from
+   ff_admin_skin_ping2026). With the flag off these rules are inert and the
+   classic styling above renders untouched. Palette mirrors
+   adminSkinPing2026.css: white surfaces, #e4e5e9 borders, #2767d2 accent,
+   #b3282d / #dc2626 reds, 6px radii.
+   ========================================================================= */
+
+/* ── Window shell + title bars ──────────────────────────────────────────── */
+body.admin-skin-p1 .audit-float-window {
+  background: #ffffff;
+  border: 1px solid #e4e5e9;
+  border-radius: 8px;
+  box-shadow: 0 20px 56px rgba(35, 36, 42, 0.22);
+}
+body.admin-skin-p1 .audit-float-titlebar,
+body.admin-skin-p1 .audit-popout-titlebar {
+  background: #f6f7f9;
+  border-bottom: 1px solid #e4e5e9;
+}
+body.admin-skin-p1 .audit-float-title {
+  color: #23242a;
+}
+body.admin-skin-p1 .audit-float-btn {
+  color: #5d5e66;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .audit-float-btn:hover:not(:disabled) {
+  background: #2767d2;
+  color: #ffffff;
+}
+body.admin-skin-p1 .audit-float-close {
+  color: #5d5e66;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .audit-float-close:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* Standalone pop-out OS window: white page shell so the (already-skinned)
+   title bar + refresh button sit on a console-matching surface. */
+body.admin-skin-p1 .audit-popout-page {
+  background: #ffffff;
+}
+
+/* ── Summary stat cards ─────────────────────────────────────────────────── */
+body.admin-skin-p1 .audit-stat {
+  background: #f6f7f9;
+  border: 1px solid #e4e5e9;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .audit-stat__value {
+  color: #23242a;
+}
+body.admin-skin-p1 .audit-stat__label {
+  color: #5d5e66;
+}
+
+/* ── Filters + inputs ───────────────────────────────────────────────────── */
+body.admin-skin-p1 .audit-filter-select {
+  background: #ffffff;
+  border: 1px solid #e4e5e9;
+  border-radius: 6px;
+  color: #23242a;
+}
+body.admin-skin-p1 .audit-filter-select:focus {
+  outline-color: #2767d2;
+}
+
+/* ── View tabs (Events / Compliance Report) ─────────────────────────────── */
+body.admin-skin-p1 .audit-view-tabs {
+  border-bottom-color: #e4e5e9;
+}
+body.admin-skin-p1 .audit-view-tab {
+  color: #5d5e66;
+  border-radius: 6px 6px 0 0;
+}
+body.admin-skin-p1 .audit-view-tab:hover {
+  color: #23242a;
+}
+body.admin-skin-p1 .audit-view-tab.active {
+  background: #ffffff;
+  color: #2767d2;
+  border-color: #e4e5e9;
+}
+
+/* ── Export buttons ─────────────────────────────────────────────────────── */
+body.admin-skin-p1 .audit-export-btn {
+  background: #2767d2;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .audit-export-btn:hover {
+  background: #1f57b8;
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+body.admin-skin-p1 .audit-table {
+  background: #ffffff;
+  border: 1px solid #e4e5e9;
+  border-radius: 6px;
+}
+body.admin-skin-p1 .audit-table thead {
+  background: #f6f7f9;
+}
+body.admin-skin-p1 .audit-table th {
+  color: #5d5e66;
+}
+body.admin-skin-p1 .audit-table td {
+  border-top-color: #eceef1;
+}
+body.admin-skin-p1 .audit-table__empty,
+body.admin-skin-p1 .audit-cell--time,
+body.admin-skin-p1 .audit-cell--user {
+  color: #5d5e66;
+}
+
+/* ── Detail toggle + expanded rows ──────────────────────────────────────── */
+body.admin-skin-p1 .audit-details-toggle {
+  background: #ffffff;
+  border: 1px solid #e4e5e9;
+  border-radius: 6px;
+  color: #23242a;
+}
+body.admin-skin-p1 .audit-details-toggle:hover {
+  background: #f3f4f6;
+}
+body.admin-skin-p1 tr.audit-detail-row > td {
+  background: #f9fafb;
+}
+body.admin-skin-p1 .audit-details-pre {
+  background: #f6f7f9;
+}
+
+/* ── Badges + token-chain rows ──────────────────────────────────────────── */
+/* Realign the neutral type badge and the delegation (token-chain) highlight
+   to the console accent (#2767d2). Semantic outcome/status badges keep their
+   green/red/amber meaning. */
+body.admin-skin-p1 .audit-badge--type {
+  background: #eef0f3;
+  color: #4b4c55;
+}
+body.admin-skin-p1 tr.token-chain-row {
+  background-color: #eef3fc;
+  border-left-color: #2767d2;
+}
+body.admin-skin-p1 tr.token-chain-row:hover {
+  background-color: #e4ecfb;
+}
+body.admin-skin-p1 .token-chain-row .tool-name,
+body.admin-skin-p1 .token-detail .token-section h4 {
+  color: #2767d2;
+}
+/* Expanded token-chain detail sub-panel (visible when a token_chain row is
+   opened) — console surfaces + accent header rule. */
+body.admin-skin-p1 tr.token-chain-detail-row td {
+  background-color: #f9fafb;
+}
+body.admin-skin-p1 .token-detail {
+  background-color: #ffffff;
+  border-color: #e4e5e9;
+}
+body.admin-skin-p1 .token-detail .token-section h4 {
+  border-bottom-color: #e4e5e9;
+}
+

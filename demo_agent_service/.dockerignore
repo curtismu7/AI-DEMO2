@@ -1,0 +1,7 @@
+# Guardrail: keep the host's (possibly stale/borrowed) node_modules and build
+# output out of the image. The Dockerfile runs its own `npm ci`; copying these
+# in would clobber that fresh install (e.g. miss a newly added dependency).
+node_modules
+dist
+npm-debug.log*
+.git

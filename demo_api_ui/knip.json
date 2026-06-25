@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/index.js",
+    "src/setupTests.js",
+    "src/reporters/markdownReporter.js",
+    "src/__mocks__/fileMock.js",
+    "src/**/*.test.{js,jsx}",
+    "playwright.config.js",
+    "tests/e2e/**/*.spec.js",
+    "tests/e2e/helpers/**/*.js",
+    "public/banking-chat-widget.js"
+  ],
+  "project": ["src/**/*.{js,jsx}"],
+  "ignore": ["build/**", "tests/e2e/.env.e2e"],
+  "ignoreBinaries": ["wait-on"],
+  "jest": {
+    "config": ["package.json"],
+    "entry": ["src/setupTests.js", "src/**/*.test.{js,jsx}"]
+  },
+  "playwright": {
+    "config": ["playwright.config.js"],
+    "entry": ["tests/e2e/**/*.spec.js"]
+  }
+}

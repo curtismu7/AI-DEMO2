@@ -1,0 +1,74 @@
+# AI Demo — Architecture Diagrams
+
+This directory contains architecture and flow diagrams for the AI Demo project.
+
+## Mermaid Diagrams (source + rendered)
+
+| File | Description |
+| ---- | ----------- |
+| `architecture.mmd` | Full architecture diagram — all services, connections, and protocols |
+| `architecture-simple.mmd` | Simplified left-to-right architecture for the /architecture/overview page |
+| `mcp-security-gateway.mmd` | MCP Security Gateway — live PingGateway path with Authorize failover |
+| `ciba-stepup-sequence.mmd` | CIBA step-up authentication sequence |
+| `hitl-sequence.mmd` | Human-in-the-loop consent sequence |
+| `i4ai-ref-arch.mmd` | i4ai reference architecture |
+
+## Draw.io Diagrams
+
+| File | Description | Download |
+| ---- | ----------- | -------- |
+| `Banking-Architecture.drawio` | Banking architecture overview | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/Banking-Architecture.drawio) |
+| `LUCIDCHART_DIAGRAMS.drawio` | Lucidchart export | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/LUCIDCHART_DIAGRAMS.drawio) |
+| `agent-request-flow.drawio` | Agent request flow with token exchange | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/agent-request-flow.drawio) |
+| `mfa-flow.drawio` | MFA authentication flow with deviceAuthentications API and RFC annotations | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/mfa-flow.drawio) |
+| `user-consent-flow.drawio` | User consent and transaction approval flow | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/user-consent-flow.drawio) |
+
+## How to Use Draw.io Files
+
+1. Right-click a download link and select "Save Link As"
+2. Save the `.drawio` file to your local machine
+3. Open in [app.diagrams.net](https://app.diagrams.net) or VS Code with the Draw.io extension
+4. Edit as needed for your documentation
+
+## How to Regenerate Mermaid PNGs
+
+Mermaid `.mmd` source files are the source of truth. The rendered PNGs under
+`demo_api_ui/public/architecture/` (e.g. `overview2.png`, `token-flow.png`) are
+**not** auto-regenerated when the `.mmd` files change — a separate render step
+is required:
+
+```bash
+npm run build:diagrams
+```
+
+or from the UI: `/architecture/system` → Regenerate.
+
+## RFC Annotations
+
+All diagrams include comprehensive RFC annotations for:
+
+### Authentication & Authorization
+
+- **RFC 6749** - OAuth 2.0 Authorization Framework
+- **RFC 7636** - Proof Key for Code Exchange (PKCE)
+- **RFC 8628** - CIBA (Client Initiated Backchannel Authentication)
+- **RFC 8693** - OAuth 2.0 Token Exchange
+- **RFC 8707** - Resource Indicators
+- **RFC 9728** - OAuth for MCP (Model Context Protocol)
+
+### Security & MFA
+
+- **deviceAuthentications API** - PingOne MFA Implementation
+- **STEP_UP_ACR_VALUE** - Multi-factor authentication policy
+- **Session Management** - Step-up verification with TTL
+
+## Recent Updates
+
+### 2026-06-18/19 — Architecture refresh
+
+- Added `agent_token_service` (Copilot Studio broker, :8097) to full and simple architecture diagrams
+- Added `PingGateway (IG, :3036)` as the default MCP gateway (ff_mcp_gateway_pinggateway) with real→mock Authorize failover
+- Added AG-UI SSE streaming (agentRun.js, ff_agui_enabled, decoded token-chain events)
+- Updated `mcp-security-gateway.mmd` title from "Potential Architecture" to "Live Architecture"; added UserId + McpResourceUri Authorize params and mock failover node
+- Fixed all GitHub download URLs to point at `curtismu7/AI-demo` (previously stale `curtismu7/banking-demo`)
+- Replaced non-existent `architecture-overview.drawio` entry with the actual files present in this directory

@@ -1,0 +1,11 @@
+{
+  "_comment": "Scenario 1 (Denied Access — user not in group) demo data AND UC21 tier data. restrictedTools maps tools to the group required (binary gate, UC9). userGroups maps demo users to their group memberships — includes both PrivilegedBanking (UC9 binary deny) and PrivateBanking (UC21 tier). demoDelegate has no groups → resolves to Standard tier (wire tools denied, $2k ceiling). Enforcement gated by ff_authorize_group_policy (default OFF). Mirror any change to live PingOne Authorize (directory group membership) and demo_authz_server.",
+  "restrictedTools": {
+    "get_sensitive_account_details": "PrivilegedBanking"
+  },
+  "userGroups": {
+    "demoUser": ["PrivilegedBanking", "PrivateBanking"],
+    "demoAdmin": ["PrivilegedBanking", "PrivateBanking"],
+    "demoDelegate": []
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "vertical": "retail",
+  "heuristic": [
+    {
+      "phrase": "I want to start a return for order 701",
+      "expect": "initiate_return"
+    },
+    {
+      "phrase": "initiate return 702",
+      "expect": "initiate_return"
+    },
+    {
+      "phrase": "request a return on my item",
+      "expect": "initiate_return"
+    },
+    {
+      "phrase": "add item 501 to my wishlist",
+      "expect": "add_to_wishlist"
+    },
+    {
+      "phrase": "save this to my wish list",
+      "expect": "add_to_wishlist"
+    },
+    {
+      "phrase": "reorder my last purchase 1002",
+      "expect": "reorder"
+    },
+    {
+      "phrase": "order again 1003",
+      "expect": "reorder"
+    },
+    {
+      "phrase": "I want to reorder",
+      "expect": "reorder"
+    },
+    {
+      "phrase": "cancel order 1001",
+      "expect": "cancel_order"
+    },
+    {
+      "phrase": "cancel my order",
+      "expect": "cancel_order"
+    },
+    {
+      "phrase": "show my payment methods",
+      "expect": "view_payment_methods"
+    },
+    {
+      "phrase": "what credit cards do I have saved",
+      "expect": "view_payment_methods"
+    },
+    {
+      "phrase": "my saved cards",
+      "expect": "view_payment_methods"
+    },
+    {
+      "phrase": "show my saved addresses",
+      "expect": "view_addresses"
+    },
+    {
+      "phrase": "what shipping addresses do I have",
+      "expect": "view_addresses"
+    },
+    {
+      "phrase": "my delivery addresses",
+      "expect": "view_addresses"
+    },
+    {
+      "phrase": "show my subscriptions",
+      "expect": "view_subscriptions"
+    },
+    {
+      "phrase": "what auto-ship orders do I have",
+      "expect": "view_subscriptions"
+    },
+    {
+      "phrase": "my repeat deliveries",
+      "expect": "view_subscriptions"
+    },
+    {
+      "phrase": "show my support tickets",
+      "expect": "view_support_tickets"
+    },
+    {
+      "phrase": "do I have any open cases",
+      "expect": "view_support_tickets"
+    },
+    {
+      "phrase": "my complaints and tickets",
+      "expect": "view_support_tickets"
+    },
+    {
+      "phrase": "show my gift cards",
+      "expect": "view_gift_cards"
+    },
+    {
+      "phrase": "what is my gift card balance",
+      "expect": "view_gift_cards"
+    },
+    {
+      "phrase": "do I have any gift cards",
+      "expect": "view_gift_cards"
+    },
+    {
+      "phrase": "show my price alerts",
+      "expect": "view_price_alerts"
+    },
+    {
+      "phrase": "what price drops am I watching",
+      "expect": "view_price_alerts"
+    },
+    {
+      "phrase": "any price drop notifications for me",
+      "expect": "view_price_alerts"
+    },
+    {
+      "phrase": "show my recently viewed items",
+      "expect": "view_recently_viewed"
+    },
+    {
+      "phrase": "what did I recently browse",
+      "expect": "view_recently_viewed"
+    },
+    {
+      "phrase": "my browsing history",
+      "expect": "view_recently_viewed"
+    },
+    {
+      "phrase": "show my wishlist",
+      "expect": "view_wishlist"
+    },
+    {
+      "phrase": "what is on my wishlist",
+      "expect": "view_wishlist"
+    },
+    {
+      "phrase": "show my saved items",
+      "expect": "view_wishlist"
+    },
+    {
+      "phrase": "show my returns",
+      "expect": "view_returns"
+    },
+    {
+      "phrase": "my return history",
+      "expect": "view_returns"
+    }
+  ],
+  "directiveOnly": [
+    {
+      "phrase": "remove my Mastercard pmt-1002",
+      "expect": "remove_payment_method"
+    },
+    {
+      "phrase": "delete saved card pmt-1003",
+      "expect": "remove_payment_method"
+    },
+    {
+      "phrase": "pause my subscription sub-301",
+      "expect": "pause_subscription"
+    },
+    {
+      "phrase": "hold my auto-ship for sub-302",
+      "expect": "pause_subscription"
+    },
+    {
+      "phrase": "close ticket tkt-401",
+      "expect": "close_support_ticket"
+    },
+    {
+      "phrase": "mark my case tkt-402 as resolved",
+      "expect": "close_support_ticket"
+    },
+    {
+      "phrase": "remove price alert pa-801",
+      "expect": "remove_price_alert"
+    },
+    {
+      "phrase": "stop watching pa-802",
+      "expect": "remove_price_alert"
+    },
+    {
+      "phrase": "redeem my points as store credit",
+      "expect": "redeem_store_credit"
+    },
+    {
+      "phrase": "use my rewards points for a discount",
+      "expect": "redeem_store_credit"
+    }
+  ]
+}

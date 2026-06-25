@@ -1,0 +1,135 @@
+# In-cluster Ollama (local LLM) — replaces the old host.docker.internal route.
+#
+# Why this exists: the agent's "Ollama" mode used to reach a Mac-native Ollama
+# via host.docker.internal, which only resolves on a local cluster (OrbStack /
+# Docker Desktop). On a remote cluster there is no host, so Ollama mode was
+# dead. Running Ollama as a pod makes that mode work everywhere; the consumers
+# (agent-service / langchain-agent) now point OLLAMA_BASE_URL at the in-cluster
+# `ollama` Service instead of the host. (Bare-metal `./run.sh` is unaffected —
+# it still starts a host-native Ollama on localhost.)
+#
+# CPU-only: no nvidia.com/gpu request. The model is llama3.2:3b (~2GB, q4) —
+# small enough to run on CPU and to stay inside the namespace ResourceQuota
+# (k8s/01-namespace.yaml: requests.memory 8Gi / limits.memory 16Gi). If you
+# switch back to a larger model (e.g. qwen3:8b) raise the memory limit below and
+# confirm the quota has headroom, or it will fail to schedule.
+#
+# Model persistence: the ~2GB weights live on a PVC so a pod restart does not
+# re-pull. The container command starts the server, waits for it, then pulls the
+# model; readiness only passes once the model is actually present, so the agent
+# never routes to a not-yet-ready Ollama.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ollama
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ollama
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU/memory quota. The model PVC is
+  # ReadWriteOnce, so two pods could not mount it simultaneously anyway.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: ollama
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 11434
+          name: http
+        env:
+        # Listen on all interfaces so other pods in the namespace can reach it
+        # (the default 127.0.0.1 bind refuses cross-pod connections).
+        - name: OLLAMA_HOST
+          value: "0.0.0.0"
+        # Start the server, wait until its API answers, then pull the model into
+        # the PVC. `wait $pid` keeps `ollama serve` as the foreground process so
+        # the container stays up. A re-pull on restart is a no-op once cached.
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /bin/ollama serve &
+            pid=$!
+            until /bin/ollama list >/dev/null 2>&1; do sleep 1; done
+            /bin/ollama pull llama3.2:3b
+            wait $pid
+        volumeMounts:
+        - name: models
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "250m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        # Liveness: the server process is answering at all.
+        livenessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "ollama list >/dev/null 2>&1"]
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Readiness: gate on the model actually being present, so consumers only
+        # route here once inference will succeed. The first pull (~2GB) can take
+        # a few minutes on a cold network — hence the generous failureThreshold.
+        readinessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "ollama list | grep -q llama3.2"]
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 60
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: ollama-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ollama
+spec:
+  type: ClusterIP
+  ports:
+  - port: 11434
+    targetPort: 11434
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: ollama

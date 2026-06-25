@@ -1,0 +1,294 @@
+/*
+ * PolicyDecisionTree.css
+ *
+ * Horizontal Policy Set -> Policy -> Rule diagram that mirrors the PingOne
+ * Authorize admin "Test" view: a left-to-right tree where the path the
+ * decision took is highlighted green and inactive branches are greyed "N/A".
+ *
+ * Fidelity note: PingOne's public decision API returns only the overall
+ * decision + the statements that fired (no per-node trace). The per-node
+ * active/N-A badges and per-node timing in this diagram are DERIVED from the
+ * returned statements, not a verbatim PingOne trace. The legend says so.
+ */
+
+.p1dt {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fafbfc;
+  padding: 16px 18px;
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.p1dt-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.p1dt-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.01em;
+}
+
+.p1dt-overall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.p1dt-overall--permit { background: #dcfce7; color: #166534; }
+.p1dt-overall--deny { background: #fee2e2; color: #991b1b; }
+.p1dt-overall--step_up,
+.p1dt-overall--indeterminate { background: #fef9c3; color: #854d0e; }
+.p1dt-overall--consent { background: #ede9fe; color: #6b21a8; }
+
+.p1dt-timing {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #64748b;
+}
+
+.p1dt-derived {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+/* ---- Tree layout (classic CSS org-chart) ---------------------------------- */
+
+.p1dt-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.p1dt-branch {
+  display: flex;
+  align-items: center;
+}
+
+.p1dt-children {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  padding-left: 18px;
+  position: relative;
+}
+
+/* vertical spine connecting a parent's children */
+.p1dt-children::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #d1d5db;
+}
+/* single child needs no spine */
+.p1dt-children.p1dt-children--one::before { display: none; }
+
+/* horizontal stub from the spine to each child card */
+.p1dt-children > .p1dt-branch {
+  position: relative;
+}
+.p1dt-children > .p1dt-branch::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  background: #d1d5db;
+  transform: translateY(-50%);
+}
+
+/* green connectors on the taken path */
+.p1dt-children > .p1dt-branch.is-path::before { background: #22c55e; }
+
+/* parent -> spine link, colored when the parent is on the taken path */
+.p1dt-link {
+  width: 20px;
+  height: 2px;
+  background: #d1d5db;
+  flex: 0 0 auto;
+}
+.p1dt-link.is-path { background: #22c55e; }
+
+/* ---- Node card ----------------------------------------------------------- */
+
+.p1dt-card {
+  position: relative;
+  min-width: 210px;
+  max-width: 260px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.p1dt-card.is-path { border-color: #86efac; }
+.p1dt-card.is-na { background: #f8fafc; }
+
+.p1dt-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.p1dt-status {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 1px;
+}
+.p1dt-status--permit { background: #22c55e; color: #fff; }
+.p1dt-status--deny { background: #ef4444; color: #fff; }
+.p1dt-status--step_up { background: #f59e0b; color: #fff; }
+.p1dt-status--consent { background: #8b5cf6; color: #fff; }
+.p1dt-status--na { background: #e5e7eb; color: #9ca3af; font-size: 8px; }
+.p1dt-status--set { background: #6366f1; color: #fff; }
+
+.p1dt-card-body { flex: 1 1 auto; min-width: 0; }
+
+.p1dt-kind {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+.p1dt-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+.p1dt-algo {
+  font-size: 10.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+.p1dt-bubble {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 1px 7px;
+}
+
+.p1dt-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 8px;
+  padding: 4px 0 5px;
+}
+.p1dt-effect {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.p1dt-effect--permit { color: #166534; }
+.p1dt-effect--deny { color: #991b1b; }
+.p1dt-foot-timing {
+  font-size: 9.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #cbd5e1;
+  font-style: italic;
+}
+
+/* ---- Statements list + unmatched -------------------------------------- */
+
+.p1dt-statements {
+  margin-top: 14px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 12px;
+}
+.p1dt-statements-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+.p1dt-stmt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+  padding: 3px 0;
+}
+.p1dt-stmt code {
+  font-size: 10.5px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #475569;
+}
+.p1dt-stmt-fulfilled {
+  font-size: 10px;
+  font-weight: 700;
+  color: #166534;
+}
+.p1dt-stmt-pending {
+  font-size: 10px;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.p1dt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+}
+.p1dt-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.p1dt-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}

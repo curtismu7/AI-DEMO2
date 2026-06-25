@@ -1,0 +1,197 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="Auth Code + PKCE Flow" id="authcode-pkce-flow-01">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="860" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="Super Banking — Authorization Code + PKCE Flow (RFC 6749 + RFC 7636)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="8" width="1120" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Actor header boxes ───────────────────────────────────── -->
+        <mxCell id="actor-user" value="&lt;b&gt;User&lt;/b&gt;&lt;br&gt;Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="45" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-spa" value="&lt;b&gt;React SPA&lt;/b&gt;&lt;br&gt;banking_api_ui" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="270" y="45" width="150" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-bff" value="&lt;b&gt;BFF&lt;/b&gt;&lt;br&gt;banking_api_server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="490" y="45" width="160" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor-p1" value="&lt;b&gt;PingOne&lt;/b&gt;&lt;br&gt;auth.pingone.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="710" y="45" width="160" height="46" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Lifelines (vertical dashed) ─────────────────────────── -->
+        <!-- User lifeline at x=125 -->
+        <mxCell id="life-user" style="endArrow=none;dashed=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="91" as="sourcePoint"/>
+            <mxPoint x="125" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- SPA lifeline at x=345 -->
+        <mxCell id="life-spa" style="endArrow=none;dashed=1;strokeColor=#82b366;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="91" as="sourcePoint"/>
+            <mxPoint x="345" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- BFF lifeline at x=570 -->
+        <mxCell id="life-bff" style="endArrow=none;dashed=1;strokeColor=#d6b656;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="91" as="sourcePoint"/>
+            <mxPoint x="570" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <!-- PingOne lifeline at x=790 -->
+        <mxCell id="life-p1" style="endArrow=none;dashed=1;strokeColor=#666666;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="91" as="sourcePoint"/>
+            <mxPoint x="790" y="800" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Messages ─────────────────────────────────────────────── -->
+
+        <!-- 1: User → SPA: Click Login -->
+        <mxCell id="s1" value="1. Click &quot;Log In&quot;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="125" as="sourcePoint"/>
+            <mxPoint x="345" y="125" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2: SPA → BFF: GET /api/auth/oauth/start -->
+        <mxCell id="s2" value="2. GET /api/auth/oauth/start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="160" as="sourcePoint"/>
+            <mxPoint x="570" y="160" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3: BFF self-loop: generate PKCE params -->
+        <mxCell id="s3" value="3. Generate code_verifier, code_challenge (S256), state, nonce" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="192" as="sourcePoint"/>
+            <mxPoint x="570" y="215" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="635" y="192"/>
+              <mxPoint x="635" y="215"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4: BFF → SPA: Redirect (dashed return) -->
+        <mxCell id="s4" value="4. Redirect → PingOne /authorize?response_type=code&amp;code_challenge=...&amp;state=..." style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="250" as="sourcePoint"/>
+            <mxPoint x="345" y="250" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5: SPA → PingOne: GET /authorize -->
+        <mxCell id="s5" value="5. GET /authorize (browser redirect)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="285" as="sourcePoint"/>
+            <mxPoint x="790" y="285" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6: PingOne → User: Login page (dashed) -->
+        <mxCell id="s6" value="6. Login page" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="320" as="sourcePoint"/>
+            <mxPoint x="125" y="320" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7: User → PingOne: Credentials -->
+        <mxCell id="s7" value="7. Enter credentials" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="125" y="355" as="sourcePoint"/>
+            <mxPoint x="790" y="355" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8: PingOne → BFF: Callback (dashed) -->
+        <mxCell id="s8" value="8. Callback redirect: /api/auth/oauth/callback?code=…&amp;state=…" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="395" as="sourcePoint"/>
+            <mxPoint x="570" y="395" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9: BFF self-loop: validate state -->
+        <mxCell id="s9" value="9. Validate state; retrieve code_verifier from session" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="428" as="sourcePoint"/>
+            <mxPoint x="570" y="450" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="635" y="428"/>
+              <mxPoint x="635" y="450"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10: BFF → PingOne: POST /token -->
+        <mxCell id="s10" value="10. POST /token: grant=authorization_code, code=…, code_verifier=…" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="485" as="sourcePoint"/>
+            <mxPoint x="790" y="485" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11: PingOne → BFF: tokens (dashed) -->
+        <mxCell id="s11" value="11. access_token, id_token, refresh_token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="525" as="sourcePoint"/>
+            <mxPoint x="570" y="525" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 12: BFF self-loop: store tokens (styled red border) -->
+        <mxCell id="s12" value="12. Store tokens in server-side session (NOT in browser)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;fontStyle=1;labelBackgroundColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="558" as="sourcePoint"/>
+            <mxPoint x="570" y="582" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="660" y="558"/>
+              <mxPoint x="660" y="582"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 13: BFF → SPA: session cookie + redirect (dashed) -->
+        <mxCell id="s13" value="13. Set session cookie; redirect to /dashboard" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="618" as="sourcePoint"/>
+            <mxPoint x="345" y="618" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 14: SPA → User: Dashboard loaded (dashed) -->
+        <mxCell id="s14" value="14. Dashboard loaded (token never in browser)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="655" as="sourcePoint"/>
+            <mxPoint x="125" y="655" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ── Annotation boxes ─────────────────────────────────────── -->
+
+        <!-- RFC 7636 PKCE note (near step 10) -->
+        <mxCell id="note1" value="RFC 7636 — PKCE: code_verifier proves same client that started the flow completed it" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="855" y="465" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- BFF Token Custodian Pattern note (near step 12) -->
+        <mxCell id="note2" value="BFF Token Custodian Pattern: browser only gets a session cookie; all tokens stay server-side (Upstash Redis / SQLite)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="855" y="540" width="280" height="56" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
