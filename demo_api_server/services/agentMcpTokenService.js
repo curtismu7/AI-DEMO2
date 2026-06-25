@@ -2079,7 +2079,7 @@ async function _performTwoExchangeDelegation(
   const mcpGatewayAud         = configResult.audiences.mcpGatewayAud;
   const mcpServerAudForFallback = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || '';
   const twoExFinalAud         = await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
-  const aiAgentClientSecret   = process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
+  const aiAgentClientSecret   = configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
   const mcpExchangerSecret    = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
   // Only the Worker Token CC client (oauthService.getAgentClientCredentialsToken*)
