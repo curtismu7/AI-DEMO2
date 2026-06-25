@@ -1,0 +1,25 @@
+<svg width="225" height="225" viewBox="0 0 225 225" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="225" height="225" rx="40" fill="#2D1E6B"/>
+  <g>
+    <circle cx="112.5" cy="112.5" r="80" fill="#fff" fill-opacity="0.12"/>
+    <circle cx="112.5" cy="112.5" r="60" fill="#fff" fill-opacity="0.10"/>
+    <circle cx="112.5" cy="112.5" r="40" fill="#fff" fill-opacity="0.08"/>
+  </g>
+  <!-- Token coin icon -->
+  <circle cx="112.5" cy="100" r="38" fill="#6C2EB9"/>
+  <circle cx="112.5" cy="100" r="30" fill="none" stroke="#fff" stroke-width="4" stroke-opacity="0.6"/>
+  <text x="50%" y="108" text-anchor="middle" fill="#fff" font-family="'Montserrat', Arial, Helvetica, sans-serif" font-size="30" font-weight="bold" letter-spacing="-1">T</text>
+  <!-- Exchange arrows -->
+  <path d="M78 148 Q112.5 136 147 148" stroke="#fff" stroke-width="3" stroke-opacity="0.7" fill="none" stroke-linecap="round"/>
+  <path d="M147 148 L141 142 M147 148 L141 154" stroke="#fff" stroke-width="3" stroke-opacity="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M147 158 Q112.5 170 78 158" stroke="#fff" stroke-width="3" stroke-opacity="0.7" fill="none" stroke-linecap="round"/>
+  <path d="M78 158 L84 152 M78 158 L84 164" stroke="#fff" stroke-width="3" stroke-opacity="0.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Label bar -->
+  <rect x="44" y="185" width="137" height="24" rx="12" fill="#6C2EB9"/>
+  <text x="50%" y="202" text-anchor="middle" fill="#fff" font-family="'Montserrat', Arial, Helvetica, sans-serif" font-size="17" font-weight="600" letter-spacing="0.5">Tokens</text>
+  <!-- Corner accents -->
+  <rect x="30" y="30" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(-15 30 30)"/>
+  <rect x="165" y="30" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(15 180 45)"/>
+  <rect x="30" y="165" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(15 45 180)"/>
+  <rect x="165" y="165" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(-15 180 180)"/>
+</svg>

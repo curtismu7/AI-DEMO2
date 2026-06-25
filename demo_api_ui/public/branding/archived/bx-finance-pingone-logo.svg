@@ -1,0 +1,17 @@
+<svg width="225" height="225" viewBox="0 0 225 225" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="225" height="225" rx="40" fill="#2D1E6B"/>
+  <g>
+    <circle cx="112.5" cy="112.5" r="80" fill="#fff" fill-opacity="0.12"/>
+    <circle cx="112.5" cy="112.5" r="60" fill="#fff" fill-opacity="0.10"/>
+    <circle cx="112.5" cy="112.5" r="40" fill="#fff" fill-opacity="0.08"/>
+  </g>
+  <text x="50%" y="54%" text-anchor="middle" fill="#ffffff" stroke="none" font-family="'Montserrat', Arial, Helvetica, sans-serif" font-size="72" font-weight="bold" letter-spacing="-4">BX</text>
+  <rect x="50" y="160" width="125" height="24" rx="12" fill="#6C2EB9"/>
+  <text x="50%" y="177" text-anchor="middle" fill="#ffffff" stroke="none" font-family="'Montserrat', Arial, Helvetica, sans-serif" font-size="20" font-weight="600">Finance</text>
+  <g>
+    <rect x="30" y="30" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(-15 30 30)"/>
+    <rect x="165" y="30" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(15 180 45)"/>
+    <rect x="30" y="165" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(15 45 180)"/>
+    <rect x="165" y="165" width="30" height="30" rx="8" fill="#6C2EB9" transform="rotate(-15 180 180)"/>
+  </g>
+</svg>

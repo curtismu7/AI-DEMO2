@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" width="120" height="48">
+  <rect width="120" height="48" fill="#FFE000" rx="4"/>
+  <text x="60" y="20" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="15" fill="#0046BE" text-anchor="middle" letter-spacing="0.5">GREAT BUY</text>
+  <rect x="10" y="28" width="100" height="2.5" fill="#0046BE"/>
+  <text x="60" y="41" font-family="Arial, sans-serif" font-weight="700" font-size="10" fill="#0046BE" text-anchor="middle" letter-spacing="1">RETAIL DEMO</text>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="BX Finance">
+  <rect width="32" height="32" rx="6" fill="#2D1E6B"/>
+  <circle cx="16" cy="16" r="11" fill="#fff" fill-opacity="0.13"/>
+  <text x="16" y="19" text-anchor="middle" fill="#ffffff" stroke="none" font-family="'Montserrat', Arial, Helvetica, sans-serif" font-size="15" font-weight="bold" letter-spacing="-1">BX</text>
+</svg>

@@ -1,0 +1,14 @@
+<svg width="225" height="225" viewBox="0 0 225 225" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="225" height="225" rx="40" fill="#0f172a"/>
+  <circle cx="112.5" cy="112.5" r="80" fill="#fff" fill-opacity="0.06"/>
+  <circle cx="112.5" cy="112.5" r="60" fill="#fff" fill-opacity="0.05"/>
+  <circle cx="112.5" cy="112.5" r="40" fill="#fff" fill-opacity="0.04"/>
+  <rect x="0" y="0" width="225" height="8" rx="0" fill="#ef4444"/>
+  <text x="50%" y="50%" text-anchor="middle" fill="#ffffff" stroke="none" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="bold" dominant-baseline="middle">BX</text>
+  <rect x="30" y="160" width="165" height="28" rx="14" fill="#ef4444"/>
+  <text x="113" y="179" text-anchor="middle" fill="#ffffff" stroke="none" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="2">ADMIN</text>
+  <rect x="30" y="30" width="24" height="24" rx="6" fill="#ef4444" opacity="0.8" transform="rotate(-15 42 42)"/>
+  <rect x="171" y="30" width="24" height="24" rx="6" fill="#ef4444" opacity="0.8" transform="rotate(15 183 42)"/>
+  <rect x="30" y="171" width="24" height="24" rx="6" fill="#ef4444" opacity="0.8" transform="rotate(15 42 183)"/>
+  <rect x="171" y="171" width="24" height="24" rx="6" fill="#ef4444" opacity="0.8" transform="rotate(-15 183 183)"/>
+</svg>
