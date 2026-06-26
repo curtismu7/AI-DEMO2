@@ -1,64 +1,105 @@
-import { useState, useCallback, useRef, useEffect } from 'react'; // v3
+import { useState, useCallback, useRef, useEffect } from 'react'; // v4
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v3';
+const STORAGE_KEY = 'arch-canvas-v5';
 
-// Only these services appear in the default layout.
-// openai/mastra/pydantic agents are excluded — one agent (langchain) represents them all.
+// Layout reflects the ACTUAL call paths from code:
+//
+// AG-UI path:  browser → bff → langchain-agent ⟲(callback)→ bff → mcp-gateway → p1az → mcp-server
+// NL path:     browser → bff → agent-service → llm ⟲(callback)→ bff → mcp-gateway → p1az → mcp-server
+// Alt gateway: ping-gateway replaces mcp-gateway (same position, user-selectable)
+// HITL:        mcp-gateway → hitl-service (on P1AZ INDETERMINATE)
+//
+// Columns (left → right):
+//  0  Browser client        x=30
+//  1  BFF                   x=220
+//  2  Agent layer           x=430   (langchain-agent top, agent-service bottom)
+//  3  Gateway layer         x=640   (mcp-gateway top, ping-gateway bottom)
+//  4  Policy / HITL         x=850   (authz-server top, hitl-service bottom)
+//  5  MCP backends          x=1060  (mcp-server, mcp-invest, mortgage-service)
+
 const SEED_POSITIONS = {
   frontend:          { x: 30,   y: 210 },
-  bff:               { x: 210,  y: 210 },
-  'agent-service':   { x: 400,  y: 210 },
-  'langchain-agent': { x: 590,  y: 210 },
-  'mcp-gateway':     { x: 800,  y: 60  },
-  'mcp-server':      { x: 800,  y: 170 },
-  'mcp-invest':      { x: 800,  y: 280 },
-  'mcp-proxy':       { x: 800,  y: 390 },
-  'ping-gateway':    { x: 1010, y: 60  },
-  'mortgage-service':{ x: 1010, y: 170 },
-  'hitl-service':    { x: 1010, y: 280 },
+  bff:               { x: 220,  y: 210 },
+  'langchain-agent': { x: 430,  y: 100 },
+  'agent-service':   { x: 430,  y: 320 },
+  'mcp-gateway':     { x: 640,  y: 100 },
+  'ping-gateway':    { x: 640,  y: 320 },
+  'authz-server':    { x: 850,  y: 100 },
+  'hitl-service':    { x: 850,  y: 320 },
+  'mcp-server':      { x: 1060, y: 60  },
+  'mcp-invest':      { x: 1060, y: 190 },
+  'mortgage-service':{ x: 1060, y: 320 },
 };
 
-// Visual layer — drives box color
 const NODE_LAYER = {
   frontend:          'client',
   bff:               'gateway',
-  'agent-service':   'orchestrator',
   'langchain-agent': 'agent',
+  'agent-service':   'agent',
   'mcp-gateway':     'mcp',
-  'mcp-server':      'mcp',
-  'mcp-invest':      'mcp',
-  'mcp-proxy':       'mcp',
-  'ping-gateway':    'tool',
-  'mortgage-service':'tool',
+  'ping-gateway':    'mcp',
+  'authz-server':    'policy',
   'hitl-service':    'tool',
+  'mcp-server':      'backend',
+  'mcp-invest':      'backend',
+  'mortgage-service':'backend',
+};
+
+// Sub-labels shown under the service name
+const NODE_SUB = {
+  frontend:          'Browser',
+  bff:               'https:3001',
+  'langchain-agent': 'http:8888 · AG-UI',
+  'agent-service':   'http:3006 · NL mode',
+  'mcp-gateway':     'http:3005 · Node',
+  'ping-gateway':    'http:8080 · IG',
+  'authz-server':    'http:9001 · P1AZ',
+  'hitl-service':    'http:3009',
+  'mcp-server':      'http:8080 · OLB',
+  'mcp-invest':      'http:8081',
+  'mortgage-service':'http:8082',
 };
 
 function buildSeedNodes() {
-  return Object.entries(topologyRaw.services)
-    .filter(([id]) => id in SEED_POSITIONS)
-    .map(([id, svc]) => ({
+  const all = Object.keys(SEED_POSITIONS);
+  return all.map(id => {
+    const svc = topologyRaw.services?.[id];
+    return {
       id,
       label: id,
-      sub: `${svc.scheme}:${svc.port}`,
+      sub: NODE_SUB[id] ?? (svc ? `${svc.scheme}:${svc.port}` : ''),
       x: SEED_POSITIONS[id].x,
       y: SEED_POSITIONS[id].y,
       layer: NODE_LAYER[id] ?? 'tool',
-    }));
+    };
+  });
 }
 
 function buildSeedEdges(nodes) {
   const pairs = [
+    // Main flow
     ['frontend',        'bff'],
+    // AG-UI: BFF → langchain-agent (SSE stream)
+    ['bff',             'langchain-agent'],
+    // NL mode: BFF → agent-service → [LLM reasons] → callback to BFF
     ['bff',             'agent-service'],
-    ['agent-service',   'langchain-agent'],
-    ['langchain-agent', 'mcp-gateway'],
-    ['langchain-agent', 'mcp-server'],
-    ['langchain-agent', 'mcp-invest'],
-    ['langchain-agent', 'mcp-proxy'],
-    ['mcp-gateway',     'ping-gateway'],
-    ['mcp-server',      'mortgage-service'],
-    ['mcp-invest',      'hitl-service'],
+    // Both paths converge: BFF → mcp-gateway (after token exchange)
+    ['bff',             'mcp-gateway'],
+    // ping-gateway is the alternative gateway (replaces mcp-gateway)
+    ['bff',             'ping-gateway'],
+    // mcp-gateway → P1AZ for policy decision
+    ['mcp-gateway',     'authz-server'],
+    // mcp-gateway → HITL on INDETERMINATE
+    ['mcp-gateway',     'hitl-service'],
+    // mcp-gateway → backends
+    ['mcp-gateway',     'mcp-server'],
+    ['mcp-gateway',     'mcp-invest'],
+    ['mcp-gateway',     'mortgage-service'],
+    // ping-gateway → P1AZ (same policy guard, different runtime)
+    ['ping-gateway',    'authz-server'],
+    // ping-gateway → backends (performs its own RFC 8693 re-exchange)
+    ['ping-gateway',    'mcp-server'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
@@ -120,7 +161,7 @@ export default function useCanvasLayout() {
   const addNode = useCallback((label) => {
     const id = `custom-${Date.now()}`;
     setNodes(prev => {
-      const next = [...prev, { id, label, sub: '', x: 400, y: 450, layer: 'tool' }];
+      const next = [...prev, { id, label, sub: '', x: 400, y: 500, layer: 'tool' }];
       persist(next, edgesRef.current);
       return next;
     });

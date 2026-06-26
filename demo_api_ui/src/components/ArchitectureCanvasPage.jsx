@@ -8,12 +8,13 @@ const H = 58;
 const R = 6;
 
 const LAYER_STYLE = {
-  client:       { fill: '#e0e7ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1' },
-  gateway:      { fill: '#ede9fe', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6' },
-  orchestrator: { fill: '#fef3c7', stroke: '#d97706', label: '#78350f', sub: '#b45309' },
-  agent:        { fill: '#d1fae5', stroke: '#059669', label: '#064e3b', sub: '#10b981' },
-  mcp:          { fill: '#e0f2fe', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9' },
-  tool:         { fill: '#f1f5f9', stroke: '#64748b', label: '#1e293b', sub: '#94a3b8' },
+  client:   { fill: '#e0e7ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1' },
+  gateway:  { fill: '#ede9fe', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6' },
+  agent:    { fill: '#d1fae5', stroke: '#059669', label: '#064e3b', sub: '#10b981' },
+  mcp:      { fill: '#fef3c7', stroke: '#d97706', label: '#78350f', sub: '#b45309' },
+  policy:   { fill: '#fce7f3', stroke: '#db2777', label: '#831843', sub: '#ec4899' },
+  backend:  { fill: '#e0f2fe', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9' },
+  tool:     { fill: '#f1f5f9', stroke: '#64748b', label: '#1e293b', sub: '#94a3b8' },
 };
 
 // Status dot colour
@@ -37,12 +38,12 @@ function arrowPoints(src, tgt) {
 }
 
 const COL_LABELS = [
-  { x: 30,   label: 'Browser Client' },
-  { x: 210,  label: 'BFF / API' },
-  { x: 400,  label: 'Orchestration' },
-  { x: 590,  label: 'AI Agent' },
-  { x: 800,  label: 'MCP Servers' },
-  { x: 1010, label: 'Backend Tools' },
+  { x: 30,   label: 'Browser' },
+  { x: 220,  label: 'BFF' },
+  { x: 430,  label: 'Agent Layer' },
+  { x: 640,  label: 'Gateway' },
+  { x: 850,  label: 'Policy / HITL' },
+  { x: 1060, label: 'MCP Backends' },
 ];
 
 export default function ArchitectureCanvasPage() {
