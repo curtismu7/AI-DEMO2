@@ -305,7 +305,7 @@ const _rateLimitHandler = (req, res) => {
         const proto = req.get('x-forwarded-proto') || (req.secure ? 'https' : 'http');
         const rawHost = (req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
         const host = rawHost || null;
-        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001');
+        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000');
         return res.redirect(`${origin}/login?error=too_many_requests`);
     }
     res.status(429).json({
@@ -913,10 +913,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // IMPORTANT: /api/admin/config MUST be registered before /api/admin so that
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
-// DEV-ONLY: skip auth on pingcli so SSE streaming can be tested with curl
-const pingcliAuth = process.env.NODE_ENV === 'development' ? [] : [authenticateToken];
-app.use('/api/admin/pingcli', ...pingcliAuth, pingcliRoutes);
-app.use('/api/canvas', authenticateToken, require('./routes/canvasPing'));
+app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
@@ -941,15 +938,7 @@ app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouse
 // handled only by routes/auth.js (avoids "Cannot GET" on some deployments).
 app.get('/api/auth/oauth/redirect-info', (_req, res) => {
     try {
-        const info = getOAuthRedirectDebugInfo(_req);
-        appEventService.logEvent('oauth', 'info', 'redirect-info fetched', {
-            tag: 'oauth/redirect-info',
-            adminRedirectUri: info.adminRedirectUri,
-            userRedirectUri: info.userRedirectUri,
-            canonicalOrigin: info.canonicalOrigin,
-            pingOneRegisterThese: info.pingOneRegisterThese,
-        });
-        res.json(info);
+        res.json(getOAuthRedirectDebugInfo(_req));
     } catch (err) {
         res.status(500).json({
             error: 'redirect_info_failed',
@@ -1380,7 +1369,7 @@ app.get('/', (req, res) => {
 
 // Redirect /login requests to frontend
 app.get('/login', (req, res) => {
-    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001';
+    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000';
     const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
     const redirectUrl = queryString ? `${frontendUrl}/?${queryString}` : `${frontendUrl}/`;
     res.redirect(redirectUrl);
@@ -2047,8 +2036,8 @@ async function runBackgroundStartupTasks() {
                 configStore.getEffective('PUBLIC_APP_URL') ||
                 configStore.getEffective('REACT_APP_CLIENT_URL') ||
                 process.env.PUBLIC_APP_URL ||
-                'https://demo-api-server:3001';
-            let rpId = 'demo-api-server';
+                'https://api.ping.demo:4000';
+            let rpId = 'api.ping.demo';
             try { rpId = new URL(url).hostname; } catch (_) { /* keep default */ }
             const r = await mfaService.ensureFido2RelyingParty(rpId);
             console.log(`[fido2-rp] bootstrap rpId=${rpId} policies=${r.count} changed=${r.changed}` +
@@ -2112,7 +2101,7 @@ if (require.main === module) {
             const { migrateHelixKey } = require('./services/helixKeyMigration');
             const { DEFAULT_VAULT_PATH } = require('./services/vaultLoader');
             const agentName = process.env.HELIX_AGENT_ID
-                || configStore.get('helix_agent_id') || 'LLM3';
+                || configStore.get('helix_agent_id') || 'LLM';
             const m = await migrateHelixKey({
                 agentName,
                 vaultPath: process.env.VAULT_PATH || DEFAULT_VAULT_PATH,
@@ -2132,7 +2121,7 @@ if (require.main === module) {
             const helixKey = configStore.getEffective('helix_api_key');
             if (!helixKey) {
                 const agentName = process.env.HELIX_AGENT_ID
-                    || configStore.get('helix_agent_id') || 'LLM3';
+                    || configStore.get('helix_agent_id') || 'LLM';
                 console.warn(
                     `[startup] ⚠  Helix not configured — natural-language agent will run heuristics-only.\n` +
                     `           To enable: download the Secret API Key for agent "${agentName}" from\n` +
@@ -2140,7 +2129,7 @@ if (require.main === module) {
                     `           and save it as ${agentName}.json in the repo root, then restart.`
                 );
             } else {
-                console.log(`[startup] Helix configured (agent: ${configStore.getEffective('helix_agent_id') || 'LLM3'})`);
+                console.log(`[startup] Helix configured (agent: ${configStore.getEffective('helix_agent_id') || 'LLM'})`);
             }
         } catch (e) {
             // non-fatal — configStore may not be ready yet in edge cases
@@ -2165,11 +2154,6 @@ if (require.main === module) {
         } catch (e) {
             console.warn('[VERTICAL GUARD] unexpected error (non-fatal):', e.message);
         }
-
-        // Two-exchange reconciler: verifies and self-heals the PingOne grants/scopes
-        // needed for the RFC 8693 two-exchange chip delegation chain. Non-fatal async.
-        require('./services/twoExchangeReconciler').reconcileTwoExchangeGrants()
-            .catch(e => console.warn('[TwoExchangeReconciler] unexpected error:', e.message));
 
         const fs = require('fs');
         const certDir = path.join(__dirname, '../certs');
@@ -2196,9 +2180,6 @@ if (require.main === module) {
                 cert: fs.readFileSync(certFile),
             }, app).listen(PORT, () => {
                 console.log(`Demo API server (HTTPS) running on https://api.ping.demo:${PORT}`);
-                const _redirectInfo = getOAuthRedirectDebugInfo(null);
-                console.log(`  Admin redirect URI : ${_redirectInfo.adminRedirectUri}`);
-                console.log(`  User  redirect URI : ${_redirectInfo.userRedirectUri}`);
                 // Check HITL status
                 const hitlEnabled = configStore.getEffective('ff_hitl_enabled') !== 'false';
                 if (!hitlEnabled) {
@@ -2211,9 +2192,6 @@ if (require.main === module) {
             server = app.listen(PORT, () => {
                 console.log(`Demo API server running on https://api.ping.demo:3001 (local port ${PORT})`);
                 console.log('Tip: run mkcert in Demo/certs/ to enable HTTPS (see run-demo.sh)');
-                const _redirectInfo = getOAuthRedirectDebugInfo(null);
-                console.log(`  Admin redirect URI : ${_redirectInfo.adminRedirectUri}`);
-                console.log(`  User  redirect URI : ${_redirectInfo.userRedirectUri}`);
                 // Check HITL status
                 const hitlEnabled = configStore.getEffective('ff_hitl_enabled') !== 'false';
                 if (!hitlEnabled) {
@@ -2249,8 +2227,6 @@ if (require.main === module) {
         // completed, causing false "credentials not configured" warnings.
         setImmediate(() => runBackgroundStartupTasks());
         const lighthouseTask = startLighthouseScheduler();
-        const { startRedirectUriScheduler } = require('./services/pingoneAppConfigService');
-        const redirectUriTask = startRedirectUriScheduler();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB
@@ -2267,7 +2243,6 @@ if (require.main === module) {
             }, 5000).unref();
             oauthMonitor.stop();
             if (lighthouseTask) lighthouseTask.stop();
-            if (redirectUriTask) redirectUriTask.stop();
             try { await structuredLogger.close(); } catch (_) { /* exit anyway */ }
             try { require('./services/lmdb/openEnv').closeEnv(); } catch (_) { /* exit anyway */ }
             server.close(() => process.exit(0));

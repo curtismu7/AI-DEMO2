@@ -748,7 +748,7 @@ async function configureHelix() {
   }
 
   // Keyfile fast-path: if the user dropped the downloaded <agentName>.json
-  // (e.g. LLM3.json) in the repo root / ~/Documents / ~/Downloads, migrate
+  // (e.g. LLM.json) in the repo root / ~/Documents / ~/Downloads, migrate
   // its key into the vault + SQLite once and skip the 5-field prompt. Falls
   // through to the existing prompt flow when no keyfile is found. Idempotent
   // (no-op if a key is already configured) and best-effort (a failure here
@@ -758,7 +758,7 @@ async function configureHelix() {
     await configStore.ensureInitialized();
     const { loadAgentKey } = require('../services/helixAgentKeyLoader');
     const agentName = process.env.HELIX_AGENT_ID
-      || configStore.get('helix_agent_id') || 'LLM3';
+      || configStore.get('helix_agent_id') || 'LLM';
     if (loadAgentKey(agentName)) {
       console.log(`  ✓ Found ${agentName}.json — importing Helix API key automatically...`);
       const { migrateHelixKey } = require('../services/helixKeyMigration');
@@ -822,17 +822,17 @@ async function configureHelix() {
   // All other fields (base URL, environment ID, agent ID, prompt field ID)
   // have known defaults in configStore and don't need to be entered manually.
   //
-  // Preferred path: user downloads LLM3.json from Helix and drops it in the
+  // Preferred path: user downloads LLM.json from Helix and drops it in the
   // repo root — the keyfile fast-path above already handles that and returns
   // before we reach here. We only reach this block when no keyfile was found.
   console.log('');
   console.log('  To connect Helix, generate an API key in the PingOne console:');
   console.log('  1. Open https://console.pingone.com → AI → Helix → Agents');
-  console.log('  2. Create (or open) an agent named  LLM3');
+  console.log('  2. Create (or open) an agent named  LLM');
   console.log('  3. Under Secret API Keys → click "Create Secret API Key"');
-  console.log('  4. Download the JSON file and drop it in the repo root as LLM3.json');
+  console.log('  4. Download the JSON file and drop it in the repo root as LLM.json');
   console.log('');
-  console.log('  If LLM3.json is already in the repo root, just press Enter —');
+  console.log('  If LLM.json is already in the repo root, just press Enter —');
   console.log('  it will be detected and imported automatically.');
   console.log('');
   console.log('  — OR — paste the key value at the prompt below.');
@@ -856,8 +856,8 @@ async function configureHelix() {
   const values = {
     helix_base_url:        process.env.HELIX_BASE_URL        || 'https://openam-helix.forgeblocks.com',
     helix_environment_id:  process.env.HELIX_ENVIRONMENT_ID  || 'fe213c3c-9c1d-4bdb-954a-a22879dad26d',
-    helix_agent_id:        process.env.HELIX_AGENT_ID        || 'LLM3',
-    helix_prompt_field_id: process.env.HELIX_PROMPT_FIELD_ID || 'textInputa7c39a0e8292',
+    helix_agent_id:        process.env.HELIX_AGENT_ID        || 'LLM',
+    helix_prompt_field_id: process.env.HELIX_PROMPT_FIELD_ID || 'textInput502c5045a61c',
     helix_api_key:         apiKey,
   };
 
@@ -1073,7 +1073,7 @@ async function confirmInstallDirectory() {
 // ── /etc/hosts pre-check ─────────────────────────────────────────────────────
 //
 // The demo serves on api.ping.demo (loopback). Without the matching /etc/hosts
-// entry, the browser fails to load https://demo-api-server:3001 after setup
+// entry, the browser fails to load https://api.ping.demo:4000 after setup
 // completes — confusing because the bootstrap (which binds 127.0.0.1) succeeds.
 // We check upfront, prompt to fix, and on macOS open Terminal.app with the
 // sudo command pre-typed so the user runs it without leaving the flow.
@@ -1203,7 +1203,7 @@ async function ensureHostsEntry() {
   console.log('');
   console.log(`The ${APP_HOST} loopback entry is missing from /etc/hosts.`);
   console.log('');
-  console.log('Why this matters: the demo serves on https://demo-api-server:3001. Without the');
+  console.log('Why this matters: the demo serves on https://api.ping.demo:4000. Without the');
   console.log(`/etc/hosts entry your browser will fail to reach it after setup completes.`);
   console.log('');
   console.log('Required line:');
@@ -1749,9 +1749,9 @@ function printDone({ ranBootstrap, fromTar }) {
   console.log('');
   console.log(`  ${BOLD}2.  Open in browser${RESET} ${DIM}(click or copy):${RESET}`);
   console.log('');
-  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/configure${RESET}   ${DIM}verify config${RESET}`);
-  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/dashboard${RESET}   ${DIM}end-user portal${RESET}`);
-  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/admin${RESET}       ${DIM}admin portal${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/configure${RESET}   ${DIM}verify config${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/dashboard${RESET}   ${DIM}end-user portal${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/admin${RESET}       ${DIM}admin portal${RESET}`);
   console.log('');
   console.log(`  ${BOLD}3.  Sign in with one of these demo users${RESET} ${DIM}(username / password — role):${RESET}`);
   console.log('');
