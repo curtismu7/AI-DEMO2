@@ -31,5 +31,6 @@ export const executeSequentialThink: HandlerFn = async (deps, _token, params) =>
   const result = { steps, conclusion };
   deps.logger.debug(`[BankingToolProvider] sequential_think completed: ${steps.length} steps for query: "${query.slice(0, 60)}"`);
 
-  return createSuccessResult(JSON.stringify(result, null, 2));
+  const data = { success: true, query, steps, conclusion };
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };

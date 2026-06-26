@@ -15,7 +15,7 @@ export const executeGetMyTransactions: HandlerFn = async (deps, token, params) =
     return createErrorResult(`Invalid response format from banking API (received: ${typeof transactions})`);
   }
 
-  const response = {
+  const data = {
     success: true,
     count: transactions.length,
     transactions: transactions.map(transaction => ({
@@ -29,7 +29,7 @@ export const executeGetMyTransactions: HandlerFn = async (deps, token, params) =
     }))
   };
 
-  return createSuccessResult(JSON.stringify(response, null, 2));
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
 export const executeCreateDeposit: HandlerFn = async (deps, token, params) => {

@@ -15,29 +15,26 @@ export const executeGetMyAccounts: HandlerFn = async (deps, token, params) => {
     accounts = accounts.filter((a: Account) => a.accountType === account_type);
   }
 
-  const response = {
-    success: true,
-    count: accounts.length,
-    accounts: accounts.map((account: Account) => ({
-      id: account.id,
-      accountType: account.accountType,
-      name: account.name || null,
-      accountNumber: account.accountNumber,
-      balance: account.balance,
-      currency: account.currency || 'USD',
-      status: account.status || 'active',
-      accountHolderName: account.accountHolderName || null,
-      swiftCode: account.swiftCode || null,
-      iban: account.iban || null,
-      branchName: account.branchName || null,
-      branchCode: account.branchCode || null,
-      openedDate: account.openedDate || null,
-      notes: account.notes || null,
-      createdAt: account.createdAt,
-    }))
-  };
+  const mappedAccounts = accounts.map((account: Account) => ({
+    id: account.id,
+    accountType: account.accountType,
+    name: account.name || null,
+    accountNumber: account.accountNumber,
+    balance: account.balance,
+    currency: account.currency || 'USD',
+    status: account.status || 'active',
+    accountHolderName: account.accountHolderName || null,
+    swiftCode: account.swiftCode || null,
+    iban: account.iban || null,
+    branchName: account.branchName || null,
+    branchCode: account.branchCode || null,
+    openedDate: account.openedDate || null,
+    notes: account.notes || null,
+    createdAt: account.createdAt,
+  }));
 
-  return createSuccessResult(JSON.stringify(response, null, 2));
+  const data = { success: true, count: accounts.length, accounts: mappedAccounts };
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
 export const executeGetAccountBalance: HandlerFn = async (deps, token, params) => {
@@ -46,20 +43,16 @@ export const executeGetAccountBalance: HandlerFn = async (deps, token, params) =
   const balanceResponse = await deps.apiClient.getAccountBalance(token, account_id);
   deps.logger.debug(`[BankingToolProvider] Banking API response: Account balance retrieved`);
 
-  const response = {
-    success: true,
-    accountId: account_id,
-    balance: balanceResponse.balance
-  };
-
-  return createSuccessResult(JSON.stringify(response, null, 2));
+  const data = { success: true, accountId: account_id, balance: balanceResponse.balance };
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
 export const executeUpdateContactEmail: HandlerFn = async (deps, token, params) => {
   const { account_id, new_email } = params as { account_id: string; new_email: string };
   deps.logger.debug(`[BankingToolProvider] Calling Banking API: updateContactEmail for account ${account_id}`);
   const result = await deps.apiClient.updateContactEmail(token, account_id, new_email);
-  return createSuccessResult(JSON.stringify({ success: true, accountId: account_id, email: new_email, ...result }, null, 2));
+  const data = { success: true, accountId: account_id, email: new_email, ...result };
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
 export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, _params) => {
@@ -67,7 +60,6 @@ export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, 
   try {
     const response = await deps.apiClient.getSensitiveAccountDetails(token);
 
-    // Step-up required (428 from BFF — ACR not elevated)
     if (response && (response as any).ok === false && (response as any).step_up_required === true) {
       const stepUpPayload = {
         ok: false,
@@ -75,27 +67,24 @@ export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, 
         error: 'step_up_required',
         step_up_method: (response as any).step_up_method || 'email',
       };
-      return createSuccessResult(JSON.stringify(stepUpPayload, null, 2));
+      return createSuccessResult(JSON.stringify(stepUpPayload, null, 2), stepUpPayload);
     }
 
-    // BFF gate returned consent_required — surface as structured result
     if (response && (response as any).ok === false && (response as any).consent_required) {
       const consentPayload = {
         ok: false,
         consent_required: true,
         reason: (response as any).reason || 'sensitive_data_access',
       };
-      return createSuccessResult(JSON.stringify(consentPayload, null, 2));
+      return createSuccessResult(JSON.stringify(consentPayload, null, 2), consentPayload);
     }
 
     if (!response || (response as any).ok === false) {
       return createErrorResult(`Access denied: ${(response as any)?.reason || 'paz_denied'}`);
     }
 
-    return createSuccessResult(JSON.stringify({
-      success: true,
-      accounts: (response as any).accounts || [],
-    }, null, 2));
+    const data = { success: true, accounts: (response as any).accounts || [] };
+    return createSuccessResult(JSON.stringify(data, null, 2), data);
   } catch (error) {
     deps.logger.error('[BankingToolProvider] getSensitiveAccountDetails error:', {}, error instanceof Error ? error : undefined);
     return createErrorResult(
