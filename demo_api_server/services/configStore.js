@@ -1257,15 +1257,17 @@ class ConfigStore {
       const stored = this.get(key);
       if (stored) return stored;
     } else {
-      // Everything else: Vault > LMDB > .env. this.get(key) reads the
-      // cache, which holds BOTH vault (provenance 'vault') and LMDB
-      // ('sqlite') values; Task 1's _setCache provenance guarantees a
-      // vault-owned key keeps its vault value, so a single this.get()
-      // already encodes "vault, then sqlite". .env is the fallback.
-      const stored = this.get(key);
-      if (stored) return stored;
+      // Everything else: .env > Vault/LMDB. Env vars set at deploy time
+      // (docker-compose, process env) must always override stored values so
+      // that a stale LMDB entry from a past UI toggle cannot silently shadow
+      // a deployment-level setting (e.g. FF_MCP_GATEWAY_PINGGATEWAY=false).
+      // this.get(key) reads the cache holding both vault ('vault') and LMDB
+      // ('sqlite') values; vault-owned keys retain vault provenance via
+      // _setCache, so a single this.get() encodes "vault, then sqlite".
       const envVal = readEnv();
       if (envVal) return envVal;
+      const stored = this.get(key);
+      if (stored) return stored;
     }
 
     // Helix agent API key: when nothing above has it, look for a per-agent
@@ -1886,6 +1888,31 @@ async function syncOAuthEndpointsToLmdb() {
 
   if (synced > 0) {
     console.warn(`[configStore-lmdb-sync] Synced ${synced} OAuth config(s) (endpoints + redirect URIs) from .env into LMDB.`);
+  }
+
+  // Sync feature flag env vars into LMDB so the admin UI always reflects the
+  // effective (env-var-wins) value and a stale LMDB entry can never silently
+  // diverge from what the running server actually uses.
+  const FF_ENV_MAP = {
+    ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
+    ff_prompt_injection_guard:  'FF_PROMPT_INJECTION_GUARD',
+    ff_a2a_delegation:          'FF_A2A_DELEGATION',
+    ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
+    ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+  };
+  let ffSynced = 0;
+  for (const [key, envKey] of Object.entries(FF_ENV_MAP)) {
+    const envVal = String(process.env[envKey] || '').trim();
+    if (!envVal) continue;
+    const stored = configStore.get(key);
+    if (stored !== envVal) {
+      _lmdbConfig.upsert(key, envVal);
+      console.log(`[configStore-lmdb-sync] Synced feature flag ${key} from env (${envKey}=${envVal})`);
+      ffSynced++;
+    }
+  }
+  if (ffSynced > 0) {
+    console.log(`[configStore-lmdb-sync] Synced ${ffSynced} feature flag(s) from .env into LMDB.`);
   }
 }
 

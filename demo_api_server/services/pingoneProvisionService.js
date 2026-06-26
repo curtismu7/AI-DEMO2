@@ -980,28 +980,35 @@ class PingOneProvisionService {
         }
       }
 
-      // Filter desiredIds: drop any whose NAME is already granted via another resource.
-      const idToName = new Map(resourceScopes.map(s => [s.id, s.name]));
-      const filteredIds = desiredIds.filter(id => {
-        const name = idToName.get(id);
-        return name && !allOtherNames.has(name);
-      });
-      const droppedAsCrossResource = desiredIds.length - filteredIds.length;
-      desiredIds.length = 0;
-      desiredIds.push(...filteredIds);
-
-      // If all desired names were already granted via other resources, there's
-      // nothing to do here — return a benign skip.
-      if (desiredIds.length === 0 && droppedAsCrossResource > 0) {
-        return {
-          success: true,
-          action: 'skipped',
-          skippedReason: `all ${droppedAsCrossResource} scope names already granted via other resources on this app`,
-          granted: 0,
-        };
-      }
-
       const match = existingGrants.find(g => g.resource?.id === resourceId);
+
+      // Cross-resource name filter: PingOne rejects POSTing a new grant whose
+      // scope names collide with names already granted on a different resource
+      // ("Multiple scopes with the same name cannot be added to the same grant").
+      // This only applies to a fresh POST — when merging into an existing grant
+      // (match exists) we're doing a PUT/PATCH on that grant, and PingOne allows
+      // same-named scopes across different resources in that case.
+      const idToName = new Map(resourceScopes.map(s => [s.id, s.name]));
+      if (!match) {
+        const filteredIds = desiredIds.filter(id => {
+          const name = idToName.get(id);
+          return name && !allOtherNames.has(name);
+        });
+        const droppedAsCrossResource = desiredIds.length - filteredIds.length;
+        desiredIds.length = 0;
+        desiredIds.push(...filteredIds);
+
+        // If all desired names were already granted via other resources and there
+        // is no existing grant to merge into, there is nothing to POST.
+        if (desiredIds.length === 0 && droppedAsCrossResource > 0) {
+          return {
+            success: true,
+            action: 'skipped',
+            skippedReason: `all ${droppedAsCrossResource} scope names already granted via other resources on this app`,
+            granted: 0,
+          };
+        }
+      }
 
       if (match) {
         // Merge: union of (existing scope ids) + desiredIds.

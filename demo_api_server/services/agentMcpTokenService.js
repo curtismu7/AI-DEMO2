@@ -56,6 +56,7 @@ const tokenVerificationService = require('./tokenVerificationService');
 const oauthConfig = require('../config/oauth');
 const { validateToken: jwksValidateUserToken } = require('./tokenValidationService');
 const { getSessionDpopKey } = require('./dpopKeyService');
+const scopeTopology = require('./scopeTopology');
 
 /** Read a boolean feature flag from configStore (accepts true | 'true'). */
 function _flagOn(key) {
@@ -2159,7 +2160,12 @@ async function _performTwoExchangeDelegation(
   // unambiguous (agent_gateway_cc_scope default).
   const intermediateExchangeScope =
     configStore.getEffective('two_exchange_intermediate_scope') || 'agent:invoke';
-  const exchange1ScopeSet = new Set([intermediateExchangeScope, ...effectiveToolScopes]);
+  // Exchange #1 targets agentgateway.ping.demo. Only request scopes that exist on
+  // that resource (native + mirroredScopes) so PingOne doesn't see a multi-resource
+  // request. mcp:invoke lives on mcpgateway.ping.demo and must be excluded here.
+  const agentGwScopesAllowed = new Set(scopeTopology.resourceScopes('Super Banking Agent Gateway'));
+  const exchange1ToolScopes = effectiveToolScopes.filter(s => agentGwScopesAllowed.has(s));
+  const exchange1ScopeSet = new Set([intermediateExchangeScope, ...exchange1ToolScopes]);
   const exchange1Scopes = [...exchange1ScopeSet];
   tokenEvents.push(buildTokenEvent(
     'two-ex-exchange1-in-progress',
