@@ -8,7 +8,7 @@ const lighthouseService = require('../services/lighthouseService');
 
 // Resolve the audit target URL from configStore (PUBLIC_APP_URL) or fall back to default
 function getAuditUrl() {
-  const base = configStore.getEffective('PUBLIC_APP_URL') || 'https://api.ping.demo:4000';
+  const base = configStore.getEffective('PUBLIC_APP_URL') || 'https://demo-api-server:3001';
   return `${base}/admin`;
 }
 

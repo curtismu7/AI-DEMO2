@@ -5,7 +5,7 @@
     "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only.",
     "environments": {
       "local": {
-        "publicAppUrl": "https://api.ping.demo:4000",
+        "publicAppUrl": "https://demo-api-server:3001",
         "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp"
       },
       "k8s": {

@@ -200,7 +200,7 @@ describe('oauthRedirectUris', () => {
     expect(info.referenceRedirectSets.length).toBeGreaterThanOrEqual(2);
     const apiPingDemo = info.referenceRedirectSets.find((r) => r.id === 'api-ping-demo');
     const customHost = info.referenceRedirectSets.find((r) => r.id === 'custom-host');
-    expect(apiPingDemo.adminRedirectUri).toBe('https://api.ping.demo:4000/api/auth/oauth/callback');
+    expect(apiPingDemo.adminRedirectUri).toBe('https://demo-api-server:3001/api/auth/oauth/callback');
     expect(customHost.adminRedirectUri).toBe('https://api.pingdeme.org/api/auth/oauth/callback');
     expect(customHost.userRedirectUri).toBe('https://api.pingdeme.org/api/auth/oauth/user/callback');
     expect(REFERENCE_REDIRECT_SETS).toBe(info.referenceRedirectSets);

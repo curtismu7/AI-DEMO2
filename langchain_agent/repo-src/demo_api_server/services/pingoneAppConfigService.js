@@ -41,12 +41,12 @@ async function updateAppConfig(appId, config) {
  */
 async function fixLogoutUrls(appId, publicAppUrl) {
   const current = await getAppConfig(appId);
-  const url = publicAppUrl || configStore.getEffective('public_app_url') || 'https://api.ping.demo:4000';
+  const url = publicAppUrl || configStore.getEffective('public_app_url') || 'https://demo-api-server:3001';
 
   const logoutUrls = [
     url,
     `${url}/login`,
-    'https://api.ping.demo:4000',
+    'https://demo-api-server:3001',
     'https://api.ping.demo:3001'
   ];
   // Deduplicate
@@ -189,7 +189,7 @@ async function ensureRedirectUri(appId, redirectUri) {
 // All deployment origins that must be registered in every PingOne app.
 // Kept in sync with KNOWN_REDIRECT_ORIGINS in pingoneProvisionService.js.
 const KNOWN_REDIRECT_ORIGINS = [
-  'https://api.ping.demo:4000',      // local dev (run-demo.sh / docker-compose)
+  'https://demo-api-server:3001',      // local dev (run-demo.sh / docker-compose)
   'https://ai-demo.ping-devops.com'  // SE DevOps cluster (Ping AWS / k8s)
 ];
 

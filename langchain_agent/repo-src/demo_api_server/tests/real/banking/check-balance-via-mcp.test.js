@@ -47,7 +47,7 @@ describe(`check balance via MCP — ${VERTICAL} (real)`, () => {
     if (!sessionReady) {
       throw new Error(
         `${testName}: requires authenticated BFF session. Set PINGONE_TEST_USER + PINGONE_TEST_PASSWORD ` +
-          'in demo_api_server/.env or login at https://api.ping.demo:4000 before running real tests.',
+          'in demo_api_server/.env or login at https://demo-api-server:3001 before running real tests.',
       );
     }
   }

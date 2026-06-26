@@ -20,7 +20,7 @@ jest.mock('../services/configStore', () => ({
 // Mock other dependencies
 jest.mock('../services/oauthRedirectUris', () => ({
   getFrontendOrigin: jest.fn(() => 'http://localhost:3000'),
-  getUserRedirectUri: jest.fn(() => 'https://api.ping.demo:4000/api/auth/oauth/user/callback'),
+  getUserRedirectUri: jest.fn(() => 'https://demo-api-server:3001/api/auth/oauth/user/callback'),
   validateRedirectUriOrigin: jest.fn(() => ({ ok: true })),
   getExpectedFrontendOrigin: jest.fn(() => 'http://localhost:3000'),
 }));
@@ -64,7 +64,7 @@ describe('OAuth User Login', () => {
     const redirectUri = url.searchParams.get('redirect_uri');
 
     // Verify redirect_uri is the correct expected value (URL-encoded)
-    expect(redirectUri).toBe('https://api.ping.demo:4000/api/auth/oauth/user/callback');
+    expect(redirectUri).toBe('https://demo-api-server:3001/api/auth/oauth/user/callback');
   });
 
   test('should include state parameter for CSRF protection', async () => {

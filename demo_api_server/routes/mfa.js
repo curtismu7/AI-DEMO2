@@ -16,8 +16,8 @@ function resolveFido2RpId() {
     configStore.getEffective('PUBLIC_APP_URL') ||
     configStore.getEffective('REACT_APP_CLIENT_URL') ||
     process.env.PUBLIC_APP_URL ||
-    'https://api.ping.demo:4000';
-  try { return new URL(url).hostname; } catch { return 'api.ping.demo'; }
+    'https://demo-api-server:3001';
+  try { return new URL(url).hostname; } catch { return 'demo-api-server'; }
 }
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity

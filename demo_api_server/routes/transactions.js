@@ -255,7 +255,7 @@ router.post(
       // code is dropped as missing_credential before PingOne is ever called.
       const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
       const host = req.get('host') || null;
-      const origin = host ? `${req.protocol}://${host}` : `https://api.ping.demo:4000`;
+      const origin = host ? `${req.protocol}://${host}` : `https://demo-api-server:3001`;
       result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
     } else {
       const { otpCode } = req.body || {};

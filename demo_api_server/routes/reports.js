@@ -345,7 +345,7 @@ router.get('/:runId/share', authenticateToken, (req, res) => {
     shareTokens.set(shareToken, shareEntry);
     reportShareStore.put(shareToken, shareEntry);
 
-    const baseUrl = process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000';
+    const baseUrl = process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001';
     const shareUrl = `${baseUrl}/api/reports/shared/${shareToken}`;
 
     res.json({

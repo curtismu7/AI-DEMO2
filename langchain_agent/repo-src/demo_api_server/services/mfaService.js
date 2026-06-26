@@ -766,7 +766,7 @@ async function completeFido2Registration(userId, deviceId, attestation, requestO
 			configStore.getEffective("pingone_fido2_origin") ||
 			process.env.PINGONE_FIDO2_ORIGIN ||
 			process.env.REACT_APP_CLIENT_URL ||
-			'https://api.ping.demo:4000';
+			'https://demo-api-server:3001';
 
 		// PingOne device activate: fido2 is an object (not a string).
 		// The base64 fields inside (clientDataJSON, attestationObject, etc.) are standard base64.

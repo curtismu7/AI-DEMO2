@@ -678,7 +678,7 @@ async function main() {
   console.log(`  ${stepNum++}. Start the server:  ./run.sh`);
   if (needsBootstrap) {
     console.log(`  ${stepNum++}. Provision PingOne (creates apps, scopes, users; writes MCP_GW / AGENT creds):`);
-    console.log('       Log in as admin, then visit:  https://api.ping.demo:4000/setup/wizard');
+    console.log('       Log in as admin, then visit:  https://demo-api-server:3001/setup/wizard');
     console.log('       You will need PingOne management worker creds (env id, region, client id, secret).');
     console.log('       After provisioning, restart the server so the new .env vars take effect:');
     console.log('         ./run.sh restart');

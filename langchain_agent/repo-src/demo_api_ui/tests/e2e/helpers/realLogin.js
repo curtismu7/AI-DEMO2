@@ -115,7 +115,7 @@ async function waitForE2eBaseUrl(request, options = {}) {
 
   throw new Error(
     `E2E app not ready at ${baseUrl} within ${timeoutMs}ms (last: ${lastStatus}). ` +
-      'Run ./run.sh start and wait until https://api.ping.demo:4000 returns 200.',
+      'Run ./run.sh start and wait until https://demo-api-server:3001 returns 200.',
   );
 }
 

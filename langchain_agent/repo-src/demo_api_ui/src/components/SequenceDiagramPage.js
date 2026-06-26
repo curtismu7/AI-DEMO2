@@ -699,7 +699,7 @@ function StepInfoPanel({
 // IMPORTANT: No emojis in any UI text (participant labels, step labels, notes).
 // All labels and notes must match i4ai-ref-arch.mmd exactly, including multi-line formatting.
 
-// PARTICIPANTS (from i4ai-ref-arch.mmd, see https://api.ping.demo:4000/architecture/flow)
+// PARTICIPANTS (from i4ai-ref-arch.mmd, see https://demo-api-server:3001/architecture/flow)
 const PARTICIPANTS = [
   // Mermaid: actor U as User
   { id: "U", label: "User", icon: "" },
@@ -723,7 +723,7 @@ const PARTICIPANTS = [
   { id: "RS", label: "Resource Server (OAuth 2.1)", icon: "" },
 ];
 
-// ALL_STEPS: 1:1 with i4ai-ref-arch.mmd (see https://api.ping.demo:4000/architecture/flow)
+// ALL_STEPS: 1:1 with i4ai-ref-arch.mmd (see https://demo-api-server:3001/architecture/flow)
 // Each step/note references the corresponding Mermaid line in a comment.
 // description field: brief human-readable title for the left step panel (2-5 words)
 const ALL_STEPS = [
@@ -750,7 +750,7 @@ const ALL_STEPS = [
     why: "The user's natural-language question is the trigger for the whole flow. Capturing it cleanly is what lets the agent later decide which banking tool to call.",
     request: {
       method: "POST",
-      url: "https://api.ping.demo:4000/chat",
+      url: "https://demo-api-server:3001/chat",
       headers: {
         "Content-Type": "application/json",
         Cookie: "connect.sid=s%3A{SESSION_ID}.{SIG}",
@@ -1646,7 +1646,7 @@ const ALL_STEPS = [
       status: 302,
       headers: {
         Location:
-          "https://api.ping.demo:4000/callback?code={AUTH_CODE}&state={STATE}",
+          "https://demo-api-server:3001/callback?code={AUTH_CODE}&state={STATE}",
         "Set-Cookie":
           "ST={PINGONE_SESSION}; Path=/; Secure; HttpOnly; SameSite=None",
       },
@@ -1668,13 +1668,13 @@ const ALL_STEPS = [
     why: "The chatbot's BFF exchanges the auth code for tokens server-side and sets its own httpOnly session cookie. From the browser's perspective the user is just 'signed in' — tokens never touch front-end code.",
     request: {
       method: "GET",
-      url: "https://api.ping.demo:4000/callback?code={AUTH_CODE}&state={STATE}",
+      url: "https://demo-api-server:3001/callback?code={AUTH_CODE}&state={STATE}",
       headers: { Cookie: "ST={PINGONE_SESSION}" },
     },
     response: {
       status: 302,
       headers: {
-        Location: "https://api.ping.demo:4000/chat?resume=replay_01XYZ",
+        Location: "https://demo-api-server:3001/chat?resume=replay_01XYZ",
         "Set-Cookie":
           "connect.sid=s%3A{SESSION_ID}.{SIG}; Path=/; HttpOnly; Secure; SameSite=Lax",
       },
@@ -1696,7 +1696,7 @@ const ALL_STEPS = [
     why: "Now that there's a logged-in user, the chatbot asks the web app's BFF to mint a token specifically scoped to what the agent needs — not a broad-access token. Narrow scope means even a leaked token has limited blast radius.",
     request: {
       method: "POST",
-      url: "https://api.ping.demo:4000/api/agent-token",
+      url: "https://demo-api-server:3001/api/agent-token",
       headers: {
         "Content-Type": "application/json",
         Cookie: "connect.sid=s%3A{SESSION_ID}.{SIG}",
@@ -2649,7 +2649,7 @@ const ALL_STEPS = [
     why: "Some demos keep the chatbot pane and the main web app dashboard in sync, so an answer in the chatbot also updates the dashboard's balance widget. This shows OAuth-bound data flowing into multiple UIs at once.",
     request: {
       method: "POST",
-      url: "https://api.ping.demo:4000/api/dashboard/sync",
+      url: "https://demo-api-server:3001/api/dashboard/sync",
       headers: {
         "Content-Type": "application/json",
         Cookie: "connect.sid=s%3A{SESSION_ID}.{SIG}",

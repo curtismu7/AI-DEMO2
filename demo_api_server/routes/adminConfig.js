@@ -362,8 +362,8 @@ router.get('/oauth-health', requireAdminOrUnconfigured, configReadLimiter, async
       },
       server_endpoints: {
         bff: {
-          url: configStore.getEffective('frontend_url') || 'https://api.ping.demo:4000',
-          port: 4000,
+          url: configStore.getEffective('frontend_url') || 'https://demo-api-server:3001',
+          port: 3001,
         },
         pingone_auth: {
           url: `https://auth.pingone.${configStore.getEffective('pingone_region') || 'com'}`,

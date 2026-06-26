@@ -58,7 +58,7 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Baseball123!';
 // dev, Docker Compose, the SE DevOps cluster, and any custom PUBLIC_APP_URL.
 // Paths are appended per-app below.
 const KNOWN_REDIRECT_ORIGINS = [
-  'https://api.ping.demo:4000',           // local dev (run-demo.sh / docker-compose)
+  'https://demo-api-server:3001',           // local dev (run-demo.sh / docker-compose)
   'https://ai-demo.ping-devops.com'       // SE DevOps cluster (Ping AWS / k8s)
 ];
 
@@ -70,7 +70,7 @@ const KNOWN_REDIRECT_ORIGINS = [
  * domain (RFC 5321). It also rejects single-label domains like 'localhost',
  * so we fall back to a plausible synthetic domain in that case.
  *
- *   https://api.ping.demo:4000  → 'api.ping.demo'
+ *   https://demo-api-server:3001  → 'api.ping.demo'
  *   http://localhost:4000       → 'demo.invalid'   (RFC 6761 reserved)
  *   https://example.com         → 'example.com'
  */

@@ -29,7 +29,7 @@ const DEFAULT_HOSTNAME = process.env.PUBLIC_APP_URL || 'https://api.ping.demo:30
 // - https:// or http://
 // - domain: alphanumeric, dots, hyphens
 // - optional port: 1-5 digits
-// Examples: https://api.ping.demo:4000, http://localhost:3000, https://staging.app.com
+// Examples: https://demo-api-server:3001, http://localhost:3000, https://staging.app.com
 const HOSTNAME_REGEX = /^https?:\/\/[a-zA-Z0-9.-]+(:\d{1,5})?$/;
 
 /**

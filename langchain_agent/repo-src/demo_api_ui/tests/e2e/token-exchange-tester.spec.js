@@ -3,13 +3,13 @@ const { test, expect } = require('@playwright/test');
 test.describe('Token Exchange Tester Page', () => {
   test.beforeEach(async ({ page, context }) => {
     // Set auth cookies if needed - adjust based on your auth setup
-    await page.goto('https://api.ping.demo:4000');
+    await page.goto('https://demo-api-server:3001');
     // Wait for potential redirects to settle
     await page.waitForLoadState('domcontentloaded');
   });
 
   test('page loads with form when user is logged in', async ({ page }) => {
-    await page.goto('https://api.ping.demo:4000/token-exchange-tester');
+    await page.goto('https://demo-api-server:3001/token-exchange-tester');
 
     // Verify page title
     await expect(page.locator('h1')).toContainText('RFC 8693 Token Exchange Tester');
@@ -21,7 +21,7 @@ test.describe('Token Exchange Tester Page', () => {
   });
 
   test('form has default values pre-populated', async ({ page }) => {
-    await page.goto('https://api.ping.demo:4000/token-exchange-tester');
+    await page.goto('https://demo-api-server:3001/token-exchange-tester');
 
     // Check default audience
     const scopesInput = page.locator('input[id="scopes"]');
@@ -35,7 +35,7 @@ test.describe('Token Exchange Tester Page', () => {
   });
 
   test('exchange button submits form', async ({ page }) => {
-    await page.goto('https://api.ping.demo:4000/token-exchange-tester');
+    await page.goto('https://demo-api-server:3001/token-exchange-tester');
 
     // Click exchange button - should trigger API call or show error
     const button = page.locator('button:has-text("Exchange Token")');
@@ -48,7 +48,7 @@ test.describe('Token Exchange Tester Page', () => {
   });
 
   test('custom audience can be entered', async ({ page }) => {
-    await page.goto('https://api.ping.demo:4000/token-exchange-tester');
+    await page.goto('https://demo-api-server:3001/token-exchange-tester');
 
     const customInput = page.locator('input.custom-input');
     await customInput.fill('custom.resource.uri');
@@ -58,7 +58,7 @@ test.describe('Token Exchange Tester Page', () => {
   });
 
   test('scopes can be modified', async ({ page }) => {
-    await page.goto('https://api.ping.demo:4000/token-exchange-tester');
+    await page.goto('https://demo-api-server:3001/token-exchange-tester');
 
     const scopesInput = page.locator('input[id="scopes"]');
     await scopesInput.fill('read write agent:invoke');

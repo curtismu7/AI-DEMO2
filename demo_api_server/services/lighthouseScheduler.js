@@ -22,7 +22,7 @@ function startScheduler() {
   const task = cron.schedule(validSchedule, async () => {
     console.log('[lighthouse-scheduler] Running scheduled audit...');
     try {
-      const base = configStore.getEffective('PUBLIC_APP_URL') || 'https://api.ping.demo:4000';
+      const base = configStore.getEffective('PUBLIC_APP_URL') || 'https://demo-api-server:3001';
       await runLighthouseAudit(`${base}/admin`);
       console.log('[lighthouse-scheduler] Scheduled audit complete');
     } catch (err) {

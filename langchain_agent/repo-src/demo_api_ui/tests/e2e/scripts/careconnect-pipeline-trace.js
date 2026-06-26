@@ -5,8 +5,8 @@
  * token exchange events, and Authorize rules + admin app-events.
  *
  * Usage:
- *   cd demo_api_ui && E2E_BASE_URL=https://api.ping.demo:4000 node tests/e2e/scripts/careconnect-pipeline-trace.js
- *   E2E_VERTICAL=retail E2E_BASE_URL=https://api.ping.demo:4000 node tests/e2e/scripts/careconnect-pipeline-trace.js
+ *   cd demo_api_ui && E2E_BASE_URL=https://demo-api-server:3001 node tests/e2e/scripts/careconnect-pipeline-trace.js
+ *   E2E_VERTICAL=retail E2E_BASE_URL=https://demo-api-server:3001 node tests/e2e/scripts/careconnect-pipeline-trace.js
  */
 const path = require('path');
 const fs = require('fs');
@@ -33,7 +33,7 @@ const {
 const BASE_URL =
   process.env.E2E_BASE_URL ||
   process.env.PLAYWRIGHT_BASE_URL ||
-  'https://api.ping.demo:4000';
+  'https://demo-api-server:3001';
 const VERTICAL = resolveE2eVerticalId();
 const CORE_CHIPS = getVerticalCoreChips(VERTICAL);
 
