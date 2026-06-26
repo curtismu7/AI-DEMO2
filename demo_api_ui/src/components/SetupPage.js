@@ -49,7 +49,24 @@ export default function SetupPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await apiClient.get('/api/langchain/config/status');
+        const [langchainRes, adminRes] = await Promise.allSettled([
+          apiClient.get('/api/langchain/config/status'),
+          apiClient.get('/api/admin/config'),
+        ]);
+
+        // Seed credential fields from saved config
+        if (adminRes.status === 'fulfilled') {
+          const cfg = adminRes.value?.data?.config || {};
+          setCreds(prev => ({
+            ...prev,
+            envId:              cfg.PINGONE_ENVIRONMENT_ID || prev.envId,
+            region:             cfg.PINGONE_REGION || prev.region,
+            workerClientId:     cfg.PINGONE_MGMT_CLIENT_ID || cfg.PINGONE_ADMIN_CLIENT_ID || prev.workerClientId,
+            workerClientSecret: cfg.PINGONE_MGMT_CLIENT_SECRET || prev.workerClientSecret,
+          }));
+        }
+
+        const data = langchainRes.status === 'fulfilled' ? langchainRes.value?.data : null;
         const done = new Set();
         if (data?.pingone_environment_id) done.add(1);
         if (data?.helix_base_url && data?.helix_api_key_set) done.add(2);
