@@ -1402,6 +1402,19 @@ export default function BankingAgent({
 
   // Check on mount — auto-open if already authenticated (e.g. page refresh after login)
   useEffect(() => {
+    // If App.js already resolved a session, use it immediately — no async needed.
+    if (effectiveUser) {
+      setMessages((prev) => {
+        if (prev.length > 0 && prev.some((m) => m.role === "assistant" && !m.tool)) return prev;
+        const welcome = {
+          id: `${Date.now()}-w`,
+          role: "assistant",
+          content: welcomeMessage(effectiveUser, embeddedFocus, brandShortName, themeAgent && themeAgent.greeting),
+        };
+        return prev.length === 0 ? [welcome] : [welcome, ...prev];
+      });
+      return;
+    }
     Promise.all([
       getCachedStatus("/api/auth/oauth/status").catch(() => null),
       getCachedStatus("/api/auth/oauth/user/status").catch(() => null),
@@ -1464,7 +1477,7 @@ export default function BankingAgent({
       }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInline, embeddedFocus]);
+  }, [isInline, embeddedFocus, effectiveUser]);
 
   // Re-check when App.js confirms a login, and auto-open the agent
   useEffect(() => {
