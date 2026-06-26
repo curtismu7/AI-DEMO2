@@ -1257,15 +1257,17 @@ class ConfigStore {
       const stored = this.get(key);
       if (stored) return stored;
     } else {
-      // Everything else: Vault > LMDB > .env. this.get(key) reads the
-      // cache, which holds BOTH vault (provenance 'vault') and LMDB
-      // ('sqlite') values; Task 1's _setCache provenance guarantees a
-      // vault-owned key keeps its vault value, so a single this.get()
-      // already encodes "vault, then sqlite". .env is the fallback.
-      const stored = this.get(key);
-      if (stored) return stored;
+      // Everything else: .env > Vault/LMDB. Env vars set at deploy time
+      // (docker-compose, process env) must always override stored values so
+      // that a stale LMDB entry from a past UI toggle cannot silently shadow
+      // a deployment-level setting (e.g. FF_MCP_GATEWAY_PINGGATEWAY=false).
+      // this.get(key) reads the cache holding both vault ('vault') and LMDB
+      // ('sqlite') values; vault-owned keys retain vault provenance via
+      // _setCache, so a single this.get() encodes "vault, then sqlite".
       const envVal = readEnv();
       if (envVal) return envVal;
+      const stored = this.get(key);
+      if (stored) return stored;
     }
 
     // Helix agent API key: when nothing above has it, look for a per-agent

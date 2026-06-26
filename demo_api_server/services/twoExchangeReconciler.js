@@ -105,23 +105,17 @@ async function _reconcileAiAgentGrants(client, aiAgentAppId, agentGwResourceId) 
   const agentGwGrant = grants.find(g => g.resource?.id === agentGwResourceId);
   const grantedIds = new Set((agentGwGrant?.scopes || []).map(s => s.id));
 
-  // Build set of scope names already granted on OTHER resources (PingOne unique-name rule)
-  const otherGrantedNames = new Set();
-  for (const g of grants) {
-    if (g.resource?.id === agentGwResourceId) continue;
-    const otherScopes = await client.get(`/resources/${g.resource.id}/scopes?limit=200`);
-    for (const s of (otherScopes._embedded?.scopes || [])) {
-      otherGrantedNames.add(s.name);
-    }
-  }
-
-  // Scope IDs we need to add to the Agent Gateway grant
+  // Scope IDs we need to add to the Agent Gateway grant.
+  // NOTE: PingOne allows the same scope NAME on multiple resources (different IDs).
+  // We check only by scope ID on the Agent Gateway grant — NOT by name on other
+  // resources — to avoid the false-positive where read/write/transfer exist on the
+  // enduser API grant and would be incorrectly skipped here.
   const toAdd = [];
   const unchanged = [];
   for (const name of expected) {
     const id = idByName.get(name);
     if (!id) continue; // scope doesn't exist yet on resource (reconcileScopes should have fixed it)
-    if (grantedIds.has(id) || otherGrantedNames.has(name)) {
+    if (grantedIds.has(id)) {
       unchanged.push(name);
     } else {
       toAdd.push({ id, name });

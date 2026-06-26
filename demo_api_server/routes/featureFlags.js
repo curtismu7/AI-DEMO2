@@ -626,7 +626,7 @@ const FLAG_REGISTRY = [
       'OFF = Demo Agent Gateway path unchanged. ' +
       'ON (default) = the PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
     type:         'boolean',
-    defaultValue: true,
+    defaultValue: false,
   },
   {
     id:           'ff_mcp_rate_limit',
