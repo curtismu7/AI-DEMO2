@@ -1450,13 +1450,19 @@ export default function BankingAgent({
         }
       } else {
         // No session — show a guest greeting so the chat isn't a blank void.
-        setMessages([{
-          id: `${Date.now()}-guest`,
-          role: "assistant",
-          content: `Hi! I'm the ${brandShortName || "AI"} assistant.\n\nSign in with your customer account to access banking features — account balances, transfers, and more. Or ask me about OAuth, PKCE, MCP, or how AI agents work.`,
-        }]);
+        // Guard: only seed if empty, so a re-run of this effect doesn't wipe
+        // an in-progress conversation.
+        setMessages((prev) =>
+          prev.length === 0
+            ? [{
+                id: `${Date.now()}-guest`,
+                role: "assistant",
+                content: `Hi! I'm the ${brandShortName || "AI"} assistant.\n\nSign in with your customer account to access banking features — account balances, transfers, and more. Or ask me about OAuth, PKCE, MCP, or how AI agents work.`,
+              }]
+            : prev
+        );
       }
-    });
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInline, embeddedFocus]);
 
