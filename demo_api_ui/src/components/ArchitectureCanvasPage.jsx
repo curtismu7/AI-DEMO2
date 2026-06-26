@@ -196,21 +196,24 @@ function downloadFile(content, filename, mime) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Returns the point on node's bounding box edge in the direction of (toX, toY) from the node centre.
-function boxEdgePoint(node, toX, toY) {
+// Returns the point on node's bounding box edge in the direction of (toX, toY).
+// outset > 0 pushes the point outside the box (so arrowhead tip sits on the border).
+function boxEdgePoint(node, toX, toY, outset = 0) {
   const cx = node.x + W / 2;
   const cy = node.y + H / 2;
   const dx = toX - cx;
   const dy = toY - cy;
-  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return { x: cx, y: cy };
-  const hw = W / 2 - 2;   // 2px inset so head sits flush on the border
-  const hh = H / 2 - 2;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 0.5) return { x: cx, y: cy };
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const hw = W / 2;
+  const hh = H / 2;
+  // distance along unit vector to each edge
   let t = Infinity;
-  if (dx > 0) t = Math.min(t, hw / dx);
-  if (dx < 0) t = Math.min(t, -hw / dx);
-  if (dy > 0) t = Math.min(t, hh / dy);
-  if (dy < 0) t = Math.min(t, -hh / dy);
-  return { x: cx + t * dx, y: cy + t * dy };
+  if (Math.abs(nx) > 0.001) t = Math.min(t, hw / Math.abs(nx));
+  if (Math.abs(ny) > 0.001) t = Math.min(t, hh / Math.abs(ny));
+  return { x: cx + (t - outset) * nx, y: cy + (t - outset) * ny };
 }
 
 function arrowPoints(src, tgt) {
@@ -218,8 +221,9 @@ function arrowPoints(src, tgt) {
   const scy = src.y + H / 2;
   const tcx = tgt.x + W / 2;
   const tcy = tgt.y + H / 2;
-  const s = boxEdgePoint(src, tcx, tcy);
-  const e = boxEdgePoint(tgt, scx, scy);
+  // outset=1 pushes the tip 1px outside the border so the arrowhead is fully visible
+  const s = boxEdgePoint(src, tcx, tcy, -1);
+  const e = boxEdgePoint(tgt, scx, scy, 1);
   return [s.x, s.y, e.x, e.y];
 }
 
@@ -249,6 +253,10 @@ export default function ArchitectureCanvasPage() {
     obs.observe(wrapRef.current);
     return () => obs.disconnect();
   }, []);
+
+  const handleDragMove = useCallback((id, e) => {
+    moveNode(id, e.target.x(), e.target.y());
+  }, [moveNode]);
 
   const handleDragEnd = useCallback((id, e) => {
     moveNode(id, e.target.x(), e.target.y());
@@ -417,29 +425,7 @@ export default function ArchitectureCanvasPage() {
             ))}
           </Layer>
 
-          {/* Base edges — dimmed when a flow is active */}
-          <Layer>
-            {edges.map(edge => {
-              const src = nodeMap[edge.from];
-              const tgt = nodeMap[edge.to];
-              if (!src || !tgt) return null;
-              const pts = arrowPoints(src, tgt);
-              const isSelected = selectedEdge === edge.id;
-              const dimmed = !!flow;
-              return (
-                <Arrow key={edge.id} points={pts}
-                  stroke={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#94a3b8'}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
-                  fill={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#94a3b8'}
-                  pointerLength={8} pointerWidth={7} hitStrokeWidth={16}
-                  opacity={dimmed && !isSelected ? 0.4 : 1}
-                  onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
-                />
-              );
-            })}
-          </Layer>
-
-          {/* Nodes — Okta-style two-zone cards */}
+          {/* Nodes — Okta-style two-zone cards (drawn before edges so arrowheads sit on top) */}
           <Layer>
             {nodes.map(node => {
               const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
@@ -455,6 +441,7 @@ export default function ArchitectureCanvasPage() {
               return (
                 <Group key={node.id} x={node.x} y={node.y}
                   draggable={!connectMode} opacity={dimmed ? 0.2 : 1}
+                  onDragMove={e => handleDragMove(node.id, e)}
                   onDragEnd={e => handleDragEnd(node.id, e)}
                   onClick={() => handleNodeClick(node.id)}
                   onDblClick={() => handleNodeDblClick(node)}
@@ -486,6 +473,28 @@ export default function ArchitectureCanvasPage() {
                       stroke="#fff" strokeWidth={1.5} listening={false} />
                   )}
                 </Group>
+              );
+            })}
+          </Layer>
+
+          {/* Base edges — drawn above nodes so arrowheads are never obscured */}
+          <Layer>
+            {edges.map(edge => {
+              const src = nodeMap[edge.from];
+              const tgt = nodeMap[edge.to];
+              if (!src || !tgt) return null;
+              const pts = arrowPoints(src, tgt);
+              const isSelected = selectedEdge === edge.id;
+              const dimmed = !!flow;
+              return (
+                <Arrow key={edge.id} points={pts}
+                  stroke={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#64748b'}
+                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  fill={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#64748b'}
+                  pointerLength={9} pointerWidth={8} hitStrokeWidth={16}
+                  opacity={dimmed && !isSelected ? 0.35 : 1}
+                  onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
+                />
               );
             })}
           </Layer>
