@@ -242,7 +242,8 @@ export default function ArchitectureCanvasPage() {
   const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
   const [connectMode, setConnectMode] = useState(false);
-  const [connectFrom, setConnectFrom] = useState(null);
+  const [connectFrom, setConnectFrom] = useState(null);  // kept for keyboard/click fallback
+  const [dragWire, setDragWire] = useState(null);         // { fromId, x1,y1, x2,y2 } while dragging
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [renaming, setRenaming] = useState(null);
   const [stageH, setStageH] = useState(620);
@@ -251,6 +252,7 @@ export default function ArchitectureCanvasPage() {
   const [resultPanel, setResultPanel] = useState(null);
   const [selectedFlow, setSelectedFlow] = useState(null);
   const wrapRef = useRef(null);
+  const dragWireRef = useRef(null);  // mirrors dragWire for mousemove closure
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -270,13 +272,41 @@ export default function ArchitectureCanvasPage() {
   }, [moveNode]);
 
   const handleNodeClick = useCallback((id) => {
+    // kept for non-drag interactions; drag path uses handleWireStart/End
+    if (!connectMode || dragWireRef.current) return;
+  }, [connectMode]);
+
+  const handleWireStart = useCallback((node, e) => {
     if (!connectMode) return;
-    if (!connectFrom) { setConnectFrom(id); return; }
-    if (connectFrom === id) { setConnectFrom(null); return; }
-    addEdge(connectFrom, id);
-    setConnectFrom(null);
+    e.cancelBubble = true;
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    const cx = node.x + W / 2;
+    const cy = node.y + H / 2;
+    const wire = { fromId: node.id, x1: cx, y1: cy, x2: pos.x, y2: pos.y };
+    dragWireRef.current = wire;
+    setDragWire(wire);
+  }, [connectMode]);
+
+  const handleWireMove = useCallback((e) => {
+    if (!dragWireRef.current) return;
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    const next = { ...dragWireRef.current, x2: pos.x, y2: pos.y };
+    dragWireRef.current = next;
+    setDragWire(next);
+  }, []);
+
+  const handleWireEnd = useCallback((targetId) => {
+    const wire = dragWireRef.current;
+    if (!wire) return;
+    dragWireRef.current = null;
+    setDragWire(null);
+    if (targetId && targetId !== wire.fromId) {
+      addEdge(wire.fromId, targetId);
+    }
     setConnectMode(false);
-  }, [connectMode, connectFrom, addEdge]);
+  }, [addEdge]);
 
   const handleNodeDblClick = useCallback((node) => {
     if (connectMode) return;
@@ -335,7 +365,7 @@ export default function ArchitectureCanvasPage() {
   const hint = renaming
     ? 'Press Enter or click Save to rename'
     : connectMode
-    ? (connectFrom ? `Now click the target node` : 'Click the source node')
+    ? (dragWire ? 'Release on target node to connect' : 'Drag from any box to draw a connection')
     : selectedEdge
     ? 'Arrow selected — click Delete Edge to remove'
     : 'Drag to reposition · Double-click to rename · Click arrow to select';
@@ -376,7 +406,7 @@ export default function ArchitectureCanvasPage() {
             />
             <button className="btn-add" onClick={handleAddNode}>+ Add</button>
             <button className={`btn-connect${connectMode ? ' active' : ''}`}
-              onClick={() => { setConnectMode(m => !m); setConnectFrom(null); }}>
+              onClick={() => { setConnectMode(m => !m); setDragWire(null); dragWireRef.current = null; }}>
               {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
             </button>
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>✕ Delete Edge</button>
@@ -417,7 +447,11 @@ export default function ArchitectureCanvasPage() {
 
       {/* Scrollable canvas */}
       <div className="canvas-stage-wrap" ref={wrapRef}>
-        <Stage width={STAGE_W} height={stageH}>
+        <Stage width={STAGE_W} height={stageH}
+          onMouseMove={connectMode ? handleWireMove : undefined}
+          onMouseUp={connectMode ? () => handleWireEnd(null) : undefined}
+          style={{ cursor: connectMode ? (dragWire ? 'crosshair' : 'cell') : 'default' }}
+        >
           {/* Background */}
           <Layer>
             <Rect x={0} y={0} width={STAGE_W} height={stageH} fill="#f8fafc" />
@@ -456,6 +490,8 @@ export default function ArchitectureCanvasPage() {
                   onDragEnd={e => handleDragEnd(node.id, e)}
                   onClick={() => handleNodeClick(node.id)}
                   onDblClick={() => handleNodeDblClick(node)}
+                  onMouseDown={connectMode ? e => handleWireStart(node, e) : undefined}
+                  onMouseUp={connectMode ? () => handleWireEnd(node.id) : undefined}
                 >
                   {/* Drop shadow */}
                   <Rect x={2} y={3} width={W} height={H} cornerRadius={R} fill="rgba(0,0,0,0.10)" />
@@ -509,6 +545,17 @@ export default function ArchitectureCanvasPage() {
               );
             })}
           </Layer>
+
+          {/* Rubber-band wire while dragging a connection */}
+          {dragWire && (
+            <Layer listening={false}>
+              <Arrow
+                points={[dragWire.x1, dragWire.y1, dragWire.x2, dragWire.y2]}
+                stroke="#3b82f6" strokeWidth={2} fill="#3b82f6"
+                pointerLength={9} pointerWidth={8} dash={[6, 4]}
+              />
+            </Layer>
+          )}
 
           {/* Flow overlay — colored arrows + number badges */}
           {flow && (
