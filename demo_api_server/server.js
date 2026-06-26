@@ -2144,6 +2144,11 @@ if (require.main === module) {
             console.warn('[VERTICAL GUARD] unexpected error (non-fatal):', e.message);
         }
 
+        // Two-exchange reconciler: verifies and self-heals the PingOne grants/scopes
+        // needed for the RFC 8693 two-exchange chip delegation chain. Non-fatal async.
+        require('./services/twoExchangeReconciler').reconcileTwoExchangeGrants()
+            .catch(e => console.warn('[TwoExchangeReconciler] unexpected error:', e.message));
+
         const fs = require('fs');
         const certDir = path.join(__dirname, '../certs');
         // Prefer explicit env overrides, then mkcert dev names, then k8s secret names (tls.crt/tls.key).
