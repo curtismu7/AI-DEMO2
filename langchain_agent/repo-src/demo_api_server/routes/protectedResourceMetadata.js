@@ -32,7 +32,7 @@ const router  = express.Router();
 function buildMetadata(req) {
   const host = req.get('host') || null;
   const baseUrl = process.env.PUBLIC_APP_URL ||
-    (host ? `${req.protocol}://${host}` : 'https://api.ping.demo:4000');
+    (host ? `${req.protocol}://${host}` : 'https://demo-api-server:3001');
 
   const envId  = process.env.PINGONE_ENVIRONMENT_ID || '';
   const region = process.env.PINGONE_REGION || 'com';

@@ -88,7 +88,7 @@ router.post('/run', requireAdmin, async (req, res) => {
             workerClientId,
             workerClientSecret,
             region: region || 'com',
-            publicAppUrl: publicAppUrl || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000',
+            publicAppUrl: publicAppUrl || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
             audience: audience || 'enduser.ping.demo',
             stepUpAcrValue: stepUpAcrValue || 'Multi_factor'
         };
@@ -368,7 +368,7 @@ router.get('/config-template', requireAdmin, async (req, res) => {
                 type: 'url',
                 description: 'Public URL of your application',
                 example: 'https://your-app.example.com',
-                default: process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000'
+                default: process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001'
             },
             audience: {
                 label: 'Resource Server Audience',

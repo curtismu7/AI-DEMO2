@@ -469,7 +469,7 @@ export default function SetupWizard({
           type="text"
           value={creds.publicAppUrl}
           onChange={e => setCreds(p => ({ ...p, publicAppUrl: e.target.value }))}
-          placeholder="https://api.ping.demo:4000"
+          placeholder="https://demo-api-server:3001"
         />
       </div>
       <div className="wizard-field">

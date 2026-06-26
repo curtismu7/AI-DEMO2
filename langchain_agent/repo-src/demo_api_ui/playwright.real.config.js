@@ -13,7 +13,7 @@
  *   cd demo_api_ui && npm run test:e2e:real              # all *.real.spec.js
  *   cd demo_api_ui && npm run test:e2e:real:careconnect # CareConnect 3-chip matrix
  *   cd demo_api_ui && npm run test:e2e:real:local        # E2E_BASE_URL=http://localhost:3000
- *   E2E_BASE_URL=https://api.ping.demo:4000 npm run test:e2e:real:careconnect
+ *   E2E_BASE_URL=https://demo-api-server:3001 npm run test:e2e:real:careconnect
  *
  * Credentials:
  *   cp tests/e2e/.env.e2e.example tests/e2e/.env.e2e

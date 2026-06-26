@@ -196,14 +196,31 @@ function downloadFile(content, filename, mime) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function portCentre(node) {
-  return { x: node.x + W / 2, y: node.y + H / 2 };
+// Returns the point on node's bounding box edge in the direction of (toX, toY) from the node centre.
+function boxEdgePoint(node, toX, toY) {
+  const cx = node.x + W / 2;
+  const cy = node.y + H / 2;
+  const dx = toX - cx;
+  const dy = toY - cy;
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return { x: cx, y: cy };
+  const hw = W / 2 - 2;   // 2px inset so head sits flush on the border
+  const hh = H / 2 - 2;
+  let t = Infinity;
+  if (dx > 0) t = Math.min(t, hw / dx);
+  if (dx < 0) t = Math.min(t, -hw / dx);
+  if (dy > 0) t = Math.min(t, hh / dy);
+  if (dy < 0) t = Math.min(t, -hh / dy);
+  return { x: cx + t * dx, y: cy + t * dy };
 }
 
 function arrowPoints(src, tgt) {
-  const s = portCentre(src);
-  const t = portCentre(tgt);
-  return [s.x, s.y, t.x, t.y];
+  const scx = src.x + W / 2;
+  const scy = src.y + H / 2;
+  const tcx = tgt.x + W / 2;
+  const tcy = tgt.y + H / 2;
+  const s = boxEdgePoint(src, tcx, tcy);
+  const e = boxEdgePoint(tgt, scx, scy);
+  return [s.x, s.y, e.x, e.y];
 }
 
 function midpoint(pts) {

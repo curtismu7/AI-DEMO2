@@ -201,7 +201,7 @@ describe('PingOne MFA HITL — full flow (flag on)', () => {
       req,
       challengeId,
       { deviceId: 'dev-email-1', otp: '654321' },
-      'https://api.ping.demo:4000',
+      'https://demo-api-server:3001',
     );
 
     expect(verified.ok).toBe(true);
@@ -267,7 +267,7 @@ describe('PingOne MFA HITL — full flow (flag on)', () => {
       req,
       challengeId,
       { deviceId: 'dev-email-1', otp: '123123' },
-      'https://api.ping.demo:4000',
+      'https://demo-api-server:3001',
     );
 
     expect(mfaService.submitOtp).not.toHaveBeenCalled();

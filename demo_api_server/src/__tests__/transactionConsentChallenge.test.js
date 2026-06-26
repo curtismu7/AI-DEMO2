@@ -171,8 +171,8 @@ describe('verifyMfa', () => {
     mfaService.submitFido2Assertion.mockResolvedValue({ status: 'COMPLETED' });
     const assertion = { id: 'cred-id', type: 'public-key' };
     const req = makeReqWithMfaChallenge(CHALLENGE_ID);
-    const result = await txConsent.verifyMfa(req, CHALLENGE_ID, { deviceId: 'dev-1', fido2Assertion: assertion }, 'https://api.ping.demo:4000');
-    expect(mfaService.submitFido2Assertion).toHaveBeenCalledWith('da-test-001', assertion, undefined, 'https://api.ping.demo:4000');
+    const result = await txConsent.verifyMfa(req, CHALLENGE_ID, { deviceId: 'dev-1', fido2Assertion: assertion }, 'https://demo-api-server:3001');
+    expect(mfaService.submitFido2Assertion).toHaveBeenCalledWith('da-test-001', assertion, undefined, 'https://demo-api-server:3001');
     expect(result.ok).toBe(true);
     expect(req.session.txConsentChallenges[CHALLENGE_ID].status).toBe('confirmed');
   });

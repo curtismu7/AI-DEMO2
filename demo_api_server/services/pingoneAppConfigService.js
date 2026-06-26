@@ -46,13 +46,12 @@ async function updateAppConfig(appId, config) {
  */
 async function fixLogoutUrls(appId, publicAppUrl) {
   const current = await getAppConfig(appId);
-  const url = publicAppUrl || configStore.getEffective('public_app_url') || 'https://api.ping.demo:4000';
+  const url = publicAppUrl || configStore.getEffective('public_app_url') || 'https://demo-api-server:3001';
 
   const logoutUrls = [
     url,
     `${url}/login`,
-    'https://api.ping.demo:4000',
-    'https://api.ping.demo:3001'
+    'https://demo-api-server:3001',
   ];
   // Deduplicate
   const uniqueUrls = [...new Set(logoutUrls)];

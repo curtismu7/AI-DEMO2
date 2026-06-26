@@ -2550,7 +2550,7 @@ function NlRoutingCard({ event }) {
  *
  * Connections shown:
  *   Browser → BFF         (mkcert — api.ping.demo:3001  HTTPS)
- *   Browser → UI          (mkcert — api.ping.demo:4000  HTTPS)
+ *   Browser → UI          (mkcert — demo-api-server:3001  HTTPS)
  *   BFF → PingOne AS      (public CA — auth.pingone.com  HTTPS)
  *   BFF → Ping Agent Gateway     (mkcert — api.ping.demo:3005  HTTPS)
  *   Gateway → MCP Server  (HTTP — loopback only; no token leaves the host)
@@ -2568,7 +2568,7 @@ const TLS_HOPS = [
   {
     from: "Browser",
     to: "UI Server",
-    host: "api.ping.demo:4000",
+    host: "demo-api-server:3001",
     protocol: "HTTPS",
     cert: "mkcert (dev CA)",
     note: "React app served over TLS — prevents page-load MITM that could inject scripts.",

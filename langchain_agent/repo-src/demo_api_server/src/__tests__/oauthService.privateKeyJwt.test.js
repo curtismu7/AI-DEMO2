@@ -23,7 +23,7 @@ const MOCK_CONFIG = {
   tokenEndpoint: 'https://auth.pingone.com/env-pkj/as/token',
   clientId: 'bff-admin-client',
   clientSecret: 'bff-admin-secret',
-  redirectUri: 'https://api.ping.demo:4000/api/auth/oauth/callback',
+  redirectUri: 'https://demo-api-server:3001/api/auth/oauth/callback',
   scopes: ['openid'],
   tokenEndpointAuthMethod: 'basic',
 };

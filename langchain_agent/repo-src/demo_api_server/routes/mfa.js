@@ -16,7 +16,7 @@ function resolveFido2RpId() {
     configStore.getEffective('PUBLIC_APP_URL') ||
     configStore.getEffective('REACT_APP_CLIENT_URL') ||
     process.env.PUBLIC_APP_URL ||
-    'https://api.ping.demo:4000';
+    'https://demo-api-server:3001';
   try { return new URL(url).hostname; } catch { return 'api.ping.demo'; }
 }
 

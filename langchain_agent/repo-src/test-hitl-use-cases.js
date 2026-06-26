@@ -10,7 +10,7 @@
  */
 
 const testConfig = {
-  baseUrl: 'https://api.ping.demo:4000',
+  baseUrl: 'https://demo-api-server:3001',
   apiBase: 'https://api.ping.demo:3001',
   useCases: {
     stepUp: {

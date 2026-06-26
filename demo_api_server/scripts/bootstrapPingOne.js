@@ -19,7 +19,7 @@
  *   PINGONE_BOOTSTRAP_REGION=com
  *   PINGONE_BOOTSTRAP_CLIENT_ID=...
  *   PINGONE_BOOTSTRAP_CLIENT_SECRET=...
- *   PUBLIC_APP_URL=https://api.ping.demo:4000   (optional)
+ *   PUBLIC_APP_URL=https://demo-api-server:3001   (optional)
  *   node scripts/bootstrapPingOne.js --non-interactive
  */
 
@@ -112,7 +112,7 @@ Env vars (non-interactive mode):
   PINGONE_BOOTSTRAP_REGION         com | eu | ca | asia | com.au   (default: com)
   PINGONE_BOOTSTRAP_CLIENT_ID      Management worker client id
   PINGONE_BOOTSTRAP_CLIENT_SECRET  Management worker client secret
-  PUBLIC_APP_URL                   App base URL              (default: https://api.ping.demo:4000)
+  PUBLIC_APP_URL                   App base URL              (default: https://demo-api-server:3001)
   PINGONE_BOOTSTRAP_AUDIENCE       Resource server audience  (default: enduser.ping.demo)
   MCP_GW_AUDIENCE                  Gateway audience          (default: enduser.ping.demo)
 
@@ -552,7 +552,7 @@ async function gatherCredsViaBrowser() {
       region: cached.region || 'com',
       workerClientId: cached.workerClientId,
       workerClientSecret: cached.workerClientSecret,
-      publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000',
+      publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
       audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
       mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
     };
@@ -563,7 +563,7 @@ async function gatherCredsViaBrowser() {
   console.log('in a localhost form. Auth method is hard-coded to client_secret_basic.');
   const fromForm = await browserPrompt();
 
-  const publicAppUrl = process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000';
+  const publicAppUrl = process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001';
   const audience = process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo';
   const mcpGatewayAudience = process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo';
   const creds = { ...fromForm, publicAppUrl, audience, mcpGatewayAudience };
@@ -583,7 +583,7 @@ async function gatherCredsInteractive() {
       region: cached.region || 'com',
       workerClientId: cached.workerClientId,
       workerClientSecret: cached.workerClientSecret,
-      publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000',
+      publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
       audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
       mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
     };
@@ -609,7 +609,7 @@ async function gatherCredsInteractive() {
     if (!workerClientSecret) throw new Error('Management client secret is required.');
 
     const publicAppUrl = await prompt(rl, 'Public App URL', {
-      defaultValue: process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000',
+      defaultValue: process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
     });
 
     const audience = process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo';
@@ -643,7 +643,7 @@ function gatherCredsFromEnv() {
     region: process.env.PINGONE_BOOTSTRAP_REGION || 'com',
     workerClientId,
     workerClientSecret,
-    publicAppUrl: process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000',
+    publicAppUrl: process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
     audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
     mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
   };
@@ -804,10 +804,10 @@ SESSION_SECRET (preserved across reruns)
 
 ## Useful URLs
 
-- Configure UI:  https://api.ping.demo:4000/configure
-- End-user dashboard:  https://api.ping.demo:4000/dashboard
-- Admin dashboard:  https://api.ping.demo:4000/admin
-- Wizard (re-run provisioning from UI):  https://api.ping.demo:4000/setup/wizard
+- Configure UI:  https://demo-api-server:3001/configure
+- End-user dashboard:  https://demo-api-server:3001/dashboard
+- Admin dashboard:  https://demo-api-server:3001/admin
+- Wizard (re-run provisioning from UI):  https://demo-api-server:3001/setup/wizard
 
 ## Re-running
 

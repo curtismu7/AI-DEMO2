@@ -64,7 +64,7 @@ describe('PingOneProvisionService — regression suite', () => {
         // The exact drift case from today: app exists but has only AUTHORIZATION_CODE.
         grantTypes: ['AUTHORIZATION_CODE'],
         tokenEndpointAuthMethod: 'CLIENT_SECRET_BASIC',
-        redirectUris: ['https://api.ping.demo:4000/api/auth/oauth/callback'],
+        redirectUris: ['https://demo-api-server:3001/api/auth/oauth/callback'],
       };
       // findResourceByName → returns the existing app.
       svc.findResourceByName = jest.fn().mockResolvedValue(existing);

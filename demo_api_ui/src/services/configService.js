@@ -164,7 +164,7 @@ function validateHostnameFormat(hostname) {
 
 /**
  * Fetch currently configured hostname from backend
- * @returns {Promise<string>} hostname (e.g., 'https://api.ping.demo:4000')
+ * @returns {Promise<string>} hostname (e.g., 'https://demo-api-server:3001')
  * @throws {Error} if API request fails
  */
 export const getHostname = async () => {

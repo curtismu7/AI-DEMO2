@@ -43,7 +43,7 @@ const ALLOWED_ORIGINS = (process.env.HITL_ALLOWED_ORIGINS || '')
 // Startup env validation — warn loudly so run.sh log tail shows the issue
 if (!ALLOWED_ORIGINS.length) {
   teachLog.warn('HITL_ALLOWED_ORIGINS is not set — CORS will allow all origins', {
-    hint: 'Set HITL_ALLOWED_ORIGINS=https://api.ping.demo:4000,https://api.ping.demo:3005 in demo_api_server/.env',
+    hint: 'Set HITL_ALLOWED_ORIGINS=https://demo-api-server:3001,https://demo-api-server:3005 in demo_api_server/.env',
   });
 }
 

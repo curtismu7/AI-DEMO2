@@ -21,15 +21,15 @@ function getCanonicalPublicOrigin(req, opts) {
   if (process.env.REACT_APP_CLIENT_URL) {
     return process.env.REACT_APP_CLIENT_URL.replace(/\/$/, '');
   }
-  if (!req) return 'https://api.ping.demo:4000';
+  if (!req) return 'https://demo-api-server:3001';
 
   const forwarded = req.get ? req.get('x-forwarded-host') : req.headers?.['x-forwarded-host'];
   const host = forwarded || (req.get ? req.get('host') : req.headers?.host) || null;
 
-  if (!host) return 'https://api.ping.demo:4000';
+  if (!host) return 'https://demo-api-server:3001';
 
   const normalized = host.split(',')[0].trim();
-  if (!normalized) return 'https://api.ping.demo:4000';
+  if (!normalized) return 'https://demo-api-server:3001';
 
   const forwardedProto = req.get ? req.get('x-forwarded-proto') : req.headers?.['x-forwarded-proto'];
   const protocol = forwardedProto || (normalized.includes('localhost') || normalized.includes('127.0.0.1') ? 'http' : 'https');
@@ -75,7 +75,7 @@ function getFrontendOrigin() {
   const publicUrl = (process.env.PUBLIC_APP_URL || '').trim();
   if (publicUrl) return publicUrl;
 
-  return 'https://api.ping.demo:4000';
+  return 'https://demo-api-server:3001';
 }
 
 /**
@@ -89,7 +89,7 @@ function getExpectedFrontendOrigin() {
   if (process.env.REACT_APP_CLIENT_URL) {
     return process.env.REACT_APP_CLIENT_URL.replace(/\/$/, '');
   }
-  return 'https://api.ping.demo:4000';
+  return 'https://demo-api-server:3001';
 }
 
 /**
@@ -159,10 +159,10 @@ function getOAuthRedirectDebugInfo(req) {
  */
 const REFERENCE_REDIRECT_SETS = [
   {
-    id: 'api-ping-demo',
+    id: 'demo-api-server',
     label: 'Local development (default)',
-    adminRedirectUri: 'https://api.ping.demo:4000/api/auth/oauth/callback',
-    userRedirectUri: 'https://api.ping.demo:4000/api/auth/oauth/user/callback',
+    adminRedirectUri: 'https://demo-api-server:3001/api/auth/oauth/callback',
+    userRedirectUri: 'https://demo-api-server:3001/api/auth/oauth/user/callback',
   },
   {
     id: 'custom-host',

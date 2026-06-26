@@ -11,7 +11,7 @@
 
 const { chromium } = require('playwright');
 
-const BASE_URL = 'https://api.ping.demo:4000';
+const BASE_URL = 'https://demo-api-server:3001';
 const USER_LOGIN = 'https://api.ping.demo:3001/api/auth/oauth/user/login';
 
 // Test credentials (from .env or hardcoded for demo)

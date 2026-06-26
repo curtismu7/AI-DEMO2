@@ -1073,7 +1073,7 @@ async function confirmInstallDirectory() {
 // ── /etc/hosts pre-check ─────────────────────────────────────────────────────
 //
 // The demo serves on api.ping.demo (loopback). Without the matching /etc/hosts
-// entry, the browser fails to load https://api.ping.demo:4000 after setup
+// entry, the browser fails to load https://demo-api-server:3001 after setup
 // completes — confusing because the bootstrap (which binds 127.0.0.1) succeeds.
 // We check upfront, prompt to fix, and on macOS open Terminal.app with the
 // sudo command pre-typed so the user runs it without leaving the flow.
@@ -1203,7 +1203,7 @@ async function ensureHostsEntry() {
   console.log('');
   console.log(`The ${APP_HOST} loopback entry is missing from /etc/hosts.`);
   console.log('');
-  console.log('Why this matters: the demo serves on https://api.ping.demo:4000. Without the');
+  console.log('Why this matters: the demo serves on https://demo-api-server:3001. Without the');
   console.log(`/etc/hosts entry your browser will fail to reach it after setup completes.`);
   console.log('');
   console.log('Required line:');
@@ -1749,9 +1749,9 @@ function printDone({ ranBootstrap, fromTar }) {
   console.log('');
   console.log(`  ${BOLD}2.  Open in browser${RESET} ${DIM}(click or copy):${RESET}`);
   console.log('');
-  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/configure${RESET}   ${DIM}verify config${RESET}`);
-  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/dashboard${RESET}   ${DIM}end-user portal${RESET}`);
-  console.log(`      ${YELLOW}${BOLD}https://api.ping.demo:4000/admin${RESET}       ${DIM}admin portal${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/configure${RESET}   ${DIM}verify config${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/dashboard${RESET}   ${DIM}end-user portal${RESET}`);
+  console.log(`      ${YELLOW}${BOLD}https://demo-api-server:3001/admin${RESET}       ${DIM}admin portal${RESET}`);
   console.log('');
   console.log(`  ${BOLD}3.  Sign in with one of these demo users${RESET} ${DIM}(username / password — role):${RESET}`);
   console.log('');

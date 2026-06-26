@@ -9,7 +9,7 @@ jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => ({
     PINGONE_ENVIRONMENT_ID: 'env-123',
     PINGONE_REGION: 'com',
-    PUBLIC_APP_URL: 'https://api.ping.demo:4000',
+    PUBLIC_APP_URL: 'https://demo-api-server:3001',
   })[key]),
 }));
 
@@ -286,7 +286,7 @@ describe('environment agents (picker)', () => {
     configStore.getEffective.mockImplementation((key) => ({
       PINGONE_ENVIRONMENT_ID: 'env-123',
       PINGONE_REGION: 'com',
-      PUBLIC_APP_URL: 'https://api.ping.demo:4000',
+      PUBLIC_APP_URL: 'https://demo-api-server:3001',
       AGENT_CLIENT_ID: 'a-demo',
     })[key]);
     mockGet({ '/applications': APPS });

@@ -305,7 +305,7 @@ const _rateLimitHandler = (req, res) => {
         const proto = req.get('x-forwarded-proto') || (req.secure ? 'https' : 'http');
         const rawHost = (req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
         const host = rawHost || null;
-        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000');
+        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001');
         return res.redirect(`${origin}/login?error=too_many_requests`);
     }
     res.status(429).json({
@@ -1378,7 +1378,7 @@ app.get('/', (req, res) => {
 
 // Redirect /login requests to frontend
 app.get('/login', (req, res) => {
-    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000';
+    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001';
     const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
     const redirectUrl = queryString ? `${frontendUrl}/?${queryString}` : `${frontendUrl}/`;
     res.redirect(redirectUrl);
@@ -2045,8 +2045,8 @@ async function runBackgroundStartupTasks() {
                 configStore.getEffective('PUBLIC_APP_URL') ||
                 configStore.getEffective('REACT_APP_CLIENT_URL') ||
                 process.env.PUBLIC_APP_URL ||
-                'https://api.ping.demo:4000';
-            let rpId = 'api.ping.demo';
+                'https://demo-api-server:3001';
+            let rpId = 'demo-api-server';
             try { rpId = new URL(url).hostname; } catch (_) { /* keep default */ }
             const r = await mfaService.ensureFido2RelyingParty(rpId);
             console.log(`[fido2-rp] bootstrap rpId=${rpId} policies=${r.count} changed=${r.changed}` +

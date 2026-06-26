@@ -50,7 +50,7 @@ test.describe('verticals live switch', () => {
       // 2. Customer lands on /dashboard. Avoid waitForLoadState('networkidle')
       //    because the active SSE connection prevents networkidle from resolving.
       //    Instead wait for the React app to render a non-empty document.title.
-      await customerPage.goto('https://api.ping.demo:4000/dashboard');
+      await customerPage.goto('https://demo-api-server:3001/dashboard');
       await customerPage.waitForFunction(
         () => document.title && document.title.trim().length > 0,
         { timeout: 30000 }
@@ -117,7 +117,7 @@ test.describe('verticals live switch', () => {
 
     try {
       await loginAsCustomer(page);
-      await page.goto('https://api.ping.demo:4000/dashboard');
+      await page.goto('https://demo-api-server:3001/dashboard');
       await page.waitForFunction(
         () => document.title && document.title.trim().length > 0,
         { timeout: 30000 }
