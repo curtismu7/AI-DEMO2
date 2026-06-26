@@ -148,36 +148,46 @@ function buildMermaid(nodes, edges, flow) {
   return lines.join('\n');
 }
 
-// LucidChart CSV import format — Insert → Import Data → CSV in LucidChart
-// Nodes: Id, Name, Notes (layer + sub-label)
-// Edges: Id, Line Source, Line Destination, Label
-function buildLucidCsv(nodes, edges, flow) {
+// Draw.io XML — drag into LucidChart's import dialog (File → Import or drag to canvas)
+// Supported format: Draw.io (.xml, .drawio) per LucidChart import dialog
+function buildDrawio(nodes, edges, flow) {
+  const escX = str => String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   const activeNodes = flow
     ? nodes.filter(n => flow.steps.some(s => s.from === n.id || s.to === n.id))
     : nodes;
   const activeEdges = flow
-    ? flow.steps.map((step, i) => ({ id: `e${i + 1}`, from: step.from, to: step.to, label: String(i + 1) }))
+    ? flow.steps.map((step, i) => ({ id: `flow-e-${i}`, from: step.from, to: step.to, label: String(i + 1) }))
     : edges.map(e => ({ id: e.id, from: e.from, to: e.to, label: '' }));
   const nodeSet = new Set(activeNodes.map(n => n.id));
 
-  // Assign numeric IDs LucidChart requires
-  const idMap = {};
-  activeNodes.forEach((n, i) => { idMap[n.id] = i + 1; });
+  let cells = '<mxCell id="0"/><mxCell id="1" parent="0"/>';
+  activeNodes.forEach(n => {
+    const s = LAYER_STYLE[n.layer] || LAYER_STYLE.tool;
+    const lbl = n.sub
+      ? `${escX(n.label)}&lt;br/&gt;&lt;font style="font-size:10px;color:${s.sub}"&gt;${escX(n.sub)}&lt;/font&gt;`
+      : escX(n.label);
+    cells += `<mxCell id="${escX(n.id)}" value="${lbl}" `
+      + `style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=${s.fill};strokeColor=${s.stroke};`
+      + `fontColor=${s.label};fontStyle=1;fontSize=12;" vertex="1" parent="1">`
+      + `<mxGeometry x="${n.x}" y="${n.y}" width="${W}" height="${H}" as="geometry"/>`
+      + `</mxCell>`;
+  });
+  activeEdges.forEach((e, i) => {
+    if (!nodeSet.has(e.from) || !nodeSet.has(e.to)) return;
+    cells += `<mxCell id="${escX(e.id || `edge-${i}`)}" value="${escX(e.label || '')}" `
+      + `style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" `
+      + `edge="1" source="${escX(e.from)}" target="${escX(e.to)}" parent="1">`
+      + `<mxGeometry relative="1" as="geometry"/>`
+      + `</mxCell>`;
+  });
 
-  const csvEsc = v => `"${String(v).replace(/"/g, '""')}"`;
-
-  const header = 'Id,Name,Notes,Shape Library,Line Source,Line Destination,Source Arrow,Destination Arrow,Label';
-  const nodeRows = activeNodes.map(n =>
-    [idMap[n.id], csvEsc(n.label), csvEsc(`${n.layer}${n.sub ? ' · ' + n.sub : ''}`), '', '', '', '', '', ''].join(',')
-  );
-  let edgeIdx = activeNodes.length + 1;
-  const edgeRows = activeEdges
-    .filter(e => nodeSet.has(e.from) && nodeSet.has(e.to))
-    .map(e =>
-      [edgeIdx++, '', '', '', idMap[e.from], idMap[e.to], 'none', 'arrow', csvEsc(e.label || '')].join(',')
-    );
-
-  return [header, ...nodeRows, ...edgeRows].join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>`
+    + `<mxfile><diagram name="Architecture">`
+    + `<mxGraphModel><root>${cells}</root></mxGraphModel>`
+    + `</diagram></mxfile>`;
 }
 
 function downloadFile(content, filename, mime) {
@@ -408,7 +418,7 @@ export default function ArchitectureCanvasPage() {
             }}>⬇ Mermaid</button>
             <button className="btn-export" onClick={() => {
               const slug = selectedFlow ? `-${selectedFlow}` : '-full';
-              downloadFile(buildLucidCsv(nodes, edges, flow), `architecture${slug}-lucid.csv`, 'text/csv');
+              downloadFile(buildDrawio(nodes, edges, flow), `architecture${slug}.drawio`, 'application/xml');
             }}>⬇ LucidChart</button>
             <button className="btn-reset" onClick={() => {
               if (window.confirm('Reset canvas to default layout?')) {
