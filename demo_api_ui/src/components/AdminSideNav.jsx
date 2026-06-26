@@ -415,12 +415,6 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Token Chain", path: "/monitoring/token-chain", icon: "lnk" },
         { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
-        {
-          label: "Agent Request Flow",
-          icon: "flw",
-          action: () =>
-            window.dispatchEvent(new CustomEvent("agent-flow-diagram-open")),
-        },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
           label: "Error Audit Log",
