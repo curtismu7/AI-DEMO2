@@ -25,9 +25,6 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             (this one) ever rendered them in practice. */}
         <Route path="token-chain" element={<TokenChainDisplay />} />
         <Route path="token-diff" element={<TokenDiffPanel />} />
-        <Route path="flow-inspector" element={
-          <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} />
-        } />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<ApiExplorerPanel />} />
         <Route path="agent-flow" element={
