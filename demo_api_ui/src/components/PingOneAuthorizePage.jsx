@@ -576,9 +576,10 @@ export default function PingOneAuthorizePage() {
 
       {notConfigured ? (
         <div style={S.warning}>
-          ⚠️ PingOne Authorize worker credentials are not configured. To connect, go to
-          <strong> App Configuration → PingOne Setup</strong> and enter your
-          authorize_worker_client_id and authorize_worker_client_secret.
+          ⚠️ PingOne Authorize worker credentials are not configured. Set{' '}
+          <code>PINGONE_WORKER_CLIENT_ID</code> + <code>PINGONE_WORKER_CLIENT_SECRET</code> in{' '}
+          <code>.env</code>, or go to <strong>App Configuration → PingOne Setup</strong> and enter{' '}
+          <code>authorize_worker_client_id</code> / <code>authorize_worker_client_secret</code>.
           {data?.note && <div style={{ marginTop: '6px', fontSize: '12px' }}>{data.note}</div>}
         </div>
       ) : (
