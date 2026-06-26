@@ -1,6 +1,11 @@
+'use strict';
+
 const axios = require('axios');
 const configStore = require('./configStore');
 const { getManagementToken } = require('./pingOneClientService');
+const { getAdminRedirectUri, getUserRedirectUri } = require('./oauthRedirectUris');
+const { KNOWN_REDIRECT_ORIGINS } = require('./knownRedirectOrigins');
+const appEventService = require('./appEventService');
 
 function getBaseUrl() {
   const region = configStore.getEffective('PINGONE_REGION') || 'com';
@@ -186,12 +191,7 @@ async function ensureRedirectUri(appId, redirectUri) {
   }
 }
 
-// All deployment origins that must be registered in every PingOne app.
-// Kept in sync with KNOWN_REDIRECT_ORIGINS in pingoneProvisionService.js.
-const KNOWN_REDIRECT_ORIGINS = [
-  'https://api.ping.demo:4000',      // local dev (run-demo.sh / docker-compose)
-  'https://ai-demo.ping-devops.com'  // SE DevOps cluster (Ping AWS / k8s)
-];
+// KNOWN_REDIRECT_ORIGINS imported from knownRedirectOrigins.js — single source of truth.
 
 /**
  * Ensure all required redirect URIs are registered on a single PingOne app.
@@ -231,36 +231,39 @@ async function ensureAllUrisOnApp(appId, requiredUris, label) {
 
 /**
  * Ensure both admin and user redirect URIs are registered in PingOne.
- * Covers all known deployment origins (local dev, SE cluster) plus the
- * current PUBLIC_APP_URL. Runs silently at startup — never throws.
+ *
+ * Uses getAdminRedirectUri()/getUserRedirectUri() — the exact same functions
+ * the auth routes call — so the guard and the routes can never derive different URIs.
+ * Also registers all KNOWN_REDIRECT_ORIGINS so the tenant works across all deployments.
+ * Writes results to the disk activity log. Never throws.
  *
  * @returns {Promise<{ admin: object, user: object }>}
  */
 async function ensureAllRedirectUris() {
-  const configStore = require('./configStore');
-  const PORT = process.env.PORT || '3001';
-  const publicAppUrl = (
-    configStore.getEffective('public_app_url') ||
-    process.env.PUBLIC_APP_URL ||
-    ''
-  ).replace(/\/+$/, '').trim();
+  // Derive the live URIs the same way the auth routes do — single source of truth.
+  const liveAdminUri = getAdminRedirectUri(null);
+  const liveUserUri  = getUserRedirectUri(null);
 
-  const base = publicAppUrl || process.env.REACT_APP_CLIENT_URL || ('https://api.ping.demo:' + PORT);
-
-  // Build the full set of origins to register: known deployments + current base.
-  const origins = Array.from(new Set(KNOWN_REDIRECT_ORIGINS.concat([base])));
-
-  const adminUris = origins.map(function (o) { return o + '/api/auth/oauth/callback'; });
-  const userUris  = origins.map(function (o) { return o + '/api/auth/oauth/user/callback'; });
+  // Build full sets: all known origins + whatever the live routes will actually send.
+  const adminUris = Array.from(new Set(
+    KNOWN_REDIRECT_ORIGINS.map(function (o) { return o + '/api/auth/oauth/callback'; })
+      .concat([liveAdminUri])
+  ));
+  const userUris = Array.from(new Set(
+    KNOWN_REDIRECT_ORIGINS.map(function (o) { return o + '/api/auth/oauth/user/callback'; })
+      .concat([liveUserUri])
+  ));
 
   const adminClientId = configStore.getEffective('admin_client_id') || null;
   const userClientId  = configStore.getEffective('user_client_id')  || null;
 
-  const results = { admin: null, user: null };
+  var results = { admin: null, user: null };
 
   if (adminClientId) {
     results.admin = await ensureAllUrisOnApp(adminClientId, adminUris, 'admin');
-    if (results.admin.error) console.warn('[redirect-uri-guard] admin WARN:', results.admin.error);
+    if (results.admin.error) {
+      console.warn('[redirect-uri-guard] admin WARN:', results.admin.error);
+    }
   } else {
     results.admin = { skipped: true, reason: 'admin_client_id not configured' };
     console.log('[redirect-uri-guard] admin: skipped — admin_client_id not configured');
@@ -268,11 +271,23 @@ async function ensureAllRedirectUris() {
 
   if (userClientId) {
     results.user = await ensureAllUrisOnApp(userClientId, userUris, 'user');
-    if (results.user.error) console.warn('[redirect-uri-guard] user WARN:', results.user.error);
+    if (results.user.error) {
+      console.warn('[redirect-uri-guard] user WARN:', results.user.error);
+    }
   } else {
     results.user = { skipped: true, reason: 'user_client_id not configured' };
     console.log('[redirect-uri-guard] user: skipped — user_client_id not configured');
   }
+
+  // Write result to disk activity log so startup state is always auditable.
+  var severity = (results.admin && results.admin.error) || (results.user && results.user.error) ? 'warn' : 'info';
+  appEventService.logEvent('oauth', severity, 'redirect-uri-guard completed', {
+    tag: 'startup/redirect-uri-guard',
+    liveAdminUri: liveAdminUri,
+    liveUserUri: liveUserUri,
+    admin: results.admin,
+    user: results.user,
+  });
 
   return results;
 }

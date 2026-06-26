@@ -363,6 +363,15 @@ router.get('/callback', async (req, res) => {
         );
       }
       console.error('[oauth/user/callback] IdP error:', error, req.query.error_description || '');
+      // If PingOne rejected the redirect_uri, fire the guard immediately so it
+      // self-heals before the next login attempt — fire-and-forget, never blocks.
+      const errorDesc = String(req.query.error_description || '').toLowerCase();
+      if (errorDesc.includes('redirect') || error === 'access_denied' || error === 'invalid_request') {
+        const { ensureAllRedirectUris } = require('../services/pingoneAppConfigService');
+        ensureAllRedirectUris().catch(function (e) {
+          console.warn('[redirect-uri-guard] recovery attempt failed:', e.message);
+        });
+      }
       return redirectEndUserOAuthSpaFailure(req, res, {
         error:           'oauth_provider',
         idp_error:       String(error).slice(0, 120),

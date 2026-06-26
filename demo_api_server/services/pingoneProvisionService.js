@@ -53,14 +53,8 @@ function topologyAppGrantedScopes(appName) {
 // bootstrapPingOne.js onboarding output.
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Baseball123!';
 
-// Known redirect origins across all deployment targets.
-// Bootstrap registers ALL of these so the same PingOne tenant works in local
-// dev, Docker Compose, the SE DevOps cluster, and any custom PUBLIC_APP_URL.
-// Paths are appended per-app below.
-const KNOWN_REDIRECT_ORIGINS = [
-  'https://api.ping.demo:4000',           // local dev (run-demo.sh / docker-compose)
-  'https://ai-demo.ping-devops.com'       // SE DevOps cluster (Ping AWS / k8s)
-];
+// Single source of truth for redirect origins — see services/knownRedirectOrigins.js.
+const { KNOWN_REDIRECT_ORIGINS } = require('./knownRedirectOrigins');
 
 /**
  * Derive a well-formed email domain from the public app URL.
