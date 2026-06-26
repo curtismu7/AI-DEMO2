@@ -64,7 +64,7 @@ export const executeCreateDeposit: HandlerFn = async (deps, token, params) => {
       accountId: to_account_id
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'deposit' as TransactionOperation, amount);
     if (handled) return handled;
@@ -96,7 +96,7 @@ export const executeCreateWithdrawal: HandlerFn = async (deps, token, params) =>
       accountId: from_account_id
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'withdrawal' as TransactionOperation, amount);
     if (handled) return handled;
@@ -135,7 +135,7 @@ export const executeCreateTransfer: HandlerFn = async (deps, token, params) => {
       description: description || null
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'transfer' as TransactionOperation, amount);
     if (handled) return handled;

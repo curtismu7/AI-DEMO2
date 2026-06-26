@@ -99,7 +99,7 @@ export const GET_TRANSACTION_DETAIL_OUTPUT: JSONSchema = {
   properties: {
     success: { type: 'boolean' },
     found: { type: 'boolean' },
-    transaction: TRANSACTION_ITEM,
+    transaction: { type: ['object', 'null'], properties: { id: {type:'string'}, type: {type:'string'}, amount: {type:'number'}, date: {type:'string'}, fromAccountId: {type:'string'}, toAccountId: {type:'string'}, description: {type:'string'} } },
   },
   required: ['success', 'found'],
 };
@@ -204,7 +204,22 @@ export const ADMIN_ACCOUNTS_OUTPUT: JSONSchema = {
   required: ['success'],
 };
 
-export const ADMIN_TRANSACTIONS_OUTPUT: JSONSchema = GET_MY_TRANSACTIONS_OUTPUT;
+export const ADMIN_TRANSACTIONS_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    message: { type: 'string' },
+    transactions: { type: 'array', items: { type: 'object' } },
+  },
+};
+
+export const SHOW_VERTICAL_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    data: { type: 'object' },
+  },
+};
 
 export const ADMIN_WRITE_OUTPUT: JSONSchema = {
   type: 'object',
