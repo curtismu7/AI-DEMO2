@@ -499,6 +499,11 @@ export default function AdminSideNav({ user }) {
           path: "/snapshot-import",
           icon: "file",
         },
+        {
+          label: "PingCLI Demo",
+          path: "/pingcli",
+          icon: "tool",
+        },
       ],
     },
     {
@@ -601,6 +606,7 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
+        { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
         {
           label: "HITL Consent Flow",
           path: "/architecture/hitl",

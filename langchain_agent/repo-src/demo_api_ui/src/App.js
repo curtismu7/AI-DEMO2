@@ -100,6 +100,7 @@ import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
+import PingCliPage from "./components/PingCliPage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import AdminBlockedDashboard from "./components/AdminBlockedDashboard";
@@ -504,6 +505,22 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <SnapshotImport />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/pingcli"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <AdminSideNav user={user} />
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <PingCliPage />
                         </main>
                       </>
                     ) : (

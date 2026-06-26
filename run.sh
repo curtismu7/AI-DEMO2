@@ -1313,6 +1313,35 @@ patch_mcp_server_env() {
       echo "PINGONE_MCP_EXCHANGER_CLIENT_SECRET=\"${_ex_secret}\"" >> "$mcp_env"
     fi
   fi
+
+  # Inject validator-required vars that are absent from the api_server .env template.
+  # ensure_service_env() overwrites demo_mcp_server/.env with demo_api_server/.env;
+  # that file uses different key names (PINGONE_ENVIRONMENT_ID, not PINGONE_BASE_URL).
+  # Build the AS base URL and inject the 6 required keys if not already present.
+  local _env_id _region _as_base
+  _env_id=$(grep -E "^PINGONE_ENVIRONMENT_ID=" "$mcp_env" | head -1 | sed 's/^PINGONE_ENVIRONMENT_ID=//' | tr -d '"' | tr -d "'" || true)
+  _region=$(grep -E "^PINGONE_REGION=" "$mcp_env" | head -1 | sed 's/^PINGONE_REGION=//' | tr -d '"' | tr -d "'" || true)
+  [[ -z "$_region" ]] && _region="com"
+
+  _mcp_set_if_missing() {
+    local key="$1" val="$2"
+    [[ -z "$val" ]] && return 0
+    grep -q "^${key}=" "$mcp_env" 2>/dev/null && return 0
+    echo "${key}=${val}" >> "$mcp_env"
+  }
+
+  if [[ -n "$_env_id" ]]; then
+    _as_base="https://auth.pingone.${_region}/${_env_id}/as"
+    _mcp_set_if_missing "PINGONE_BASE_URL" "https://auth.pingone.${_region}/${_env_id}"
+    _mcp_set_if_missing "PINGONE_INTROSPECTION_ENDPOINT" "${_as_base}/introspect"
+    _mcp_set_if_missing "PINGONE_AUTHORIZATION_ENDPOINT" "${_as_base}/authorize"
+    _mcp_set_if_missing "PINGONE_TOKEN_ENDPOINT" "${_as_base}/token"
+  fi
+  # PINGONE_CLIENT_ID / PINGONE_CLIENT_SECRET fall back to GW_INTROSPECTION creds
+  # (already injected above) via environments.ts clientId fallback chain — no extra
+  # vars needed. ENCRYPTION_KEY gets a stable dev default if absent.
+  _mcp_set_if_missing "ENCRYPTION_KEY" "demo-encryption-key-32chars-padded"
+  unset _env_id _region _as_base
   unset _id _secret _ex_secret
 }
 

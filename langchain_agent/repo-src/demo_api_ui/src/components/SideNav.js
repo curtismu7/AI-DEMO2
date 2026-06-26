@@ -27,6 +27,7 @@ import {
   MdOutlineChat,
   MdManageAccounts,
   MdMenuBook,
+  MdAccountTree,
 } from "react-icons/md";
 import { HiOutlineUsers, HiOutlineBarChart3 } from "react-icons/hi";
 import "./SideNav.css";
@@ -81,6 +82,9 @@ const ADMIN_NAV = [
     group: "Tools",
     items: [
       { to: "/code-explorer", label: "Code Explorer", icon: "MdCode" },
+      { to: "/architecture/token-flow", label: "Token Flow Diagram", icon: "MdAccountTree" },
+      { to: "/sequence-diagram", label: "Sequence Diagram", icon: "MdSwapCalls" },
+      { to: "/architecture/canvas", label: "Canvas Diagram", icon: "MdAccountTree" },
     ],
   },
 ];
@@ -117,6 +121,9 @@ function buildUserNav(terminology, identity) {
       group: "Tools",
       items: [
         { to: "/code-explorer", label: "Code Explorer", icon: "MdCode" },
+        { to: "/architecture/token-flow", label: "Token Flow Diagram", icon: "MdAccountTree" },
+        { to: "/sequence-diagram", label: "Sequence Diagram", icon: "MdSwapCalls" },
+        { to: "/architecture/canvas", label: "Canvas Diagram", icon: "MdAccountTree" },
       ],
     },
   ];
@@ -161,6 +168,7 @@ export default function SideNav({ user, onLogout }) {
       MdSwapCalls,
       MdManageAccounts,
       MdMenuBook,
+      MdAccountTree,
     };
 
     const IconComponent = iconMap[iconName];

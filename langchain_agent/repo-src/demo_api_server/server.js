@@ -105,6 +105,7 @@ const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
+const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
@@ -912,6 +913,8 @@ app.get('/api/auth/debug', async (req, res) => {
 // IMPORTANT: /api/admin/config MUST be registered before /api/admin so that
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
+app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/canvas', authenticateToken, require('./routes/canvasPing'));
 app.use('/api/admin/config', adminConfigRoutes);
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
@@ -936,7 +939,15 @@ app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouse
 // handled only by routes/auth.js (avoids "Cannot GET" on some deployments).
 app.get('/api/auth/oauth/redirect-info', (_req, res) => {
     try {
-        res.json(getOAuthRedirectDebugInfo(_req));
+        const info = getOAuthRedirectDebugInfo(_req);
+        appEventService.logEvent('oauth', 'info', 'redirect-info fetched', {
+            tag: 'oauth/redirect-info',
+            adminRedirectUri: info.adminRedirectUri,
+            userRedirectUri: info.userRedirectUri,
+            canonicalOrigin: info.canonicalOrigin,
+            pingOneRegisterThese: info.pingOneRegisterThese,
+        });
+        res.json(info);
     } catch (err) {
         res.status(500).json({
             error: 'redirect_info_failed',
@@ -2158,6 +2169,9 @@ if (require.main === module) {
                 cert: fs.readFileSync(certFile),
             }, app).listen(PORT, () => {
                 console.log(`Demo API server (HTTPS) running on https://api.ping.demo:${PORT}`);
+                const _redirectInfo = getOAuthRedirectDebugInfo(null);
+                console.log(`  Admin redirect URI : ${_redirectInfo.adminRedirectUri}`);
+                console.log(`  User  redirect URI : ${_redirectInfo.userRedirectUri}`);
                 // Check HITL status
                 const hitlEnabled = configStore.getEffective('ff_hitl_enabled') !== 'false';
                 if (!hitlEnabled) {
@@ -2170,6 +2184,9 @@ if (require.main === module) {
             server = app.listen(PORT, () => {
                 console.log(`Demo API server running on https://api.ping.demo:3001 (local port ${PORT})`);
                 console.log('Tip: run mkcert in Demo/certs/ to enable HTTPS (see run-demo.sh)');
+                const _redirectInfo = getOAuthRedirectDebugInfo(null);
+                console.log(`  Admin redirect URI : ${_redirectInfo.adminRedirectUri}`);
+                console.log(`  User  redirect URI : ${_redirectInfo.userRedirectUri}`);
                 // Check HITL status
                 const hitlEnabled = configStore.getEffective('ff_hitl_enabled') !== 'false';
                 if (!hitlEnabled) {
