@@ -211,12 +211,18 @@ export class BankingToolRegistry {
         properties: {
           limit: {
             type: 'integer',
-            description: 'Maximum number of transactions to return (default: all)',
-            minimum: 1
-          }
+            description: 'Maximum number of transactions to return per page (default: all)',
+            minimum: 1,
+          },
+          offset: {
+            type: 'integer',
+            description: 'Number of transactions to skip (for pagination). Use nextOffset from prior response.',
+            minimum: 0,
+            default: 0,
+          },
         },
         required: [],
-        additionalProperties: false
+        additionalProperties: false,
       }
     },
 
