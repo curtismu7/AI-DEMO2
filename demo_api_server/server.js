@@ -2115,6 +2115,26 @@ if (require.main === module) {
             console.warn('[startup] Helix key migration skipped:', e.message);
         }
 
+        // Helix configuration check: warn if no API key is resolvable so the
+        // operator knows the NL agent will run heuristics-only.
+        try {
+            const helixKey = configStore.getEffective('helix_api_key');
+            if (!helixKey) {
+                const agentName = process.env.HELIX_AGENT_ID
+                    || configStore.get('helix_agent_id') || 'LLM3';
+                console.warn(
+                    `[startup] ⚠  Helix not configured — natural-language agent will run heuristics-only.\n` +
+                    `           To enable: download the Secret API Key for agent "${agentName}" from\n` +
+                    `           https://console.pingone.com → AI → Helix → Agents → ${agentName} → Secret API Keys\n` +
+                    `           and save it as ${agentName}.json in the repo root, then restart.`
+                );
+            } else {
+                console.log(`[startup] Helix configured (agent: ${configStore.getEffective('helix_agent_id') || 'LLM3'})`);
+            }
+        } catch (e) {
+            // non-fatal — configStore may not be ready yet in edge cases
+        }
+
         // ── Source-of-truth config guard ─────────────────────────────────────
         // Fail fast at boot if the service URLs / resource audiences this BFF
         // will use don't match service-topology.json + scope-topology.json
