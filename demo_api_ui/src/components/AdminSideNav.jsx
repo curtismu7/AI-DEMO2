@@ -478,6 +478,18 @@ export default function AdminSideNav({ user }) {
       path: "/pingone-setup",
     },
     {
+      label: "Vertical Ops",
+      icon: "cfg",
+      adminOnly: true,
+      children: [
+        { label: "Banking Ops", path: "/admin/banking", icon: "cfg" },
+        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
+        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
+        { label: "Sporting Goods Ops", path: "/admin/sporting-goods", icon: "cfg" },
+        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+      ],
+    },
+    {
       label: "Authorize",
       icon: "pol",
       children: [
