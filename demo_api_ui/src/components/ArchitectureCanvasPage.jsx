@@ -1,13 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Rect, Text, Arrow, Group } from 'react-konva';
+import { Stage, Layer, Rect, Text, Arrow, Group, Circle } from 'react-konva';
 import useCanvasLayout from '../hooks/useCanvasLayout';
 import './ArchitectureCanvasPage.css';
 
-const W = 150;   // box width
-const H = 58;    // box height
-const R = 6;     // corner radius
+const W = 150;
+const H = 58;
+const R = 6;
 
-// Layer → colour scheme: fill, stroke, label
 const LAYER_STYLE = {
   client:       { fill: '#e0e7ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1' },
   gateway:      { fill: '#ede9fe', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6' },
@@ -15,6 +14,16 @@ const LAYER_STYLE = {
   agent:        { fill: '#d1fae5', stroke: '#059669', label: '#064e3b', sub: '#10b981' },
   mcp:          { fill: '#e0f2fe', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9' },
   tool:         { fill: '#f1f5f9', stroke: '#64748b', label: '#1e293b', sub: '#94a3b8' },
+};
+
+// Status dot colour
+const STATUS_COLOR = {
+  up:      '#22c55e',
+  down:    '#ef4444',
+  timeout: '#f59e0b',
+  error:   '#f97316',
+  unknown: '#94a3b8',
+  pinging: '#3b82f6',
 };
 
 function portCentre(node) {
@@ -27,7 +36,6 @@ function arrowPoints(src, tgt) {
   return [s.x, s.y, t.x, t.y];
 }
 
-// Column header labels rendered as plain text above each column group
 const COL_LABELS = [
   { x: 30,   label: 'Browser Client' },
   { x: 210,  label: 'BFF / API' },
@@ -43,8 +51,11 @@ export default function ArchitectureCanvasPage() {
   const [connectMode, setConnectMode] = useState(false);
   const [connectFrom, setConnectFrom] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
-  const [renaming, setRenaming] = useState(null);     // { id, value }
+  const [renaming, setRenaming] = useState(null);
   const [stageSize, setStageSize] = useState({ width: 900, height: 600 });
+  const [pingStatus, setPingStatus] = useState({});   // { [nodeId]: 'up'|'down'|'timeout'|'pinging' }
+  const [pinging, setPinging] = useState(false);
+  const [resultPanel, setResultPanel] = useState(null); // { id, status, ms, statusCode }
   const wrapRef = useRef(null);
 
   useEffect(() => {
@@ -95,15 +106,47 @@ export default function ArchitectureCanvasPage() {
     setSelectedEdge(null);
   };
 
+  const handlePingAll = async () => {
+    setPinging(true);
+    setResultPanel(null);
+    // Mark all as pinging
+    const pingingMap = {};
+    nodes.forEach(n => { pingingMap[n.id] = 'pinging'; });
+    setPingStatus(pingingMap);
+
+    try {
+      const res = await fetch('/api/canvas/ping', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: nodes.map(n => n.id) }),
+      });
+      const data = await res.json();
+      const statusMap = {};
+      (data.results || []).forEach(r => { statusMap[r.id] = r; });
+      // Build display map
+      const displayMap = {};
+      (data.results || []).forEach(r => { displayMap[r.id] = r.status; });
+      setPingStatus(displayMap);
+      setResultPanel(data.results || []);
+    } catch {
+      const errMap = {};
+      nodes.forEach(n => { errMap[n.id] = 'down'; });
+      setPingStatus(errMap);
+    } finally {
+      setPinging(false);
+    }
+  };
+
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
 
   const hint = renaming
     ? 'Press Enter or click Save to rename'
     : connectMode
-    ? (connectFrom ? `Now click the target node to connect from "${connectFrom}"` : 'Click the source node')
+    ? (connectFrom ? `Now click the target node` : 'Click the source node')
     : selectedEdge
     ? 'Arrow selected — click Delete Edge to remove'
-    : 'Drag to reposition · Double-click a box to rename · Click arrow to select';
+    : 'Drag to reposition · Double-click to rename · Click arrow to select';
 
   return (
     <div className="canvas-page">
@@ -141,21 +184,41 @@ export default function ArchitectureCanvasPage() {
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>
               ✕ Delete Edge
             </button>
-            <button className="btn-reset" onClick={() => { if (window.confirm('Reset canvas to default layout?')) resetLayout(); }}>
+            <button
+              className={`btn-ping${pinging ? ' pinging' : ''}`}
+              onClick={handlePingAll}
+              disabled={pinging}
+            >
+              {pinging ? '⏳ Pinging…' : '⚡ Ping All'}
+            </button>
+            <button className="btn-reset" onClick={() => { if (window.confirm('Reset canvas to default layout?')) { resetLayout(); setPingStatus({}); setResultPanel(null); } }}>
               ↺ Reset
             </button>
           </>
         )}
       </div>
       <div className="canvas-hint">{hint}</div>
+
+      {/* Results panel */}
+      {resultPanel && (
+        <div className="canvas-results">
+          {resultPanel.map(r => (
+            <span key={r.id} className={`ping-badge ping-badge--${r.status}`}>
+              <span className="ping-dot" style={{ background: STATUS_COLOR[r.status] ?? '#94a3b8' }} />
+              {r.id}
+              {r.ms != null ? ` ${r.ms}ms` : ''}
+            </span>
+          ))}
+          <button className="ping-dismiss" onClick={() => setResultPanel(null)}>✕</button>
+        </div>
+      )}
+
       <div className="canvas-stage-wrap" ref={wrapRef}>
         <Stage width={stageSize.width} height={stageSize.height}>
-          {/* Background */}
           <Layer>
             <Rect x={0} y={0} width={stageSize.width} height={stageSize.height} fill="#f8fafc" />
           </Layer>
 
-          {/* Column header labels */}
           <Layer>
             {COL_LABELS.map(col => (
               <Text
@@ -173,7 +236,6 @@ export default function ArchitectureCanvasPage() {
             ))}
           </Layer>
 
-          {/* Edges */}
           <Layer>
             {edges.map(edge => {
               const src = nodeMap[edge.from];
@@ -197,13 +259,14 @@ export default function ArchitectureCanvasPage() {
             })}
           </Layer>
 
-          {/* Nodes */}
           <Layer>
             {nodes.map(node => {
               const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
               const isConnectSrc = connectFrom === node.id;
-              const strokeColor = isConnectSrc ? '#f59e0b' : (connectMode ? '#3b82f6' : style.stroke);
+              const strokeColor = isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
               const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
+              const status = pingStatus[node.id];
+              const dotColor = STATUS_COLOR[status];
 
               return (
                 <Group
@@ -215,14 +278,7 @@ export default function ArchitectureCanvasPage() {
                   onClick={() => handleNodeClick(node.id)}
                   onDblClick={() => handleNodeDblClick(node)}
                 >
-                  {/* Shadow */}
-                  <Rect
-                    x={2} y={3}
-                    width={W} height={H}
-                    cornerRadius={R}
-                    fill="rgba(0,0,0,0.07)"
-                  />
-                  {/* Box */}
+                  <Rect x={2} y={3} width={W} height={H} cornerRadius={R} fill="rgba(0,0,0,0.07)" />
                   <Rect
                     width={W} height={H}
                     cornerRadius={R}
@@ -230,16 +286,10 @@ export default function ArchitectureCanvasPage() {
                     stroke={strokeColor}
                     strokeWidth={strokeWidth}
                   />
-                  {/* Left accent bar */}
-                  <Rect
-                    width={5} height={H}
-                    cornerRadius={[R, 0, 0, R]}
-                    fill={style.stroke}
-                  />
-                  {/* Label */}
+                  <Rect width={5} height={H} cornerRadius={[R, 0, 0, R]} fill={style.stroke} />
                   <Text
                     x={12} y={node.sub ? 10 : 19}
-                    width={W - 16}
+                    width={W - 20}
                     text={node.label}
                     fontSize={12}
                     fontStyle="bold"
@@ -248,11 +298,10 @@ export default function ArchitectureCanvasPage() {
                     ellipsis
                     listening={false}
                   />
-                  {/* Sub-label */}
                   {node.sub ? (
                     <Text
                       x={12} y={30}
-                      width={W - 16}
+                      width={W - 20}
                       text={node.sub}
                       fontSize={10}
                       fontFamily="system-ui, sans-serif"
@@ -261,6 +310,17 @@ export default function ArchitectureCanvasPage() {
                       listening={false}
                     />
                   ) : null}
+                  {/* Status dot — top-right corner */}
+                  {dotColor && (
+                    <Circle
+                      x={W - 8} y={8}
+                      radius={5}
+                      fill={dotColor}
+                      stroke="#fff"
+                      strokeWidth={1.5}
+                      listening={false}
+                    />
+                  )}
                 </Group>
               );
             })}

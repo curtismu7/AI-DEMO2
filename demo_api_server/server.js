@@ -914,6 +914,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/canvas', authenticateToken, require('./routes/canvasPing'));
 app.use('/api/admin/config', adminConfigRoutes);
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
