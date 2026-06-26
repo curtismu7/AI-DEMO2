@@ -482,7 +482,7 @@ export default function AdminSideNav({ user }) {
       icon: "pol",
       children: [
         { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
-        { label: "Authz Test", path: "/authz-test", icon: "pol" },
+        { label: "Demo Server Authz Test", path: "/authz-test", icon: "pol" },
         {
           label: "Scope Audit",
           path: "/scope-audit",
