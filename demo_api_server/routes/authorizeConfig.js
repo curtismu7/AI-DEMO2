@@ -48,10 +48,10 @@ router.get('/config', authenticateToken, async (_req, res) => {
       mcpHitlTools: (configStore.get('SIMULATED_MCP_HITL_TOOLS') || '').split(',').filter(Boolean),
     };
 
-    const workerClientId = configStore.get('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || '';
-    const decisionEndpointId = configStore.get('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID') || '';
-    const mcpDecisionEndpointId = configStore.get('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID') || '';
-    const policyId = configStore.get('PINGONE_AUTHORIZE_POLICY_ID') || '';
+    const workerClientId = configStore.getEffective('authorize_worker_client_id') || '';
+    const decisionEndpointId = configStore.getEffective('authorize_decision_endpoint_id') || '';
+    const mcpDecisionEndpointId = configStore.getEffective('authorize_mcp_decision_endpoint_id') || '';
+    const policyId = configStore.getEffective('authorize_policy_id') || '';
 
     const pingone = {
       workerClientId: workerClientId ? '••••' : '(not set)',

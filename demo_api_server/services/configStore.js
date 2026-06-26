@@ -1044,7 +1044,7 @@ class ConfigStore {
       pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
       pingone_mcp_gateway_client_id:         ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
       pingone_mcp_gateway_client_secret:     ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
-      pingone_worker_client_id:                    ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID'],
+      pingone_worker_client_id:                    ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
       pingone_mcp_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
       pingone_mcp_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
       pingone_mcp_token_exchanger_client_scopes: ['PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SCOPES', 'AGENT_OAUTH_CLIENT_SCOPES'],
@@ -1198,9 +1198,15 @@ class ConfigStore {
       ciba_poll_interval_ms:                ['CIBA_POLL_INTERVAL_MS'],
       ciba_auth_request_expiry:             ['CIBA_AUTH_REQUEST_EXPIRY'],
 
-      // Authorize worker (direct var name aliases)
-      pingone_authorize_worker_client_id:   ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID'],
-      pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
+      // Authorize worker — dedicated credentials first, then fall back to the
+      // general management worker (PINGONE_WORKER_CLIENT_*). Most deployments
+      // use one worker app for both Management API and PingOne Authorize calls.
+      // Both the prefixed and short-form keys alias identically so every caller
+      // pattern (getEffective('authorize_worker_client_id') or the longer form) resolves.
+      authorize_worker_client_id:             ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+      authorize_worker_client_secret:         ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+      pingone_authorize_worker_client_id:     ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+      pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
 
       // Worker token client (management API)
       pingone_worker_token_client_id:       ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
