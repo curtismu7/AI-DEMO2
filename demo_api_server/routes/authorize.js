@@ -190,7 +190,7 @@ router.post('/bootstrap-demo-endpoints', authenticateToken, async (req, res) => 
     return res.status(422).json({
       error: 'worker_not_configured',
       message:
-        'PingOne Authorize worker app is not configured. Add authorize_worker_client_id and authorize_worker_client_secret under PingOne Authorize in Application Configuration (or PINGONE_AUTHORIZE_WORKER_* env vars).',
+        'PingOne Authorize worker app is not configured. Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env, or enter authorize_worker_client_id / authorize_worker_client_secret in Application Configuration.',
     });
   }
 
@@ -267,17 +267,8 @@ router.get('/test-status', async (_req, res) => {
     const simulatedDeny   = parseFloat(process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT         || '50000');
     const depositsIncluded = configStore.get('ff_authorize_deposits') === 'true';
 
-    // getEffective('authorize_decision_endpoint_id') → env var PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID first
-    // then fall back to the FIELD_DEF cache key used when saved via POST /api/admin/config
-    const storedEndpointId =
-      configStore.getEffective('authorize_decision_endpoint_id') ||
-      configStore.get('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID') ||
-      '';
-    // alias: pingone_worker_client_id → env PINGONE_AUTHORIZE_WORKER_CLIENT_ID
-    const storedWorkerClientId =
-      configStore.getEffective('pingone_worker_client_id') ||
-      configStore.get('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') ||
-      '';
+    const storedEndpointId = configStore.getEffective('authorize_decision_endpoint_id') || '';
+    const storedWorkerClientId = configStore.getEffective('authorize_worker_client_id') || '';
 
     return res.json({
       activeEngine: summary.activeEngine,
@@ -620,7 +611,7 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
       ...base,
       endpoints: [],
       recentDecisions: [],
-      note: 'PingOne Authorize worker credentials not configured. Add authorize_worker_client_id and authorize_worker_client_secret in App Configuration.',
+      note: 'PingOne Authorize worker credentials not configured. Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env, or enter authorize_worker_client_id / authorize_worker_client_secret in App Configuration.',
     });
   }
 
@@ -660,7 +651,7 @@ router.get('/pingone-policies', authenticateToken, async (_req, res) => {
       ok: true,
       policies: [],
       environmentId,
-      note: 'PingOne Authorize worker credentials not configured. Add authorize_worker_client_id and authorize_worker_client_secret in App Configuration.',
+      note: 'PingOne Authorize worker credentials not configured. Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env, or enter authorize_worker_client_id / authorize_worker_client_secret in App Configuration.',
     });
   }
 

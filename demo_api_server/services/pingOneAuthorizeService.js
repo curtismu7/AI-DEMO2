@@ -123,10 +123,9 @@ async function getWorkerToken() {
   if (!envId || !clientId || !clientSecret) {
     throw new Error(
       'PingOne Authorize worker credentials are not fully configured. ' +
-      'Set authorize_worker_client_id and authorize_worker_client_secret in ' +
-      'Admin → Configuration → PingOne Authorize, or set ' +
-      'PINGONE_AUTHORIZE_WORKER_CLIENT_ID and PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET ' +
-      'environment variables.'
+      'Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env (or the dedicated ' +
+      'PINGONE_AUTHORIZE_WORKER_CLIENT_ID + PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET if using a separate app), ' +
+      'or enter authorize_worker_client_id / authorize_worker_client_secret in Admin → Configuration → PingOne Authorize.'
     );
   }
 
@@ -723,8 +722,8 @@ async function _createDecisionEndpointResource(opts) {
 async function provisionDemoDecisionEndpoints(options = {}) {
   if (!isWorkerCredentialReady()) {
     throw new Error(
-      'PingOne Authorize worker is not configured. Set authorize_worker_client_id and ' +
-        'authorize_worker_client_secret (or PINGONE_AUTHORIZE_WORKER_* env vars) in Application Configuration.'
+      'PingOne Authorize worker is not configured. Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET ' +
+        'in .env, or enter authorize_worker_client_id / authorize_worker_client_secret in Application Configuration.'
     );
   }
 
