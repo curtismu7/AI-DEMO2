@@ -1,32 +1,28 @@
-import { useState, useCallback, useRef, useEffect } from 'react'; // v4
+import { useState, useCallback, useRef, useEffect } from 'react'; // v7
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v6';
+const STORAGE_KEY = 'arch-canvas-v7';
 
-// Layout reflects the ACTUAL call paths from code:
-//
-// AG-UI path:  browser → bff → langchain-agent ⟲(callback)→ bff → mcp-gateway → p1az → mcp-server
-// NL path:     browser → bff → agent-service → llm ⟲(callback)→ bff → mcp-gateway → p1az → mcp-server
-// Alt gateway: ping-gateway replaces mcp-gateway (same position, user-selectable)
-// HITL:        mcp-gateway → hitl-service (on P1AZ INDETERMINATE)
+// Layout — single Agent Gateway node (Node/IG modes are the same product),
+// PingOne SSO added as IDP for RFC 8693 token exchange
 //
 // Columns (left → right):
-//  0  Browser client        x=30
-//  1  BFF                   x=220
-//  2  Agent layer           x=430   (langchain-agent top, agent-service bottom)
-//  3  Gateway layer         x=640   (mcp-gateway top, ping-gateway bottom)
-//  4  Policy / HITL         x=850   (authz-server top, hitl-service bottom)
-//  5  MCP backends          x=1060  (mcp-server, mcp-invest, mortgage-service)
+//  0  Browser         x=30
+//  1  BFF             x=220
+//  2  Agent Layer     x=430   (langchain-agent top, agent-service bottom)
+//  3  Gateway         x=640   (single Agent Gateway, centred)
+//  4  Auth / Policy   x=855   (authz-server top, pingone-sso middle, hitl-service bottom)
+//  5  MCP Backends    x=1075
 
 const SEED_POSITIONS = {
   frontend:          { x: 30,   y: 220 },
   bff:               { x: 220,  y: 220 },
   'langchain-agent': { x: 430,  y: 80  },
   'agent-service':   { x: 430,  y: 340 },
-  'mcp-gateway':     { x: 640,  y: 80  },
-  'ping-gateway':    { x: 640,  y: 340 },
-  'authz-server':    { x: 855,  y: 80  },
-  'hitl-service':    { x: 855,  y: 340 },
+  'mcp-gateway':     { x: 640,  y: 210 },
+  'authz-server':    { x: 855,  y: 40  },
+  'pingone-sso':     { x: 855,  y: 185 },
+  'hitl-service':    { x: 855,  y: 360 },
   'mcp-server':      { x: 1075, y: 40  },
   'mcp-invest':      { x: 1075, y: 200 },
   'mortgage-service':{ x: 1075, y: 360 },
@@ -38,23 +34,30 @@ const NODE_LAYER = {
   'langchain-agent': 'agent',
   'agent-service':   'agent',
   'mcp-gateway':     'mcp',
-  'ping-gateway':    'mcp',
   'authz-server':    'policy',
+  'pingone-sso':     'policy',
   'hitl-service':    'tool',
   'mcp-server':      'backend',
   'mcp-invest':      'backend',
   'mortgage-service':'backend',
 };
 
-// Sub-labels shown under the service name
+// Human-readable display labels (overrides the id as label)
+const NODE_LABEL = {
+  'mcp-gateway':  'Ping Agent Gateway',
+  'authz-server': 'PingOne Authorize',
+  'pingone-sso':  'PingOne SSO',
+  'hitl-service': 'HITL Service',
+};
+
 const NODE_SUB = {
   frontend:          'Browser',
   bff:               'https:3001',
   'langchain-agent': 'http:8888 · AG-UI',
   'agent-service':   'http:3006 · NL mode',
-  'mcp-gateway':     'http:3005 · Node',
-  'ping-gateway':    'http:8080 · IG',
+  'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
+  'pingone-sso':     'IDP · Token Exchange',
   'hitl-service':    'http:3009',
   'mcp-server':      'http:8080 · OLB',
   'mcp-invest':      'http:8081',
@@ -62,13 +65,12 @@ const NODE_SUB = {
 };
 
 function buildSeedNodes() {
-  const all = Object.keys(SEED_POSITIONS);
-  return all.map(id => {
+  return Object.keys(SEED_POSITIONS).map(id => {
     const svc = topologyRaw.services?.[id];
     return {
       id,
-      label: id,
-      sub: NODE_SUB[id] ?? (svc ? `${svc.scheme}:${svc.port}` : ''),
+      label: NODE_LABEL[id] ?? id,
+      sub:   NODE_SUB[id] ?? (svc ? `${svc.scheme}:${svc.port}` : ''),
       x: SEED_POSITIONS[id].x,
       y: SEED_POSITIONS[id].y,
       layer: NODE_LAYER[id] ?? 'tool',
@@ -78,28 +80,17 @@ function buildSeedNodes() {
 
 function buildSeedEdges(nodes) {
   const pairs = [
-    // Main flow
     ['frontend',        'bff'],
-    // AG-UI: BFF → langchain-agent (SSE stream)
     ['bff',             'langchain-agent'],
-    // NL mode: BFF → agent-service → [LLM reasons] → callback to BFF
     ['bff',             'agent-service'],
-    // Both paths converge: BFF → mcp-gateway (after token exchange)
+    // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
+    ['bff',             'pingone-sso'],
     ['bff',             'mcp-gateway'],
-    // ping-gateway is the alternative gateway (replaces mcp-gateway)
-    ['bff',             'ping-gateway'],
-    // mcp-gateway → P1AZ for policy decision
     ['mcp-gateway',     'authz-server'],
-    // mcp-gateway → HITL on INDETERMINATE
     ['mcp-gateway',     'hitl-service'],
-    // mcp-gateway → backends
     ['mcp-gateway',     'mcp-server'],
     ['mcp-gateway',     'mcp-invest'],
     ['mcp-gateway',     'mortgage-service'],
-    // ping-gateway → P1AZ (same policy guard, different runtime)
-    ['ping-gateway',    'authz-server'],
-    // ping-gateway → backends (performs its own RFC 8693 re-exchange)
-    ['ping-gateway',    'mcp-server'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs

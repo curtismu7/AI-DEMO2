@@ -26,8 +26,8 @@ const NODE_ICON = {
   'langchain-agent': '🤖',
   'agent-service':   '🤖',
   'mcp-gateway':     '🔀',
-  'ping-gateway':    '🔀',
   'authz-server':    '🛡️',
+  'pingone-sso':     '🔑',
   'hitl-service':    '✋',
   'mcp-server':      '🏦',
   'mcp-invest':      '📈',
@@ -37,6 +37,17 @@ const NODE_ICON = {
 const LAYER_ICON = {
   client: '🌐', gateway: '⚡', agent: '🤖', mcp: '🔀',
   policy: '🛡️', tool: '✋', backend: '🗄️',
+};
+
+// Dash pattern per source layer — makes lines visually distinct beyond color
+const LAYER_DASH = {
+  client:  null,          // solid
+  gateway: [8, 4],        // long dash
+  agent:   [4, 4],        // short dash
+  mcp:     [12, 3, 3, 3], // dash-dot
+  policy:  [2, 4],        // dotted
+  tool:    [6, 6],        // dashed
+  backend: null,          // solid
 };
 
 const STATUS_COLOR = {
@@ -49,8 +60,8 @@ const COL_DEFS = [
   { ids: ['frontend'],                               label: 'Browser' },
   { ids: ['bff'],                                    label: 'BFF' },
   { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
-  { ids: ['mcp-gateway', 'ping-gateway'],            label: 'Gateway' },
-  { ids: ['authz-server', 'hitl-service'],           label: 'Policy / HITL' },
+  { ids: ['mcp-gateway'],                            label: 'Agent Gateway' },
+  { ids: ['authz-server', 'pingone-sso', 'hitl-service'], label: 'Auth / Policy' },
   { ids: ['mcp-server', 'mcp-invest', 'mortgage-service'], label: 'MCP Backends' },
 ];
 
@@ -69,8 +80,9 @@ const FLOWS = {
       { from: 'frontend',        to: 'bff',             desc: 'User sends a message. Browser POSTs to BFF (/api/agent/run) and opens an SSE stream for the response.' },
       { from: 'bff',             to: 'langchain-agent', desc: 'BFF forwards to LangChain agent (POST :8888/run) with tool schemas, thread ID, and a callback URL for tool execution.' },
       { from: 'langchain-agent', to: 'bff',             desc: 'Agent decides to call a tool. It POSTs back to BFF (/internal/agent-tool) with the tool name and arguments.' },
-      { from: 'bff',             to: 'mcp-gateway',     desc: 'BFF performs RFC 8693 token exchange (user token → mcp-gateway-scoped delegated token with act claim), then POSTs JSON-RPC tools/call.' },
-      { from: 'mcp-gateway',     to: 'authz-server',    desc: 'Gateway sends 18-parameter policy decision to PingAuthorize (P1AZ): user, tool, scopes, amounts, act chain. Expects PERMIT / DENY / INDETERMINATE.' },
+      { from: 'bff',             to: 'pingone-sso',     desc: 'BFF performs RFC 8693 token exchange with PingOne SSO — minting a delegated mcp-gateway-scoped token with act claim.' },
+      { from: 'bff',             to: 'mcp-gateway',     desc: 'BFF calls Ping Agent Gateway (POST JSON-RPC tools/call) with the delegated token.' },
+      { from: 'mcp-gateway',     to: 'authz-server',    desc: 'Gateway sends 18-parameter policy decision to PingOne Authorize (P1AZ): user, tool, scopes, amounts, act chain. Expects PERMIT / DENY / INDETERMINATE.' },
       { from: 'mcp-gateway',     to: 'mcp-server',      desc: 'PERMIT received. Gateway opens a WebSocket to mcp-server and proxies the tools/call. Result travels back up the chain to the browser.' },
     ],
   },
@@ -81,8 +93,9 @@ const FLOWS = {
       { from: 'frontend',      to: 'bff',          desc: 'User sends a natural-language message. Browser POSTs to BFF (/api/demo-agent/message).' },
       { from: 'bff',           to: 'agent-service', desc: 'BFF dispatches to agent-service (/api/agent/reason) with tool schemas only — no user tokens leave the BFF.' },
       { from: 'agent-service', to: 'bff',           desc: 'Agent-service returns tool_calls from the LLM. BFF executes each tool via its own MCP pipeline and loops until it gets a final answer.' },
-      { from: 'bff',           to: 'mcp-gateway',   desc: 'BFF performs RFC 8693 exchange then calls mcp-gateway with the delegated token.' },
-      { from: 'mcp-gateway',   to: 'authz-server',  desc: 'PingAuthorize evaluates the request (user identity, tool, scopes, transaction amount).' },
+      { from: 'bff',           to: 'pingone-sso',   desc: 'BFF performs RFC 8693 token exchange with PingOne SSO to obtain a delegated mcp-scoped token.' },
+      { from: 'bff',           to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token.' },
+      { from: 'mcp-gateway',   to: 'authz-server',  desc: 'PingOne Authorize evaluates the request (user identity, tool, scopes, transaction amount).' },
       { from: 'mcp-gateway',   to: 'mcp-server',    desc: 'PERMIT → gateway proxies the tool call over WebSocket to the mcp-server backend.' },
     ],
   },
@@ -91,23 +104,12 @@ const FLOWS = {
     color: '#db2777',
     steps: [
       { from: 'frontend',     to: 'bff',          desc: 'High-value action triggered (e.g. large transfer). BFF initiates the MCP tool call pipeline.' },
-      { from: 'bff',          to: 'mcp-gateway',   desc: 'BFF calls mcp-gateway with RFC 8693 delegated token and full transaction context.' },
-      { from: 'mcp-gateway',  to: 'authz-server',  desc: 'PingAuthorize evaluates policy and returns INDETERMINATE — the transaction requires explicit human approval.' },
+      { from: 'bff',          to: 'pingone-sso',   desc: 'BFF mints a delegated token via RFC 8693 with PingOne SSO before calling the gateway.' },
+      { from: 'bff',          to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token and full transaction context.' },
+      { from: 'mcp-gateway',  to: 'authz-server',  desc: 'PingOne Authorize evaluates policy and returns INDETERMINATE — the transaction requires explicit human approval.' },
       { from: 'mcp-gateway',  to: 'hitl-service',  desc: 'Gateway creates a challenge (POST /challenges) and returns JSON-RPC error -32002 to BFF with challengeId.' },
       { from: 'hitl-service', to: 'bff',           desc: 'User approves the challenge in the UI. HITL service notifies BFF; agent retries the tool call with _hitl_challenge_id.' },
       { from: 'mcp-gateway',  to: 'mcp-server',    desc: 'P1AZ now returns PERMIT for the approved challenge. Tool executes on mcp-server and result returns to user.' },
-    ],
-  },
-  pinggateway: {
-    label: 'ping-gateway · IG path',
-    color: '#d97706',
-    steps: [
-      { from: 'frontend',        to: 'bff',          desc: 'User action with ff_mcp_gateway_pinggateway=true. BFF selects PingGateway (IG) instead of the Node mcp-gateway.' },
-      { from: 'bff',             to: 'langchain-agent', desc: 'BFF routes to LangChain agent for reasoning (AG-UI SSE path).' },
-      { from: 'langchain-agent', to: 'bff',          desc: 'Agent calls back to BFF (/internal/agent-tool) to execute a tool.' },
-      { from: 'bff',             to: 'ping-gateway', desc: 'BFF routes to PingGateway (IG) with the same RFC 8693 delegated token.' },
-      { from: 'ping-gateway',    to: 'authz-server', desc: 'IG runs p1az-decision.groovy filter — calls PingAuthorize for the same PERMIT/DENY decision.' },
-      { from: 'ping-gateway',    to: 'mcp-server',   desc: 'PERMIT → IG performs its own RFC 8693 re-exchange to backend audience, then HTTP-proxies to mcp-server.' },
     ],
   },
 };
@@ -532,12 +534,14 @@ export default function ArchitectureCanvasPage() {
               const pts = arrowPoints(src, tgt);
               const isSelected = selectedEdge === edge.id;
               const dimmed = !!flow;
-              const srcColor = (LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool).stroke;
-              const lineColor = isSelected ? '#ef4444' : dimmed ? '#d1d5db' : srcColor;
+              const srcStyle = LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool;
+              const lineColor = isSelected ? '#ef4444' : dimmed ? '#d1d5db' : srcStyle.stroke;
+              const dash = (!isSelected && !dimmed) ? (LAYER_DASH[src.layer] ?? null) : null;
               return (
                 <Arrow key={edge.id} points={pts}
                   stroke={lineColor} strokeWidth={isSelected ? 2.5 : 1.5}
                   fill={lineColor}
+                  dash={dash} dashEnabled={!!dash}
                   pointerLength={9} pointerWidth={8} hitStrokeWidth={16}
                   opacity={dimmed && !isSelected ? 0.35 : 1}
                   onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
