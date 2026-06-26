@@ -5,33 +5,33 @@ const CATEGORIES = [
   {
     title: 'Identity & Directory',
     commands: [
-      { key: 'pingone_users_list',       label: 'List Users' },
-      { key: 'pingone_groups_list',      label: 'List Groups' },
-      { key: 'pingone_populations_list', label: 'List Populations' },
+      { key: 'pingone_users_list',       label: 'List Users',              desc: 'pingcli pingone users list -O json' },
+      { key: 'pingone_groups_list',      label: 'List Groups',             desc: 'pingcli pingone groups list -O json' },
+      { key: 'pingone_populations_list', label: 'List Populations',        desc: 'pingcli pingone populations list -O json' },
     ],
   },
   {
     title: 'Applications & Resources',
     commands: [
-      { key: 'pingone_apps_list',      label: 'List Applications' },
-      { key: 'pingone_resources_list', label: 'List Resources' },
-      { key: 'pingone_roles_list',     label: 'List Built-in Roles' },
+      { key: 'pingone_apps_list',      label: 'List Applications',       desc: 'pingcli pingone applications list -O json' },
+      { key: 'pingone_resources_list', label: 'List Resources',          desc: 'pingcli pingone resources list -O json' },
+      { key: 'pingone_roles_list',     label: 'List Built-in Roles',     desc: 'pingcli pingone roles -O json' },
     ],
   },
   {
     title: 'Authentication & MFA',
     commands: [
-      { key: 'pingone_idps_list',         label: 'List Identity Providers' },
-      { key: 'pingone_policies_list',     label: 'List Sign-On Policies' },
-      { key: 'pingone_mfa_policies_list', label: 'List MFA Policies' },
+      { key: 'pingone_idps_list',         label: 'List Identity Providers', desc: 'pingcli pingone identity-providers list -O json' },
+      { key: 'pingone_policies_list',     label: 'List Sign-On Policies',   desc: 'pingcli pingone sign-on-policies list -O json' },
+      { key: 'pingone_mfa_policies_list', label: 'List MFA Policies',       desc: 'pingcli mfa device-authentication-policies list -O json' },
     ],
   },
   {
     title: 'Platform & Config',
     commands: [
-      { key: 'pingone_envs_list', label: 'List Environments' },
-      { key: 'config_list_keys',  label: 'Config Keys' },
-      { key: 'version',           label: 'Version' },
+      { key: 'pingone_envs_list', label: 'List Environments', desc: 'pingcli pingone environments list -O json' },
+      { key: 'config_list_keys',  label: 'Config Keys',       desc: 'pingcli config list-keys' },
+      { key: 'version',           label: 'Version',           desc: 'pingcli --version' },
     ],
   },
 ];
@@ -186,7 +186,7 @@ export default function PingCliPage() {
         <div key={title}>
           <p className="pingcli-section-title">{title}</p>
           <div className="pingcli-command-grid">
-            {commands.map(({ key, label }) => (
+            {commands.map(({ key, label, desc }) => (
               <button
                 key={key}
                 className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}`}
@@ -194,7 +194,8 @@ export default function PingCliPage() {
                 onClick={() => run(key)}
               >
                 {running === key && <span className="pingcli-spinner" />}
-                {label}
+                <div className="pingcli-cmd-label">{label}</div>
+                <div className="pingcli-cmd-command">{desc}</div>
               </button>
             ))}
           </div>
