@@ -246,7 +246,7 @@ router.get('/login', (req, res) => {
         console.warn('[oauth/user] Session save failed before PingOne redirect (PKCE cookie is fallback):', err.message);
       }
       console.log('Redirecting end user to PingOne SSO:', url);
-      appEventService.logEvent('oauth', 'info', 'Redirecting → PingOne Authorization', { tag: 'oauth/user/login' });
+      appEventService.logEvent('oauth', 'info', 'Redirecting → PingOne Authorization', { tag: 'oauth/user/login', redirect_uri: redirectUri });
       res.redirect(url);
     });
   } catch (error) {
