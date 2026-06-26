@@ -2101,7 +2101,7 @@ if (require.main === module) {
             const { migrateHelixKey } = require('./services/helixKeyMigration');
             const { DEFAULT_VAULT_PATH } = require('./services/vaultLoader');
             const agentName = process.env.HELIX_AGENT_ID
-                || configStore.get('helix_agent_id') || 'LLM2';
+                || configStore.get('helix_agent_id') || 'LLM3';
             const m = await migrateHelixKey({
                 agentName,
                 vaultPath: process.env.VAULT_PATH || DEFAULT_VAULT_PATH,

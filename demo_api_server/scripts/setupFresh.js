@@ -748,7 +748,7 @@ async function configureHelix() {
   }
 
   // Keyfile fast-path: if the user dropped the downloaded <agentName>.json
-  // (e.g. LLM2.json) in the repo root / ~/Documents / ~/Downloads, migrate
+  // (e.g. LLM3.json) in the repo root / ~/Documents / ~/Downloads, migrate
   // its key into the vault + SQLite once and skip the 5-field prompt. Falls
   // through to the existing prompt flow when no keyfile is found. Idempotent
   // (no-op if a key is already configured) and best-effort (a failure here
@@ -758,7 +758,7 @@ async function configureHelix() {
     await configStore.ensureInitialized();
     const { loadAgentKey } = require('../services/helixAgentKeyLoader');
     const agentName = process.env.HELIX_AGENT_ID
-      || configStore.get('helix_agent_id') || 'LLM2';
+      || configStore.get('helix_agent_id') || 'LLM3';
     if (loadAgentKey(agentName)) {
       console.log(`  ✓ Found ${agentName}.json — importing Helix API key automatically...`);
       const { migrateHelixKey } = require('../services/helixKeyMigration');
@@ -822,17 +822,17 @@ async function configureHelix() {
   // All other fields (base URL, environment ID, agent ID, prompt field ID)
   // have known defaults in configStore and don't need to be entered manually.
   //
-  // Preferred path: user downloads LLM2.json from Helix and drops it in the
+  // Preferred path: user downloads LLM3.json from Helix and drops it in the
   // repo root — the keyfile fast-path above already handles that and returns
   // before we reach here. We only reach this block when no keyfile was found.
   console.log('');
   console.log('  To connect Helix, generate an API key in the PingOne console:');
   console.log('  1. Open https://console.pingone.com → AI → Helix → Agents');
-  console.log('  2. Create (or open) an agent named  LLM2');
+  console.log('  2. Create (or open) an agent named  LLM3');
   console.log('  3. Under Secret API Keys → click "Create Secret API Key"');
-  console.log('  4. Download the JSON file and drop it in the repo root as LLM2.json');
+  console.log('  4. Download the JSON file and drop it in the repo root as LLM3.json');
   console.log('');
-  console.log('  If LLM2.json is already in the repo root, just press Enter —');
+  console.log('  If LLM3.json is already in the repo root, just press Enter —');
   console.log('  it will be detected and imported automatically.');
   console.log('');
   console.log('  — OR — paste the key value at the prompt below.');
@@ -856,7 +856,7 @@ async function configureHelix() {
   const values = {
     helix_base_url:        process.env.HELIX_BASE_URL        || 'https://openam-helix.forgeblocks.com',
     helix_environment_id:  process.env.HELIX_ENVIRONMENT_ID  || 'fe213c3c-9c1d-4bdb-954a-a22879dad26d',
-    helix_agent_id:        process.env.HELIX_AGENT_ID        || 'LLM2',
+    helix_agent_id:        process.env.HELIX_AGENT_ID        || 'LLM3',
     helix_prompt_field_id: process.env.HELIX_PROMPT_FIELD_ID || 'textInputa7c39a0e8292',
     helix_api_key:         apiKey,
   };
