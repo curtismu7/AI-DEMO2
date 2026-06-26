@@ -9,7 +9,7 @@ const STORAGE_KEY = 'arch-canvas-v1';
 //   col 1 (x=280): mcp-gateway, mcp-server, mcp-invest, mcp-proxy, agent-service
 //   col 2 (x=500): langchain-agent, openai-agent, mastra-agent, pydantic-agent,
 //                  mortgage-service, hitl-service
-const COL_X = [60, 280, 500];
+const COL_X = [60, 300, 540];
 const ROW_H = 90;
 const NODE_COLORS = {
   frontend:         '#3b82f6',
@@ -29,18 +29,18 @@ const NODE_COLORS = {
 };
 
 const COL_ASSIGN = {
-  frontend:          0,
-  bff:               0,
-  'ping-gateway':    0,
+  'langchain-agent': 0,
+  'openai-agent':    0,
+  'mastra-agent':    0,
+  'pydantic-agent':  0,
+  'agent-service':   1,
   'mcp-gateway':     1,
   'mcp-server':      1,
   'mcp-invest':      1,
   'mcp-proxy':       1,
-  'agent-service':   1,
-  'langchain-agent': 2,
-  'openai-agent':    2,
-  'mastra-agent':    2,
-  'pydantic-agent':  2,
+  frontend:          2,
+  bff:               2,
+  'ping-gateway':    2,
   'mortgage-service':2,
   'hitl-service':    2,
 };
