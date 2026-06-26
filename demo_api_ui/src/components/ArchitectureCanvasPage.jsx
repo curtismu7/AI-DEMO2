@@ -1,52 +1,49 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Rect, Text, Arrow, Group, Circle, Line } from 'react-konva';
+import { Stage, Layer, Rect, Text, Arrow, Group } from 'react-konva';
 import useCanvasLayout from '../hooks/useCanvasLayout';
 import './ArchitectureCanvasPage.css';
 
-// Node dimensions — icon circle above, label below (like Okta diagram)
-const ICON_R = 30;       // circle radius
-const NODE_W = 100;      // total clickable/drag width
-const NODE_H = 90;       // total height (circle + label area)
-const ICON_CX = NODE_W / 2;
-const ICON_CY = ICON_R + 4;
+const W = 150;   // box width
+const H = 58;    // box height
+const R = 6;     // corner radius
 
-function nodePortCentre(node) {
-  return { x: node.x + ICON_CX, y: node.y + ICON_CY };
+// Layer → colour scheme: fill, stroke, label
+const LAYER_STYLE = {
+  client:       { fill: '#e0e7ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1' },
+  gateway:      { fill: '#ede9fe', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6' },
+  orchestrator: { fill: '#fef3c7', stroke: '#d97706', label: '#78350f', sub: '#b45309' },
+  agent:        { fill: '#d1fae5', stroke: '#059669', label: '#064e3b', sub: '#10b981' },
+  mcp:          { fill: '#e0f2fe', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9' },
+  tool:         { fill: '#f1f5f9', stroke: '#64748b', label: '#1e293b', sub: '#94a3b8' },
+};
+
+function portCentre(node) {
+  return { x: node.x + W / 2, y: node.y + H / 2 };
 }
 
-function edgePoints(src, tgt) {
-  const s = nodePortCentre(src);
-  const t = nodePortCentre(tgt);
+function arrowPoints(src, tgt) {
+  const s = portCentre(src);
+  const t = portCentre(tgt);
   return [s.x, s.y, t.x, t.y];
 }
 
-// TYPE_COLORS maps node.type → circle fill (matches Okta card palette)
-const TYPE_FILL = {
-  client:       '#1e1e2e',
-  gateway:      '#1e1e2e',
-  orchestrator: '#1e1e2e',
-  agent:        '#7c3aed',
-  mcp:          '#0d9488',
-  server:       '#0d9488',
-  tool:         '#1e293b',
-};
-
-const TYPE_LABEL_COLOR = {
-  client:       '#6366f1',
-  gateway:      '#8b5cf6',
-  orchestrator: '#f59e0b',
-  agent:        '#a78bfa',
-  mcp:          '#2dd4bf',
-  server:       '#818cf8',
-  tool:         '#94a3b8',
-};
+// Column header labels rendered as plain text above each column group
+const COL_LABELS = [
+  { x: 30,   label: 'Browser Client' },
+  { x: 210,  label: 'BFF / API' },
+  { x: 400,  label: 'Orchestration' },
+  { x: 590,  label: 'AI Agent' },
+  { x: 800,  label: 'MCP Servers' },
+  { x: 1010, label: 'Backend Tools' },
+];
 
 export default function ArchitectureCanvasPage() {
-  const { nodes, edges, moveNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
+  const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
   const [connectMode, setConnectMode] = useState(false);
   const [connectFrom, setConnectFrom] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
+  const [renaming, setRenaming] = useState(null);     // { id, value }
   const [stageSize, setStageSize] = useState({ width: 900, height: 600 });
   const wrapRef = useRef(null);
 
@@ -73,6 +70,18 @@ export default function ArchitectureCanvasPage() {
     setConnectMode(false);
   }, [connectMode, connectFrom, addEdge]);
 
+  const handleNodeDblClick = useCallback((node) => {
+    if (connectMode) return;
+    setRenaming({ id: node.id, value: node.label });
+  }, [connectMode]);
+
+  const handleRenameSubmit = () => {
+    if (!renaming) return;
+    const label = renaming.value.trim();
+    if (label) renameNode(renaming.id, label);
+    setRenaming(null);
+  };
+
   const handleAddNode = () => {
     const label = newLabel.trim();
     if (!label) return;
@@ -88,52 +97,89 @@ export default function ArchitectureCanvasPage() {
 
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
 
-  const hint = connectMode
-    ? (connectFrom ? `Click a second node to connect from "${connectFrom}"` : 'Click the first node')
+  const hint = renaming
+    ? 'Press Enter or click Save to rename'
+    : connectMode
+    ? (connectFrom ? `Now click the target node to connect from "${connectFrom}"` : 'Click the source node')
     : selectedEdge
     ? 'Arrow selected — click Delete Edge to remove'
-    : 'Drag nodes · Click an arrow to select · Use toolbar to add or connect';
+    : 'Drag to reposition · Double-click a box to rename · Click arrow to select';
 
   return (
     <div className="canvas-page">
       <div className="canvas-toolbar">
         <h2>Architecture Canvas</h2>
-        <input
-          type="text"
-          placeholder="New box name…"
-          value={newLabel}
-          onChange={e => setNewLabel(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleAddNode()}
-        />
-        <button className="btn-add" onClick={handleAddNode}>+ Add</button>
-        <button
-          className={`btn-connect${connectMode ? ' active' : ''}`}
-          onClick={() => { setConnectMode(m => !m); setConnectFrom(null); }}
-        >
-          {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
-        </button>
-        <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>
-          ✕ Delete Edge
-        </button>
-        <button className="btn-reset" onClick={() => { if (window.confirm('Reset canvas to default layout?')) resetLayout(); }}>
-          ↺ Reset
-        </button>
+        {renaming ? (
+          <>
+            <input
+              type="text"
+              className="rename-input"
+              value={renaming.value}
+              autoFocus
+              onChange={e => setRenaming(r => ({ ...r, value: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameSubmit(); if (e.key === 'Escape') setRenaming(null); }}
+            />
+            <button className="btn-add" onClick={handleRenameSubmit}>Save</button>
+            <button className="btn-reset" onClick={() => setRenaming(null)}>Cancel</button>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              placeholder="New box name…"
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddNode()}
+            />
+            <button className="btn-add" onClick={handleAddNode}>+ Add</button>
+            <button
+              className={`btn-connect${connectMode ? ' active' : ''}`}
+              onClick={() => { setConnectMode(m => !m); setConnectFrom(null); }}
+            >
+              {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
+            </button>
+            <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>
+              ✕ Delete Edge
+            </button>
+            <button className="btn-reset" onClick={() => { if (window.confirm('Reset canvas to default layout?')) resetLayout(); }}>
+              ↺ Reset
+            </button>
+          </>
+        )}
       </div>
       <div className="canvas-hint">{hint}</div>
       <div className="canvas-stage-wrap" ref={wrapRef}>
         <Stage width={stageSize.width} height={stageSize.height}>
-          {/* Cream background */}
+          {/* Background */}
           <Layer>
-            <Rect x={0} y={0} width={stageSize.width} height={stageSize.height} fill="#f5f0eb" />
+            <Rect x={0} y={0} width={stageSize.width} height={stageSize.height} fill="#f8fafc" />
           </Layer>
 
-          {/* Edge layer */}
+          {/* Column header labels */}
+          <Layer>
+            {COL_LABELS.map(col => (
+              <Text
+                key={col.label}
+                x={col.x} y={10}
+                width={W}
+                text={col.label}
+                fontSize={10}
+                fontStyle="600"
+                fontFamily="system-ui, sans-serif"
+                fill="#94a3b8"
+                align="center"
+                listening={false}
+              />
+            ))}
+          </Layer>
+
+          {/* Edges */}
           <Layer>
             {edges.map(edge => {
               const src = nodeMap[edge.from];
               const tgt = nodeMap[edge.to];
               if (!src || !tgt) return null;
-              const pts = edgePoints(src, tgt);
+              const pts = arrowPoints(src, tgt);
               const isSelected = selectedEdge === edge.id;
               return (
                 <Arrow
@@ -142,25 +188,22 @@ export default function ArchitectureCanvasPage() {
                   stroke={isSelected ? '#ef4444' : '#94a3b8'}
                   strokeWidth={isSelected ? 2.5 : 1.5}
                   fill={isSelected ? '#ef4444' : '#94a3b8'}
-                  pointerLength={9}
+                  pointerLength={8}
                   pointerWidth={7}
                   hitStrokeWidth={16}
-                  tension={0}
                   onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
                 />
               );
             })}
           </Layer>
 
-          {/* Node layer */}
+          {/* Nodes */}
           <Layer>
             {nodes.map(node => {
-              const isConnectSource = connectFrom === node.id;
-              const circleFill = TYPE_FILL[node.type] ?? '#1e293b';
-              const ringColor = isConnectSource ? '#f59e0b'
-                : connectMode ? '#3b82f6'
-                : (TYPE_LABEL_COLOR[node.type] ?? node.color);
-              const ringWidth = (isConnectSource || connectMode) ? 3 : 2;
+              const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
+              const isConnectSrc = connectFrom === node.id;
+              const strokeColor = isConnectSrc ? '#f59e0b' : (connectMode ? '#3b82f6' : style.stroke);
+              const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
 
               return (
                 <Group
@@ -170,54 +213,54 @@ export default function ArchitectureCanvasPage() {
                   draggable={!connectMode}
                   onDragEnd={e => handleDragEnd(node.id, e)}
                   onClick={() => handleNodeClick(node.id)}
+                  onDblClick={() => handleNodeDblClick(node)}
                 >
-                  {/* Drop shadow */}
-                  <Circle
-                    x={ICON_CX + 2} y={ICON_CY + 3}
-                    radius={ICON_R}
-                    fill="rgba(0,0,0,0.18)"
+                  {/* Shadow */}
+                  <Rect
+                    x={2} y={3}
+                    width={W} height={H}
+                    cornerRadius={R}
+                    fill="rgba(0,0,0,0.07)"
                   />
-                  {/* Icon circle */}
-                  <Circle
-                    x={ICON_CX} y={ICON_CY}
-                    radius={ICON_R}
-                    fill={circleFill}
-                    stroke={ringColor}
-                    strokeWidth={ringWidth}
+                  {/* Box */}
+                  <Rect
+                    width={W} height={H}
+                    cornerRadius={R}
+                    fill={style.fill}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
                   />
-                  {/* Emoji icon */}
+                  {/* Left accent bar */}
+                  <Rect
+                    width={5} height={H}
+                    cornerRadius={[R, 0, 0, R]}
+                    fill={style.stroke}
+                  />
+                  {/* Label */}
                   <Text
-                    x={ICON_CX - 14} y={ICON_CY - 12}
-                    width={28}
-                    text={node.icon ?? '●'}
-                    fontSize={18}
-                    align="center"
-                    listening={false}
-                  />
-                  {/* Label below circle */}
-                  <Text
-                    x={0} y={ICON_CY + ICON_R + 8}
-                    width={NODE_W}
+                    x={12} y={node.sub ? 10 : 19}
+                    width={W - 16}
                     text={node.label}
-                    fontSize={10}
-                    fontStyle="600"
+                    fontSize={12}
+                    fontStyle="bold"
                     fontFamily="system-ui, sans-serif"
-                    fill="#1e293b"
-                    align="center"
-                    wrap="word"
+                    fill={style.label}
+                    ellipsis
                     listening={false}
                   />
-                  {/* Sub-label (port) */}
-                  <Text
-                    x={0} y={ICON_CY + ICON_R + 22}
-                    width={NODE_W}
-                    text={node.sub}
-                    fontSize={9}
-                    fontFamily="system-ui, sans-serif"
-                    fill="#94a3b8"
-                    align="center"
-                    listening={false}
-                  />
+                  {/* Sub-label */}
+                  {node.sub ? (
+                    <Text
+                      x={12} y={30}
+                      width={W - 16}
+                      text={node.sub}
+                      fontSize={10}
+                      fontFamily="system-ui, sans-serif"
+                      fill={style.sub}
+                      ellipsis
+                      listening={false}
+                    />
+                  ) : null}
                 </Group>
               );
             })}
