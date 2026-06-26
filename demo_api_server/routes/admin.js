@@ -201,7 +201,7 @@ router.post('/transactions/lookup', requireAdmin, requireScopes(['admin']), asyn
 });
 
 // Get all activity logs
-router.get('/activity', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity', authenticateToken, (req, res) => {
   try {
     const { page = 1, limit = 50, username, action, startDate, endDate } = req.query;
     
@@ -255,7 +255,7 @@ router.get('/activity', requireAdmin, requireScopes(['admin']), (req, res) => {
 });
 
 // Get activity logs by username
-router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity/user/:username', authenticateToken, (req, res) => {
   try {
     const { username } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -289,7 +289,7 @@ router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (
 });
 
 // Get activity logs by user ID
-router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity/userid/:userId', authenticateToken, (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -323,7 +323,7 @@ router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (
 });
 
 // Get recent activity (last 24 hours)
-router.get('/activity/recent', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity/recent', authenticateToken, (req, res) => {
   try {
     const { hours = 24 } = req.query;
     const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
@@ -341,7 +341,7 @@ router.get('/activity/recent', requireAdmin, requireScopes(['admin']), (req, res
 });
 
 // Get activity summary by action type
-router.get('/activity/summary', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity/summary', authenticateToken, (req, res) => {
   try {
     const logs = dataStore.getAllActivityLogs();
     
@@ -365,7 +365,7 @@ router.get('/activity/summary', requireAdmin, requireScopes(['admin']), (req, re
 });
 
 // Get user activity summary
-router.get('/activity/users/summary', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.get('/activity/users/summary', authenticateToken, (req, res) => {
   try {
     const logs = dataStore.getAllActivityLogs();
     
