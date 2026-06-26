@@ -114,13 +114,6 @@ const FLOWS = {
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 
-function escapeXml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function sanitizeMermaidId(id) {
   return id.replace(/-/g, '_');
@@ -155,40 +148,36 @@ function buildMermaid(nodes, edges, flow) {
   return lines.join('\n');
 }
 
-function buildDrawio(nodes, edges, flow) {
+// LucidChart CSV import format — Insert → Import Data → CSV in LucidChart
+// Nodes: Id, Name, Notes (layer + sub-label)
+// Edges: Id, Line Source, Line Destination, Label
+function buildLucidCsv(nodes, edges, flow) {
   const activeNodes = flow
     ? nodes.filter(n => flow.steps.some(s => s.from === n.id || s.to === n.id))
     : nodes;
   const activeEdges = flow
-    ? flow.steps.map((step, i) => ({ id: `flow-e-${i}`, from: step.from, to: step.to, label: String(i + 1) }))
+    ? flow.steps.map((step, i) => ({ id: `e${i + 1}`, from: step.from, to: step.to, label: String(i + 1) }))
     : edges.map(e => ({ id: e.id, from: e.from, to: e.to, label: '' }));
   const nodeSet = new Set(activeNodes.map(n => n.id));
 
-  let cells = '<mxCell id="0"/><mxCell id="1" parent="0"/>';
-  activeNodes.forEach(n => {
-    const s = LAYER_STYLE[n.layer] || LAYER_STYLE.tool;
-    const lbl = n.sub ? `${n.label}&lt;br/&gt;&lt;font style="font-size:10px;color:${s.sub}"&gt;${n.sub}&lt;/font&gt;` : n.label;
-    cells += `<mxCell id="${escapeXml(n.id)}" value="${escapeXml(lbl)}" `
-      + `style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=${s.fill};strokeColor=${s.stroke};`
-      + `fontColor=${s.label};fontStyle=1;fontSize=12;" `
-      + `vertex="1" parent="1">`
-      + `<mxGeometry x="${n.x}" y="${n.y}" width="${W}" height="${H}" as="geometry"/>`
-      + `</mxCell>`;
-  });
-  activeEdges.forEach((e, i) => {
-    if (!nodeSet.has(e.from) || !nodeSet.has(e.to)) return;
-    cells += `<mxCell id="${escapeXml(e.id || `edge-${i}`)}" value="${escapeXml(e.label || '')}" `
-      + `style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;" `
-      + `edge="1" source="${escapeXml(e.from)}" target="${escapeXml(e.to)}" parent="1">`
-      + `<mxGeometry relative="1" as="geometry"/>`
-      + `</mxCell>`;
-  });
+  // Assign numeric IDs LucidChart requires
+  const idMap = {};
+  activeNodes.forEach((n, i) => { idMap[n.id] = i + 1; });
 
-  return `<?xml version="1.0" encoding="UTF-8"?>`
-    + `<mxfile><diagram name="Architecture">`
-    + `<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" `
-    + `connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169">`
-    + `<root>${cells}</root></mxGraphModel></diagram></mxfile>`;
+  const csvEsc = v => `"${String(v).replace(/"/g, '""')}"`;
+
+  const header = 'Id,Name,Notes,Shape Library,Line Source,Line Destination,Source Arrow,Destination Arrow,Label';
+  const nodeRows = activeNodes.map(n =>
+    [idMap[n.id], csvEsc(n.label), csvEsc(`${n.layer}${n.sub ? ' · ' + n.sub : ''}`), '', '', '', '', '', ''].join(',')
+  );
+  let edgeIdx = activeNodes.length + 1;
+  const edgeRows = activeEdges
+    .filter(e => nodeSet.has(e.from) && nodeSet.has(e.to))
+    .map(e =>
+      [edgeIdx++, '', '', '', idMap[e.from], idMap[e.to], 'none', 'arrow', csvEsc(e.label || '')].join(',')
+    );
+
+  return [header, ...nodeRows, ...edgeRows].join('\n');
 }
 
 function downloadFile(content, filename, mime) {
@@ -419,7 +408,7 @@ export default function ArchitectureCanvasPage() {
             }}>⬇ Mermaid</button>
             <button className="btn-export" onClick={() => {
               const slug = selectedFlow ? `-${selectedFlow}` : '-full';
-              downloadFile(buildDrawio(nodes, edges, flow), `architecture${slug}.drawio`, 'application/xml');
+              downloadFile(buildLucidCsv(nodes, edges, flow), `architecture${slug}-lucid.csv`, 'text/csv');
             }}>⬇ LucidChart</button>
             <button className="btn-reset" onClick={() => {
               if (window.confirm('Reset canvas to default layout?')) {
