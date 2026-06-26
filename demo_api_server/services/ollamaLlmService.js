@@ -48,12 +48,15 @@ function toOpenAiMessages(messages) {
 /**
  * Call Ollama's OpenAI-compatible chat endpoint and return the assistant reply text.
  * @param {Array} messages [{ role:'system'|'user'|'assistant'|'human', content }]
+ * @param {string} [overrideModel] - Override OLLAMA_MODEL / default (e.g. from langchainConfig.model)
  * @returns {Promise<string>}
  */
-async function callOllama(messages) {
+async function callOllama(messages, overrideModel) {
   if (!messages || messages.length === 0) throw new Error('No messages provided to Ollama');
   const base = baseUrl();
-  const mdl = model();
+  const mdl = (typeof overrideModel === 'string' && overrideModel.trim())
+    ? overrideModel.trim()
+    : model();
   const ms = timeoutMs();
 
   const controller = new AbortController();

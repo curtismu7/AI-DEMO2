@@ -67,6 +67,37 @@ describe('callOllama', () => {
     expect(capturedBody.model).toBe('llama3.1:8b');
   });
 
+  test('overrideModel param takes precedence over OLLAMA_MODEL env var', async () => {
+    process.env.OLLAMA_MODEL = 'llama3.1:8b';
+    let capturedBody;
+    jest.spyOn(global, 'fetch').mockImplementation(async (_url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return makeResponse({ choices: [{ message: { content: 'ok' } }] });
+    });
+    await callOllama([{ role: 'user', content: 'q' }], 'qwen3:8b');
+    expect(capturedBody.model).toBe('qwen3:8b');
+  });
+
+  test('overrideModel param takes precedence over default model', async () => {
+    let capturedBody;
+    jest.spyOn(global, 'fetch').mockImplementation(async (_url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return makeResponse({ choices: [{ message: { content: 'ok' } }] });
+    });
+    await callOllama([{ role: 'user', content: 'q' }], 'gemma4:latest');
+    expect(capturedBody.model).toBe('gemma4:latest');
+  });
+
+  test('ignores blank overrideModel and uses env/default', async () => {
+    let capturedBody;
+    jest.spyOn(global, 'fetch').mockImplementation(async (_url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return makeResponse({ choices: [{ message: { content: 'ok' } }] });
+    });
+    await callOllama([{ role: 'user', content: 'q' }], '   ');
+    expect(capturedBody.model).toBe('qwen2.5:3b');
+  });
+
   test('uses default model qwen2.5:3b when OLLAMA_MODEL not set', async () => {
     let capturedBody;
     jest.spyOn(global, 'fetch').mockImplementation(async (_url, opts) => {

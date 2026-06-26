@@ -172,14 +172,14 @@ function ensureRenderableAnswer(result) {
   return result;
 }
 
-async function answerWithOllama(userMessage, context = {}) {
+async function answerWithOllama(userMessage, context = {}, ollamaModel) {
   try {
     const { callOllama } = require('./ollamaLlmService');
     const systemWithCtx = buildSystemWithCtx(null, context);
     const answer = await callOllama([
       { role: 'system', content: systemWithCtx },
       { role: 'user', content: userMessage },
-    ]);
+    ], ollamaModel);
     if (!answer) return null;
     return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
   } catch (err) {
@@ -188,11 +188,11 @@ async function answerWithOllama(userMessage, context = {}) {
   }
 }
 
-async function answerConversational(userMessage, context, selectedProvider) {
+async function answerConversational(userMessage, context, selectedProvider, ollamaModel) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
-  else if (OLLAMA_PROVIDERS.has(selectedProvider)) result = await answerWithOllama(userMessage, context);
+  else if (OLLAMA_PROVIDERS.has(selectedProvider)) result = await answerWithOllama(userMessage, context, ollamaModel);
   else result = await answerWithHelix(userMessage, context);
   return ensureRenderableAnswer(result);
 }
@@ -456,7 +456,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       const raw = await callOllama([
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
-      ]);
+      ], langchainConfig?.model);
       const tryParse = (text) => {
         if (!text) return null;
         const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
@@ -478,7 +478,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // In LLM-only mode go straight to the conversational answer
   // from whichever LLM the mode selected (Helix or LM Studio).
   if (!heuristicEnabled) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig?.model).catch((e) => {
       console.warn('[nlIntent] conversational LLM failed:', e.message);
       return null;
     });
@@ -504,7 +504,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     OLLAMA_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig?.model).catch((e) => {
       console.warn('[nlIntent] conversational fallback failed:', e.message);
       return null;
     });
