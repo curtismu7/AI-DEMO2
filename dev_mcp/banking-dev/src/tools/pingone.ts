@@ -21,24 +21,31 @@ interface Embedded<T> {
 export const pingoneListUsersSchema = z.object({
   filter: z.string().optional().describe('PingOne SCIM filter, e.g. username sw "demo"'),
   limit: z.number().int().min(1).max(200).default(50),
+  cursor: z.string().url().optional().describe('Next-page URL from prior response nextCursor field'),
 });
 
 export async function pingoneListUsers(input: z.infer<typeof pingoneListUsersSchema>): Promise<{
   count: number;
-  users: Array<{
-    id: string;
-    username: string | undefined;
-    email: string | undefined;
-    enabled: boolean | undefined;
-  }>;
+  nextCursor?: string;
+  users: Array<{ id: string; username: string | undefined; email: string | undefined; enabled: boolean | undefined }>;
 }> {
-  const params = new URLSearchParams();
-  params.set("limit", String(input.limit));
-  if (input.filter) params.set("filter", input.filter);
-  const data = await pingOneGet<Embedded<User>>(`/users?${params.toString()}`);
+  let url: string;
+  if (input.cursor) {
+    url = input.cursor;
+  } else {
+    const params = new URLSearchParams();
+    params.set("limit", String(input.limit));
+    if (input.filter) params.set("filter", input.filter);
+    url = `/users?${params.toString()}`;
+  }
+
+  const data = await pingOneGet<Embedded<User> & { _links?: { next?: { href?: string } } }>(url);
   const users = data._embedded?.users ?? [];
+  const nextCursor = data._links?.next?.href;
+
   return {
     count: users.length,
+    ...(nextCursor ? { nextCursor } : {}),
     users: users.map((u) => ({
       id: u.id,
       username: u.username,
@@ -78,31 +85,36 @@ interface AppRecord {
 export const pingoneListAppsSchema = z.object({
   filter: z.string().optional(),
   limit: z.number().int().min(1).max(200).default(100),
+  cursor: z.string().url().optional().describe('Next-page URL from prior response nextCursor field'),
 });
 
 export async function pingoneListApps(input: z.infer<typeof pingoneListAppsSchema>): Promise<{
   count: number;
-  applications: Array<{
-    id: string;
-    name: string | undefined;
-    type: string | undefined;
-    enabled: boolean | undefined;
-    protocol: string | undefined;
-  }>;
+  nextCursor?: string;
+  apps: Array<{ id: string; name?: string; type?: string; enabled?: boolean }>;
 }> {
-  const params = new URLSearchParams();
-  params.set("limit", String(input.limit));
-  if (input.filter) params.set("filter", input.filter);
-  const data = await pingOneGet<Embedded<AppRecord>>(`/applications?${params.toString()}`);
+  let url: string;
+  if (input.cursor) {
+    url = input.cursor;
+  } else {
+    const params = new URLSearchParams();
+    params.set("limit", String(input.limit));
+    if (input.filter) params.set("filter", input.filter);
+    url = `/applications?${params.toString()}`;
+  }
+
+  const data = await pingOneGet<Embedded<AppRecord> & { _links?: { next?: { href?: string } } }>(url);
   const apps = data._embedded?.applications ?? [];
+  const nextCursor = data._links?.next?.href;
+
   return {
     count: apps.length,
-    applications: apps.map((a) => ({
+    ...(nextCursor ? { nextCursor } : {}),
+    apps: apps.map((a) => ({
       id: a.id,
       name: a.name,
       type: a.type,
       enabled: a.enabled,
-      protocol: a.protocol,
     })),
   };
 }
