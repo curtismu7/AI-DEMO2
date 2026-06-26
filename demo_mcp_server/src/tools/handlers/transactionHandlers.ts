@@ -3,33 +3,39 @@ import { createSuccessResult, createErrorResult } from './results';
 import { mapTransactionError, TransactionOperation } from '../TransactionErrorMapper';
 
 export const executeGetMyTransactions: HandlerFn = async (deps, token, params) => {
-  const { limit } = params as { limit?: number };
+  const { limit, offset: rawOffset } = params as { limit?: number; offset?: number };
+  const offset = (rawOffset && rawOffset > 0) ? rawOffset : 0;
+
   let transactions = await deps.apiClient.getMyTransactions(token);
-  if (limit && limit > 0) {
-    transactions = transactions.slice(0, limit);
-  }
 
   if (!Array.isArray(transactions)) {
     deps.logger.warn(`[BankingToolProvider] Expected transactions array, got: ${typeof transactions}`);
-
     return createErrorResult(`Invalid response format from banking API (received: ${typeof transactions})`);
   }
 
-  const response = {
+  const total = transactions.length;
+  const paged = (limit && limit > 0) ? transactions.slice(offset, offset + limit) : transactions.slice(offset);
+  const hasMore = (limit && limit > 0) ? (offset + limit) < total : false;
+
+  const data = {
     success: true,
-    count: transactions.length,
-    transactions: transactions.map(transaction => ({
+    count: paged.length,
+    total,
+    offset,
+    hasMore,
+    ...(hasMore ? { nextOffset: offset + limit! } : {}),
+    transactions: paged.map(transaction => ({
       id: transaction.id,
       type: transaction.type,
       amount: transaction.amount,
       date: transaction.createdAt,
       fromAccountId: transaction.fromAccountId || null,
       toAccountId: transaction.toAccountId || null,
-      description: transaction.description || null
-    }))
+      description: transaction.description || null,
+    })),
   };
 
-  return createSuccessResult(JSON.stringify(response, null, 2));
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
 export const executeCreateDeposit: HandlerFn = async (deps, token, params) => {
@@ -58,7 +64,7 @@ export const executeCreateDeposit: HandlerFn = async (deps, token, params) => {
       accountId: to_account_id
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'deposit' as TransactionOperation, amount);
     if (handled) return handled;
@@ -90,7 +96,7 @@ export const executeCreateWithdrawal: HandlerFn = async (deps, token, params) =>
       accountId: from_account_id
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'withdrawal' as TransactionOperation, amount);
     if (handled) return handled;
@@ -129,7 +135,7 @@ export const executeCreateTransfer: HandlerFn = async (deps, token, params) => {
       description: description || null
     };
 
-    return createSuccessResult(JSON.stringify(result, null, 2));
+    return createSuccessResult(JSON.stringify(result, null, 2), result);
   } catch (error) {
     const handled = mapTransactionError(error, 'transfer' as TransactionOperation, amount);
     if (handled) return handled;

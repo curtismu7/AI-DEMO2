@@ -1,10 +1,11 @@
 import type { BankingToolResult } from '../BankingToolProvider';
 
-export function createSuccessResult(text: string): BankingToolResult {
+export function createSuccessResult(text: string, data?: Record<string, any>): BankingToolResult {
   return {
     type: 'text',
     text,
     success: true,
+    ...(data !== undefined ? { structuredContent: data } : {}),
   };
 }
 

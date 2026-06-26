@@ -9,11 +9,19 @@ export async function executeLookupCustomer(
     const q = encodeURIComponent(params.query || '');
     const data = await deps.apiClient.get(`/api/admin/agent/lookup?q=${q}`, token);
     if (!data.users?.length) return createSuccessResult('No customers found matching that query.');
-    const lines = data.users.map((u: any) =>
-      `- ${u.firstName} ${u.lastName} (${u.email}) — ID: ${u.id} — role: ${u.role}`
-    );
     const count = data.count ?? (data.users?.length ?? 0);
-    return createSuccessResult(`Found ${count} customer(s):\n${lines.join('\n')}`);
+    const result = {
+      success: true,
+      count,
+      users: data.users.map((u: any) => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        role: u.role,
+      })),
+    };
+    return createSuccessResult(`Found ${count} customer(s).`, result);
   } catch (e: any) {
     return createErrorResult(`Lookup failed: ${e.message}`);
   }
@@ -48,11 +56,13 @@ export async function executeGetCustomerAccounts(
   try {
     const data = await deps.apiClient.get(`/api/admin/agent/users/${params.userId}/accounts`, token);
     if (!data.accounts?.length) return createSuccessResult('No accounts found for this user.');
-    const lines = data.accounts.map((a: any) =>
-      `- ${a.name} (${a.accountType}) — Balance: ${a.currency} ${a.balance?.toFixed(2)} — Active: ${a.isActive} — ID: ${a.id}`
-    );
     const count = data.count ?? (data.accounts?.length ?? 0);
-    return createSuccessResult(`${count} account(s):\n${lines.join('\n')}`);
+    const result = {
+      success: true,
+      count,
+      accounts: data.accounts,
+    };
+    return createSuccessResult(`${count} account(s).`, result);
   } catch (e: any) {
     return createErrorResult(`Get accounts failed: ${e.message}`);
   }

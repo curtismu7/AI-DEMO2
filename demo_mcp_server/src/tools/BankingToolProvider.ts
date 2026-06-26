@@ -36,6 +36,7 @@ export interface BankingToolResult extends ToolResult {
   authChallenge?: AuthorizationRequest;
   originalRequest?: Record<string, any>;  // DEPRECATED — no longer populated; use httpTrace for debugging
   httpTrace?: HttpTraceEntry[];           // Actual HTTP calls made to the banking API
+  structuredContent?: Record<string, any>;
 }
 
 export class BankingToolProvider {

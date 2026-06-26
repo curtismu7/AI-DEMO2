@@ -223,6 +223,7 @@ export class MCPMessageHandler {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
         icons: tool.icons,
         annotations: this.toSpecAnnotations(tool),
         requiresUserAuth: tool.requiresUserAuth,
@@ -484,6 +485,7 @@ export class MCPMessageHandler {
         result: {
           content: mcpContent,
           isError: !toolResult.success,
+          ...(toolResult.structuredContent ? { structuredContent: toolResult.structuredContent } : {}),
           // Auth challenge (when present) is published under the canonical _meta slot.
           ...(toolResult.authChallenge ? { _meta: { authChallenge: toolResult.authChallenge } } : {})
         }

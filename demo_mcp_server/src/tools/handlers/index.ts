@@ -3,6 +3,7 @@ import { executeGetMyTransactions, executeCreateDeposit, executeCreateWithdrawal
 import { executeQueryUserByEmail } from './identityHandlers';
 import { executeSequentialThink } from './reasoningHandlers';
 import { executeRequestFeeWaiver } from './commitmentHandlers';
+import { executeSearchTransactions, executeGetTransactionDetail } from './searchHandlers';
 import { verticalHandlerMap } from './verticalHandlers';
 import {
   executeLookupCustomer,
@@ -28,6 +29,8 @@ export const handlerMap: Record<string, HandlerFn> = {
   executeGetSensitiveAccountDetails,
   executeSequentialThink,
   executeRequestFeeWaiver,
+  executeSearchTransactions,
+  executeGetTransactionDetail,
   ...verticalHandlerMap,
   executeLookupCustomer,
   executeGetCustomerProfile,
