@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import topologyRaw from '../../../service-topology.json';
 
 const STORAGE_KEY = 'arch-canvas-v1';
@@ -111,6 +111,12 @@ export default function useCanvasLayout() {
     return persisted ? persisted.edges : seedEdges;
   });
 
+  // Refs always hold latest values — solves stale closure for persist calls
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+
   const persist = useCallback((nextNodes, nextEdges) => {
     saveToStorage(nextNodes, nextEdges);
   }, []);
@@ -118,37 +124,37 @@ export default function useCanvasLayout() {
   const moveNode = useCallback((id, x, y) => {
     setNodes(prev => {
       const next = prev.map(n => n.id === id ? { ...n, x, y } : n);
-      persist(next, edges);
+      persist(next, edgesRef.current);
       return next;
     });
-  }, [edges, persist]);
+  }, [persist]);
 
   const addNode = useCallback((label) => {
     const id = `custom-${Date.now()}`;
     const newNode = { id, label, sub: '', x: 300, y: 300, color: '#94a3b8' };
     setNodes(prev => {
       const next = [...prev, newNode];
-      persist(next, edges);
+      persist(next, edgesRef.current);
       return next;
     });
-  }, [edges, persist]);
+  }, [persist]);
 
   const removeEdge = useCallback((id) => {
     setEdges(prev => {
       const next = prev.filter(e => e.id !== id);
-      persist(nodes, next);
+      persist(nodesRef.current, next);
       return next;
     });
-  }, [nodes, persist]);
+  }, [persist]);
 
   const addEdge = useCallback((fromId, toId) => {
     const newEdge = { id: `e-${fromId}-${toId}-${Date.now()}`, from: fromId, to: toId };
     setEdges(prev => {
       const next = [...prev, newEdge];
-      persist(nodes, next);
+      persist(nodesRef.current, next);
       return next;
     });
-  }, [nodes, persist]);
+  }, [persist]);
 
   const resetLayout = useCallback(() => {
     const freshNodes = buildSeedNodes();

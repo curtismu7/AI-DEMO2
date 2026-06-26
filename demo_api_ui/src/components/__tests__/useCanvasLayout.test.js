@@ -79,4 +79,14 @@ describe('useCanvasLayout', () => {
     const { result } = renderHook(() => useCanvasLayout());
     expect(result.current.nodes.find(n => n.id === 'n-test')).toBeTruthy();
   });
+
+  it('moveNode after addEdge persists both correctly', () => {
+    const { result } = renderHook(() => useCanvasLayout());
+    const [a, b] = result.current.nodes;
+    act(() => result.current.addEdge(a.id, b.id));
+    act(() => result.current.moveNode(a.id, 11, 22));
+    const stored = JSON.parse(localStorageMock.getItem('arch-canvas-v1'));
+    expect(stored.edges.some(e => e.from === a.id && e.to === b.id)).toBe(true);
+    expect(stored.nodes.find(n => n.id === a.id)?.x).toBe(11);
+  });
 });
