@@ -1,0 +1,175 @@
+.pingcli-page {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 24px 40px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── Install section ─────────────────────────────────── */
+.pingcli-install {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+
+.pingcli-install h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px;
+}
+
+.pingcli-install p {
+  font-size: 13px;
+  color: #475569;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.pingcli-code-block {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pingcli-code-block code {
+  flex: 1;
+}
+
+.pingcli-copy-btn {
+  background: #334155;
+  color: #cbd5e1;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pingcli-copy-btn:hover {
+  background: #475569;
+  color: #f1f5f9;
+}
+
+/* ── Command categories ──────────────────────────────── */
+.pingcli-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin: 28px 0 12px;
+}
+
+.pingcli-command-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pingcli-cmd-btn {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.pingcli-cmd-btn:hover:not(:disabled) {
+  border-color: #c026d3;
+  box-shadow: 0 0 0 3px rgba(192, 38, 211, 0.08);
+}
+
+.pingcli-cmd-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pingcli-cmd-btn.active {
+  border-color: #c026d3;
+  background: #fdf4ff;
+}
+
+.pingcli-cmd-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.pingcli-cmd-command {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Terminal output pane ────────────────────────────── */
+.pingcli-terminal {
+  margin-top: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pingcli-terminal-header {
+  background: #1e293b;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pingcli-terminal-prompt {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.pingcli-terminal-prompt span.cmd-text {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.pingcli-terminal-status {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pingcli-terminal-status.ok   { color: #4ade80; }
+.pingcli-terminal-status.err  { color: #f87171; }
+
+.pingcli-terminal-body {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 16px;
+  min-height: 160px;
+  max-height: 480px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pingcli-terminal-body.loading {
+  color: #64748b;
+  font-style: italic;
+}
