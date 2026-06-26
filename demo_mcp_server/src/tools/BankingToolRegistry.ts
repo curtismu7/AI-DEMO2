@@ -5,6 +5,23 @@
 
 import { ToolDefinition, JSONSchema } from '../interfaces/mcp';
 import { VERTICAL_TOOLS, verticalHandlerName } from './handlers/verticalHandlers';
+import {
+  GET_MY_ACCOUNTS_OUTPUT,
+  GET_ACCOUNT_BALANCE_OUTPUT,
+  GET_SENSITIVE_ACCOUNT_DETAILS_OUTPUT,
+  GET_MY_TRANSACTIONS_OUTPUT,
+  WRITE_TRANSACTION_OUTPUT,
+  QUERY_USER_BY_EMAIL_OUTPUT,
+  REQUEST_FEE_WAIVER_OUTPUT,
+  SEQUENTIAL_THINK_OUTPUT,
+  ADMIN_LOOKUP_OUTPUT,
+  ADMIN_PROFILE_OUTPUT,
+  ADMIN_ACCOUNTS_OUTPUT,
+  ADMIN_TRANSACTIONS_OUTPUT,
+  ADMIN_WRITE_OUTPUT,
+  SEARCH_TRANSACTIONS_OUTPUT,
+  GET_TRANSACTION_DETAIL_OUTPUT,
+} from './outputSchemas';
 
 export interface BankingToolDefinition extends ToolDefinition {
   name: string;
@@ -15,6 +32,7 @@ export interface BankingToolDefinition extends ToolDefinition {
   handler: string; // Method name in BankingToolProvider
   readOnly: boolean; // true = safe read-only; false = writes data or accesses PII
   vertical?: string; // set for vertical action tools (incl. 'admin') — lets the gateway filter tools/list per active vertical (AllowedVertical advice). Absent = cross-vertical (banking/feature).
+  outputSchema?: JSONSchema;
 }
 
 /**
@@ -43,6 +61,7 @@ const VERTICAL_TOOL_DEFS: Record<string, BankingToolDefinition> = VERTICAL_TOOLS
       // their real schema in VERTICAL_TOOLS; no-arg read tools default to the
       // empty schema. Without the real schema the provider rejects every arg.
       inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [], additionalProperties: false },
+      outputSchema: ADMIN_WRITE_OUTPUT,
     } as BankingToolDefinition;
     return acc;
   },
@@ -77,6 +96,7 @@ export class BankingToolRegistry {
           openWorld: false
         }
       },
+      outputSchema: GET_MY_ACCOUNTS_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -114,6 +134,7 @@ export class BankingToolRegistry {
           openWorld: false
         }
       },
+      outputSchema: GET_ACCOUNT_BALANCE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -152,6 +173,7 @@ export class BankingToolRegistry {
           openWorld: false
         }
       },
+      outputSchema: GET_SENSITIVE_ACCOUNT_DETAILS_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {},
@@ -183,6 +205,7 @@ export class BankingToolRegistry {
           openWorld: false
         }
       },
+      outputSchema: GET_MY_TRANSACTIONS_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -242,7 +265,8 @@ export class BankingToolRegistry {
         },
         required: ['to_account_id', 'amount'],
         additionalProperties: false
-      }
+      },
+      outputSchema: WRITE_TRANSACTION_OUTPUT,
     },
 
     create_withdrawal: {
@@ -290,7 +314,8 @@ export class BankingToolRegistry {
         },
         required: ['from_account_id', 'amount'],
         additionalProperties: false
-      }
+      },
+      outputSchema: WRITE_TRANSACTION_OUTPUT,
     },
 
     create_transfer: {
@@ -343,7 +368,8 @@ export class BankingToolRegistry {
         },
         required: ['from_account_id', 'to_account_id', 'amount'],
         additionalProperties: false
-      }
+      },
+      outputSchema: WRITE_TRANSACTION_OUTPUT,
     },
 
     update_contact_email: {
@@ -362,6 +388,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -396,6 +423,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: false, idempotent: false, openWorld: false } },
+      outputSchema: REQUEST_FEE_WAIVER_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -430,6 +458,7 @@ export class BankingToolRegistry {
           openWorld: false
         }
       },
+      outputSchema: QUERY_USER_BY_EMAIL_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -462,6 +491,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_LOOKUP_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -489,6 +519,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_PROFILE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -516,6 +547,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_ACCOUNTS_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -543,6 +575,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_TRANSACTIONS_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -571,6 +604,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: true, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -599,6 +633,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -626,6 +661,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: false, idempotent: false, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -655,6 +691,7 @@ export class BankingToolRegistry {
         }
       ],
       annotations: { userFacing: { readable: false, destructive: true, idempotent: false, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -691,6 +728,7 @@ export class BankingToolRegistry {
           openWorld: true
         }
       },
+      outputSchema: SEQUENTIAL_THINK_OUTPUT,
       inputSchema: {
         type: 'object',
         properties: {
@@ -726,6 +764,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -739,6 +778,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -752,6 +792,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -765,6 +806,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -778,6 +820,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -791,6 +834,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm-6 8.18v4L12 18l6-2.82v-4L12 14l-6-2.82z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -804,6 +848,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
@@ -817,6 +862,7 @@ export class BankingToolRegistry {
       readOnly: true,
       icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96C5 16.1 6.9 18 9 18h12v-2H9.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 23.46 5H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: ADMIN_WRITE_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     }
   };
