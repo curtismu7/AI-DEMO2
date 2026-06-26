@@ -84,9 +84,18 @@
   overflow: hidden;
 }
 
+.scope-ref-card details { display: block; }
+
+/* <summary> IS the header */
 .scope-ref-card__header {
   padding: 1rem 1.25rem 0.85rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  list-style: none;
+}
+.scope-ref-card__header::-webkit-details-marker { display: none; }
+.scope-ref-card details[open] > .scope-ref-card__header {
+  border-bottom-color: #e5e7eb;
 }
 
 .scope-ref-card__title-row {
@@ -94,6 +103,19 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+
+/* Chevron */
+.scope-ref-card__chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #9ca3af;
+  transition: transform 0.18s ease;
+}
+.scope-ref-card details[open] .scope-ref-card__chevron {
+  transform: rotate(180deg);
 }
 
 .scope-ref-card__name {
@@ -179,7 +201,7 @@
   text-align: left;
   padding: 0.55rem 1.25rem;
   background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 2px solid #e5e7eb;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -193,7 +215,7 @@
 
 .scope-ref-table td {
   padding: 0.55rem 1.25rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
   vertical-align: top;
 }
 

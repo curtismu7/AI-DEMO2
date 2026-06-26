@@ -111,48 +111,59 @@ export default function ScopeReferencePage() {
   );
 }
 
+const ChevronIcon = () => (
+  <svg className="scope-ref-card__chevron" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
 function ResourceCard({ resource }) {
   const { id, name, audience, type, scopes = [] } = resource;
   const isCustom = (type || '').toUpperCase() === 'CUSTOM';
 
   return (
     <section className="scope-ref-card">
-      <header className="scope-ref-card__header">
-        <div className="scope-ref-card__title-row">
-          <h3 className="scope-ref-card__name">{name}</h3>
-          <span className={`scope-ref-card__badge ${isCustom ? 'scope-ref-card__badge--custom' : ''}`}>
-            {type || 'OPENID_CONNECT'}
-          </span>
-          <span className="scope-ref-card__count">
-            {scopes.length} scope{scopes.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <dl className="scope-ref-card__meta">
-          <div><dt>Audience</dt><dd><code>{audience || '(none)'}</code></dd></div>
-          <div><dt>Resource ID</dt><dd><code>{id}</code></dd></div>
-        </dl>
-      </header>
+      <details>
+        <summary className="scope-ref-card__header">
+          <div className="scope-ref-card__title-row">
+            <h3 className="scope-ref-card__name">{name}</h3>
+            <span className={`scope-ref-card__badge ${isCustom ? 'scope-ref-card__badge--custom' : ''}`}>
+              {type || 'OPENID_CONNECT'}
+            </span>
+            <span className="scope-ref-card__count">
+              {scopes.length} scope{scopes.length === 1 ? '' : 's'}
+            </span>
+            <ChevronIcon />
+          </div>
+          <dl className="scope-ref-card__meta">
+            <div><dt>Audience</dt><dd><code>{audience || '(none)'}</code></dd></div>
+            <div><dt>Resource ID</dt><dd><code>{id}</code></dd></div>
+          </dl>
+        </summary>
 
-      {scopes.length > 0 ? (
-        <table className="scope-ref-table">
-          <thead>
-            <tr>
-              <th className="scope-ref-table__col-name">Scope</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scopes.map(s => (
-              <tr key={s.id || s.name}>
-                <td><code className="scope-ref-table__scope">{s.name}</code></td>
-                <td className="scope-ref-table__desc">{s.description || '—'}</td>
+        {scopes.length > 0 ? (
+          <table className="scope-ref-table">
+            <thead>
+              <tr>
+                <th className="scope-ref-table__col-name">Scope</th>
+                <th>Description</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="scope-ref-card__empty">No scopes defined on this resource.</div>
-      )}
+            </thead>
+            <tbody>
+              {scopes.map(s => (
+                <tr key={s.id || s.name}>
+                  <td><code className="scope-ref-table__scope">{s.name}</code></td>
+                  <td className="scope-ref-table__desc">{s.description || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="scope-ref-card__empty">No scopes defined on this resource.</div>
+        )}
+      </details>
     </section>
   );
 }
