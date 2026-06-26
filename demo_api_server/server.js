@@ -2249,6 +2249,8 @@ if (require.main === module) {
         // completed, causing false "credentials not configured" warnings.
         setImmediate(() => runBackgroundStartupTasks());
         const lighthouseTask = startLighthouseScheduler();
+        const { startRedirectUriScheduler } = require('./services/pingoneAppConfigService');
+        const redirectUriTask = startRedirectUriScheduler();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB
@@ -2265,6 +2267,7 @@ if (require.main === module) {
             }, 5000).unref();
             oauthMonitor.stop();
             if (lighthouseTask) lighthouseTask.stop();
+            if (redirectUriTask) redirectUriTask.stop();
             try { await structuredLogger.close(); } catch (_) { /* exit anyway */ }
             try { require('./services/lmdb/openEnv').closeEnv(); } catch (_) { /* exit anyway */ }
             server.close(() => process.exit(0));
