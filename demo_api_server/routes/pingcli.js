@@ -1,7 +1,7 @@
 const { execFile, spawn } = require('child_process');
 const { Router } = require('express');
 
-const PINGCLI_BIN = '/opt/homebrew/bin/pingcli';
+const PINGCLI_BIN = '/usr/local/bin/pingcli';
 const TIMEOUT_MS = 15000;
 
 // Allow-list of safe read-only commands.
