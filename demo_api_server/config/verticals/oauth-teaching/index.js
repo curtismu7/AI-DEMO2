@@ -25,6 +25,8 @@ const CONCEPTS = [
     text: 'Step-up authentication forces stronger auth (e.g. MFA) for a higher-risk action, typically driven by an `acr_values` request to the authorization server.' },
   { re: /token\s*chain/i, panel: 'token-chain',
     text: 'The token chain visualizes every hop a request takes — each exchange, its audience, scopes, and the act/may_act delegation — so you can see exactly which token reaches which service.' },
+  { re: /confused.?deputy|ambient.?authority/i, panel: 'sensitive-data',
+    text: 'The confused deputy problem occurs when an AI agent is tricked into using its own privileged token to act on behalf of an attacker instead of the legitimate user. OAuth mitigates this with explicit delegation: RFC 8693 `act`/`may_act` claims make the delegation chain auditable, audience-narrowing (RFC 8707) limits which services a token reaches, and least-privilege scopes bound what the agent can do even if manipulated. See RFC 8693 §4 and RFC 8707.' },
 ];
 
 const VALID_PANELS = new Set([
@@ -98,7 +100,7 @@ function explainConcept(params) {
   const topic = String((params && params.topic) || '').trim();
   const hit = CONCEPTS.find((c) => c.re.test(topic));
   if (!hit) {
-    return { result: { text: 'I can explain: token exchange (RFC 8693), PKCE / authorization code, scopes & least privilege, may_act / act delegation, introspection, OIDC, HITL, step-up, and the token chain. Which one?' }, render: 'text' };
+    return { result: { text: 'I can explain: token exchange (RFC 8693), PKCE / authorization code, scopes & least privilege, may_act / act delegation, introspection, OIDC, HITL, step-up, the token chain, and the confused deputy attack. Which one?' }, render: 'text' };
   }
   return { result: { text: hit.text, education: { panel: hit.panel, tab: hit.tab || null } }, render: 'text' };
 }

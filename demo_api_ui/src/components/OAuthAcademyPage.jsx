@@ -28,16 +28,16 @@ const FORCE_HEURISTIC_RE =
 // sync with the manifest if those teaching prompts change. The last chip runs the
 // real HITL demonstration (an over-threshold transfer → approve-and-retry).
 const STARTER_CHIPS = [
-  "what is oauth",
-  "explain scopes",
-  "what is pkce",
-  "explain token exchange",
-  "what is oidc",
-  "explain act and may_act delegation",
-  "show token chain",
-  "what is human in the loop",
+  "why does my AI agent need oauth",
+  "what scopes should an AI agent request",
+  "how does token exchange work for AI agents",
+  "what is act and may_act delegation",
+  "how do I limit what an AI agent can do",
+  "what is human in the loop approval",
   "demonstrate hitl approval",
-  "what is rfc 8693 token exchange",
+  "how does pkce protect AI agent flows",
+  "what is a confused deputy attack",
+  "show token chain",
 ];
 
 const OAuthAcademyPage = () => {
