@@ -4,7 +4,7 @@ import { subscribe, getAll } from '../services/apiTrafficStore';
 import JsonHighlight from './shared/JsonHighlight';
 import './ApiTrafficPanel.css';
 
-const FILTERS = ['All', 'MCP', 'Token', 'HTTP', 'Errors'];
+const FILTERS = ['All', 'By Turn', 'MCP', 'Token', 'HTTP', 'Errors'];
 
 // ── RFC Claim Annotations ────────────────────────────────────────────────────
 
@@ -336,6 +336,85 @@ function HttpEntryDetail({ entry }) {
   );
 }
 
+// ── By-Turn grouped view ──────────────────────────────────────────────────────
+
+/** Group entries by turnId, preserving insertion order of first appearance. */
+function groupByTurn(entries) {
+  const map = new Map(); // turnId → { label, entries[] }
+  for (const e of entries) {
+    const key = e.turnId || '__ungrouped__';
+    if (!map.has(key)) {
+      map.set(key, {
+        turnId: key,
+        label: e.turnLabel || (key === '__ungrouped__' ? 'Background / ungrouped' : key.slice(0, 8)),
+        entries: [],
+      });
+    }
+    map.get(key).entries.push(e);
+  }
+  return Array.from(map.values());
+}
+
+function TurnGroupList({ entries, search, onSelect, selected }) {
+  const [collapsed, setCollapsed] = useState({});
+
+  const groups = groupByTurn(
+    search
+      ? entries.filter(e => entryLabel(e).toLowerCase().includes(search.toLowerCase()))
+      : entries,
+  );
+
+  function toggleGroup(turnId) {
+    setCollapsed(prev => ({ ...prev, [turnId]: !prev[turnId] }));
+  }
+
+  if (groups.length === 0) {
+    return <div className="api-traffic-empty">No entries match the current filter.</div>;
+  }
+
+  return (
+    <>
+      {groups.map(group => (
+        <div key={group.turnId} className="api-turn-group">
+          <button
+            type="button"
+            className="api-turn-group-header"
+            onClick={() => toggleGroup(group.turnId)}
+            aria-expanded={!collapsed[group.turnId]}
+          >
+            <span className="api-turn-group-chevron">{collapsed[group.turnId] ? '▶' : '▼'}</span>
+            <span className="api-turn-group-label" title={group.label}>{group.label}</span>
+            <span className="api-turn-group-count">{group.entries.length}</span>
+          </button>
+          {!collapsed[group.turnId] && group.entries.map(entry => (
+            <div
+              key={entry.id}
+              className={[
+                'api-traffic-entry api-traffic-entry--indented',
+                selected?.id === entry.id ? 'api-traffic-entry--selected' : '',
+                entry.kind === 'token-event' ? 'api-traffic-entry--token' : '',
+                (entry.error || entry.status >= 400 || entry.status === 0 || entry.eventStatus === 'failed')
+                  ? 'api-traffic-entry--error' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => onSelect(entry)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(entry); } }}
+            >
+              <MethodBadge entry={entry} />
+              <StatusBadge entry={entry} />
+              <span className="api-entry-url" title={entry.kind === 'token-event' ? entryLabel(entry) : absoluteApiUrl(entry.url)}>
+                {entryLabel(entry)}
+              </span>
+              {entry.duration != null && <span className="api-entry-dur">{entry.duration}ms</span>}
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ── Full-page viewer ───────────────────────────────────────────────────────────
 
 /**
@@ -363,7 +442,8 @@ export default function ApiTrafficPanel() {
     }
   }
 
-  const filtered = entries.filter(e => matchFilter(e, filter, search));
+  const byTurn = filter === 'By Turn';
+  const filtered = byTurn ? entries : entries.filter(e => matchFilter(e, filter, search));
 
   return (
     <div className="api-traffic-panel api-traffic-panel--page">
@@ -408,7 +488,13 @@ export default function ApiTrafficPanel() {
 
       <div className="api-traffic-body">
         <div className="api-traffic-list">
-          {filtered.length === 0 ? (
+          {byTurn ? (
+            entries.length === 0 ? (
+              <div className="api-traffic-empty">No traffic captured yet.{'\n'}Use the main app in another tab or window — API calls will appear here via shared storage.</div>
+            ) : (
+              <TurnGroupList entries={entries} search={search} onSelect={setSelected} selected={selected} />
+            )
+          ) : filtered.length === 0 ? (
             <div className="api-traffic-empty">
               {entries.length === 0
                 ? 'No traffic captured yet.\nUse the main app in another tab or window — API calls will appear here via shared storage.'

@@ -88,6 +88,8 @@ function extractIntentFromResponse(response) {
  *   (same as /api/demo-agent/message)
  */
 router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.json(), async (req, res) => {
+  // Hoist flowTraceId so the catch block can stamp NDJSON error events with it.
+  const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : null;
   try {
     const { prompt } = req.body;
 
@@ -154,7 +156,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
             decision: 'deny',
             reason: preExecutionDecision.reason,
             userId,
-          });
+          }, { flowId: flowTraceId });
           return res.status(403).json({
             error: 'intent_not_authorized',
             message: preExecutionDecision.reason,
@@ -173,7 +175,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
             decision: 'consent_required',
             reason: preExecutionDecision.reason,
             userId,
-          });
+          }, { flowId: flowTraceId });
           return res.status(428).json({
             requiresConsent: true,
             consentId: null,
@@ -222,6 +224,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       console.log('[agent/invoke] Intent Token minted: intent=%s confidence=%s', _itIntent, _itConf);
       appEventService.logEvent('intent_token', 'info', `Intent Token minted: ${_itIntent}`, {
         metadata: { intent: _itIntent, confidence: _itConf, userId },
+        flowId: flowTraceId,
       });
     }
     // ─────────────────────────────────────────────────────────────────────────
@@ -315,6 +318,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
             deviation: true,
             userId,
           },
+          flowId: flowTraceId,
         });
       }
     }
@@ -351,6 +355,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         error: error.message,
         userId: req.user?.sub,
       },
+      flowId: flowTraceId,
     });
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.

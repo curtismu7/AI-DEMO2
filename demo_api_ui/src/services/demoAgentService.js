@@ -10,7 +10,7 @@
  *   - Token Exchange (RFC 8693) request + result
  *   - MCP access token (delegated) decoded claims + act status (+ jwtFullDecode JSON)
  */
-import { appendTokenEvents } from "./apiTrafficStore";
+import { appendTokenEvents, setCurrentTurn, clearCurrentTurn } from "./apiTrafficStore";
 import { appendMcpCall } from "./mcpCallStore";
 import { agentFlowDiagram } from "./agentFlowDiagramService";
 import { openMcpFlowSse } from "./mcpFlowSseClient";
@@ -851,6 +851,11 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   body.flowTraceId = flowTraceId;
 
+  // Tag all API traffic entries captured during this agent turn so the panel
+  // can group them. turnLabel is the first 80 chars of the prompt for display.
+  const turnLabel = typeof message === "string" ? message.slice(0, 80) : String(message).slice(0, 80);
+  setCurrentTurn(flowTraceId, turnLabel);
+
   const closeSse = openMcpFlowSse(flowTraceId, (data) => {
     try {
       agentFlowDiagram.applyServerEvent(data);
@@ -919,5 +924,6 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
     return { ...data, _status: res.status };
   } finally {
     closeSse();
+    clearCurrentTurn();
   }
 }
