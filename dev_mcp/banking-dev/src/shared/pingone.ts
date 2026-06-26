@@ -58,6 +58,19 @@ export async function pingOneGet<T>(pathSegment: string): Promise<T> {
   return res.data;
 }
 
+export async function pingOnePost<T>(pathSegment: string, body: unknown): Promise<T> {
+  const token = await getWorkerToken();
+  const url = `${pingOneBaseUrl()}${pathSegment}`;
+  const res = await axios.post<T>(url, body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    timeout: 15_000,
+  });
+  return res.data;
+}
+
 export async function pingOnePatch<T>(
   pathSegment: string,
   body: unknown

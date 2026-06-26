@@ -46,6 +46,10 @@ import {
   tokenchainIntrospectSchema,
 } from "./tools/tokenchain";
 import {
+  pingoneCheckBootstrap,
+  pingoneCheckBootstrapSchema,
+  pingoneCreateWorkerApp,
+  pingoneCreateWorkerAppSchema,
   pingoneGetApp,
   pingoneGetAppSchema,
   pingoneGetResourceScopes,
@@ -196,6 +200,24 @@ const PINGONE_SCOPES_SCHEMA = toJsonSchema(z.object({
     name: z.string(),
     description: z.string().optional(),
   })),
+}));
+
+const PINGONE_BOOTSTRAP_SCHEMA = toJsonSchema(z.object({
+  configured: z.boolean(),
+  summary: z.string(),
+  checks: z.array(z.object({
+    name: z.string(),
+    ok: z.boolean(),
+    detail: z.string(),
+  })),
+}));
+
+const PINGONE_CREATE_APP_SCHEMA = toJsonSchema(z.object({
+  created: z.boolean(),
+  appId: z.string().optional(),
+  name: z.string().optional(),
+  type: z.string().optional(),
+  error: z.string().optional(),
 }));
 
 const tools: ToolEntry[] = [
@@ -400,20 +422,40 @@ tools.push(
     outputSchema: PINGONE_SCOPES_SCHEMA,
     handler: (a) => pingoneGetResourceScopes(pingoneGetResourceScopesSchema.parse(a)),
     readOnly: true,
+  },
+  {
+    name: "pingone_check_bootstrap",
+    description:
+      "Verify that the demo environment is fully bootstrapped: checks required env vars (PINGONE_ENVIRONMENT_ID, PINGONE_WORKER_CLIENT_ID, PINGONE_WORKER_CLIENT_SECRET) and confirms a worker token can be obtained. Returns a per-check breakdown and a human-readable summary.",
+    schema: pingoneCheckBootstrapSchema,
+    outputSchema: PINGONE_BOOTSTRAP_SCHEMA,
+    handler: () => pingoneCheckBootstrap(),
+    readOnly: true,
   }
 );
 
 // Gated write tool: only registers if DEV_MCP_PINGONE_WRITE=1
 if (process.env.DEV_MCP_PINGONE_WRITE === "1") {
-  tools.push({
-    name: "pingone_update_user_attribute",
-    description:
-      "PATCH one attribute on a PingOne user (e.g. set mayAct). Requires DEV_MCP_PINGONE_WRITE=1.",
-    schema: pingoneUpdateUserAttributeSchema,
-    handler: (a) =>
-      pingoneUpdateUserAttribute(pingoneUpdateUserAttributeSchema.parse(a)),
-    readOnly: false,
-  });
+  tools.push(
+    {
+      name: "pingone_update_user_attribute",
+      description:
+        "PATCH one attribute on a PingOne user (e.g. set mayAct). Requires DEV_MCP_PINGONE_WRITE=1.",
+      schema: pingoneUpdateUserAttributeSchema,
+      handler: (a) =>
+        pingoneUpdateUserAttribute(pingoneUpdateUserAttributeSchema.parse(a)),
+      readOnly: false,
+    },
+    {
+      name: "pingone_create_worker_app",
+      description:
+        "Create a new WORKER application in PingOne. Returns appId and name on success. Requires DEV_MCP_PINGONE_WRITE=1.",
+      schema: pingoneCreateWorkerAppSchema,
+      outputSchema: PINGONE_CREATE_APP_SCHEMA,
+      handler: (a) => pingoneCreateWorkerApp(pingoneCreateWorkerAppSchema.parse(a)),
+      readOnly: false,
+    }
+  );
 }
 
 const server = new Server(

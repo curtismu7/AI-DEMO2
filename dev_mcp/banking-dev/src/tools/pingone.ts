@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pingOneGet, pingOnePatch } from "../shared/pingone";
+import { getWorkerToken, pingOneGet, pingOnePatch, pingOnePost } from "../shared/pingone";
 import { redact } from "../shared/redact";
 
 interface User {
@@ -201,7 +201,87 @@ export async function pingoneGetResourceScopes(
   };
 }
 
+// Bootstrap check — always-on, read-only
+export const pingoneCheckBootstrapSchema = z.object({});
+
+export async function pingoneCheckBootstrap(): Promise<{
+  configured: boolean;
+  checks: Array<{ name: string; ok: boolean; detail: string }>;
+  summary: string;
+}> {
+  const checks: Array<{ name: string; ok: boolean; detail: string }> = [];
+
+  const envVars = [
+    'PINGONE_ENVIRONMENT_ID',
+    'PINGONE_WORKER_CLIENT_ID',
+    'PINGONE_WORKER_CLIENT_SECRET',
+  ];
+  for (const v of envVars) {
+    const val = process.env[v];
+    checks.push({
+      name: `env:${v}`,
+      ok: !!val && val.length > 0,
+      detail: val ? 'set' : 'MISSING',
+    });
+  }
+
+  const envOk = checks.every(c => c.ok);
+  if (envOk) {
+    try {
+      const token = await getWorkerToken();
+      checks.push({ name: 'worker_token', ok: true, detail: `obtained (${token.slice(0, 10)}…)` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      checks.push({ name: 'worker_token', ok: false, detail: `failed: ${msg}` });
+    }
+  } else {
+    checks.push({ name: 'worker_token', ok: false, detail: 'skipped — env vars missing' });
+  }
+
+  const configured = checks.every(c => c.ok);
+  const failing = checks.filter(c => !c.ok).map(c => c.name);
+  const summary = configured
+    ? 'Bootstrap complete — all checks passed.'
+    : `Bootstrap incomplete. Failing: ${failing.join(', ')}. Run: pingcli init`;
+
+  return { configured, checks, summary };
+}
+
 // WRITE — only registered when DEV_MCP_PINGONE_WRITE=1
+export const pingoneCreateWorkerAppSchema = z.object({
+  name: z.string().min(1).describe('Display name for the new Worker application'),
+  description: z.string().optional().describe('Optional description'),
+});
+
+export async function pingoneCreateWorkerApp(input: z.infer<typeof pingoneCreateWorkerAppSchema>): Promise<{
+  created: boolean;
+  appId?: string;
+  name?: string;
+  type?: string;
+  error?: string;
+}> {
+  try {
+    const body = {
+      name: input.name,
+      description: input.description ?? '',
+      enabled: true,
+      type: 'WORKER',
+    };
+
+    const app = await pingOnePost<AppRecord & { id: string }>('/applications', body);
+
+    return {
+      created: true,
+      appId: app.id,
+      name: app.name,
+      type: app.type,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { created: false, error: msg };
+  }
+}
+
 export const pingoneUpdateUserAttributeSchema = z.object({
   userId: z.string().uuid(),
   attribute: z.string().min(1).describe("e.g. 'mayAct' or 'email'"),
