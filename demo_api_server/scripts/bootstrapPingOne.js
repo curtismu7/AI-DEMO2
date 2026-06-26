@@ -746,6 +746,17 @@ ${appBlock('Agent service', p.agentApp)}
 ${appBlock('PingOne MCP Server (Claude Code OAuth, dev tooling)', p.pingOneMcpServerApp)}
 ${appBlock('Banking Gateway MCP (Claude Code OAuth, dev tooling)', p.bankingGatewayMcpApp)}
 
+## Redirect URIs
+
+> These are the URIs the server sends to PingOne during authorization. They must be registered exactly (scheme, host, path) on the corresponding PingOne application.
+
+| Flow        | URI                                                                              | Register on               |
+|-------------|----------------------------------------------------------------------------------|---------------------------|
+| User login  | \`${config.publicAppUrl}/api/auth/oauth/user/callback\`                           | Demo AI App - User Login  |
+| Admin login | \`${config.publicAppUrl}/api/auth/oauth/callback\`                                | Demo AI App - Admin Login |
+
+> ⚠ If the server is proxied (e.g. via nginx/traefik), \`PUBLIC_APP_URL\` in \`.env\` must match the public-facing host — otherwise the server derives the URI from the \`x-forwarded-host\` header, which may differ from what PingOne has registered.
+
 ## Worker app (the one YOU created — used to drive setup)
 
 - **Client ID:** \`${config.workerClientId}\`
@@ -771,7 +782,7 @@ ${appBlock('Banking Gateway MCP (Claude Code OAuth, dev tooling)', p.bankingGate
 
 The full .env is at \`demo_api_server/.env\`. Key groups present:
 
-\`\`\`
+\`\`\`text
 PINGONE_ENVIRONMENT_ID
 PINGONE_REGION
 PINGONE_ADMIN_CLIENT_ID / SECRET / REDIRECT_URI
