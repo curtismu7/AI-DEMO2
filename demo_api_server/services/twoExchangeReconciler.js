@@ -7,8 +7,13 @@
  * Reads scope-topology.json as the single source of truth and verifies (then
  * repairs) the live PingOne state needed for the two-exchange chip flow:
  *
- *   1. Agent Gateway resource has all mirroredScopes defined on it
- *   2. AI Agent app is granted all Agent Gateway scopes (agent:invoke + tool scopes)
+ *   Exchange #1 pre-conditions (User Token → Agent Gateway intermediate token):
+ *     1. Agent Gateway resource has all mirroredScopes defined on it
+ *     2. AI Agent app is granted all Agent Gateway scopes (agent:invoke + tool scopes)
+ *
+ *   Exchange #2 pre-conditions (intermediate + MCP Exchanger CC → MCP Gateway token):
+ *     3. MCP Gateway resource has all mirroredScopes defined on it
+ *     4. MCP Exchanger app is granted all MCP Gateway scopes (mcp:invoke + tool scopes)
  *
  * Runs once at startup (non-fatal async). Any drift is healed and logged so the
  * chip flow never silently breaks due to a missed provisioning step.
@@ -56,16 +61,15 @@ async function _getWorkerToken(envId, clientId, secret, region) {
   return r.data.access_token;
 }
 
-// ── Reconciliation logic ───────────────────────────────────────────────────
+// ── Shared reconciliation helpers ──────────────────────────────────────────
 
 /**
- * Ensure all scope-topology mirroredScopes for Agent Gateway exist on the
- * PingOne resource. Creates any that are missing.
- * Returns { created: string[], existing: string[] }.
+ * Ensure all scope-topology scopes for a resource exist on the PingOne resource.
+ * Creates any that are missing. Returns { created: string[], existing: string[] }.
  */
-async function _reconcileAgentGwScopes(client, agentGwResourceId) {
-  const expected = scopeTopology.resourceScopes('Super Banking Agent Gateway');
-  const data = await client.get(`/resources/${agentGwResourceId}/scopes?limit=200`);
+async function _reconcileResourceScopes(client, resourceId, resourceTopologyName, label) {
+  const expected = scopeTopology.resourceScopes(resourceTopologyName);
+  const data = await client.get(`/resources/${resourceId}/scopes?limit=200`);
   const existingNames = new Set((data._embedded?.scopes || []).map(s => s.name));
 
   const missing = expected.filter(n => !existingNames.has(n));
@@ -73,48 +77,46 @@ async function _reconcileAgentGwScopes(client, agentGwResourceId) {
 
   for (const name of missing) {
     const meta = scopeTopology.scopeMeta(name);
-    await client.post(`/resources/${agentGwResourceId}/scopes`, {
+    await client.post(`/resources/${resourceId}/scopes`, {
       name,
       description: (meta && meta.description) || `Scope: ${name}`,
     });
     created.push(name);
-    console.log(`${TAG} Created missing Agent Gateway scope: ${name}`);
+    console.log(`${TAG} Created missing ${label} scope: ${name}`);
   }
 
   return { created, existing: expected.filter(n => existingNames.has(n)) };
 }
 
 /**
- * Ensure the AI Agent app has all Agent Gateway scopes granted.
+ * Ensure an app has all expected scopes granted on a resource.
  * Resolves scope names → IDs on the resource, diffs vs. existing grant,
  * and adds only what's missing.
  * Returns { added: string[], unchanged: string[] }.
  */
-async function _reconcileAiAgentGrants(client, aiAgentAppId, agentGwResourceId) {
-  const expected = scopeTopology.resourceScopes('Super Banking Agent Gateway');
+async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyName, label) {
+  const expected = scopeTopology.resourceScopes(resourceTopologyName);
 
-  // Resolve current scope name→id map on Agent Gateway
-  const scopeData = await client.get(`/resources/${agentGwResourceId}/scopes?limit=200`);
+  // Resolve current scope name→id map on resource
+  const scopeData = await client.get(`/resources/${resourceId}/scopes?limit=200`);
   const idByName = new Map((scopeData._embedded?.scopes || []).map(s => [s.name, s.id]));
 
-  // Resolve existing grants on this app (across all resources)
-  const grantData = await client.get(`/applications/${aiAgentAppId}/grants`);
+  // Resolve existing grants on this app
+  const grantData = await client.get(`/applications/${appId}/grants`);
   const grants = grantData._embedded?.grants || [];
 
-  // Build set of scope IDs already granted on Agent Gateway specifically
-  const agentGwGrant = grants.find(g => g.resource?.id === agentGwResourceId);
-  const grantedIds = new Set((agentGwGrant?.scopes || []).map(s => s.id));
+  // Build set of scope IDs already granted on this specific resource.
+  // Check only by scope ID on this resource's grant — NOT by name on other
+  // resources — to avoid false-positives where the same scope name (e.g. "read")
+  // exists on both the enduser API grant and this resource's grant.
+  const resourceGrant = grants.find(g => g.resource?.id === resourceId);
+  const grantedIds = new Set((resourceGrant?.scopes || []).map(s => s.id));
 
-  // Scope IDs we need to add to the Agent Gateway grant.
-  // NOTE: PingOne allows the same scope NAME on multiple resources (different IDs).
-  // We check only by scope ID on the Agent Gateway grant — NOT by name on other
-  // resources — to avoid the false-positive where read/write/transfer exist on the
-  // enduser API grant and would be incorrectly skipped here.
   const toAdd = [];
   const unchanged = [];
   for (const name of expected) {
     const id = idByName.get(name);
-    if (!id) continue; // scope doesn't exist yet on resource (reconcileScopes should have fixed it)
+    if (!id) continue; // scope doesn't exist on resource yet (reconcileScopes should fix it)
     if (grantedIds.has(id)) {
       unchanged.push(name);
     } else {
@@ -126,26 +128,40 @@ async function _reconcileAiAgentGrants(client, aiAgentAppId, agentGwResourceId) 
 
   const allDesiredIds = [...grantedIds, ...toAdd.map(s => s.id)];
 
-  if (agentGwGrant) {
-    // PATCH existing grant to add new scope IDs
+  if (resourceGrant) {
     await axios.patch(
-      `${client.base}/applications/${aiAgentAppId}/grants/${agentGwGrant.id}`,
+      `${client.base}/applications/${appId}/grants/${resourceGrant.id}`,
       { scopes: allDesiredIds.map(id => ({ id })) },
       { headers: { Authorization: `Bearer ${client.token}`, 'Content-Type': 'application/json' }, timeout: 10000 }
     );
   } else {
-    // POST new grant
-    await client.post(`/applications/${aiAgentAppId}/grants`, {
-      resource: { id: agentGwResourceId },
+    await client.post(`/applications/${appId}/grants`, {
+      resource: { id: resourceId },
       scopes: allDesiredIds.map(id => ({ id })),
     });
   }
 
   for (const s of toAdd) {
-    console.log(`${TAG} Granted missing scope to AI Agent on Agent Gateway: ${s.name}`);
+    console.log(`${TAG} Granted missing scope to ${label}: ${s.name}`);
   }
 
   return { added: toAdd.map(s => s.name), unchanged };
+}
+
+// ── Resource ID resolution ─────────────────────────────────────────────────
+
+async function _resolveResourceId(client, audience, label) {
+  const data = await client.get(`/resources?limit=50`);
+  const resources = data._embedded?.resources || [];
+  const match = resources.find(r => r.audience === audience);
+  if (!match) throw new Error(`${label} resource not found in PingOne (aud=${audience})`);
+  return match.id;
+}
+
+async function _resolveAppId(client, clientId, label) {
+  const data = await client.get(`/applications/${clientId}`);
+  if (!data.id) throw new Error(`${label} app not found (clientId=${clientId})`);
+  return data.id;
 }
 
 // ── Public entry point ─────────────────────────────────────────────────────
@@ -164,6 +180,9 @@ async function reconcileTwoExchangeGrants() {
   const aiAgentClientId = configStore.getEffective('pingone_ai_agent_client_id')
     || process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID
     || process.env.PINGONE_AI_AGENT_CLIENT_ID;
+  const mcpExchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id')
+    || process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
+    || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID;
 
   if (!envId || !workerClientId || !workerSecret) {
     console.log(`${TAG} Skipped — PingOne worker credentials not configured`);
@@ -184,59 +203,95 @@ async function reconcileTwoExchangeGrants() {
 
   const client = new PingOneClient(envId, region, workerToken);
 
-  // Resolve the Agent Gateway PingOne resource ID by audience URI
+  // ── Resolve resource IDs ──────────────────────────────────────────────────
+
   const agentGwAud = scopeTopology.resourceUri('Super Banking Agent Gateway');
-  let agentGwResourceId;
+  const mcpGwAud   = scopeTopology.resourceUri('Super Banking MCP Gateway');
+
+  let agentGwResourceId, mcpGwResourceId;
   try {
-    const data = await client.get(`/resources?limit=50`);
-    const resources = data._embedded?.resources || [];
-    const agentGwResource = resources.find(r => r.audience === agentGwAud);
-    if (!agentGwResource) {
-      console.warn(`${TAG} Agent Gateway resource not found in PingOne (aud=${agentGwAud}) — skipping`);
-      return;
-    }
-    agentGwResourceId = agentGwResource.id;
+    [agentGwResourceId, mcpGwResourceId] = await Promise.all([
+      _resolveResourceId(client, agentGwAud, 'Agent Gateway'),
+      _resolveResourceId(client, mcpGwAud,   'MCP Gateway'),
+    ]);
   } catch (err) {
-    console.warn(`${TAG} Could not list PingOne resources: ${err.message}`);
+    console.warn(`${TAG} Resource lookup failed: ${err.message} — skipping`);
     return;
   }
 
-  // Resolve AI Agent app ID from clientId
+  // ── Resolve app IDs ────────────────────────────────────────────────────────
+
   let aiAgentAppId;
   try {
-    const data = await client.get(`/applications/${aiAgentClientId}`);
-    aiAgentAppId = data.id;
+    aiAgentAppId = await _resolveAppId(client, aiAgentClientId, 'AI Agent');
   } catch (err) {
-    console.warn(`${TAG} Could not resolve AI Agent app (clientId=${aiAgentClientId}): ${err.message}`);
+    console.warn(`${TAG} Could not resolve AI Agent app: ${err.message}`);
     return;
   }
 
-  // 1. Reconcile Agent Gateway scopes
-  let scopeResult;
-  try {
-    scopeResult = await _reconcileAgentGwScopes(client, agentGwResourceId);
-  } catch (err) {
-    console.warn(`${TAG} Scope reconcile failed: ${err.message}`);
-    scopeResult = { created: [], existing: [] };
+  let mcpExchangerAppId = null;
+  if (mcpExchangerClientId) {
+    try {
+      mcpExchangerAppId = await _resolveAppId(client, mcpExchangerClientId, 'MCP Exchanger');
+    } catch (err) {
+      console.warn(`${TAG} Could not resolve MCP Exchanger app (non-fatal): ${err.message}`);
+    }
   }
 
-  // 2. Reconcile AI Agent grants (run even if no scopes were created — grants may still be missing)
-  let grantResult;
+  // ── Exchange #1 pre-conditions ─────────────────────────────────────────────
+  // Agent Gateway resource scopes + AI Agent grants on Agent Gateway.
+
+  let ex1ScopeResult = { created: [], existing: [] };
+  let ex1GrantResult = { added: [], unchanged: [] };
+
   try {
-    grantResult = await _reconcileAiAgentGrants(client, aiAgentAppId, agentGwResourceId);
+    ex1ScopeResult = await _reconcileResourceScopes(client, agentGwResourceId, 'Super Banking Agent Gateway', 'Agent Gateway');
   } catch (err) {
-    console.warn(`${TAG} Grant reconcile failed: ${err.message}`);
-    grantResult = { added: [], unchanged: [] };
+    console.warn(`${TAG} Exchange #1 scope reconcile failed: ${err.message}`);
   }
 
-  const noop = scopeResult.created.length === 0 && grantResult.added.length === 0;
-  if (noop) {
-    console.log(`${TAG} OK — Agent Gateway scopes and AI Agent grants match scope-topology.json`);
+  try {
+    ex1GrantResult = await _reconcileAppGrants(client, aiAgentAppId, agentGwResourceId, 'Super Banking Agent Gateway', 'AI Agent on Agent Gateway');
+  } catch (err) {
+    console.warn(`${TAG} Exchange #1 grant reconcile failed: ${err.message}`);
+  }
+
+  // ── Exchange #2 pre-conditions ─────────────────────────────────────────────
+  // MCP Gateway resource scopes + MCP Exchanger grants on MCP Gateway.
+
+  let ex2ScopeResult = { created: [], existing: [] };
+  let ex2GrantResult = { added: [], unchanged: [] };
+
+  try {
+    ex2ScopeResult = await _reconcileResourceScopes(client, mcpGwResourceId, 'Super Banking MCP Gateway', 'MCP Gateway');
+  } catch (err) {
+    console.warn(`${TAG} Exchange #2 scope reconcile failed: ${err.message}`);
+  }
+
+  if (mcpExchangerAppId) {
+    try {
+      ex2GrantResult = await _reconcileAppGrants(client, mcpExchangerAppId, mcpGwResourceId, 'Super Banking MCP Gateway', 'MCP Exchanger on MCP Gateway');
+    } catch (err) {
+      console.warn(`${TAG} Exchange #2 grant reconcile failed: ${err.message}`);
+    }
   } else {
-    console.log(
-      `${TAG} Healed — scopes created: [${scopeResult.created.join(', ') || 'none'}]; ` +
-      `grants added: [${grantResult.added.join(', ') || 'none'}]`
-    );
+    console.log(`${TAG} MCP Exchanger client ID not configured — skipping Exchange #2 grant check`);
+  }
+
+  // ── Summary ────────────────────────────────────────────────────────────────
+
+  const totalCreated = ex1ScopeResult.created.length + ex2ScopeResult.created.length;
+  const totalAdded   = ex1GrantResult.added.length   + ex2GrantResult.added.length;
+
+  if (totalCreated === 0 && totalAdded === 0) {
+    console.log(`${TAG} OK — Exchange #1 and #2 scopes and grants match scope-topology.json`);
+  } else {
+    const parts = [];
+    if (ex1ScopeResult.created.length) parts.push(`Agent Gateway scopes created: [${ex1ScopeResult.created.join(', ')}]`);
+    if (ex1GrantResult.added.length)   parts.push(`AI Agent→AgentGw grants added: [${ex1GrantResult.added.join(', ')}]`);
+    if (ex2ScopeResult.created.length) parts.push(`MCP Gateway scopes created: [${ex2ScopeResult.created.join(', ')}]`);
+    if (ex2GrantResult.added.length)   parts.push(`MCP Exchanger→McpGw grants added: [${ex2GrantResult.added.join(', ')}]`);
+    console.log(`${TAG} Healed — ${parts.join('; ')}`);
   }
 }
 
