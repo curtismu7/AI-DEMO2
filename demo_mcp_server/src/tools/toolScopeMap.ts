@@ -14,6 +14,8 @@ export const TOOL_SCOPES: Record<string, string[]> = {
   get_account_balance: ['read'],
   get_sensitive_account_details: ['sensitive:read'],
   get_my_transactions: ['read'],
+  search_transactions: ['read'],
+  get_transaction_detail: ['read'],
 
   // Write tools
   create_deposit: ['write'],

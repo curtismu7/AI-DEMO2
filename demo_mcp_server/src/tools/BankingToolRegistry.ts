@@ -226,6 +226,77 @@ export class BankingToolRegistry {
       }
     },
 
+    search_transactions: {
+      name: 'search_transactions',
+      title: 'Search Transactions',
+      description: 'Search and filter the user\'s transactions by type, amount range, or date range. All filters are optional and combinable. Returns matching transactions sorted by date descending.',
+      requiresUserAuth: true,
+      requiredScopes: ['read'],
+      handler: 'executeSearchTransactions',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false }
+      },
+      outputSchema: SEARCH_TRANSACTIONS_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['deposit', 'withdrawal', 'transfer'],
+            description: 'Filter by transaction type',
+          },
+          min_amount: {
+            type: 'number',
+            description: 'Minimum transaction amount (inclusive)',
+            minimum: 0,
+          },
+          max_amount: {
+            type: 'number',
+            description: 'Maximum transaction amount (inclusive)',
+            minimum: 0,
+          },
+          from_date: {
+            type: 'string',
+            description: 'Earliest date (ISO 8601, e.g. "2025-01-01"). Matches on createdAt string prefix.',
+          },
+          to_date: {
+            type: 'string',
+            description: 'Latest date (ISO 8601, e.g. "2025-12-31"). Matches on createdAt string prefix.',
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+
+    get_transaction_detail: {
+      name: 'get_transaction_detail',
+      title: 'Transaction Detail',
+      description: 'Fetch a single transaction by ID. Returns full transaction details or found:false if the ID does not exist.',
+      requiresUserAuth: true,
+      requiredScopes: ['read'],
+      handler: 'executeGetTransactionDetail',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false }
+      },
+      outputSchema: GET_TRANSACTION_DETAIL_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          transaction_id: {
+            type: 'string',
+            description: 'The transaction ID to look up (from get_my_transactions or search_transactions response)',
+          },
+        },
+        required: ['transaction_id'],
+        additionalProperties: false,
+      },
+    },
+
     create_deposit: {
       name: 'create_deposit',
       title: 'Create Deposit',
