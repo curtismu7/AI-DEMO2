@@ -373,8 +373,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   helix_base_url:             { public: true,  default: 'https://openam-helix.forgeblocks.com' },
   helix_api_key:              { public: false, default: '' },
   helix_environment_id:       { public: true,  default: 'fe213c3c-9c1d-4bdb-954a-a22879dad26d' },
-  helix_agent_id:             { public: true,  default: 'LLM3' },
-  helix_prompt_field_id:      { public: true,  default: 'textInputa7c39a0e8292' },
+  helix_agent_id:             { public: true,  default: 'LLM' },
+  helix_prompt_field_id:      { public: true,  default: 'textInput502c5045a61c' },
 
   // CIBA — Client-Initiated Backchannel Authentication
   CIBA_ENABLED:               { public: true,  default: 'false' },
@@ -1280,7 +1280,7 @@ class ConfigStore {
           process.env.HELIX_AGENT_ID ||
           this.get('helix_agent_id') ||
           FIELD_DEFS.helix_agent_id?.default ||
-          'LLM3';
+          'LLM';
         const fromFile = loadAgentKey(agentName);
         if (fromFile) return fromFile;
       } catch (_) {

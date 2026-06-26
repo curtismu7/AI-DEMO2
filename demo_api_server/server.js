@@ -2101,7 +2101,7 @@ if (require.main === module) {
             const { migrateHelixKey } = require('./services/helixKeyMigration');
             const { DEFAULT_VAULT_PATH } = require('./services/vaultLoader');
             const agentName = process.env.HELIX_AGENT_ID
-                || configStore.get('helix_agent_id') || 'LLM3';
+                || configStore.get('helix_agent_id') || 'LLM';
             const m = await migrateHelixKey({
                 agentName,
                 vaultPath: process.env.VAULT_PATH || DEFAULT_VAULT_PATH,
@@ -2121,7 +2121,7 @@ if (require.main === module) {
             const helixKey = configStore.getEffective('helix_api_key');
             if (!helixKey) {
                 const agentName = process.env.HELIX_AGENT_ID
-                    || configStore.get('helix_agent_id') || 'LLM3';
+                    || configStore.get('helix_agent_id') || 'LLM';
                 console.warn(
                     `[startup] ⚠  Helix not configured — natural-language agent will run heuristics-only.\n` +
                     `           To enable: download the Secret API Key for agent "${agentName}" from\n` +
@@ -2129,7 +2129,7 @@ if (require.main === module) {
                     `           and save it as ${agentName}.json in the repo root, then restart.`
                 );
             } else {
-                console.log(`[startup] Helix configured (agent: ${configStore.getEffective('helix_agent_id') || 'LLM3'})`);
+                console.log(`[startup] Helix configured (agent: ${configStore.getEffective('helix_agent_id') || 'LLM'})`);
             }
         } catch (e) {
             // non-fatal — configStore may not be ready yet in edge cases

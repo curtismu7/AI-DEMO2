@@ -784,7 +784,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // fall back to the heuristics-only catalog message rather than attempting a
     // doomed Helix call that returns reasoning_unavailable.
     // "Configured" = helix_api_key is present (it's the only required secret;
-    // helix_base_url has a default and helix_agent_id defaults to 'LLM2').
+    // helix_base_url has a default and helix_agent_id defaults to 'LLM').
     if (provider === 'helix') {
       const helixCfg = extractHelixConfig(langchainConfig);
       const helixApiKey = helixCfg.helix_api_key || configStore.getEffective('helix_api_key') || '';

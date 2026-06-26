@@ -3,7 +3,7 @@
  *
  * Helix's web console lets you download a per-agent API key as a JSON file
  * named <agentName>.json — keys: keyName, keyValue, expiration, scope, etc.
- * When the configured agent (configStore.helix_agent_id, default "LLM2")
+ * When the configured agent (configStore.helix_agent_id, default "LLM")
  * has no API key set via env / UI, we look for that JSON file in three
  * common locations and lift the keyValue out so the demo "just works".
  *
@@ -62,7 +62,7 @@ function readAgentJson(filePath) {
  * ~/Documents, or ~/Downloads. Returns the keyValue string, or null if
  * no file is found / readable / contains a non-empty keyValue.
  *
- * @param {string} agentName  e.g. "LLM2"
+ * @param {string} agentName  e.g. "LLM"
  * @returns {string|null}
  */
 function loadAgentKey(agentName) {

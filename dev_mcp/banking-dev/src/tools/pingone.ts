@@ -324,32 +324,32 @@ export async function pingoneCheckBootstrap(): Promise<{
   if (helixAlreadyConfigured) {
     checks.push({ name: "helix:api_key", ok: true, detail: "already configured (key is set)" });
     checks.push({ name: "helix:base_url", ok: true, detail: "https://openam-helix.forgeblocks.com (hardcoded)" });
-    checks.push({ name: "helix:agent_id", ok: true, detail: "LLM3 (hardcoded)" });
+    checks.push({ name: "helix:agent_id", ok: true, detail: "LLM (hardcoded)" });
   } else {
-    const keyFile = findHelixKeyFile("LLM3");
+    const keyFile = findHelixKeyFile("LLM");
     if (!keyFile) {
-      checks.push({ name: "helix:api_key", ok: false, detail: "LLM3.json not found in repo root, ~/Documents, or ~/Downloads" });
+      checks.push({ name: "helix:api_key", ok: false, detail: "LLM.json not found in repo root, ~/Documents, or ~/Downloads" });
       checks.push({ name: "helix:base_url", ok: true, detail: "https://openam-helix.forgeblocks.com (hardcoded)" });
-      checks.push({ name: "helix:agent_id", ok: true, detail: "LLM3 (hardcoded)" });
+      checks.push({ name: "helix:agent_id", ok: true, detail: "LLM (hardcoded)" });
     } else {
       const expired = keyFile.data.expiration ? new Date(keyFile.data.expiration).getTime() < Date.now() : false;
       if (expired) {
-        checks.push({ name: "helix:api_key", ok: false, detail: `LLM3.json found at ${keyFile.path} but key expired at ${keyFile.data.expiration}` });
+        checks.push({ name: "helix:api_key", ok: false, detail: `LLM.json found at ${keyFile.path} but key expired at ${keyFile.data.expiration}` });
         checks.push({ name: "helix:base_url", ok: true, detail: "https://openam-helix.forgeblocks.com (hardcoded)" });
-        checks.push({ name: "helix:agent_id", ok: true, detail: "LLM3 (hardcoded)" });
+        checks.push({ name: "helix:agent_id", ok: true, detail: "LLM (hardcoded)" });
       } else {
         try {
           await postAdminConfig({
             helix_api_key: keyFile.data.keyValue!,
             helix_base_url: "https://openam-helix.forgeblocks.com",
             helix_environment_id: "fe213c3c-9c1d-4bdb-954a-a22879dad26d",
-            helix_agent_id: "LLM3",
-            helix_prompt_field_id: "textInputa7c39a0e8292",
+            helix_agent_id: "LLM",
+            helix_prompt_field_id: "textInput502c5045a61c",
             provider: "helix",
           });
           checks.push({ name: "helix:api_key", ok: true, detail: `imported from ${keyFile.path}${keyFile.data.expiration ? ` (expires ${keyFile.data.expiration})` : ""}` });
           checks.push({ name: "helix:base_url", ok: true, detail: "https://openam-helix.forgeblocks.com (hardcoded)" });
-          checks.push({ name: "helix:agent_id", ok: true, detail: "LLM3 (hardcoded)" });
+          checks.push({ name: "helix:agent_id", ok: true, detail: "LLM (hardcoded)" });
         } catch (err: unknown) {
           checks.push({ name: "helix:api_key", ok: false, detail: `found ${keyFile.path} but admin config POST failed: ${err instanceof Error ? err.message : String(err)}` });
         }
@@ -371,9 +371,9 @@ export async function pingoneCheckBootstrap(): Promise<{
   } else {
     summary =
       "PingOne is configured. Helix LLM needs a key.\n" +
-      "1. Open https://console.pingone.com → AI → Helix → Agents → LLM3\n" +
+      "1. Open https://console.pingone.com → AI → Helix → Agents → LLM\n" +
       "2. Under Secret API Keys → Create Secret API Key → Download JSON\n" +
-      "3. Rename the downloaded file to LLM3.json and place it in the repo root\n" +
+      "3. Rename the downloaded file to LLM.json and place it in the repo root\n" +
       "4. Re-run this tool — it will detect the file and configure Helix automatically.";
     next_step = "download_llm3_json";
   }
