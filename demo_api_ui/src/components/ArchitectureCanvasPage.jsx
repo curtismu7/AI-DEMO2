@@ -532,11 +532,12 @@ export default function ArchitectureCanvasPage() {
               const pts = arrowPoints(src, tgt);
               const isSelected = selectedEdge === edge.id;
               const dimmed = !!flow;
+              const srcColor = (LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool).stroke;
+              const lineColor = isSelected ? '#ef4444' : dimmed ? '#d1d5db' : srcColor;
               return (
                 <Arrow key={edge.id} points={pts}
-                  stroke={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#64748b'}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
-                  fill={isSelected ? '#ef4444' : dimmed ? '#d1d5db' : '#64748b'}
+                  stroke={lineColor} strokeWidth={isSelected ? 2.5 : 1.5}
+                  fill={lineColor}
                   pointerLength={9} pointerWidth={8} hitStrokeWidth={16}
                   opacity={dimmed && !isSelected ? 0.35 : 1}
                   onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
