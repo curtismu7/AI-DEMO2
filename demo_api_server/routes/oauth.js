@@ -200,6 +200,14 @@ router.get('/callback', async (req, res) => {
       console.error('OAuth error:', error);
       logAppEvent('oauth', 'error', `OAuth callback error from PingOne: ${error}`,
         { tag: 'oauth/callback-error', metadata: { oauthError: error } });
+      // Self-heal: if PingOne rejected the redirect_uri, patch it before next attempt.
+      const errorDesc = String(req.query.error_description || '').toLowerCase();
+      if (errorDesc.includes('redirect') || error === 'access_denied' || error === 'invalid_request') {
+        const { ensureAllRedirectUris } = require('../services/pingoneAppConfigService');
+        ensureAllRedirectUris().catch(function (e) {
+          console.warn('[redirect-uri-guard] admin recovery attempt failed:', e.message);
+        });
+      }
       return res.redirect(`${getFrontendOrigin()}/login?error=oauth_error`);
     }
 
