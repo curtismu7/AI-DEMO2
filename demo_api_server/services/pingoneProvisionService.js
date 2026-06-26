@@ -2547,13 +2547,14 @@ class PingOneProvisionService {
       steps.push({ step: 'ai-agent-grants', icon: '✅', message: 'Granting scopes to AI Agent application (Agent Gateway actor + Demo API subject)...' });
       onStep(steps[steps.length - 1]);
       try {
-        // SYNC: agent:invoke scope matches configStore default `agent_gateway_cc_scope`.
+        // Grant all Agent Gateway scopes (agent:invoke + mirrored tool scopes) so Exchange #1
+        // can carry tool scopes in the intermediate token for Exchange #2 scope narrowing.
         // Enduser grant lets Exchange #1 accept a subject token with aud=enduser.ping.demo.
         const [aiAgentGwGrant, aiAgentEndUserGrant] = await Promise.all([
           this.grantScopesToApplication(
             aiAgentAppResult.application.id,
             agentGwResourceResult.resource.id,
-            ['agent:invoke'],
+            scopeTopology.resourceScopes('Super Banking Agent Gateway'),
           ),
           this.grantScopesToApplication(
             aiAgentAppResult.application.id,
