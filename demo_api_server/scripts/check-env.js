@@ -88,8 +88,9 @@ const FEATURE_GROUPS = [
     tag: 'OLLAMA',
     label: 'Ollama (local LLM)',
     vars: [
-      { name: 'OLLAMA_BASE_URL', desc: 'Ollama server URL (default: http://localhost:11434)' },
-      { name: 'OLLAMA_MODEL',    desc: 'Model name (e.g. mistral, llama3)' },
+      { name: 'OLLAMA_BASE_URL',    desc: 'Ollama server URL (default: http://127.0.0.1:11434)' },
+      { name: 'OLLAMA_MODEL',       desc: 'Model name (default: qwen2.5:3b — run: ollama pull qwen2.5:3b)' },
+      { name: 'OLLAMA_TIMEOUT_MS',  desc: 'Per-request timeout ms (default: 60000)' },
     ],
   },
 

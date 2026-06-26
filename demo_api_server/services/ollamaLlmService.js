@@ -5,8 +5,9 @@
 // Self-contained: no dependency on the :3006 agent runtime.
 //
 // Config (env var — same var agent-service uses):
-//   OLLAMA_BASE_URL  default http://127.0.0.1:11434
-//   OLLAMA_MODEL     default qwen2.5:3b
+//   OLLAMA_BASE_URL     default http://127.0.0.1:11434
+//   OLLAMA_MODEL        default qwen2.5:3b
+//   OLLAMA_TIMEOUT_MS   default 60000 (60s)
 //
 // Model note: the default is a small, fast, NON-reasoning model. NL intent
 // classification and short teaching answers must return well under the SPA's
@@ -18,6 +19,7 @@
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = 'qwen2.5:3b';
+const DEFAULT_TIMEOUT_MS = 60000;
 
 function baseUrl() {
   const v = process.env.OLLAMA_BASE_URL;
@@ -27,6 +29,11 @@ function baseUrl() {
 function model() {
   const v = process.env.OLLAMA_MODEL;
   return (typeof v === 'string' && v.trim()) ? v.trim() : DEFAULT_MODEL;
+}
+
+function timeoutMs() {
+  const v = parseInt(process.env.OLLAMA_TIMEOUT_MS, 10);
+  return (Number.isFinite(v) && v > 0) ? v : DEFAULT_TIMEOUT_MS;
 }
 
 /** Map our message roles to OpenAI chat roles. */
@@ -47,22 +54,32 @@ async function callOllama(messages) {
   if (!messages || messages.length === 0) throw new Error('No messages provided to Ollama');
   const base = baseUrl();
   const mdl = model();
+  const ms = timeoutMs();
 
-  const res = await fetch(`${base}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: 'Bearer ollama',
-    },
-    body: JSON.stringify({
-      model: mdl,
-      messages: toOpenAiMessages(messages),
-      stream: false,
-      // Disable chain-of-thought for JSON intent classification — cleaner output.
-      think: false,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+
+  let res;
+  try {
+    res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: 'Bearer ollama',
+      },
+      body: JSON.stringify({
+        model: mdl,
+        messages: toOpenAiMessages(messages),
+        stream: false,
+        // Disable chain-of-thought for JSON intent classification — cleaner output.
+        think: false,
+      }),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error(`Ollama chat/completions failed: ${res.status} ${errText}`);

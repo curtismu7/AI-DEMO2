@@ -176,11 +176,12 @@ async function answerWithOllama(userMessage, context = {}) {
   try {
     const { callOllama } = require('./ollamaLlmService');
     const systemWithCtx = buildSystemWithCtx(null, context);
-    const raw = await callOllama([
+    const answer = await callOllama([
       { role: 'system', content: systemWithCtx },
       { role: 'user', content: userMessage },
     ]);
-    return raw || null;
+    if (!answer) return null;
+    return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
   } catch (err) {
     console.warn('[nlIntent] Ollama conversational error:', err.message);
     return null;
