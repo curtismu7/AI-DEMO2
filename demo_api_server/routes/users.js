@@ -157,7 +157,7 @@ router.post('/', blockInDemoMode('user creation'), authenticateToken, requireSco
   }
 });
 
-// Update user
+// Update user — toggles isActive (maps to PingOne `enabled`) via PingOne API
 router.put('/:userId', authenticateToken, requireScopes(['write']), requireOwnershipOrAdmin, requireNotBankDelegate('profile changes'), async (req, res) => {
   try {
     const { userId } = req.params;
@@ -172,48 +172,24 @@ router.put('/:userId', authenticateToken, requireScopes(['write']), requireOwner
       });
     }
 
-    const user = dataStore.getUserById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Prevent updating certain fields for non-admin users
+    // Prevent non-admins from changing role/status
     if (req.user.role !== 'admin') {
       delete updates.role;
       delete updates.isActive;
     }
 
-    // If password is being updated, hash it
-    if (updates.password) {
-      if (updates.password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters long' });
-      }
-      updates.password = hashPassword(updates.password);
+    // Translate UI field isActive → PingOne field enabled
+    const pingOneUpdates = {};
+    if (updates.isActive !== undefined) {
+      pingOneUpdates.enabled = updates.isActive;
     }
 
-    // Check for username/email conflicts
-    if (updates.username) {
-      const existingUser = dataStore.getUserByUsername(updates.username);
-      if (existingUser && existingUser.id !== userId) {
-        return res.status(400).json({ error: 'Username already exists' });
-      }
-    }
-
-    if (updates.email) {
-      const existingEmail = dataStore.getAllUsers().find(user => user.email === updates.email && user.id !== userId);
-      if (existingEmail) {
-        return res.status(400).json({ error: 'Email already exists' });
-      }
-    }
-
-    const updatedUser = await dataStore.updateUser(userId, updates);
-    
-    // Remove password from response
-    const { password: _passwordOut, ...userWithoutPassword } = updatedUser;
+    pingOneUserService.initialize();
+    const updatedUser = await pingOneUserService.updatePingOneUser(userId, pingOneUpdates);
 
     res.json({
       message: 'User updated successfully',
-      user: userWithoutPassword
+      user: normalizePingOneUser(updatedUser),
     });
 
   } catch (error) {
@@ -222,25 +198,13 @@ router.put('/:userId', authenticateToken, requireScopes(['write']), requireOwner
   }
 });
 
-// Delete user (admin only)
+// Delete user (admin only) — deletes from PingOne
 router.delete('/:userId', blockInDemoMode('user deletion'), authenticateToken, requireScopes(['write']), requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = dataStore.getUserById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Check if user has accounts
-    const userAccounts = dataStore.getAccountsByUserId(userId);
-    if (userAccounts.length > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete user with existing accounts. Deactivate user instead.' 
-      });
-    }
-
-    await dataStore.deleteUser(userId);
+    pingOneUserService.initialize();
+    await pingOneUserService.deletePingOneUser(userId);
 
     res.json({ message: 'User deleted successfully' });
 
