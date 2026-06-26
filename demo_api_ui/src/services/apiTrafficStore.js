@@ -17,6 +17,24 @@ let paused = false;
 const listeners = new Set();
 let seq = 0;
 
+// ─── Turn tracking ────────────────────────────────────────────────────────────
+// A "turn" is one agent prompt submission. All traffic entries captured while
+// a turn is active receive its turnId + turnLabel so the panel can group them.
+let _currentTurnId = null;
+let _currentTurnLabel = null;
+
+/** Mark the start of an agent turn. All new entries will be tagged with this id/label. */
+export function setCurrentTurn(id, label) {
+  _currentTurnId = id;
+  _currentTurnLabel = label || null;
+}
+
+/** Clear the active turn (call in finally after sendAgentMessage resolves). */
+export function clearCurrentTurn() {
+  _currentTurnId = null;
+  _currentTurnLabel = null;
+}
+
 /** Debounced localStorage write — batches rapid appends into a single serialisation. */
 let _persistTimer = null;
 function persistToStorage() {
@@ -145,6 +163,8 @@ export function appendTrafficEntry(entry) {
     id: ++seq,
     responseBody: capJsonBody(entry.responseBody),
     requestBody: capJsonBody(entry.requestBody),
+    turnId: _currentTurnId || entry.turnId || null,
+    turnLabel: _currentTurnLabel || entry.turnLabel || null,
   };
   entries = [cappedEntry, ...entries.slice(0, MAX_ENTRIES - 1)];
   persistToStorage();
