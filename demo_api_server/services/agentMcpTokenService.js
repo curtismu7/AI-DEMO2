@@ -2149,34 +2149,18 @@ async function _performTwoExchangeDelegation(
   }
 
   // ─ Step 2: Exchange #1 — Subject Token + Agent Actor Token → Agent Exchanged Token ─────
-  // RFC 8707 single-resource rule (T-10): the exchange to intermediateAud must
-  // request scopes that all belong to the Intermediate resource. The tool
-  // scopes (effectiveToolScopes, e.g. read + mcp:invoke) span
-  // multiple resources → PingOne rejects with invalid_scope "May not request
-  // scopes for multiple resources". Exchange #1's job is only to mint the
-  // agent-exchanged token bound to the intermediate audience; the real tool
-  // scopes are (re)requested at Exchange #2 against the final audience. So
-  // request ONLY a single scope that belongs to the Intermediate resource AND
-  // that the AI Agent app is actually GRANTED there — mirrors the single-scope
-  // pattern already used for the two actor-CC steps (agent_gateway_cc_scope /
-  // mcp_gateway_cc_scope).
-  //
-  // T-10 follow-up (2026-05-16, see REGRESSION_PLAN §4): the original default
-  // `two-exchange:intermediate` is *defined* on the Intermediate
-  // resource by the provisioner but is NOT in the AI Agent app's resource
-  // grant (pingoneProvisionService.js Step 37a grants the app
-  // ['read','write','mcp:invoke','ai:agent:read',
-  // 'mortgage:read'] on the Intermediate resource — a scope merely
-  // existing on a resource is not the same as the requesting client being
-  // granted it). PingOne therefore rejected Exchange #1 with
-  // `invalid_scope: "At least one scope must be granted"`. Default to
-  // `mcp:invoke`: it is in that grant list and is a single scope on
-  // the single Intermediate resource (satisfies RFC 8707). Exchange #1 only
-  // mints the agent-exchanged token bound to the intermediate audience; the
-  // real tool scopes are (re)requested at Exchange #2.
+  // RFC 8707 single-resource rule: all scopes requested here must belong to the
+  // intermediateAud (agentgateway.ping.demo) resource. The Agent Gateway resource
+  // carries both its native agent:invoke scope AND mirroredScopes (read, write,
+  // transfer, etc.) — so requesting effectiveToolScopes here is valid and single-resource.
+  // This populates the intermediate token with the tool scopes that PingOne needs
+  // to see in the Exchange #2 subject token before it will output them in the final token.
+  // The agent:invoke scope is always included so the actor CC token selection stays
+  // unambiguous (agent_gateway_cc_scope default).
   const intermediateExchangeScope =
-    configStore.getEffective('two_exchange_intermediate_scope') || 'mcp:invoke';
-  const exchange1Scopes = [intermediateExchangeScope];
+    configStore.getEffective('two_exchange_intermediate_scope') || 'agent:invoke';
+  const exchange1ScopeSet = new Set([intermediateExchangeScope, ...effectiveToolScopes]);
+  const exchange1Scopes = [...exchange1ScopeSet];
   tokenEvents.push(buildTokenEvent(
     'two-ex-exchange1-in-progress',
     '2-Exchange #1 — Subject Token → Agent Exchanged Token',
@@ -2185,7 +2169,7 @@ async function _performTwoExchangeDelegation(
     `Exchange #1 (RFC 8693): exchanger=${aiAgentClientId}, ` +
       `subject=Subject Token (may_act.sub must equal actor_token.aud[0]=${aiAgentClientId}), ` +
       `audience=${intermediateAud}, scope="${exchange1Scopes.join(' ')}" ` +
-      `(single-resource Intermediate scope; tool scopes flow at Exchange #2).`,
+      `(agent:invoke + tool scopes mirrored on Agent Gateway; carried into intermediate token for Exchange #2 narrowing).`,
     { rfc: 'RFC 8693', exchangeStep: '1-exchange',
       exchangeRequest: { exchanger: aiAgentClientId, audience: intermediateAud, scope: exchange1Scopes.join(' ') } }
   ));

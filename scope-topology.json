@@ -67,7 +67,8 @@
     },
     "Super Banking Agent Gateway": {
       "uri": "agentgateway.ping.demo",
-      "scopes": ["agent:invoke"]
+      "scopes": ["agent:invoke"],
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read"]
     },
     "Super Banking A2A Intermediate": {
       "uri": "a2a-intermediate.ping.demo",
