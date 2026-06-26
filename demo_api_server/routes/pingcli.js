@@ -1,26 +1,55 @@
 const { execFile, spawn } = require('child_process');
 const { Router } = require('express');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const PINGCLI_BIN = '/app/bin/pingcli';
 const TIMEOUT_MS = 15000;
 
-// Inject --environment-id from env var so PingOne commands resolve correctly.
-const envId = process.env.PINGONE_ENVIRONMENT_ID;
-const envFlag = envId ? ['--environment-id', envId] : [];
+// Write a minimal pingcli config from env vars so the binary doesn't conflict
+// with any host-mounted config or ambient env var credentials.
+function getPingcliConfigPath() {
+  const envId     = process.env.PINGONE_ENVIRONMENT_ID;
+  const clientId  = process.env.PINGONE_WORKER_CLIENT_ID;
+  const secret    = process.env.PINGONE_WORKER_CLIENT_SECRET;
+  if (!envId || !clientId || !secret) return null;
+
+  const configPath = path.join(os.tmpdir(), 'pingcli-demo-config.yaml');
+  const yaml = `activeProfile: default
+configModelVersion: 2
+default:
+    service:
+        pingOne:
+            authentication:
+                clientCredentials:
+                    clientID: "${clientId}"
+                grantType: client_credentials
+            enabled: true
+            endpoint:
+                environmentID: "${envId}"
+                rootDomain: pingone.com
+`;
+  fs.writeFileSync(configPath, yaml, { mode: 0o600 });
+  return configPath;
+}
+
+const PINGCLI_CONFIG = getPingcliConfigPath();
+const configFlag = PINGCLI_CONFIG ? ['--config', PINGCLI_CONFIG] : [];
 
 // Allow-list of safe read-only commands.
 const COMMANDS = {
-  pingone_users_list:         { label: 'pingcli pingone users list -O json',            args: ['pingone', 'users', 'list', '-O', 'json', ...envFlag] },
-  pingone_apps_list:          { label: 'pingcli pingone applications list -O json',     args: ['pingone', 'applications', 'list', '-O', 'json', ...envFlag] },
-  pingone_envs_list:          { label: 'pingcli pingone environments list -O json',     args: ['pingone', 'environments', 'list', '-O', 'json'] },
-  pingone_groups_list:        { label: 'pingcli pingone groups list -O json',           args: ['pingone', 'groups', 'list', '-O', 'json', ...envFlag] },
-  pingone_populations_list:   { label: 'pingcli pingone populations list -O json',      args: ['pingone', 'populations', 'list', '-O', 'json', ...envFlag] },
-  pingone_idps_list:          { label: 'pingcli pingone identity-providers list -O json', args: ['pingone', 'identity-providers', 'list', '-O', 'json', ...envFlag] },
-  pingone_resources_list:     { label: 'pingcli pingone resources list -O json',        args: ['pingone', 'resources', 'list', '-O', 'json', ...envFlag] },
-  pingone_roles_list:         { label: 'pingcli pingone roles -O json',                args: ['pingone', 'roles', '-O', 'json', ...envFlag] },
-  pingone_policies_list:      { label: 'pingcli pingone sign-on-policies list -O json', args: ['pingone', 'sign-on-policies', 'list', '-O', 'json', ...envFlag] },
-  pingone_mfa_policies_list:  { label: 'pingcli mfa device-authentication-policies list -O json', args: ['mfa', 'device-authentication-policies', 'list', '-O', 'json', ...envFlag] },
-  config_list_keys:           { label: 'pingcli config list-keys',                     args: ['config', 'list-keys'] },
+  pingone_users_list:         { label: 'pingcli pingone users list -O json',            args: [...configFlag, 'pingone', 'users', 'list', '-O', 'json'] },
+  pingone_apps_list:          { label: 'pingcli pingone applications list -O json',     args: [...configFlag, 'pingone', 'applications', 'list', '-O', 'json'] },
+  pingone_envs_list:          { label: 'pingcli pingone environments list -O json',     args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'] },
+  pingone_groups_list:        { label: 'pingcli pingone groups list -O json',           args: [...configFlag, 'pingone', 'groups', 'list', '-O', 'json'] },
+  pingone_populations_list:   { label: 'pingcli pingone populations list -O json',      args: [...configFlag, 'pingone', 'populations', 'list', '-O', 'json'] },
+  pingone_idps_list:          { label: 'pingcli pingone identity-providers list -O json', args: [...configFlag, 'pingone', 'identity-providers', 'list', '-O', 'json'] },
+  pingone_resources_list:     { label: 'pingcli pingone resources list -O json',        args: [...configFlag, 'pingone', 'resources', 'list', '-O', 'json'] },
+  pingone_roles_list:         { label: 'pingcli pingone roles -O json',                args: [...configFlag, 'pingone', 'roles', '-O', 'json'] },
+  pingone_policies_list:      { label: 'pingcli pingone sign-on-policies list -O json', args: [...configFlag, 'pingone', 'sign-on-policies', 'list', '-O', 'json'] },
+  pingone_mfa_policies_list:  { label: 'pingcli mfa device-authentication-policies list -O json', args: [...configFlag, 'mfa', 'device-authentication-policies', 'list', '-O', 'json'] },
+  config_list_keys:           { label: 'pingcli config list-keys',                     args: [...configFlag, 'config', 'list-keys'] },
   version:                    { label: 'pingcli --version',                             args: ['--version'] },
 };
 
