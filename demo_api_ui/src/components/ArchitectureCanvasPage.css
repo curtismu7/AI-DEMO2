@@ -22,6 +22,7 @@
   font-weight: 700;
   color: #1e293b;
   flex: 1;
+  white-space: nowrap;
 }
 
 .canvas-toolbar input[type="text"] {
@@ -39,6 +40,30 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.flow-select {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #1e293b;
+  cursor: pointer;
+  min-width: 160px;
+}
+.flow-select:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
 
 .btn-add     { background: #3b82f6; color: #fff; }
@@ -59,9 +84,12 @@
   border-bottom: 1px solid #ede8e0;
 }
 
+/* Scrollable canvas wrapper — key change: overflow-x: auto allows horizontal scroll on small screens */
 .canvas-stage-wrap {
   flex: 1;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 300px;
 }
 
 .btn-ping { background: #7c3aed; color: #fff; }
@@ -69,6 +97,7 @@
 .btn-ping.pinging { background: #a78bfa; cursor: default; }
 .btn-ping:disabled { opacity: 0.7; cursor: default; }
 
+/* Ping results bar */
 .canvas-results {
   display: flex;
   flex-wrap: wrap;
@@ -91,9 +120,9 @@
   padding: 2px 7px;
 }
 
-.ping-badge--down  { background: #450a0a; color: #fca5a5; }
+.ping-badge--down    { background: #450a0a; color: #fca5a5; }
 .ping-badge--timeout { background: #451a03; color: #fcd34d; }
-.ping-badge--error { background: #431407; color: #fdba74; }
+.ping-badge--error   { background: #431407; color: #fdba74; }
 
 .ping-dot {
   width: 7px;
@@ -112,3 +141,104 @@
   padding: 0 4px;
 }
 .ping-dismiss:hover { color: #e2e8f0; }
+
+/* Step explanation panel */
+.canvas-steps {
+  background: #fff;
+  border-top: 2px solid #e2e8f0;
+  max-height: 300px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.canvas-steps-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.canvas-steps-title {
+  font-size: 13px;
+  font-weight: 700;
+  border-left: 3px solid;
+  padding-left: 8px;
+}
+
+.canvas-steps-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  flex: 1;
+}
+
+.canvas-steps-close {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 9px;
+}
+.canvas-steps-close:hover { background: #f1f5f9; color: #1e293b; }
+
+.canvas-steps-list {
+  padding: 8px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.canvas-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.canvas-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.canvas-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.canvas-step-route {
+  font-size: 11px;
+  font-family: 'ui-monospace', monospace;
+  color: #475569;
+  font-weight: 600;
+}
+
+.canvas-step-desc {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* Rename input in toolbar */
+.rename-input {
+  padding: 5px 10px;
+  border: 2px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 200px;
+  outline: none;
+}
