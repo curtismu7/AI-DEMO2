@@ -19,11 +19,15 @@ function getPingcliConfigPath() {
   const yaml = `activeProfile: default
 configModelVersion: 2
 default:
+    auth:
+        storage:
+            type: file
     service:
         pingOne:
             authentication:
                 clientCredentials:
                     clientID: "${clientId}"
+                    clientSecret: "${secret}"
                 grantType: client_credentials
             enabled: true
             endpoint:
