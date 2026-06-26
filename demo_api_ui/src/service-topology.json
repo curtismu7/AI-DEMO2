@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "description": "Canonical NETWORK topology for the demo — service hostnames, ports, and schemes, plus the inter-service env values derived from them. This is the MASTER source of truth for service addressing (the network analog of scope-topology.json, which owns OAuth scopes/audiences). The k8s configmap network block is GENERATED from this file; docker-compose and .env are VALIDATED against it. Run: node scripts/gen-service-topology.js {generate|check}. Scope: inter-service backend URLs/ports only — public frontend URLs, TLS paths, and feature flags stay hand-managed in the configmap.",
+  "services": {
+    "frontend":         { "host": "frontend",            "port": 4000, "scheme": "https" },
+    "bff":              { "host": "demo-api-server",  "port": 3001, "scheme": "https" },
+    "mcp-server":       { "host": "mcp-server",          "port": 8080, "scheme": "http", "ws": true },
+    "mcp-gateway":      { "host": "mcp-gateway",         "port": 3005, "scheme": "http" },
+    "mcp-invest":       { "host": "mcp-invest",          "port": 8081, "scheme": "http", "ws": true },
+    "mortgage-service": { "host": "mortgage-service",    "port": 8082, "scheme": "http" },
+    "hitl-service":     { "host": "hitl-service",        "port": 3009, "scheme": "http" },
+    "agent-service":    { "host": "agent-service",       "port": 3006, "scheme": "http" },
+    "langchain-agent":  { "host": "langchain-agent",     "port": 8888, "scheme": "http", "extraPorts": { "websocket": 8889, "health": 8890 } },
+    "openai-agent":     { "host": "openai-agent",        "port": 8891, "scheme": "http" },
+    "mastra-agent":     { "host": "mastra-agent",        "port": 8892, "scheme": "http" },
+    "pydantic-agent":   { "host": "pydantic-agent",      "port": 8893, "scheme": "http" },
+    "mcp-proxy":        { "host": "mcp-proxy",           "port": 8895, "scheme": "http" },
+    "ping-gateway":     { "host": "ping-gateway",         "port": 8080, "scheme": "http" }
+  },
+  "public": {
+    "_comment": "Browser-facing base URL (NodePort/port-forward/ingress). Same in k8s and local — must match the Redirect URIs registered in PingOne. Derivation 'public' = scheme://host:port; 'public:/path' appends a path.",
+    "host": "api.ping.demo",
+    "port": 4000,
+    "scheme": "https"
+  },
+  "flags": {
+    "_comment": "Non-URL runtime flags that the topology owns. MCP_GW_PASSTHROUGH_TO_MCP_SERVER=false means the gateway always performs the second RFC 8693 exchange and forwards to the MCP server (no skipping). Mortgage is the only flow that bypasses the MCP server, and it does so via the gateway's apikey route (demo_mcp_gateway/src/router.ts), NOT this flag.",
+    "MCP_GW_PASSTHROUGH_TO_MCP_SERVER": "false"
+  },
+  "authorization": {
+    "_comment": "The authorize/introspection hop: MCP Gateway -> PingOne Authorize. These endpoints are INTENTIONALLY swappable — the demo ships a mock (demo_authz_server, run as a gateway sidecar) and an operator can repoint them at real PingOne Authorize. Because the target is either the in-pod sidecar (127.0.0.1) or an external PingOne URL, they are deliberately NOT generated into the configmap nor pinned by startupConfigGuard (same dual-mode reasoning as MCP_SERVER_URL). Hardening for this hop is instead: the gateway fails CLOSED if the endpoint is unreachable (PingOneAuthorizeClient), and the decision's expected audience is derived from scope-topology.json (Super Banking MCP Gateway uri), not a hardcoded literal.",
+    "mock": { "service": "demo_authz_server", "host": "127.0.0.1", "port": 9001, "scheme": "http", "portEnv": "AUTHZ_PORT" },
+    "gatewayEnvVars": ["PINGAUTHORIZE_ENDPOINT", "GW_INTROSPECTION_ENDPOINT", "PINGONE_INTROSPECTION_ENDPOINT"],
+    "endpoints": { "introspect": "/as/introspect", "decision": "/governance/pap/alpha/policy/:workerId/decision" }
+  },
+  "configmap": {
+    "_comment": "Generated env keys for k8s/02-configmap.yaml. Derivation grammar: 'url:<svc>' = <scheme>://host:port; 'ws:<svc>' = ws://host:port; 'http:<svc>'/'https:<svc>' = forced scheme; 'port:<svc>' or 'port:<svc>.<extra>' = bare port; 'public' / 'public:/path' = browser-facing base URL (+ path); 'aud:<role>' = OAuth resource audience from scope-topology.json (enduser|agentGateway|mcpServer|mcpGateway); 'flag:<name>'; 'literal:<value>'. Key rationales: HITL_SERVICE_URL is the canonical HITL service for agent/MCP-initiated challenges — both the BFF pre-flight and the MCP gateway create/verify challenges here; without it they default to localhost:3009 (unreachable in-cluster) and no challengeId is ever minted. CHAT_WS_HOST: the chat WS binds 127.0.0.1 by default (loopback-only invariant); cross-pod access via the langchain-agent Service needs the explicit 0.0.0.0 override.",
+    "PUBLIC_APP_URL": "public",
+    "PINGONE_PUBLIC_APP_URL": "public",
+    "REACT_APP_CLIENT_URL": "public",
+    "FRONTEND_ADMIN_URL": "public:/admin",
+    "FRONTEND_DASHBOARD_URL": "public:/dashboard",
+    "CORS_ORIGIN": "public",
+    "MCP_SERVER_URL": "ws:mcp-server",
+    "MCP_OLB_WS_URL": "ws:mcp-server",
+    "MCP_INVEST_WS_URL": "ws:mcp-invest",
+    "UPSTREAM_MCP_URL": "http:mcp-server",
+    "MCP_RESOURCE_URL": "http:mcp-server",
+    "MCP_GATEWAY_HTTP_URL": "url:mcp-gateway",
+    "MCP_PINGGATEWAY_URL": "url:ping-gateway",
+    "HITL_SERVICE_URL": "url:hitl-service",
+    "MCP_GW_PASSTHROUGH_TO_MCP_SERVER": "flag:MCP_GW_PASSTHROUGH_TO_MCP_SERVER",
+    "MCP_SERVER_HOST": "literal:0.0.0.0",
+    "MCP_SERVER_PORT": "port:mcp-server",
+    "DEMO_API_BASE_URL": "url:bff",
+    "AGUI_HTTP_PORT": "port:langchain-agent",
+    "WEBSOCKET_PORT": "port:langchain-agent.websocket",
+    "HEALTH_HTTP_PORT": "port:langchain-agent.health",
+    "AGUI_HTTP_HOST": "literal:0.0.0.0",
+    "CHAT_WS_HOST": "literal:0.0.0.0",
+    "MCP_SERVER_RESOURCE_URI": "aud:mcpGateway",
+    "MCP_RESOURCE_URI": "aud:mcpGateway",
+    "MCP_GW_RESOURCE_URI": "aud:mcpGateway",
+    "PINGONE_RESOURCE_MCP_GATEWAY_URI": "aud:mcpGateway",
+    "PINGONE_RESOURCE_AGENT_GATEWAY_URI": "aud:agentGateway",
+    "PINGONE_RESOURCE_TWO_EXCHANGE_URI": "aud:mcpGateway"
+  },
+  "dotenv": {
+    "_comment": "Local-dev (.env) URL keys -> the service whose PORT the value must use, validated against demo_api_server/.env.example. Local addressing legitimately differs from in-cluster (127.0.0.1 / api.ping.demo + mkcert HTTPS), so only the port is checked, not host/scheme. Note MCP_SERVER_URL routes through the gateway locally (port 3005), unlike in-cluster where it hits the MCP server (8080) — hence a per-key target service rather than reusing the configmap map.",
+    "MCP_GATEWAY_HTTP_URL": "mcp-gateway",
+    "MCP_SERVER_URL": "mcp-gateway",
+    "DEMO_API_BASE_URL": "bff",
+    "PINGONE_PUBLIC_APP_URL": "frontend",
+    "REACT_APP_CLIENT_URL": "frontend"
+  }
+}

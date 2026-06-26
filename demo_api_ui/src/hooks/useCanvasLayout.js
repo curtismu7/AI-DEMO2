@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import topologyRaw from '../../../service-topology.json';
+import topologyRaw from '../service-topology.json';
 
 const STORAGE_KEY = 'arch-canvas-v1';
 
