@@ -325,3 +325,13 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── Token chain ─────────────────────────────────────────────────────────── */
+.oauth-academy-page .oa-token-chain-wrapper {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1.5rem 1.25rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}

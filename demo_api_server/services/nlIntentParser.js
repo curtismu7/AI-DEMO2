@@ -660,6 +660,11 @@ function parseHeuristic(message, vertical = 'banking', verticalCtx = null, optio
           const daysMatch = t.match(/\b(\d+)\b/);
           if (daysMatch) params = { ...params, days: parseInt(daysMatch[1], 10) };
         }
+        if (h.extractsTopic) {
+          // Pass the full normalized message as the topic so explainConcept
+          // can match it against its CONCEPTS regexes.
+          params = { ...params, topic: t };
+        }
         // Banking vertical uses the kind:'banking' contract expected by all consumers.
         // Only include params when non-empty so callers can test params === undefined.
         // Admin returns kind:'vertical' so the UI routes to the correct MCP tool name.

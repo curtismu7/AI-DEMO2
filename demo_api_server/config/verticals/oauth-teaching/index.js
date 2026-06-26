@@ -79,7 +79,7 @@ const HEURISTICS = [
   { re: /\bdemo(nstrate)?\b.*\b(exchange|rfc\s*8693|real\s+token|token\s+exchange)\b/i, action: 'demonstrate_token_exchange' },
   { re: /\b(inspect|decode|show\s+me|view)\b.*\btoken(s)?\b/i, action: 'inspect_token' },
   { re: /\b(show|draw|diagram|visuali[sz]e)\b.*\b(flow|auth(orization)?\s*code|pkce|exchange|chain)\b/i, action: 'show_flow_diagram' },
-  { re: /\b(what\s+is|explain|how\s+does|tell\s+me\s+about)\b/i, action: 'explain_concept' },
+  { re: /\b(what\s+is|explain|how\s+does|tell\s+me\s+about)\b/i, action: 'explain_concept', extractsTopic: true },
 ];
 
 function getManifest() { return verticalManifest.resolver.resolve('oauth-teaching'); }
