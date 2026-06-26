@@ -913,7 +913,9 @@ app.get('/api/auth/debug', async (req, res) => {
 // IMPORTANT: /api/admin/config MUST be registered before /api/admin so that
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
-app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+// DEV-ONLY: skip auth on pingcli so SSE streaming can be tested with curl
+const pingcliAuth = process.env.NODE_ENV === 'development' ? [] : [authenticateToken];
+app.use('/api/admin/pingcli', ...pingcliAuth, pingcliRoutes);
 app.use('/api/canvas', authenticateToken, require('./routes/canvasPing'));
 app.use('/api/admin/config', adminConfigRoutes);
 
