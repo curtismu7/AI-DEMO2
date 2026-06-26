@@ -1,81 +1,79 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v1';
+const STORAGE_KEY = 'arch-canvas-v2';
 
-// ── Seed layout from service-topology.json ───────────────────────────────────
-// Arrange services in 3 columns based on role:
-//   col 0 (x=60):  frontend, bff, ping-gateway
-//   col 1 (x=280): mcp-gateway, mcp-server, mcp-invest, mcp-proxy, agent-service
-//   col 2 (x=500): langchain-agent, openai-agent, mastra-agent, pydantic-agent,
-//                  mortgage-service, hitl-service
-const COL_X = [60, 300, 540];
-const ROW_H = 90;
-const NODE_COLORS = {
-  frontend:         '#3b82f6',
-  bff:              '#8b5cf6',
-  'ping-gateway':   '#6366f1',
-  'mcp-gateway':    '#f59e0b',
-  'mcp-server':     '#10b981',
-  'mcp-invest':     '#06b6d4',
-  'mcp-proxy':      '#84cc16',
-  'agent-service':  '#f97316',
-  'langchain-agent':'#ec4899',
-  'openai-agent':   '#14b8a6',
-  'mastra-agent':   '#a855f7',
-  'pydantic-agent': '#64748b',
-  'mortgage-service':'#78716c',
-  'hitl-service':   '#ef4444',
+// Horizontal left-to-right flow:
+// frontend → bff → agent-service → [4 agents] → [4 MCP servers] → [3 tools]
+// Single-node columns (frontend, bff, agent-service) are vertically centred
+// relative to the 4-row fan-out columns (y range 25–355, centre ≈ 190 → top ≈ 178)
+const SEED_POSITIONS = {
+  frontend:          { x: 30,   y: 178 },
+  bff:               { x: 210,  y: 178 },
+  'agent-service':   { x: 400,  y: 178 },
+  'langchain-agent': { x: 590,  y: 25  },
+  'openai-agent':    { x: 590,  y: 135 },
+  'mastra-agent':    { x: 590,  y: 245 },
+  'pydantic-agent':  { x: 590,  y: 355 },
+  'mcp-gateway':     { x: 790,  y: 25  },
+  'mcp-server':      { x: 790,  y: 135 },
+  'mcp-invest':      { x: 790,  y: 245 },
+  'mcp-proxy':       { x: 790,  y: 355 },
+  'ping-gateway':    { x: 990,  y: 25  },
+  'mortgage-service':{ x: 990,  y: 135 },
+  'hitl-service':    { x: 990,  y: 245 },
 };
 
-const COL_ASSIGN = {
-  'langchain-agent': 0,
-  'openai-agent':    0,
-  'mastra-agent':    0,
-  'pydantic-agent':  0,
-  'agent-service':   1,
-  'mcp-gateway':     1,
-  'mcp-server':      1,
-  'mcp-invest':      1,
-  'mcp-proxy':       1,
-  frontend:          2,
-  bff:               2,
-  'ping-gateway':    2,
-  'mortgage-service':2,
-  'hitl-service':    2,
+const NODE_META = {
+  frontend:          { icon: '🌐', type: 'client',       color: '#3b82f6' },
+  bff:               { icon: '💬', type: 'gateway',      color: '#8b5cf6' },
+  'agent-service':   { icon: '🎯', type: 'orchestrator', color: '#f59e0b' },
+  'langchain-agent': { icon: '⛓',  type: 'agent',        color: '#ec4899' },
+  'openai-agent':    { icon: '🤖', type: 'agent',        color: '#ec4899' },
+  'mastra-agent':    { icon: '✦',  type: 'agent',        color: '#ec4899' },
+  'pydantic-agent':  { icon: '🐍', type: 'agent',        color: '#ec4899' },
+  'mcp-gateway':     { icon: '⚡', type: 'mcp',          color: '#10b981' },
+  'mcp-server':      { icon: '⬡',  type: 'mcp',          color: '#10b981' },
+  'mcp-invest':      { icon: '📊', type: 'mcp',          color: '#10b981' },
+  'mcp-proxy':       { icon: '🔌', type: 'mcp',          color: '#10b981' },
+  'ping-gateway':    { icon: '🔐', type: 'server',       color: '#6366f1' },
+  'mortgage-service':{ icon: '🏠', type: 'tool',         color: '#334155' },
+  'hitl-service':    { icon: '👤', type: 'tool',         color: '#334155' },
 };
 
 function buildSeedNodes() {
-  const colCounts = [0, 0, 0];
+  let autoY = 460;
   return Object.entries(topologyRaw.services).map(([id, svc]) => {
-    const col = COL_ASSIGN[id] ?? 1;
-    const row = colCounts[col]++;
+    const pos = SEED_POSITIONS[id] ?? { x: 60, y: (autoY += 100) };
+    const meta = NODE_META[id] ?? { icon: '●', type: 'mcp', color: '#94a3b8' };
     return {
       id,
       label: id,
       sub: `${svc.scheme}:${svc.port}`,
-      x: COL_X[col],
-      y: 40 + row * ROW_H,
-      color: NODE_COLORS[id] ?? '#94a3b8',
+      x: pos.x,
+      y: pos.y,
+      color: meta.color,
+      icon: meta.icon,
+      type: meta.type,
     };
   });
 }
 
 function buildSeedEdges(nodes) {
-  // Canonical flow: browser→bff→mcp-gateway→mcp-server + agents
   const pairs = [
-    ['frontend',       'bff'],
-    ['bff',            'mcp-gateway'],
-    ['bff',            'agent-service'],
-    ['mcp-gateway',    'mcp-server'],
-    ['mcp-gateway',    'mcp-invest'],
-    ['mcp-gateway',    'mortgage-service'],
-    ['agent-service',  'langchain-agent'],
-    ['agent-service',  'openai-agent'],
-    ['agent-service',  'mastra-agent'],
-    ['agent-service',  'pydantic-agent'],
-    ['bff',            'hitl-service'],
-    ['ping-gateway',   'mcp-gateway'],
+    ['frontend',        'bff'],
+    ['bff',             'agent-service'],
+    ['agent-service',   'langchain-agent'],
+    ['agent-service',   'openai-agent'],
+    ['agent-service',   'mastra-agent'],
+    ['agent-service',   'pydantic-agent'],
+    ['langchain-agent', 'mcp-gateway'],
+    ['openai-agent',    'mcp-server'],
+    ['mastra-agent',    'mcp-invest'],
+    ['pydantic-agent',  'mcp-proxy'],
+    ['mcp-gateway',     'ping-gateway'],
+    ['mcp-server',      'mortgage-service'],
+    ['mcp-invest',      'hitl-service'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
@@ -111,7 +109,6 @@ export default function useCanvasLayout() {
     return persisted ? persisted.edges : seedEdges;
   });
 
-  // Refs always hold latest values — solves stale closure for persist calls
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
@@ -131,7 +128,7 @@ export default function useCanvasLayout() {
 
   const addNode = useCallback((label) => {
     const id = `custom-${Date.now()}`;
-    const newNode = { id, label, sub: '', x: 300, y: 300, color: '#94a3b8' };
+    const newNode = { id, label, sub: '', x: 300, y: 300, color: '#94a3b8', icon: '●', type: 'mcp' };
     setNodes(prev => {
       const next = [...prev, newNode];
       persist(next, edgesRef.current);

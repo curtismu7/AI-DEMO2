@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 600px;
-  background: #f8fafc;
+  background: #f5f0eb;
 }
 
 .canvas-toolbar {
@@ -18,53 +18,48 @@
 
 .canvas-toolbar h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #1e293b;
   flex: 1;
 }
 
 .canvas-toolbar input[type="text"] {
-  padding: 6px 10px;
+  padding: 5px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 13px;
-  width: 160px;
+  width: 140px;
 }
 
 .canvas-toolbar button {
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
   border: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.btn-add    { background: #3b82f6; color: #fff; }
-.btn-add:hover    { background: #2563eb; }
+.btn-add     { background: #3b82f6; color: #fff; }
+.btn-add:hover     { background: #2563eb; }
 .btn-connect { background: #10b981; color: #fff; }
 .btn-connect.active { background: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
 .btn-connect:hover { background: #059669; }
-.btn-reset  { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.btn-reset:hover  { background: #e2e8f0; }
-.btn-delete { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-.btn-delete:hover { background: #fca5a5; }
+.btn-reset   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.btn-reset:hover   { background: #e2e8f0; }
+.btn-delete  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.btn-delete:hover  { background: #fca5a5; }
 
 .canvas-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: #94a3b8;
   padding: 4px 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #f1f5f9;
+  background: #faf8f5;
+  border-bottom: 1px solid #ede8e0;
 }
 
 .canvas-stage-wrap {
   flex: 1;
   overflow: hidden;
-}
-
-.canvas-edge-label {
-  font-size: 11px;
-  color: #64748b;
 }
