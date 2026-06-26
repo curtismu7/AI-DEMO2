@@ -1071,7 +1071,8 @@ export default function BankingAgent({
               setNlResumeAfterAuth(pendingNl);
             }
             setMessages((prev) => {
-              if (prev.length > 0) return prev;
+              const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
+              if (prev.length > 0 && !isOnlyGuestMsg) return prev;
               const welcome = {
                 id: `${Date.now()}-w`,
                 role: "assistant",
@@ -1447,6 +1448,13 @@ export default function BankingAgent({
             return [welcome, ...prev];
           });
         }
+      } else {
+        // No session — show a guest greeting so the chat isn't a blank void.
+        setMessages([{
+          id: `${Date.now()}-guest`,
+          role: "assistant",
+          content: `Hi! I'm the ${brandShortName || "AI"} assistant.\n\nSign in with your customer account to access banking features — account balances, transfers, and more. Or ask me about OAuth, PKCE, MCP, or how AI agents work.`,
+        }]);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1456,22 +1464,22 @@ export default function BankingAgent({
   useEffect(() => {
     const onAuth = () => {
       checkSelfAuth();
-      setMessages((prev) =>
-        prev.length === 0
-          ? [
-              {
-                id: Date.now().toString(),
-                role: "assistant",
-                content: welcomeMessage(
-                  user || sessionUserRef.current,
-                  embeddedFocus,
-                  brandShortName,
-                  themeAgent && themeAgent.greeting,
-                ),
-              },
-            ]
-          : prev,
-      );
+      setMessages((prev) => {
+        const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
+        if (prev.length === 0 || isOnlyGuestMsg) {
+          return [{
+            id: Date.now().toString(),
+            role: "assistant",
+            content: welcomeMessage(
+              user || sessionUserRef.current,
+              embeddedFocus,
+              brandShortName,
+              themeAgent && themeAgent.greeting,
+            ),
+          }];
+        }
+        return prev;
+      });
     };
     window.addEventListener("userAuthenticated", onAuth);
     return () => window.removeEventListener("userAuthenticated", onAuth);
