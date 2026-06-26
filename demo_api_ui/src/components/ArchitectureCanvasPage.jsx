@@ -44,14 +44,21 @@ const STATUS_COLOR = {
   error: '#f97316', unknown: '#94a3b8', pinging: '#3b82f6',
 };
 
-const COL_LABELS = [
-  { x: 30,   label: 'Browser' },
-  { x: 220,  label: 'BFF' },
-  { x: 430,  label: 'Agent Layer' },
-  { x: 640,  label: 'Gateway' },
-  { x: 850,  label: 'Policy / HITL' },
-  { x: 1060, label: 'MCP Backends' },
+// Column definitions — which node IDs anchor each header
+const COL_DEFS = [
+  { ids: ['frontend'],                               label: 'Browser' },
+  { ids: ['bff'],                                    label: 'BFF' },
+  { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
+  { ids: ['mcp-gateway', 'ping-gateway'],            label: 'Gateway' },
+  { ids: ['authz-server', 'hitl-service'],           label: 'Policy / HITL' },
+  { ids: ['mcp-server', 'mcp-invest', 'mortgage-service'], label: 'MCP Backends' },
 ];
+
+function colLabelX(colDef, nodeMap) {
+  const xs = colDef.ids.map(id => nodeMap[id]?.x).filter(x => x != null);
+  if (!xs.length) return 0;
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
 
 // Named flows — each step maps to an arrow on the canvas
 const FLOWS = {
@@ -416,13 +423,17 @@ export default function ArchitectureCanvasPage() {
             <Rect x={0} y={0} width={STAGE_W} height={stageH} fill="#f8fafc" />
           </Layer>
 
-          {/* Column labels */}
+          {/* Column labels — x tracks the average position of member nodes */}
           <Layer>
-            {COL_LABELS.map(col => (
-              <Text key={col.label} x={col.x} y={10} width={W}
-                text={col.label} fontSize={10} fontStyle="600"
-                fontFamily="system-ui, sans-serif" fill="#94a3b8" align="center" listening={false} />
-            ))}
+            {COL_DEFS.map(col => {
+              const lx = colLabelX(col, nodeMap);
+              return (
+                <Text key={col.label} x={lx} y={8} width={W}
+                  text={col.label.toUpperCase()} fontSize={11} fontStyle="bold"
+                  fontFamily="system-ui, sans-serif" fill="#64748b"
+                  letterSpacing={1} align="center" listening={false} />
+              );
+            })}
           </Layer>
 
           {/* Nodes — Okta-style two-zone cards (drawn before edges so arrowheads sit on top) */}
