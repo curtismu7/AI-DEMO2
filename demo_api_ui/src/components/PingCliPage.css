@@ -63,61 +63,80 @@
 }
 
 /* ── Command categories ──────────────────────────────── */
-.pingcli-section-title {
+.pingcli-run-note {
   font-size: 13px;
+  color: #475569;
+  margin: 0 0 16px;
+}
+
+.pingcli-section-title {
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
-  margin: 28px 0 12px;
+  color: #94a3b8;
+  margin: 24px 0 8px;
 }
 
 .pingcli-command-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .pingcli-cmd-btn {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px 14px;
-  text-align: left;
+  background: #c026d3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+  white-space: nowrap;
 }
 
 .pingcli-cmd-btn:hover:not(:disabled) {
-  border-color: #c026d3;
-  box-shadow: 0 0 0 3px rgba(192, 38, 211, 0.08);
+  background: #a21caf;
+  box-shadow: 0 2px 8px rgba(192, 38, 211, 0.35);
+}
+
+.pingcli-cmd-btn:active:not(:disabled) {
+  background: #86198f;
 }
 
 .pingcli-cmd-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
 .pingcli-cmd-btn.active {
-  border-color: #c026d3;
-  background: #fdf4ff;
+  background: #86198f;
+  box-shadow: 0 0 0 3px rgba(192, 38, 211, 0.25);
 }
 
-.pingcli-cmd-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 4px;
+.pingcli-cmd-btn.running {
+  background: #9333ea;
 }
 
-.pingcli-cmd-command {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 11px;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* ── Spinner inside running button ───────────────────── */
+.pingcli-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: pingcli-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pingcli-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── Terminal output pane ────────────────────────────── */

@@ -1,37 +1,37 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import './PingCliPage.css';
 
 const CATEGORIES = [
   {
     title: 'Identity & Directory',
     commands: [
-      { key: 'pingone_users_list',       label: 'List Users',              desc: 'pingcli pingone users list -O json' },
-      { key: 'pingone_groups_list',      label: 'List Groups',             desc: 'pingcli pingone groups list -O json' },
-      { key: 'pingone_populations_list', label: 'List Populations',        desc: 'pingcli pingone populations list -O json' },
+      { key: 'pingone_users_list',       label: 'List Users' },
+      { key: 'pingone_groups_list',      label: 'List Groups' },
+      { key: 'pingone_populations_list', label: 'List Populations' },
     ],
   },
   {
     title: 'Applications & Resources',
     commands: [
-      { key: 'pingone_apps_list',        label: 'List Applications',       desc: 'pingcli pingone applications list -O json' },
-      { key: 'pingone_resources_list',   label: 'List Resources',          desc: 'pingcli pingone resources list -O json' },
-      { key: 'pingone_roles_list',       label: 'List Built-in Roles',     desc: 'pingcli pingone roles -O json' },
+      { key: 'pingone_apps_list',      label: 'List Applications' },
+      { key: 'pingone_resources_list', label: 'List Resources' },
+      { key: 'pingone_roles_list',     label: 'List Built-in Roles' },
     ],
   },
   {
     title: 'Authentication & MFA',
     commands: [
-      { key: 'pingone_idps_list',        label: 'List Identity Providers', desc: 'pingcli pingone identity-providers list -O json' },
-      { key: 'pingone_policies_list',    label: 'List Sign-On Policies',   desc: 'pingcli pingone sign-on-policies list -O json' },
-      { key: 'pingone_mfa_policies_list',label: 'List MFA Policies',       desc: 'pingcli mfa device-authentication-policies list -O json' },
+      { key: 'pingone_idps_list',         label: 'List Identity Providers' },
+      { key: 'pingone_policies_list',     label: 'List Sign-On Policies' },
+      { key: 'pingone_mfa_policies_list', label: 'List MFA Policies' },
     ],
   },
   {
     title: 'Platform & Config',
     commands: [
-      { key: 'pingone_envs_list',        label: 'List Environments',       desc: 'pingcli pingone environments list -O json' },
-      { key: 'config_list_keys',         label: 'Config Keys',             desc: 'pingcli config list-keys' },
-      { key: 'version',                  label: 'Version',                 desc: 'pingcli --version' },
+      { key: 'pingone_envs_list', label: 'List Environments' },
+      { key: 'config_list_keys',  label: 'Config Keys' },
+      { key: 'version',           label: 'Version' },
     ],
   },
 ];
@@ -98,32 +98,73 @@ function InstallSection() {
 }
 
 export default function PingCliPage() {
-  const [running, setRunning] = useState(null);
-  const [result, setResult] = useState(null);
+  const [running, setRunning]     = useState(null);
+  const [activeKey, setActiveKey] = useState(null);
+  const [cmdLabel, setCmdLabel]   = useState('');
+  const [output, setOutput]       = useState('');
+  const [exitCode, setExitCode]   = useState(null);
+  const abortRef = useRef(null);
 
   const run = async (commandKey) => {
     if (running) return;
+
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setRunning(commandKey);
-    setResult(null);
+    setActiveKey(commandKey);
+    setCmdLabel('');
+    setOutput('');
+    setExitCode(null);
+
     try {
-      const res = await fetch('/api/admin/pingcli/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ commandKey }),
-      });
-      const data = await res.json();
-      setResult(data);
+      const res = await fetch(
+        `/api/admin/pingcli/stream?commandKey=${encodeURIComponent(commandKey)}`,
+        { credentials: 'include', signal: controller.signal }
+      );
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const events = buf.split('\n\n');
+        buf = events.pop();
+
+        for (const block of events) {
+          const eventMatch = block.match(/^event: (\w+)/m);
+          const dataMatch  = block.match(/^data: (.+)/m);
+          if (!eventMatch || !dataMatch) continue;
+
+          const type = eventMatch[1];
+          const payload = JSON.parse(dataMatch[1]);
+
+          if (type === 'meta') {
+            setCmdLabel(payload.command);
+          } else if (type === 'chunk') {
+            setOutput((prev) => prev + payload.text);
+          } else if (type === 'done') {
+            setExitCode(payload.exitCode);
+            setRunning(null);
+          }
+        }
+      }
     } catch (err) {
-      setResult({ command: commandKey, output: err.message, exitCode: 1, error: err.message });
-    } finally {
-      setRunning(null);
+      if (err.name !== 'AbortError') {
+        setOutput(err.message);
+        setExitCode(1);
+        setRunning(null);
+      }
     }
   };
 
-  const statusClass = result
-    ? result.exitCode === 0 ? 'ok' : 'err'
-    : '';
+  const showTerminal = running !== null || exitCode !== null;
+  const statusClass  = exitCode === 0 ? 'ok' : exitCode !== null ? 'err' : '';
 
   return (
     <div className="pingcli-page">
@@ -137,41 +178,43 @@ export default function PingCliPage() {
 
       <InstallSection />
 
+      <p className="pingcli-run-note">
+        Click a command to run it — output streams live to the terminal below.
+      </p>
+
       {CATEGORIES.map(({ title, commands }) => (
         <div key={title}>
           <p className="pingcli-section-title">{title}</p>
           <div className="pingcli-command-grid">
-            {commands.map(({ key, label, desc }) => (
+            {commands.map(({ key, label }) => (
               <button
                 key={key}
-                className={`pingcli-cmd-btn${result && running === null && result.command === desc ? ' active' : ''}`}
+                className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}`}
                 disabled={running !== null}
                 onClick={() => run(key)}
               >
-                <div className="pingcli-cmd-label">{label}</div>
-                <div className="pingcli-cmd-command">{desc}</div>
+                {running === key && <span className="pingcli-spinner" />}
+                {label}
               </button>
             ))}
           </div>
         </div>
       ))}
 
-      {(running || result) && (
+      {showTerminal && (
         <div className="pingcli-terminal">
           <div className="pingcli-terminal-header">
             <span className="pingcli-terminal-prompt">
-              $ <span className="cmd-text">{running ? '...' : result?.command}</span>
+              $ <span className="cmd-text">{cmdLabel || '…'}</span>
             </span>
-            {result && !running && (
+            {exitCode !== null && (
               <span className={`pingcli-terminal-status ${statusClass}`}>
-                {result.exitCode === 0 ? '✓ exit 0' : `✗ exit ${result.exitCode}`}
+                {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
               </span>
             )}
           </div>
           <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
-            {running
-              ? 'Running command…'
-              : (result?.output || result?.error || '(no output)')}
+            {output || (running ? 'Running…' : '(no output)')}
           </div>
         </div>
       )}
