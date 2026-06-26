@@ -149,6 +149,7 @@ export default function PingCliPage() {
           } else if (type === 'chunk') {
             setOutput((prev) => prev + payload.text);
           } else if (type === 'done') {
+            if (payload.error) setOutput((prev) => prev || payload.error);
             setExitCode(payload.exitCode);
             setRunning(null);
           }
