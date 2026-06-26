@@ -1198,9 +1198,15 @@ class ConfigStore {
       ciba_poll_interval_ms:                ['CIBA_POLL_INTERVAL_MS'],
       ciba_auth_request_expiry:             ['CIBA_AUTH_REQUEST_EXPIRY'],
 
-      // Authorize worker (direct var name aliases)
-      pingone_authorize_worker_client_id:   ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID'],
-      pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
+      // Authorize worker — dedicated credentials first, then fall back to the
+      // general management worker (PINGONE_WORKER_CLIENT_*). Most deployments
+      // use one worker app for both Management API and PingOne Authorize calls.
+      // Both the prefixed and short-form keys alias identically so every caller
+      // pattern (getEffective('authorize_worker_client_id') or the longer form) resolves.
+      authorize_worker_client_id:             ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+      authorize_worker_client_secret:         ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
+      pingone_authorize_worker_client_id:     ['PINGONE_AUTHORIZE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],
+      pingone_authorize_worker_client_secret: ['PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_SECRET'],
 
       // Worker token client (management API)
       pingone_worker_token_client_id:       ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_CLIENT_ID'],

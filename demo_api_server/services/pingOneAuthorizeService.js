@@ -58,34 +58,47 @@ const REGION_TLD_MAP = {
 // ---------------------------------------------------------------------------
 
 function _getCredentials() {
+  // Use getEffective() so the alias map in configStore is traversed (vault →
+  // LMDB → env var fallbacks). configStore.get() only checks the LMDB cache
+  // and missed the env-var aliases added for PINGONE_WORKER_CLIENT_ID.
   const envId =
-    configStore.get('pingone_environment_id') ||
+    configStore.getEffective('pingone_environment_id') ||
     process.env.PINGONE_ENVIRONMENT_ID;
 
   const region =
-    configStore.get('pingone_region') ||
+    configStore.getEffective('pingone_region') ||
     process.env.PINGONE_REGION ||
     'com';
 
+  // Authorize-specific worker first, then fall back to the general management
+  // worker (PINGONE_WORKER_CLIENT_ID). Most deployments use one worker app for
+  // both PingOne Management API calls and PingOne Authorize — this keeps them
+  // working without requiring a second set of credentials.
   const clientId =
-    configStore.get('authorize_worker_client_id') ||
-    process.env.PINGONE_AUTHORIZE_WORKER_CLIENT_ID;
+    configStore.getEffective('authorize_worker_client_id') ||
+    configStore.getEffective('pingone_authorize_worker_client_id') ||
+    configStore.getEffective('pingone_worker_client_id') ||
+    process.env.PINGONE_AUTHORIZE_WORKER_CLIENT_ID ||
+    process.env.PINGONE_WORKER_CLIENT_ID;
 
   const clientSecret =
-    configStore.get('authorize_worker_client_secret') ||
-    process.env.PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET;
+    configStore.getEffective('authorize_worker_client_secret') ||
+    configStore.getEffective('pingone_authorize_worker_client_secret') ||
+    configStore.getEffective('pingone_worker_client_secret') ||
+    process.env.PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET ||
+    process.env.PINGONE_WORKER_CLIENT_SECRET;
 
   const decisionEndpointId =
-    configStore.get('authorize_decision_endpoint_id') ||
+    configStore.getEffective('authorize_decision_endpoint_id') ||
     process.env.PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID;
 
   const policyId =
-    configStore.get('authorize_policy_id') ||
+    configStore.getEffective('authorize_policy_id') ||
     process.env.PINGONE_AUTHORIZE_POLICY_ID;
 
   /** Optional second decision endpoint for MCP first-tool delegation (Trust Framework: DecisionContext=McpFirstTool). */
   const mcpDecisionEndpointId =
-    configStore.get('authorize_mcp_decision_endpoint_id') ||
+    configStore.getEffective('authorize_mcp_decision_endpoint_id') ||
     process.env.PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID;
 
   const regionTld = REGION_TLD_MAP[(region || 'com').toLowerCase()] || 'com';
