@@ -21,7 +21,7 @@ configModelVersion: 2
 default:
     auth:
         storage:
-            type: file
+            type: none
     service:
         pingOne:
             authentication:
