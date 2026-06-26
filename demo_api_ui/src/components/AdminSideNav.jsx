@@ -606,6 +606,7 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
+        { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
         {
           label: "HITL Consent Flow",
           path: "/architecture/hitl",

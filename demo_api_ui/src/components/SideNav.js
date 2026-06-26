@@ -84,6 +84,7 @@ const ADMIN_NAV = [
       { to: "/code-explorer", label: "Code Explorer", icon: "MdCode" },
       { to: "/architecture/token-flow", label: "Token Flow Diagram", icon: "MdAccountTree" },
       { to: "/sequence-diagram", label: "Sequence Diagram", icon: "MdSwapCalls" },
+      { to: "/architecture/canvas", label: "Canvas Diagram", icon: "MdAccountTree" },
     ],
   },
 ];
@@ -122,6 +123,7 @@ function buildUserNav(terminology, identity) {
         { to: "/code-explorer", label: "Code Explorer", icon: "MdCode" },
         { to: "/architecture/token-flow", label: "Token Flow Diagram", icon: "MdAccountTree" },
         { to: "/sequence-diagram", label: "Sequence Diagram", icon: "MdSwapCalls" },
+        { to: "/architecture/canvas", label: "Canvas Diagram", icon: "MdAccountTree" },
       ],
     },
   ];

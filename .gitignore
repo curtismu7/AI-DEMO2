@@ -2,6 +2,12 @@ node_modules
 **/node_modules
 .env
 **/.env
+.env.development
+**/.env.development
+.env.production
+**/.env.production
+.env.local
+**/.env.local
 **/*.db
 **/*.pem
 **/*.key
