@@ -1,4 +1,4 @@
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { Router } = require('express');
 
 const PINGCLI_BIN = '/opt/homebrew/bin/pingcli';
@@ -43,6 +43,44 @@ router.post('/run', (req, res) => {
     }
     res.json({ command: cmd.label, output, exitCode, error: err?.message });
   });
+});
+
+router.get('/stream', (req, res) => {
+  const { commandKey } = req.query;
+  if (!commandKey) {
+    res.status(400).json({ error: 'missing_command_key' });
+    return;
+  }
+  const cmd = COMMANDS[commandKey];
+  if (!cmd) {
+    res.status(400).json({ error: 'unknown_command', commandKey });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  send('meta', { command: cmd.label });
+
+  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS });
+
+  child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
+  child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
+
+  child.on('close', (code) => {
+    send('done', { exitCode: code ?? 0 });
+    res.end();
+  });
+
+  child.on('error', (err) => {
+    send('done', { exitCode: 1, error: err.message });
+    res.end();
+  });
+
+  req.on('close', () => child.kill());
 });
 
 router.get('/commands', (_req, res) => {
