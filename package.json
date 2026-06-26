@@ -36,6 +36,7 @@
     "reset": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js --clean --reset-pingone",
     "reset:import": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js --clean --reset-pingone",
     "uninstall": "bash scripts/run-node.sh demo_api_server/scripts/uninstall.js",
+    "pingone:refresh-envs": "bash scripts/run-node.sh demo_api_server/scripts/refresh-service-envs.js",
     "pingone:bootstrap": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js",
     "pingone:wipe": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --wipe-environment",
     "pingone:recreate": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --recreate-apps",

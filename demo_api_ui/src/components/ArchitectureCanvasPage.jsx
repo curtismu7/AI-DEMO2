@@ -84,6 +84,97 @@ const FLOWS = {
   },
 };
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sanitizeMermaidId(id) {
+  return id.replace(/-/g, '_');
+}
+
+function buildMermaid(nodes, edges, flow) {
+  const activeNodes = flow
+    ? nodes.filter(n => flow.steps.some(s => s.from === n.id || s.to === n.id))
+    : nodes;
+  const activeEdges = flow
+    ? flow.steps.map((step, i) => ({ from: step.from, to: step.to, label: String(i + 1) }))
+    : edges.map(e => ({ from: e.from, to: e.to, label: null }));
+  const nodeSet = new Set(activeNodes.map(n => n.id));
+
+  const lines = ['flowchart LR'];
+  activeNodes.forEach(n => {
+    const sid = sanitizeMermaidId(n.id);
+    const label = n.sub ? `${n.label}\\n${n.sub}` : n.label;
+    lines.push(`  ${sid}["${label}"]:::${n.layer || 'tool'}`);
+  });
+  activeEdges.forEach(e => {
+    if (!nodeSet.has(e.from) || !nodeSet.has(e.to)) return;
+    const src = sanitizeMermaidId(e.from);
+    const tgt = sanitizeMermaidId(e.to);
+    lines.push(e.label ? `  ${src} -->|"${e.label}"| ${tgt}` : `  ${src} --> ${tgt}`);
+  });
+  const usedLayers = [...new Set(activeNodes.map(n => n.layer || 'tool'))];
+  usedLayers.forEach(layer => {
+    const s = LAYER_STYLE[layer] || LAYER_STYLE.tool;
+    lines.push(`  classDef ${layer} fill:${s.fill},stroke:${s.stroke},color:${s.label}`);
+  });
+  return lines.join('\n');
+}
+
+function buildDrawio(nodes, edges, flow) {
+  const activeNodes = flow
+    ? nodes.filter(n => flow.steps.some(s => s.from === n.id || s.to === n.id))
+    : nodes;
+  const activeEdges = flow
+    ? flow.steps.map((step, i) => ({ id: `flow-e-${i}`, from: step.from, to: step.to, label: String(i + 1) }))
+    : edges.map(e => ({ id: e.id, from: e.from, to: e.to, label: '' }));
+  const nodeSet = new Set(activeNodes.map(n => n.id));
+
+  let cells = '<mxCell id="0"/><mxCell id="1" parent="0"/>';
+  activeNodes.forEach(n => {
+    const s = LAYER_STYLE[n.layer] || LAYER_STYLE.tool;
+    const lbl = n.sub ? `${n.label}&lt;br/&gt;&lt;font style="font-size:10px;color:${s.sub}"&gt;${n.sub}&lt;/font&gt;` : n.label;
+    cells += `<mxCell id="${escapeXml(n.id)}" value="${escapeXml(lbl)}" `
+      + `style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=${s.fill};strokeColor=${s.stroke};`
+      + `fontColor=${s.label};fontStyle=1;fontSize=12;" `
+      + `vertex="1" parent="1">`
+      + `<mxGeometry x="${n.x}" y="${n.y}" width="${W}" height="${H}" as="geometry"/>`
+      + `</mxCell>`;
+  });
+  activeEdges.forEach((e, i) => {
+    if (!nodeSet.has(e.from) || !nodeSet.has(e.to)) return;
+    cells += `<mxCell id="${escapeXml(e.id || `edge-${i}`)}" value="${escapeXml(e.label || '')}" `
+      + `style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;" `
+      + `edge="1" source="${escapeXml(e.from)}" target="${escapeXml(e.to)}" parent="1">`
+      + `<mxGeometry relative="1" as="geometry"/>`
+      + `</mxCell>`;
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>`
+    + `<mxfile><diagram name="Architecture">`
+    + `<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" `
+    + `connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169">`
+    + `<root>${cells}</root></mxGraphModel></diagram></mxfile>`;
+}
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function portCentre(node) {
   return { x: node.x + W / 2, y: node.y + H / 2 };
 }
@@ -239,6 +330,14 @@ export default function ArchitectureCanvasPage() {
             <button className={`btn-ping${pinging ? ' pinging' : ''}`} onClick={handlePingAll} disabled={pinging}>
               {pinging ? '⏳ Pinging…' : '⚡ Ping All'}
             </button>
+            <button className="btn-export" onClick={() => {
+              const slug = selectedFlow ? `-${selectedFlow}` : '-full';
+              downloadFile(buildMermaid(nodes, edges, flow), `architecture${slug}.mmd`, 'text/plain');
+            }}>⬇ Mermaid</button>
+            <button className="btn-export" onClick={() => {
+              const slug = selectedFlow ? `-${selectedFlow}` : '-full';
+              downloadFile(buildDrawio(nodes, edges, flow), `architecture${slug}.drawio`, 'application/xml');
+            }}>⬇ LucidChart</button>
             <button className="btn-reset" onClick={() => {
               if (window.confirm('Reset canvas to default layout?')) {
                 resetLayout(); setPingStatus({}); setResultPanel(null);

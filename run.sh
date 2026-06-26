@@ -1193,209 +1193,24 @@ if [[ -f "$VAULT_FILE" ]]; then
   echo "[VAULT] secrets.vault detected — passing VAULT_PASSWORD to vault-aware services."
 fi
 
-# Helper: ensure a sibling Node service has a .env that points at the API
-# server's .env. Without this, services that do `dotenv.config()` find no
-# .env and fail with "Missing required env var" even though every key they
-# need exists upstairs in demo_api_server/.env.
-#
-# Symlink instead of copy so any future bootstrap rewrite is picked up
-# immediately by all services on next restart — no chance of one service
-# running against a stale snapshot.
-ensure_service_env() {
-  local svc_dir="$1"
-  local api_env="${BASEDIR}/demo_api_server/.env"
-  local svc_env="${BASEDIR}/${svc_dir}/.env"
-
-  # If the service has its own .env.development, preserve the existing
-  # behavior (legacy path used by demo_mcp_server / hitl).
-  if [[ -f "${BASEDIR}/${svc_dir}/.env.development" ]]; then
-    cp "${BASEDIR}/${svc_dir}/.env.development" "${svc_env}" 2>/dev/null || true
-    return
+# refresh_service_envs: query PingOne by app name and write a correct .env
+# for every service.  Replaces the old ensure_service_env / patch_* chain.
+# Falls back silently if PingOne is unreachable — services start with whatever
+# .env already exists on disk.
+refresh_service_envs() {
+  if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
+    return 0  # bootstrap not yet run — nothing to do
   fi
-
-  # No service-specific .env.development → copy from API server's .env.
-  # Using cp (not ln -s) so each service has its own independent file;
-  # no symlink brittleness and no cross-service sync risk.
-  # Guard with || true: if svc_env is a symlink to api_env (same inode),
-  # cp fails with "identical" on macOS; the env is already correct, so
-  # treat that as success.
-  if [[ -f "$api_env" ]]; then
-    cp "$api_env" "${svc_env}" || true
-  fi
+  CLIENT_URL="${CLIENT_URL:-}" bash "${BASEDIR}/scripts/run-node.sh" \
+    demo_api_server/scripts/refresh-service-envs.js || true
 }
 
-# Ensure langchain_agent/.env has OIDC + dev encryption keys the Python agent requires.
-# Copied from demo_api_server/.env via ensure_service_env but that file often lacks
-# registration/token endpoints and ENCRYPTION_* vars.
-patch_langchain_agent_env() {
-  local lc_env="${BASEDIR}/langchain_agent/.env"
-  local api_env="${BASEDIR}/demo_api_server/.env"
-  [[ -f "$lc_env" ]] || return 0
-
-  local _env_id _region _as_base
-  _env_id=""
-  _region="com"
-  if [[ -f "$api_env" ]]; then
-    _env_id=$(grep -E "^PINGONE_ENVIRONMENT_ID=" "$api_env" | head -1 | sed 's/^PINGONE_ENVIRONMENT_ID=//' | tr -d '"' | tr -d "'" || true)
-    _region=$(grep -E "^PINGONE_REGION=" "$api_env" | head -1 | sed 's/^PINGONE_REGION=//' | tr -d '"' | tr -d "'" || true)
-  fi
-  [[ -z "$_region" ]] && _region="com"
-  if [[ -n "$_env_id" ]]; then
-    _as_base="https://auth.pingone.${_region}/${_env_id}/as"
-  else
-    _as_base=""
-  fi
-
-  _lc_set_if_missing() {
-    local key="$1" val="$2"
-    [[ -z "$val" ]] && return 0
-    if grep -q "^${key}=" "$lc_env" 2>/dev/null; then
-      return 0
-    fi
-    echo "${key}=${val}" >> "$lc_env"
-  }
-
-  if [[ -n "$_as_base" ]]; then
-    _lc_set_if_missing "PINGONE_BASE_URL" "$_as_base"
-    _lc_set_if_missing "PINGONE_CLIENT_REGISTRATION_ENDPOINT" "${_as_base}/register"
-    _lc_set_if_missing "PINGONE_TOKEN_ENDPOINT" "${_as_base}/token"
-    _lc_set_if_missing "PINGONE_AUTHORIZATION_ENDPOINT" "${_as_base}/authorize"
-  fi
-  _lc_set_if_missing "PINGONE_REDIRECT_URI" "${CLIENT_URL}/auth/callback"
-  _lc_set_if_missing "ENVIRONMENT" "development"
-  _lc_set_if_missing "ENCRYPTION_MASTER_KEY" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  _lc_set_if_missing "ENCRYPTION_SALT" "bbbbbbbbbbbbbbbb"
-  unset _env_id _region _as_base
-}
-
-patch_mcp_server_env() {
-  local mcp_env="${BASEDIR}/demo_mcp_server/.env"
-  local api_env="${BASEDIR}/demo_api_server/.env"
-  [[ -f "$mcp_env" ]] || return 0
-  [[ -f "$api_env" ]] || return 0
-
-  # Inject GW_INTROSPECTION credentials from the api server env.
-  # The MCP server's .env.development is static and doesn't include these, but
-  # environments.ts prefers GW_INTROSPECTION_CLIENT_ID over PINGONE_CLIENT_ID
-  # for introspection in passthrough mode (aud=mcpgateway.ping.demo tokens).
-  # Without these, PingOne returns active:false because the wrong client introspects.
-  local _id _secret
-  _id=$(grep -E "^GW_INTROSPECTION_CLIENT_ID=" "$api_env" | head -1 | sed 's/^GW_INTROSPECTION_CLIENT_ID=//' | tr -d '"' | tr -d "'" || true)
-  _secret=$(grep -E "^GW_INTROSPECTION_CLIENT_SECRET=" "$api_env" | head -1 | sed 's/^GW_INTROSPECTION_CLIENT_SECRET=//' | tr -d '"' | tr -d "'" || true)
-
-  [[ -z "$_id" ]] && return 0
-
-  # Overwrite (not append-if-missing) so stale values from a prior run are replaced
-  # Ensure file ends with newline before appending
-  [[ -s "$mcp_env" ]] && [[ "$(tail -c1 "$mcp_env" | wc -c)" -gt 0 ]] && \
-    [[ "$(tail -c1 "$mcp_env")" != $'\n' ]] && echo "" >> "$mcp_env"
-
-  if grep -q "^GW_INTROSPECTION_CLIENT_ID=" "$mcp_env" 2>/dev/null; then
-    sed -i '' "s|^GW_INTROSPECTION_CLIENT_ID=.*|GW_INTROSPECTION_CLIENT_ID=${_id}|" "$mcp_env"
-  else
-    echo "GW_INTROSPECTION_CLIENT_ID=${_id}" >> "$mcp_env"
-  fi
-  if grep -q "^GW_INTROSPECTION_CLIENT_SECRET=" "$mcp_env" 2>/dev/null; then
-    sed -i '' "s|^GW_INTROSPECTION_CLIENT_SECRET=.*|GW_INTROSPECTION_CLIENT_SECRET=\"${_secret}\"|" "$mcp_env"
-  else
-    echo "GW_INTROSPECTION_CLIENT_SECRET=\"${_secret}\"" >> "$mcp_env"
-  fi
-
-  # Step 9 token exchange: inject the MCP exchanger secret so TokenResolver can
-  # exchange the gateway-scoped token for a BFF-audience token (enduser.ping.demo).
-  # Client ID is non-secret and lives in .env.development; only the secret is here.
-  local _ex_secret
-  _ex_secret=$(grep -E "^PINGONE_MCP_EXCHANGER_CLIENT_SECRET=" "$api_env" | head -1 | sed 's/^PINGONE_MCP_EXCHANGER_CLIENT_SECRET=//' | tr -d '"' | tr -d "'" || true)
-  if [[ -n "$_ex_secret" ]]; then
-    if grep -q "^PINGONE_MCP_EXCHANGER_CLIENT_SECRET=" "$mcp_env" 2>/dev/null; then
-      sed -i '' "s|^PINGONE_MCP_EXCHANGER_CLIENT_SECRET=.*|PINGONE_MCP_EXCHANGER_CLIENT_SECRET=\"${_ex_secret}\"|" "$mcp_env"
-    else
-      echo "PINGONE_MCP_EXCHANGER_CLIENT_SECRET=\"${_ex_secret}\"" >> "$mcp_env"
-    fi
-  fi
-
-  # Inject validator-required vars that are absent from the api_server .env template.
-  # ensure_service_env() overwrites demo_mcp_server/.env with demo_api_server/.env;
-  # that file uses different key names (PINGONE_ENVIRONMENT_ID, not PINGONE_BASE_URL).
-  # Build the AS base URL and inject the 6 required keys if not already present.
-  local _env_id _region _as_base
-  _env_id=$(grep -E "^PINGONE_ENVIRONMENT_ID=" "$mcp_env" | head -1 | sed 's/^PINGONE_ENVIRONMENT_ID=//' | tr -d '"' | tr -d "'" || true)
-  _region=$(grep -E "^PINGONE_REGION=" "$mcp_env" | head -1 | sed 's/^PINGONE_REGION=//' | tr -d '"' | tr -d "'" || true)
-  [[ -z "$_region" ]] && _region="com"
-
-  _mcp_set_if_missing() {
-    local key="$1" val="$2"
-    [[ -z "$val" ]] && return 0
-    grep -q "^${key}=" "$mcp_env" 2>/dev/null && return 0
-    echo "${key}=${val}" >> "$mcp_env"
-  }
-
-  if [[ -n "$_env_id" ]]; then
-    _as_base="https://auth.pingone.${_region}/${_env_id}/as"
-    _mcp_set_if_missing "PINGONE_BASE_URL" "https://auth.pingone.${_region}/${_env_id}"
-    _mcp_set_if_missing "PINGONE_INTROSPECTION_ENDPOINT" "${_as_base}/introspect"
-    _mcp_set_if_missing "PINGONE_AUTHORIZATION_ENDPOINT" "${_as_base}/authorize"
-    _mcp_set_if_missing "PINGONE_TOKEN_ENDPOINT" "${_as_base}/token"
-  fi
-  # PINGONE_CLIENT_ID / PINGONE_CLIENT_SECRET fall back to GW_INTROSPECTION creds
-  # (already injected above) via environments.ts clientId fallback chain — no extra
-  # vars needed. ENCRYPTION_KEY gets a stable dev default if absent.
-  _mcp_set_if_missing "ENCRYPTION_KEY" "demo-encryption-key-32chars-padded"
-  unset _env_id _region _as_base
-  unset _id _secret _ex_secret
-}
-
-patch_mortgage_service_env() {
-  local api_env="${BASEDIR}/demo_api_server/.env"
-  local mort_env="${BASEDIR}/demo_mortgage_service/.env"
-  [[ -d "$BASEDIR/demo_mortgage_service" ]] || return 0
-
-  # Read DEMO_MORTGAGE_SERVICE_KEY from the BFF .env (vault-migrated on clean install).
-  # Fall back to the default shared secret if the key is not configured.
-  local _key
-  _key=$(grep -E "^DEMO_MORTGAGE_SERVICE_KEY=" "$api_env" 2>/dev/null | head -1 \
-    | sed 's/^DEMO_MORTGAGE_SERVICE_KEY=//' | tr -d '"' | tr -d "'" || true)
-  [[ -z "$_key" ]] && _key="demo-mortgage-key-0000"
-
-  if [[ ! -f "$mort_env" ]]; then
-    printf 'MORTGAGE_SERVICE_API_KEY="%s"\n' "$_key" > "$mort_env"
-  elif grep -q "^MORTGAGE_SERVICE_API_KEY=" "$mort_env" 2>/dev/null; then
-    sed -i '' "s|^MORTGAGE_SERVICE_API_KEY=.*|MORTGAGE_SERVICE_API_KEY=\"${_key}\"|" "$mort_env"
-  else
-    printf 'MORTGAGE_SERVICE_API_KEY="%s"\n' "$_key" >> "$mort_env"
-  fi
-  unset _key
-}
-
-# ── Auto-derive PINGONE_BASE_URL if missing (management API URL for provision scripts) ──
-_api_env="${BASEDIR}/demo_api_server/.env"
-if [[ -f "$_api_env" ]] && ! grep -q "^PINGONE_BASE_URL=" "$_api_env" 2>/dev/null; then
-  _env_id=$(grep -E "^PINGONE_ENVIRONMENT_ID=" "$_api_env" | head -1 | sed 's/^PINGONE_ENVIRONMENT_ID=//' | tr -d '"' || true)
-  _region=$(grep -E "^PINGONE_REGION=" "$_api_env" | head -1 | sed 's/^PINGONE_REGION=//' | tr -d '"' || true)
-  if [[ -n "$_env_id" && -n "$_region" ]]; then
-    echo "PINGONE_BASE_URL=https://api.pingone.${_region}/v1/environments/${_env_id}" >> "$_api_env"
-    ok "Auto-added PINGONE_BASE_URL to demo_api_server/.env"
-  fi
-  unset _env_id _region
-fi
-unset _api_env
-
-# ── Pre-launch: symlink all service .envs before any process starts ──────────
-# Done as a single pass here so no service can start before its .env is in place.
-# (Previously each ensure_service_env was called inline just before that service's
-# launch block, creating a race on the first service.)
-# demo_mcp_server is included: ensure_service_env copies .env.development
-# (its own PINGONE_CLIENT_* / GW_INTROSPECTION_* values) when that file exists.
-for _svc in demo_mcp_server demo_mcp_gateway demo_hitl_service \
-            demo_agent_service demo_mcp_invest \
-            demo_authz_server \
-            langchain_agent openai_agent pydantic_agent; do
-  [[ -d "$BASEDIR/$_svc" ]] && ensure_service_env "$_svc"
-done
-patch_langchain_agent_env
-patch_mcp_server_env
-patch_mortgage_service_env
-unset _svc
+# ── Pre-launch: write all service .envs from PingOne before any process starts ──
+# refresh_service_envs queries PingOne by canonical app name (scope-topology.json),
+# fetches live credentials, and writes a correct .env for every service.
+# Falls back silently if PingOne is unreachable — idempotent and safe to re-run.
+echo "[ENVS] Refreshing service .env files from PingOne..."
+refresh_service_envs
 
 # ── Tier 1: Demo API Server (Express) on :3001 ───────────────────────────────
 echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."

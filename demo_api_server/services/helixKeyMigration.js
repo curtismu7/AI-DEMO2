@@ -17,7 +17,7 @@
 const VAULT_KEY_NAME = 'HELIX_API_KEY'; // matches configStore env mapping helix_api_key ← HELIX_API_KEY
 
 async function migrateHelixKey(opts = {}) {
-  const agentName    = opts.agentName    || 'LLM2';
+  const agentName    = opts.agentName    || 'LLM3';
   const vaultPath    = opts.vaultPath;
   const vaultPassword = opts.vaultPassword;
   const configStore  = opts.configStore  || require('./configStore');

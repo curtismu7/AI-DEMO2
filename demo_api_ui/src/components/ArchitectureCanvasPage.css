@@ -92,6 +92,8 @@
   min-height: 300px;
 }
 
+.btn-export { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; }
+.btn-export:hover { background: #1e293b; color: #fff; }
 .btn-ping { background: #7c3aed; color: #fff; }
 .btn-ping:hover { background: #6d28d9; }
 .btn-ping.pinging { background: #a78bfa; cursor: default; }
