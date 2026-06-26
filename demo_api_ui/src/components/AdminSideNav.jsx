@@ -499,6 +499,11 @@ export default function AdminSideNav({ user }) {
           path: "/snapshot-import",
           icon: "file",
         },
+        {
+          label: "PingCLI Demo",
+          path: "/pingcli",
+          icon: "tool",
+        },
       ],
     },
     {
