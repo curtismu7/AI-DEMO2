@@ -686,7 +686,7 @@ function resolveFlag(flag) {
       return flag.type === 'boolean' ? (live === true || live === 'true') : live;
     }
   }
-  const raw = configStore.get(flag.id);
+  const raw = configStore.getEffective(flag.id);
   if (raw === null || raw === undefined) return flag.defaultValue;
   if (flag.type === 'boolean') return raw === true || raw === 'true';
   return raw;
