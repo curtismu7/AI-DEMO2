@@ -2014,9 +2014,20 @@ async function runBackgroundStartupTasks() {
         .then((w) => console.log('[authz-warmup] boot warm:', JSON.stringify(w)))
         .catch((err) => console.warn('[authz-warmup] boot warm error (non-fatal):', err.message));
 
-    // ── Optional PingOne config validator ────────────────────────────────────
-    // Validates resource servers (audience) and scopes against docs/PINGONE_CONFIG.md.
-    // Opt-in: set PINGONE_VALIDATE_ON_STARTUP=true in .env or via /config admin UI.
+    // ── Live connectivity probes ──────────────────────────────────────────────
+    // MCP Gateway health check + P1AZ decision endpoint existence check.
+    // Non-fatal: warns loudly but never blocks startup.
+    try {
+        const { runStartupHealthProbes } = require('./services/startupHealthProbe');
+        await runStartupHealthProbes();
+    } catch (err) {
+        console.warn('[startup-probe] error (non-fatal):', err.message);
+    }
+
+    // ── PingOne config validator ──────────────────────────────────────────────
+    // Validates resource servers + scopes; auto-creates missing scopes.
+    // Runs whenever management worker credentials are present.
+    // Opt-out: PINGONE_VALIDATE_ON_STARTUP=false
     try {
         const { runStartupValidation } = require('./services/pingoneStartupValidator');
         await runStartupValidation();
