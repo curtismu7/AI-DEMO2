@@ -1326,7 +1326,7 @@ class PingOneProvisionService {
       '# aud=mcpgateway.ping.demo (exchanger has no grant on the server resource).',
       '# MCP server validates the gateway aud via MCP_SERVER_RESOURCE_URI=mcpgateway.ping.demo.',
       `MCP_RESOURCE_URI=${provisioned.mcpGwResourceServer?.audience?.[0] || 'mcpgateway.ping.demo'}`,
-      `MCP_SERVER_RESOURCE_URI=${provisioned.mcpResourceServer?.audience?.[0] || 'mcpserver.ping.demo'}`,
+      `MCP_SERVER_RESOURCE_URI=${provisioned.mcpGwResourceServer?.audience?.[0] || 'mcpgateway.ping.demo'}`,
       `PINGONE_RESOURCE_MCP_SERVER_URI=${provisioned.mcpResourceServer?.audience?.[0] || 'mcpserver.ping.demo'}`,
       '',
       '# MCP Exchanger (Token Exchange)',
