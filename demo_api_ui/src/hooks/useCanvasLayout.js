@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'; // v4
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v5';
+const STORAGE_KEY = 'arch-canvas-v6';
 
 // Layout reflects the ACTUAL call paths from code:
 //
@@ -19,17 +19,17 @@ const STORAGE_KEY = 'arch-canvas-v5';
 //  5  MCP backends          x=1060  (mcp-server, mcp-invest, mortgage-service)
 
 const SEED_POSITIONS = {
-  frontend:          { x: 30,   y: 210 },
-  bff:               { x: 220,  y: 210 },
-  'langchain-agent': { x: 430,  y: 100 },
-  'agent-service':   { x: 430,  y: 320 },
-  'mcp-gateway':     { x: 640,  y: 100 },
-  'ping-gateway':    { x: 640,  y: 320 },
-  'authz-server':    { x: 850,  y: 100 },
-  'hitl-service':    { x: 850,  y: 320 },
-  'mcp-server':      { x: 1060, y: 60  },
-  'mcp-invest':      { x: 1060, y: 190 },
-  'mortgage-service':{ x: 1060, y: 320 },
+  frontend:          { x: 30,   y: 220 },
+  bff:               { x: 220,  y: 220 },
+  'langchain-agent': { x: 430,  y: 80  },
+  'agent-service':   { x: 430,  y: 340 },
+  'mcp-gateway':     { x: 640,  y: 80  },
+  'ping-gateway':    { x: 640,  y: 340 },
+  'authz-server':    { x: 855,  y: 80  },
+  'hitl-service':    { x: 855,  y: 340 },
+  'mcp-server':      { x: 1075, y: 40  },
+  'mcp-invest':      { x: 1075, y: 200 },
+  'mortgage-service':{ x: 1075, y: 360 },
 };
 
 const NODE_LAYER = {

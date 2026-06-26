@@ -3,19 +3,40 @@ import { Stage, Layer, Rect, Text, Arrow, Group, Circle } from 'react-konva';
 import useCanvasLayout from '../hooks/useCanvasLayout';
 import './ArchitectureCanvasPage.css';
 
-const W = 150;
-const H = 58;
-const R = 6;
+const W = 155;
+const H = 86;
+const H_ICON = 36;   // colored icon strip height
+const R = 8;
 const STAGE_W = 1400;  // fixed wide canvas — wrapper scrolls on small screens
 
 const LAYER_STYLE = {
-  client:   { fill: '#e0e7ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1' },
-  gateway:  { fill: '#ede9fe', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6' },
-  agent:    { fill: '#d1fae5', stroke: '#059669', label: '#064e3b', sub: '#10b981' },
-  mcp:      { fill: '#fef3c7', stroke: '#d97706', label: '#78350f', sub: '#b45309' },
-  policy:   { fill: '#fce7f3', stroke: '#db2777', label: '#831843', sub: '#ec4899' },
-  backend:  { fill: '#e0f2fe', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9' },
-  tool:     { fill: '#f1f5f9', stroke: '#64748b', label: '#1e293b', sub: '#94a3b8' },
+  client:   { fill: '#f0f4ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1', icon: '#4f46e5' },
+  gateway:  { fill: '#f5f3ff', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6', icon: '#7c3aed' },
+  agent:    { fill: '#f0fdf4', stroke: '#059669', label: '#064e3b', sub: '#10b981', icon: '#059669' },
+  mcp:      { fill: '#fffbeb', stroke: '#d97706', label: '#78350f', sub: '#b45309', icon: '#d97706' },
+  policy:   { fill: '#fdf2f8', stroke: '#db2777', label: '#831843', sub: '#ec4899', icon: '#db2777' },
+  backend:  { fill: '#f0f9ff', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9', icon: '#0284c7' },
+  tool:     { fill: '#f8fafc', stroke: '#475569', label: '#1e293b', sub: '#64748b', icon: '#475569' },
+};
+
+// Per-node icon — falls back to LAYER_ICON
+const NODE_ICON = {
+  frontend:          '🌐',
+  bff:               '⚡',
+  'langchain-agent': '🤖',
+  'agent-service':   '🤖',
+  'mcp-gateway':     '🔀',
+  'ping-gateway':    '🔀',
+  'authz-server':    '🛡️',
+  'hitl-service':    '✋',
+  'mcp-server':      '🏦',
+  'mcp-invest':      '📈',
+  'mortgage-service':'🏠',
+};
+
+const LAYER_ICON = {
+  client: '🌐', gateway: '⚡', agent: '🤖', mcp: '🔀',
+  policy: '🛡️', tool: '✋', backend: '🗄️',
 };
 
 const STATUS_COLOR = {
@@ -196,7 +217,7 @@ export default function ArchitectureCanvasPage() {
   const [connectFrom, setConnectFrom] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [renaming, setRenaming] = useState(null);
-  const [stageH, setStageH] = useState(580);
+  const [stageH, setStageH] = useState(620);
   const [pingStatus, setPingStatus] = useState({});
   const [pinging, setPinging] = useState(false);
   const [resultPanel, setResultPanel] = useState(null);
@@ -401,7 +422,7 @@ export default function ArchitectureCanvasPage() {
             })}
           </Layer>
 
-          {/* Nodes — dimmed when a flow is active */}
+          {/* Nodes — Okta-style two-zone cards */}
           <Layer>
             {nodes.map(node => {
               const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
@@ -412,28 +433,39 @@ export default function ArchitectureCanvasPage() {
               const dotColor = STATUS_COLOR[status];
               const inFlow = flow && flow.steps.some(s => s.from === node.id || s.to === node.id);
               const dimmed = !!flow && !inFlow;
+              const icon = NODE_ICON[node.id] ?? LAYER_ICON[node.layer] ?? '📦';
 
               return (
                 <Group key={node.id} x={node.x} y={node.y}
-                  draggable={!connectMode} opacity={dimmed ? 0.25 : 1}
+                  draggable={!connectMode} opacity={dimmed ? 0.2 : 1}
                   onDragEnd={e => handleDragEnd(node.id, e)}
                   onClick={() => handleNodeClick(node.id)}
                   onDblClick={() => handleNodeDblClick(node)}
                 >
-                  <Rect x={2} y={3} width={W} height={H} cornerRadius={R} fill="rgba(0,0,0,0.07)" />
-                  <Rect width={W} height={H} cornerRadius={R} fill={style.fill}
-                    stroke={strokeColor} strokeWidth={strokeWidth} />
-                  <Rect width={5} height={H} cornerRadius={[R, 0, 0, R]} fill={style.stroke} />
-                  <Text x={12} y={node.sub ? 10 : 19} width={W - 20}
-                    text={node.label} fontSize={12} fontStyle="bold"
-                    fontFamily="system-ui, sans-serif" fill={style.label} ellipsis listening={false} />
+                  {/* Drop shadow */}
+                  <Rect x={2} y={3} width={W} height={H} cornerRadius={R} fill="rgba(0,0,0,0.10)" />
+                  {/* Card outline */}
+                  <Rect width={W} height={H} cornerRadius={R}
+                    fill={style.fill} stroke={strokeColor} strokeWidth={strokeWidth} />
+                  {/* Colored icon zone (top strip) */}
+                  <Rect width={W} height={H_ICON} cornerRadius={[R, R, 0, 0]} fill={style.icon} />
+                  {/* Icon emoji centred in the strip */}
+                  <Text x={0} y={5} width={W} text={icon}
+                    fontSize={20} align="center" listening={false} />
+                  {/* Node label */}
+                  <Text x={8} y={H_ICON + 7} width={W - 16}
+                    text={node.label} fontSize={11} fontStyle="bold"
+                    fontFamily="system-ui, sans-serif" fill={style.label}
+                    align="center" ellipsis listening={false} />
+                  {/* Sub-label */}
                   {node.sub && (
-                    <Text x={12} y={30} width={W - 20} text={node.sub}
-                      fontSize={10} fontFamily="system-ui, sans-serif"
-                      fill={style.sub} ellipsis listening={false} />
+                    <Text x={8} y={H_ICON + 22} width={W - 16} text={node.sub}
+                      fontSize={9} fontFamily="ui-monospace, monospace"
+                      fill={style.sub} align="center" ellipsis listening={false} />
                   )}
+                  {/* Ping status dot */}
                   {dotColor && (
-                    <Circle x={W - 8} y={8} radius={5} fill={dotColor}
+                    <Circle x={W - 9} y={9} radius={6} fill={dotColor}
                       stroke="#fff" strokeWidth={1.5} listening={false} />
                   )}
                 </Group>
