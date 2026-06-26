@@ -473,7 +473,7 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
-      label: "PingOne Setup",
+      label: "PingOne MCP Setup",
       icon: "cfg",
       path: "/pingone-setup",
     },
