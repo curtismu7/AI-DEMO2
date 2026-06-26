@@ -478,6 +478,18 @@ export default function AdminSideNav({ user }) {
       path: "/pingone-setup",
     },
     {
+      label: "Vertical Ops",
+      icon: "cfg",
+      adminOnly: true,
+      children: [
+        { label: "Banking Ops", path: "/admin/banking", icon: "cfg" },
+        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
+        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
+        { label: "Sporting Goods Ops", path: "/admin/sporting-goods", icon: "cfg" },
+        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+      ],
+    },
+    {
       label: "Authorize",
       icon: "pol",
       children: [
@@ -579,19 +591,9 @@ export default function AdminSideNav({ user }) {
       icon: "arc",
       children: [
         {
-          label: "System Architecture",
-          path: "/architecture/system",
-          icon: "arc",
-        },
-        {
           label: "Overview Diagram",
           path: "/architecture/overview",
           icon: "bld",
-        },
-        {
-          label: "Token Flow Diagram",
-          path: "/architecture/token-flow",
-          icon: "lnk",
         },
         {
           label: "Token Flow (Interactive)",
@@ -607,11 +609,6 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
-        {
-          label: "HITL Consent Flow",
-          path: "/architecture/hitl",
-          icon: "log",
-        },
       ],
     },
     {
@@ -1462,76 +1459,6 @@ export default function AdminSideNav({ user }) {
           </button>
         </div>
 
-        {/* Learn & Education */}
-        {!collapsed && <div className="admin-side-nav__divider" />}
-        <div className="admin-side-nav__section">
-          <div>
-            <button
-              type="button"
-              className="admin-side-nav__item admin-side-nav__item--parent"
-              onClick={() => toggleSection("learn")}
-              title={collapsed ? "Learn" : undefined}
-            >
-              <NavIcon name="doc" />
-              {!collapsed && (
-                <>
-                  <span className="admin-side-nav__label">Learn</span>
-                  <span
-                    className={`admin-side-nav__chevron ${expandedSections.learn ? "admin-side-nav__chevron--expanded" : ""}`}
-                  >
-                    ▶
-                  </span>
-                </>
-              )}
-            </button>
-            {expandedSections.learn && !collapsed && (
-              <div className="admin-side-nav__submenu">
-                {learnGroups.map((group) => {
-                  const groupKey = `learn-${group.label}`;
-                  const groupExpanded = expandedSections[groupKey];
-                  return (
-                    <div key={groupKey}>
-                      <button
-                        type="button"
-                        className="admin-side-nav__item admin-side-nav__item--child admin-side-nav__item--parent"
-                        onClick={() => toggleSection(groupKey)}
-                        title={group.label}
-                      >
-                        <NavIcon name={group.icon} />
-                        <span className="admin-side-nav__label">
-                          {group.label}
-                        </span>
-                        <span
-                          className={`admin-side-nav__chevron ${groupExpanded ? "admin-side-nav__chevron--expanded" : ""}`}
-                        >
-                          ▶
-                        </span>
-                      </button>
-                      {groupExpanded && (
-                        <div className="admin-side-nav__submenu">
-                          {group.items.map((item) => (
-                            <button
-                              key={item.label}
-                              type="button"
-                              onClick={item.action}
-                              className="admin-side-nav__item admin-side-nav__item--child"
-                              title={item.label}
-                            >
-                              <NavIcon name={item.icon} />
-                              <span className="admin-side-nav__label">
-                                {item.label}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Divider */}
         {!collapsed && <div className="admin-side-nav__divider" />}
