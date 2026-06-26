@@ -103,7 +103,14 @@ router.get('/stream', (req, res) => {
 
   send('meta', { command: cmd.label });
 
-  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS });
+  // Strip PINGONE_* env vars so pingcli uses only our --config file,
+  // not the ambient container credentials (which cause a conflict).
+  const spawnEnv = Object.assign({}, process.env);
+  delete spawnEnv.PINGONE_ENVIRONMENT_ID;
+  delete spawnEnv.PINGONE_WORKER_CLIENT_ID;
+  delete spawnEnv.PINGONE_WORKER_CLIENT_SECRET;
+
+  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: spawnEnv });
 
   child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
   child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
