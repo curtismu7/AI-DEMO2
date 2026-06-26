@@ -219,11 +219,33 @@ function findHelixKeyFile(agentName: string): { path: string; data: HelixKeyFile
   const { repoRoot } = require("../shared/env") as typeof import("../shared/env");
 
   const safe = agentName.replace(/[^A-Za-z0-9_.-]/g, "");
-  const candidates = [
-    path.join(repoRoot(), `${safe}.json`),
+  const root = repoRoot();
+
+  // Resolve the main repo root — handles both normal installs and git worktrees.
+  // In a worktree, --show-toplevel returns the worktree dir; --git-common-dir
+  // returns the path to the shared .git dir, whose parent is the main checkout.
+  let mainRepoRoot: string | null = null;
+  try {
+    const { execSync } = require("child_process") as typeof import("child_process");
+    const commonDir = execSync("git rev-parse --git-common-dir", { encoding: "utf8", stdio: ["pipe","pipe","pipe"] }).trim();
+    // commonDir is ".git" in the main repo or an absolute path in a worktree
+    const abs = path.isAbsolute(commonDir) ? commonDir : path.join(root, commonDir);
+    mainRepoRoot = path.resolve(abs, "..");
+  } catch { /* not a git repo or git not available */ }
+
+  const roots = [...new Set([root, mainRepoRoot].filter(Boolean) as string[])];
+  const candidates: string[] = [];
+  for (const r of roots) {
+    candidates.push(
+      path.join(r, `${safe}.json`),
+      path.join(r, `${safe.toLowerCase()}.json`),
+      path.join(r, "LLM.json"),
+    );
+  }
+  candidates.push(
     path.join(os.homedir(), "Documents", `${safe}.json`),
     path.join(os.homedir(), "Downloads", `${safe}.json`),
-  ];
+  );
   for (const candidate of candidates) {
     try {
       const raw = fs.readFileSync(candidate, "utf8");
