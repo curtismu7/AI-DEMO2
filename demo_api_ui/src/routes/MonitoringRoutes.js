@@ -32,11 +32,7 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             ? <AgentFlowPage />
             : <Navigate to="/" replace />
         } />
-        <Route path="activity-log" element={
-          user
-            ? <ActivityLogs user={user} onLogout={logout} />
-            : <Navigate to="/" replace />
-        } />
+        <Route path="activity-log" element={<ActivityLogs user={user} onLogout={logout} />} />
       </Routes>
     </AppShell>
   );
