@@ -385,6 +385,7 @@ function AppWithAuth() {
                   onDismiss={() => setSessionReauth(null)}
                 />
               )}
+              {user && !isApiTrafficOnlyPage && <AdminSideNav user={user} />}
               <Routes>
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
@@ -451,7 +452,6 @@ function AppWithAuth() {
                   element={
                     loading ? null : (
                       <>
-                        <AdminSideNav user={user} />
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <LearningHub />
@@ -470,7 +470,6 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <>
-                        <AdminSideNav user={user} />
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <AiControlPlanePage />
@@ -501,7 +500,6 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <>
-                        <AdminSideNav user={user} />
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <SnapshotImport />
@@ -517,7 +515,6 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <>
-                        <AdminSideNav user={user} />
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <PingCliPage />
@@ -567,7 +564,6 @@ function AppWithAuth() {
                     loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
-                        {user && <AdminSideNav user={user} />}
                         <main className="main-content">
                           {user?.role === "admin" ? (
                             <Dashboard user={user} onLogout={logout} />
@@ -585,7 +581,6 @@ function AppWithAuth() {
                   element={
                     loading ? null : (
                       <>
-                        <AdminSideNav user={user} />
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           {user?.role === "admin" ? (
@@ -627,8 +622,6 @@ function AppWithAuth() {
                       )
                     ) : (
                       <>
-                        <AdminSideNav user={user} />
-
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <Routes location={backgroundLocation || fullLocation}>
