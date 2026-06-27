@@ -1,6 +1,50 @@
 import React, { useState } from 'react';
 import './SnapshotImport.css';
 
+const AUTHZ_BASE = 'http://localhost:9001';
+
+function ConflictDiff({ conflict }) {
+  if (conflict.type === 'consent_tool_mismatch' || conflict.type === 'step_up_tool_mismatch') {
+    const snap = new Set(conflict.snapshot || []);
+    const sot = new Set(conflict.sot || []);
+    const missing = (conflict.sot || []).filter(t => !snap.has(t));
+    const extra = (conflict.snapshot || []).filter(t => !sot.has(t));
+    return (
+      <li className="conflict-item">
+        <strong className="conflict-type">{conflict.type}</strong>
+        <div className="conflict-diff">
+          {missing.length > 0 && (
+            <div className="diff-block diff-missing">
+              <span className="diff-label">Missing from snapshot:</span>
+              {missing.map(t => <span key={t} className="diff-tag diff-tag-missing">{t}</span>)}
+            </div>
+          )}
+          {extra.length > 0 && (
+            <div className="diff-block diff-extra">
+              <span className="diff-label">Extra in snapshot (not in SoT):</span>
+              {extra.map(t => <span key={t} className="diff-tag diff-tag-extra">{t}</span>)}
+            </div>
+          )}
+          <div className="diff-block diff-expected">
+            <span className="diff-label">Expected ({(conflict.sot || []).length} tools):</span>
+            <span className="diff-tools">{(conflict.sot || []).join(', ')}</span>
+          </div>
+        </div>
+        <div className="conflict-fix">
+          Import the correct snapshot below to fix this.
+        </div>
+      </li>
+    );
+  }
+  return (
+    <li className="conflict-item">
+      <strong className="conflict-type">{conflict.type}</strong>
+      {conflict.message && <span>: {conflict.message}</span>}
+      {conflict.statement && <div className="conflict-detail">Statement: {conflict.statement}</div>}
+    </li>
+  );
+}
+
 export default function SnapshotImport() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -17,27 +61,16 @@ export default function SnapshotImport() {
   };
 
   const handleImport = async () => {
-    if (!file) {
-      setError('No file selected');
-      return;
-    }
-
+    if (!file) { setError('No file selected'); return; }
     setLoading(true);
     setError(null);
     setResult(null);
-
     try {
       const formData = new FormData();
       formData.append('snapshot', file);
-
-      const res = await fetch('http://localhost:9001/admin/import-snapshot', {
-        method: 'POST',
-        body: formData,
-      });
-
+      const res = await fetch(`${AUTHZ_BASE}/admin/import-snapshot`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setResult(data);
+      setResult(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -54,16 +87,21 @@ export default function SnapshotImport() {
       </p>
 
       <div className="upload-section">
-        <input
-          type="file"
-          accept=".json"
-          onChange={handleFileSelect}
-          disabled={loading}
-          placeholder="Select snapshot.json"
-        />
+        <input type="file" accept=".json" onChange={handleFileSelect} disabled={loading} />
         <button onClick={handleImport} disabled={!file || loading}>
           {loading ? 'Validating...' : 'Validate Snapshot'}
         </button>
+      </div>
+
+      <div className="download-section">
+        <span className="download-label">Current correct snapshot (SoT-generated):</span>
+        <a
+          className="download-btn"
+          href={`${AUTHZ_BASE}/admin/current-snapshot`}
+          download="Super_Banking_Transaction_Authorization_P1AZ.snapshot.json"
+        >
+          Download for P1AZ import
+        </a>
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -82,34 +120,20 @@ export default function SnapshotImport() {
             </ul>
           </div>
 
-          {result.conflicts.length > 0 && (
+          {result.conflicts && result.conflicts.length > 0 && (
             <div className="conflicts">
               <h4>Conflicts ({result.conflicts.length})</h4>
               <ul>
-                {result.conflicts.map((c, i) => (
-                  <li key={i}>
-                    <strong>{c.type}</strong>
-                    {c.message && `: ${c.message}`}
-                    {c.snapshot && (
-                      <div className="conflict-detail">
-                        Snapshot: {c.snapshot.join(', ')}
-                      </div>
-                    )}
-                    {c.sot && (
-                      <div className="conflict-detail">
-                        Expected: {c.sot.join(', ')}
-                      </div>
-                    )}
-                  </li>
-                ))}
+                {result.conflicts.map((c, i) => <ConflictDiff key={i} conflict={c} />)}
               </ul>
+              <div className="fix-callout">
+                <strong>Fix:</strong> Download the correct snapshot above and import it into PingOne Authorize.
+              </div>
             </div>
           )}
 
           {result.valid && (
-            <p className="success-msg">
-              Snapshot is ready to import to PingOne Authorize.
-            </p>
+            <p className="success-msg">Snapshot is in sync. No action needed.</p>
           )}
         </div>
       )}

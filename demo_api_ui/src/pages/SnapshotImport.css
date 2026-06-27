@@ -110,3 +110,118 @@
   font-weight: 500;
   font-size: 14px;
 }
+
+.download-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.download-label {
+  color: #555;
+  flex: 1;
+}
+
+.download-btn {
+  padding: 6px 14px;
+  background-color: #0069d9;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.download-btn:hover {
+  background-color: #0056b3;
+}
+
+.conflict-item {
+  margin-bottom: 16px;
+  list-style: none;
+  padding: 0;
+}
+
+.conflicts ul {
+  padding-left: 0;
+}
+
+.conflict-type {
+  font-family: monospace;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+.conflict-diff {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diff-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.diff-label {
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  margin-right: 4px;
+}
+
+.diff-tag {
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.diff-tag-missing {
+  background: #fde8e8;
+  color: #c0392b;
+  border: 1px solid #f5c6cb;
+}
+
+.diff-tag-extra {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+.diff-expected .diff-tools {
+  color: #666;
+  word-break: break-word;
+}
+
+.conflict-fix {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 3px;
+  padding: 4px 10px;
+  display: inline-block;
+}
+
+.fix-callout {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #856404;
+}
