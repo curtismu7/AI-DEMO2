@@ -175,6 +175,9 @@ export default function AuthzTestPage() {
 	const [workerClientSecret, setWorkerClientSecret] = useState("");
 	const [engineSaving, setEngineSaving] = useState(false);
 	const [engineSaveMsg, setEngineSaveMsg] = useState(null); // {ok, text}
+	const [availableEndpoints, setAvailableEndpoints] = useState([]);
+	const [endpointsLoading, setEndpointsLoading] = useState(false);
+	const [endpointsError, setEndpointsError] = useState(null); // null | "403" | "fetch_failed"
 
 	const pushHistory = useCallback((result, label) => {
 		setHistory((h) =>
@@ -204,6 +207,32 @@ export default function AuthzTestPage() {
 	useEffect(() => {
 		loadStatus();
 	}, [loadStatus]);
+
+	// Auto-fetch decision endpoints when PingOne mode is selected
+	useEffect(() => {
+		if (engineMode !== "pingone") return;
+		setEndpointsLoading(true);
+		setEndpointsError(null);
+		apiClient
+			.get("/api/authorize/decision-endpoints")
+			.then((res) => {
+				const eps = res.data?.endpoints ?? [];
+				setAvailableEndpoints(eps);
+				if (eps.length === 1 && !endpointId) {
+					setEndpointId(eps[0].id);
+				}
+			})
+			.catch((err) => {
+				const status = err.response?.status;
+				if (status === 422) return; // not configured yet — silent
+				if (status === 403) {
+					setEndpointsError("403");
+					return;
+				}
+				setEndpointsError("fetch_failed");
+			})
+			.finally(() => setEndpointsLoading(false));
+	}, [engineMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const resetPage = useCallback(() => {
 		setScenarioResults({});
