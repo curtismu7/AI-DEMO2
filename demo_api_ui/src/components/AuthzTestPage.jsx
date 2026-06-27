@@ -669,16 +669,46 @@ export default function AuthzTestPage() {
 								<div className="authz-engine-creds-grid">
 									<label className="authz-label">
 										Decision Endpoint ID
-										<input
-											type="text"
-											className="authz-input"
-											value={endpointId}
-											onChange={(e) => setEndpointId(e.target.value)}
-											placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-											autoComplete="off"
-										/>
+										{endpointsLoading ? (
+											<input
+												type="text"
+												className="authz-input"
+												value=""
+												placeholder="Fetching endpoints…"
+												disabled
+												readOnly
+											/>
+										) : availableEndpoints.length > 1 ? (
+											<select
+												className="authz-input"
+												value={endpointId}
+												onChange={(e) => setEndpointId(e.target.value)}
+											>
+												<option value="">— select an endpoint —</option>
+												{availableEndpoints.map((ep) => (
+													<option key={ep.id} value={ep.id}>
+														{ep.name}
+													</option>
+												))}
+											</select>
+										) : (
+											<input
+												type="text"
+												className="authz-input"
+												value={endpointId}
+												onChange={(e) => setEndpointId(e.target.value)}
+												placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+												autoComplete="off"
+											/>
+										)}
 										<span className="authz-engine-creds-hint">
-											From PingOne Authorize → Decision Endpoints
+											{endpointsError === "403"
+												? "Admin required to fetch endpoint list"
+												: endpointsError === "fetch_failed"
+													? "Could not fetch endpoint list — enter ID manually"
+													: availableEndpoints.length === 1
+														? `Auto-selected: ${availableEndpoints[0].name}`
+														: "From PingOne Authorize → Decision Endpoints"}
 										</span>
 									</label>
 									<label className="authz-label">
