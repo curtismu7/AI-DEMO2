@@ -794,8 +794,17 @@ class ConfigStore {
    * Always call ensureInitialized() before the first get().
    */
   get(key) {
-    const v = this._cache[String(key).toUpperCase()];
-    return (v !== undefined && v !== '') ? v : null;
+    const upper = String(key).toUpperCase();
+    const v = this._cache[upper];
+    if (v !== undefined && v !== '') return v;
+    // Transparent env-var fallback: if nothing is cached, return the exact
+    // matching process.env entry (same key, uppercased). This prevents callers
+    // that use .get('SOME_ENV_KEY') from silently returning null when the value
+    // lives in .env but hasn't been loaded into the LMDB cache yet — the class
+    // of bug that caused P1AZ "worker credentials not configured" warnings even
+    // though PINGONE_WORKER_CLIENT_ID was present in .env.
+    const envVal = process.env[upper];
+    return (envVal !== undefined && envVal !== '') ? envVal : null;
   }
 
   /**
