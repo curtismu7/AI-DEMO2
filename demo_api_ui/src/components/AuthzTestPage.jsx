@@ -211,28 +211,37 @@ export default function AuthzTestPage() {
 	// Auto-fetch decision endpoints when PingOne mode is selected
 	useEffect(() => {
 		if (engineMode !== "pingone") return;
+		const controller = new AbortController();
 		setEndpointsLoading(true);
 		setEndpointsError(null);
+		setAvailableEndpoints([]);
 		apiClient
-			.get("/api/authorize/decision-endpoints")
+			.get("/api/authorize/decision-endpoints", { signal: controller.signal })
 			.then((res) => {
 				const eps = res.data?.endpoints ?? [];
 				setAvailableEndpoints(eps);
-				if (eps.length === 1 && !endpointId) {
-					setEndpointId(eps[0].id);
+				if (eps.length === 1) {
+					setEndpointId(id => id || eps[0].id);
+				}
+				if (eps.length > 1) {
+					setEndpointId(id => eps.some(ep => ep.id === id) ? id : "");
 				}
 			})
 			.catch((err) => {
+				if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
 				const status = err.response?.status;
-				if (status === 422) return; // not configured yet — silent
+				if (status === 422) return;
 				if (status === 403) {
 					setEndpointsError("403");
 					return;
 				}
 				setEndpointsError("fetch_failed");
 			})
-			.finally(() => setEndpointsLoading(false));
-	}, [engineMode]); // eslint-disable-line react-hooks/exhaustive-deps
+			.finally(() => {
+				if (!controller.signal.aborted) setEndpointsLoading(false);
+			});
+		return () => controller.abort();
+	}, [engineMode]);
 
 	const resetPage = useCallback(() => {
 		setScenarioResults({});
@@ -673,10 +682,9 @@ export default function AuthzTestPage() {
 											<input
 												type="text"
 												className="authz-input"
-												value=""
+												value={endpointId}
 												placeholder="Fetching endpoints…"
 												disabled
-												readOnly
 											/>
 										) : availableEndpoints.length > 1 ? (
 											<select
@@ -706,7 +714,7 @@ export default function AuthzTestPage() {
 												? "Admin required to fetch endpoint list"
 												: endpointsError === "fetch_failed"
 													? "Could not fetch endpoint list — enter ID manually"
-													: availableEndpoints.length === 1
+													: endpointId === availableEndpoints[0]?.id
 														? `Auto-selected: ${availableEndpoints[0].name}`
 														: "From PingOne Authorize → Decision Endpoints"}
 										</span>
