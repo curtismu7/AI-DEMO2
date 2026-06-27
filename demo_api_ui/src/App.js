@@ -78,6 +78,7 @@ import Users from "./components/Users";
 import UserTransactions from "./components/UserTransactions";
 import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
+import NotFoundPage from "./components/NotFoundPage";
 import WorkforceAdminOps from "./components/WorkforceAdminOps";
 import { ActivityNarrativeProvider } from "./context/ActivityNarrativeContext";
 import {
@@ -1063,16 +1064,7 @@ function AppWithAuth() {
                             />
                             <Route
                               path="*"
-                              element={
-                                <Navigate
-                                  to={
-                                    user?.role === "admin"
-                                      ? "/admin"
-                                      : "/dashboard"
-                                  }
-                                  replace
-                                />
-                              }
+                              element={<NotFoundPage />}
                             />
                           </Routes>
                           {backgroundLocation &&
