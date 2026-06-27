@@ -24,7 +24,7 @@ const DB_NAME = 'delegations';
 
 function _db() { return openEnv().openDB(DB_NAME, { encoding: 'json' }); }
 
-function grantDelegation({ delegator_user_id, delegate_user_id, delegate_email, delegator_email, scopes, status = 'active' }) {
+function grantDelegation({ delegator_user_id, delegate_user_id, delegate_email, delegator_email, scopes, status = 'active', access_token = null }) {
   const id = randomUUID();
   const record = {
     id,
@@ -36,6 +36,7 @@ function grantDelegation({ delegator_user_id, delegate_user_id, delegate_email, 
     status,
     granted_at: new Date().toISOString(),
     revoked_at: null,
+    access_token,
   };
   _db().putSync(id, record);
   return { id };
@@ -62,4 +63,17 @@ function getDelegationById(id) {
   return _db().get(id) || null;
 }
 
-module.exports = { grantDelegation, revokeDelegation, getDelegations, getDelegationById };
+function findActiveByActorAndGrantor(actorSub, grantorUserId) {
+  for (const { value } of _db().getRange()) {
+    if (
+      value.delegator_user_id === grantorUserId &&
+      value.delegate_email === actorSub &&
+      value.status === 'active'
+    ) {
+      return value;
+    }
+  }
+  return null;
+}
+
+module.exports = { grantDelegation, revokeDelegation, getDelegations, getDelegationById, findActiveByActorAndGrantor };
