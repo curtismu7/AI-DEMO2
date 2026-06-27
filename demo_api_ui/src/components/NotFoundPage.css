@@ -1,0 +1,108 @@
+.not-found-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.not-found-container {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.not-found-code {
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.not-found-container h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.75rem 0;
+}
+
+.not-found-message {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0 0 2rem 0;
+  line-height: 1.5;
+}
+
+.not-found-message code {
+  background: #edf2f7;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #2d3748;
+  word-break: break-all;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-direction: column;
+}
+
+.not-found-button {
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.not-found-button--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.not-found-button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.not-found-button--secondary {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
+.not-found-button--secondary:hover {
+  background: #dddddd;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .not-found-container {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+  }
+
+  .not-found-code {
+    font-size: 4rem;
+  }
+
+  .not-found-container h1 {
+    font-size: 1.5rem;
+  }
+}

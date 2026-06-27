@@ -1849,7 +1849,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
         app.use(express.static(buildPath));
         // SPA fallback — serve index.html for all non-API routes.
         // Must not be cached so browsers always fetch the latest asset hashes.
+        // Paths with a file extension that weren't served by express.static don't exist — 404 them
+        // rather than falling through to the SPA (which would show the app instead of an error).
         app.get('*', (req, res) => {
+            if (/\.[^\/]+$/.test(req.path)) {
+                return res.status(404).send('Not Found');
+            }
             res.set('Cache-Control', 'no-store');
             res.sendFile(path.join(buildPath, 'index.html'));
         });
