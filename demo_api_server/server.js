@@ -433,6 +433,30 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
+// Session secret rotation detector: persist a hash of the current SESSION_SECRET
+// into configStore on first boot; on subsequent boots, compare and warn if changed.
+// A changed SESSION_SECRET invalidates all existing sessions silently — users get
+// 401s with no clear message. This surfaces that at boot instead.
+(function detectSessionSecretRotation() {
+    try {
+        const crypto = require('crypto');
+        const currentSecret = process.env.SESSION_SECRET || 'dev-session-secret-change-in-production';
+        const currentHash = crypto.createHash('sha256').update(currentSecret).digest('hex').slice(0, 16);
+        const storedHash = configStore.get('_session_secret_hash');
+        if (storedHash && storedHash !== currentHash) {
+            console.warn(
+                '[session] SESSION_SECRET has changed since the last boot — all active sessions are now invalid. ' +
+                'Users will be silently logged out on their next request. This is expected after a deliberate ' +
+                'secret rotation; if unintentional, restore the previous SESSION_SECRET.',
+            );
+        }
+        // Store hash for next-boot comparison. Not sensitive — it's a short prefix of a SHA-256 hash.
+        configStore._cache['_SESSION_SECRET_HASH'] = currentHash;
+    } catch (_) {
+        // Never let this block startup.
+    }
+}());
+
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({
@@ -1973,6 +1997,18 @@ async function runBackgroundStartupTasks() {
         await syncOAuthEndpointsToLmdb();
     } catch (err) {
         console.warn('[lmdb-sync] OAuth endpoint sync failed (non-fatal):', err.message);
+    }
+
+    // ── Credential rotation detector ─────────────────────────────────────────
+    // Warns when a non-bootstrap secret key has a different value in LMDB vs .env.
+    // LMDB wins for these keys (Vault > LMDB > .env), so a rotated .env credential
+    // is silently ignored until the old LMDB entry is overwritten via App Config.
+    try {
+        const { detectRotatedCredentials } = require('./services/configStore');
+        const warnings = detectRotatedCredentials();
+        for (const w of warnings) console.warn(w);
+    } catch (err) {
+        console.warn('[config-rotation] check failed (non-fatal):', err.message);
     }
 
     // ── Redirect-URI guard ────────────────────────────────────────────────────

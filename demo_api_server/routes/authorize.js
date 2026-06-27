@@ -581,11 +581,9 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
   const summary = getAuthorizationStatusSummary();
 
   const endpointId =
-    configStore.getEffective('authorize_decision_endpoint_id') ||
-    configStore.get('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID') || null;
+    configStore.getEffective('authorize_decision_endpoint_id') || null;
   const mcpEndpointId =
-    configStore.getEffective('authorize_mcp_decision_endpoint_id') ||
-    configStore.get('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID') || null;
+    configStore.getEffective('authorize_mcp_decision_endpoint_id') || null;
 
   const base = {
     ok: true,
@@ -596,12 +594,8 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
     transactionEndpointId: endpointId,
     mcpEndpointId,
     simulatedMode: summary.simulatedMode,
-    environmentId:
-      configStore.get('pingone_environment_id') ||
-      process.env.PINGONE_ENVIRONMENT_ID || null,
-    region:
-      configStore.get('pingone_region') ||
-      process.env.PINGONE_REGION || 'com',
+    environmentId: configStore.getEffective('pingone_environment_id') || null,
+    region: configStore.getEffective('pingone_region') || 'com',
   };
 
   // The console only needs worker credentials to list and evaluate against any
@@ -642,9 +636,7 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
  * themselves. Read-only; any authenticated user.
  */
 router.get('/pingone-policies', authenticateToken, async (_req, res) => {
-  const environmentId =
-    configStore.get('pingone_environment_id') ||
-    process.env.PINGONE_ENVIRONMENT_ID || null;
+  const environmentId = configStore.getEffective('pingone_environment_id') || null;
 
   if (!isWorkerCredentialReady()) {
     return res.json({

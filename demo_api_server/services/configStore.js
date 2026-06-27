@@ -1906,6 +1906,62 @@ async function syncOAuthEndpointsToLmdb() {
 
 // Singleton
 const configStore = new ConfigStore();
+
+/**
+ * detectRotatedCredentials — boot-time check for non-bootstrap credential keys
+ * where LMDB holds a value that differs from the current .env value.
+ *
+ * Bootstrap keys (session_secret, management creds, oauth endpoints) are already
+ * env-authoritative and handled by BOOTSTRAP_ALLOWLIST. This function covers the
+ * remaining secret keys — app client secrets, API keys, demo passwords, etc. —
+ * where the LMDB (vault/cache) value could silently beat a rotated .env value,
+ * causing 401s or auth failures that look like transient network errors.
+ *
+ * Never throws; non-blocking advisory. Returns an array of warning strings.
+ * Callers are expected to log them and move on.
+ */
+function detectRotatedCredentials() {
+  // Map: lowercase config key → canonical env var name
+  const WATCHLIST = [
+    ['pingone_admin_client_secret',              'PINGONE_ADMIN_CLIENT_SECRET'],
+    ['pingone_user_client_secret',               'PINGONE_USER_CLIENT_SECRET'],
+    ['pingone_authorize_worker_client_secret',   'PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
+    ['pingone_management_client_secret',         'PINGONE_MANAGEMENT_CLIENT_SECRET'],
+    ['pingone_agent_client_secret',              'PINGONE_AGENT_CLIENT_SECRET'],
+    ['pingone_a2a_investment_agent_client_secret', 'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET'],
+    ['pingone_a2a_records_agent_client_secret',  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
+    ['pingone_a2a_purchase_agent_client_secret', 'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET'],
+    ['pingone_a2a_membership_agent_client_secret', 'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
+    ['pingone_a2a_payroll_agent_client_secret',  'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
+    ['mcp_gw_client_secret',                    'MCP_GW_CLIENT_SECRET'],
+    ['gw_introspection_client_secret',          'GW_INTROSPECTION_CLIENT_SECRET'],
+    ['demo_password',                           'DEMO_USER_PASSWORD'],
+    ['demo_admin_password',                     'DEMO_ADMIN_PASSWORD'],
+  ];
+
+  const warnings = [];
+  try {
+    for (const [configKey, envKey] of WATCHLIST) {
+      const envVal = (process.env[envKey] || '').trim();
+      if (!envVal) continue; // not set in .env — nothing to compare
+
+      const cached = configStore.get(configKey);
+      if (!cached) continue; // not in LMDB — no stale value possible
+
+      if (cached !== envVal) {
+        warnings.push(
+          `[config-rotation] ${envKey}: .env value differs from LMDB cache — ` +
+          'LMDB wins for this key (non-bootstrap). If you rotated this credential, ' +
+          'update it via App Configuration or run: configStore.set("' + configKey + '", newValue).',
+        );
+      }
+    }
+  } catch (err) {
+    warnings.push('[config-rotation] check skipped: ' + err.message);
+  }
+  return warnings;
+}
+
 module.exports = configStore;
 module.exports.FIELD_DEFS = FIELD_DEFS;
 module.exports.SECRET_KEYS = SECRET_KEYS;
@@ -1917,3 +1973,4 @@ module.exports.ERROR_CODES = ERROR_CODES;
 module.exports.getErrorDetails = getErrorDetails;
 module.exports.mapErrorToCode = mapErrorToCode;
 module.exports.syncOAuthEndpointsToLmdb = syncOAuthEndpointsToLmdb;
+module.exports.detectRotatedCredentials = detectRotatedCredentials;
