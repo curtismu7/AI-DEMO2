@@ -111,6 +111,39 @@ function collectIssues() {
     );
   }
 
+  // Token endpoint host invariant. PingOne's /token lives on the AUTH host
+  // (auth.pingone.com/<env>/as/token). The Management API host (api.pingone.com)
+  // returns 403 on /token. A stale or wrong OAUTH_TOKEN_ENDPOINT isn't caught until
+  // the first OAuth flow, which surfaces as a generic 403 with no config pointer.
+  const tokenEndpoint =
+    effective('OAUTH_TOKEN_ENDPOINT') ||
+    effective('oauth_token_endpoint');
+  if (tokenEndpoint && ((/\/v1\/environments\//).test(tokenEndpoint) || (/(^|\/\/)api\.pingone\.com\b/).test(tokenEndpoint))) {
+    issues.push(
+      `OAUTH_TOKEN_ENDPOINT="${tokenEndpoint}" resolves to the Management API host — it returns 403 on ` +
+      `/token, so every login and token-exchange fails. Set OAUTH_TOKEN_ENDPOINT to the AUTH host ` +
+      `(e.g. https://auth.pingone.com/<env>/as/token).`,
+    );
+  }
+
+  // MCP Gateway audience presence. The RFC 8693 token exchange requests a token
+  // with audience = MCP_GW_RESOURCE_URI. An unset value passes through as empty
+  // string — PingOne either rejects the exchange or issues a token with no audience,
+  // and the gateway returns 401. This is only caught at the first tool call without
+  // this check.
+  const mcpGwAudience =
+    effective('PINGONE_RESOURCE_MCP_GATEWAY_URI') ||
+    effective('MCP_GW_RESOURCE_URI') ||
+    effective('MCP_RESOURCE_URI') ||
+    effective('MCP_SERVER_RESOURCE_URI');
+  if (!mcpGwAudience) {
+    issues.push(
+      `MCP gateway audience is not set — token exchange will fail on every agent tool call. ` +
+      `Set MCP_GW_RESOURCE_URI (or PINGONE_RESOURCE_MCP_GATEWAY_URI) to the gateway resource URI ` +
+      `registered in PingOne (e.g. https://mcpgateway.ping.demo).`,
+    );
+  }
+
   return issues;
 }
 

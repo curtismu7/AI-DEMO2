@@ -68,8 +68,17 @@ async function ensureDemoPersonaRoles() {
         const resp = await pingOneUserService.listUsers({ filter: `username eq "${username}"`, limit: 1 });
         const found = resp?._embedded?.users?.[0];
         if (!found?.id) {
-          console.warn(`${TAG} ${username}: not found — skipping.`);
+          console.warn(`${TAG} ${username}: not found in PingOne — login will fail until the user is created.`);
           continue;
+        }
+        // Warn if the account is disabled or not in ACTIVE lifecycle state — role
+        // assignments succeed but the user still cannot log in.
+        if (found.enabled === false) {
+          console.warn(`${TAG} ${username}: account is DISABLED in PingOne — login will fail. Enable the account at PingOne Admin → Users.`);
+        }
+        const lifecycle = found.lifecycle?.status;
+        if (lifecycle && lifecycle !== 'ACTIVE') {
+          console.warn(`${TAG} ${username}: lifecycle status is "${lifecycle}" (expected ACTIVE) — login may fail. Check PingOne Admin → Users → ${username}.`);
         }
         const roles = await pingOneUserService.ensureAdminRoleAssignments(found.id);
         updated.push(username);
@@ -77,7 +86,7 @@ async function ensureDemoPersonaRoles() {
           console.log(`${TAG} ${username}: admin roles assigned: ${roles.assigned.join(', ')}`);
         }
         if (roles.failed.length) {
-          console.warn(`${TAG} ${username}: role assignment failures: ${roles.failed.map(f => `${f.role} (${f.error})`).join('; ')}`);
+          console.warn(`${TAG} ${username}: role assignment failures: ${roles.failed.map(f => f.role + ' (' + f.error + ')').join('; ')}`);
         }
       } catch (perUserErr) {
         console.warn(`${TAG} ${username}: could not ensure admin roles — ${perUserErr.message}`);
