@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Auto-regenerate the P1AZ snapshot whenever scope-topology.json is staged.
+# Prevents the "cloud policy drifts silently" class of bugs caught post-commit.
+
+if git diff --cached --name-only | grep -q '^scope-topology\.json$'; then
+  echo "[pre-commit] scope-topology.json changed — regenerating P1AZ snapshot..."
+  node snapshots/gen-authorize-snapshot.js
+  git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+  echo "[pre-commit] Snapshot updated and staged."
+fi

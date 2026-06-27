@@ -10,6 +10,8 @@
     "topology:check": "node scripts/gen-service-topology.js check",
     "hygiene:check": "node scripts/check-fresh-clone-hygiene.js",
     "topology:generate": "node scripts/gen-service-topology.js generate",
+    "snapshot:check": "node snapshots/gen-authorize-snapshot.js --check",
+    "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
     "test": "bash scripts/run-all-tests.sh",
     "test:api-server": "cd demo_api_server && npm test -- --forceExit",
     "test:mcp-server": "cd demo_mcp_server && npm run test:unit",
