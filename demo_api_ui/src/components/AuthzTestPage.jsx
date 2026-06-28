@@ -175,6 +175,9 @@ export default function AuthzTestPage() {
 	const [workerClientSecret, setWorkerClientSecret] = useState("");
 	const [engineSaving, setEngineSaving] = useState(false);
 	const [engineSaveMsg, setEngineSaveMsg] = useState(null); // {ok, text}
+	const [availableEndpoints, setAvailableEndpoints] = useState([]);
+	const [endpointsLoading, setEndpointsLoading] = useState(false);
+	const [endpointsError, setEndpointsError] = useState(null); // null | "403" | "fetch_failed"
 
 	const pushHistory = useCallback((result, label) => {
 		setHistory((h) =>
@@ -204,6 +207,41 @@ export default function AuthzTestPage() {
 	useEffect(() => {
 		loadStatus();
 	}, [loadStatus]);
+
+	// Auto-fetch decision endpoints when PingOne mode is selected
+	useEffect(() => {
+		if (engineMode !== "pingone") return;
+		const controller = new AbortController();
+		setEndpointsLoading(true);
+		setEndpointsError(null);
+		setAvailableEndpoints([]);
+		apiClient
+			.get("/api/authorize/decision-endpoints", { signal: controller.signal })
+			.then((res) => {
+				const eps = res.data?.endpoints ?? [];
+				setAvailableEndpoints(eps);
+				if (eps.length === 1) {
+					setEndpointId(id => id || eps[0].id);
+				}
+				if (eps.length > 1) {
+					setEndpointId(id => eps.some(ep => ep.id === id) ? id : "");
+				}
+			})
+			.catch((err) => {
+				if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+				const status = err.response?.status;
+				if (status === 422) return;
+				if (status === 403) {
+					setEndpointsError("403");
+					return;
+				}
+				setEndpointsError("fetch_failed");
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) setEndpointsLoading(false);
+			});
+		return () => controller.abort();
+	}, [engineMode]);
 
 	const resetPage = useCallback(() => {
 		setScenarioResults({});
@@ -640,16 +678,45 @@ export default function AuthzTestPage() {
 								<div className="authz-engine-creds-grid">
 									<label className="authz-label">
 										Decision Endpoint ID
-										<input
-											type="text"
-											className="authz-input"
-											value={endpointId}
-											onChange={(e) => setEndpointId(e.target.value)}
-											placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-											autoComplete="off"
-										/>
+										{endpointsLoading ? (
+											<input
+												type="text"
+												className="authz-input"
+												value={endpointId}
+												placeholder="Fetching endpoints…"
+												disabled
+											/>
+										) : availableEndpoints.length > 1 ? (
+											<select
+												className="authz-input"
+												value={endpointId}
+												onChange={(e) => setEndpointId(e.target.value)}
+											>
+												<option value="">— select an endpoint —</option>
+												{availableEndpoints.map((ep) => (
+													<option key={ep.id} value={ep.id}>
+														{ep.name}
+													</option>
+												))}
+											</select>
+										) : (
+											<input
+												type="text"
+												className="authz-input"
+												value={endpointId}
+												onChange={(e) => setEndpointId(e.target.value)}
+												placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+												autoComplete="off"
+											/>
+										)}
 										<span className="authz-engine-creds-hint">
-											From PingOne Authorize → Decision Endpoints
+											{endpointsError === "403"
+												? "Admin required to fetch endpoint list"
+												: endpointsError === "fetch_failed"
+													? "Could not fetch endpoint list — enter ID manually"
+													: endpointId === availableEndpoints[0]?.id
+														? `Auto-selected: ${availableEndpoints[0].name}`
+														: "From PingOne Authorize → Decision Endpoints"}
 										</span>
 									</label>
 									<label className="authz-label">
