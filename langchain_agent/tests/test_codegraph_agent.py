@@ -9,22 +9,24 @@ from src.codegraph.agent import create_codegraph_agent, SYSTEM_PROMPT
 class TestCreateCodegraphAgent:
     """Test the agent factory function."""
 
-    def test_calls_get_llm_defaults_to_ollama(self):
-        """get_llm is called with the local Ollama provider by default.
+    def test_calls_get_llm_with_resolved_provider(self):
+        """get_llm is called with the provider chosen by _resolve_provider.
 
         The cluster ships only a placeholder ANTHROPIC_API_KEY, so the agent
-        defaults to Ollama (overridable via CODEGRAPH_LLM_PROVIDER) — see the
-        2026-06-11 K8s fix. Assert the load-bearing invariants (provider, the
-        unset model, api_key) rather than the env-derived ollama_* kwargs.
+        defaults to the local llama.cpp provider when llama-server is reachable
+        (overridable via CODEGRAPH_LLM_PROVIDER). The probe is mocked here so the
+        test asserts the load-bearing invariants (provider, the unset model,
+        api_key) deterministically rather than depending on a live server.
         """
-        with patch("src.codegraph.agent.get_llm") as mock_llm, \
+        with patch("src.codegraph.agent._resolve_provider", return_value="llamacpp"), \
+             patch("src.codegraph.agent.get_llm") as mock_llm, \
              patch("src.codegraph.agent.get_codegraph_tools", return_value=[]), \
              patch("src.codegraph.agent.create_react_agent", return_value=MagicMock()):
             create_codegraph_agent(api_key="test-key")
 
         mock_llm.assert_called_once()
         kwargs = mock_llm.call_args.kwargs
-        assert kwargs["provider"] == "ollama"
+        assert kwargs["provider"] == "llamacpp"
         assert kwargs["model"] is None
         assert kwargs["api_key"] == "test-key"
 

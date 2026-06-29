@@ -39,7 +39,7 @@ function _broadcastProvider(provider) {
 export const PROVIDER_OPTIONS = [
   { id: "helix",              label: "Helix (model-agnostic wrapper)" },
   { id: "anthropic-lmstudio", label: "LM Studio (Anthropic API, local)" },
-  { id: "ollama",             label: "Ollama (local, native tool-calling)" },
+  { id: "llamacpp",           label: "llama.cpp (local, native tool-calling)" },
   { id: "openai",             label: "OpenAI (ChatGPT)" },
   { id: "anthropic",          label: "Anthropic (Claude)" },
 ];

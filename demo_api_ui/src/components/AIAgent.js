@@ -197,11 +197,11 @@ const FRONTIER_MODES = ["claude"];
  *  When the provider is unavailable we must NOT silently answer with heuristics —
  *  we tell the user and offer Heuristics as an explicit choice. These are the
  *  three single-brain LLM modes (heuristics-only is the deterministic fourth). */
-const PURE_LLM_MODES = ["ollama", "claude", "helix_google"];
+const PURE_LLM_MODES = ["llamacpp", "claude", "helix_google"];
 const PURE_LLM_LABELS = {
   helix_google: "Helix",
   claude: "Anthropic",
-  ollama: "Ollama",
+  llamacpp: "llama.cpp",
 };
 
 // Shown when the agent endpoint returns success but no reply text — almost always
@@ -357,7 +357,7 @@ export default function BankingAgent({
   // to the provider string the BFF expects. nlMeta.activeLlmProvider is fetched once on
   // mount and goes stale after a mode change, so agentProviderMode wins for explicit modes.
   const _MODE_PROVIDER_MAP = {
-    ollama: "ollama",
+    llamacpp: "llamacpp",
     claude: "anthropic",
     helix_google: "helix",
     lmstudio: "lmstudio",
@@ -4873,7 +4873,7 @@ export default function BankingAgent({
         signal: anySignal([
           AbortSignal.timeout(
             activeLlmProvider === "anthropic-lmstudio" ||
-              activeLlmProvider === "ollama"
+              activeLlmProvider === "llamacpp"
               ? 60000
               : 15000,
           ),
@@ -5560,7 +5560,7 @@ export default function BankingAgent({
   function reportNlFailure(err) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
-    // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
+    // swallow it and we land here. A slow local model (e.g. a llama.cpp reasoning
     // model on cold start) is the usual cause. Show an actionable hint instead
     // of the raw "Could not parse: signal timed out" string.
     const isTimeout =
@@ -5575,7 +5575,7 @@ export default function BankingAgent({
       );
       addMessage(
         "assistant",
-        "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller Ollama model).",
+        "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller llama.cpp model).",
       );
       return;
     }
@@ -5870,7 +5870,7 @@ export default function BankingAgent({
         signal: anySignal([
           AbortSignal.timeout(
             activeLlmProvider === "anthropic-lmstudio" ||
-              activeLlmProvider === "ollama"
+              activeLlmProvider === "llamacpp"
               ? 60000
               : 15000,
           ),

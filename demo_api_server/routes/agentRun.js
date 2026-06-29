@@ -261,7 +261,7 @@ router.post('/run', async (req, res) => {
   // Step C: resolve LLM provider config
   // ---------------------------------------------------------------------------
   // Priority: explicit per-run body.provider (the UI's selected agent mode, e.g.
-  // 'ollama', forwarded by useAgentRun) > session langchain_config (set when
+  // 'llamacpp', forwarded by useAgentRun) > session langchain_config (set when
   // agent_mode changes) > llm_provider configStore > AGENT_PROVIDER env >
   // 'anthropic' fallback. The body value is the authoritative per-request selection
   // from the mode picker; the session value covers picker changes that didn't ride a

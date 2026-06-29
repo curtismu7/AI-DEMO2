@@ -80,28 +80,26 @@ async function getProviderStatus(provider, config = {}) {
     }
   }
 
-  // Ollama — ping the local daemon's /api/tags; no API key required.
-  // 127.0.0.1 (not localhost) so Node doesn't resolve to ::1 where Ollama isn't bound.
-  if (provider === 'ollama') {
-    const origin = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
-    const wantModel = config.model || process.env.OLLAMA_MODEL || 'qwen2.5:3b';
+  // llama.cpp — ping llama-server's OpenAI-compatible /v1/models; no API key required.
+  // 127.0.0.1 (not localhost) so Node doesn't resolve to ::1 where llama-server isn't bound.
+  if (provider === 'llamacpp') {
+    const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8090').replace(/\/+$/, '');
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
-      const response = await fetch(`${origin}/api/tags`, { signal: controller.signal });
+      const response = await fetch(`${origin}/v1/models`, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
-        const models = (data.models || []).map(m => m.name || m.model).filter(Boolean);
-        const hasModel = models.some(name => name === wantModel || name.startsWith(`${wantModel.split(':')[0]}:`));
-        const reason = hasModel
-          ? `Ollama running — ${wantModel} available`
-          : `Ollama running but ${wantModel} not pulled (run: ollama pull ${wantModel})`;
-        return { status: hasModel ? 'available' : 'unconfigured', reason, hasKey: true, isReachable: true };
+        const models = (data.data || []).map(m => m.id).filter(Boolean);
+        const reason = models.length > 0
+          ? `llama.cpp running — serving ${models[0]}`
+          : 'llama.cpp server running (no model reported)';
+        return { status: 'available', reason, hasKey: true, isReachable: true };
       }
-      return { status: 'unreachable', reason: `Ollama returned ${response.status}`, hasKey: true, isReachable: false };
+      return { status: 'unreachable', reason: `llama.cpp returned ${response.status}`, hasKey: true, isReachable: false };
     } catch (err) {
-      return { status: 'unreachable', reason: `Ollama not reachable at ${origin}: ${err.message} (is 'ollama serve' running?)`, hasKey: true, isReachable: false };
+      return { status: 'unreachable', reason: `llama.cpp not reachable at ${origin}: ${err.message} (is 'llama-server' running?)`, hasKey: true, isReachable: false };
     }
   }
 

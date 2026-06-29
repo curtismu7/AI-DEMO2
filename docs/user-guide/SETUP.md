@@ -21,7 +21,7 @@
 - **PingOne** free trial at [pingidentity.com](https://www.pingidentity.com/) — you need:
   - Your **Environment ID** (UUID, found under Environments → *your environment* → Settings)
   - Your **Region** suffix: `com`, `eu`, `ca`, `ap`, or `asia`
-- Optional for full agent demo: an LLM provider key — Helix/Ping AI (default), Anthropic (Claude), or OpenAI; a local LM Studio endpoint also works.
+- Optional for full agent demo: an LLM provider key — Helix/Ping AI (default), Anthropic (Claude), or OpenAI. A local model also works with **no key**: run llama.cpp's `llama-server` (the installer/`run.sh` set this up on `:8090`) or a local LM Studio endpoint.
 
 ### Clone the repo
 

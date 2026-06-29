@@ -124,13 +124,13 @@ check_prereqs() {
   check_docker
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. For local dev: enable Kubernetes in OrbStack/Docker Desktop Settings."
   info "K8s cluster reachable."
-  # Ollama runs as an in-cluster pod (k8s/55-ollama-deployment.yaml) — no host
-  # install is required. The pod pulls llama3.2:3b on first deploy and caches
+  # llama.cpp runs as an in-cluster pod (k8s/55-llamacpp-deployment.yaml) — no host
+  # install is required. The pod downloads the GGUF on first deploy and caches
   # the weights on a PVC so restarts don't re-download.
-  if ! command -v ollama >/dev/null 2>&1; then
-    info "Ollama: will run in-cluster (no host install needed for Kubernetes)."
+  if ! command -v llama-server >/dev/null 2>&1; then
+    info "llama.cpp: will run in-cluster (no host install needed for Kubernetes)."
   else
-    info "Ollama: host binary present — in-cluster pod will be used by agents regardless."
+    info "llama.cpp: host binary present — in-cluster pod will be used by agents regardless."
   fi
 }
 
@@ -423,44 +423,45 @@ derive_se_namespace() {
   echo "ping-devops-${slug}"
 }
 
-# Ensure Ollama is installed, running, and the CodeGraph model is pulled.
+# Ensure a host llama.cpp server is installed and running for the Code Explorer.
 # Called before any deploy that uses docker-compose (se-deploy, se-all).
-# The langchain-agent container connects via host.docker.internal:11434.
-ensure_ollama_running() {
-  local model="${OLLAMA_MODEL:-qwen3:1.7b}"
+# The langchain-agent container connects via host.docker.internal:8090.
+ensure_llamacpp_running() {
+  local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
+  local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
 
-  if ! command -v ollama >/dev/null 2>&1; then
-    info "Installing Ollama (required for Code Explorer)..."
+  if ! command -v llama-server >/dev/null 2>&1; then
+    info "Installing llama.cpp (required for Code Explorer)..."
     if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-      brew install ollama --quiet && success "Ollama installed." \
-        || { info "brew install ollama failed — install from https://ollama.ai"; return 0; }
+      brew install llama.cpp --quiet && success "llama.cpp installed." \
+        || { info "brew install llama.cpp failed — build from https://github.com/ggml-org/llama.cpp"; return 0; }
     else
-      curl -fsSL https://ollama.ai/install.sh | sh \
-        || { info "Ollama install failed — install from https://ollama.ai"; return 0; }
+      info "llama.cpp not found and Homebrew unavailable — build from https://github.com/ggml-org/llama.cpp"
+      return 0
     fi
   fi
 
-  if ! curl -sf --max-time 2 http://localhost:11434/ >/dev/null 2>&1; then
-    info "Starting Ollama daemon..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-      brew services start ollama 2>/dev/null || true
-    else
-      ollama serve &>/dev/null &
-    fi
-    sleep 3
-  fi
-
-  if ! ollama list 2>/dev/null | grep -q "^${model}"; then
-    info "Pulling ${model} (1.4 GB — tool-capable, runs on 32 GB machines)..."
-    ollama pull "${model}" && success "Model ${model} ready." \
-      || info "Model pull failed — run: ollama pull ${model}"
+  # Start the server if /health isn't already responding. The -hf flag downloads
+  # and caches the GGUF on first start (tool-capable, runs on 32 GB machines).
+  if ! curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
+    info "Starting llama-server (${model}) — downloads the GGUF on first start..."
+    llama-server --host 0.0.0.0 --port 8090 -hf "${hf_spec}" >/dev/null 2>&1 &
+    local waited=0
+    while [[ $waited -lt 120 ]]; do
+      if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
+        success "llama-server ready (model ${model})."
+        return 0
+      fi
+      sleep 3; (( waited += 3 ))
+    done
+    info "llama-server started but /health not ready yet — start manually: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
   else
-    success "Ollama model ${model} ready."
+    success "llama-server already running (model ${model})."
   fi
 }
 
 se_deploy() {
-  ensure_ollama_running
+  ensure_llamacpp_running
   check_ghcr_env
   local ns
   ns="$(derive_se_namespace)"

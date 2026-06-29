@@ -153,7 +153,7 @@ export function useAgentRun({
     const body = { threadId, runId, messages, flowTraceId };
     if (resume) body.resume = resume;
     // Forward the caller's selected LLM provider (e.g. the agent-mode picker's
-    // "Ollama only" → 'ollama') so the AG-UI run honors it instead of the BFF's
+    // "llama.cpp only" → 'llamacpp') so the AG-UI run honors it instead of the BFF's
     // 'anthropic' default. Omitted when null so the BFF's session/config fallback
     // still applies.
     if (provider) body.provider = provider;

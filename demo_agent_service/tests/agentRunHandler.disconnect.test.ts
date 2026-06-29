@@ -1,7 +1,7 @@
 // Regression: the SSE run handler must keep streaming the assistant answer when
 // the *request* stream closes mid-run. Node 16+ fires `req`'s 'close' event when
 // the request body stream ends (which, for a fully-read POST, happens long before
-// a slow provider like Ollama finishes), so wiring the abort flag to req-close
+// a slow provider like llama.cpp finishes), so wiring the abort flag to req-close
 // produced empty answers for slow models — `RUN_FINISHED success` with zero
 // TEXT_MESSAGE_CONTENT deltas. Disconnect must be detected via `res` 'close'
 // (guarded by writableFinished) instead.

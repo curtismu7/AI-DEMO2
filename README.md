@@ -16,13 +16,13 @@ One command bootstraps everything on a fresh Mac — no tooling required beforeh
 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
 ```
 
-It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, Ollama**, and any
+It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
 mode-specific tools, then clones the repo, generates TLS certs, and provisions PingOne. It first
 asks **how you want to run** the demo:
 
 | # | Mode | Launcher | Installs |
 |---|------|----------|----------|
-| **1** | **Local** (native Node/Python — recommended to start) | `./run.sh` | Node, Python, Docker¹, mkcert, Ollama |
+| **1** | **Local** (native Node/Python — recommended to start) | `./run.sh` | Node, Python, Docker¹, mkcert, llama.cpp |
 | **2** | **Kubernetes / OrbStack** (local cluster) | `./run-k8.sh` | + OrbStack, kubectl |
 | **3** | **Ping SE cluster** (shared AWS) | `./run-k8.sh se-all` | + Docker Desktop, kubelogin, kubectx |
 | **4** | **Kubernetes / EKS** (self-managed) | `./run-k8.sh aws-all` | + OrbStack, AWS CLI |

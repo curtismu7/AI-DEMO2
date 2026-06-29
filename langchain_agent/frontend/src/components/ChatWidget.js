@@ -85,7 +85,7 @@ const ChatWidget = ({
 
     const PROVIDER_LABELS = {
         groq: 'Groq', openai: 'OpenAI', anthropic: 'Anthropic',
-        google: 'Gemini', ollama: 'Ollama',
+        google: 'Gemini', llamacpp: 'llama.cpp',
     };
 
     const handleSettingsSave = async () => {
@@ -93,7 +93,7 @@ const ChatWidget = ({
         setSettingsMsg('');
         try {
             const body = { provider: activeProvider, model: activeModel };
-            if (settingsKeyInput.trim() && activeProvider !== 'ollama') {
+            if (settingsKeyInput.trim() && activeProvider !== 'llamacpp') {
                 body.key_type = activeProvider;
                 body.key = settingsKeyInput.trim();
             }
@@ -176,7 +176,7 @@ const ChatWidget = ({
                             ))}
                         </select>
                     </div>
-                    {activeProvider !== 'ollama' && (
+                    {activeProvider !== 'llamacpp' && (
                         <div className="lc-settings-panel__row">
                             <label>API Key</label>
                             {keySet[activeProvider]
