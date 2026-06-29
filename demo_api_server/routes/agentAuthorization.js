@@ -16,6 +16,7 @@ const router = express.Router();
 const pingOneUserService = require('../services/pingOneUserService');
 const configStore = require('../services/configStore');
 const delegationStore = require('../services/lmdb/delegationStore.lmdb');
+const delegationService = require('../services/delegationService');
 const { revokeToken } = require('../services/tokenRevocation');
 
 /** Resolve the AI Agent client_id that may_act.sub must equal (same source the exchange uses). */
@@ -53,13 +54,16 @@ router.post('/grant', async (req, res) => {
     pingOneUserService.initialize();
     await pingOneUserService.setMayActAttribute(req.user.id, { sub });
     const accessToken = req.session?.oauthTokens?.accessToken || null;
-    delegationStore.grantDelegation({
-      delegator_user_id: req.user.id,
-      delegator_email: req.user.email || '',
-      delegate_email: sub,
-      scopes: [],
-      access_token: accessToken,
-    });
+    const existing = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+    if (!existing) {
+      delegationStore.grantDelegation({
+        delegator_user_id: req.user.id,
+        delegator_email: req.user.email || '',
+        delegate_email: sub,
+        scopes: [],
+        access_token: accessToken,
+      });
+    }
     res.json({ ok: true, reauthRequired: true });
   } catch (err) {
     res.status(502).json({ error: 'mayact_write_failed', message: 'Could not update agent authorization. Try again.' });
@@ -77,8 +81,11 @@ router.post('/revoke', async (req, res) => {
 });
 
 router.get('/status', (req, res) => {
-  // Authorized = the live token carries may_act (what the token chain reflects).
-  res.json({ authorized: !!sessionTokenMayAct(req), enforced: isEnforced() });
+  const sub = agentMayActSub();
+  const authorized = sub
+    ? !!delegationStore.findActiveByActorAndGrantor(sub, req.user.id)
+    : false;
+  res.json({ authorized, enforced: isEnforced() });
 });
 
 router.delete('/hard', async (req, res) => {
@@ -86,7 +93,17 @@ router.delete('/hard', async (req, res) => {
   if (!sub) return res.status(503).json({ error: 'agent_not_configured', message: 'AI Agent client id not configured.' });
   const record = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
   if (!record) return res.status(404).json({ error: 'no_active_delegation' });
-  delegationStore.revokeDelegation(record.id);
+  try {
+    await delegationService.revokeDelegation(record.id, req.user.id);
+  } catch (err) {
+    console.error('[agent-authorization] delegationService.revokeDelegation (hard) failed (non-fatal):', err.message);
+  }
+  // Revoke all remaining active records for this actor/grantor pair
+  let next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  while (next) {
+    try { await delegationService.revokeDelegation(next.id, req.user.id); } catch (_) {}
+    next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  }
   const accessToken = req.session?.oauthTokens?.accessToken;
   if (accessToken) {
     const clientId = configStore.getEffective('pingone_client_id') || process.env.PINGONE_CLIENT_ID;
@@ -105,7 +122,17 @@ router.delete('/', async (req, res) => {
   if (!sub) return res.status(503).json({ error: 'agent_not_configured', message: 'AI Agent client id not configured.' });
   const record = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
   if (!record) return res.status(404).json({ error: 'no_active_delegation' });
-  delegationStore.revokeDelegation(record.id);
+  try {
+    await delegationService.revokeDelegation(record.id, req.user.id);
+  } catch (err) {
+    return res.status(502).json({ error: 'revoke_failed', message: err.message });
+  }
+  // Revoke all remaining active records for this actor/grantor pair
+  let next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  while (next) {
+    try { await delegationService.revokeDelegation(next.id, req.user.id); } catch (_) {}
+    next = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+  }
   res.json({ ok: true, revoked: 'soft' });
 });
 
