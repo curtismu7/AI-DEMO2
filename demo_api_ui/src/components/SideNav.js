@@ -85,6 +85,7 @@ const ADMIN_NAV = [
       { to: "/architecture/token-flow", label: "Token Flow Diagram", icon: "MdAccountTree" },
       { to: "/sequence-diagram", label: "Sequence Diagram", icon: "MdSwapCalls" },
       { to: "/architecture/canvas", label: "Canvas Diagram", icon: "MdAccountTree" },
+      { to: "/llama-vscode-guide", label: "llama-vscode Guide", icon: "MdMenuBook" },
     ],
   },
 ];
