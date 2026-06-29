@@ -13,6 +13,26 @@ global.jest = vi;
 
 // jsdom does not implement scrollIntoView — mock it globally
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
+
+// In Node.js v22+, `localStorage` is an experimental getter that returns
+// undefined (requires --localstorage-file). jsdom provides window.localStorage
+// but it may not be aliased to the bare `localStorage` global in all Vitest
+// worker configurations. Ensure the bare global points to jsdom's store so
+// tests that call localStorage.getItem / .setItem / .clear() work correctly.
+if (typeof window !== "undefined" && window.localStorage) {
+  try {
+    Object.defineProperty(globalThis, "localStorage", {
+      get: () => window.localStorage,
+      configurable: true,
+    });
+  } catch (_) {
+    try {
+      globalThis.localStorage = window.localStorage;
+    } catch (_2) {
+      /* best-effort */
+    }
+  }
+}
 if (typeof global.TextEncoder === "undefined") {
   global.TextEncoder = TextEncoder;
   global.TextDecoder = TextDecoder;

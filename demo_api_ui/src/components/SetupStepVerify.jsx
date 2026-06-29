@@ -43,7 +43,7 @@ export default function SetupStepVerify({ onEnvDownload }) {
 
     try {
       const { data } = await apiClient.get('/api/langchain/provider/helix/status');
-      results.helix = data?.status === 'configured' ? 'pass' : 'fail';
+      results.helix = data?.configured ? 'pass' : 'fail';
     } catch { results.helix = 'fail'; }
 
     results.bootstrap = results.pingone === 'pass' ? 'pass' : 'fail';

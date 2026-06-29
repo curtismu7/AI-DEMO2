@@ -16,7 +16,7 @@
             "name": "IntrospectionClientAuth",
             "type": "ClientSecretBasicAuthenticationFilter",
             "config": {
-              "clientId": "${env['INTROSPECT_CLIENT_ID']}",
+              "clientId": "${empty env['INTROSPECT_CLIENT_ID'] ? 'NOT_CONFIGURED' : env['INTROSPECT_CLIENT_ID']}",
               "clientSecretId": "introspect.client.secret",
               "secretsProvider": "SecretsStore"
             }
@@ -29,7 +29,7 @@
       "name": "RsFilterTokenResolver",
       "type": "TokenIntrospectionAccessTokenResolver",
       "config": {
-        "endpoint": "${env['PINGONE_INTROSPECTION_ENDPOINT']}",
+        "endpoint": "${empty env['PINGONE_INTROSPECTION_ENDPOINT'] ? 'http://authz-server:9001/as/introspect' : env['PINGONE_INTROSPECTION_ENDPOINT']}",
         "providerHandler": "IntrospectionProviderHandler"
       }
     },
@@ -38,7 +38,9 @@
       "type": "OAuth2ResourceServerFilter",
       "config": {
         "requireHttps": false,
-        "scopes": [ "${env['PG_INBOUND_SCOPE']}" ],
+        "scopes": [
+          "${empty env['PG_INBOUND_SCOPE'] ? 'mcp:invoke' : env['PG_INBOUND_SCOPE']}"
+        ],
         "accessTokenResolver": "RsFilterTokenResolver"
       }
     },
@@ -51,7 +53,7 @@
             "name": "TokenExchangeClientAuth",
             "type": "ClientSecretBasicAuthenticationFilter",
             "config": {
-              "clientId": "${env['TE_CLIENT_ID']}",
+              "clientId": "${empty env['TE_CLIENT_ID'] ? 'NOT_CONFIGURED' : env['TE_CLIENT_ID']}",
               "clientSecretId": "te.client.secret",
               "secretsProvider": "SecretsStore"
             }
@@ -65,7 +67,7 @@
       "type": "StaticResponseHandler",
       "config": {
         "status": 401,
-        "headers": { "Content-Type": [ "application/json" ] },
+        "headers": { "Content-Type": ["application/json"] },
         "entity": "{\"error\":\"token_exchange_failed\"}"
       }
     }

@@ -82,19 +82,28 @@ export function isAbortError(err) {
 }
 
 /**
- * Minimal stand-in for AbortSignal.any() for our short-lived two-signal call
- * sites (jsdom lacks AbortSignal.any). Listeners are {once:true}; do not pass
- * long-lived signals expecting eager listener cleanup.
+ * Minimal stand-in for AbortSignal.any() (jsdom lacks AbortSignal.any).
+ * The first abort — or any source signal already aborted on entry — removes the
+ * listeners from every source signal, so no listeners are leaked even when an
+ * early signal in the list outlives the call.
  */
 export function anySignal(signals) {
   const c = new AbortController();
-  const onAbort = () => { c.abort(); };
+  // Function declarations (hoisted) so onAbort/cleanup can reference each other.
+  function cleanup() {
+    for (const s of signals) s.removeEventListener("abort", onAbort);
+  }
+  function onAbort() {
+    cleanup();
+    c.abort();
+  }
   for (const s of signals) {
     if (s.aborted) {
+      cleanup();
       c.abort();
       break;
     }
-    s.addEventListener("abort", onAbort, { once: true });
+    s.addEventListener("abort", onAbort);
   }
   return c.signal;
 }

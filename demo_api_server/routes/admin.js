@@ -204,7 +204,11 @@ router.post('/transactions/lookup', requireAdmin, requireScopes(['admin']), asyn
 router.get('/activity', authenticateToken, (req, res) => {
   try {
     const { page = 1, limit = 50, username, action, startDate, endDate } = req.query;
-    
+    // Coerce + clamp pagination — query values are strings; non-numeric input
+    // would otherwise produce NaN indices and silently return an empty page.
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 50);
+
     let logs = dataStore.getAllActivityLogs();
 
     // Filter by username
@@ -232,19 +236,19 @@ router.get('/activity', authenticateToken, (req, res) => {
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // Pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = pageNum * limitNum;
     const paginatedLogs = logs.slice(startIndex, endIndex);
 
-    const totalPages = Math.ceil(logs.length / limit);
+    const totalPages = Math.ceil(logs.length / limitNum);
 
     res.json({
       logs: paginatedLogs,
       pagination: {
-        currentPage: parseInt(page),
+        currentPage: pageNum,
         totalPages,
         totalLogs: logs.length,
-        logsPerPage: parseInt(limit)
+        logsPerPage: limitNum
       }
     });
 
@@ -259,6 +263,8 @@ router.get('/activity/user/:username', authenticateToken, (req, res) => {
   try {
     const { username } = req.params;
     const { page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 50);
 
     let logs = dataStore.getActivityLogsByUsername(username);
 
@@ -266,19 +272,19 @@ router.get('/activity/user/:username', authenticateToken, (req, res) => {
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // Pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = pageNum * limitNum;
     const paginatedLogs = logs.slice(startIndex, endIndex);
 
-    const totalPages = Math.ceil(logs.length / limit);
+    const totalPages = Math.ceil(logs.length / limitNum);
 
     res.json({
       logs: paginatedLogs,
       pagination: {
-        currentPage: parseInt(page),
+        currentPage: pageNum,
         totalPages,
         totalLogs: logs.length,
-        logsPerPage: parseInt(limit)
+        logsPerPage: limitNum
       }
     });
 
@@ -293,6 +299,8 @@ router.get('/activity/userid/:userId', authenticateToken, (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 50);
 
     let logs = dataStore.getActivityLogsByUserId(userId);
 
@@ -300,19 +308,19 @@ router.get('/activity/userid/:userId', authenticateToken, (req, res) => {
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // Pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = pageNum * limitNum;
     const paginatedLogs = logs.slice(startIndex, endIndex);
 
-    const totalPages = Math.ceil(logs.length / limit);
+    const totalPages = Math.ceil(logs.length / limitNum);
 
     res.json({
       logs: paginatedLogs,
       pagination: {
-        currentPage: parseInt(page),
+        currentPage: pageNum,
         totalPages,
         totalLogs: logs.length,
-        logsPerPage: parseInt(limit)
+        logsPerPage: limitNum
       }
     });
 
