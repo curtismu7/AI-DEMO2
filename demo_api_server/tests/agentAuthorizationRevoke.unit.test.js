@@ -18,7 +18,9 @@ jest.mock('../services/configStore', () => ({
 jest.mock('../services/lmdb/delegationStore.lmdb', () => ({
   grantDelegation: jest.fn().mockReturnValue({ id: 'delegation-id-1' }),
   findActiveByActorAndGrantor: jest.fn(),
-  revokeDelegation: jest.fn(),
+}));
+jest.mock('../services/delegationService', () => ({
+  revokeDelegation: jest.fn().mockResolvedValue({ ok: true }),
 }));
 jest.mock('../services/tokenRevocation', () => ({
   revokeToken: jest.fn().mockResolvedValue(true),
@@ -29,10 +31,12 @@ jest.mock('../services/tokenRevocation', () => ({
 // mock instances. Without re-requiring here the top-level references would
 // point to stale mock objects that the route no longer shares.
 let delegationStore;
+let delegationService;
 let revokeToken;
 
 beforeEach(() => {
   delegationStore = require('../services/lmdb/delegationStore.lmdb');
+  delegationService = require('../services/delegationService');
   ({ revokeToken } = require('../services/tokenRevocation'));
 });
 
@@ -50,6 +54,7 @@ function makeApp(session = {}) {
 
 describe('POST /api/agent-authorization/grant writes LMDB', () => {
   it('calls grantDelegation with delegator_user_id and delegate_email', async () => {
+    delegationStore.findActiveByActorAndGrantor.mockReturnValue(null);
     const res = await request(makeApp()).post('/api/agent-authorization/grant');
     expect(res.status).toBe(200);
     expect(delegationStore.grantDelegation).toHaveBeenCalledWith(
@@ -58,6 +63,14 @@ describe('POST /api/agent-authorization/grant writes LMDB', () => {
         delegate_email: 'agent-client-id',
       })
     );
+  });
+
+  it('skips grantDelegation when an active record already exists', async () => {
+    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'existing-del' });
+    delegationStore.grantDelegation.mockClear();
+    const res = await request(makeApp()).post('/api/agent-authorization/grant');
+    expect(res.status).toBe(200);
+    expect(delegationStore.grantDelegation).not.toHaveBeenCalled();
   });
 });
 
@@ -70,11 +83,13 @@ describe('DELETE /api/agent-authorization (soft revoke)', () => {
   });
 
   it('revokes the delegation and returns soft', async () => {
-    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'del-1' });
+    delegationStore.findActiveByActorAndGrantor
+      .mockReturnValueOnce({ id: 'del-1' })
+      .mockReturnValue(null);
     const res = await request(makeApp()).delete('/api/agent-authorization');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, revoked: 'soft' });
-    expect(delegationStore.revokeDelegation).toHaveBeenCalledWith('del-1');
+    expect(delegationService.revokeDelegation).toHaveBeenCalledWith('del-1', 'user-1');
   });
 });
 
@@ -86,16 +101,21 @@ describe('DELETE /api/agent-authorization/hard (hard revoke)', () => {
   });
 
   it('revokes delegation, calls revokeToken, returns sessionClear', async () => {
-    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'del-2' });
+    delegationStore.findActiveByActorAndGrantor
+      .mockReturnValueOnce({ id: 'del-2' })
+      .mockReturnValue(null);
     revokeToken.mockResolvedValue(true);
     const res = await request(makeApp()).delete('/api/agent-authorization/hard');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, revoked: 'hard', sessionClear: true });
+    expect(delegationService.revokeDelegation).toHaveBeenCalledWith('del-2', 'user-1');
     expect(revokeToken).toHaveBeenCalledWith('access-tok', 'access_token', 'client-id', 'client-secret');
   });
 
   it('still returns sessionClear even if revokeToken throws', async () => {
-    delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'del-3' });
+    delegationStore.findActiveByActorAndGrantor
+      .mockReturnValueOnce({ id: 'del-3' })
+      .mockReturnValue(null);
     revokeToken.mockRejectedValue(new Error('network error'));
     const res = await request(makeApp()).delete('/api/agent-authorization/hard');
     expect(res.status).toBe(200);
