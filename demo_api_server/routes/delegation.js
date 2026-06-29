@@ -13,6 +13,9 @@ const {
   adminGrantDelegation,
 } = require('../services/delegationService');
 const { requireAdmin } = require('../middleware/auth');
+const delegationStore = require('../services/lmdb/delegationStore.lmdb');
+const { revokeToken } = require('../services/tokenRevocation');
+const configStore = require('../services/configStore');
 
 // GET /api/delegation/history — full history for authenticated user (must come before '/:id' patterns)
 router.get('/history', async (req, res) => {
@@ -130,6 +133,33 @@ router.delete('/admin/:id', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('[delegation] DELETE /admin/:id error:', err.message);
+    res.status(500).json({ error: 'internal_error', message: err.message });
+  }
+});
+
+// DELETE /api/delegation/admin/:id/hard — revoke + kill live token (admin)
+router.delete('/admin/:id/hard', requireAdmin, async (req, res) => {
+  try {
+    const record = delegationStore.getDelegationById(req.params.id);
+    const result = await adminRevokeDelegation(req.params.id);
+    if (!result.ok) return res.status(404).json(result);
+
+    const userId = record?.delegator_user_id || null;
+    const storedToken = record?.access_token;
+    const clientId = configStore.getEffective('pingone_client_id') || process.env.PINGONE_CLIENT_ID;
+    const clientSecret = configStore.getEffective('pingone_client_secret') || process.env.PINGONE_CLIENT_SECRET;
+
+    if (storedToken && clientId && clientSecret) {
+      try {
+        await revokeToken(storedToken, 'access_token', clientId, clientSecret);
+        return res.json({ ok: true, revoked: 'hard', userId });
+      } catch (err) {
+        console.error('[delegation] admin hard revoke token failed (non-fatal):', err.message);
+      }
+    }
+    res.json({ ok: true, revoked: 'soft', note: 'token_unavailable', userId });
+  } catch (err) {
+    console.error('[delegation] DELETE /admin/:id/hard error:', err.message);
     res.status(500).json({ error: 'internal_error', message: err.message });
   }
 });

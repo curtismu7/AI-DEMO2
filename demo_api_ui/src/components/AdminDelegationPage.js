@@ -20,6 +20,7 @@ export default function AdminDelegationPage() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [search, setSearch] = useState("");
   const [revoking, setRevoking] = useState(null);
+  const [revokingHard, setRevokingHard] = useState(null);
   const [pageError, setPageError] = useState("");
   const [pageSuccess, setPageSuccess] = useState("");
 
@@ -73,6 +74,27 @@ export default function AdminDelegationPage() {
       setPageError("Revoke error: " + err.message);
     } finally {
       setRevoking(null);
+    }
+  };
+
+  const handleRevokeHard = async (id) => {
+    setRevokingHard(id);
+    setPageError('');
+    try {
+      const res = await fetch(`/api/delegation/admin/${id}/hard`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.ok) {
+        setPageError('Hard revoke failed: ' + (data.message || data.error));
+      } else {
+        const level = data.revoked === 'hard' ? 'Token invalidated.' : 'Delegation revoked (token unavailable).';
+        setPageSuccess(`Delegation revoked immediately. ${level}`);
+        await load();
+        setTimeout(() => setPageSuccess(''), 4000);
+      }
+    } catch (err) {
+      setPageError('Hard revoke error: ' + err.message);
+    } finally {
+      setRevokingHard(null);
     }
   };
 
@@ -628,23 +650,42 @@ export default function AdminDelegationPage() {
                     </td>
                     <td style={{ padding: "10px 16px" }}>
                       {d.status === "active" ? (
-                        <button
-                          onClick={() => handleRevoke(d.id)}
-                          disabled={revoking === d.id}
-                          style={{
-                            padding: "5px 12px",
-                            background: "#fee2e2",
-                            color: revoking === d.id ? "#fca5a5" : "#dc2626",
-                            border: "1px solid #fca5a5",
-                            borderRadius: 5,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor:
-                              revoking === d.id ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {revoking === d.id ? "Revoking…" : "Revoke"}
-                        </button>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={() => handleRevoke(d.id)}
+                            disabled={revoking === d.id || revokingHard === d.id}
+                            style={{
+                              padding: "5px 12px",
+                              background: "#fee2e2",
+                              color: revoking === d.id ? "#fca5a5" : "#dc2626",
+                              border: "1px solid #fca5a5",
+                              borderRadius: 5,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor:
+                                revoking === d.id || revokingHard === d.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {revoking === d.id ? "Revoking…" : "Revoke"}
+                          </button>
+                          <button
+                            onClick={() => handleRevokeHard(d.id)}
+                            disabled={revoking === d.id || revokingHard === d.id}
+                            style={{
+                              padding: "5px 12px",
+                              background: "#7f1d1d",
+                              color: revokingHard === d.id ? "#fca5a5" : "#fff",
+                              border: "1px solid #991b1b",
+                              borderRadius: 5,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor:
+                                revoking === d.id || revokingHard === d.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {revokingHard === d.id ? "Revoking…" : "Revoke Immediately"}
+                          </button>
+                        </div>
                       ) : (
                         <span style={{ fontSize: 12, color: "#d1d5db" }}>
                           —

@@ -208,6 +208,7 @@ const {
 } = require('./middleware/tokenRefresh');
 const audValidationMiddleware = require('./middleware/audValidationMiddleware');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
+const { delegationGate } = require('./middleware/delegationGate');
 
 const app = express();
 
@@ -1016,9 +1017,9 @@ app.use('/api/demo-agent', demoAgentNlRoutes);
 app.use('/api/demo-agent', demoAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
-app.use('/api', agentInvokeRoutes);
-app.use('/api/agent', agentRunRoutes); // AG-UI Step 2: /api/agent/run
-app.use('/api/agent/langchain', require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
+app.use('/api', delegationGate, agentInvokeRoutes);
+app.use('/api/agent', delegationGate, agentRunRoutes); // AG-UI Step 2: /api/agent/run
+app.use('/api/agent/langchain', delegationGate, require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
 const { codegraphProxy, codegraphReindexProxy } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codegraphProxy);
 app.post('/api/codegraph/reindex', codegraphReindexProxy);
