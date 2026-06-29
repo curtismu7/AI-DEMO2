@@ -107,6 +107,8 @@ const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
+const adminAgentRoutes = require('./routes/adminAgentRoutes');
+const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
@@ -192,6 +194,7 @@ const { registerCallbacks } = require('./services/callbackDispatcher');
 // Import middleware
 const {
     authenticateToken,
+    requireAdmin,
     requireSession
 } = require('./middleware/auth');
 const {
@@ -1015,6 +1018,10 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
 app.use('/api/demo-agent', demoAgentRoutes);
+// Admin agent: isolated stack for administrative operations
+app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+// A2A Orchestrator: delegation decision and specialist routing
+app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
