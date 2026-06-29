@@ -208,6 +208,7 @@ const {
 } = require('./middleware/tokenRefresh');
 const audValidationMiddleware = require('./middleware/audValidationMiddleware');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
+const { delegationGate } = require('./middleware/delegationGate');
 
 const app = express();
 
@@ -1016,9 +1017,9 @@ app.use('/api/demo-agent', demoAgentNlRoutes);
 app.use('/api/demo-agent', demoAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
-app.use('/api', agentInvokeRoutes);
-app.use('/api/agent', agentRunRoutes); // AG-UI Step 2: /api/agent/run
-app.use('/api/agent/langchain', require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
+app.use('/api', delegationGate, agentInvokeRoutes);
+app.use('/api/agent', delegationGate, agentRunRoutes); // AG-UI Step 2: /api/agent/run
+app.use('/api/agent/langchain', delegationGate, require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
 const { codegraphProxy, codegraphReindexProxy } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codegraphProxy);
 app.post('/api/codegraph/reindex', codegraphReindexProxy);
@@ -1421,8 +1422,14 @@ const {
 
 // PingOne management tools — routed to the hosted PingOne MCP server (HTTP) when mcp_use_pingone_server flag is ON.
 // These tools bypass RFC 8693 token exchange (the http adapter authenticates with a worker client_credentials token).
+//
+// The authoritative routing set is whatever the hosted server exposes via tools/list
+// (see pingoneAdminToolMatcher below) — the same source the inspector page uses — so
+// tools PingOne adds route automatically without a code change. This static set is only
+// the cold-start / failure fallback: the long-stable core tools that must route correctly
+// before the live tools/list cache is warm (or if it can't be fetched).
 // Tool names are the hosted PingOne MCP server's camelCase identifiers (from tools/list).
-const PINGONE_ADMIN_TOOLS = new Set([
+const PINGONE_ADMIN_TOOLS_FALLBACK = new Set([
     'listApplications', 'getApplication', 'createApplication', 'updateApplication', 'deleteApplication',
     'listEnvironments', 'getEnvironment', 'updateEnvironment',
     'getEnvironmentServices', 'updateEnvironmentServices',
@@ -1445,6 +1452,20 @@ const { buildSsePayload } = require('./services/sseCorrelation');
 const http2McpBridge = require("./services/http2McpBridge");
 const mcpGatewayClient = require('./services/mcpGatewayClient');
 const mcpPingOneHttpAdapter = require('./services/mcpPingOneHttpAdapter');
+// Dynamic PingOne admin-tool routing. `.has(tool)` answers "does the hosted PingOne
+// MCP server own this tool?" against the live tools/list (cached in the adapter for
+// the process lifetime), so the set always matches what the server actually exposes
+// and never goes stale as PingOne adds tools. Before the cache is warm — or if
+// tools/list can't be fetched — it falls back to the stable core set and kicks off a
+// background warm so the next call uses the live set. Pre-warmed at .listen() time.
+const pingoneAdminToolMatcher = {
+    has(tool) {
+        const live = mcpPingOneHttpAdapter.getCachedToolNames();
+        if (live) return live.has(tool);
+        mcpPingOneHttpAdapter.listTools().catch(() => {}); // best-effort background warm
+        return PINGONE_ADMIN_TOOLS_FALLBACK.has(tool);
+    },
+};
 const { recordToolCall: recordMcpToolCall } = require('./services/mcpToolAuditStore');
 
 // GET /api/mcp/tool/events?trace=<uuid> — Server-Sent Events for live MCP tool pipeline phases
@@ -1556,7 +1577,7 @@ _setBffPipelineDeps({
       return u.startsWith('http://') || u.startsWith('https://');
     },
     get pingoneAdminEnabled() { return configStore.get('mcp_use_pingone_server') === 'true'; },
-    pingoneAdminTools: PINGONE_ADMIN_TOOLS,
+    pingoneAdminTools: pingoneAdminToolMatcher,
   },
 });
 
@@ -1746,7 +1767,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           mcpServerUrlEnv: process.env.MCP_SERVER_URL,
           useHttp2: !_gwEnabled && (() => { const u = getMcpServerUrl(); return u.startsWith('http://') || u.startsWith('https://'); })(),
           pingoneAdminEnabled: configStore.get('mcp_use_pingone_server') === 'true',
-          pingoneAdminTools: PINGONE_ADMIN_TOOLS,
+          pingoneAdminTools: pingoneAdminToolMatcher,
         },
       },
     };
@@ -2043,6 +2064,15 @@ async function runBackgroundStartupTasks() {
         .warmup({ force: true })
         .then((w) => console.log('[authz-warmup] boot warm:', JSON.stringify(w)))
         .catch((err) => console.warn('[authz-warmup] boot warm error (non-fatal):', err.message));
+
+    // ── PingOne admin-tool list warmup ────────────────────────────────────────
+    // Populate the hosted PingOne MCP server's tools/list cache now so the dynamic
+    // routing matcher (pingoneAdminToolMatcher) sees the full live tool set on the
+    // very first admin-tool call instead of the cold-start fallback. Fire-and-forget:
+    // on failure the matcher falls back to the stable core set and self-heals later.
+    mcpPingOneHttpAdapter.listTools()
+        .then((t) => console.log('[pingone-admin-tools] warm: %d tools', Array.isArray(t) ? t.length : 0))
+        .catch((err) => console.warn('[pingone-admin-tools] warm error (non-fatal):', err.message));
 
     // ── Live connectivity probes ──────────────────────────────────────────────
     // MCP Gateway health check + P1AZ decision endpoint existence check.

@@ -102,6 +102,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
+import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import AdminBlockedDashboard from "./components/AdminBlockedDashboard";
@@ -526,6 +527,21 @@ function AppWithAuth() {
                     )
                   }
                 />
+                <Route
+                  path="/llama-vscode-guide"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <LlamaVscodeGuidePage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
                 {/* Monitoring outer routes — explicit so customers navigating from /dashboard don't hit
                     the path="*" inner-Routes catch-all which redirects back to /dashboard */}
                 <Route
@@ -657,56 +673,46 @@ function AppWithAuth() {
                             <Route
                               path="/admin/banking"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <BankingAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <BankingAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/healthcare"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <HealthcareAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <HealthcareAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/retail"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <RetailAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <RetailAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/sporting-goods"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <SportingGoodsAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <SportingGoodsAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/workforce"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <WorkforceAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <WorkforceAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route

@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin, requireScopes } = require('../middleware/auth');
 const dataStore = require('../data/store');
 // The healthcare vertical's live, in-memory per-user store (module singleton).
 // Reading/writing through this same instance keeps the admin ops view coherent
@@ -30,7 +29,7 @@ function listLookupUsers(vertical) {
 }
 
 for (const vertical of ['healthcare', 'retail', 'sporting-goods', 'workforce']) {
-  router.get(`/${vertical}/users`, requireAdmin, requireScopes(['admin']), listLookupUsers(vertical));
+  router.get(`/${vertical}/users`, listLookupUsers(vertical));
 }
 
 // Resolve a free-text query (username, email, name fragment, or id) to a single
@@ -93,7 +92,10 @@ function lookupAction(plugin, vertical, slices) {
   };
 }
 
-const ADMIN_WRITE = [requireAdmin, requireScopes(['admin'])];
+// Vertical Ops are open to any authenticated user. The /api/admin mount applies
+// authenticateToken upstream, so req.user is populated; no admin role/scope gate
+// is required here. (Spreads to no extra middleware.)
+const ADMIN_WRITE = [];
 
 router.get('/healthcare/lookup', ...ADMIN_WRITE, lookupAction(healthcare, 'healthcare', {
   patientRecords: 'patientRecords', appointments: 'appointments', billingHistory: 'billingHistory',

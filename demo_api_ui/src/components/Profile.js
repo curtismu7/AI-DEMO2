@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { MdCheckCircle } from 'react-icons/md';
 import { toast } from 'react-toastify';
 import bffAxios from '../services/bffAxios';
+import AgentAccessCard from './AgentAccessCard';
 import './Profile.css';
 
 function DeviceIcon({ type }) {
@@ -390,6 +391,8 @@ export default function Profile({ user }) {
           </div>
         </div>
       )}
+
+      <AgentAccessCard />
     </div>
   );
 }

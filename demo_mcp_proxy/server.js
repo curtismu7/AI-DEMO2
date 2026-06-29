@@ -1,23 +1,5 @@
 /**
  * demo_mcp_proxy — HTTP-to-MCP sidecar proxy.
- *
- * Translates simple HTTP calls into MCP JSON-RPC over the Streamable HTTP
- * transport (POST /mcp, spec 2025-03-26).  Any service can discover and
- * invoke MCP tools through this proxy without implementing the MCP protocol.
- *
- * Routes
- *   GET  /health           — liveness probe
- *   GET  /tools            — list tools available on the MCP gateway (cached)
- *   POST /tools/:toolName  — execute a named MCP tool
- *
- * Auth
- *   Callers pass their bearer token as  Authorization: Bearer <token>.
- *   The proxy forwards it to the MCP gateway unchanged.  Token exchange and
- *   scope validation are handled by the gateway.
- *
- * Config (env vars)
- *   MCP_GATEWAY_HTTP_URL   MCP gateway base URL  (default: http://127.0.0.1:3005)
- *   PORT                   Listening port         (default: 8895)
  */
 'use strict';
 
@@ -28,7 +10,7 @@ const { URL } = require('node:url');
 const MCP_BASE = (process.env.MCP_GATEWAY_HTTP_URL || 'http://127.0.0.1:3005').replace(/\/$/, '');
 const PORT = parseInt(process.env.PORT || '8895', 10);
 
-// Tool list cache — cleared on any MCP error so it refreshes on next request.
+// Tool list cache — cleared on any MCP error so it refresfishes on next request.
 let _toolCache = null;
 
 // ---------------------------------------------------------------------------
@@ -67,7 +49,7 @@ function mcpRpc(method, params, bearerToken) {
         }
         try {
           const json = JSON.parse(data);
-          if (json.error) return reject(Object.assign(new Error(json.error.message), { mcpError: json.error }));
+          if (json.error) return reject(Object.assign(new Error(json.error.message || 'MCP error'), { mcpError: json.error }));
           resolve(json.result);
         } catch (e) {
           reject(new Error(`MCP response parse error: ${e.message}`));
@@ -78,12 +60,13 @@ function mcpRpc(method, params, bearerToken) {
     req.on('error', reject);
     const timeout = setTimeout(() => { req.destroy(new Error('MCP RPC timeout')); }, 30_000);
     req.on('close', () => clearTimeout(timeout));
+
     req.write(body);
     req.end();
   });
 }
 
-// ---------------------------------------------------------------------------
+// --------------------------------ll---------------------------
 // Request router
 // ---------------------------------------------------------------------------
 
@@ -103,8 +86,12 @@ function readBody(req) {
     req.setEncoding('utf8');
     req.on('data', (c) => { data += c; });
     req.on('end', () => {
-      try { resolve(data ? JSON.parse(data) : {}); }
-      catch (e) { reject(Object.assign(e, { status: 400 })); }
+      try { 
+        // Handle empty body string
+        resolve(data ? JSON.parse(data) : {}); 
+      } catch (e) { 
+        reject(Object.assign(e, { status: 400 })); 
+      }
     });
     req.on('error', reject);
   });
@@ -113,12 +100,12 @@ function readBody(req) {
 const server = http.createServer(async (req, res) => {
   const { method, url } = req;
 
-  // GET /health
+  // 1. GET /health
   if (method === 'GET' && url === '/health') {
     return send(res, 200, { ok: true, mcp: MCP_BASE });
   }
 
-  // GET /tools
+  // 2. GET /tools
   if (method === 'GET' && url === '/tools') {
     try {
       if (!_toolCache) {
@@ -132,11 +119,12 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // POST /tools/:toolName
-  const toolMatch = method === 'POST' && url.match(/^\/tools\/([^/?#]+)$/);
-  if (toolMatch) {
+  // 3. POST /tools/:toolName
+  const toolMatch = url && url.match(/^\/tools\/([^/?#]+)$/);
+  if (method === 'POST' && toolMatch) {
     const toolName = decodeURIComponent(toolMatch[1]);
     try {
+      // We await the body, then pass it as 'arguments' to MCP
       const args = await readBody(req);
       const result = await mcpRpc('tools/call', { name: toolName, arguments: args }, bearerFrom(req));
       return send(res, 200, result);
@@ -146,6 +134,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 4. Default 404
   send(res, 404, { error: 'Not found' });
 });
 

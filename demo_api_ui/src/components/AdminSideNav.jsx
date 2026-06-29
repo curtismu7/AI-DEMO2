@@ -469,7 +469,6 @@ export default function AdminSideNav({ user }) {
     {
       label: "Vertical Ops",
       icon: "cfg",
-      adminOnly: true,
       children: [
         { label: "Banking Ops", path: "/admin/banking", icon: "cfg" },
         { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },

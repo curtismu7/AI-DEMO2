@@ -940,7 +940,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
+  let { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
 
   // ── Active-Token check (JWKS on the REAL user token) ──────────────────────
   // Verify the user's session token is still valid before attempting exchange.
@@ -999,6 +999,17 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
               req.session.save(err => err ? reject(err) : resolve())
             );
             userToken = refreshed.access_token;
+            // Re-decode claims from the fresh token — userSub / _rawUserClaims were
+            // decoded from the now-replaced expired token, and all downstream
+            // processing (RAR sub, TraT context, subject-mismatch check, delegation
+            // audit) must reflect the token actually used for the exchange.
+            const refreshedDecoded = decodeJwtClaims(refreshed.access_token);
+            if (refreshedDecoded?.claims) {
+              _rawUserClaims = refreshedDecoded.claims;
+              if (refreshedDecoded.claims.sub != null) {
+                userSub = String(refreshedDecoded.claims.sub);
+              }
+            }
             tokenEvents.push(buildTokenEvent(
               'user-token-refreshed',
               'User Token — Silently Refreshed (expired token replaced)',

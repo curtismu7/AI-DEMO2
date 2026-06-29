@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/EmbeddedAgentDock.js
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useVertical } from '../vertical/useVertical';
@@ -108,6 +108,11 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
       .catch(() => {});
   }, []);
 
+  // Holds the teardown for an in-flight resize drag so it can be invoked on
+  // unmount — otherwise unmounting mid-drag leaks the document listeners and
+  // leaves body cursor/userSelect overridden (stuck ns-resize, no text select).
+  const dragCleanupRef = useRef(null);
+
   const onResizeMouseDown = useCallback(
     (e) => {
       if (e.button !== 0) return;
@@ -125,7 +130,9 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
         document.removeEventListener('mouseup', onUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        dragCleanupRef.current = null;
       };
+      dragCleanupRef.current = onUp;
       document.body.style.cursor = 'ns-resize';
       document.body.style.userSelect = 'none';
       document.addEventListener('mousemove', onMove);
@@ -133,6 +140,11 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
     },
     [dockHeight]
   );
+
+  // Restore document state if the component unmounts while a drag is in flight.
+  useEffect(() => () => {
+    if (dragCleanupRef.current) dragCleanupRef.current();
+  }, []);
 
   const onBottomDockRoute =
     agentPlacement === 'bottom' && isEmbeddedAgentDockRoute(pathname);
