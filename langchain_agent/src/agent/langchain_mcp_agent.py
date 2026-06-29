@@ -116,7 +116,7 @@ class LangChainMCPAgent(TracingMixin):
             streaming=bool(getattr(lc, "stream_llm_tokens", True)),
             lmstudio_base_url=getattr(lc, "lmstudio_base_url", "http://localhost:1234/v1"),
             anthropic_base_url=getattr(lc, "anthropic_base_url", ""),
-            llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8080"),
+            llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8090"),
             llamacpp_model=getattr(lc, "llamacpp_model", "qwen3-8b"),
             helix_base_url=getattr(lc, "helix_base_url", ""),
             helix_api_key=getattr(lc, "helix_api_key", ""),

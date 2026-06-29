@@ -88,7 +88,7 @@ const FEATURE_GROUPS = [
     tag: 'LLAMACPP',
     label: 'llama.cpp (local LLM)',
     vars: [
-      { name: 'LLAMACPP_BASE_URL', desc: 'llama-server URL, origin only (default: http://127.0.0.1:8080)' },
+      { name: 'LLAMACPP_BASE_URL', desc: 'llama-server URL, origin only (default: http://127.0.0.1:8090)' },
       { name: 'LLAMACPP_MODEL',    desc: 'Optional model id; defaults to whatever llama-server reports via /v1/models' },
     ],
   },
