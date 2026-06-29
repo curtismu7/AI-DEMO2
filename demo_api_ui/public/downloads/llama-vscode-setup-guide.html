@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Up llama-vscode — The Easy Guide 🦙</title>
+<style>
+  :root{
+    --bg:#0f1117; --card:#1a1d27; --card2:#222633; --ink:#e7e9ee; --muted:#a7adba;
+    --accent:#7c5cff; --accent2:#23c97d; --warn:#ffb020; --danger:#ff5c6c;
+    --line:#2c3140; --code:#0b0d13; --blue:#3da9fc;
+    --vsbar:#181a26; --vsstatus:#7c5cff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; font-size:17px;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:0 20px 80px}
+  header.hero{
+    text-align:center; padding:60px 20px 40px;
+    background:radial-gradient(900px 400px at 50% -10%, rgba(124,92,255,.35), transparent 70%);
+  }
+  .hero h1{font-size:2.5rem; margin:.2em 0; line-height:1.15}
+  .hero p{color:var(--muted); font-size:1.15rem; max-width:620px; margin:0 auto}
+  .llama{font-size:4rem; display:block; margin-bottom:.2em}
+  .pill{display:inline-block; background:var(--card2); border:1px solid var(--line);
+    color:var(--muted); border-radius:999px; padding:4px 14px; font-size:.85rem; margin-top:18px}
+
+  h2{font-size:1.6rem; margin:48px 0 6px; padding-top:10px}
+  h2 .num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border-radius:10px; background:var(--accent);
+    color:#fff; font-size:1.1rem; margin-right:12px; vertical-align:middle; font-weight:700;
+  }
+  h3{font-size:1.15rem; margin:26px 0 4px; color:var(--blue)}
+  .lead{color:var(--muted); margin-top:0}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px 24px; margin:16px 0;}
+  .card.tight{padding:16px 20px}
+
+  /* callout boxes */
+  .note,.warn,.tip,.win{border-radius:12px; padding:14px 18px; margin:18px 0; font-size:.97rem}
+  .note{background:rgba(61,169,252,.10); border:1px solid rgba(61,169,252,.4)}
+  .warn{background:rgba(255,176,32,.10); border:1px solid rgba(255,176,32,.45)}
+  .tip{background:rgba(35,201,125,.10); border:1px solid rgba(35,201,125,.45)}
+  .win{background:rgba(124,92,255,.10); border:1px solid rgba(124,92,255,.45)}
+  .note b,.warn b,.tip b,.win b{display:block; margin-bottom:2px}
+
+  code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  kbd{background:var(--card2); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:6px; padding:1px 8px; font-size:.9em; white-space:nowrap}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; overflow:auto; font-size:.9rem; color:#cfe3ff}
+  pre code{color:inherit}
+  p code{background:var(--code); padding:2px 6px; border-radius:5px; font-size:.88em; color:#ffd9a0}
+
+  /* mockups */
+  .mock{background:var(--vsbar); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; margin:18px 0; font-size:.82rem; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .mock .titlebar{background:#11131c; padding:8px 12px; display:flex; gap:7px; align-items:center;
+    border-bottom:1px solid var(--line)}
+  .dot{width:11px; height:11px; border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .mock .mtitle{color:var(--muted); margin-left:10px; font-size:.8rem}
+  .mock .body{padding:14px 16px}
+  .row{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:8px;
+    background:var(--card2); border:1px solid var(--line); margin:8px 0}
+  .row .ic{width:22px; text-align:center}
+  .row .grow{flex:1}
+  .btn{background:var(--accent); color:#fff; border-radius:7px; padding:5px 12px; font-weight:600; font-size:.8rem}
+  .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--muted)}
+  .btn.green{background:var(--accent2)}
+  .tag{font-size:.72rem; color:var(--muted)}
+  .arrow{color:var(--warn); font-weight:700; white-space:nowrap}
+
+  /* the 5-slot panel mock */
+  .slot{border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:10px 0; background:var(--card2)}
+  .slot .label{font-size:.72rem; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .slot .pickrow{display:flex; align-items:center; gap:10px}
+  .slot .val{flex:1; color:var(--ink)}
+  .slot .val.empty{color:var(--muted); font-style:italic}
+  .slot.required{border-color:var(--accent2); box-shadow:0 0 0 1px rgba(35,201,125,.3)}
+  .needit{color:var(--accent2); font-weight:700; font-size:.78rem}
+
+  /* status bar mock */
+  .statusbar{background:var(--vsstatus); color:#fff; display:flex; align-items:center;
+    gap:14px; padding:5px 12px; font-size:.78rem}
+
+  /* steps strip */
+  .stripwrap{display:flex; flex-wrap:wrap; gap:8px; margin:20px 0}
+  .chip{background:var(--card2); border:1px solid var(--line); border-radius:999px;
+    padding:6px 14px; font-size:.85rem; color:var(--muted)}
+  .chip b{color:var(--ink)}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:.92rem}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--accent); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em}
+  td .ok{color:var(--accent2); font-weight:700}
+  td .opt{color:var(--muted)}
+
+  .toc{columns:2; gap:24px; font-size:.95rem}
+  .toc a{color:var(--blue); text-decoration:none; display:block; padding:3px 0}
+  .toc a:hover{text-decoration:underline}
+
+  .cheat{background:linear-gradient(160deg,#1a1d27,#171a24); border:1px dashed var(--accent);
+    border-radius:16px; padding:24px}
+  .cheat h2{margin-top:0}
+  .photo-slot{border:2px dashed var(--line); border-radius:10px; padding:18px; text-align:center;
+    color:var(--muted); font-size:.85rem; margin:14px 0; background:rgba(255,255,255,.02)}
+  hr{border:none; border-top:1px solid var(--line); margin:50px 0}
+  .footer{color:var(--muted); font-size:.85rem; text-align:center; margin-top:40px}
+  @media print{
+    body{background:#fff; color:#111; font-size:12pt}
+    .mock,.card,.cheat{break-inside:avoid; box-shadow:none}
+    header.hero{background:none}
+    a{color:#000}
+  }
+  @media (max-width:600px){ .toc{columns:1} .hero h1{font-size:1.9rem} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="llama">🦙</span>
+  <h1>Set Up <span style="color:var(--accent)">llama-vscode</span><br>The Easy Guide</h1>
+  <p>Run a free AI coding helper <b>on your own computer</b> — no internet needed, nothing leaves your laptop. Written so anyone can follow it.</p>
+  <div class="pill">For Mac · ~20 minutes · Beginner friendly</div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h3 style="margin-top:0">📖 What's in here</h3>
+    <div class="toc">
+      <a href="#what">🤔 What is this thing?</a>
+      <a href="#need">🧰 What you need first</a>
+      <a href="#s1">1️⃣ Install the extension</a>
+      <a href="#s2">2️⃣ Install the model runner</a>
+      <a href="#s3">3️⃣ Get an AI model (brain)</a>
+      <a href="#s4">4️⃣ Open the llama menu</a>
+      <a href="#s5">5️⃣ Pick your models (5 slots)</a>
+      <a href="#s6">6️⃣ Turn the engines on</a>
+      <a href="#s7">7️⃣ Do "vibe coding"!</a>
+      <a href="#daily">⭐ Using it every day</a>
+      <a href="#trouble">🚑 When things break</a>
+      <a href="#cheat">🍪 One-page cheat sheet</a>
+    </div>
+  </div>
+
+  <!-- WHAT -->
+  <h2 id="what">🤔 What is this thing?</h2>
+  <p class="lead">Imagine a robot helper that lives <i>inside</i> your code editor and can read your files, write code, and run commands for you — like a super-smart autocomplete that can also do whole tasks.</p>
+  <p><b>llama-vscode</b> is a free add-on for <b>VS Code</b> (a popular code editor). It connects to an AI "brain" that runs <b>on your own computer</b>, so it's private and free to use.</p>
+
+  <div class="note">
+    <b>Think of it like a car 🚗</b>
+    The <b>extension</b> is the dashboard and steering wheel. The <b>model</b> (brain) is the engine. You need both — and you have to turn the engine on before you can drive.
+  </div>
+
+  <div class="stripwrap">
+    <span class="chip">1. <b>Install dashboard</b></span>
+    <span class="chip">2. <b>Install engine starter</b></span>
+    <span class="chip">3. <b>Get an engine</b></span>
+    <span class="chip">4–6. <b>Plug it in &amp; start it</b></span>
+    <span class="chip">7. <b>Drive! 🏁</b></span>
+  </div>
+
+  <!-- NEED -->
+  <h2 id="need">🧰 What you need first</h2>
+  <div class="card tight">
+    <ul style="margin:6px 0">
+      <li>✅ A <b>Mac</b> (this guide uses Mac keys). Ideally Apple Silicon (M1/M2/M3/M4) with 16&nbsp;GB+ memory.</li>
+      <li>✅ <b>VS Code</b> installed — get it free at <code>code.visualstudio.com</code></li>
+      <li>✅ <b>Homebrew</b> (a tool installer for Mac) — get it at <code>brew.sh</code></li>
+      <li>✅ About <b>10–15&nbsp;GB free disk space</b> (AI brains are big files)</li>
+    </ul>
+  </div>
+
+  <!-- STEP 1 -->
+  <h2 id="s1"><span class="num">1</span>Install the extension (the dashboard)</h2>
+  <p>Open VS Code. On the left side, click the <b>Extensions</b> icon (it looks like 4 squares 🔲). Search for <b>llama-vscode</b> and click <b>Install</b>.</p>
+
+  <div class="mock">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="mtitle">VS Code — Extensions</span></div>
+    <div class="body">
+      <div class="row"><span class="ic">🔍</span><span class="grow">llama-vscode</span></div>
+      <div class="row">
+        <span class="ic">🦙</span>
+        <span class="grow"><b>llama-vscode</b><br><span class="tag">Local AI coding agent &amp; autocomplete · ggml-org</span></span>
+        <span class="btn">Install</span>
+        <span class="arrow">⬅ click</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-slot">📸 (Optional) Replace this box with a real screenshot of your Extensions search.</div>
+
+  <!-- STEP 2 -->
+  <h2 id="s2"><span class="num">2</span>Install the model runner (the engine starter)</h2>
+  <p>The extension needs a little program called <b>llama.cpp</b> to actually run the AI brain. Open the <b>Terminal</b> app (or VS Code's terminal: menu <b>Terminal → New Terminal</b>) and paste this, then press <kbd>Return</kbd>:</p>
+  <pre><code>brew install llama.cpp</code></pre>
+  <p>When it finishes, check it worked:</p>
+  <pre><code>llama --version</code></pre>
+  <p>If you see a version number (not "command not found"), you're good. ✅</p>
+
+  <div class="note">
+    <b>What did that do?</b>
+    It installed the <code>llama</code> command — the thing that loads an AI brain file and lets the extension talk to it.
+  </div>
+
+  <!-- STEP 3 -->
+  <h2 id="s3"><span class="num">3</span>Get an AI model (the brain) 🧠</h2>
+  <p>AI "brains" are files called <b>models</b> (they end in <code>.gguf</code>). You have <b>two easy ways</b> to get one:</p>
+
+  <h3>Way A — Let llama download it for you (easiest)</h3>
+  <p>You don't have to do anything now! In Step 6 you'll pick a ready-made setup, and llama will automatically download the brain the first time. Just be patient — the first download is several gigabytes.</p>
+
+  <h3>Way B — Download it yourself into a folder</h3>
+  <p>Make a <code>models</code> folder in your home directory and download a brain into it. Example (a small, fast one — about 2&nbsp;GB):</p>
+  <pre><code>mkdir -p ~/models
+hf download unsloth/gemma-3-4b-it-qat-GGUF gemma-3-4b-it-qat-Q4_0.gguf --local-dir ~/models</code></pre>
+
+  <div class="tip">
+    <b>Which brain should I pick?</b>
+    <ul style="margin:6px 0">
+      <li><b>For chatting / asking questions:</b> a <b>Gemma</b> or <b>Qwen</b> model.</li>
+      <li><b>For "vibe coding" (the robot that edits files):</b> <b>gpt-oss 20B</b> is the best free local choice. ⭐</li>
+      <li><b>Bigger number (20B, 14B) = smarter but slower &amp; needs more memory.</b> Smaller (4B, 1.5B) = faster but simpler.</li>
+    </ul>
+  </div>
+
+  <div class="warn">
+    <b>⚠️ Careful where you "download" from a web page</b>
+    If you click a download button on a website and end up with a tiny file (a few hundred KB) instead of gigabytes, you accidentally saved the <i>web page</i>, not the brain. Use the <code>hf download</code> command above instead — it always gets the real file.
+  </div>
+
+  <!-- STEP 4 -->
+  <h2 id="s4"><span class="num">4</span>Open the llama menu</h2>
+  <p>This is where most people get stuck, so read carefully. There are <b>two ways</b> to open llama-vscode's controls:</p>
+
+  <h3>The easy way: the Command Palette</h3>
+  <p>Press <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>. A search box appears at the top. Type <b>llama</b>. You'll see a list of llama commands — click the one you want.</p>
+
+  <div class="mock">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="mtitle">Command Palette — type "llama"</span></div>
+    <div class="body">
+      <div class="row"><span class="ic">›</span><span class="grow">llama</span></div>
+      <div class="row"><span class="ic">⚙️</span><span class="grow">llama-vscode: <b>Show Menu</b> <span class="tag">(pick your models)</span></span><span class="tag">⌃⇧M</span></div>
+      <div class="row"><span class="ic">🤖</span><span class="grow">llama-vscode: <b>Show Llama Agent</b> <span class="tag">(the vibe-coding robot)</span></span><span class="tag">⌃⇧A</span></div>
+    </div>
+  </div>
+
+  <h3>The other way: the status bar</h3>
+  <p>Look at the very <b>bottom strip</b> of VS Code. There's a little <b>🦙 llama</b> button. Click it to open the menu.</p>
+
+  <div class="mock">
+    <div class="statusbar"><span>🦙 llama</span><span style="opacity:.6">main</span><span style="opacity:.6">UTF-8</span><span style="margin-left:auto;opacity:.6">click the llama 👆</span></div>
+  </div>
+
+  <div class="warn">
+    <b>⚠️ The #1 gotcha: keyboard shortcuts use <u>Control</u>, not Command!</b>
+    The symbol <kbd>⌃</kbd> means the <b>Ctrl</b> key — <u>not</u> <kbd>⌘</kbd> Cmd. So it's:
+    <ul style="margin:6px 0">
+      <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> = open the Menu</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> = open the Agent</li>
+    </ul>
+    If you press <b>Cmd</b>+Shift+M by mistake you'll get the wrong thing (a terminal/panel). When in doubt, use <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> → type "llama" instead — that always works.
+  </div>
+
+  <!-- STEP 5 -->
+  <h2 id="s5"><span class="num">5</span>Pick your models — the 5 slots</h2>
+  <p>Open <b>Show Menu</b>. You'll see <b>5 slots</b>. Each slot is a different job. Here's what they look like and what to put in each:</p>
+
+  <div class="mock">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="mtitle">llama-vscode — choose models</span></div>
+    <div class="body">
+      <div class="slot">
+        <div class="label">Compl Model</div>
+        <div class="pickrow"><span class="btn ghost">Select</span><span class="val empty">(optional) a small Qwen Coder — autocomplete</span></div>
+      </div>
+      <div class="slot">
+        <div class="label">Chat Model</div>
+        <div class="pickrow"><span class="btn">Deselect</span><span class="val">Local Gemma — for asking questions 💬</span></div>
+      </div>
+      <div class="slot">
+        <div class="label">Embs Model</div>
+        <div class="pickrow"><span class="btn ghost">Select</span><span class="val empty">(optional) Nomic-Embed — "search my project"</span></div>
+      </div>
+      <div class="slot required">
+        <div class="label">Tools Model &nbsp;<span class="needit">← needed for vibe coding</span></div>
+        <div class="pickrow"><span class="btn green">Deselect</span><span class="val">OpenAI gpt-oss 20B (LOCAL) 🛠️</span></div>
+      </div>
+      <div class="slot required">
+        <div class="label">Agent &nbsp;<span class="needit">← needed for vibe coding</span></div>
+        <div class="pickrow"><span class="btn green">Select</span><span class="val">default 🤖</span></div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Slot</th><th>Its job (plain English)</th><th>Pick this</th></tr>
+    <tr><td><b>Compl</b></td><td>Gray "ghost text" that finishes your line as you type</td><td class="opt">Optional · small Qwen Coder</td></tr>
+    <tr><td><b>Chat</b></td><td>Answers questions in a chat box</td><td class="ok">A Gemma or Qwen</td></tr>
+    <tr><td><b>Embs</b></td><td>Lets the AI search your whole project</td><td class="opt">Optional · Nomic-Embed</td></tr>
+    <tr><td><b>Tools</b></td><td>🧠 The brain that <b>powers the vibe-coding robot</b></td><td class="ok">gpt-oss 20B (LOCAL)</td></tr>
+    <tr><td><b>Agent</b></td><td>The "personality" that drives the Tools brain to do tasks</td><td class="ok">default</td></tr>
+  </table>
+
+  <div class="win">
+    <b>🎯 For vibe coding you only NEED two slots filled:</b> <b>Tools</b> = gpt-oss 20B, and <b>Agent</b> = default. Chat is nice to have. Compl and Embs are totally optional — skip them at first.
+  </div>
+
+  <div class="tip">
+    <b>Shortcut: pick everything at once</b>
+    Instead of filling slots one by one, open the menu → <b>"Select/start env…"</b> → choose a ready-made bundle like <b>"Local, full package - min, gpt-oss 20B"</b>. It fills every slot for you automatically.
+  </div>
+
+  <!-- STEP 6 -->
+  <h2 id="s6"><span class="num">6</span>Turn the engines on 🔌</h2>
+  <p>Each brain runs as a tiny background "server" on a numbered <b>port</b> (like a parking spot number). When you pick a model, llama-vscode offers to <b>start its server</b> — say yes. The first time, it may download the brain (be patient).</p>
+
+  <p>You can also start one yourself in the Terminal. Example:</p>
+  <pre><code>llama serve -m ~/models/gemma-3-4b-it-qat-Q4_0.gguf --port 8011</code></pre>
+
+  <table>
+    <tr><th>Job</th><th>Usual port (parking spot)</th></tr>
+    <tr><td>Tools / agent brain (gpt-oss)</td><td><code>8009</code></td></tr>
+    <tr><td>Embeddings</td><td><code>8010</code></td></tr>
+    <tr><td>Chat (small brains)</td><td><code>8011</code></td></tr>
+    <tr><td>Chat (big brains)</td><td><code>8012</code></td></tr>
+  </table>
+
+  <div class="warn">
+    <b>⚠️ "couldn't bind … port 8012" — what that means</b>
+    It means a brain is <u>already running</u> in that parking spot. You don't need to start it twice! Either just use the one that's running, or stop it first with:
+    <pre style="margin:8px 0 0"><code>lsof -ti:8012 | xargs kill</code></pre>
+    (Swap 8012 for whatever port the error mentions.)
+  </div>
+
+  <!-- STEP 7 -->
+  <h2 id="s7"><span class="num">7</span>Do "vibe coding"! 🏁</h2>
+  <p>Open the robot: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> (or Command Palette → <b>"llama-vscode: Show Llama Agent"</b>). A panel opens on the side with a text box.</p>
+
+  <div class="mock">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="mtitle">🤖 Llama Agent</span></div>
+    <div class="body">
+      <div class="row"><span class="grow" style="color:var(--muted)">Type what you want the robot to do…</span><span class="tag">@ to attach a file</span></div>
+      <div style="padding:10px 4px; color:var(--muted)">🧑 You: <span style="color:var(--ink)">"Read server.js and tell me what it does in 5 bullets."</span></div>
+      <div style="padding:4px 4px; color:var(--muted)">🤖 Robot: <span style="color:var(--accent2)">reading file… ✓</span> → writes the answer</div>
+    </div>
+  </div>
+
+  <h3>Your first prompts (start safe → then edit)</h3>
+  <ol>
+    <li><b>Safe test (just reads):</b> <i>"Read server.js and give me a 5-bullet summary of what it does."</i></li>
+    <li><b>Then a small edit:</b> <i>"Add a /health route to server.js that returns status ok. Show me the change before saving."</i></li>
+  </ol>
+
+  <div class="tip">
+    <b>Golden rules for happy robots</b>
+    <ul style="margin:6px 0">
+      <li>🎯 <b>Be specific.</b> "Add X to file Y" works way better than "make my code better."</li>
+      <li>📎 <b>Use the @ button</b> to point it at the exact file — saves it from hunting around.</li>
+      <li>💾 <b>Save your work in Git first</b> so you can undo anything the robot changes.</li>
+      <li>👀 <b>Read before you approve</b> when it wants to run a terminal command.</li>
+    </ul>
+  </div>
+
+  <hr>
+
+  <!-- DAILY -->
+  <h2 id="daily">⭐ Using it every day</h2>
+  <p>Once it's set up, daily use is just three things:</p>
+  <table>
+    <tr><th>I want to…</th><th>Do this</th></tr>
+    <tr><td>Ask a quick question</td><td>Open Chat from the menu, type your question</td></tr>
+    <tr><td>Have the robot do a task (vibe code)</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>, type the task</td></tr>
+    <tr><td>Switch which brain I'm using</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> → pick a model</td></tr>
+    <tr><td>Stop a robot that's stuck</td><td>Command Palette → "llama-vscode: Kill Agent Session"</td></tr>
+  </table>
+
+  <!-- TROUBLE -->
+  <h2 id="trouble">🚑 When things break</h2>
+
+  <div class="card tight">
+    <h3 style="margin-top:0">Shortcut does the wrong thing</h3>
+    <p style="margin:.3em 0">You probably pressed <b>Cmd</b> instead of <b>Ctrl</b>. The llama shortcuts use <kbd>Ctrl</kbd>. Or just use <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> → type "llama".</p>
+  </div>
+
+  <div class="card tight">
+    <h3 style="margin-top:0">"couldn't bind … port"</h3>
+    <p style="margin:.3em 0">That brain is already running. Use it as-is, or free the spot: <code>lsof -ti:8012 | xargs kill</code> (use the port from the message).</p>
+  </div>
+
+  <div class="card tight">
+    <h3 style="margin-top:0">A download got stuck / keeps failing ("416")</h3>
+    <p style="margin:.3em 0">A broken half-download is jammed. Delete it and try again:</p>
+    <pre style="margin:6px 0"><code>find ~/.cache/huggingface -name '*.downloadInProgress' -delete</code></pre>
+    <p style="margin:.3em 0">Then re-run your <code>hf download …</code> command.</p>
+  </div>
+
+  <div class="card tight">
+    <h3 style="margin-top:0">My model file is tiny (KB instead of GB)</h3>
+    <p style="margin:.3em 0">You saved a web page by accident. Delete it and use <code>hf download …</code> to get the real <code>.gguf</code>.</p>
+  </div>
+
+  <div class="card tight">
+    <h3 style="margin-top:0">The robot prints weird symbols like <code>&lt;|channel|&gt;</code></h3>
+    <p style="margin:.3em 0">That's the gpt-oss brain leaking its internal "thinking" tags — harmless. It usually means the chat template settings need a tweak; it doesn't affect the actual edits. You can ignore it, or ask a techy friend to adjust the model's launch flags.</p>
+  </div>
+
+  <hr>
+
+  <!-- CHEAT SHEET -->
+  <div class="cheat" id="cheat">
+    <h2 style="border:0">🍪 One-page cheat sheet</h2>
+    <p class="lead">Print this part. Pin it up. Done.</p>
+
+    <h3>The 3 ways to open llama-vscode</h3>
+    <table>
+      <tr><td>Command Palette (always works)</td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> → type <b>llama</b></td></tr>
+      <tr><td>Menu (pick models)</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd></td></tr>
+      <tr><td>Agent (vibe coding)</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td></tr>
+    </table>
+    <p style="font-size:.85rem;color:var(--muted)">Remember: <kbd>⌃</kbd> = <b>Ctrl</b>, not Cmd!</p>
+
+    <h3>The 5 slots</h3>
+    <table>
+      <tr><td>Compl</td><td class="opt">optional — autocomplete</td></tr>
+      <tr><td>Chat</td><td>Gemma / Qwen — questions</td></tr>
+      <tr><td>Embs</td><td class="opt">optional — search project</td></tr>
+      <tr><td><b>Tools</b></td><td class="ok">gpt-oss 20B — needed for vibe coding ⭐</td></tr>
+      <tr><td><b>Agent</b></td><td class="ok">default — needed for vibe coding ⭐</td></tr>
+    </table>
+
+    <h3>Handy commands</h3>
+    <pre><code># install the runner
+brew install llama.cpp
+
+# download a brain into ~/models
+hf download &lt;repo&gt; &lt;file.gguf&gt; --local-dir ~/models
+
+# start a brain on a port
+llama serve -m ~/models/&lt;file.gguf&gt; --port 8011
+
+# a port is stuck? free it
+lsof -ti:8011 | xargs kill
+
+# a download is stuck? clear it
+find ~/.cache/huggingface -name '*.downloadInProgress' -delete</code></pre>
+
+    <h3>Vibe-coding recipe</h3>
+    <ol style="margin:6px 0">
+      <li>Tools = <b>gpt-oss 20B</b>, Agent = <b>default</b></li>
+      <li>Make sure the gpt-oss server is running (port 8009)</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> → type a clear, specific task</li>
+      <li>📎 attach the file with @ · 👀 read before approving · 💾 commit first</li>
+    </ol>
+  </div>
+
+  <div class="footer">
+    Made for sharing 🦙 · llama-vscode runs the open-source llama.cpp on your own machine.<br>
+    Tip: open this file in a browser and use <b>File → Print → Save as PDF</b> to share it as a PDF.
+  </div>
+
+</div>
+</body>
+</html>
