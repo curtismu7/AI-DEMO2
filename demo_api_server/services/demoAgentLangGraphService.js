@@ -1096,8 +1096,15 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
           model: configStore.getEffective('langchain_model') || undefined,
           systemPrompt: _pfSystemPrompt || undefined,
         });
+        const platformReply = out.ok
+          ? (typeof out.data === 'string' ? out.data : JSON.stringify(out.data))
+          : (() => {
+              const d = out.data;
+              const msg = d?.error?.message || d?.message || (typeof d === 'string' ? d : null);
+              return `Claude agent returned ${out.status}${msg ? ': ' + msg : ''}`;
+            })();
         return {
-          reply: typeof out.data === 'string' ? out.data : JSON.stringify(out.data),
+          reply: platformReply,
           success: out.ok,
           toolsCalled: [],
           tokensUsed: 0,
