@@ -107,6 +107,7 @@ const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
+const adminAgentRoutes = require('./routes/adminAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
@@ -192,6 +193,7 @@ const { registerCallbacks } = require('./services/callbackDispatcher');
 // Import middleware
 const {
     authenticateToken,
+    requireAdmin,
     requireSession
 } = require('./middleware/auth');
 const {
@@ -1176,6 +1178,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
+app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, adminRoutes);

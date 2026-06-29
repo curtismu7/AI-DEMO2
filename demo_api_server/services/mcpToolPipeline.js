@@ -122,65 +122,6 @@ async function runMcpToolPipeline(ctx) {
   const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...ctx.params } } };
   const { config } = deps;
 
-  // ── PingOne admin tool early-exit ──────────────────────────────────────────
-  if (config.pingoneAdminEnabled && config.pingoneAdminTools.has(tool)) {
-    deps.emit({ phase: 'mcp_pingone_admin_tool' });
-    try {
-      const p1UserSub = (req.session?.user?.oauthId || req.session?.user?.id) || null;
-
-      // Token-chain card: the single-actor worker client_credentials token the BFF
-      // presents to the hosted PingOne MCP server. Unlike the banking RFC 8693 flow
-      // there is no user subject and no act delegation chain — the worker app's admin
-      // roles authorize the management tools directly. Best-effort: a card failure
-      // must never block the tool call.
-      let pingoneTokenEvents = [];
-      try {
-        const decoded = deps.pingoneAdapter.getWorkerTokenDecoded
-          ? await deps.pingoneAdapter.getWorkerTokenDecoded()
-          : null;
-        pingoneTokenEvents = [deps.buildTokenEvent(
-          'pingone-worker-token',
-          'PingOne Worker Token (client_credentials)',
-          decoded ? 'active' : 'warning',
-          decoded,
-          'Single-actor worker token (RFC 6749 §4.4 client_credentials) the BFF presents to the ' +
-          'hosted PingOne MCP server. Unlike the delegated banking chain there is no user subject ' +
-          'and no act chain — the worker app\'s admin roles authorize the management tools directly.',
-          { rfc: 'RFC 6749 §4.4', tokenType: 'actor' }
-        )];
-        deps.publishTokenEventsToSse(ctx.flowTraceId, pingoneTokenEvents);
-      } catch (cardErr) {
-        logger.warn(_CAT, `[PingOne MCP] worker-token card failed: ${cardErr.message}`);
-        pingoneTokenEvents = [];
-      }
-
-      // Time only the actual tool call — not the worker-token fetch / card build
-      // above — so the reported duration matches the other pipeline paths.
-      const _p1Start = Date.now();
-      const result = await deps.pingoneAdapter.callTool(tool, params || {}, '', p1UserSub, req.correlationId);
-      const _p1Duration = Date.now() - _p1Start;
-      deps.emit({ phase: 'mcp_remote_done' });
-      const _p1Failed = !!(result && (result.isError || result.error));
-      // Best-effort: a failure publishing the SSE result or writing the audit
-      // record must not be reclassified as an MCP remote error — the tool call
-      // already succeeded.
-      try {
-        deps.publishMcpResultToSse(ctx.flowTraceId, { tool, result, durationMs: _p1Duration, isDelegated: false, requestJson });
-        deps.recordMcpToolCall({
-          userId: p1UserSub || 'admin', toolName: tool, success: !_p1Failed, duration: _p1Duration,
-          requestJson, resultJson: result ?? null, summary: _p1Failed ? `${tool} failed` : `${tool} completed`,
-        });
-      } catch (sinkErr) {
-        logger.warn(_CAT, `[PingOne MCP] result publish/record failed (tool succeeded): ${sinkErr.message}`);
-      }
-      return { kind: 'result', httpStatus: 200, body: { result, tokenEvents: pingoneTokenEvents }, tokenEvents: pingoneTokenEvents };
-    } catch (err) {
-      deps.emit({ phase: 'mcp_remote_error' });
-      logger.error(_CAT, `[PingOne MCP] ${tool} failed: ${err.message}`);
-      return { kind: 'error', httpStatus: 502, body: { error: 'pingone_mcp_error', message: err.message } };
-    }
-  }
-
   const flowTraceId = ctx.flowTraceId;
   const startTime = ctx.startTime;
     let mcpAccessToken; // RFC 8693 §3.2: MCP-scoped access token (result of exchange)
