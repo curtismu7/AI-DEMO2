@@ -54,4 +54,27 @@ describe('AgentAccessCard', () => {
     await screen.findByText(/agent access revoked/i);
     expect(screen.getByText(/log in again/i)).toBeTruthy();
   });
+
+  it('soft revoke shows error message when API call fails', async () => {
+    bffAxios.get.mockResolvedValue({ data: { authorized: true, enforced: true } });
+    bffAxios.delete.mockRejectedValue(new Error('Network error'));
+    render(<AgentAccessCard />);
+    await screen.findByText(/^revoke$/i);
+    fireEvent.click(screen.getByText(/^revoke$/i));
+    await screen.findByText(/confirm revoke/i);
+    fireEvent.click(screen.getByText(/confirm revoke/i));
+    await screen.findByText(/failed to revoke access/i);
+  });
+
+  it('hard revoke shows error message when API call fails', async () => {
+    bffAxios.get.mockResolvedValue({ data: { authorized: true, enforced: true } });
+    bffAxios.delete.mockRejectedValue(new Error('Network error'));
+    render(<AgentAccessCard />);
+    await screen.findByText(/revoke immediately/i);
+    fireEvent.click(screen.getByText(/revoke immediately/i));
+    await screen.findByText(/confirm revoke immediately/i);
+    fireEvent.click(screen.getByText(/confirm revoke immediately/i));
+    await screen.findByText(/failed to revoke access/i);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

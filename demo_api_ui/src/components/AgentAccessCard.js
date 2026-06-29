@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import bffAxios from '../services/bffAxios';
 
 export default function AgentAccessCard() {
@@ -8,27 +8,41 @@ export default function AgentAccessCard() {
   const [confirmSoft, setConfirmSoft] = useState(false);
   const [confirmHard, setConfirmHard] = useState(false);
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const successTimerRef = useRef(null);
 
   useEffect(() => {
     bffAxios.get('/api/agent-authorization/status')
       .then(r => setStatus(r.data))
-      .catch(() => setStatus({ authorized: false, enforced: false }));
+      .catch((err) => {
+        console.error('Failed to fetch agent authorization status:', err);
+        setStatus({ authorized: false, enforced: false });
+      });
+  }, []);
+
+  useEffect(() => {
+    return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
   }, []);
 
   const handleSoftRevoke = async () => {
+    setError('');
     setBusy(true);
     try {
       await bffAxios.delete('/api/agent-authorization');
       setStatus(s => ({ ...s, authorized: false }));
       setConfirmSoft(false);
       setSuccess('Agent access revoked.');
-      setTimeout(() => setSuccess(''), 3000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Failed to revoke access. Please try again.');
     } finally {
       setBusy(false);
     }
   };
 
   const handleHardRevoke = async () => {
+    setError('');
     setBusy(true);
     try {
       const res = await bffAxios.delete('/api/agent-authorization/hard');
@@ -36,6 +50,8 @@ export default function AgentAccessCard() {
         setConfirmHard(false);
         setShowHardModal(true);
       }
+    } catch (err) {
+      setError('Failed to revoke access. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -78,6 +94,7 @@ export default function AgentAccessCard() {
             AI agent access is <strong>active</strong>.
           </p>
           {success && <p style={{ fontSize: 13, color: '#15803d', marginBottom: 8 }}>{success}</p>}
+          {error && <p style={{ fontSize: 13, color: '#dc2626', marginBottom: 8 }}>{error}</p>}
 
           {!confirmSoft && !confirmHard && (
             <div style={{ display: 'flex', gap: 8 }}>
