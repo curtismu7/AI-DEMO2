@@ -6645,31 +6645,28 @@ export default function BankingAgent({
                         return;
                       }
 
-                      // PingOne Admin chips invoke the hosted PingOne MCP tools via the agent
-                      // reason loop (processAgentMessage), not NL intent routing: POST /message
-                      // with provider:"pingone-admin" and render the reply + worker-token card.
+                      // Admin chips invoke the isolated admin agent via /api/admin-agent
+                      // which uses hosted PingOne MCP tools with worker client_credentials token.
                       if (PINGONE_ADMIN_CHIP_IDS.has(chipId)) {
                         prepNlCompliance(message);
                         (async () => {
                           try {
-                            const res = await fetch("/api/demo-agent/message", {
+                            const res = await fetch("/api/admin-agent/message", {
                               method: "POST",
                               credentials: "include",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 message,
-                                provider: "pingone-admin",
-                                ...(effectiveVerticalId && { vertical: effectiveVerticalId }),
                               }),
                               signal: AbortSignal.timeout(30000),
                             });
                             const data = await res
                               .json()
-                              .catch(() => ({ reply: "PingOne Admin request failed.", success: false }));
+                              .catch(() => ({ reply: "Admin agent request failed.", success: false }));
                             if (tokenChain && Array.isArray(data?.tokenEvents)) {
-                              tokenChain.setTokenEvents("pingone-admin", data.tokenEvents);
+                              tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
                             }
-                            addMessage("assistant", data?.reply || "PingOne Admin: no response.", null);
+                            addMessage("assistant", data?.reply || "Admin agent: no response.", null);
                           } catch (err) {
                             reportNlFailure(err);
                           } finally {
