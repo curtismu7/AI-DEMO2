@@ -45,7 +45,6 @@ const { createTokenExchangeError, RFC8693_ERRORS } = require('./rfcCompliantErro
 // allow-list veto was a redundant second authz layer and has been deleted; do
 // not reintroduce a local scope-permit decision here.
 const { MCP_TOOL_SCOPES, getSessionBearerForMcp } = require('./mcpWebSocketClient');
-const adminTokenService = require('./adminTokenService');
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
 const { trackTokenEvent } = require('./tokenChainService');
 const { trackToken } = require('./apiCallTrackerService');
@@ -900,47 +899,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: null, tokenEvents, userSub: null, need_auth: true, exchange_mode: '1-token', tratContextHeader: null };
   }
 
-  // ── Admin Token Detection ────────────────────────────────────────────────
-  // Check if this is an admin session and use admin token as subject token
-  const shouldUseAdmin = adminTokenService.shouldUseAdminTokenForTool(req, tool);
-  logger.debug(_CAT, `[AGENT_MCP] shouldUseAdmin=${shouldUseAdmin} tool=${tool}`);
-
-  if (shouldUseAdmin) {
-    const adminToken = adminTokenService.getAdminTokenFromSession(req.session);
-    logger.debug(_CAT, `[AGENT_MCP] Admin token: ${adminToken ? 'PRESENT' : 'MISSING'}`);
-    if (adminToken) {
-      tokenEvents.push(buildTokenEvent(
-        'admin-token-detected',
-        'Admin Token — Using admin token as subject',
-        'active',
-        null,
-        'Admin session detected. Admin token will be used as subject token for MCP exchange.',
-        { adminClientId: adminToken.clientId, adminScopes: adminToken.scopes }
-      ));
-
-      // Replace userToken with adminToken for the rest of the standard flow
-      userToken = adminToken.accessToken;
-      tokenEvents.push(buildTokenEvent(
-        'admin-token-substituted',
-        'Admin Token — Substituted admin token for user token',
-        'success',
-        null,
-        'Admin token substituted for user token in standard token exchange flow.',
-        { adminClientId: adminToken.clientId }
-      ));
-    } else {
-      tokenEvents.push(buildTokenEvent(
-        'admin-token-not-found',
-        'Admin Token — Admin session but no admin token',
-        'warning',
-        null,
-        'Admin session detected but no admin token found in session. Using user token.',
-      ));
-    }
-  }
-  // ─────────────────────────────────────────────────────────────────────────
-
-  let { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
+  const { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
 
   // ── Active-Token check (JWKS on the REAL user token) ──────────────────────
   // Verify the user's session token is still valid before attempting exchange.
@@ -999,17 +958,6 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
               req.session.save(err => err ? reject(err) : resolve())
             );
             userToken = refreshed.access_token;
-            // Re-decode claims from the fresh token — userSub / _rawUserClaims were
-            // decoded from the now-replaced expired token, and all downstream
-            // processing (RAR sub, TraT context, subject-mismatch check, delegation
-            // audit) must reflect the token actually used for the exchange.
-            const refreshedDecoded = decodeJwtClaims(refreshed.access_token);
-            if (refreshedDecoded?.claims) {
-              _rawUserClaims = refreshedDecoded.claims;
-              if (refreshedDecoded.claims.sub != null) {
-                userSub = String(refreshedDecoded.claims.sub);
-              }
-            }
             tokenEvents.push(buildTokenEvent(
               'user-token-refreshed',
               'User Token — Silently Refreshed (expired token replaced)',
@@ -1229,23 +1177,6 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       ? opts.scopeOverride
       : (MCP_TOOL_SCOPES[tool] || ['read'])
   ).slice();
-
-  // ── Admin scope injection ────────────────────────────────────────────────
-  // When the admin token has been substituted as the subject token (shouldUseAdmin
-  // is true), the exchanged token must carry admin-specific scopes. These scopes
-  // are not in MCP_TOOL_SCOPES (which only covers banking tools) and may not be
-  // present in toolCandidateScopes, so we inject them here. We check whether the
-  // user token already carries any admin:* scope as the signal — if the admin
-  // token was substituted it will have admin:read at minimum.
-  // Injection is additive — existing candidateScopes are preserved.
-  if (shouldUseAdmin) {
-    const adminScopes = ['admin:read', 'admin:write', 'admin:delete', 'users:read', 'users:manage'];
-    adminScopes.forEach((s) => {
-      if (!toolCandidateScopes.includes(s)) toolCandidateScopes.push(s);
-    });
-    logger.debug(_CAT, `[TokenExchange] Admin session — injected admin scopes: ${toolCandidateScopes.join(',')}`);
-  }
-  // ─────────────────────────────────────────────────────────────────────────
 
   // Classify tool as high-risk (write) so the UI can label the Token Chain accordingly.
   const isHighRiskTool = toolCandidateScopes.some(
