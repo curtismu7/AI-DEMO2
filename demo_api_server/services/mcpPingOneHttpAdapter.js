@@ -120,6 +120,17 @@ async function listTools() {
 }
 
 /**
+ * Tool names from the cached tools/list, as a Set, or null if not yet warmed.
+ * Synchronous so a hot path (e.g. tool routing) can test membership without an
+ * await; callers warm the cache via listTools() and fall back while it's null.
+ * @returns {Set<string>|null}
+ */
+function getCachedToolNames() {
+    if (!Array.isArray(_toolsCache)) return null;
+    return new Set(_toolsCache.map((t) => t.name));
+}
+
+/**
  * Call a tool on the hosted PingOne MCP server.
  *
  * @param {string} tool            MCP tool name
@@ -173,4 +184,4 @@ function _resetToolsCache() {
     _toolsCache = null;
 }
 
-module.exports = { listTools, callTool, getWorkerTokenDecoded, _resetToolsCache };
+module.exports = { listTools, getCachedToolNames, callTool, getWorkerTokenDecoded, _resetToolsCache };
