@@ -93,7 +93,7 @@ export default function LlamaCppPanel() {
                   github.com/ggml-org/llama.cpp
                 </a>{' '}(or <code>brew install llama.cpp</code>)
               </li>
-              <li>Start the server on port 8080: <code className="cfg-code">llama-server -hf {selectedModel} --port 8080</code></li>
+              <li>Start the server on port 8090: <code className="cfg-code">llama-server -hf {selectedModel} --port 8090</code></li>
               <li>It exposes an OpenAI-compatible <code>/v1</code> API; the model is whatever you launch it with.</li>
               <li>Click <strong>Check Status</strong> below.</li>
             </ol>
@@ -134,7 +134,7 @@ export default function LlamaCppPanel() {
 
         <div className="cfg-info-panel" style={{ marginTop: '1.25rem' }}>
           <strong>OpenAI-compatible endpoint</strong>
-          <code className="cfg-code">http://127.0.0.1:8080/v1</code>
+          <code className="cfg-code">http://127.0.0.1:8090/v1</code>
           <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
             No API key required. Set <code>LLAMACPP_BASE_URL</code> (origin only) / <code>LLAMACPP_MODEL</code> in the
             agent service env to override the defaults.

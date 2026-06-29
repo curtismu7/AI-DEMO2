@@ -63,7 +63,7 @@ spec:
         image: ghcr.io/ggml-org/llama.cpp:server
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8080
+        - containerPort: 8090
           name: http
         # --host 0.0.0.0 so other pods in the namespace can reach it (the default
         # 127.0.0.1 bind refuses cross-pod connections). -hf pulls the GGUF from
@@ -73,7 +73,7 @@ spec:
           - "--host"
           - "0.0.0.0"
           - "--port"
-          - "8080"
+          - "8090"
           - "-hf"
           - "Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
         volumeMounts:
@@ -90,7 +90,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8090
           initialDelaySeconds: 15
           periodSeconds: 60
           timeoutSeconds: 5
@@ -102,7 +102,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8090
           initialDelaySeconds: 20
           periodSeconds: 30
           timeoutSeconds: 5
@@ -124,8 +124,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8080
-    targetPort: 8080
+  - port: 8090
+    targetPort: 8090
     protocol: TCP
     name: http
   selector:

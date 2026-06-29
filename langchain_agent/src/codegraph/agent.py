@@ -61,7 +61,7 @@ def _resolve_provider() -> str:
         logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
         return explicit
 
-    llamacpp_url = os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8080")
+    llamacpp_url = os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090")
     if _llamacpp_reachable(llamacpp_url):
         logger.info("CodeGraph LLM: llama.cpp reachable at %s — using llamacpp", llamacpp_url)
         return "llamacpp"
@@ -88,7 +88,7 @@ def create_codegraph_agent(api_key: str):
         provider=provider,
         model=os.getenv("CODEGRAPH_MODEL") or None,
         api_key=api_key,
-        llamacpp_base_url=os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8080"),
+        llamacpp_base_url=os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090"),
         llamacpp_model=os.getenv("LLAMACPP_MODEL", "qwen3-8b"),
         lmstudio_base_url=os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
     )

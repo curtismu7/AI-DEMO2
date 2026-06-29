@@ -12,7 +12,7 @@ Provider resolution rules (mirrors demo_api_server/services/llmProviderResolver.
                            without modification. Dummy API key accepted.
   - "llamacpp"           → ChatOpenAI pointed at llama.cpp's llama-server OpenAI-compatible
                            endpoint. LLAMACPP_BASE_URL is the origin only (default
-                           http://127.0.0.1:8080); we append /v1. Native tool-calling, no API key.
+                           http://127.0.0.1:8090); we append /v1. Native tool-calling, no API key.
                            Use 127.0.0.1 (not localhost) — clients resolve localhost to ::1 where
                            llama-server isn't bound; Python uses the same default for consistency.
   - no provider / unknown → falls back to "none" (heuristic routing)
@@ -37,7 +37,7 @@ def get_llm(
     streaming: bool = True,
     lmstudio_base_url: str = "http://localhost:1234/v1",
     anthropic_base_url: str = "",
-    llamacpp_base_url: str = "http://127.0.0.1:8080",
+    llamacpp_base_url: str = "http://127.0.0.1:8090",
     llamacpp_model: str = "qwen3-8b",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",

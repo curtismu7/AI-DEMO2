@@ -5,7 +5,7 @@
 // Self-contained: no dependency on the :3006 agent runtime.
 //
 // Config (env var — same var agent-service uses):
-//   LLAMACPP_BASE_URL  default http://127.0.0.1:8080   (origin only, no /v1)
+//   LLAMACPP_BASE_URL  default http://127.0.0.1:8090   (origin only, no /v1)
 //   LLAMACPP_MODEL     optional — llama-server serves whatever model it was
 //                      launched with; when unset we send the model it reports
 //                      via /v1/models (cached), falling back to 'local-model'.
@@ -16,7 +16,7 @@
 // completes in a few seconds; a large reasoning model can blow the timeout and
 // surface "Could not parse: signal timed out".
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8080';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8090';
 const FALLBACK_MODEL = 'local-model';
 
 function baseUrl() {

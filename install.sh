@@ -450,7 +450,7 @@ setup_certs() {
 }
 
 # Offer to install llama.cpp (local LLM for NL intent fallback).
-# - run.sh (Docker Compose / bare-metal): uses a host-native llama-server on localhost:8080.
+# - run.sh (Docker Compose / bare-metal): uses a host-native llama-server on localhost:8090.
 # - run-k8.sh (Kubernetes): deploys an in-cluster llama.cpp pod automatically —
 #   no host install required for the K8s path.
 # We ask rather than auto-install because the GGUF model is a multi-GB download.
@@ -497,7 +497,7 @@ ensure_llamacpp() {
   local hf_spec="Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
   if command -v llama-server >/dev/null 2>&1; then
     info "Default model (${model}) downloads automatically on first 'llama-server -hf' start."
-    info "  Start it with: llama-server --host 0.0.0.0 --port 8080 -hf ${hf_spec}"
+    info "  Start it with: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
   fi
 }
 
@@ -524,19 +524,19 @@ ensure_codegraph_llamacpp() {
 
   # Start the server if not already responding on /health. The -hf flag
   # downloads and caches the GGUF on first start (replaces 'ollama pull').
-  if ! curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+  if ! curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
     info "Starting llama-server (${model}) — downloads the GGUF on first start, this may take a few minutes..."
-    llama-server --host 0.0.0.0 --port 8080 -hf "${hf_spec}" >/dev/null 2>&1 &
+    llama-server --host 0.0.0.0 --port 8090 -hf "${hf_spec}" >/dev/null 2>&1 &
     # Wait for the model to load and /health to return 200.
     local waited=0
     while [[ $waited -lt 120 ]]; do
-      if curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+      if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
         ok "llama-server ready (model ${model})."
         return 0
       fi
       sleep 3; (( waited += 3 ))
     done
-    warn "llama-server started but /health not ready yet — give it a moment, or start manually: llama-server --host 0.0.0.0 --port 8080 -hf ${hf_spec}"
+    warn "llama-server started but /health not ready yet — give it a moment, or start manually: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
   else
     ok "llama-server already running (model ${model})."
   fi

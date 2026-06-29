@@ -164,13 +164,13 @@ git_sync_check() {
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"   # single model serving BFF + agent
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"
 
-_llamacpp_up()        { curl -sf --max-time 2 http://127.0.0.1:8080/health >/dev/null 2>&1; }
-_llamacpp_bound_all() { lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8080'; }
+_llamacpp_up()        { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1; }
+_llamacpp_bound_all() { lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8090'; }
 
 # Launch llama-server as a plain background process bound to all interfaces.
 # `-hf` downloads + caches the GGUF on first run (replaces an explicit pull).
 _llamacpp_spawn() {
-  llama-server --host 0.0.0.0 --port 8080 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+  llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
   echo $! > "$_LLAMACPP_PIDFILE"
 }
 
@@ -193,7 +193,7 @@ start_llamacpp() {
 
   local i=0; while [[ $i -lt 12 ]]; do _llamacpp_up && break; sleep 1; (( i++ )) || true; done
   if _llamacpp_up; then
-    _llamacpp_bound_all && ok "llama.cpp ready (0.0.0.0:8080)" \
+    _llamacpp_bound_all && ok "llama.cpp ready (0.0.0.0:8090)" \
       || warn "llama.cpp up but not bound to 0.0.0.0 — containers may not reach it"
   else
     warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"

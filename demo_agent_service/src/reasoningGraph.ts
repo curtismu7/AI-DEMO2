@@ -231,7 +231,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
     try {
       // LLAMACPP_BASE_URL is the origin only (no /v1); we append /v1 for the
       // OpenAI-compatible API, matching the BFF's llamacppLlmService convention.
-      const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+      const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8090').replace(/\/+$/, '');
       const baseURL = `${origin}/v1`;
       const model = req.model || process.env.LLAMACPP_MODEL || (await resolveLlamaCppModel(baseURL));
       const llm = new ChatOpenAI({

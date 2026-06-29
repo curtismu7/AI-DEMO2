@@ -83,7 +83,7 @@ async function getProviderStatus(provider, config = {}) {
   // llama.cpp — ping llama-server's OpenAI-compatible /v1/models; no API key required.
   // 127.0.0.1 (not localhost) so Node doesn't resolve to ::1 where llama-server isn't bound.
   if (provider === 'llamacpp') {
-    const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+    const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8090').replace(/\/+$/, '');
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);

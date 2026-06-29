@@ -425,7 +425,7 @@ derive_se_namespace() {
 
 # Ensure a host llama.cpp server is installed and running for the Code Explorer.
 # Called before any deploy that uses docker-compose (se-deploy, se-all).
-# The langchain-agent container connects via host.docker.internal:8080.
+# The langchain-agent container connects via host.docker.internal:8090.
 ensure_llamacpp_running() {
   local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
   local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
@@ -443,18 +443,18 @@ ensure_llamacpp_running() {
 
   # Start the server if /health isn't already responding. The -hf flag downloads
   # and caches the GGUF on first start (tool-capable, runs on 32 GB machines).
-  if ! curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+  if ! curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
     info "Starting llama-server (${model}) — downloads the GGUF on first start..."
-    llama-server --host 0.0.0.0 --port 8080 -hf "${hf_spec}" >/dev/null 2>&1 &
+    llama-server --host 0.0.0.0 --port 8090 -hf "${hf_spec}" >/dev/null 2>&1 &
     local waited=0
     while [[ $waited -lt 120 ]]; do
-      if curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+      if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
         success "llama-server ready (model ${model})."
         return 0
       fi
       sleep 3; (( waited += 3 ))
     done
-    info "llama-server started but /health not ready yet — start manually: llama-server --host 0.0.0.0 --port 8080 -hf ${hf_spec}"
+    info "llama-server started but /health not ready yet — start manually: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
   else
     success "llama-server already running (model ${model})."
   fi

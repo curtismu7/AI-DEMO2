@@ -355,10 +355,10 @@ preflight_checks() {
 
   # llama.cpp (local LLM for NL intent fallback) — optional, local-only.
   # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
-  # and just verify reachability. If unset, default to localhost:8080.
+  # and just verify reachability. If unset, default to localhost:8090.
   #
   # Architecture note: `llama-server` is ONE process serving ONE model. A single
-  # server on :8080 serves BOTH the BFF NL-intent path AND agent reasoning — there
+  # server on :8090 serves BOTH the BFF NL-intent path AND agent reasoning — there
   # is no longer a separate BFF model vs agent model. The OpenAI-compatible /v1 API
   # is exposed on the same port.
   #
@@ -366,14 +366,15 @@ preflight_checks() {
   # host.docker.internal, so we bind 0.0.0.0 via the --host flag (no launchd hack
   # is needed — llama-server binds all interfaces directly).
   #
-  # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8080.
+  # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
+  # (8090 avoids the MCP server's :8080).
   local llamacpp_model="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"
-  local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8080}"
+  local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
   local llamacpp_host llamacpp_port
   llamacpp_host=$(echo "$llamacpp_base" | sed -E 's|https?://([^:/]+).*|\1|')
   llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
-  [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8080"  # sed produced no match → default
+  [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
 
   if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
     # Remote llama.cpp — just check reachability, never try to start locally
@@ -403,15 +404,15 @@ preflight_checks() {
           fi
           if command -v llama-server >/dev/null 2>&1; then
             echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
-            llama-server --host 0.0.0.0 --port 8080 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+            llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
             echo $! > /tmp/demo-llamacpp.pid
             local _i=0
             while [[ $_i -lt 60 ]]; do
-              curl -sf --max-time 3 http://127.0.0.1:8080/health >/dev/null 2>&1 && break
+              curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && break
               sleep 1; (( _i++ )) || true
             done
-            curl -sf --max-time 3 http://127.0.0.1:8080/health >/dev/null 2>&1 \
-              && ok "llama.cpp started on :8080 — model: ${llamacpp_model}" \
+            curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 \
+              && ok "llama.cpp started on :8090 — model: ${llamacpp_model}" \
               || warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
           fi
           ;;
@@ -426,17 +427,17 @@ preflight_checks() {
     echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
     # The -hf flag downloads + caches the GGUF from HuggingFace on first start
     # (a no-op once cached) — this replaces the old model-pull step.
-    llama-server --host 0.0.0.0 --port 8080 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+    llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
     echo $! > /tmp/demo-llamacpp.pid
     local i=0
     while [[ $i -lt 60 ]]; do
-      curl -sf --max-time 3 "http://127.0.0.1:8080/health" >/dev/null 2>&1 && break
+      curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1 && break
       sleep 1; (( i++ )) || true
     done
-    if curl -sf --max-time 3 "http://127.0.0.1:8080/health" >/dev/null 2>&1; then
-      ok "llama.cpp started on :8080 — model: ${llamacpp_model}"
+    if curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1; then
+      ok "llama.cpp started on :8090 — model: ${llamacpp_model}"
     else
-      warn "llama.cpp did not become ready on :8080 — check /tmp/demo-llamacpp.log"
+      warn "llama.cpp did not become ready on :8090 — check /tmp/demo-llamacpp.log"
     fi
   fi
 

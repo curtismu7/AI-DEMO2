@@ -6,7 +6,7 @@ Read `CLAUDE.md` first, then [REGRESSION_PLAN.md](./REGRESSION_PLAN.md) §1 befo
 {
   "language_models": {
     "llamacpp": {
-      "api_url": "http://localhost:8080"
+      "api_url": "http://localhost:8090"
     },
     "provider": "llamacpp",
     "inline_provider": "llamacpp",
