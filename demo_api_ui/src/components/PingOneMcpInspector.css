@@ -257,3 +257,39 @@
   color: #334155;
 }
 .p1mcp-call-status--error { color: #b91c1c; }
+
+/* "Not in the MCP server — use direct API" gap list */
+.p1mcp-gap-group { margin-top: 14px; }
+.p1mcp-gap-group:first-of-type { margin-top: 8px; }
+.p1mcp-gap-group__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.p1mcp-gap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 3px solid #e2e8f0;
+}
+.p1mcp-gap-item {
+  padding: 6px 0 6px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.p1mcp-gap-item:last-child { border-bottom: none; }
+.p1mcp-gap-item__name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.p1mcp-gap-item__why {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: #475569;
+}
+.p1mcp-gap-foot { margin-top: 14px; font-style: italic; }
