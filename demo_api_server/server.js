@@ -108,6 +108,7 @@ const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
+const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
@@ -1017,6 +1018,10 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
 app.use('/api/demo-agent', demoAgentRoutes);
+// Admin agent: isolated stack for administrative operations
+app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+// A2A Orchestrator: delegation decision and specialist routing
+app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
@@ -1179,7 +1184,6 @@ app.get('/api/demo-scenario', (req, res, next) => {
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
-app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, adminRoutes);
