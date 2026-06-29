@@ -69,6 +69,45 @@ const PLATFORM_GROUPS = [
 // The trailing 'other' group always matches, so find() never returns undefined.
 const platformGroupId = (name) => PLATFORM_GROUPS.find((g) => g.match(name)).id;
 
+// Management operations the hosted PingOne MCP server does NOT expose, so the app
+// and tests fall back to the PingOne Management API (or DaVinci API) directly.
+// Verified against the live tools/list — keep in sync if PingOne adds tools.
+const MCP_GAPS = [
+  {
+    group: 'Used by this demo — must call direct API',
+    items: [
+      ['Resource servers', 'No resource* tools — custom API resources (mcpserver.ping.demo, mcpgateway.ping.demo, banking) are created directly.'],
+      ['Scopes', 'No scope tools — custom scopes (banking:read/write, mirrored scopes) are created directly.'],
+      ['User → admin role assignments', 'MCP only assigns roles to worker apps; granting admin roles to persona users is direct.'],
+      ['MFA / FIDO2 policies', 'MCP has per-user manageUserMfa only; device-auth / FIDO2 RP policies are direct.'],
+      ['Sign-on policy objects', 'MCP only assigns an existing sign-on policy to an app; creating/editing the policy + rules is direct.'],
+    ],
+  },
+  {
+    group: 'Lifecycle verbs missing on supported resources',
+    items: [
+      ['createEnvironment / deleteEnvironment', 'Only get / list / update + services.'],
+      ['deletePopulation', 'create / update / get / list only.'],
+      ['deleteUser', 'create / update / get / list / manage* only.'],
+    ],
+  },
+  {
+    group: 'No MCP coverage at all',
+    items: [
+      ['DaVinci authoring', 'All DaVinci tools are read-only (list/get) — creating/updating/deploying flows, connectors, forms, variables is direct.'],
+      ['Groups & memberships', ''],
+      ['Identity providers / social login', ''],
+      ['Keys & certificates', 'signing/encryption, rotation'],
+      ['Directory schema / custom attributes', 'MCP maps attributes on apps; it does not define directory schema.'],
+      ['Branding / themes / custom domains', ''],
+      ['Gateways (LDAP/RADIUS) & agents', ''],
+      ['Notifications (SMTP / templates)', ''],
+      ['Universal services config', 'Protect, Verify, Credentials, Authorize, MFA service settings.'],
+      ['Worker client_credentials token', 'Auth endpoint, not a management tool.'],
+    ],
+  },
+];
+
 const PingOneMcpInspector = ({ user, onLogout }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -403,6 +442,37 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
             )}
           </>
         )}
+      </Section>
+
+      <Section
+        title="Not in the MCP server — use direct API"
+        hint="Operations the hosted PingOne MCP server doesn't expose"
+        defaultOpen={false}
+      >
+        <p className="mcp-inspector__muted">
+          The hosted PingOne MCP server is preview software with a limited tool set. The
+          operations below have no MCP tool, so the app and tests call the PingOne
+          Management API (or DaVinci API) directly. Verified against the live{' '}
+          <code>tools/list</code> ({tools.length} tools).
+        </p>
+        {MCP_GAPS.map((cat) => (
+          <div className="p1mcp-gap-group" key={cat.group}>
+            <div className="p1mcp-gap-group__title">{cat.group}</div>
+            <ul className="p1mcp-gap-list">
+              {cat.items.map(([name, why]) => (
+                <li className="p1mcp-gap-item" key={name}>
+                  <span className="p1mcp-gap-item__name">{name}</span>
+                  {why && <span className="p1mcp-gap-item__why">{why}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <p className="mcp-inspector__muted p1mcp-gap-foot">
+          Recently added to MCP (no longer direct-only): users (create/update/list/get),
+          passwords (<code>manageUserPassword</code>), account lock (<code>manageUserAccount</code>),
+          per-user MFA (<code>manageUserMfa</code>).
+        </p>
       </Section>
 
       <Section title="Discovery request" hint="JSON-RPC tools/list sent over HTTP" status={data ? 'ok' : undefined} defaultOpen={false}>
