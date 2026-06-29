@@ -5,41 +5,41 @@ import { notifyError, notifySuccess } from '../utils/appToast';
 import AnthropicPanel from './AnthropicPanel';
 import HelixPanel from './HelixPanel';
 import LmStudioPanel from './LmStudioPanel';
-import OllamaPanel from './OllamaPanel';
+import LlamaCppPanel from './LlamaCppPanel';
 import ProviderSelector from './ProviderSelector';
 import './LlmConfig.css';
 
 const PROVIDER_LABELS = {
   helix: 'Helix',
   'anthropic-lmstudio': 'LM Studio',
-  ollama: 'Ollama',
+  llamacpp: 'llama.cpp',
   anthropic: 'Anthropic',
 };
 
 /**
  * LlmConfigPage — LLM provider configuration
  *
- * Shows a provider selector (Helix | LM Studio | Ollama | Anthropic) at the
+ * Shows a provider selector (Helix | LM Studio | llama.cpp | Anthropic) at the
  * top, then the appropriate config panel below.
  */
 export default function LlmConfigPage() {
   const [provider, setProvider] = useState('helix');
   const [helixStatus, setHelixStatus] = useState(null);
   const [lmstudioStatus, setLmstudioStatus] = useState(null);
-  const [ollamaStatus, setOllamaStatus] = useState(null);
+  const [llamaCppStatus, setLlamaCppStatus] = useState(null);
   const [anthropicStatus, setAnthropicStatus] = useState(null);
 
   const fetchStatuses = useCallback(async () => {
     try {
-      const [helixRes, lmstudioRes, ollamaRes, anthropicRes] = await Promise.all([
+      const [helixRes, lmstudioRes, llamaCppRes, anthropicRes] = await Promise.all([
         apiClient.get('/api/langchain/provider/helix/status'),
         apiClient.get('/api/langchain/provider/anthropic-lmstudio/status'),
-        apiClient.get('/api/langchain/provider/ollama/status'),
+        apiClient.get('/api/langchain/provider/llamacpp/status'),
         apiClient.get('/api/langchain/provider/anthropic/status'),
       ]);
       setHelixStatus(helixRes.data?.status ?? null);
       setLmstudioStatus(lmstudioRes.data?.status ?? null);
-      setOllamaStatus(ollamaRes.data?.status ?? null);
+      setLlamaCppStatus(llamaCppRes.data?.status ?? null);
       setAnthropicStatus(anthropicRes.data?.status ?? null);
     } catch (err) {
       console.warn('[LlmConfigPage] Status fetch failed:', err.message);
@@ -74,8 +74,8 @@ export default function LlmConfigPage() {
     ? <HelixPanel />
     : provider === 'anthropic'
       ? <AnthropicPanel />
-      : provider === 'ollama'
-        ? <OllamaPanel />
+      : provider === 'llamacpp'
+        ? <LlamaCppPanel />
         : <LmStudioPanel />;
 
   return (
@@ -89,7 +89,7 @@ export default function LlmConfigPage() {
         onSelect={handleSelect}
         helixStatus={helixStatus}
         lmstudioStatus={lmstudioStatus}
-        ollamaStatus={ollamaStatus}
+        llamaCppStatus={llamaCppStatus}
         anthropicStatus={anthropicStatus}
       />
       {panel}

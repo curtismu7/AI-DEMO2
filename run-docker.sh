@@ -5,7 +5,7 @@
 #
 # Usage:
 #   ./run-docker.sh                       start all services (stop first)
-#   ./run-docker.sh stop                  stop and remove containers (+ host Ollama)
+#   ./run-docker.sh stop                  stop and remove containers (+ host llama.cpp)
 #   ./run-docker.sh stop <svc>...         stop only the named service(s)
 #   ./run-docker.sh restart               stop then start everything (same as default)
 #   ./run-docker.sh restart <svc>...      recreate only the named service(s) — picks up env/compose changes
@@ -13,7 +13,7 @@
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
-#   ./run-docker.sh ollama restart        stop and restart host Ollama (containers untouched)
+#   ./run-docker.sh llamacpp restart      stop and restart host llama.cpp (containers untouched)
 #   ./run-docker.sh help                  show this message
 #
 # Single-service commands take one OR MORE service names, e.g.
@@ -153,71 +153,60 @@ git_sync_check() {
   fi
 }
 
-# ── Ollama (host) lifecycle ───────────────────────────────────────────────────
-# The dockerized BFF reaches Ollama on the HOST via host.docker.internal, which
-# requires Ollama to bind 0.0.0.0 (not its 127.0.0.1 default) — otherwise the
-# provider shows "not configured". We start it before the stack, stop it with the
-# stack. The server is usually the macOS Ollama.app; on a headless host we fall
-# back to `ollama serve`. The 0.0.0.0 bind is persisted across logins by a launchd
-# setenv agent (install once: scripts/install-ollama-launchagent.sh).
-# (k8s is unaffected — there Ollama runs as an in-cluster pod; see run-k8.sh.)
-OLLAMA_BFF_MODEL="${OLLAMA_MODEL:-qwen2.5:3b}"   # small, non-reasoning — answers under the SPA timeout
-OLLAMA_AGENT_MODEL="qwen3:8b"                     # heavier reasoning for agent-service
-_OLLAMA_PIDFILE="/tmp/demo-ollama.pid"
+# ── llama.cpp (host) lifecycle ────────────────────────────────────────────────
+# The dockerized BFF reaches llama.cpp's llama-server on the HOST via
+# host.docker.internal, which requires the server to bind 0.0.0.0 (not loopback)
+# — otherwise the provider shows "not configured". We start it before the stack,
+# stop it with the stack. llama-server is ONE process serving ONE model (the same
+# model serves both BFF NL intent and agent reasoning); the `-hf` flag downloads
+# and caches the GGUF on first start.
+# (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"   # single model serving BFF + agent
+_LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"
 
-_ollama_up()        { curl -sf --max-time 2 http://127.0.0.1:11434/api/version >/dev/null 2>&1; }
-_ollama_bound_all() { lsof -nP -iTCP:11434 -sTCP:LISTEN 2>/dev/null | grep -q '\*:11434'; }
+_llamacpp_up()        { curl -sf --max-time 2 http://127.0.0.1:8080/health >/dev/null 2>&1; }
+_llamacpp_bound_all() { lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8080'; }
 
-# Start whichever server this host has, with OLLAMA_HOST=0.0.0.0 in scope.
-_ollama_spawn() {
-  if [[ "$(uname)" == "Darwin" && -d "/Applications/Ollama.app" ]]; then
-    open -a Ollama 2>/dev/null || true        # app inherits OLLAMA_HOST from the setenv agent
-  else
-    OLLAMA_HOST="0.0.0.0" nohup ollama serve >/tmp/demo-ollama.log 2>&1 &
-    echo $! > "$_OLLAMA_PIDFILE"
-  fi
+# Launch llama-server as a plain background process bound to all interfaces.
+# `-hf` downloads + caches the GGUF on first run (replaces an explicit pull).
+_llamacpp_spawn() {
+  llama-server --host 0.0.0.0 --port 8080 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+  echo $! > "$_LLAMACPP_PIDFILE"
 }
 
-start_ollama() {
-  command -v ollama >/dev/null 2>&1 || { warn "ollama not installed — 'Ollama only' agent mode disabled (brew install ollama)"; return 0; }
-  # Persist + apply the network bind so containers can reach Ollama.
-  [[ "$(uname)" == "Darwin" ]] && launchctl setenv OLLAMA_HOST 0.0.0.0 2>/dev/null || true
-  export OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}"
+start_llamacpp() {
+  command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — 'llama.cpp only' agent mode disabled (brew install llama.cpp)"; return 0; }
 
-  if _ollama_up && _ollama_bound_all; then
-    ok "Ollama already running (0.0.0.0)"
-  elif _ollama_up; then
-    # Up but bound to loopback only (e.g. first boot before the setenv agent ran) —
-    # restart so it rebinds on all interfaces; containers can't reach 127.0.0.1.
-    warn "Ollama bound to loopback — restarting to expose 0.0.0.0 for containers"
-    osascript -e 'quit app "Ollama"' 2>/dev/null || true
-    pkill -f "ollama serve" 2>/dev/null || true
+  if _llamacpp_up && _llamacpp_bound_all; then
+    ok "llama.cpp already running (0.0.0.0)"
+  elif _llamacpp_up; then
+    # Up but bound to loopback only — restart so it rebinds on all interfaces;
+    # containers can't reach 127.0.0.1.
+    warn "llama.cpp bound to loopback — restarting to expose 0.0.0.0 for containers"
+    pkill -f "llama-server" 2>/dev/null || true
     sleep 2
-    _ollama_spawn
+    _llamacpp_spawn
   else
-    _ollama_spawn
+    echo "  Starting llama-server (model downloads on first run — check /tmp/demo-llamacpp.log)…"
+    _llamacpp_spawn
   fi
 
-  local i=0; while [[ $i -lt 12 ]]; do _ollama_up && break; sleep 1; (( i++ )) || true; done
-  if _ollama_up; then
-    _ollama_bound_all && ok "Ollama ready (0.0.0.0:11434)" \
-      || warn "Ollama up but not bound to 0.0.0.0 — containers may not reach it"
-    ollama list 2>/dev/null | grep -q "$OLLAMA_BFF_MODEL"   || { echo "  Pulling ${OLLAMA_BFF_MODEL} (BFF NL intent)…";   ollama pull "$OLLAMA_BFF_MODEL"   || warn "pull ${OLLAMA_BFF_MODEL} failed"; }
-    ollama list 2>/dev/null | grep -q "$OLLAMA_AGENT_MODEL" || { echo "  Pulling ${OLLAMA_AGENT_MODEL} (agent reasoning)…"; ollama pull "$OLLAMA_AGENT_MODEL" || warn "pull ${OLLAMA_AGENT_MODEL} failed"; }
+  local i=0; while [[ $i -lt 12 ]]; do _llamacpp_up && break; sleep 1; (( i++ )) || true; done
+  if _llamacpp_up; then
+    _llamacpp_bound_all && ok "llama.cpp ready (0.0.0.0:8080)" \
+      || warn "llama.cpp up but not bound to 0.0.0.0 — containers may not reach it"
   else
-    warn "Ollama did not become ready — check /tmp/demo-ollama.log"
+    warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
   fi
 }
 
-stop_ollama() {
-  # Stop the server whether it's the GUI app or a headless `ollama serve`.
-  [[ "$(uname)" == "Darwin" ]] && osascript -e 'quit app "Ollama"' 2>/dev/null || true
-  if [[ -f "$_OLLAMA_PIDFILE" ]]; then
-    kill "$(cat "$_OLLAMA_PIDFILE")" 2>/dev/null || true
-    rm -f "$_OLLAMA_PIDFILE"
+stop_llamacpp() {
+  if [[ -f "$_LLAMACPP_PIDFILE" ]]; then
+    kill "$(cat "$_LLAMACPP_PIDFILE")" 2>/dev/null || true
+    rm -f "$_LLAMACPP_PIDFILE"
   fi
-  pkill -f "ollama serve" 2>/dev/null || true
-  ok "Ollama stopped"
+  pkill -f "llama-server" 2>/dev/null || true
+  ok "llama.cpp stopped"
 }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
@@ -466,9 +455,9 @@ cmd_start() {
   ensure_bind_mounts
   echo ""
 
-  # Host Ollama must be up + bound 0.0.0.0 before the BFF starts so it isn't
+  # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't
   # reported "not configured" on the first request.
-  start_ollama
+  start_llamacpp
   echo ""
 
   if [[ "${build_flag}" == "--build" ]]; then
@@ -521,7 +510,7 @@ cmd_start() {
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET}              pick service to tail"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET} <svc>        tail specific service"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh status${RESET}            show container health"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh ollama restart${RESET}    restart host Ollama"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh llamacpp restart${RESET}  restart host llama.cpp"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh help${RESET}              show full help"
   echo -e "${WHITE}${BOLD}  │${RESET}"
   echo -e "${WHITE}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
@@ -553,15 +542,15 @@ cmd_status() {
   echo ""
 }
 
-cmd_ollama_restart() {
+cmd_llamacpp_restart() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-  echo -e "${CYAN}${BOLD}   [OLLAMA]  Restarting Ollama (containers untouched)${RESET}"
+  echo -e "${CYAN}${BOLD}   [LLAMA.CPP]  Restarting llama.cpp (containers untouched)${RESET}"
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
-  stop_ollama
+  stop_llamacpp
   echo ""
-  start_ollama
+  start_llamacpp
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo -e "${WHITE}${BOLD}  AVAILABLE COMMANDS${RESET}"
@@ -585,7 +574,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)             Stop existing containers, then start all services"
-  echo "    stop                  Stop and remove all containers (+ host Ollama)"
+  echo "    stop                  Stop and remove all containers (+ host llama.cpp)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
   echo "    restart               Same as default — stop then start everything"
   echo "    restart <svc>...      Recreate only the named service(s); picks up env/compose"
@@ -595,7 +584,7 @@ cmd_help() {
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
-  echo "    ollama restart        Stop and restart host Ollama (containers untouched)"
+  echo "    llamacpp restart      Stop and restart host llama.cpp (containers untouched)"
   echo "    help                  Show this message"
   echo ""
   echo -e "${WHITE}${BOLD}  Service Names (one or more for stop/restart/build; one for logs):${RESET}"
@@ -654,7 +643,7 @@ case "${COMMAND}" in
       cmd_stop_one "$@"
     else
       cmd_stop
-      stop_ollama
+      stop_llamacpp
     fi
     ;;
   build)
@@ -667,13 +656,13 @@ case "${COMMAND}" in
   logs)
     tail_logs "${1:-}"
     ;;
-  ollama)
+  llamacpp)
     if [[ "${1:-}" == "restart" ]]; then
-      cmd_ollama_restart
+      cmd_llamacpp_restart
     else
-      err "Unknown ollama subcommand: ${1:-}"
+      err "Unknown llamacpp subcommand: ${1:-}"
       echo ""
-      echo "  Usage: ./run-docker.sh ollama restart"
+      echo "  Usage: ./run-docker.sh llamacpp restart"
       echo ""
       exit 1
     fi

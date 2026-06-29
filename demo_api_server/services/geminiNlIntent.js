@@ -104,7 +104,7 @@ async function answerWithHelix(userMessage, context = {}) {
 // Agent modes 'lmstudio' and 'heuristics_lmstudio' resolve to this provider.
 const LMSTUDIO_PROVIDERS = new Set(['anthropic-lmstudio', 'lmstudio']);
 const CLAUDE_PROVIDERS = new Set(['anthropic']);
-const OLLAMA_PROVIDERS = new Set(['ollama']);
+const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
 
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
@@ -172,17 +172,17 @@ function ensureRenderableAnswer(result) {
   return result;
 }
 
-async function answerWithOllama(userMessage, context = {}) {
+async function answerWithLlamaCpp(userMessage, context = {}) {
   try {
-    const { callOllama } = require('./ollamaLlmService');
+    const { callLlamaCpp } = require('./llamacppLlmService');
     const systemWithCtx = buildSystemWithCtx(null, context);
-    const raw = await callOllama([
+    const raw = await callLlamaCpp([
       { role: 'system', content: systemWithCtx },
       { role: 'user', content: userMessage },
     ]);
     return raw || null;
   } catch (err) {
-    console.warn('[nlIntent] Ollama conversational error:', err.message);
+    console.warn('[nlIntent] llama.cpp conversational error:', err.message);
     return null;
   }
 }
@@ -191,7 +191,7 @@ async function answerConversational(userMessage, context, selectedProvider) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
-  else if (OLLAMA_PROVIDERS.has(selectedProvider)) result = await answerWithOllama(userMessage, context);
+  else if (LLAMACPP_PROVIDERS.has(selectedProvider)) result = await answerWithLlamaCpp(userMessage, context);
   else result = await answerWithHelix(userMessage, context);
   return ensureRenderableAnswer(result);
 }
@@ -200,7 +200,7 @@ async function answerConversational(userMessage, context, selectedProvider) {
 function conversationalSource(selectedProvider) {
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) return 'lmstudio_fallback';
   if (CLAUDE_PROVIDERS.has(selectedProvider)) return 'claude_fallback';
-  if (OLLAMA_PROVIDERS.has(selectedProvider)) return 'ollama_fallback';
+  if (LLAMACPP_PROVIDERS.has(selectedProvider)) return 'llamacpp_fallback';
   return 'helix_fallback';
 }
 
@@ -446,13 +446,13 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
-  // Ollama JSON intent parsing — same pattern as LM Studio above.
-  // Lets "Ollama only" mode (heuristicRouting:false) route structured actions.
-  if (OLLAMA_PROVIDERS.has(selectedProvider)) {
+  // llama.cpp JSON intent parsing — same pattern as LM Studio above.
+  // Lets "llama.cpp only" mode (heuristicRouting:false) route structured actions.
+  if (LLAMACPP_PROVIDERS.has(selectedProvider)) {
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
     try {
-      const { callOllama } = require('./ollamaLlmService');
-      const raw = await callOllama([
+      const { callLlamaCpp } = require('./llamacppLlmService');
+      const raw = await callLlamaCpp([
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
@@ -466,10 +466,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         return null;
       };
       const parsed = tryParse(raw);
-      if (parsed) return logAndReturn({ source: 'ollama', result: parsed });
+      if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
       llmAttempted = true;
     } catch (err) {
-      console.warn('[nlIntent] Ollama intent error:', err.message);
+      console.warn('[nlIntent] llama.cpp intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
   }
@@ -495,12 +495,12 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   }
 
   // 3. Try the selected LLM for general knowledge questions when banking intent
-  // fails (fallback only) — Helix, LM Studio, Ollama, or Claude.
+  // fails (fallback only) — Helix, LM Studio, llama.cpp, or Claude.
   if (
     selectedProvider === 'helix' ||
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
     CLAUDE_PROVIDERS.has(selectedProvider) ||
-    OLLAMA_PROVIDERS.has(selectedProvider) ||
+    LLAMACPP_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
     const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {

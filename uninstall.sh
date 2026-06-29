@@ -7,14 +7,14 @@
 #   - nvm and the Node version it installed
 #   - Python venvs inside the project (pip-installed packages)
 #   - Brew packages installed by install.sh that are NOT commonly pre-existing:
-#     git, gh, python@3.12, mkcert, ollama, orbstack, kubectl, kubectx,
+#     git, gh, python@3.12, mkcert, llama.cpp, orbstack, kubectl, kubectx,
 #     kubelogin (tap: int128/kubelogin), jwt-cli (tap: mike-engel/jwt-cli),
 #     awscli, docker (cask)
 #   - Shell profile lines added by nvm installer
 #
 # What this intentionally does NOT remove:
 #   - Homebrew itself (too risky — user may have other things installed)
-#   - Any Ollama models already pulled (large, slow to re-download)
+#   - llama.cpp GGUF model files (in the HuggingFace cache; large, slow to re-download)
 #   - npm global packages (none installed by install.sh)
 #   - redis (not installed by install.sh; used via Docker)
 #
@@ -71,7 +71,7 @@ echo "  Install dir : ${BOLD}${INSTALL_DIR}${RESET}"
 echo "  NVM dir     : ${BOLD}${NVM_DIR}${RESET}"
 echo ""
 echo "  ${YELLOW}Homebrew itself is NOT removed${RESET} (you may have other things using it)."
-echo "  ${YELLOW}Ollama models are NOT removed${RESET} (large; re-download is slow)."
+echo "  ${YELLOW}llama.cpp GGUF model files are NOT removed${RESET} (in ~/.cache/llama.cpp or ~/Library/Caches/llama.cpp; large, re-download is slow)."
 echo ""
 
 if ! ask_yes_no "Proceed with uninstall? [y/N] " no; then
@@ -155,7 +155,7 @@ else
     "gh|GitHub CLI (gh)|formula"
     "python@3.12|Python 3.12|formula"
     "mkcert|mkcert|formula"
-    "ollama|Ollama|formula"
+    "llama.cpp|llama.cpp|formula"
     "orbstack|OrbStack|cask"
     "docker-desktop|Docker Desktop|cask"
     "kubectl|kubectl|formula"

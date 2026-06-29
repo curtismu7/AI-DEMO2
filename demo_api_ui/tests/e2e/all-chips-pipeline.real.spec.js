@@ -122,7 +122,7 @@ test.describe('all-chips routing + non-skippable pipeline (real)', () => {
       if (executed) {
         expect(tokenEvents.length, `chip ${chip.id} executed → trail required`).toBeGreaterThan(0);
       } else {
-        expect(['heuristic', 'helix', 'helix_fallback', 'ollama']).toContain(source);
+        expect(['heuristic', 'helix', 'helix_fallback', 'llamacpp']).toContain(source);
         expect(result.kind === 'none' || result.kind === 'education' || result.kind === 'banking').toBe(true);
       }
     }

@@ -79,11 +79,10 @@ data:
   CODEGRAPH_DB_PATH: "/app/codegraph.db"
 
   # CodeGraph LLM (hand-managed): the ReAct explorer shares the chat agent's
-  # local Ollama model (OLLAMA_MODEL) so only ONE model has to be pulled on the
-  # Ollama host — a separate CODEGRAPH_MODEL (e.g. qwen2.5:3b) 404'd when it was
-  # never pulled there. Override CODEGRAPH_LLM_PROVIDER=anthropic (+ a real
-  # ANTHROPIC_API_KEY) for cloud, or set CODEGRAPH_MODEL to pin a different model
-  # that is ALREADY pulled on the Ollama host.
+  # local llama.cpp model (LLAMACPP_MODEL) so only ONE model has to be served by
+  # llama-server — a separate CODEGRAPH_MODEL that the server isn't loaded with
+  # 404'd. Override CODEGRAPH_LLM_PROVIDER=anthropic (+ a real ANTHROPIC_API_KEY)
+  # for cloud, or set CODEGRAPH_MODEL to pin the id llama-server actually serves.
 
   # BFF -> langchain-agent HTTP base (hand-managed): consumed by codegraphProxy.js
   # and aguiSseProxy.js, which otherwise default to 127.0.0.1:8888 (the BFF pod
@@ -104,14 +103,15 @@ data:
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
 
-  # Ollama (local LLM) runs as an in-cluster pod — see k8s/55-ollama-deployment.yaml.
-  # Consumers reach it via the `ollama` Service (cluster DNS), so the "Ollama"
+  # llama.cpp (local LLM) runs as an in-cluster pod — see k8s/55-llamacpp-deployment.yaml.
+  # Consumers reach it via the `llamacpp` Service (cluster DNS), so the "llama.cpp"
   # agent mode now works on remote clusters too, not just local OrbStack/Docker
-  # Desktop. (Bare-metal `./run.sh` still uses a host-native Ollama on localhost;
-  # that path is separate and untouched.) Model is llama3.2:3b — CPU-friendly and
-  # within the namespace ResourceQuota; the pod pulls it on first start.
-  OLLAMA_BASE_URL: "http://ollama:11434"
-  OLLAMA_MODEL: "llama3.2:3b"
+  # Desktop. (Bare-metal `./run.sh` still uses a host-native llama-server on
+  # localhost; that path is separate and untouched.) LLAMACPP_BASE_URL is the
+  # origin only — the services append /v1. The pod downloads the GGUF on first
+  # start; the served model id is what llama-server reports via /v1/models.
+  LLAMACPP_BASE_URL: "http://llamacpp:8080"
+  LLAMACPP_MODEL: "qwen2.5-3b-instruct"
 ---
 apiVersion: v1
 kind: ConfigMap

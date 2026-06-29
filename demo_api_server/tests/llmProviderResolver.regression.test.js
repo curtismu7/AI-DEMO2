@@ -31,13 +31,13 @@ describe('resolveLlmProvider', () => {
       .toEqual({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
   });
 
-  test('honors explicit ollama (local LLM; no API key)', () => {
-    expect(resolveLlmProvider({ provider: 'ollama', model: 'qwen3:8b' }))
-      .toEqual({ provider: 'ollama', model: 'qwen3:8b' });
+  test('honors explicit llamacpp (local LLM; no API key)', () => {
+    expect(resolveLlmProvider({ provider: 'llamacpp', model: 'qwen3-8b' }))
+      .toEqual({ provider: 'llamacpp', model: 'qwen3-8b' });
   });
 
-  test('honors explicit ollama without model', () => {
-    expect(resolveLlmProvider({ provider: 'ollama' }))
-      .toEqual({ provider: 'ollama', model: undefined });
+  test('honors explicit llamacpp without model', () => {
+    expect(resolveLlmProvider({ provider: 'llamacpp' }))
+      .toEqual({ provider: 'llamacpp', model: undefined });
   });
 });

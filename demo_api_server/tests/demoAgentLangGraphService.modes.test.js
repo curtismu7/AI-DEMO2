@@ -54,7 +54,7 @@ jest.mock('../services/agentReasoningClient', () => ({
   runReasonLoop: jest.fn(async () => ({ ok: true, answer: 'LLM_OK' })),
 }));
 jest.mock('../services/llmProviderResolver', () => ({
-  resolveLlmProvider: jest.fn(() => ({ provider: 'ollama', model: 'test' })),
+  resolveLlmProvider: jest.fn(() => ({ provider: 'llamacpp', model: 'test' })),
 }));
 
 // Silence the admin events feed (no IO assertions on it).

@@ -2,17 +2,17 @@
 import './LlmConfig.css';
 
 /**
- * ProviderSelector — segmented pill control: Helix | LM Studio | Ollama | Anthropic
+ * ProviderSelector — segmented pill control: Helix | LM Studio | llama.cpp | Anthropic
  *
  * Props:
- *   provider: 'helix' | 'anthropic-lmstudio' | 'ollama' | 'anthropic'
+ *   provider: 'helix' | 'anthropic-lmstudio' | 'llamacpp' | 'anthropic'
  *   onSelect: (provider: string) => void
  *   helixStatus:     'available' | 'unconfigured' | 'unreachable' | null
  *   lmstudioStatus:  'available' | 'unreachable' | null
- *   ollamaStatus:    'available' | 'unconfigured' | 'unreachable' | null
+ *   llamaCppStatus:  'available' | 'unconfigured' | 'unreachable' | null
  *   anthropicStatus: 'available' | 'unconfigured' | null
  */
-export default function ProviderSelector({ provider, onSelect, helixStatus, lmstudioStatus, ollamaStatus, anthropicStatus }) {
+export default function ProviderSelector({ provider, onSelect, helixStatus, lmstudioStatus, llamaCppStatus, anthropicStatus }) {
   const statusLabel = (s) => {
     if (s === 'available')    return '✅ Active';
     if (s === 'unconfigured') return '⚠️ Unconfigured';
@@ -30,7 +30,7 @@ export default function ProviderSelector({ provider, onSelect, helixStatus, lmst
   const PROVIDERS = [
     { id: 'helix',              label: 'Helix',      status: helixStatus },
     { id: 'anthropic-lmstudio', label: 'LM Studio',  status: lmstudioStatus },
-    { id: 'ollama',             label: 'Ollama',     status: ollamaStatus },
+    { id: 'llamacpp',           label: 'llama.cpp',  status: llamaCppStatus },
     { id: 'anthropic',          label: 'Anthropic',  status: anthropicStatus },
   ];
 

@@ -13,7 +13,7 @@ const mockHook = {
   keySet: { helix: true, anthropic: true, "anthropic-lmstudio": true },
   modeOptions: [
     { id: "heuristics", label: "Heuristics only", external: false },
-    { id: "ollama", label: "Ollama only", external: true },
+    { id: "llamacpp", label: "llama.cpp only", external: true },
     { id: "claude", label: "Anthropic only", external: true },
     { id: "helix_google", label: "Helix only", external: true },
   ],
@@ -26,7 +26,7 @@ vi.mock("../../hooks/useLangchainProvider", () => ({
 }));
 
 beforeEach(() => {
-  // The selector probes Ollama reachability on mount; default it to available.
+  // The selector probes llama.cpp reachability on mount; default it to available.
   global.fetch = jest.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "available" }) }),
   );
@@ -61,13 +61,13 @@ test("greys out a mode whose provider is not configured", async () => {
   expect(screen.getByRole("option", { name: /Heuristics only/i })).not.toBeDisabled();
 });
 
-test("greys out Ollama when the daemon is unreachable", async () => {
+test("greys out llama.cpp when the server is unreachable", async () => {
   global.fetch = jest.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "unreachable" }) }),
   );
   render(<AgentModeSelector />);
-  const ollamaOpt = screen.getByRole("option", { name: /Ollama only/i });
-  await waitFor(() => expect(ollamaOpt).toBeDisabled());
+  const llamaCppOpt = screen.getByRole("option", { name: /llama\.cpp only/i });
+  await waitFor(() => expect(llamaCppOpt).toBeDisabled());
 });
 
 test("no degraded banner for a non-external mode", () => {

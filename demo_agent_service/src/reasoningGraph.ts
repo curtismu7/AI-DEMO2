@@ -6,7 +6,7 @@
 // heuristic floor — ARCHITECTURE-TRUTHS T-3).
 import * as crypto from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
-import { ChatOllama } from '@langchain/ollama';
+import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, AIMessage, ToolMessage, SystemMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import type { ReasonRequest, ReasonResponse, ReasonMessage } from './reasonContract';
@@ -55,12 +55,15 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
 const DEFAULT_MODELS: Record<string, string> = {
   helix: 'gpt-4o-mini',
   anthropic: 'claude-sonnet-4-6',
-  ollama: 'qwen3:8b',
+  // llama-server serves whatever model it was launched with; this is only a
+  // last-resort fallback when /v1/models can't be reached and no env override.
+  llamacpp: 'local-model',
 };
 
-// Map our internal ReasonMessage[] to LangChain BaseMessage[] for the Ollama path.
-// Mirrors toAnthropicMessages but in LangChain's message classes (ChatOllama uses
-// native /api/chat tool-calling, so assistant tool_calls and tool results map 1:1).
+// Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.
+// Mirrors toAnthropicMessages but in LangChain's message classes (ChatOpenAI talks
+// to llama-server's OpenAI-compatible /v1/chat/completions, so assistant tool_calls
+// and tool results map 1:1).
 function toLangChainMessages(messages: ReasonMessage[], systemPrompt?: string): BaseMessage[] {
   const out: BaseMessage[] = [];
   if (systemPrompt) out.push(new SystemMessage(systemPrompt));
@@ -87,10 +90,10 @@ function stripThink(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
-// ChatOllama normally returns `content` as a string, but some versions/models
+// ChatOpenAI normally returns `content` as a string, but some versions/models
 // return MessageContentComplex[] (an array of text/other blocks). Extract the
 // text from either shape so a non-string content can never silently collapse to
-// an empty answer in the ollama reasoning path.
+// an empty answer in the llama.cpp reasoning path.
 function extractTextContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
@@ -114,6 +117,20 @@ async function resolveLmStudioModel(originBase: string): Promise<string> {
     if (first?.id) return first.id;
   } catch { /* fall through to placeholder */ }
   return 'local-model';
+}
+
+/**
+ * Resolve the model id llama-server is serving (OpenAI-style /v1/models).
+ * `apiBase` already includes the /v1 suffix.
+ */
+async function resolveLlamaCppModel(apiBase: string): Promise<string> {
+  try {
+    const res = await fetch(`${apiBase}/models`);
+    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const first = Array.isArray(data?.data) ? data.data.find((m) => m && m.id) : undefined;
+    if (first?.id) return first.id;
+  } catch { /* fall through to fallback */ }
+  return DEFAULT_MODELS.llamacpp;
 }
 
 export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
@@ -206,14 +223,23 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
     }
   }
 
-  if (req.provider === 'ollama') {
-    // Local small LLM via Ollama (OpenAI-class native tool-calling — e.g. Qwen3).
-    // baseUrl is pinned from env to prevent SSRF via a caller-supplied URL.
-    // 127.0.0.1 (not localhost) — Node resolves localhost to ::1 but Ollama binds IPv4.
+  if (req.provider === 'llamacpp') {
+    // Local small LLM via llama.cpp's llama-server (OpenAI-compatible /v1 API with
+    // native tool-calling — e.g. Qwen3). baseURL is pinned from env to prevent SSRF
+    // via a caller-supplied URL. 127.0.0.1 (not localhost) — Node resolves localhost
+    // to ::1 but llama-server binds IPv4 by default.
     try {
-      const baseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
-      const model = req.model || process.env.OLLAMA_MODEL || DEFAULT_MODELS.ollama;
-      const llm = new ChatOllama({ baseUrl, model, temperature: 0 });
+      // LLAMACPP_BASE_URL is the origin only (no /v1); we append /v1 for the
+      // OpenAI-compatible API, matching the BFF's llamacppLlmService convention.
+      const origin = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+      const baseURL = `${origin}/v1`;
+      const model = req.model || process.env.LLAMACPP_MODEL || (await resolveLlamaCppModel(baseURL));
+      const llm = new ChatOpenAI({
+        model,
+        temperature: 0,
+        apiKey: 'llama-cpp', // llama-server ignores the key, but the SDK requires one
+        configuration: { baseURL },
+      });
       const withTools = req.tools.length > 0
         ? llm.bindTools(req.tools.map((t) => ({
             type: 'function' as const,
@@ -221,27 +247,11 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
           })))
         : llm;
       const response = await withTools.invoke(toLangChainMessages(req.messages, req.systemPrompt));
-      // [OLLAMA-DIAG] temporary instrumentation — capture exactly what the model
-      // returned in-pod. Host probes (identical lib/model/baseURL) return a valid
-      // string, but the deployed agent-service yields an empty answer; this logs the
-      // real content shape to stdout. Remove once the root cause is confirmed.
-      console.error('[OLLAMA-DIAG]', JSON.stringify({
-        baseUrl,
-        model,
-        contentType: typeof response.content,
-        isArray: Array.isArray(response.content),
-        contentLen: typeof response.content === 'string' ? response.content.length : -1,
-        contentPreview: typeof response.content === 'string'
-          ? response.content.slice(0, 200)
-          : JSON.stringify(response.content).slice(0, 300),
-        toolCalls: (response.tool_calls ?? []).length,
-        addlKwargs: Object.keys(response.additional_kwargs ?? {}),
-      }));
       const text = stripThink(extractTextContent(response.content));
       const toolCalls = response.tool_calls ?? [];
       if (toolCalls.length > 0) {
         const calls = toolCalls.map((tc) => ({
-          id: tc.id ?? `ollama-${crypto.randomUUID()}`,
+          id: tc.id ?? `llamacpp-${crypto.randomUUID()}`,
           name: tc.name,
           args: (tc.args ?? {}) as Record<string, unknown>,
         }));
@@ -260,10 +270,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         outputTokens: response.usage_metadata?.output_tokens,
       };
     } catch (err) {
-      // [OLLAMA-DIAG] surface the throw to stdout — teachLog/pino output wasn't
-      // appearing in `kubectl logs`, so log via console too. Remove with the diag above.
-      console.error('[OLLAMA-DIAG] reasonOnce ollama threw:', err instanceof Error ? err.stack : String(err));
-      teachLog.error('Ollama reasoning step failed', err, { operation: 'reasonOnce' });
+      teachLog.error('llama.cpp reasoning step failed', err, { operation: 'reasonOnce' });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
   }

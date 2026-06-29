@@ -18,10 +18,10 @@
 #      (required by the AI agent services on all paths).
 #   7. Installs mkcert + trusts root CA (sudo) — TLS certs needed everywhere.
 #   8. Mode-specific tool installs:
-#        Local     — offers Ollama (local LLM for NL routing)
-#        OrbStack  — installs OrbStack (Docker + kubectl); Ollama runs in-cluster
+#        Local     — offers llama.cpp (local LLM for NL routing)
+#        OrbStack  — installs OrbStack (Docker + kubectl); llama.cpp runs in-cluster
 #        SE        — installs Docker Desktop + kubelogin + kubectx + kubectl
-#        EKS       — installs OrbStack + AWS CLI; Ollama runs in-cluster
+#        EKS       — installs OrbStack + AWS CLI; llama.cpp runs in-cluster
 #   9. Confirms the install directory (default: $PWD/AI-demo).
 #  10. Clones the repo (or pulls latest main on an existing checkout).
 #  11. Generates TLS certs for api.ping.demo into certs/.
@@ -449,95 +449,96 @@ setup_certs() {
     || warn "mkcert cert generation failed — run 'cd ${certs_dir} && mkcert api.ping.demo localhost 127.0.0.1' manually."
 }
 
-# Offer to install Ollama (local LLM for NL intent fallback).
-# - run.sh (Docker Compose / bare-metal): uses a host-native Ollama on localhost:11434.
-# - run-k8.sh (Kubernetes): deploys an in-cluster Ollama pod automatically —
+# Offer to install llama.cpp (local LLM for NL intent fallback).
+# - run.sh (Docker Compose / bare-metal): uses a host-native llama-server on localhost:8080.
+# - run-k8.sh (Kubernetes): deploys an in-cluster llama.cpp pod automatically —
 #   no host install required for the K8s path.
-# We ask rather than auto-install because Ollama is ~1GB + downloads a model.
-ensure_ollama() {
-  if command -v ollama >/dev/null 2>&1; then
-    ok "Ollama already installed."
+# We ask rather than auto-install because the GGUF model is a multi-GB download.
+ensure_llamacpp() {
+  if command -v llama-server >/dev/null 2>&1; then
+    ok "llama.cpp already installed."
     return 0
   fi
 
   echo ""
-  echo "  ${BOLD}Ollama${RESET} (local LLM) enables the NL intent fallback in the demo."
+  echo "  ${BOLD}llama.cpp${RESET} (local LLM) enables the NL intent fallback in the demo."
   echo "  Without it, the demo still works but will not route natural-language"
   echo "  requests through a local model."
   echo ""
-  echo "  Note: if you plan to use ${BOLD}./run-k8.sh${RESET} (Kubernetes), Ollama runs"
+  echo "  Note: if you plan to use ${BOLD}./run-k8.sh${RESET} (Kubernetes), llama.cpp runs"
   echo "  in-cluster automatically — you can skip this host install."
   echo ""
 
   local install_it
-  if ask_yes_no "Install Ollama now? [Y/n] " yes; then
+  if ask_yes_no "Install llama.cpp now? [Y/n] " yes; then
     install_it=true
   else
     install_it=false
   fi
 
   if [[ "$install_it" != "true" ]]; then
-    warn "Skipping Ollama — NL fallback disabled for run.sh. Install later: https://ollama.ai"
+    warn "Skipping llama.cpp — NL fallback disabled for run.sh. Install later: https://github.com/ggml-org/llama.cpp"
     return 0
   fi
 
   if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-    info "Installing Ollama via Homebrew..."
-    brew install ollama --quiet && ok "Ollama installed." \
-      || { warn "brew install ollama failed — install manually from https://ollama.ai"; return 0; }
+    info "Installing llama.cpp via Homebrew..."
+    brew install llama.cpp --quiet && ok "llama.cpp installed." \
+      || { warn "brew install llama.cpp failed — build manually from https://github.com/ggml-org/llama.cpp"; return 0; }
   else
-    info "Downloading and installing Ollama..."
-    curl -fsSL https://ollama.ai/install.sh | sh \
-      || { warn "Ollama install failed — install manually from https://ollama.ai"; return 0; }
+    warn "llama.cpp not found and Homebrew unavailable — build from source: https://github.com/ggml-org/llama.cpp"
+    return 0
   fi
 
-  # Pull the default model used by the demo so it's ready on first run.
-  local model="${OLLAMA_MODEL:-llama3.2}"
-  if command -v ollama >/dev/null 2>&1; then
-    info "Pulling default model (${model}) — this may take a few minutes..."
-    ollama pull "${model}" && ok "Model ${model} pulled and ready." \
-      || warn "Model pull failed — run 'ollama pull ${model}' manually before starting the demo."
+  # The default model used by the demo. llama-server's -hf flag downloads and
+  # caches the GGUF on first start (replaces 'ollama pull'), so there is no
+  # separate pull step. Optionally pre-warm by starting the server once.
+  local model="qwen2.5-3b-instruct"
+  local hf_spec="Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
+  if command -v llama-server >/dev/null 2>&1; then
+    info "Default model (${model}) downloads automatically on first 'llama-server -hf' start."
+    info "  Start it with: llama-server --host 0.0.0.0 --port 8080 -hf ${hf_spec}"
   fi
 }
 
-# Ensure Ollama is installed, running, and the CodeGraph model is pulled.
-# Uses qwen3:1.7b — tool-calling capable, 1.4 GB, runs on 32 GB machines.
+# Ensure llama.cpp is installed and a tool-capable model server is running.
+# Uses Qwen/Qwen3-1.7B-GGUF:Q4_K_M — tool-calling capable, small, runs on 32 GB machines.
 # Called for all run modes where the host needs a local LLM (local, docker, se).
-ensure_codegraph_ollama() {
-  local model="${OLLAMA_MODEL:-qwen3:1.7b}"
+ensure_codegraph_llamacpp() {
+  local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
+  local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
 
   # Install if missing
-  if ! command -v ollama >/dev/null 2>&1; then
-    info "Installing Ollama (required for Code Explorer)..."
+  if ! command -v llama-server >/dev/null 2>&1; then
+    info "Installing llama.cpp (required for Code Explorer)..."
     if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-      brew install ollama --quiet && ok "Ollama installed." \
-        || { warn "brew install ollama failed — install from https://ollama.ai"; return 0; }
+      brew install llama.cpp --quiet && ok "llama.cpp installed." \
+        || { warn "brew install llama.cpp failed — build from https://github.com/ggml-org/llama.cpp"; return 0; }
     else
-      curl -fsSL https://ollama.ai/install.sh | sh \
-        || { warn "Ollama install failed — install from https://ollama.ai"; return 0; }
+      warn "llama.cpp not found and Homebrew unavailable — build from https://github.com/ggml-org/llama.cpp"
+      return 0
     fi
   else
-    ok "Ollama already installed."
+    ok "llama.cpp already installed."
   fi
 
-  # Start the daemon if not running
-  if ! curl -sf --max-time 2 http://localhost:11434/ >/dev/null 2>&1; then
-    info "Starting Ollama daemon..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-      brew services start ollama 2>/dev/null || ollama serve &>/dev/null &
-    else
-      ollama serve &>/dev/null &
-    fi
-    sleep 3
-  fi
-
-  # Pull the model if not already present
-  if ! ollama list 2>/dev/null | grep -q "^${model}"; then
-    info "Pulling ${model} — 1.4 GB, this may take a few minutes..."
-    ollama pull "${model}" && ok "Model ${model} ready." \
-      || warn "Model pull failed — run 'ollama pull ${model}' manually."
+  # Start the server if not already responding on /health. The -hf flag
+  # downloads and caches the GGUF on first start (replaces 'ollama pull').
+  if ! curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+    info "Starting llama-server (${model}) — downloads the GGUF on first start, this may take a few minutes..."
+    llama-server --host 0.0.0.0 --port 8080 -hf "${hf_spec}" >/dev/null 2>&1 &
+    # Wait for the model to load and /health to return 200.
+    local waited=0
+    while [[ $waited -lt 120 ]]; do
+      if curl -sf --max-time 2 http://localhost:8080/health >/dev/null 2>&1; then
+        ok "llama-server ready (model ${model})."
+        return 0
+      fi
+      sleep 3; (( waited += 3 ))
+    done
+    warn "llama-server started but /health not ready yet — give it a moment, or start manually: llama-server --host 0.0.0.0 --port 8080 -hf ${hf_spec}"
   else
-    ok "Ollama model ${model} already present."
+    ok "llama-server already running (model ${model})."
   fi
 }
 
@@ -790,7 +791,7 @@ run_setup() {
 #
 # Asks whether to configure Anthropic (cloud Claude) and/or LM Studio (local
 # OpenAI-compatible endpoint). Both are optional — the demo works with Helix
-# (Ping AI, already handled by setup:fresh) or Ollama without either.
+# (Ping AI, already handled by setup:fresh) or llama.cpp without either.
 #
 # Writes keys into the affected .env files so agents pick them up immediately.
 # Safe to re-run: only appends if the key line is absent or empty.
@@ -800,7 +801,7 @@ configure_llm_providers() {
   echo ""
   echo "${BOLD}── Optional LLM providers ──────────────────────────────────────────${RESET}"
   echo ""
-  echo "  The demo ships with ${BOLD}Helix (Ping AI)${RESET} and ${BOLD}Ollama${RESET} pre-configured."
+  echo "  The demo ships with ${BOLD}Helix (Ping AI)${RESET} and ${BOLD}llama.cpp${RESET} pre-configured."
   echo "  You can optionally add cloud or local LLM providers now."
   echo "  All are skippable — press Enter to decline each one."
   echo ""
@@ -1073,7 +1074,7 @@ main() {
 
   # ── Step 0: ask how the user plans to run the demo ─────────────────────────
   # The answer gates which tools we install — no point installing OrbStack for
-  # a local run, or Ollama for a K8s run (it runs in-cluster there).
+  # a local run, or llama.cpp for a K8s run (it runs in-cluster there).
   echo "${BOLD}How do you want to run the AI Demo?${RESET}"
   echo ""
   echo "  ${BOLD}1)${RESET} Local server         ${DIM}(./run.sh — Node + Python on this Mac, no Docker)${RESET}"
@@ -1125,20 +1126,20 @@ main() {
       # PingGateway (the MCP authorization gateway, ping-gateway/docker-compose.yml).
       # Without Docker run.sh starts but silently skips PingGateway, so install it.
       ensure_orbstack  # Docker (+ kubectl) via OrbStack on macOS — used by PingGateway
-      ensure_ollama  # offer local Ollama for NL intent routing
-      ensure_codegraph_ollama  # Code Explorer requires tool-capable model
+      ensure_llamacpp  # offer local llama.cpp for NL intent routing
+      ensure_codegraph_llamacpp  # Code Explorer requires tool-capable model
       ;;
     orbstack)
-      # K8s on OrbStack: needs Docker + kubectl. Ollama runs in-cluster.
+      # K8s on OrbStack: needs Docker + kubectl. llama.cpp runs in-cluster.
       ensure_orbstack
-      info "Ollama: will run as an in-cluster pod — no host install needed."
+      info "llama.cpp: will run as an in-cluster pod — no host install needed."
       ;;
     se)
       # Ping SE cluster: Docker Desktop to build/push images + SE K8s tools.
       # No OrbStack K8s needed — the SE cluster is already provisioned.
       ensure_docker_desktop
       ensure_se_k8s_tools
-      ensure_codegraph_ollama  # Code Explorer — host Ollama, docker compose points at host
+      ensure_codegraph_llamacpp  # Code Explorer — host llama.cpp, docker compose points at host
       # Capture the user's Ping email now so run-k8.sh se-deploy can derive
       # the namespace without prompting later.
       if [[ -z "${PING_EMAIL:-}" ]]; then
@@ -1153,7 +1154,7 @@ main() {
       # Self-managed EKS: Docker + kubectl + AWS CLI.
       ensure_orbstack
       ensure_aws_cli
-      info "Ollama: will run as an in-cluster pod — no host install needed."
+      info "llama.cpp: will run as an in-cluster pod — no host install needed."
       ;;
   esac
 

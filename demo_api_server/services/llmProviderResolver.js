@@ -17,7 +17,7 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'anthropic-lmstudio'|'ollama', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'anthropic-lmstudio'|'llamacpp', model: string|undefined }}
  */
 function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
@@ -33,10 +33,10 @@ function resolveLlmProvider(langchainConfig = {}) {
     return { provider: 'anthropic-lmstudio', model };
   }
 
-  if (requested === 'ollama') {
-    // Ollama — local small LLM (e.g. Qwen3) with native tool-calling; no API key.
-    // :3006 reasons via @langchain/ollama against OLLAMA_BASE_URL.
-    return { provider: 'ollama', model };
+  if (requested === 'llamacpp') {
+    // llama.cpp — local small LLM (e.g. Qwen3) with native tool-calling; no API key.
+    // :3006 reasons via @langchain/openai against LLAMACPP_BASE_URL (llama-server /v1).
+    return { provider: 'llamacpp', model };
   }
 
   if (requested === 'helix') return { provider: 'helix', model };

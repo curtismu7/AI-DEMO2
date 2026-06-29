@@ -85,11 +85,11 @@ const FEATURE_GROUPS = [
     ],
   },
   {
-    tag: 'OLLAMA',
-    label: 'Ollama (local LLM)',
+    tag: 'LLAMACPP',
+    label: 'llama.cpp (local LLM)',
     vars: [
-      { name: 'OLLAMA_BASE_URL', desc: 'Ollama server URL (default: http://localhost:11434)' },
-      { name: 'OLLAMA_MODEL',    desc: 'Model name (e.g. mistral, llama3)' },
+      { name: 'LLAMACPP_BASE_URL', desc: 'llama-server URL, origin only (default: http://127.0.0.1:8080)' },
+      { name: 'LLAMACPP_MODEL',    desc: 'Optional model id; defaults to whatever llama-server reports via /v1/models' },
     ],
   },
 

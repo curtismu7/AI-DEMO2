@@ -7,9 +7,9 @@ describe('resolveAgentMode (four single-brain modes)', () => {
       mode: 'heuristics', provider: null, heuristicRouting: true, externalWiring: null,
     });
   });
-  test('ollama: ollama provider, routing off (pure LLM), defaults to bff wiring', () => {
-    expect(resolveAgentMode('ollama')).toEqual({
-      mode: 'ollama', provider: 'ollama', heuristicRouting: false, externalWiring: 'bff',
+  test('llamacpp: llamacpp provider, routing off (pure LLM), defaults to bff wiring', () => {
+    expect(resolveAgentMode('llamacpp')).toEqual({
+      mode: 'llamacpp', provider: 'llamacpp', heuristicRouting: false, externalWiring: 'bff',
     });
   });
   test('claude: anthropic provider, routing off, platform wiring honored', () => {
@@ -25,7 +25,7 @@ describe('resolveAgentMode (four single-brain modes)', () => {
 
   test('AGENT_MODES lists exactly the four single-brain modes', () => {
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'ollama', 'claude', 'helix_google',
+      'heuristics', 'llamacpp', 'claude', 'helix_google',
     ]);
   });
 
