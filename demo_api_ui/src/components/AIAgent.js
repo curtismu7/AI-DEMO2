@@ -5099,7 +5099,7 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
-          const replyWithAgentBadge = `[CUSTOMER AGENT]\n${response.reply}`;
+          const replyWithAgentBadge = `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
@@ -6669,7 +6669,7 @@ export default function BankingAgent({
                             if (tokenChain && Array.isArray(data?.tokenEvents)) {
                               tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
                             }
-                            const reply = `[ADMIN AGENT]\n${data?.reply || "Admin agent: no response."}`;
+                            const reply = `[ADMIN AGENT - LangGraph]\n${data?.reply || "Admin agent: no response."}`;
                             addMessage("assistant", reply, null);
                           } catch (err) {
                             reportNlFailure(err);
@@ -6711,7 +6711,7 @@ export default function BankingAgent({
                             if (tokenChain && Array.isArray(data?.tokenEvents)) {
                               tokenChain.setTokenEvents("a2a-orchestrator", data.tokenEvents);
                             }
-                            const reply = `[A2A ORCHESTRATOR]\n${data?.reply || "A2A orchestrator: no response."}`;
+                            const reply = `[A2A ORCHESTRATOR - CrewAI]\n${data?.reply || "A2A orchestrator: no response."}`;
                             addMessage("assistant", reply, null);
                           } catch (err) {
                             reportNlFailure(err);
