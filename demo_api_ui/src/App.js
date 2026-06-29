@@ -657,56 +657,46 @@ function AppWithAuth() {
                             <Route
                               path="/admin/banking"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <BankingAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <BankingAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/healthcare"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <HealthcareAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <HealthcareAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/retail"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <RetailAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <RetailAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/sporting-goods"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <SportingGoodsAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <SportingGoodsAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
                               path="/admin/workforce"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <WorkforceAdminOps
-                                    user={user}
-                                    onLogout={logout}
-                                  />
-                                </RequireAdminLogin>
+                                <WorkforceAdminOps
+                                  user={user}
+                                  onLogout={logout}
+                                />
                               }
                             />
                             <Route
