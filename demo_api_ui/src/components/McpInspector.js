@@ -47,6 +47,42 @@ const isReasoningTool = (name) => {
 const toolGroup = (name) =>
   isReasoningTool(name) ? 'reasoning' : isWriteTool(name) ? 'write' : 'read';
 
+// "Flavor" drives the chip's dot colour + badge — independent of the active tab
+// so the read/write/sensitive signal stays visible even inside a single tab.
+// Sensitive outranks read: a sensitive read still needs the louder treatment.
+const isSensitiveTool = (tool) =>
+  (tool.requiredScopes || []).some((s) => s.toLowerCase().includes('sensitive')) ||
+  tool.name.toLowerCase().includes('sensitive');
+const toolFlavor = (tool) =>
+  isSensitiveTool(tool) ? 'sensitive' : toolGroup(tool.name);
+
+// Sub-group tools by the resource they touch, derived from the first required
+// scope's prefix (accounts:read → accounts). No scope → reasoning; unknown → other.
+const RESOURCE_META = {
+  accounts:     { label: 'Accounts',     icon: '🏦' },
+  transactions: { label: 'Transactions', icon: '💸' },
+  reasoning:    { label: 'Reasoning',    icon: '🧠' },
+  other:        { label: 'Other',        icon: '🔧' },
+};
+const RESOURCE_ORDER = ['accounts', 'transactions', 'reasoning', 'other'];
+const toolResource = (tool) => {
+  const scope = (tool.requiredScopes || [])[0];
+  if (scope && scope.includes(':')) {
+    const key = scope.split(':')[0];
+    if (RESOURCE_META[key]) return key;
+  }
+  if (toolGroup(tool.name) === 'reasoning') return 'reasoning';
+  return 'other';
+};
+// Ordered [resourceKey, tools[]] pairs for a tab's tool list (empty groups dropped).
+const groupByResource = (toolList) => {
+  const buckets = {};
+  for (const t of toolList) (buckets[toolResource(t)] ||= []).push(t);
+  return RESOURCE_ORDER.filter((k) => buckets[k]?.length).map((k) => [k, buckets[k]]);
+};
+
+const FLAVOR_BADGE = { write: 'WRITE', sensitive: '🔒 SENSITIVE' };
+
 const TABS = [
   { id: 'read', label: 'Read' },
   { id: 'write', label: 'Write' },
@@ -448,22 +484,41 @@ const McpInspector = ({ user, onLogout }) => {
                   ))}
                 </div>
 
-                <div className="p1mcp-chips">
-                  {visibleTools.map(t => (
-                    <button
-                      key={t.name}
-                      type="button"
-                      className={`p1mcp-chip ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
-                      title={t.description || t.name}
-                      onClick={() => handleSelectTool(t)}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                  {visibleTools.length === 0 && (
-                    <p className="mcp-inspector__muted">No {activeTab} tools in the catalog.</p>
-                  )}
-                </div>
+                {visibleTools.length === 0 ? (
+                  <p className="mcp-inspector__muted">No {activeTab} tools in the catalog.</p>
+                ) : (
+                  groupByResource(visibleTools).map(([resKey, resTools]) => {
+                    const meta = RESOURCE_META[resKey];
+                    return (
+                      <div className="p1mcp-chip-group" key={resKey}>
+                        <div className="p1mcp-chip-group__head">
+                          <span aria-hidden="true">{meta.icon}</span>
+                          {meta.label}
+                          <span className="p1mcp-chip-group__count">{resTools.length}</span>
+                        </div>
+                        <div className="p1mcp-chips">
+                          {resTools.map(t => {
+                            const flavor = toolFlavor(t);
+                            const badge = FLAVOR_BADGE[flavor];
+                            return (
+                              <button
+                                key={t.name}
+                                type="button"
+                                className={`p1mcp-chip p1mcp-chip--${flavor} ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
+                                title={t.description || t.name}
+                                onClick={() => handleSelectTool(t)}
+                              >
+                                <i className="p1mcp-chip__dot" aria-hidden="true" />
+                                {t.name}
+                                {badge && <span className="p1mcp-chip__badge">{badge}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
 
                 {selectedTool && (
                   <div className="p1mcp-tool-card">
