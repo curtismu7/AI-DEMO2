@@ -5099,7 +5099,8 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
-          addMessage("assistant", response.reply, null, { source: _source, ...verticalResultExtra(response), paramHint });
+          const replyWithAgentBadge = `[CUSTOMER AGENT]\n${response.reply}`;
+          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
           if (response.education?.panel) {
@@ -5590,7 +5591,9 @@ export default function BankingAgent({
               timestamp: new Date().toISOString(),
             });
           } else {
-            addMessage("assistant", response.reply || AGENT_UNAVAILABLE_MESSAGE, null, verticalResultExtra(response));
+            const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+            const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+            addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
             if (response.tokenEvents?.length) {
               appendTokenEvents(response.tokenEvents);
               if (tokenChain) {
@@ -6666,7 +6669,50 @@ export default function BankingAgent({
                             if (tokenChain && Array.isArray(data?.tokenEvents)) {
                               tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
                             }
-                            addMessage("assistant", data?.reply || "Admin agent: no response.", null);
+                            const reply = `[ADMIN AGENT]\n${data?.reply || "Admin agent: no response."}`;
+                            addMessage("assistant", reply, null);
+                          } catch (err) {
+                            reportNlFailure(err);
+                          } finally {
+                            setNlLoading(false);
+                          }
+                        })();
+                        return;
+                      }
+
+                      // A2A Orchestrator — detect delegation requests and route to /api/a2a
+                      const delegationKeywords = [
+                        /\bdelegate\b/i,
+                        /\bhand\s*off\b/i,
+                        /\bescalate\b/i,
+                        /\bspecialist\b/i,
+                        /\borchestrat/i,
+                        /second\s+agent/i,
+                      ];
+                      const shouldDelegateToA2a = delegationKeywords.some((kw) => kw.test(message));
+
+                      if (shouldDelegateToA2a) {
+                        prepNlCompliance(message);
+                        (async () => {
+                          try {
+                            const res = await fetch("/api/a2a/message", {
+                              method: "POST",
+                              credentials: "include",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                message,
+                                vertical: effectiveVerticalId,
+                              }),
+                              signal: AbortSignal.timeout(30000),
+                            });
+                            const data = await res
+                              .json()
+                              .catch(() => ({ reply: "A2A orchestrator request failed.", success: false }));
+                            if (tokenChain && Array.isArray(data?.tokenEvents)) {
+                              tokenChain.setTokenEvents("a2a-orchestrator", data.tokenEvents);
+                            }
+                            const reply = `[A2A ORCHESTRATOR]\n${data?.reply || "A2A orchestrator: no response."}`;
+                            addMessage("assistant", reply, null);
                           } catch (err) {
                             reportNlFailure(err);
                           } finally {
