@@ -1,4 +1,4 @@
-import React from "react";
+simport React from "react";
 import { render } from "@testing-library/react";
 import { useDraggablePanel } from "../useDraggablePanel";
 

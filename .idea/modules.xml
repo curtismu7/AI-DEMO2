@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.zed-worktrees/.zed-worktrees.iml" filepath="$PROJECT_DIR$/.zed-worktrees/.zed-worktrees.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/AI-DEMO2.iml" filepath="$PROJECT_DIR$/.idea/AI-DEMO2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AI-Demo_Cloned/AI-Demo_Cloned.iml" filepath="$PROJECT_DIR$/AI-Demo_Cloned/AI-Demo_Cloned.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/feat+turn-id-grouping/feat+turn-id-grouping.iml" filepath="$PROJECT_DIR$/.claude/worktrees/feat+turn-id-grouping/feat+turn-id-grouping.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/feat+two-exchange-reconciler/feat+two-exchange-reconciler.iml" filepath="$PROJECT_DIR$/.claude/worktrees/feat+two-exchange-reconciler/feat+two-exchange-reconciler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/feat-agent-access-revocation/feat-agent-access-revocation.iml" filepath="$PROJECT_DIR$/.claude/worktrees/feat-agent-access-revocation/feat-agent-access-revocation.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/feat-reports-html-inline-view/feat-reports-html-inline-view.iml" filepath="$PROJECT_DIR$/.claude/worktrees/feat-reports-html-inline-view/feat-reports-html-inline-view.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix+agent-gw-mirrored-scopes/fix+agent-gw-mirrored-scopes.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix+agent-gw-mirrored-scopes/fix+agent-gw-mirrored-scopes.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix+pingcli-config-secret/fix+pingcli-config-secret.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix+pingcli-config-secret/fix+pingcli-config-secret.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix+redirect-uri-scope-topology/fix+redirect-uri-scope-topology.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix+redirect-uri-scope-topology/fix+redirect-uri-scope-topology.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix-admin-chip-heuristics/fix-admin-chip-heuristics.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix-admin-chip-heuristics/fix-admin-chip-heuristics.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix-helix-verify-check/fix-helix-verify-check.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix-helix-verify-check/fix-helix-verify-check.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix-ollama-harden/fix-ollama-harden.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix-ollama-harden/fix-ollama-harden.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/fix-sidenav-hoist/fix-sidenav-hoist.iml" filepath="$PROJECT_DIR$/.claude/worktrees/fix-sidenav-hoist/fix-sidenav-hoist.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/harden-snapshot-process/harden-snapshot-process.iml" filepath="$PROJECT_DIR$/.claude/worktrees/harden-snapshot-process/harden-snapshot-process.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/harden-startup-checks/harden-startup-checks.iml" filepath="$PROJECT_DIR$/.claude/worktrees/harden-startup-checks/harden-startup-checks.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/oauth-academy-ai-chips/oauth-academy-ai-chips.iml" filepath="$PROJECT_DIR$/.claude/worktrees/oauth-academy-ai-chips/oauth-academy-ai-chips.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ping-gateway/ping-gateway.iml" filepath="$PROJECT_DIR$/ping-gateway/ping-gateway.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/rename-authz-test/rename-authz-test.iml" filepath="$PROJECT_DIR$/.claude/worktrees/rename-authz-test/rename-authz-test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/rename-pingone-setup-nav/rename-pingone-setup-nav.iml" filepath="$PROJECT_DIR$/.claude/worktrees/rename-pingone-setup-nav/rename-pingone-setup-nav.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.claude/worktrees/restore-vertical-ops-nav/restore-vertical-ops-nav.iml" filepath="$PROJECT_DIR$/.claude/worktrees/restore-vertical-ops-nav/restore-vertical-ops-nav.iml" />
+    </modules>
+  </component>
+</project>
