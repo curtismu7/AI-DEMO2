@@ -77,13 +77,13 @@ class TestWR13OpenAIKeyOptional:
 
         req = Path(__file__).resolve().parents[1] / "requirements.txt"
         text = req.read_text()
-        # langchain-ollama is NOW a real dependency: the CodeGraph/agent path
-        # defaults to the local Ollama provider (2026-06-11 K8s fix), so it is
-        # intentionally present and no longer asserted absent.
-        # groq and google-genai are still unused
-        for dead in ("langchain-groq", "langchain-google-genai"):
+        # langchain-ollama was removed in the llama.cpp migration: the
+        # CodeGraph/agent local provider now uses langchain-openai (ChatOpenAI
+        # against llama-server's OpenAI-compatible /v1). groq and google-genai
+        # remain unused.
+        for dead in ("langchain-groq", "langchain-google-genai", "langchain-ollama"):
             assert dead not in text, f"{dead} should not be in requirements"
-        # the bare openai SDK line should not be present (only langchain-openai for LM Studio)
+        # the bare openai SDK line should not be present (only langchain-openai for the local endpoints)
         assert "\nopenai>=" not in text and not text.startswith("openai>=")
 
 

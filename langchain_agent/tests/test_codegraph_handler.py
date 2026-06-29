@@ -59,7 +59,7 @@ class TestCodegraphQuery:
         assert response.status_code == 400
 
     def test_missing_anthropic_key_still_streams(self):
-        """The agent is provider-agnostic (Ollama → Helix → lmstudio), so a
+        """The agent is provider-agnostic (llama.cpp → Helix → lmstudio), so a
         missing ANTHROPIC_API_KEY must NOT fail the request — it still streams."""
         mock_graph = MagicMock()
 

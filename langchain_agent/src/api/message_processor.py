@@ -779,22 +779,22 @@ class MessageProcessor:
         # the startup-configured one. Keeps the agent instance reusable across modes.
         _LMSTUDIO_PROVIDERS = frozenset(["anthropic-lmstudio", "lmstudio"])
         _CLAUDE_PROVIDERS = frozenset(["anthropic"])
-        _OLLAMA_PROVIDERS = frozenset(["ollama"])
+        _LLAMACPP_PROVIDERS = frozenset(["llamacpp"])
         run_llm = self.agent.llm
-        if run_provider and (run_provider in _LMSTUDIO_PROVIDERS or run_provider in _CLAUDE_PROVIDERS or run_provider in _OLLAMA_PROVIDERS):
+        if run_provider and (run_provider in _LMSTUDIO_PROVIDERS or run_provider in _CLAUDE_PROVIDERS or run_provider in _LLAMACPP_PROVIDERS):
             try:
                 from agent.llm_factory import get_llm
                 import os
                 lc = self.agent.config.langchain
-                if run_provider in _OLLAMA_PROVIDERS:
+                if run_provider in _LLAMACPP_PROVIDERS:
                     run_llm = get_llm(
-                        provider="ollama",
+                        provider="llamacpp",
                         model=run_model or None,
                         temperature=lc.temperature,
                         max_tokens=lc.max_tokens,
                         streaming=bool(getattr(lc, "stream_llm_tokens", True)),
-                        ollama_base_url=getattr(lc, "ollama_base_url", "http://127.0.0.1:11434"),
-                        ollama_model=getattr(lc, "ollama_model", "qwen3:8b"),
+                        llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8080"),
+                        llamacpp_model=getattr(lc, "llamacpp_model", "qwen3-8b"),
                     )
                 elif run_provider in _LMSTUDIO_PROVIDERS:
                     run_llm = get_llm(
