@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="AI-DEMO2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/claude-skills-bundle.zip!/" />
+      <root url="jar://$PROJECT_DIR$/agents-export-2026-06-26.zip!/" />
+      <root url="jar://$PROJECT_DIR$/LLM.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

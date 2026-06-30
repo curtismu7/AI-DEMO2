@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="claude-skills-bundle3">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/.zed-worktrees/admin-agent-isolation/claude-skills-bundle.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

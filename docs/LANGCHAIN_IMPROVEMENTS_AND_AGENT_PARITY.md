@@ -55,12 +55,12 @@ PROVIDERS = {
     "helix":     (HelixChatModel,  helix_kwargs),
     "lmstudio":  (ChatOpenAI,      lmstudio_kwargs),
     "anthropic": (ChatAnthropic,   anthropic_kwargs),
-    "ollama":    (ChatOllama,      ollama_kwargs),
+    "llamacpp":  (ChatOpenAI,      llamacpp_kwargs),
     # ... other providers already present in the factory
 }
 ```
 
-This removes ~60 lines and makes adding a new provider a one-liner. *(Note: `anthropic` and `ollama` providers are already present in the factory — include them in the registry. Line numbers approximate — verify before applying.)*
+This removes ~60 lines and makes adding a new provider a one-liner. *(Note: `anthropic` and `llamacpp` providers are already present in the factory — include them in the registry. Line numbers approximate — verify before applying.)*
 
 ---
 

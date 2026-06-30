@@ -20,7 +20,7 @@
 // unconfigured is greyed out in the UI rather than silently falling back.
 const AGENT_MODES = [
   { id: 'heuristics',   label: 'Heuristics only', provider: null,        heuristicRouting: true,  external: false },
-  { id: 'ollama',       label: 'Ollama only',     provider: 'ollama',    heuristicRouting: false, external: true  },
+  { id: 'llamacpp',     label: 'llama.cpp only',  provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
 ];

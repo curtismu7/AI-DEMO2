@@ -1,3 +1,5 @@
+@import './HeroSection.css';
+
 /* OAuth Academy page — layout mirrors Code Explorer, recolored to the
    oauth-teaching indigo theme. All selectors are scoped under
    .oauth-academy-page so they never collide with CodeExplorerPage.css. */
@@ -12,45 +14,6 @@
   height: 100%;
   min-height: 0;
   background: var(--v2-bg, #f7f7f5);
-}
-
-/* ── Hero (empty state only) ─────────────────────────────────────────────── */
-.oauth-academy-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 2rem 1.5rem 1.25rem;
-  text-align: center;
-}
-
-.oauth-academy-avatar {
-  width: 52px;
-  height: 52px;
-  background: var(--oa-accent);
-  border-radius: var(--v2-r-xl, 16px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  box-shadow: var(--v2-shadow-2);
-}
-
-.oauth-academy-hero h1 {
-  font-family: var(--v2-font-display, Georgia, serif);
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--v2-ink-1, #111110);
-  margin: 0;
-}
-
-.oauth-academy-hero p {
-  font-size: 0.9rem;
-  color: var(--v2-ink-3, #8c8c88);
-  margin: 0;
 }
 
 /* ── Messages — scrollable, fills all available space ───────────────────── */

@@ -1570,6 +1570,133 @@ function AgentActorUnavailableBox({ event }) {
   );
 }
 
+/**
+ * Educational box for A2A (Agent-to-Agent) delegation chain events.
+ * Displays specialist, scopes, and act-chain depth information.
+ */
+function A2aDelegationEduBox({ event }) {
+  if (!isA2aEvent(event.id)) return null;
+
+  const isActor = event.id?.includes('actor');
+  const isExchange = event.id?.includes('exchange');
+  const isExchange2 = event.id === 'a2a-exchange2';
+  const isFailed = event.id === 'a2a-exchange-failed';
+
+  if (isFailed) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--error">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">❌</span>
+          <strong>A2A Delegation Failed</strong>
+          <RfcRef rfc="RFC 8693 §4.1" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>The Agent-to-Agent delegation chain broke at this step.</p>
+          {event.error && (
+            <p className="tcd-edu-detail">Error: {event.error}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isActor) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--neutral">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">🤖</span>
+          <strong>A2A Agent Actor Token</strong>
+          <RfcRef rfc="RFC 8693 §4.1" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            {event.a2aRole === 'agent1-actor'
+              ? 'Generalist agent (Agent 1) authenticates as itself via client credentials. This actor token will be presented in Exchange #1 to build the delegation chain.'
+              : 'Specialist agent (Agent 2) authenticates as itself via client credentials. This actor token will be presented in Exchange #2 to nest a second actor in the chain.'}
+          </p>
+          {event.vertical && (
+            <ul className="tcd-edu-checklist">
+              <li><span className="tcd-edu-check-lbl">Vertical:</span><span>{event.vertical}</span></li>
+            </ul>
+          )}
+          {event.specialist && (
+            <ul className="tcd-edu-checklist">
+              <li><span className="tcd-edu-check-lbl">Specialist:</span><span>{event.specialist}</span></li>
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isExchange2) {
+    const depth = event.actChainDepth || 0;
+    const specialist = event.specialist || 'specialist';
+    return (
+      <div className="tcd-edu-box tcd-edu-box--ok">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">🔗</span>
+          <strong>A2A Exchange #2 — Nested Act Chain</strong>
+          <RfcRef rfc="RFC 8693 §4.1" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            PingOne builds a nested act chain: <code>act:{'{ specialist, act:{ agent1 } }'}</code>.
+            The token stays bound to the user, but now records BOTH agents in the audit trail.
+          </p>
+          <ul className="tcd-edu-checklist">
+            <li>
+              <span className="tcd-edu-check-lbl">Specialist:</span>
+              <span>{specialist}</span>
+            </li>
+            <li>
+              <span className="tcd-edu-check-lbl">Scopes Narrowed:</span>
+              <span>{event.scope || 'least-privilege scopes'}</span>
+            </li>
+            <li>
+              <span className="tcd-edu-check-lbl">Act Chain Depth:</span>
+              <span>{depth} agent{depth !== 1 ? 's' : ''} in delegation chain</span>
+            </li>
+            <li>
+              <span className="tcd-edu-check-lbl">Resource:</span>
+              <span>{event.a2aTool || 'MCP Gateway'}</span>
+            </li>
+          </ul>
+          <p className="tcd-edu-detail">
+            The nested act claim proves the full call chain: user -{'>'} specialist -{'>'} generalist.
+            Authorize will validate this chain against policy before the specialist's tool is invoked.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isExchange) {
+    const isExchange1 = event.id === 'a2a-exchange1';
+    return (
+      <div className="tcd-edu-box tcd-edu-box--neutral">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">{isExchange1 ? '⚙️' : '🔗'}</span>
+          <strong>A2A Exchange {isExchange1 ? '#1' : '#2'} — RFC 8693 Token Exchange</strong>
+          <RfcRef rfc="RFC 8693 §2.1 · RFC 8693 §4.1" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            {isExchange1
+              ? 'User token + Agent 1 actor token → delegated token with act:{ agent1 }. The act claim records that Agent 1 is acting on the user\'s behalf.'
+              : 'Agent 1 delegated token + Agent 2 actor token → nested token with act:{ agent2, act:{ agent1 } }. The nested chain records both agents in order.'}
+          </p>
+          {event.a2aSubtask && (
+            <p className="tcd-edu-detail">Subtask: {event.a2aSubtask}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function AuthorizeDecisionEduBox({ event }) {
   if (event.id !== "authorize-decision") return null;
   const rawDecision = event.authorizeDecision || event.decision || null;
@@ -1819,6 +1946,11 @@ function EventDetail({ event }) {
         </details>
       )}
       {/* Educational sections — each in a collapsible, open by default */}
+      <CollapsibleEdu
+        title="A2A Delegation Chain"
+        event={event}
+        Component={A2aDelegationEduBox}
+      />
       <CollapsibleEdu
         title="PingOne Authorize Decision"
         event={event}
@@ -2231,6 +2363,11 @@ const CLAIMS_STRIP_IDS = new Set([
   // Tool invocation + result events
   "mcp-tool-invoked",
   "mcp-agent-token-presented",
+  // A2A delegation chain events (RFC 8693 nested act)
+  "a2a-agent1-actor",
+  "a2a-exchange1",
+  "a2a-agent2-actor",
+  "a2a-exchange2",
 ]);
 
 function fmtSub(sub, hints) {
@@ -2400,12 +2537,24 @@ const STEP_SUB_LABELS = {
   "mcp-gateway-route": "Gateway",
   "resource-server-reply": "API Reply",
   "mcp-tool-result": "Tool Result",
+  // A2A-specific event labels
+  "a2a-agent1-actor": "A2A Agent 1 Actor",
+  "a2a-exchange1": "A2A Exchange #1",
+  "a2a-agent2-actor": "A2A Agent 2 Actor",
+  "a2a-exchange2": "A2A Exchange #2 (Nested Act)",
+  "a2a-exchange-failed": "A2A Delegation Failed",
 };
+
+/** Check if this event is part of an A2A delegation chain. */
+function isA2aEvent(eventId) {
+  return eventId && eventId.startsWith('a2a-');
+}
 
 function getStepSubLabel(eventId) {
   if (!eventId) return "Subject";
   if (Object.hasOwn(STEP_SUB_LABELS, eventId)) return STEP_SUB_LABELS[eventId];
   if (eventId.startsWith("synthetic-session")) return "Session";
+  if (isA2aEvent(eventId)) return "A2A Delegation";
   return "Subject";
 }
 

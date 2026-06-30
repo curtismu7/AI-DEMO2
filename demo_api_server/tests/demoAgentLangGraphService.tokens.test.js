@@ -24,7 +24,7 @@ jest.mock('../services/agentReasoningClient', () => ({
 }));
 
 jest.mock('../services/llmProviderResolver', () => ({
-  resolveLlmProvider: jest.fn(() => ({ provider: 'ollama', model: 'test' })),
+  resolveLlmProvider: jest.fn(() => ({ provider: 'llamacpp', model: 'test' })),
 }));
 
 jest.mock('../services/appEventService', () => ({ logEvent: jest.fn() }));

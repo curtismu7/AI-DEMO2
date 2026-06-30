@@ -20,6 +20,7 @@ from typing import Optional
 # Add src to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from config.env_validator import validate_environment
 from config.settings import get_config
 from authentication.oauth_manager import OAuthAuthenticationManager
 from mcp.tool_registry import MCPClientManager
@@ -465,6 +466,9 @@ async def main():
     logger.info("Starting LangChain MCP OAuth Agent...")
 
     try:
+        # Validate environment variables early, before attempting to load config
+        validate_environment()
+
         # Validate configuration
         config = get_config()
         setup_logging(level=config.log_level)

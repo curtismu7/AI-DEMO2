@@ -9,7 +9,7 @@ const { executeBffTool } = require('./bffMcpToolExecutor');
 const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
 const z = require('zod');
 const appEventService = require('./appEventService');
-const { parseHeuristic, buildCatalogMessage } = require('./nlIntentParser');
+const { parseHeuristic, buildCatalogMessage, resolveVerticalRouting } = require('./nlIntentParser');
 const { resolveAgentMode } = require('./agentModeResolver');
 const configStore = require('./configStore');
 const dataStore = require('../data/store');
@@ -875,18 +875,18 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         error: 'max_tool_iterations',
       };
     }
-    // reasoning_unavailable: prefer the heuristic's output if one exists for
-    // this path (none does today — heuristic returns immediately on match), else
-    // the generic message. ARCHITECTURE-TRUTHS T-3 deterministic floor.
+    // reasoning_unavailable: LLM service failed. Fall back to showing the catalog
+    // of what the agent can do (same as heuristics-only mode) to help the user
+    // rephrase their question into something we can actually handle.
+    const { verticalId: _fallbackVerticalId, verticalCtx: _fallbackVerticalCtx } = resolveVerticalRouting(vertical);
     return heuristicFallbackResult || {
-      reply: 'Advanced reasoning is temporarily unavailable. Please try a simpler request.',
-      success: false,
+      reply: buildCatalogMessage(_fallbackVerticalCtx),
+      success: true,
       toolsCalled: [],
       tokensUsed: 0,
       requiresConsent: false,
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
-      error: 'reasoning_unavailable',
     };
   } catch (error) {
     // TOKEN_INACTIVE must propagate so the route can return 401 + need_auth

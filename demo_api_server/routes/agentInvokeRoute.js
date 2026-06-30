@@ -25,6 +25,7 @@ const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
 const { parseVerticalParam } = require('../services/nlIntentParser');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
+const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
 
@@ -341,6 +342,20 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         success: agentResponse.success !== false,
         files: [],
       });
+
+      // Save conversation history for continuity
+      const verticalForHistory = vertical || 'banking';
+      try {
+        conversationStore.saveMessage(userId, verticalForHistory, 'user', prompt, { runId });
+        conversationStore.saveMessage(userId, verticalForHistory, 'assistant', agentResponse.reply || '', {
+          runId,
+          intent: postIntent,
+          agentPath: agentResponse.agentPath,
+          success: agentResponse.success !== false,
+        });
+      } catch (convErr) {
+        console.warn('[agentInvokeRoute] conversationStore.saveMessage failed:', convErr.message);
+      }
     } catch (e) {
       console.warn('[agentInvokeRoute] reportStore.saveRun failed:', e.message);
     }

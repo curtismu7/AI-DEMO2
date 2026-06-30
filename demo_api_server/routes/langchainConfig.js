@@ -25,11 +25,12 @@ const PROVIDER_MODELS = {
   // LM Studio — Anthropic-compatible endpoint at /v1/messages.
   // Model IDs must match what is loaded in LM Studio (publisher/model-name format).
   'anthropic-lmstudio': ['google/gemma-4-e2b', 'google/gemma-4-e4b', 'google/gemma-3-12b-it', 'qwen/qwen3.6-27b'],
-  // Ollama — local small LLM with native tool-calling. Model IDs are Ollama tags
-  // (`ollama list`); pull before use, e.g. `ollama pull qwen2.5:3b`. Prefer a
-  // small NON-reasoning model: NL intent + short teaching answers must return
-  // under the SPA fetch timeout, which reasoning models (qwen3:*) routinely blow.
-  ollama:              ['qwen2.5:3b', 'qwen3:1.7b', 'qwen3:8b', 'llama3.1:8b'],
+  // llama.cpp — local small LLM with native tool-calling, served by llama-server.
+  // Model IDs are whatever llama-server reports via /v1/models (the model it was
+  // launched with via `-m`/`-hf`). Prefer a small NON-reasoning model: NL intent +
+  // short teaching answers must return under the SPA fetch timeout, which reasoning
+  // models routinely blow.
+  llamacpp:            ['qwen2.5-3b-instruct', 'qwen3-1.7b', 'qwen3-8b', 'llama-3.1-8b-instruct'],
 };
 
 const DEFAULT_MODELS = {
@@ -39,7 +40,7 @@ const DEFAULT_MODELS = {
   google:              'gemini-2.0-flash',
   helix:               'gpt-4o-mini',
   'anthropic-lmstudio': 'google/gemma-4-e2b',
-  ollama:              'qwen2.5:3b',
+  llamacpp:            'qwen2.5-3b-instruct',
 };
 
 // Default provider fallback order surfaced by the LLM Config UI when the

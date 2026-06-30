@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+        "pingone": {
+            "type": "remote",
+            "url": "https://api.pingone.com/v1/environments/01d89b06-66d5-430e-9f28-65636843788b/mcp"
+        },
+        "banking-dev-mcp": {
+            "type": "stdio",
+            "command": "node",
+            "args": ["/Users/cmuir/Development/AI-DEMO2/dev_mcp/banking-dev/dist/index.js"]
+        },
+        "github": {
+            "type": "stdio",
+            "command": "docker",
+            "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN=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", "ghcr.io/github/github-mcp-server"]
+        }
+    }
+}

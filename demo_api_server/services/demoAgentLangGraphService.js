@@ -26,6 +26,7 @@ const { logDelegationEvent } = require('../middleware/delegationAuditLogger');
 const { verticalManifest } = require('./verticalManifest');
 const verticalDispatch = require('./verticalDispatch');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
+const conversationStore = require('./lmdb/conversationStore.lmdb');
 
 /**
  * IN-04: agent chat content is PII-equivalent in a banking context. The
@@ -524,38 +525,6 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
       `(act:{${result.specialist} → generalist}) bound to the user was minted, and ` +
       `PingOne Authorize permitted the specialist to run ${result.tool}.`,
   });
-}
-
-/**
- * Build tool schemas for the PingOne Admin reason loop.
- * Fetches the tool list from the hosted PingOne MCP server (HTTP) and converts
- * to the JSON Schema shape runReasonLoop expects.
- * @returns {Promise<Array<{ name: string, description: string, inputSchema: object }>>}
- */
-async function buildPingOneAdminToolSchemas() {
-  const { listTools } = require('./mcpPingOneHttpAdapter');
-  const tools = await listTools();
-  return tools.map((t) => ({
-    name: t.name,
-    description: t.description || '',
-    inputSchema: t.inputSchema || { type: 'object', properties: {} },
-  }));
-}
-
-/**
- * Execute a PingOne Admin tool via the hosted PingOne MCP server (HTTP).
- * Auth is handled inside the adapter with a worker client_credentials token.
- * @returns {Promise<string>} JSON-stringified result
- */
-async function executePingOneTool(name, args) {
-  const { callTool } = require('./mcpPingOneHttpAdapter');
-  try {
-    const result = await callTool(name, args || {});
-    return typeof result === 'string' ? result : JSON.stringify(result);
-  } catch (err) {
-    console.error('[executePingOneTool] Error calling tool %s: %s', name, err.message);
-    return JSON.stringify({ error: 'pingone_mcp_unavailable', message: err.message });
-  }
 }
 
 // Plugin-first executeTool. Returns a function with the reason-loop signature
@@ -1248,93 +1217,6 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const { resolveLlmProvider } = require('./llmProviderResolver');
     const { runReasonLoop } = require('./agentReasoningClient');
 
-    // PingOne Admin path — tool schemas from the hosted PingOne MCP server (HTTP), no token exchange.
-    if (langchainConfig?.provider === 'pingone-admin') {
-      console.log('[processAgentMessage] PingOne Admin path — building tool schemas');
-      const { provider: llmProvider, model: llmModel } = resolveLlmProvider(
-        { ...langchainConfig, provider: undefined }
-      );
-      let pingOneToolSchemas;
-      try {
-        pingOneToolSchemas = await buildPingOneAdminToolSchemas();
-      } catch (schemaErr) {
-        console.error('[processAgentMessage] Failed to build PingOne tool schemas:', schemaErr.message);
-        return {
-          reply: 'PingOne Admin tools are unavailable. Ensure the hosted PingOne MCP feature is enabled and worker credentials are configured.',
-          success: false,
-          toolsCalled: [],
-          tokensUsed: 0,
-          requiresConsent: false,
-          agentConfigured: true,
-          tokenEvents: tokenEvents || [],
-          error: 'pingone_tools_unavailable',
-        };
-      }
-
-      // Token-chain card: the single-actor worker client_credentials token the BFF
-      // presents to the hosted PingOne MCP server. Unlike the delegated banking chain
-      // there is no user subject and no act chain — the worker app's admin roles
-      // authorize the management tools directly. Best-effort; never blocks the reply.
-      try {
-        const { getWorkerTokenDecoded } = require('./mcpPingOneHttpAdapter');
-        const { buildTokenEvent } = require('./agentMcpTokenService');
-        const decoded = await getWorkerTokenDecoded();
-        tokenEvents.push(buildTokenEvent(
-          'pingone-worker-token',
-          'PingOne Worker Token (client_credentials)',
-          decoded ? 'active' : 'warning',
-          decoded,
-          'Single-actor worker token (RFC 6749 §4.4 client_credentials) the BFF presents to the ' +
-          'hosted PingOne MCP server. Unlike the delegated banking chain there is no user subject ' +
-          'and no act chain — the worker app\'s admin roles authorize the management tools directly.',
-          { rfc: 'RFC 6749 §4.4', tokenType: 'actor' },
-        ));
-      } catch (cardErr) {
-        console.warn('[processAgentMessage] PingOne worker-token card failed:', cardErr.message);
-      }
-
-      const p1LoopResult = await runReasonLoop({
-        messages: [{ role: 'user', content: message }],
-        tools: pingOneToolSchemas,
-        provider: llmProvider,
-        model: llmModel,
-        helixConfig: extractHelixConfig(langchainConfig),
-        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-        maxIterations: MAX_TOOL_ITERATIONS,
-        executeTool: async (name, args) => executePingOneTool(name, args),
-      });
-      if (p1LoopResult.ok) {
-        console.log('[processAgentMessage] PingOne Admin reason loop completed');
-        appEventService.logEvent('agent', 'info', 'PingOne Admin response ready', { tag: 'agent/complete' });
-        if (LOG_FULL_PROMPTS) {
-          appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(p1LoopResult.answer || '')}`,
-            { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(p1LoopResult.answer || ''), model: llmModel || undefined } });
-        }
-        return {
-          reply: p1LoopResult.answer,
-          success: true,
-          toolsCalled: [],
-          inputTokens: p1LoopResult.inputTokens ?? 0,
-          outputTokens: p1LoopResult.outputTokens ?? 0,
-          requiresConsent: false,
-          agentConfigured: true,
-          tokenEvents: tokenEvents || [],
-        };
-      }
-      return {
-        reply: p1LoopResult.reason === 'max_iterations'
-          ? 'Agent reached maximum tool iteration limit. Please rephrase your request.'
-          : 'PingOne Admin reasoning is temporarily unavailable.',
-        success: false,
-        toolsCalled: [],
-        tokensUsed: 0,
-        requiresConsent: false,
-        agentConfigured: true,
-        tokenEvents: tokenEvents || [],
-        error: p1LoopResult.reason || 'reasoning_unavailable',
-      };
-    }
-
     const { provider, model } = resolveLlmProvider(langchainConfig);
 
     // NOTE: the old "Helix unconfigured → silently return the catalog message"
@@ -1372,8 +1254,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // pre-consolidation in-process graph path — it never produced a clean 428
     // here either). Do NOT assume the LLM path yields a 428; do NOT remove the
     // heuristic floor believing it does.
+
+    // Load conversation history for continuity (per-user, per-vertical thread)
+    const verticalForHistory = vertical || 'banking';
+    const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
+    const messages = [...historyMessages, { role: 'user', content: message }];
+
     const loopResult = await runReasonLoop({
-      messages: [{ role: 'user', content: message }],
+      messages,
       tools: toolSchemas,
       provider,
       model,
@@ -1448,18 +1336,18 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         error: 'max_tool_iterations',
       };
     }
-    // reasoning_unavailable: prefer the heuristic's output if one exists for
-    // this path (none does today — heuristic returns immediately on match), else
-    // the generic message. ARCHITECTURE-TRUTHS T-3 deterministic floor.
+    // reasoning_unavailable: LLM service failed. Fall back to showing the catalog
+    // of what the agent can do (same as heuristics-only mode) to help the user
+    // rephrase their question into something we can actually handle.
+    const { verticalId: _fallbackVerticalId, verticalCtx: _fallbackVerticalCtx } = resolveVerticalRouting(vertical);
     return heuristicFallbackResult || {
-      reply: 'Advanced reasoning is temporarily unavailable. Please try a simpler request.',
-      success: false,
+      reply: buildCatalogMessage(_fallbackVerticalCtx),
+      success: true,
       toolsCalled: [],
       tokensUsed: 0,
       requiresConsent: false,
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
-      error: 'reasoning_unavailable',
     };
   } catch (rawError) {
     // Normalize non-Error throws (e.g. thrown strings/objects) so property accesses below are safe.

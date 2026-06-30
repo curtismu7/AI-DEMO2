@@ -29,10 +29,13 @@ if [ -d "$BASEDIR/demo_mcp_server" ]; then
   echo $! > /tmp/demo-mcp-server.pid
 fi
 
-# Start langchain_agent backend (port 8888)
-if [ -f "$BASEDIR/langchain_agent/server.py" ] || [ -f "$BASEDIR/langchain_agent/main.py" ]; then
-  echo "🔗 Starting LangChain Agent Backend on :8888..."
-  (cd "$BASEDIR/langchain_agent" && python3 -m uvicorn main:app --port 8888 > /tmp/langchain-agent.log 2>&1) &
+# Start langchain_agent backend (port 8887 — 8888/8889/8890 taken by OrbStack on macOS)
+if [ -f "$BASEDIR/langchain_agent/src/main.py" ]; then
+  echo "🔗 Starting LangChain Agent Backend on :8887..."
+  (cd "$BASEDIR/langchain_agent" && \
+   PYTHONPATH="$BASEDIR/langchain_agent:${PYTHONPATH:-}" \
+   AGUI_HTTP_PORT=8887 HEALTH_HTTP_PORT=8881 \
+   ./.venv/bin/python -m src.main > /tmp/langchain-agent.log 2>&1) &
   echo $! > /tmp/langchain-agent.pid
 fi
 

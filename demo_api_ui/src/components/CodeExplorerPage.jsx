@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { spinner } from '../services/spinnerService';
+import { HeroSection } from './HeroSection';
 import './CodeExplorerPage.css';
 
 const STARTER_CHIPS = [
@@ -228,14 +229,14 @@ const CodeExplorerPage = () => {
         </button>
       </div>
 
-      {/* Hero — only shown when no messages */}
-      {isEmpty && (
-        <div className="code-explorer-hero">
-          <div className="code-explorer-avatar">&lt;/&gt;</div>
-          <h1>Code Explorer</h1>
-          <p>Ask anything about this codebase</p>
-        </div>
-      )}
+      <HeroSection
+        variant="code-explorer"
+        avatar="&lt;/&gt;"
+        title="Code Explorer"
+        description="Powered by CodeGraph — A semantic code knowledge graph that indexes every symbol, file, and dependency in your codebase for instant AI-powered exploration."
+        subtitle="Ask about flows, architecture, patterns, implementation details, and how features work — with real, current code context"
+        isEmpty={isEmpty}
+      />
 
       {/* Messages — scrollable, fills available space */}
       {!isEmpty && (

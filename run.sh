@@ -6,7 +6,7 @@
 #   Demo API Server  → https://api.ping.demo:3001
 #   Demo UI          → https://api.ping.demo:4000
 #   Demo MCP Server  → localhost:8080
-#   LangChain Agent     → localhost:8888 (uvicorn) + 8889 (chat WS) + 8890 (health/inspector)
+#   LangChain Agent  → localhost:8887 (FastAPI/CodeGraph) + 8889 (chat WS) + 8881 (health/inspector)
 #
 # One-time setup (run once each, requires sudo for /etc/hosts):
 #   echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts
@@ -222,10 +222,11 @@ DOCKER_AVAILABLE=false
 if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
   DOCKER_AVAILABLE=true
 fi
-# Ports managed by run.sh (Node processes + Docker-hosted PingGateway :3036).
+# Ports managed by run.sh (Node processes + Python agents + Docker-hosted PingGateway :3036).
 # Defined once and referenced by both stop_listeners_on_demo_ports and
 # force_kill_listeners_on_demo_ports to avoid per-function drift.
-DEMO_PORTS=(3001 4000 8080 8888 8889 8890 3005 3006 3009 8081 8082 8891 8892 8893 3036)
+# LangChain ports: 8887 (FastAPI/CodeGraph), 8889 (chat WS), 8881 (health)
+DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 3036)
 
 # Pre-create all log files so tail/log viewers work before services start.
 # We TRUNCATE here (not just touch) — services that get skipped or fail to relaunch
@@ -347,117 +348,97 @@ preflight_checks() {
   fi
 
   # Port conflicts (check for non-Banking listeners)
-  for port in "${API_PORT}" "${UI_PORT}" 8080 8888; do
+  for port in "${API_PORT}" "${UI_PORT}" 8080 8887 8889 8881; do
     if port_listening "${port}"; then
       warn "Port ${port} is already in use (will be stopped before start)"
     fi
   done
 
-  # Ollama (local LLM for NL intent fallback) — optional, local-only.
-  # If OLLAMA_BASE_URL points to a remote host we skip the local start attempt
-  # and just verify reachability. If unset, default to localhost:11434.
+  # llama.cpp (local LLM for NL intent fallback) — optional, local-only.
+  # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
+  # and just verify reachability. If unset, default to localhost:8090.
   #
-  # Durability note: for the Docker/k8s deployments the BFF reaches Ollama via
-  # host.docker.internal, which needs Ollama bound to 0.0.0.0 (not 127.0.0.1).
-  # A launchd setenv agent persists OLLAMA_HOST=0.0.0.0 across logins so the
-  # macOS Ollama.app binds all interfaces. Install it once with:
-  #   scripts/install-ollama-launchagent.sh
-  # The bare-metal start below uses the same 0.0.0.0 bind so containers can
-  # still reach a headless `ollama serve` when no app is present.
+  # Architecture note: `llama-server` is ONE process serving ONE model. A single
+  # server on :8090 serves BOTH the BFF NL-intent path AND agent reasoning — there
+  # is no longer a separate BFF model vs agent model. The OpenAI-compatible /v1 API
+  # is exposed on the same port.
   #
-  # Default model is the small NON-reasoning model the BFF uses for NL intent /
-  # teaching answers — it must respond under the SPA fetch timeout (qwen3:* is a
-  # reasoning model that blows it). agent-service pulls qwen3:8b separately below.
-  local ollama_model="${OLLAMA_MODEL:-qwen2.5:3b}"
-  local ollama_base="${OLLAMA_BASE_URL:-http://localhost:11434}"
+  # Durability note: for the Docker/k8s deployments the BFF reaches llama.cpp via
+  # host.docker.internal, so we bind 0.0.0.0 via the --host flag (no launchd hack
+  # is needed — llama-server binds all interfaces directly).
+  #
+  # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
+  # (8090 avoids the MCP server's :8080).
+  local llamacpp_model="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"
+  local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
-  local ollama_host ollama_port
-  ollama_host=$(echo "$ollama_base" | sed -E 's|https?://([^:/]+).*|\1|')
-  ollama_port=$(echo "$ollama_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
-  [[ "$ollama_port" == "$ollama_base" ]] && ollama_port="11434"  # sed produced no match → default
+  local llamacpp_host llamacpp_port
+  llamacpp_host=$(echo "$llamacpp_base" | sed -E 's|https?://([^:/]+).*|\1|')
+  llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
+  [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
 
-  if [[ "$ollama_host" != "localhost" && "$ollama_host" != "127.0.0.1" ]]; then
-    # Remote Ollama — just check reachability, never try to start locally
-    if curl -sf --max-time 3 "${ollama_base}/api/tags" >/dev/null 2>&1; then
-      ok "Ollama reachable at ${ollama_base} — model: ${ollama_model}"
+  if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
+    # Remote llama.cpp — just check reachability, never try to start locally
+    if curl -sf --max-time 3 "${llamacpp_base}/health" >/dev/null 2>&1 \
+       || curl -sf --max-time 3 "${llamacpp_base}/v1/models" >/dev/null 2>&1; then
+      ok "llama.cpp reachable at ${llamacpp_base} — model: ${llamacpp_model}"
     else
-      warn "Ollama at ${ollama_base} not reachable — NL fallback may be disabled"
+      warn "llama.cpp at ${llamacpp_base} not reachable — NL fallback may be disabled"
     fi
-  elif ! command -v ollama >/dev/null 2>&1; then
-    warn "ollama not found — NL fallback LLM disabled."
+  elif ! command -v llama-server >/dev/null 2>&1; then
+    warn "llama-server not found — NL fallback LLM disabled."
     # Only offer interactive install when stdin is a real TTY (i.e. the user
     # launched run.sh directly). Suppress the prompt during bootstrap restarts
     # or any non-interactive invocation — just print the install hint.
     if [[ -t 0 ]]; then
       local _answer=""
-      read -r -p "  Install Ollama now for NL intent routing? [Y/n] " _answer </dev/tty 2>/dev/null || true
+      read -r -p "  Install llama.cpp now for NL intent routing? [Y/n] " _answer </dev/tty 2>/dev/null || true
       [[ -z "$_answer" ]] && _answer="y"
       case "$_answer" in
         y|Y|yes|YES)
           if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-            echo "  Installing Ollama via Homebrew..."
-            brew install ollama --quiet && echo "  [OK] Ollama installed." \
-              || { warn "brew install ollama failed — install from https://ollama.ai"; }
+            echo "  Installing llama.cpp via Homebrew..."
+            brew install llama.cpp --quiet && echo "  [OK] llama.cpp installed." \
+              || { warn "brew install llama.cpp failed — build from https://github.com/ggml-org/llama.cpp"; }
           else
-            echo "  Downloading and installing Ollama..."
-            curl -fsSL https://ollama.ai/install.sh | sh \
-              || { warn "Ollama install failed — install from https://ollama.ai"; }
+            warn "Automatic install unavailable on this platform — build from https://github.com/ggml-org/llama.cpp"
           fi
-          if command -v ollama >/dev/null 2>&1; then
-            echo "  Pulling model ${ollama_model}..."
-            ollama pull "${ollama_model}" && echo "  [OK] Model ${ollama_model} ready." \
-              || warn "Model pull failed — run 'ollama pull ${ollama_model}' manually."
-            echo "  Pulling qwen3:8b for agent reasoning mode…"
-            ollama pull qwen3:8b && echo "  [OK] Model qwen3:8b ready." \
-              || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-            OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve > /tmp/demo-ollama.log 2>&1 &
-            echo $! > /tmp/demo-ollama.pid
+          if command -v llama-server >/dev/null 2>&1; then
+            echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
+            llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+            echo $! > /tmp/demo-llamacpp.pid
             local _i=0
-            while [[ $_i -lt 8 ]]; do
-              port_listening "${ollama_port}" && break
+            while [[ $_i -lt 60 ]]; do
+              curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && break
               sleep 1; (( _i++ )) || true
             done
-            port_listening "${ollama_port}" \
-              && ok "Ollama started on :${ollama_port} — model: ${ollama_model}" \
-              || warn "Ollama did not start — check /tmp/demo-ollama.log"
+            curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 \
+              && ok "llama.cpp started on :8090 — model: ${llamacpp_model}" \
+              || warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
           fi
           ;;
-        *) warn "Skipping Ollama — NL fallback disabled. Install later: https://ollama.ai" ;;
+        *) warn "Skipping llama.cpp — NL fallback disabled. Install later: https://github.com/ggml-org/llama.cpp" ;;
       esac
     else
-      warn "  Install it for NL intent routing: https://ollama.ai  (or: brew install ollama)"
+      warn "  Install it for NL intent routing: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp)"
     fi
-  elif port_listening "${ollama_port}"; then
-    ok "Ollama running on :${ollama_port} — model: ${ollama_model}"
-    if ! ollama list 2>/dev/null | grep -q "${ollama_model}"; then
-      echo "  Pulling ${ollama_model} for BFF NL intent routing…"
-      ollama pull "${ollama_model}" || warn "${ollama_model} pull failed — 'Ollama only' NL routing may be unavailable"
-    fi
-    if ! ollama list 2>/dev/null | grep -q "qwen3:8b"; then
-      echo "  Pulling qwen3:8b for agent reasoning mode…"
-      ollama pull qwen3:8b || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-    fi
+  elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
+    ok "llama.cpp running on :${llamacpp_port} — model: ${llamacpp_model}"
   else
-    echo -e "  ${CYAN}[SPIN]${RESET}  Starting Ollama (model: ${ollama_model})…"
-    OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve > /tmp/demo-ollama.log 2>&1 &
-    echo $! > /tmp/demo-ollama.pid
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
+    # The -hf flag downloads + caches the GGUF from HuggingFace on first start
+    # (a no-op once cached) — this replaces the old model-pull step.
+    llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+    echo $! > /tmp/demo-llamacpp.pid
     local i=0
-    while [[ $i -lt 8 ]]; do
-      port_listening "${ollama_port}" && break
+    while [[ $i -lt 60 ]]; do
+      curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1 && break
       sleep 1; (( i++ )) || true
     done
-    if port_listening "${ollama_port}"; then
-      ok "Ollama started on :${ollama_port} — model: ${ollama_model}"
-      if ! ollama list 2>/dev/null | grep -q "${ollama_model}"; then
-        echo "  Pulling ${ollama_model} for BFF NL intent routing…"
-        ollama pull "${ollama_model}" || warn "${ollama_model} pull failed — 'Ollama only' NL routing may be unavailable"
-      fi
-      if ! ollama list 2>/dev/null | grep -q "qwen3:8b"; then
-        echo "  Pulling qwen3:8b for agent reasoning mode…"
-        ollama pull qwen3:8b || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-      fi
+    if curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1; then
+      ok "llama.cpp started on :8090 — model: ${llamacpp_model}"
     else
-      warn "Ollama did not start on :${ollama_port} — check /tmp/demo-ollama.log"
+      warn "llama.cpp did not become ready on :8090 — check /tmp/demo-llamacpp.log"
     fi
   fi
 
@@ -710,7 +691,7 @@ print_status_table() {
   service_status_line "Mortgage Service"     8082         "/health"        "http://localhost:8082 (internal)"
   service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
   service_status_line "HITL Service"         3009         "/health"        "http://localhost:3009 (internal)"
-  service_status_line "LangChain Agent"      8890         "/health"        "ws://localhost:8889 (chat WS)"
+  service_status_line "LangChain Agent"      8881         "/health"        "ws://localhost:8889 (chat WS)"
   service_status_line "OpenAI Agents SDK"    8891         "/health"        "http://localhost:8891 (internal)"
   service_status_line "Mastra Agent"         8892         "/health"        "http://localhost:8892 (internal)"
   service_status_line "Pydantic AI Agent"    8893         "/health"        "http://localhost:8893 (internal)"
@@ -750,7 +731,7 @@ cmd_stop() {
     docker compose -f "$BASEDIR/ping-gateway/docker-compose.yml" down --remove-orphans \
       >> "${LOG_PG}" 2>&1 || true
   fi
-  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Mortgage :8082, LangChain :8888/8889/8890, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
+  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
   stop_listeners_on_demo_ports
   sleep 1
   force_kill_listeners_on_demo_ports
@@ -838,7 +819,7 @@ cmd_help() {
   echo "    Demo UI              :${UI_PORT}  (${PROTO_LABEL})"
   echo "    Demo MCP Server      :8080
     MCP Gateway          :3005"
-  echo "    LangChain Agent      :8889 (chat WS) :8890 (health)"
+  echo "    LangChain Agent      :8887 (FastAPI/CodeGraph) :8889 (chat WS) :8881 (health)"
   echo "    OpenAI Agents SDK    :8891"
   echo "    Mastra Agent         :8892"
   echo "    Pydantic AI Agent    :8893"
@@ -966,7 +947,7 @@ preflight_checks
 
 # ── Auto-kill any existing Banking services before (re)starting ─────────────
 _any_running=false
-for _chk_port in ${API_PORT} ${UI_PORT} 8080 8888 8891 8892 8893; do
+for _chk_port in ${API_PORT} ${UI_PORT} 8080 8887 8889 8881 8891 8892 8893; do
   if port_listening "$_chk_port"; then
     _any_running=true
     break
@@ -1371,13 +1352,15 @@ echo "[WEB] Starting Demo UI on ${CLIENT_URL}..."
 ) &
 echo $! > "$PID_UI"
 
-# ── LangChain Agent (chat WS :8889 + health :8890) ───────────────────────────
+# ── LangChain Agent (chat WS :8889 + health :8890 + FastAPI :8887) ────────────
 # Entry point is src/main.py, run as a module (`python -m src.main`) — it is an
 # asyncio app that manages its own websockets server (8889) and health server
-# (8890); it is NOT a uvicorn ASGI app and there is no :8888 listener. It reads
-# its own langchain_agent/.env via python-dotenv. The venv is `.venv`.
+# (8890). Note: Port 8888 is occupied by OrbStack on macOS, so the FastAPI /run
+# endpoint uses :8887 (configurable via AGUI_HTTP_PORT). The BFF proxies to this
+# port via LANGCHAIN_AGENT_HTTP_URL. Reads langchain_agent/.env via python-dotenv.
+# The venv is `.venv`.
 if [[ -f "$BASEDIR/langchain_agent/src/main.py" ]]; then
-  echo "[CHAIN] Starting LangChain Agent (chat WS :8889, health :8890)..."
+  echo "[CHAIN] Starting LangChain Agent (chat WS :8889, health :8890, API :8887)..."
   (
     cd "$BASEDIR/langchain_agent"
     if [[ -x ".venv/bin/python" ]]; then
@@ -1394,6 +1377,10 @@ if [[ -f "$BASEDIR/langchain_agent/src/main.py" ]]; then
       source ".env" 2>/dev/null || true
       set +a
     fi
+    # Set ports: 8887 for FastAPI, 8881 for health (8888/8889/8890 occupied by OrbStack)
+    PYTHONPATH="${BASEDIR}/langchain_agent:${PYTHONPATH:-}" \
+    AGUI_HTTP_PORT=8887 \
+    HEALTH_HTTP_PORT=8881 \
     "$PY" -m src.main > "${LOG_AGENT}" 2>&1
   ) &
   echo $! > "$PID_AGENT"
@@ -1478,8 +1465,8 @@ wait_for_health 8081 "/health" 15 "MCP Invest Server" "${LOG_INVEST}"    >/dev/n
 wait_for_health 8082 "/health" 10 "Demo Mortgage"     "${LOG_MORTGAGE}"  >/dev/null
 # UI: port-only (CRA has no /health endpoint); full 90s budget since UI launched before waits
 wait_for_port "${UI_PORT}" 90 "Demo UI" >/dev/null
-# LangChain: warn-only, not a gate
-wait_for_health 8890 "/health" 20 "LangChain Agent" "${LOG_AGENT}" >/dev/null || true
+# LangChain: warn-only, not a gate (health on 8881 due to OrbStack port conflicts)
+wait_for_health 8881 "/health" 20 "LangChain Agent" "${LOG_AGENT}" >/dev/null || true
 
 # ── Log janitor (intra-session size cap) ─────────────────────────────────────
 _log_janitor_loop &

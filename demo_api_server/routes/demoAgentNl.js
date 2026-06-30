@@ -13,6 +13,7 @@ const { parseNaturalLanguage } = require('../services/geminiNlIntent');
 const { guardPromptInput } = require('../services/promptGuard');
 const { parseVerticalParam } = require('../services/nlIntentParser');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
+const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { verticalManifest } = require('../services/verticalManifest');
 
 const router = express.Router();
@@ -62,8 +63,9 @@ function recordRunFromNl(req, message, result, vertical) {
     try { activeVertical = verticalManifest?.resolver?.activeIdFor?.(req) || null; } catch (_e) { /* noop */ }
     const reportVertical = result.vertical || vertical || activeVertical || 'banking';
     const nowIso = new Date().toISOString();
+    const runId = crypto.randomUUID();
     reportStore.saveRun({
-      runId: crypto.randomUUID(),
+      runId,
       userId,
       vertical: reportVertical,
       prompt: message,
@@ -77,6 +79,20 @@ function recordRunFromNl(req, message, result, vertical) {
       success: true,
       files: [],
     });
+
+    // Save conversation history for continuity
+    try {
+      conversationStore.saveMessage(userId, reportVertical, 'user', message, { runId });
+      conversationStore.saveMessage(userId, reportVertical, 'assistant', action, {
+        runId,
+        intent: action,
+        agentPath: 'nl',
+        success: true,
+      });
+    } catch (convErr) {
+      console.warn('[bankingAgentNl] conversationStore.saveMessage failed:', convErr.message);
+    }
+
     console.log('[bankingAgentNl] recorded report', { vertical: reportVertical, action, uid: String(userId).slice(0, 8) });
   } catch (saveErr) {
     console.warn('[bankingAgentNl] reportStore.saveRun failed:', saveErr.message);

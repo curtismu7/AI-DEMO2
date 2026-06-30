@@ -116,8 +116,8 @@ class LangChainMCPAgent(TracingMixin):
             streaming=bool(getattr(lc, "stream_llm_tokens", True)),
             lmstudio_base_url=getattr(lc, "lmstudio_base_url", "http://localhost:1234/v1"),
             anthropic_base_url=getattr(lc, "anthropic_base_url", ""),
-            ollama_base_url=getattr(lc, "ollama_base_url", "http://127.0.0.1:11434"),
-            ollama_model=getattr(lc, "ollama_model", "qwen3:8b"),
+            llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8090"),
+            llamacpp_model=getattr(lc, "llamacpp_model", "qwen3-8b"),
             helix_base_url=getattr(lc, "helix_base_url", ""),
             helix_api_key=getattr(lc, "helix_api_key", ""),
             helix_environment_id=getattr(lc, "helix_environment_id", ""),
@@ -828,7 +828,7 @@ For example: 123 Main St, New York, NY, 10001, USA"""
                         return (
                             "No LLM is configured (LANGCHAIN_LLM_PROVIDER=none). "
                             "To enable AI responses, set LANGCHAIN_LLM_PROVIDER to "
-                            "\"ollama\", \"anthropic\", \"lmstudio\", or \"anthropic-lmstudio\" "
+                            "\"llamacpp\", \"anthropic\", \"lmstudio\", or \"anthropic-lmstudio\" "
                             "in langchain_agent/.env."
                         )
                     tracer.log_step("initialization_error", "LangChain Agent", {

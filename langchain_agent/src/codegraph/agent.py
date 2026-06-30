@@ -30,10 +30,10 @@ Always cite file:line references. Keep answers focused and concrete. If grep \
 finds nothing, try a synonym or a broader pattern before giving up."""
 
 
-def _ollama_reachable(base_url: str) -> bool:
-    """Return True if the Ollama daemon is up and responding."""
+def _llamacpp_reachable(base_url: str) -> bool:
+    """Return True if llama-server is up and a model is loaded (/health → 200)."""
     try:
-        urllib.request.urlopen(base_url.rstrip("/"), timeout=2)
+        urllib.request.urlopen(base_url.rstrip("/") + "/health", timeout=2)
         return True
     except Exception:
         return False
@@ -52,26 +52,26 @@ def _resolve_provider() -> str:
 
     Priority:
       1. CODEGRAPH_LLM_PROVIDER env var (explicit override)
-      2. Ollama — if the daemon is reachable at OLLAMA_BASE_URL
+      2. llama.cpp — if llama-server is reachable at LLAMACPP_BASE_URL
       3. Helix — if HELIX_ENVIRONMENT_ID + HELIX_PROMPT_FIELD_ID are set
-      4. lmstudio — fallback when neither Ollama nor Helix is available
+      4. lmstudio — fallback when neither llama.cpp nor Helix is available
     """
     explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip()
     if explicit:
         logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
         return explicit
 
-    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-    if _ollama_reachable(ollama_url):
-        logger.info("CodeGraph LLM: Ollama reachable at %s — using ollama", ollama_url)
-        return "ollama"
+    llamacpp_url = os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090")
+    if _llamacpp_reachable(llamacpp_url):
+        logger.info("CodeGraph LLM: llama.cpp reachable at %s — using llamacpp", llamacpp_url)
+        return "llamacpp"
 
     if _helix_configured():
-        logger.info("CodeGraph LLM: Ollama not reachable, Helix configured — using helix")
+        logger.info("CodeGraph LLM: llama.cpp not reachable, Helix configured — using helix")
         return "helix"
 
     logger.warning(
-        "CodeGraph LLM: Ollama not reachable and Helix not configured — falling back to lmstudio"
+        "CodeGraph LLM: llama.cpp not reachable and Helix not configured — falling back to lmstudio"
     )
     return "lmstudio"
 
@@ -80,7 +80,7 @@ def create_codegraph_agent(api_key: str):
     """
     Create a LangGraph ReAct agent for CodeGraph exploration.
 
-    Provider is resolved automatically: Ollama → Helix → lmstudio.
+    Provider is resolved automatically: llama.cpp → Helix → lmstudio.
     Override with CODEGRAPH_LLM_PROVIDER env var.
     """
     provider = _resolve_provider()
@@ -88,8 +88,8 @@ def create_codegraph_agent(api_key: str):
         provider=provider,
         model=os.getenv("CODEGRAPH_MODEL") or None,
         api_key=api_key,
-        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434"),
-        ollama_model=os.getenv("OLLAMA_MODEL", "qwen3:8b"),
+        llamacpp_base_url=os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090"),
+        llamacpp_model=os.getenv("LLAMACPP_MODEL", "qwen3-8b"),
         lmstudio_base_url=os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
     )
     tools = get_codegraph_tools()
