@@ -15,15 +15,15 @@ const STORAGE_KEY = 'arch-canvas-v7';
 //  5  MCP Backends    x=1075
 
 const SEED_POSITIONS = {
-  frontend:          { x: 30,   y: 220 },
-  bff:               { x: 220,  y: 220 },
-  'pingone-sso':     { x: 220,  y: 80  },
-  'agent-service':   { x: 430,  y: 220 },
-  'mcp-gateway':     { x: 640,  y: 210 },
-  'authz-server':    { x: 855,  y: 40  },
-  'hitl-service':    { x: 855,  y: 360 },
-  'mcp-server':      { x: 1075, y: 40  },
-  'mcp-invest':      { x: 1075, y: 200 },
+  frontend:          { x: 30,   y: 200 },
+  bff:               { x: 165,  y: 340 },
+  'pingone-sso':     { x: 255,  y: 60  },
+  'agent-service':   { x: 420,  y: 180 },
+  'mcp-gateway':     { x: 570,  y: 340 },
+  'authz-server':    { x: 930,  y: 80  },
+  'hitl-service':    { x: 1010, y: 400 },
+  'mcp-server':      { x: 1220, y: 80  },
+  'mcp-invest':      { x: 1220, y: 200 },
 };
 
 const NODE_LAYER = {
@@ -76,14 +76,22 @@ function buildSeedEdges(nodes) {
   const pairs = [
     ['frontend',        'bff',                  'Send message'],
     ['bff',             'agent-service',        'Dispatch'],
-    // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
+    ['agent-service',   'bff',                  'Dispatch'],
+    // BFF ↔ PingOne SSO for RFC 8693 token exchange
     ['bff',             'pingone-sso',          'Token exchange'],
+    ['pingone-sso',     'bff',                  'Token exchange'],
+    // BFF ↔ MCP Gateway routing
     ['bff',             'mcp-gateway',          'Routing'],
+    ['mcp-gateway',     'bff',                  'Routing'],
     ['mcp-gateway',     'authz-server',         'Authorize request'],
     ['mcp-gateway',     'hitl-service',         'Challenge'],
+    // MCP Gateway ↔ MCP Server
     ['mcp-gateway',     'mcp-server',           'MCP API call'],
+    ['mcp-server',      'mcp-gateway',          'MCP API call'],
     ['mcp-gateway',     'mcp-invest',           'MCP API call'],
+    // Token introspection bidirectional
     ['authz-server',    'pingone-sso',          'Token introspection'],
+    ['pingone-sso',     'authz-server',         'Token introspection'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs

@@ -1,0 +1,178 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import CodebaseUploader from '../components/CodebaseUploader';
+import SearchResults from '../components/SearchResults';
+import { indexCodebase, searchCode } from '../services/codeSearchAPI';
+import './CodeSearchPage.css';
+
+export function CodeSearchPage() {
+  const [codebases, setCodebases] = useState([]);
+  const [selectedCodebaseId, setSelectedCodebaseId] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [indexError, setIndexError] = useState('');
+
+  // Load codebases from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('codeSearchCodebases');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCodebases(parsed);
+        if (parsed.length > 0 && !selectedCodebaseId) {
+          setSelectedCodebaseId(parsed[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load codebases:', err);
+      }
+    }
+  }, []);
+
+  // Persist codebases to localStorage
+  useEffect(() => {
+    localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
+  }, [codebases]);
+
+  const handleUpload = useCallback(
+    async (file, codebaseName) => {
+      setIsIndexing(true);
+      setIndexError('');
+
+      try {
+        // Generate a simple ID
+        const codebaseId = `codebase-${Date.now()}`;
+
+        // Call the BFF API
+        await indexCodebase(file, codebaseName, 'simple');
+
+        // Add to local state
+        const newCodebase = {
+          id: codebaseId,
+          name: codebaseName,
+          uploadedAt: new Date().toISOString(),
+          fileSize: file.size,
+          fileName: file.name,
+        };
+
+        setCodebases((prev) => [newCodebase, ...prev]);
+        setSelectedCodebaseId(codebaseId);
+        setQuery('');
+        setResults([]);
+      } catch (err) {
+        setIndexError(
+          err.message || 'Failed to index codebase. Make sure the server is running.'
+        );
+      } finally {
+        setIsIndexing(false);
+      }
+    },
+    []
+  );
+
+  const handleSearch = useCallback(async () => {
+    if (!query.trim()) {
+      setSearchError('Please enter a search query');
+      return;
+    }
+
+    if (!selectedCodebaseId) {
+      setSearchError('Please select or upload a codebase first');
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError('');
+
+    try {
+      const searchResults = await searchCode(query, selectedCodebaseId, 10);
+      setResults(searchResults || []);
+    } catch (err) {
+      setSearchError(
+        err.message || 'Search failed. Make sure the server is running.'
+      );
+      setResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [query, selectedCodebaseId]);
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      handleSearch();
+    }
+  };
+
+  return (
+    <div className="code-search-page">
+      <div className="search-container">
+        <div className="search-panel-left">
+          <CodebaseUploader onUpload={handleUpload} isLoading={isIndexing} />
+
+          {indexError && <div className="panel-error">{indexError}</div>}
+
+          {codebases.length > 0 && (
+            <div className="codebases-list">
+              <h3>Indexed Codebases</h3>
+              <div className="codebase-items">
+                {codebases.map((codebase) => (
+                  <div
+                    key={codebase.id}
+                    className={`codebase-item ${
+                      selectedCodebaseId === codebase.id ? 'active' : ''
+                    }`}
+                    onClick={() => setSelectedCodebaseId(codebase.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setSelectedCodebaseId(codebase.id);
+                      }
+                    }}
+                  >
+                    <div className="codebase-name">{codebase.name}</div>
+                    <div className="codebase-meta">
+                      {new Date(codebase.uploadedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="search-panel-right">
+          <div className="search-form">
+            <h2>Search Code</h2>
+            <div className="search-input-group">
+              <input
+                type="text"
+                placeholder="e.g., find authentication logic..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={isSearching}
+                className="search-input"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={isSearching || !selectedCodebaseId}
+                className="search-button"
+              >
+                {isSearching ? 'Searching...' : 'Search'}
+              </button>
+            </div>
+            {searchError && <div className="search-error">{searchError}</div>}
+          </div>
+
+          <SearchResults
+            results={results}
+            isLoading={isSearching}
+            error={searchError}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

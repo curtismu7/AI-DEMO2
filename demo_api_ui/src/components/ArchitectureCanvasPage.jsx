@@ -249,6 +249,7 @@ export default function ArchitectureCanvasPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedNodes, setSelectedNodes] = useState(new Set());
   const [renaming, setRenaming] = useState(null);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [stageH, setStageH] = useState(620);
   const [pingStatus, setPingStatus] = useState({});
   const [pinging, setPinging] = useState(false);
@@ -478,11 +479,7 @@ export default function ArchitectureCanvasPage() {
               const slug = selectedFlow ? `-${selectedFlow}` : '-full';
               downloadFile(buildDrawio(nodes, edges, flow), `architecture${slug}.drawio`, 'application/xml');
             }}>⬇ LucidChart</button>
-            <button className="btn-reset" onClick={() => {
-              if (window.confirm('Reset canvas to default layout?')) {
-                resetLayout(); setPingStatus({}); setResultPanel(null);
-              }
-            }}>↺ Reset</button>
+            <button className="btn-reset" onClick={() => setShowResetModal(true)}>↺ Reset</button>
           </>
         )}
       </div>
@@ -678,6 +675,29 @@ export default function ArchitectureCanvasPage() {
           )}
         </Stage>
       </div>
+
+      {/* Reset confirmation modal */}
+      {showResetModal && (
+        <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
+          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Reset Canvas?</h3>
+            </div>
+            <div className="modal-body">
+              <p>This will reset all nodes and connections to the default layout. This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn-cancel" onClick={() => setShowResetModal(false)}>Cancel</button>
+              <button className="modal-btn-confirm" onClick={() => {
+                resetLayout();
+                setPingStatus({});
+                setResultPanel(null);
+                setShowResetModal(false);
+              }}>Reset Layout</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Step explanation panel */}
       {flow && (
