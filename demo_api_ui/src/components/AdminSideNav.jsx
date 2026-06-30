@@ -590,9 +590,8 @@ export default function AdminSideNav({ user }) {
         },
         {
           label: "Token Flow (Interactive)",
+          path: "/architecture/token-flow",
           icon: "lnk",
-          action: () =>
-            window.open("/architecture/token-flow.html", "_blank", "noopener"),
         },
         { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
         {
