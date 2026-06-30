@@ -37,22 +37,13 @@
       "Bash(node --check routes/a2aAgentRoutes.js)",
       "Bash(node --check config/a2a/roles.js)",
       "Bash(node --check config/a2a/tasks.js)",
-      "Bash(python3 -c ' *)",
-      "Bash(curl -sk -o /dev/null -w \"root: HTTP %{http_code}\\\\n\" --max-time 8 https://127.0.0.1:4000/)",
-      "Bash(curl -sk -o /dev/null -w \"guide: HTTP %{http_code}\\\\n\" --max-time 8 https://127.0.0.1:4000/downloads/llama-vscode-setup-guide.html)",
-      "Bash(curl -sk --max-time 8 https://127.0.0.1:4000/downloads/llama-vscode-setup-guide.html)",
-      "Bash(git log *)",
-      "Bash(node -e ' *)",
-      "Bash(node -e \"console.log\\(require.resolve\\('./config/verticals/oauth-teaching'\\)\\)\")",
-      "Bash(node -e \"require\\('dotenv'\\); const cs=require\\('./services/configStore'\\); cs.ensureInitialized\\(\\).then\\(\\(\\)=>{console.log\\('env var=',JSON.stringify\\(process.env.FF_CUSTOMER_SKIN_PING2026\\)\\); console.log\\('cache=',JSON.stringify\\(cs._cache['FF_CUSTOMER_SKIN_PING2026']\\)\\); console.log\\('get=',JSON.stringify\\(cs.get\\('ff_customer_skin_ping2026'\\)\\)\\); console.log\\('getEffective=',JSON.stringify\\(cs.getEffective\\('ff_customer_skin_ping2026'\\)\\)\\);}\\);\")",
-      "Bash(echo \"EXIT=$?\")",
-      "Bash(rm -rf /var/folders/mr/z8wwjmr13c30csw2p9btb1q00000gp/T/ai-demo-jest-lmdb 2>/dev/null; npx jest --testPathIgnorePatterns='/node_modules/' --runTestsByPath src/__tests__/configStore-customerSkin.test.js 2>&1 | grep -E \"✕|✓|Tests:\")",
-      "Bash(python -m src.main)",
-      "Bash(curl -s http://localhost:8890/health)"
+      "Bash(rm -f /Users/cmuir/Development/AI-DEMO2/.claude/settings.json && git merge worktree-a2a-orchestrator-agent --no-edit && git log --oneline -3)",
+      "Bash(node -c services/a2aOrchestratorService.js)",
+      "Bash(node -c routes/a2aAgentRoutes.js)"
     ],
     "additionalDirectories": [
       "/tmp",
-      "/private/var/folders/mr/z8wwjmr13c30csw2p9btb1q00000gp/T/ai-demo-jest-lmdb"
+      "/Users/cmuir/Development/AI-DEMO2/.claude"
     ]
   }
 }
