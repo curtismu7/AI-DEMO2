@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import bffAxios from '../../services/bffAxios';
 
 export default function OpsAssistantChat({ vertical, query }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [msgs, setMsgs] = useState([]);
   const [busy, setBusy] = useState(false);
