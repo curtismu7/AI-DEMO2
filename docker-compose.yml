@@ -206,6 +206,7 @@ services:
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-langchain-agent
+    command: ./scripts/startup.sh
     ports:
       - "8888:8888"   # AG-UI SSE / FastAPI
       - "8889:8889"   # WebSocket chat
@@ -229,6 +230,11 @@ services:
       # needs to rerun the indexer — no image rebuild, no repo-src re-stage.
       REPO_SRC_ROOT: "/app/live-repo"
       CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/codegraph.db"
+      # OAuth credentials for langchain_agent
+      PINGONE_USER_CLIENT_ID: "71e878ea-2d79-4760-b570-66f00cbeffe7"
+      PINGONE_USER_CLIENT_SECRET: "Lnpof2gRUH6GBRTv4dn8-.-pgSnk-W.h0HEDhOP7aODfpGZV7fxptO1zE0_4qsCN"
+      AGENT_CLIENT_ID: "71e878ea-2d79-4760-b570-66f00cbeffe7"
+      AGENT_CLIENT_SECRET: "Lnpof2gRUH6GBRTv4dn8-.-pgSnk-W.h0HEDhOP7aODfpGZV7fxptO1zE0_4qsCN"
     env_file:
       - path: ./langchain_agent/.env
         required: false   # add LLM provider key (ANTHROPIC_API_KEY / OPENAI_API_KEY)
@@ -299,8 +305,12 @@ services:
       AGENT_SERVICE_PORT: "3006"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
+<<<<<<< HEAD
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+=======
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "qwen3-8b"
+>>>>>>> origin/main
     env_file:
       - path: ./demo_agent_service/.env
         required: false
