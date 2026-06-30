@@ -10,6 +10,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import HistoryModal from "./HistoryModal";
+import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import {
   ReactFlow,
   Background,
@@ -2255,7 +2256,6 @@ const PHASE_TO_NODES = {
 
 const HIGHLIGHT_MS = 4000;
 const HISTORICAL_MS = 15000;
-const STEP_MS = 2500;
 
 export default function ArchitectureFlowPage({ user }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES);
@@ -2263,6 +2263,7 @@ export default function ArchitectureFlowPage({ user }) {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
+  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
   const [history, setHistory] = useState([]);
   const [agentSnap, setAgentSnap] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState("full-flow");
@@ -2369,12 +2370,12 @@ export default function ArchitectureFlowPage({ user }) {
               simTimeouts.current.push(done);
             }
           },
-          (offset + (startIdx === 0 ? 0 : 1)) * STEP_MS,
+          (offset + (startIdx === 0 ? 0 : 1)) * stepMs,
         );
         simTimeouts.current.push(t);
       });
     },
-    [applyStep, resetDiagram],
+    [applyStep, resetDiagram, stepMs],
   );
 
   const clearHistory = useCallback(() => setHistory([]), []);
@@ -2435,6 +2436,12 @@ export default function ArchitectureFlowPage({ user }) {
     resetDiagram();
     setIsSimulating(false);
   }, [resetDiagram]);
+
+  // Reset = stop the simulation and clear the token history log.
+  const resetFlow = useCallback(() => {
+    stopSim();
+    clearHistory();
+  }, [stopSim, clearHistory]);
 
   // Live event polling
   const patchNode = useCallback(
@@ -2580,164 +2587,65 @@ export default function ArchitectureFlowPage({ user }) {
         >
           Interactive Architecture Flow
         </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <label
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              color: "#475569",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Scenario:
-          </label>
-          <select
-            value={selectedScenario}
-            onChange={(e) => setSelectedScenario(e.target.value)}
-            disabled={isSimulating}
-            style={{
-              fontSize: "0.78rem",
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: "1px solid #cbd5e1",
-              background: "#fff",
-              color: "#1e293b",
-              cursor: isSimulating ? "not-allowed" : "pointer",
-            }}
-          >
-            <option value="full-flow">Full Flow</option>
-            <option value="no-subject-token">
-              No Subject Token (DENY + Context)
-            </option>
-            <option value="id-token">ID Token Exchange</option>
-            <option value="user-token">Token Exchange (Both Hops)</option>
-            <option value="get-accounts">Get Accounts (Read Scope)</option>
-            <option value="withdrawal">Withdrawal + HITL</option>
-            <option value="bad-scope">Bad Scope (401 / 403)</option>
-            <option value="api-key-path">API-Key Path (Path A)</option>
-            <option value="dual-token-path">Dual-Token Path (Path B)</option>
-            <option value="oauth-bearer-path">
-              OAuth Bearer Path (Path C)
-            </option>
-          </select>
-        </div>
-        {!isSimulating && (
-          <button className="arch-simulate-btn" onClick={runSimulation}>
-            ▶ Simulate Flow
-          </button>
-        )}
-        {isSimulating && !isPaused && (
-          <>
-            <button
-              className="arch-simulate-btn arch-simulate-btn--running"
-              disabled
-            >
-              ▶ Step {currentStep + 1} / {stepsRef.current.length}
-            </button>
-            <button
-              onClick={pause}
-              style={{
-                padding: "0.4rem 0.8rem",
-                border: "1px solid #94a3b8",
-                borderRadius: 6,
-                background: "#fff",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontWeight: 600,
-                color: "#475569",
-              }}
-            >
-              ⏸ Pause
-            </button>
-          </>
-        )}
-        {isSimulating && isPaused && (
-          <>
-            <button
-              onClick={prevStep}
-              disabled={currentStep <= 0}
-              style={{
-                padding: "0.4rem 0.8rem",
-                border: "1px solid #94a3b8",
-                borderRadius: 6,
-                background: "#fff",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontWeight: 600,
-                color: "#475569",
-                opacity: currentStep <= 0 ? 0.4 : 1,
-              }}
-            >
-              ← Prev
-            </button>
-            <button
-              onClick={resume}
-              style={{
-                padding: "0.4rem 1rem",
-                border: "none",
-                borderRadius: 6,
-                background: "#004687",
-                color: "#fff",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              ▶ Resume
-            </button>
-            <button
-              onClick={nextStep}
-              style={{
-                padding: "0.4rem 0.9rem",
-                border: "1px solid #004687",
-                borderRadius: 6,
-                background: "#fff",
-                color: "#004687",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Next →
-            </button>
-          </>
-        )}
-        {isSimulating && (
-          <>
-            <button
-              type="button"
-              onClick={stopSim}
-              style={{
-                padding: "0.4rem 0.8rem",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                background: "#fff",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                color: "#94a3b8",
-              }}
-            >
-              ✕ Stop
-            </button>
-            <button
-              type="button"
-              onClick={stopSim}
-              style={{
-                padding: "0.4rem 0.8rem",
-                border: "1px solid #cbd5e1",
-                borderRadius: 6,
-                background: "#fff",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontWeight: 600,
-                color: "#475569",
-              }}
-              title="Reset and start over"
-            >
-              ↻ Restart
-            </button>
-          </>
-        )}
+        <DiagramControls
+          currentStep={currentStep + 1}
+          totalSteps={stepsRef.current.length}
+          isSimulating={isSimulating}
+          isPaused={isPaused}
+          onSimulate={runSimulation}
+          onPrev={prevStep}
+          onPause={pause}
+          onResume={resume}
+          onNext={nextStep}
+          onStop={stopSim}
+          onReset={resetFlow}
+          stepTimeOptions={STEP_TIME_OPTIONS}
+          stepMs={stepMs}
+          onSetStepMs={setStepMs}
+          extra={
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "#475569",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Scenario:
+              </span>
+              <select
+                value={selectedScenario}
+                onChange={(e) => setSelectedScenario(e.target.value)}
+                disabled={isSimulating}
+                style={{
+                  fontSize: "0.78rem",
+                  padding: "4px 8px",
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  background: "#fff",
+                  color: "#1e293b",
+                  cursor: isSimulating ? "not-allowed" : "pointer",
+                }}
+              >
+                <option value="full-flow">Full Flow</option>
+                <option value="no-subject-token">
+                  No Subject Token (DENY + Context)
+                </option>
+                <option value="id-token">ID Token Exchange</option>
+                <option value="user-token">Token Exchange (Both Hops)</option>
+                <option value="get-accounts">Get Accounts (Read Scope)</option>
+                <option value="withdrawal">Withdrawal + HITL</option>
+                <option value="bad-scope">Bad Scope (401 / 403)</option>
+                <option value="api-key-path">API-Key Path (Path A)</option>
+                <option value="dual-token-path">Dual-Token Path (Path B)</option>
+                <option value="oauth-bearer-path">
+                  OAuth Bearer Path (Path C)
+                </option>
+              </select>
+            </label>
+          }
+        />
         {activeStep && (
           <span
             style={{

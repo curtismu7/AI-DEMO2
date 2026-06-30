@@ -13,6 +13,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import apiClient from "../services/apiClient";
 import ArchitectureDiagramPage from "./ArchitectureDiagramPage";
+import { STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from "./diagram";
 import { TOKEN_FLOW_REGIONS } from "../config/diagram-token-flow-regions";
 
 const TOKEN_FLOW_EVENT_MAP = [
@@ -943,15 +944,6 @@ const SCENARIO_STEPS_TF = {
 
 const HIGHLIGHT_MS = 4000;
 const HISTORICAL_MS = 15000;
-const STEP_MS = 2500;
-// Selectable per-step durations for the simulation (ms). STEP_MS is the default.
-const STEP_MS_OPTIONS = [
-  { value: 800, label: "0.8s (fast)" },
-  { value: 1500, label: "1.5s" },
-  { value: 2500, label: "2.5s (default)" },
-  { value: 4000, label: "4s" },
-  { value: 6000, label: "6s (slow)" },
-];
 
 function mapEventToRegions(event) {
   for (const rule of TOKEN_FLOW_EVENT_MAP) {
@@ -1121,7 +1113,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
   const [totalSteps, setTotalSteps] = useState(
     TOKEN_FLOW_SIMULATE_STEPS.length,
   );
-  const [stepMs, setStepMs] = useState(STEP_MS);
+  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
 
   const clearTimers = useRef({});
   const simTimeouts = useRef([]);
@@ -1336,6 +1328,12 @@ export default function ArchitectureTokenFlowPage({ user }) {
     pausedStep.current = -1;
   }, []);
 
+  // Reset = stop the simulation and clear the token history log.
+  const resetSimulation = useCallback(() => {
+    stop();
+    clearHistory();
+  }, [stop, clearHistory]);
+
   useEffect(() => {
     fetchEvents();
     pollRef.current = setInterval(fetchEvents, 10000);
@@ -1386,42 +1384,6 @@ export default function ArchitectureTokenFlowPage({ user }) {
     </div>
   );
 
-  const stepTimeSelector = (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <label
-        style={{
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          color: "#475569",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Step time:
-      </label>
-      <select
-        value={stepMs}
-        onChange={(e) => setStepMs(Number(e.target.value))}
-        disabled={isSimulating}
-        title="Time each step takes during Simulate"
-        style={{
-          fontSize: "0.78rem",
-          padding: "4px 8px",
-          borderRadius: 6,
-          border: "1px solid #cbd5e1",
-          background: "#fff",
-          color: "#1e293b",
-          cursor: isSimulating ? "not-allowed" : "pointer",
-        }}
-      >
-        {STEP_MS_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-
   return (
     <ArchitectureDiagramPage
       title="Token Flow Diagram"
@@ -1439,6 +1401,10 @@ export default function ArchitectureTokenFlowPage({ user }) {
       onPrevStep={prevStep}
       onNextStep={nextStep}
       onStop={stop}
+      onReset={resetSimulation}
+      stepTimeOptions={STEP_TIME_OPTIONS}
+      stepMs={stepMs}
+      onSetStepMs={setStepMs}
       currentStep={currentStep}
       totalSteps={totalSteps}
       stepDetail={stepDetail}
@@ -1450,12 +1416,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
       audHops={TOKEN_FLOW_AUD_HOPS}
       tokenHistory={history}
       onClearHistory={clearHistory}
-      toolbarExtra={
-        <>
-          {scenarioSelector}
-          {stepTimeSelector}
-        </>
-      }
+      toolbarExtra={scenarioSelector}
     />
   );
 }

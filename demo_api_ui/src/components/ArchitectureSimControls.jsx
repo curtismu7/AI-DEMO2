@@ -8,19 +8,13 @@ import { DiagramControls } from './diagram';
  * No zoom block — the SVG scales with the container.
  */
 function ArchitectureSimControls({
-  mode, scenarioId, scenarios, playing, speed, stepIndex, totalSteps,
-  onPlay, onPause, onStep, onReset, onSetMode, onSetScenario, onSetSpeed,
+  mode, scenarioId, scenarios, playing, stepMs, stepTimeOptions, stepIndex, totalSteps,
+  onPlay, onPause, onStep, onReset, onSetMode, onSetScenario, onSetStepMs,
 }) {
   const MODES = [
     { id: 'scenario',  label: 'Scenario' },
     { id: 'step',      label: 'Step-through' },
     { id: 'live',      label: 'Live trace' },
-  ];
-
-  const SPEEDS = [
-    { value: 0.5, label: '0.5×' },
-    { value: 1,   label: '1×' },
-    { value: 2,   label: '2×' },
   ];
 
   const showScenarioDropdown = mode === 'scenario';
@@ -108,20 +102,22 @@ function ArchitectureSimControls({
         ↺ Reset
       </button>
 
-      {/* Speed selector — not shown in live mode */}
+      {/* Step-time selector — not shown in live mode */}
       {mode !== 'live' && (
         <>
           <div style={{ width: '1px', height: '18px', background: '#e2e8f0' }} />
-          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Speed:</span>
-          <select
-            value={speed}
-            onChange={e => onSetSpeed(Number(e.target.value))}
-            style={{ fontSize: '0.78rem', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '0.22rem 0.4rem', background: '#f8fafc' }}
-          >
-            {SPEEDS.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+          <label className="dc-steptime" title="Time each step takes during playback">
+            <span className="dc-steptime-label">Step time:</span>
+            <select
+              className="dc-steptime-select"
+              value={stepMs}
+              onChange={e => onSetStepMs(Number(e.target.value))}
+            >
+              {stepTimeOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
         </>
       )}
 
