@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { spinner } from '../services/spinnerService';
 import { HeroSection } from './HeroSection';
+import { HERO_VARIANTS } from '../config/heroVariants';
 import './CodeExplorerPage.css';
 
 const STARTER_CHIPS = [
@@ -236,7 +237,7 @@ const CodeExplorerPage = () => {
           description="Powered by CodeGraph — A semantic code knowledge graph that indexes every symbol, file, and dependency in your codebase for instant AI-powered exploration."
           subtitle="Ask about flows, architecture, patterns, implementation details, and how features work — with real, current code context"
           size="full"
-          backgroundColor="#1e40af"
+          backgroundColor={HERO_VARIANTS['code-explorer'].backgroundColor}
         />
       )}
 
