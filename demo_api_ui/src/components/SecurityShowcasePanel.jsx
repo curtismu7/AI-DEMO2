@@ -80,7 +80,7 @@ export default function SecurityShowcasePanel({
             : perm.denied
             ? `Denied by Authorize: ${deniedReason}`
             : llmDisabled
-            ? "Needs an LLM — switch to Ollama, Anthropic, or Helix mode"
+            ? "Needs an LLM — switch to llama.cpp, Anthropic, or Helix mode"
             : chip.caption || chip.message;
           return (
             <button

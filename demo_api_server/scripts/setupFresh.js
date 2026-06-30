@@ -863,7 +863,7 @@ async function configureHelix() {
 
   // Persist via configStore. setConfig encrypts api_key at rest (it's in
   // configStore's SECRET_KEYS list). Set provider=helix so parseNaturalLanguage
-  // routes to it instead of falling back to ollama.
+  // routes to it instead of falling back to llama.cpp.
   try {
     const configStore = require('../services/configStore');
     await configStore.ensureInitialized();

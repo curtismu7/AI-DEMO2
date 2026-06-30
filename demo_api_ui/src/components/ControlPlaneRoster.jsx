@@ -166,7 +166,7 @@ export default function ControlPlaneRoster() {
           <p>An agent can only act by presenting a Ping-issued token (RFC 8693 exchange). No valid token, no action.</p>
           <span className="tag">authority, not compute</span></div>
         <div className="cp-step"><div className="n">3</div><h4>Revoke at Ping, access dies everywhere</h4>
-          <p>Stop = revoke the token + disable the app + write an immutable audit record. Works on Helix, Ollama, or Claude alike.</p>
+          <p>Stop = revoke the token + disable the app + write an immutable audit record. Works on Helix, llama.cpp, or Claude alike.</p>
           <span className="tag">one button, every platform</span></div>
       </div>
 

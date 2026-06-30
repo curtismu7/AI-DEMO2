@@ -1,5 +1,5 @@
 """
-LLM factory — Helix, LM Studio (OpenAI/Anthropic-compat), Ollama, and none (heuristics-only).
+LLM factory — Helix, LM Studio (OpenAI/Anthropic-compat), llama.cpp, and none (heuristics-only).
 
 Provider resolution rules (mirrors demo_api_server/services/llmProviderResolver.js):
   - "none"               → returns None; agent falls back to heuristic routing (no LLM required)
@@ -10,10 +10,11 @@ Provider resolution rules (mirrors demo_api_server/services/llmProviderResolver.
                            (default: http://localhost:1234); uses the Anthropic SDK wire format
                            so the LangGraph tooling chain (function calling, tool_use blocks) works
                            without modification. Dummy API key accepted.
-  - "ollama"             → ChatOllama pointed at the local Ollama daemon
-                           (default: http://127.0.0.1:11434); native tool-calling, no API key.
-                           Use 127.0.0.1 (not localhost) — Node/clients resolve localhost to ::1
-                           where Ollama isn't bound; Python uses the same default for consistency.
+  - "llamacpp"           → ChatOpenAI pointed at llama.cpp's llama-server OpenAI-compatible
+                           endpoint. LLAMACPP_BASE_URL is the origin only (default
+                           http://127.0.0.1:8090); we append /v1. Native tool-calling, no API key.
+                           Use 127.0.0.1 (not localhost) — clients resolve localhost to ::1 where
+                           llama-server isn't bound; Python uses the same default for consistency.
   - no provider / unknown → falls back to "none" (heuristic routing)
 
 No other module may inline a provider default.
@@ -36,8 +37,8 @@ def get_llm(
     streaming: bool = True,
     lmstudio_base_url: str = "http://localhost:1234/v1",
     anthropic_base_url: str = "",
-    ollama_base_url: str = "http://127.0.0.1:11434",
-    ollama_model: str = "qwen3:8b",
+    llamacpp_base_url: str = "http://127.0.0.1:8090",
+    llamacpp_model: str = "qwen3-8b",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",
@@ -127,17 +128,23 @@ def get_llm(
             streaming=streaming,
         )
 
-    if resolved == "ollama":
-        # Local small LLM via Ollama (native /api/chat tool-calling — e.g. Qwen3).
-        # base_url is the origin only (no /v1). No API key. ChatOllama streams via
-        # .astream regardless of an explicit streaming flag.
-        resolved_model = model or ollama_model
-        logger.info("Initializing LLM: provider=ollama model=%s url=%s", resolved_model, ollama_base_url)
-        from langchain_ollama import ChatOllama
-        return ChatOllama(
+    if resolved == "llamacpp":
+        # Local small LLM via llama.cpp's llama-server (OpenAI-compatible /v1 API with
+        # native tool-calling — e.g. Qwen3). llamacpp_base_url is the origin only; we
+        # append /v1. llama-server ignores the API key but the client requires one.
+        resolved_model = model or llamacpp_model
+        base = llamacpp_base_url.rstrip("/")
+        if not base.endswith("/v1"):
+            base = base + "/v1"
+        logger.info("Initializing LLM: provider=llamacpp model=%s url=%s", resolved_model, base)
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
             model=resolved_model,
-            base_url=ollama_base_url,
+            openai_api_base=base,
+            openai_api_key="llama-cpp",  # llama-server ignores the key; any non-empty string works
             temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
         )
 
     if resolved != "helix":

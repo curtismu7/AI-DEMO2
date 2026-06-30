@@ -284,7 +284,7 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
     // Detect a genuine client disconnect via the RESPONSE stream, not the request.
     // `req.on('close')` fires when the request *body* stream ends (Node 16+) — for a
     // fully-read POST that happens mid-run, a false positive that aborted the content
-    // stream of slow providers (e.g. Ollama's multi-second CPU inference), emitting
+    // stream of slow providers (e.g. llama.cpp's multi-second CPU inference), emitting
     // zero text deltas while the run still reported success. `res` 'close' fires on a
     // real disconnect; guarding on writableFinished avoids treating a normal end
     // (which also closes res) as a disconnect.

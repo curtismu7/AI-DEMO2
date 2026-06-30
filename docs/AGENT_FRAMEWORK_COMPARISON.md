@@ -93,7 +93,7 @@ Control flow is **code-driven**: you write async Python, call `agent.run()`, and
 - **Strongest type safety** of any framework — Pydantic model validation on all tool inputs and all outputs; errors surface at parse time, not at `result["foo"]` KeyError.
 - **Built-in OpenTelemetry tracing** — provider-agnostic, works with any OTel backend (Jaeger, Datadog, Honeycomb).
 - **Dependency injection** — test and production code share the same agent; swap `MyDeps` in tests without mocking global state.
-- **Provider-neutral** — OpenAI, Anthropic, Gemini, Mistral, Groq, Ollama, AWS Bedrock; switching is a string change.
+- **Provider-neutral** — OpenAI, Anthropic, Gemini, Mistral, Groq, llama.cpp, AWS Bedrock; switching is a string change.
 - **Pydantic v2 speed** — Rust-based validation core; fast.
 - **API stability commitment** (v1.0, September 2025) — SemVer guarantees.
 - Caught **23 production bugs** in documented case studies that LangChain-based code missed.

@@ -353,111 +353,91 @@ preflight_checks() {
     fi
   done
 
-  # Ollama (local LLM for NL intent fallback) — optional, local-only.
-  # If OLLAMA_BASE_URL points to a remote host we skip the local start attempt
-  # and just verify reachability. If unset, default to localhost:11434.
+  # llama.cpp (local LLM for NL intent fallback) — optional, local-only.
+  # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
+  # and just verify reachability. If unset, default to localhost:8090.
   #
-  # Durability note: for the Docker/k8s deployments the BFF reaches Ollama via
-  # host.docker.internal, which needs Ollama bound to 0.0.0.0 (not 127.0.0.1).
-  # A launchd setenv agent persists OLLAMA_HOST=0.0.0.0 across logins so the
-  # macOS Ollama.app binds all interfaces. Install it once with:
-  #   scripts/install-ollama-launchagent.sh
-  # The bare-metal start below uses the same 0.0.0.0 bind so containers can
-  # still reach a headless `ollama serve` when no app is present.
+  # Architecture note: `llama-server` is ONE process serving ONE model. A single
+  # server on :8090 serves BOTH the BFF NL-intent path AND agent reasoning — there
+  # is no longer a separate BFF model vs agent model. The OpenAI-compatible /v1 API
+  # is exposed on the same port.
   #
-  # Default model is the small NON-reasoning model the BFF uses for NL intent /
-  # teaching answers — it must respond under the SPA fetch timeout (qwen3:* is a
-  # reasoning model that blows it). agent-service pulls qwen3:8b separately below.
-  local ollama_model="${OLLAMA_MODEL:-qwen2.5:3b}"
-  local ollama_base="${OLLAMA_BASE_URL:-http://localhost:11434}"
+  # Durability note: for the Docker/k8s deployments the BFF reaches llama.cpp via
+  # host.docker.internal, so we bind 0.0.0.0 via the --host flag (no launchd hack
+  # is needed — llama-server binds all interfaces directly).
+  #
+  # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
+  # (8090 avoids the MCP server's :8080).
+  local llamacpp_model="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"
+  local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
-  local ollama_host ollama_port
-  ollama_host=$(echo "$ollama_base" | sed -E 's|https?://([^:/]+).*|\1|')
-  ollama_port=$(echo "$ollama_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
-  [[ "$ollama_port" == "$ollama_base" ]] && ollama_port="11434"  # sed produced no match → default
+  local llamacpp_host llamacpp_port
+  llamacpp_host=$(echo "$llamacpp_base" | sed -E 's|https?://([^:/]+).*|\1|')
+  llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
+  [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
 
-  if [[ "$ollama_host" != "localhost" && "$ollama_host" != "127.0.0.1" ]]; then
-    # Remote Ollama — just check reachability, never try to start locally
-    if curl -sf --max-time 3 "${ollama_base}/api/tags" >/dev/null 2>&1; then
-      ok "Ollama reachable at ${ollama_base} — model: ${ollama_model}"
+  if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
+    # Remote llama.cpp — just check reachability, never try to start locally
+    if curl -sf --max-time 3 "${llamacpp_base}/health" >/dev/null 2>&1 \
+       || curl -sf --max-time 3 "${llamacpp_base}/v1/models" >/dev/null 2>&1; then
+      ok "llama.cpp reachable at ${llamacpp_base} — model: ${llamacpp_model}"
     else
-      warn "Ollama at ${ollama_base} not reachable — NL fallback may be disabled"
+      warn "llama.cpp at ${llamacpp_base} not reachable — NL fallback may be disabled"
     fi
-  elif ! command -v ollama >/dev/null 2>&1; then
-    warn "ollama not found — NL fallback LLM disabled."
+  elif ! command -v llama-server >/dev/null 2>&1; then
+    warn "llama-server not found — NL fallback LLM disabled."
     # Only offer interactive install when stdin is a real TTY (i.e. the user
     # launched run.sh directly). Suppress the prompt during bootstrap restarts
     # or any non-interactive invocation — just print the install hint.
     if [[ -t 0 ]]; then
       local _answer=""
-      read -r -p "  Install Ollama now for NL intent routing? [Y/n] " _answer </dev/tty 2>/dev/null || true
+      read -r -p "  Install llama.cpp now for NL intent routing? [Y/n] " _answer </dev/tty 2>/dev/null || true
       [[ -z "$_answer" ]] && _answer="y"
       case "$_answer" in
         y|Y|yes|YES)
           if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-            echo "  Installing Ollama via Homebrew..."
-            brew install ollama --quiet && echo "  [OK] Ollama installed." \
-              || { warn "brew install ollama failed — install from https://ollama.ai"; }
+            echo "  Installing llama.cpp via Homebrew..."
+            brew install llama.cpp --quiet && echo "  [OK] llama.cpp installed." \
+              || { warn "brew install llama.cpp failed — build from https://github.com/ggml-org/llama.cpp"; }
           else
-            echo "  Downloading and installing Ollama..."
-            curl -fsSL https://ollama.ai/install.sh | sh \
-              || { warn "Ollama install failed — install from https://ollama.ai"; }
+            warn "Automatic install unavailable on this platform — build from https://github.com/ggml-org/llama.cpp"
           fi
-          if command -v ollama >/dev/null 2>&1; then
-            echo "  Pulling model ${ollama_model}..."
-            ollama pull "${ollama_model}" && echo "  [OK] Model ${ollama_model} ready." \
-              || warn "Model pull failed — run 'ollama pull ${ollama_model}' manually."
-            echo "  Pulling qwen3:8b for agent reasoning mode…"
-            ollama pull qwen3:8b && echo "  [OK] Model qwen3:8b ready." \
-              || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-            OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve > /tmp/demo-ollama.log 2>&1 &
-            echo $! > /tmp/demo-ollama.pid
+          if command -v llama-server >/dev/null 2>&1; then
+            echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
+            llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+            echo $! > /tmp/demo-llamacpp.pid
             local _i=0
-            while [[ $_i -lt 8 ]]; do
-              port_listening "${ollama_port}" && break
+            while [[ $_i -lt 60 ]]; do
+              curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && break
               sleep 1; (( _i++ )) || true
             done
-            port_listening "${ollama_port}" \
-              && ok "Ollama started on :${ollama_port} — model: ${ollama_model}" \
-              || warn "Ollama did not start — check /tmp/demo-ollama.log"
+            curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 \
+              && ok "llama.cpp started on :8090 — model: ${llamacpp_model}" \
+              || warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
           fi
           ;;
-        *) warn "Skipping Ollama — NL fallback disabled. Install later: https://ollama.ai" ;;
+        *) warn "Skipping llama.cpp — NL fallback disabled. Install later: https://github.com/ggml-org/llama.cpp" ;;
       esac
     else
-      warn "  Install it for NL intent routing: https://ollama.ai  (or: brew install ollama)"
+      warn "  Install it for NL intent routing: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp)"
     fi
-  elif port_listening "${ollama_port}"; then
-    ok "Ollama running on :${ollama_port} — model: ${ollama_model}"
-    if ! ollama list 2>/dev/null | grep -q "${ollama_model}"; then
-      echo "  Pulling ${ollama_model} for BFF NL intent routing…"
-      ollama pull "${ollama_model}" || warn "${ollama_model} pull failed — 'Ollama only' NL routing may be unavailable"
-    fi
-    if ! ollama list 2>/dev/null | grep -q "qwen3:8b"; then
-      echo "  Pulling qwen3:8b for agent reasoning mode…"
-      ollama pull qwen3:8b || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-    fi
+  elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
+    ok "llama.cpp running on :${llamacpp_port} — model: ${llamacpp_model}"
   else
-    echo -e "  ${CYAN}[SPIN]${RESET}  Starting Ollama (model: ${ollama_model})…"
-    OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve > /tmp/demo-ollama.log 2>&1 &
-    echo $! > /tmp/demo-ollama.pid
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
+    # The -hf flag downloads + caches the GGUF from HuggingFace on first start
+    # (a no-op once cached) — this replaces the old model-pull step.
+    llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+    echo $! > /tmp/demo-llamacpp.pid
     local i=0
-    while [[ $i -lt 8 ]]; do
-      port_listening "${ollama_port}" && break
+    while [[ $i -lt 60 ]]; do
+      curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1 && break
       sleep 1; (( i++ )) || true
     done
-    if port_listening "${ollama_port}"; then
-      ok "Ollama started on :${ollama_port} — model: ${ollama_model}"
-      if ! ollama list 2>/dev/null | grep -q "${ollama_model}"; then
-        echo "  Pulling ${ollama_model} for BFF NL intent routing…"
-        ollama pull "${ollama_model}" || warn "${ollama_model} pull failed — 'Ollama only' NL routing may be unavailable"
-      fi
-      if ! ollama list 2>/dev/null | grep -q "qwen3:8b"; then
-        echo "  Pulling qwen3:8b for agent reasoning mode…"
-        ollama pull qwen3:8b || warn "qwen3:8b pull failed — 'Ollama only' agent mode may be unavailable"
-      fi
+    if curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1; then
+      ok "llama.cpp started on :8090 — model: ${llamacpp_model}"
     else
-      warn "Ollama did not start on :${ollama_port} — check /tmp/demo-ollama.log"
+      warn "llama.cpp did not become ready on :8090 — check /tmp/demo-llamacpp.log"
     fi
   fi
 

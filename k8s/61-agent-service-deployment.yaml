@@ -55,7 +55,7 @@ spec:
             memory: "256Mi"
             cpu: "100m"
           limits:
-            # Bumped 512Mi -> 1Gi: the ollama reasoning path (@langchain/ollama +
+            # Bumped 512Mi -> 1Gi: the llama.cpp reasoning path (@langchain/openai +
             # buffering a multi-second model response) ran tight at 512Mi (an extra
             # in-pod node process OOMed), a suspect in the empty-answer investigation.
             memory: "1Gi"

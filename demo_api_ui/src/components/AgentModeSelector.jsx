@@ -7,8 +7,8 @@ import "./AgentModeSelector.css";
 // provider; heuristics needs none. A mode is greyed out when its provider is
 // unconfigured/unreachable — the honest disabled state that replaced the old
 // silent Helix fallback.
-const CORE_MODE_IDS = ['heuristics', 'ollama', 'claude', 'helix_google'];
-const MODE_PROVIDER = { heuristics: null, ollama: 'ollama', claude: 'anthropic', helix_google: 'helix' };
+const CORE_MODE_IDS = ['heuristics', 'llamacpp', 'claude', 'helix_google'];
+const MODE_PROVIDER = { heuristics: null, llamacpp: 'llamacpp', claude: 'anthropic', helix_google: 'helix' };
 
 // `compact` = condensed variant for the BankingAgent header.
 // `onChange` (optional) is notified { mode, provider } after a committed
@@ -26,25 +26,25 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     keySet,
   } = useLangchainProvider();
 
-  // Ollama availability is a live reachability probe (the daemon may be down or
-  // the model not pulled); anthropic/helix come from the honest sync keySet.
+  // llama.cpp availability is a live reachability probe (the server may be down or
+  // no model loaded); anthropic/helix come from the honest sync keySet.
   // null = not yet probed (treated as available so we never flicker-disable).
-  const [ollamaOk, setOllamaOk] = useState(null);
+  const [llamaCppOk, setLlamaCppOk] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/langchain/provider/ollama/status", { credentials: "include" })
+    fetch("/api/langchain/provider/llamacpp/status", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setOllamaOk(d ? d.status === "available" : false); })
-      .catch(() => { if (!cancelled) setOllamaOk(false); });
+      .then((d) => { if (!cancelled) setLlamaCppOk(d ? d.status === "available" : false); })
+      .catch(() => { if (!cancelled) setLlamaCppOk(false); });
     return () => { cancelled = true; };
   }, []);
 
   // A mode is available when its provider is configured/reachable. Heuristics is
-  // always available; an un-probed Ollama is assumed available (avoid flicker).
+  // always available; an un-probed llama.cpp is assumed available (avoid flicker).
   const modeAvailable = (id) => {
     const p = MODE_PROVIDER[id];
     if (!p) return true;
-    if (p === 'ollama') return ollamaOk !== false;
+    if (p === 'llamacpp') return llamaCppOk !== false;
     return keySet?.[p] === true;
   };
 

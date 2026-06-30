@@ -5,9 +5,8 @@ langchain>=1.3.0,<2.0.0
 langchain-core>=1.4.0,<2.0.0
 # LangGraph — stateful agent runtime with MemorySaver checkpointer
 langgraph>=1.2.0,<2.0.0
-langchain-openai>=1.3.0,<2.0.0     # LM Studio OpenAI-compatible endpoint (provider="lmstudio")
+langchain-openai>=1.3.0,<2.0.0     # OpenAI-compatible local endpoints: LM Studio (provider="lmstudio") and llama.cpp (provider="llamacpp")
 langchain-anthropic>=1.4.0,<2.0.0  # LM Studio Anthropic-compatible endpoint (provider="anthropic-lmstudio")
-langchain-ollama>=1.1.0,<2.0.0     # Ollama local endpoint, native tool-calling (provider="ollama")
 pydantic>=2.0.0,<3.0.0
 fastapi>=0.100.0
 uvicorn>=0.20.0
@@ -36,9 +35,8 @@ langchain>=1.3.0,<2.0.0
 langchain-core>=1.4.0,<2.0.0
 # LangGraph — stateful agent runtime with MemorySaver checkpointer
 langgraph>=1.2.0,<2.0.0
-langchain-openai>=1.3.0,<2.0.0     # LM Studio OpenAI-compatible endpoint (provider="lmstudio")
+langchain-openai>=1.3.0,<2.0.0     # OpenAI-compatible local endpoints: LM Studio (provider="lmstudio") and llama.cpp (provider="llamacpp")
 langchain-anthropic>=1.4.0,<2.0.0  # LM Studio Anthropic-compatible endpoint (provider="anthropic-lmstudio")
-langchain-ollama>=1.1.0,<2.0.0     # Ollama local endpoint, native tool-calling (provider="ollama")
 pydantic>=2.0.0,<3.0.0
 fastapi>=0.100.0
 uvicorn>=0.20.0
