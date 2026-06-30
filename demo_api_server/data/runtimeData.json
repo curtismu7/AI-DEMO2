@@ -2924,93 +2924,6 @@
   ],
   "activityLogs": [
     {
-      "id": "835e2c06-6073-4363-a662-c30ab9504d9e",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:18:37.717Z"
-    },
-    {
-      "id": "c2d1ce57-788b-421f-bac9-6dbccccdb6dd",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:18:37.727Z"
-    },
-    {
-      "id": "0e139c12-eaa1-4fe7-90e0-f8b06f5d4dfb",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:18:37.733Z"
-      },
-      "responseStatus": 200,
-      "duration": 9,
-      "timestamp": "2026-06-30T18:18:37.733Z"
-    },
-    {
       "id": "ed093bd1-8184-44ba-9243-004fdd2f9f78",
       "userId": null,
       "username": null,
@@ -44886,6 +44799,60 @@
       "responseStatus": 200,
       "duration": 1,
       "timestamp": "2026-06-30T19:59:13.978Z"
+    },
+    {
+      "id": "97354241-f569-4ec9-a0e4-51941bb9d2b6",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:59:44.042Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:59:44.042Z"
+    },
+    {
+      "id": "cf9a88ef-c89d-420b-9057-edc535879da7",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T20:00:14.116Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T20:00:14.116Z"
+    },
+    {
+      "id": "28a2e4c0-4e07-456e-abde-b0b830a88749",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T20:00:44.168Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T20:00:44.168Z"
     }
   ],
   "subscriptions": []
