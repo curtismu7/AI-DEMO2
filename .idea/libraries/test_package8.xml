@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="test-package8">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/demo_hitl_service/node_modules/thread-stream/test/dir with spaces/test-package.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

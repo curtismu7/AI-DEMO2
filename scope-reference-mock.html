@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scope Reference — Mock</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; margin: 0; padding: 2rem; color: #111827; }
+  h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 0.25rem; }
+  .lead { font-size: 0.9rem; color: #374151; margin: 0 0 1.5rem; }
+  code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 0.05rem 0.4rem; font-size: 0.78rem; color: #111827; font-family: 'SF Mono', 'Fira Code', Menlo, monospace; }
+
+  /* ── Summary strip ── */
+  .summary-strip {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+    padding: 0.9rem 1.25rem; margin-bottom: 1.5rem;
+  }
+  .stat { display: flex; align-items: baseline; gap: 0.4rem; padding-right: 1rem; border-right: 1px solid #e0e0e0; }
+  .stat:last-of-type { border-right: none; }
+  .stat-value { font-size: 1.35rem; font-weight: 700; color: #1d4ed8; }
+  .stat-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #374151; }
+  .summary-actions { margin-left: auto; }
+  .btn { background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 600; color: #374151; cursor: pointer; }
+  .btn:hover { background: #f9fafb; }
+
+  /* ── Section headings ── */
+  .section-title { margin: 1.75rem 0 0.75rem; font-size: 1.05rem; font-weight: 700; color: #111827; }
+
+  /* ── Collapsible resource card ── */
+  .resource-card {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+    margin-bottom: 1rem; overflow: hidden;
+  }
+
+  /* The <details> element drives collapse */
+  .resource-card details { display: block; }
+
+  /* ── Card header = the <summary> ── */
+  .resource-card summary {
+    display: flex; flex-direction: column; gap: 0;
+    padding: 1rem 1.25rem 0.85rem;
+    cursor: pointer;
+    list-style: none;
+    border-bottom: 1px solid transparent; /* shows when open */
+  }
+  .resource-card details[open] > summary {
+    border-bottom-color: #e5e7eb;
+  }
+  /* Remove default disclosure triangle in Webkit */
+  .resource-card summary::-webkit-details-marker { display: none; }
+
+  .card-title-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+  }
+  .card-title-row h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #111827; }
+
+  .badge {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+    padding: 0.2rem 0.55rem; border-radius: 999px;
+    background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;
+  }
+  .badge--custom { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+  .card-count { font-size: 0.78rem; font-weight: 600; color: #374151; }
+
+  /* Chevron rotates when open */
+  .chevron {
+    margin-left: auto;
+    width: 18px; height: 18px;
+    flex-shrink: 0;
+    color: #9ca3af;
+    transition: transform 0.18s ease;
+  }
+  details[open] .chevron { transform: rotate(180deg); }
+
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 0.35rem 2rem;
+    margin: 0.6rem 0 0;
+  }
+  .card-meta-item { display: flex; align-items: baseline; gap: 0.45rem; }
+  .card-meta-item dt { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #374151; }
+  .card-meta-item dd { margin: 0; font-size: 0.8rem; }
+
+  /* ── Scope table ── */
+  .scope-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
+  .scope-table thead th {
+    text-align: left; padding: 0.55rem 1.25rem;
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #374151;
+  }
+  .scope-table thead th:first-child { width: 260px; }
+
+  .scope-table td {
+    padding: 0.55rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb; /* visible lines between rows */
+    vertical-align: top;
+  }
+  .scope-table tbody tr:last-child td { border-bottom: none; }
+
+  /* Alternating row tint (optional — remove if too busy) */
+  .scope-table tbody tr:nth-child(even) td { background: #f9fafb; }
+
+  .scope-chip {
+    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px;
+    padding: 0.1rem 0.45rem; font-size: 0.82rem; font-weight: 600;
+    color: #1d4ed8; font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+    white-space: nowrap;
+  }
+  .scope-desc { color: #333333; line-height: 1.5; }
+
+  .card-empty { padding: 1rem 1.25rem; font-size: 0.88rem; color: #374151; }
+
+  /* ── Vocab details ── */
+  .vocab-section {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+    margin-top: 1.5rem; padding: 0.9rem 1.25rem;
+  }
+  .vocab-section summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: #111827; list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+  .vocab-section summary::-webkit-details-marker { display: none; }
+  .vocab-section details[open] .chevron { transform: rotate(180deg); }
+  .vocab-doc {
+    white-space: pre-wrap; word-break: break-word;
+    background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 1rem; margin: 0.85rem 0 0; font-size: 0.82rem; line-height: 1.55;
+    max-height: 60vh; overflow: auto; color: #111827;
+    font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  }
+</style>
+</head>
+<body>
+
+<h1>Scope Reference</h1>
+<p class="lead">Live resource servers and scopes from PingOne — environment <code>Acme Corp</code>, region <code>NA</code>.</p>
+
+<!-- Summary strip -->
+<div class="summary-strip">
+  <div class="stat"><span class="stat-value">3</span><span class="stat-label">Resources</span></div>
+  <div class="stat"><span class="stat-value">2</span><span class="stat-label">Custom</span></div>
+  <div class="stat"><span class="stat-value">9</span><span class="stat-label">Scopes</span></div>
+  <div class="summary-actions"><button class="btn">Refresh</button></div>
+</div>
+
+<!-- Custom resources -->
+<h2 class="section-title">Custom resource servers</h2>
+
+<!-- Resource card 1 — open by default -->
+<div class="resource-card">
+  <details open>
+    <summary>
+      <div class="card-title-row">
+        <h3>Banking API</h3>
+        <span class="badge badge--custom">CUSTOM</span>
+        <span class="card-count">5 scopes</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <dl class="card-meta">
+        <div class="card-meta-item"><dt>Audience</dt><dd><code>https://api.acme.com/banking</code></dd></div>
+        <div class="card-meta-item"><dt>Resource ID</dt><dd><code>8f3a1c2d-4e5f-6789-abcd-ef0123456789</code></dd></div>
+      </dl>
+    </summary>
+    <table class="scope-table">
+      <thead>
+        <tr><th>Scope</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="scope-chip">accounts:read</code></td>
+          <td class="scope-desc">Read access to account balances and basic account information.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">accounts:write</code></td>
+          <td class="scope-desc">Create and update account records. Does not include deletion.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">transactions:read</code></td>
+          <td class="scope-desc">View transaction history and pending items for owned accounts.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">transactions:write</code></td>
+          <td class="scope-desc">Initiate new transactions, including transfers and payments.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">admin</code></td>
+          <td class="scope-desc">Full administrative access. Restricted to internal service accounts.</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<!-- Resource card 2 — collapsed by default -->
+<div class="resource-card">
+  <details>
+    <summary>
+      <div class="card-title-row">
+        <h3>Customer Profile Service</h3>
+        <span class="badge badge--custom">CUSTOM</span>
+        <span class="card-count">3 scopes</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <dl class="card-meta">
+        <div class="card-meta-item"><dt>Audience</dt><dd><code>https://api.acme.com/profiles</code></dd></div>
+        <div class="card-meta-item"><dt>Resource ID</dt><dd><code>a1b2c3d4-e5f6-7890-abcd-123456789012</code></dd></div>
+      </dl>
+    </summary>
+    <table class="scope-table">
+      <thead>
+        <tr><th>Scope</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="scope-chip">profile:read</code></td>
+          <td class="scope-desc">Read customer name, contact info, and preferences.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">profile:write</code></td>
+          <td class="scope-desc">Update customer contact details and communication preferences.</td>
+        </tr>
+        <tr>
+          <td><code class="scope-chip">profile:delete</code></td>
+          <td class="scope-desc">Permanently delete a customer profile. Requires elevated privileges.</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<!-- Built-in resources -->
+<h2 class="section-title">Built-in PingOne resources</h2>
+
+<!-- Resource card 3 — collapsed -->
+<div class="resource-card">
+  <details>
+    <summary>
+      <div class="card-title-row">
+        <h3>PingOne API</h3>
+        <span class="badge">PINGONE_API</span>
+        <span class="card-count">1 scope</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <dl class="card-meta">
+        <div class="card-meta-item"><dt>Audience</dt><dd><code>https://api.pingone.com/v1</code></dd></div>
+        <div class="card-meta-item"><dt>Resource ID</dt><dd><code>sys-pingone-api-000000</code></dd></div>
+      </dl>
+    </summary>
+    <table class="scope-table">
+      <thead>
+        <tr><th>Scope</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="scope-chip">p1:read:user</code></td>
+          <td class="scope-desc">Read user attributes from the PingOne directory.</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<!-- Vocab document — collapsible -->
+<div class="vocab-section">
+  <details>
+    <summary>
+      Canonical scope vocabulary document (SCOPE_VOCABULARY.md)
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </summary>
+    <pre class="vocab-doc"># SCOPE_VOCABULARY.md
+
+## Naming convention
+  &lt;resource&gt;:&lt;action&gt;
+
+## Standard actions
+  read   — non-mutating access
+  write  — create / update
+  delete — permanent removal
+  admin  — unrestricted access (service accounts only)
+
+## Resource prefixes
+  accounts     — deposit / credit accounts
+  transactions — ledger entries
+  profile      — customer identity record
+  p1           — PingOne platform built-ins</pre>
+  </details>
+</div>
+
+</body>
+</html>

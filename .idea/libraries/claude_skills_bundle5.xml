@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="claude-skills-bundle5">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/.claude/worktrees/fix+redirect-uri-scope-topology/claude-skills-bundle.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
