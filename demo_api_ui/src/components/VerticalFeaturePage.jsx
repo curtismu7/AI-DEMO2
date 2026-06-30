@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatPercent } from '../utils/formatters';
 import './VerticalFeaturePage.css';
 
 function fmtMoney(amt, currency = 'USD') {
@@ -9,8 +9,7 @@ function fmtMoney(amt, currency = 'USD') {
 }
 
 function fmtPct(rate) {
-  if (typeof rate !== 'number') return String(rate ?? '');
-  return `${rate.toFixed(3)}%`;
+  return formatPercent(rate, 3);
 }
 
 function formatValue(value, fmt, currency) {
@@ -32,16 +31,18 @@ export default function VerticalFeaturePage() {
   // accent-aware per vertical without a color library or extra manifest fields.
   // (bg/light/code = pale tints toward white; text/dd = dark shades toward black.)
   const accentColor = fp?.accentColor || '#ca8a04';
-  const mix = (pct, other) => `color-mix(in srgb, ${accentColor} ${pct}%, ${other})`;
 
-  const styles = {
-    '--vfp-accent':      accentColor,
-    '--vfp-accent-bg':   mix(6, 'white'),
-    '--vfp-accent-lt':   mix(20, 'white'),
-    '--vfp-accent-code': mix(12, 'white'),
-    '--vfp-accent-text': mix(45, 'black'),
-    '--vfp-accent-dd':   mix(60, 'black'),
-  };
+  const styles = useMemo(() => {
+    const mix = (pct, other) => `color-mix(in srgb, ${accentColor} ${pct}%, ${other})`;
+    return {
+      '--vfp-accent':      accentColor,
+      '--vfp-accent-bg':   mix(6, 'white'),
+      '--vfp-accent-lt':   mix(20, 'white'),
+      '--vfp-accent-code': mix(12, 'white'),
+      '--vfp-accent-text': mix(45, 'black'),
+      '--vfp-accent-dd':   mix(60, 'black'),
+    };
+  }, [accentColor]);
 
   const dataKey = useMemo(
     () => {
