@@ -147,7 +147,6 @@ body > .banking-agent-float-root .banking-agent-panel {
 
   position: fixed;
   top: 100px;
-  bottom: var(--agent-panel-bottom, 24px);
   right: 16px;
   z-index: 10050;
   width: 380px;
