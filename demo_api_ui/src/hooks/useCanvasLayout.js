@@ -19,7 +19,7 @@ const SEED_POSITIONS = {
   bff:               { x: 165,  y: 340 },
   'pingone-sso':     { x: 255,  y: 60  },
   'agent-service':   { x: 420,  y: 180 },
-  'a2a-orchestrator':{ x: 420,  y: 360 },
+  'a2a-orchestrator':{ x: 300,  y: 480 },
   'a2a-specialist':  { x: 500,  y: 520 },
   'mcp-gateway':     { x: 570,  y: 340 },
   'authz-server':    { x: 930,  y: 80  },
