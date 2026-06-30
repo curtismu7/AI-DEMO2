@@ -7,7 +7,7 @@ const W = 155;
 const H = 86;
 const H_ICON = 36;   // colored icon strip height
 const R = 8;
-const STAGE_W = 1400;  // fixed wide canvas — wrapper scrolls on small screens
+const STAGE_W = 1600;  // fixed wide canvas — wrapper scrolls on small screens
 
 const LAYER_STYLE = {
   client:   { fill: '#f0f4ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1', icon: '#4f46e5' },
