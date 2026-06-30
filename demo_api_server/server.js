@@ -1188,6 +1188,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
+app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, adminRoutes);
