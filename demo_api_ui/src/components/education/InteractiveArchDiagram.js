@@ -90,6 +90,18 @@ const NODES = {
     sub: "api_key disposition :8082",
     type: "api",
   },
+  a2aOrch: {
+    icon: "A2A",
+    label: "A2A Orchestrator",
+    sub: "CrewAI crew: decide / authorize",
+    type: "agent",
+  },
+  specialist: {
+    icon: "SPC",
+    label: "Specialist Agent",
+    sub: "Investment / Records / Purchase",
+    type: "agent",
+  },
 };
 
 const ARROWS = [
@@ -119,6 +131,24 @@ const ARROWS = [
       api_key: "X-API-Key + X-User-Sub -> Mortgage",
     },
     rfc: "RFC_8693",
+  },
+  {
+    id: "delegate",
+    label: "A2A: delegate (RFC 8693 nested act)",
+    claims: {
+      flow: "BFF -> A2A Orchestrator (decide / coordinate / authorize)",
+      exchange: "nested RFC 8693 act -> Specialist Agent (PingOne approves)",
+    },
+    rfc: "RFC_8693",
+  },
+  {
+    id: "specialist_tool",
+    label: "Narrow tool call",
+    claims: {
+      transport: "Specialist -> MCP Gateway (JSON-RPC tools/call)",
+      token: "narrowed access token (least privilege)",
+    },
+    rfc: "MCP_SPEC",
   },
 ];
 
@@ -233,7 +263,15 @@ export default function InteractiveArchDiagram() {
             onClick={setSelectedNode}
           />
           <Node nodeKey="llm" isActive={false} onClick={setSelectedNode} />
+          <Node
+            nodeKey="a2aOrch"
+            isActive={activeNodes.has("a2aOrch")}
+            onClick={setSelectedNode}
+          />
         </div>
+
+        {/* A2A delegation: BFF -> A2A Orchestrator -> Specialist Agent (nested RFC 8693) */}
+        <Arrow arrow={ARROWS[3]} isActive={activeNodes.has("a2aOrch")} />
 
         <Arrow arrow={ARROWS[1]} isActive={activeNodes.has("gateway")} />
 
@@ -244,7 +282,15 @@ export default function InteractiveArchDiagram() {
             isActive={activeNodes.has("gateway")}
             onClick={setSelectedNode}
           />
+          <Node
+            nodeKey="specialist"
+            isActive={activeNodes.has("specialist")}
+            onClick={setSelectedNode}
+          />
         </div>
+
+        {/* Specialist Agent issues narrow tool calls back through the MCP Gateway */}
+        <Arrow arrow={ARROWS[4]} isActive={activeNodes.has("specialist")} />
 
         <Arrow arrow={ARROWS[2]} isActive={activeNodes.has("mcp")} />
 
