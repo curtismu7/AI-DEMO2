@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester from './ResourceServerTester';
+import { formatCurrency, formatDateTime } from '../utils/formatters';
 import './ResourceServerPage.css';
 
 const CLAIM_GLOSSARY = {
@@ -26,14 +27,6 @@ const CLAIM_GLOSSARY = {
   family_name: 'Last/family name of the user',
 };
 
-function formatTimestamp(ts) {
-  if (!ts) return '—';
-  try {
-    return new Date(typeof ts === 'number' ? ts * 1000 : ts).toLocaleString();
-  } catch {
-    return String(ts);
-  }
-}
 
 function calculateTimeRemaining(expTs) {
   if (!expTs) return null;
@@ -77,10 +70,6 @@ function ScopesBadges({ scopes, highlightBanking }) {
       ))}
     </div>
   );
-}
-
-function formatBalance(amount, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount || 0);
 }
 
 export default function ResourceServerPage() {
@@ -187,7 +176,7 @@ export default function ResourceServerPage() {
         <div className="rsp-banking-col">
           <div className="rsp-hero">
             <div className="rsp-hero-label">Total Balance</div>
-            <div className="rsp-hero-balance">{formatBalance(totalBalance)}</div>
+            <div className="rsp-hero-balance">{formatCurrency(totalBalance || 0, 'USD')}</div>
             <div className="rsp-hero-count">{accounts?.length || 0} account{accounts?.length !== 1 ? 's' : ''}</div>
           </div>
 
@@ -200,7 +189,7 @@ export default function ResourceServerPage() {
                   </span>
                   <span className="rsp-account-number">{acct.accountNumber}</span>
                 </div>
-                <div className="rsp-account-balance">{formatBalance(acct.balance, acct.currency)}</div>
+                <div className="rsp-account-balance">{formatCurrency(acct.balance || 0, acct.currency || 'USD')}</div>
                 <div className="rsp-account-name">{acct.name || ''}</div>
               </div>
             ))}
@@ -213,7 +202,7 @@ export default function ResourceServerPage() {
                 <div key={txn.id} className="rsp-txn-row">
                   <span className="rsp-txn-desc">{txn.description}</span>
                   <span className={`rsp-txn-amount ${txn.amount >= 0 ? 'positive' : 'negative'}`}>
-                    {txn.amount >= 0 ? '+' : ''}{formatBalance(txn.amount)}
+                    {txn.amount >= 0 ? '+' : ''}{formatCurrency(txn.amount || 0, 'USD')}
                   </span>
                 </div>
               ))}
@@ -262,8 +251,8 @@ export default function ResourceServerPage() {
             <ClaimRow label="Client ID" value={accessTokenClaims?.client_id} glossary={CLAIM_GLOSSARY.client_id} />
             <ClaimRow label="Authorized Party (azp)" value={accessTokenClaims?.azp} glossary={CLAIM_GLOSSARY.azp} />
             <ClaimRow label="JWT ID (jti)" value={accessTokenClaims?.jti} glossary={CLAIM_GLOSSARY.jti} />
-            <ClaimRow label="Issued At" value={accessTokenClaims?.iat ? formatTimestamp(accessTokenClaims.iat) : null} glossary={CLAIM_GLOSSARY.iat} />
-            <ClaimRow label="Expires At" value={accessTokenClaims?.exp ? formatTimestamp(accessTokenClaims.exp) : null} glossary={CLAIM_GLOSSARY.exp} />
+            <ClaimRow label="Issued At" value={accessTokenClaims?.iat ? formatDateTime(accessTokenClaims.iat) || '—' : null} glossary={CLAIM_GLOSSARY.iat} />
+            <ClaimRow label="Expires At" value={accessTokenClaims?.exp ? formatDateTime(accessTokenClaims.exp) || '—' : null} glossary={CLAIM_GLOSSARY.exp} />
             <ClaimRow label="ACR" value={accessTokenClaims?.acr} glossary={CLAIM_GLOSSARY.acr} />
 
             {/* Actor claim (RFC 8693 delegation proof) */}
@@ -295,7 +284,7 @@ export default function ResourceServerPage() {
               <ClaimRow label="Preferred Username" value={idTokenClaims?.preferred_username} glossary={CLAIM_GLOSSARY.preferred_username} />
               <ClaimRow label="Given Name" value={idTokenClaims?.given_name} glossary={CLAIM_GLOSSARY.given_name} />
               <ClaimRow label="Family Name" value={idTokenClaims?.family_name} glossary={CLAIM_GLOSSARY.family_name} />
-              <ClaimRow label="Auth Time" value={idTokenClaims?.auth_time ? formatTimestamp(idTokenClaims.auth_time) : null} glossary={CLAIM_GLOSSARY.auth_time} />
+              <ClaimRow label="Auth Time" value={idTokenClaims?.auth_time ? formatDateTime(idTokenClaims.auth_time) || '—' : null} glossary={CLAIM_GLOSSARY.auth_time} />
               <ClaimRow label="ACR" value={idTokenClaims?.acr} glossary={CLAIM_GLOSSARY.acr} />
             </div>
 

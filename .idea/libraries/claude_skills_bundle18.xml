@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="claude-skills-bundle18">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/.claude/worktrees/oauth-academy-ai-chips/claude-skills-bundle.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

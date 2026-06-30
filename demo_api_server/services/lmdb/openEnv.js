@@ -20,6 +20,8 @@ function openEnv() {
     mapSize: 128 * 1024 * 1024,
     noSync: false,
   });
+  // Initialize named DBs upfront to reserve them in the environment
+  getDb('conversations');
   return _env;
 }
 

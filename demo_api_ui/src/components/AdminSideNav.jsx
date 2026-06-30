@@ -579,15 +579,19 @@ export default function AdminSideNav({ user }) {
       icon: "arc",
       children: [
         {
+          label: "System Diagram",
+          path: "/architecture/system",
+          icon: "arc",
+        },
+        {
           label: "Overview Diagram",
           path: "/architecture/overview",
           icon: "bld",
         },
         {
           label: "Token Flow (Interactive)",
+          path: "/architecture/token-flow",
           icon: "lnk",
-          action: () =>
-            window.open("/architecture/token-flow.html", "_blank", "noopener"),
         },
         { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
         {
@@ -648,6 +652,7 @@ export default function AdminSideNav({ user }) {
     { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
     { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
     { label: "Learning Hub", path: "/learning", icon: "doc" },
+    { label: "llama-vscode Guide", path: "/llama-vscode-guide", icon: "doc" },
     // Always-visible top-level entry to the past-reports list. Kept after every
     // group referenced by the expandedSections adminIdx/customerIdx map so the
     // auto-expand offsets stay valid. (Run Reports also lives under Monitoring.)

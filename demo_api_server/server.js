@@ -107,6 +107,9 @@ const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
+const adminAgentRoutes = require('./routes/adminAgentRoutes');
+const opsAgentRoutes = require('./routes/opsAgentRoutes');
+const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
@@ -142,6 +145,7 @@ const agentInvokeRoutes = require('./routes/agentInvokeRoute');
 const intentAuthRoutes = require('./routes/intentAuthRoute');
 const langchainConfigRoutes = require('./routes/langchainConfig');
 const lmstudioRoutes = require('./routes/lmstudio');
+const conversationRoutes = require('./routes/conversations');
 const tokenRoutes = require('./routes/tokens');
 const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
@@ -192,6 +196,7 @@ const { registerCallbacks } = require('./services/callbackDispatcher');
 // Import middleware
 const {
     authenticateToken,
+    requireAdmin,
     requireSession
 } = require('./middleware/auth');
 const {
@@ -1015,6 +1020,11 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
 app.use('/api/demo-agent', demoAgentRoutes);
+// Admin agent: isolated stack for administrative operations
+app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
+// A2A Orchestrator: delegation decision and specialist routing
+app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
@@ -1026,6 +1036,7 @@ app.post('/api/codegraph/reindex', codegraphReindexProxy);
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
 app.use('/api/admin/authorize', authorizeConfigRoutes);
 app.use('/api/introspect', introspectRoutes);

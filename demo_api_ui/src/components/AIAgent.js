@@ -14,12 +14,9 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
-import InlineTokenChainView from "./InlineTokenChainView";
+import InlineTokenChainView from './InlineTokenChainView';
 import EventStreamPanel from "./EventStreamPanel";
-import {
-  navigateToCustomerOAuthForceLogin,
-  requestSilentReauth,
-} from "../utils/authUi";
+import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
@@ -89,38 +86,21 @@ import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
-import {
-  claimPendingNl,
-  clampPanelPosition,
-  makeReentrancyGuard,
-  isAbortError,
-  anySignal,
-} from "./demoAgentSafety";
-import {
-  BX_AGENT_PENDING_NL_KEY,
-  BX_AGENT_PENDING_UC_ID_KEY,
-} from "../constants/agentPendingKeys";
+import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal } from "./demoAgentSafety";
+import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
 import { useAgentState } from "../hooks/useAgentState";
 import { useNewItems } from "../hooks/useNewItems";
 // Activity narration — "What's happening" plain-English story panel (ff_activity_narration)
 import { useActivityNarrative } from "../context/ActivityNarrativeContext";
-import {
-  reconcileToolSteps,
-  authorizeDecisionToStep,
-  errorStep,
-  answerStep,
-  hitlStep,
-  mapActivityRecord,
-} from "./activity/activityNarration";
+import { reconcileToolSteps, authorizeDecisionToStep, errorStep, answerStep, hitlStep, mapActivityRecord } from "./activity/activityNarration";
 import ActivityNarrativePanel from "./activity/ActivityNarrativePanel";
 // AG-UI Steps 5–6 — observability stores (push model; replaces poll when flag is on)
 import { appendMcpCall } from "../services/mcpCallStore";
 import { appendAuthorizeDecision } from "../services/authorizeDecisionStore";
 import {
   resolveSessionFromAuthTrio,
-  formatCurrency,
   normalizeAgentToolResult,
   enforceVerticalAccountTypes,
   buildConsentIntent,
@@ -197,11 +177,11 @@ const FRONTIER_MODES = ["claude"];
  *  When the provider is unavailable we must NOT silently answer with heuristics —
  *  we tell the user and offer Heuristics as an explicit choice. These are the
  *  three single-brain LLM modes (heuristics-only is the deterministic fourth). */
-const PURE_LLM_MODES = ["llamacpp", "claude", "helix_google"];
+const PURE_LLM_MODES = ["ollama", "claude", "helix_google"];
 const PURE_LLM_LABELS = {
   helix_google: "Helix",
   claude: "Anthropic",
-  llamacpp: "llama.cpp",
+  ollama: "Ollama",
 };
 
 // Shown when the agent endpoint returns success but no reply text — almost always
@@ -220,16 +200,8 @@ const SHOWCASE_RUN_ACTION = {
 // Injection showcase chips → which seed endpoint plants the payload and which
 // read tool surfaces it to the agent.
 const SHOWCASE_INJECTION = {
-  atk_prompt_injection: {
-    seed: "seed-poisoned-transaction",
-    readTool: "get_my_transactions",
-    where: "transaction history",
-  },
-  atk_indirect_injection: {
-    seed: "seed-poisoned-account-note",
-    readTool: "get_my_accounts",
-    where: "account notes",
-  },
+  atk_prompt_injection: { seed: "seed-poisoned-transaction", readTool: "get_my_transactions", where: "transaction history" },
+  atk_indirect_injection: { seed: "seed-poisoned-account-note", readTool: "get_my_accounts", where: "account notes" },
 };
 
 export default function BankingAgent({
@@ -260,11 +232,7 @@ export default function BankingAgent({
   const { chips: customChips, groups: customGroups } = useCustomChips();
   const { mode: agentProviderMode } = useLangchainProvider();
   const { addEvent } = useEventStream();
-  const {
-    pageManifest,
-    agentManifest,
-    activeId: activeVerticalId,
-  } = useVertical();
+  const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
@@ -302,8 +270,7 @@ export default function BankingAgent({
       if (
         actionsPopoutRef.current?.contains(e.target) ||
         discoveryTriggerRef.current?.contains(e.target)
-      )
-        return;
+      ) return;
       setShowDiscovery(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -319,12 +286,7 @@ export default function BankingAgent({
 
   // Position the actions popout as fixed so it escapes panel overflow:hidden clipping.
   useEffect(() => {
-    if (
-      !showDiscovery ||
-      !actionsPopoutRef.current ||
-      !discoveryTriggerRef.current
-    )
-      return;
+    if (!showDiscovery || !actionsPopoutRef.current || !discoveryTriggerRef.current) return;
     const reposition = () => {
       const trigger = discoveryTriggerRef.current;
       const popout = actionsPopoutRef.current;
@@ -334,17 +296,16 @@ export default function BankingAgent({
       // Align right edge of popout with right edge of trigger; clamp to viewport
       let left = rect.right - popoutWidth;
       if (left < 8) left = 8;
-      if (left + popoutWidth > window.innerWidth - 8)
-        left = window.innerWidth - 8 - popoutWidth;
+      if (left + popoutWidth > window.innerWidth - 8) left = window.innerWidth - 8 - popoutWidth;
       popout.style.left = `${left}px`;
       popout.style.top = `${rect.bottom + 4}px`;
     };
     reposition();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
     return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
     };
   }, [showDiscovery]);
 
@@ -356,18 +317,10 @@ export default function BankingAgent({
   // Map agentProviderMode (updated immediately on mode switch via useLangchainProvider)
   // to the provider string the BFF expects. nlMeta.activeLlmProvider is fetched once on
   // mount and goes stale after a mode change, so agentProviderMode wins for explicit modes.
-  const _MODE_PROVIDER_MAP = {
-    llamacpp: "llamacpp",
-    claude: "anthropic",
-    helix_google: "helix",
-    lmstudio: "lmstudio",
-  };
-  const activeLlmProvider =
-    agentProviderMode && agentProviderMode !== "heuristics"
-      ? (_MODE_PROVIDER_MAP[agentProviderMode] ??
-        nlMeta?.activeLlmProvider ??
-        null)
-      : (nlMeta?.activeLlmProvider ?? null);
+  const _MODE_PROVIDER_MAP = { ollama: 'ollama', claude: 'anthropic', helix_google: 'helix', lmstudio: 'lmstudio' };
+  const activeLlmProvider = (agentProviderMode && agentProviderMode !== 'heuristics')
+    ? (_MODE_PROVIDER_MAP[agentProviderMode] ?? nlMeta?.activeLlmProvider ?? null)
+    : (nlMeta?.activeLlmProvider ?? null);
   // Degraded-mode banner: true when the user selected an LLM provider (Helix)
   // but routing fell back to the heuristic parser (Helix unreachable / not
   // configured). Drives a persistent banner in the panel header. Cleared as
@@ -399,12 +352,8 @@ export default function BankingAgent({
   const [sessionTokens, setSessionTokens] = useState({ input: 0, output: 0 });
   const [lifetimeTokens, setLifetimeTokens] = useState(() => {
     try {
-      const stored = JSON.parse(
-        localStorage.getItem("ba_tokens_lifetime") || "null",
-      );
-      return stored && typeof stored.input === "number"
-        ? stored
-        : { input: 0, output: 0 };
+      const stored = JSON.parse(localStorage.getItem('ba_tokens_lifetime') || 'null');
+      return stored && typeof stored.input === 'number' ? stored : { input: 0, output: 0 };
     } catch (_) {
       return { input: 0, output: 0 };
     }
@@ -527,15 +476,8 @@ export default function BankingAgent({
       });
     };
 
-    window.addEventListener(
-      "mcp-elicitation-requested",
-      handleElicitationEvent,
-    );
-    return () =>
-      window.removeEventListener(
-        "mcp-elicitation-requested",
-        handleElicitationEvent,
-      );
+    window.addEventListener('mcp-elicitation-requested', handleElicitationEvent);
+    return () => window.removeEventListener('mcp-elicitation-requested', handleElicitationEvent);
   }, [handleElicitationRequest]);
 
   // Detect FIDO2/WebAuthn support on mount
@@ -654,7 +596,7 @@ export default function BankingAgent({
 
   /** Advanced agent UI mode forces the token chain open so developer overlays are visible. */
   useEffect(() => {
-    if (agentUiMode === "advanced") setShowTokenChain(true);
+    if (agentUiMode === 'advanced') setShowTokenChain(true);
   }, [agentUiMode]);
 
   /** Show/hide RFC info token-event messages in chat. Persisted. */
@@ -674,19 +616,13 @@ export default function BankingAgent({
   /** Whether the heuristic fast-path is enabled (ff_heuristic_enabled). false = LLM-only mode. */
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
   /** Whether the floating results panel is enabled (ff_agent_results_panel). false = panel hidden; results inline only. */
-  const [agentResultsPanelEnabled, setAgentResultsPanelEnabled] =
-    useState(false);
+  const [agentResultsPanelEnabled, setAgentResultsPanelEnabled] = useState(false);
   /** Whether AG-UI streaming is enabled (ff_agui_enabled). false = legacy sendAgentMessage path. */
   const [aguiEnabled, setAguiEnabled] = useState(false);
   /** Whether activity narration is enabled (ff_activity_narration). Controls visibility of the always-on panel. */
-  const [activityNarrationEnabled, setActivityNarrationEnabled] =
-    useState(true);
+  const [activityNarrationEnabled, setActivityNarrationEnabled] = useState(true);
   // AG-UI hooks — only active when aguiEnabled=true; state and run are no-ops otherwise
-  const {
-    state: aguiState,
-    handlers: aguiHandlers,
-    reset: aguiReset,
-  } = useAgentState();
+  const { state: aguiState, handlers: aguiHandlers, reset: aguiReset } = useAgentState();
   // Activity narration context — friendly per-step story (ff_activity_narration).
   const activity = useActivityNarrative();
   // Methods are useCallback-stable; depend on these (not the unstable `activity`
@@ -749,8 +685,7 @@ export default function BankingAgent({
       }))
       .filter((g) => g.chips.length > 0);
 
-    const isBankingVertical =
-      !effectiveVerticalId || effectiveVerticalId === "banking";
+    const isBankingVertical = !effectiveVerticalId || effectiveVerticalId === "banking";
     return [
       {
         key: "testing",
@@ -800,24 +735,17 @@ export default function BankingAgent({
     // the vertical's chips — never "My Accounts / Transfer" in workforce/healthcare.
     // Each chip carries a `message` → renderChip routes it through the NL pipeline.
     // Banking keeps ACTION_GROUPS unchanged (regression-safe).
-    const isBankingVertical =
-      !effectiveVerticalId || effectiveVerticalId === "banking";
+    const isBankingVertical = !effectiveVerticalId || effectiveVerticalId === "banking";
     let groupsToRender;
     if (!isBankingVertical) {
       const suggestions = verticalSuggestionChips(pageManifest);
-      groupsToRender = {
-        ...(suggestions.length ? { suggestions } : {}),
-        ...customGroupMap,
-      };
+      groupsToRender = { ...(suggestions.length ? { suggestions } : {}), ...customGroupMap };
     } else {
       groupsToRender = { ...ACTION_GROUPS, ...customGroupMap };
     }
     if (isConfigEmbeddedFocus) {
-      const logoutAction =
-        ACTION_GROUPS.account?.filter((a) => a.id === "logout") || [];
-      groupsToRender = {
-        admin: [...(ACTION_GROUPS.admin || []), ...logoutAction],
-      };
+      const logoutAction = ACTION_GROUPS.account?.filter((a) => a.id === "logout") || [];
+      groupsToRender = { admin: [...(ACTION_GROUPS.admin || []), ...logoutAction] };
     } else if (effectiveUser?.role !== "admin") {
       const { admin: _admin, ...rest } = groupsToRender;
       groupsToRender = rest;
@@ -1051,41 +979,28 @@ export default function BankingAgent({
     const _push = (content) =>
       setMessages((prev) => [
         ...prev,
-        { id: String(Date.now()), role: "assistant", content },
+        { id: String(Date.now()), role: 'assistant', content },
       ]);
     const handler = async (e) => {
-      if (e.detail?.type !== "intent-bypass") return;
+      if (e.detail?.type !== 'intent-bypass') return;
       setIsOpen(true);
-      _push(
-        "⚠️ Attack Demo: Sending mismatched Intent Token (view_balance IT → create_transfer call)...",
-      );
+      _push('⚠️ Attack Demo: Sending mismatched Intent Token (view_balance IT → create_transfer call)...');
       try {
-        const resp = await bffAxios.post("/api/dev/intent-bypass-demo");
-        if (resp.data?.tokenEvents)
-          tokenChain.setTokenEvents(
-            "intent-bypass-attack",
-            resp.data.tokenEvents,
-          );
-        _push(
-          "⚠️ Gateway did not deny — intent enforcement may be disabled. Check gateway logs.",
-        );
+        const resp = await bffAxios.post('/api/dev/intent-bypass-demo');
+        if (resp.data?.tokenEvents) tokenChain.setTokenEvents('intent-bypass-attack', resp.data.tokenEvents);
+        _push('⚠️ Gateway did not deny — intent enforcement may be disabled. Check gateway logs.');
       } catch (err) {
         const data = err.response?.data;
-        if (data?.tokenEvents)
-          tokenChain.setTokenEvents("intent-bypass-attack", data.tokenEvents);
-        if (data?.error === "intent_mismatch_demo") {
-          _push(
-            "✅ Attack blocked — Gateway returned 403 intent_mismatch. The agent cannot call create_transfer because the Intent Token was bound to view_balance. See Token Chain for the full delegation trail.",
-          );
+        if (data?.tokenEvents) tokenChain.setTokenEvents('intent-bypass-attack', data.tokenEvents);
+        if (data?.error === 'intent_mismatch_demo') {
+          _push('✅ Attack blocked — Gateway returned 403 intent_mismatch. The agent cannot call create_transfer because the Intent Token was bound to view_balance. See Token Chain for the full delegation trail.');
         } else {
-          _push(
-            `❌ Demo error: ${data?.message || err.message}. Check that you are signed in and services are running.`,
-          );
+          _push(`❌ Demo error: ${data?.message || err.message}. Check that you are signed in and services are running.`);
         }
       }
     };
-    window.addEventListener("banking-attack-demo", handler);
-    return () => window.removeEventListener("banking-attack-demo", handler);
+    window.addEventListener('banking-attack-demo', handler);
+    return () => window.removeEventListener('banking-attack-demo', handler);
   }, [tokenChain]);
 
   // Reset conversation when demo is cleared (no full page reload needed)
@@ -1114,15 +1029,7 @@ export default function BankingAgent({
     };
     window.addEventListener("demo-reset-complete", handler);
     return () => window.removeEventListener("demo-reset-complete", handler);
-  }, [
-    user,
-    sessionUser,
-    embeddedFocus,
-    brandShortName,
-    industryPreset.id,
-    themeAgent,
-    activityReset,
-  ]);
+  }, [user, sessionUser, embeddedFocus, brandShortName, industryPreset.id, themeAgent, activityReset]);
 
   // Auto-open when redirected back from OAuth login (?oauth=success in URL)
   useEffect(() => {
@@ -1163,8 +1070,7 @@ export default function BankingAgent({
               setNlResumeAfterAuth(pendingNl);
             }
             setMessages((prev) => {
-              const isOnlyGuestMsg =
-                prev.length === 1 && prev[0]?.id?.endsWith("-guest");
+              const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
               if (prev.length > 0 && !isOnlyGuestMsg) return prev;
               const welcome = {
                 id: `${Date.now()}-w`,
@@ -1237,7 +1143,9 @@ export default function BankingAgent({
     if (!user) return;
     setMessages((prev) => {
       const isSoleGreeting =
-        prev.length === 1 && prev[0].role === "assistant" && !prev[0].tool;
+        prev.length === 1 &&
+        prev[0].role === "assistant" &&
+        !prev[0].tool;
       if (prev.length > 0 && !isSoleGreeting) return prev;
       return [
         {
@@ -1290,17 +1198,10 @@ export default function BankingAgent({
   // last-known-good list and raise agentToolsError so the UI can avoid failing
   // open (fetchAgentTools resolves with {error} on non-OK rather than throwing).
   useEffect(() => {
-    if (!isLoggedIn) {
-      setAvailableTools([]);
-      setAgentToolsError(false);
-      return;
-    }
+    if (!isLoggedIn) { setAvailableTools([]); setAgentToolsError(false); return; }
     let cancelled = false;
     setAgentToolsLoading(true);
-    fetchAgentTools({
-      vertical: activeVerticalId || undefined,
-      allowWrite: agentAllowWrite,
-    })
+    fetchAgentTools({ vertical: activeVerticalId || undefined, allowWrite: agentAllowWrite })
       .then((res) => {
         if (cancelled) return;
         if (res && res.error) {
@@ -1318,15 +1219,12 @@ export default function BankingAgent({
           // alarmist modal, which would otherwise misreport a healthy P1AZ as
           // unreachable. The badge (degradedAuthz) still shows for both, so the
           // degraded state is never hidden.
-          const isFailover =
-            isDegraded && res.degradedReason === "authz_failover";
+          const isFailover = isDegraded && res.degradedReason === "authz_failover";
           // Show the fallback heads-up at most once per browser session. A useRef
           // alone dedupes only within a single page load and would re-pop on every
           // refresh; sessionStorage persists across reloads and clears on tab close.
-          const alreadyShown =
-            authzFallbackShownRef.current ||
-            sessionStorageService.getItem(AUTHZ_FALLBACK_SHOWN_KEY, false) ===
-              true;
+          const alreadyShown = authzFallbackShownRef.current
+            || sessionStorageService.getItem(AUTHZ_FALLBACK_SHOWN_KEY, false) === true;
           if (isFailover && !alreadyShown) {
             authzFallbackShownRef.current = true;
             sessionStorageService.setItem(AUTHZ_FALLBACK_SHOWN_KEY, true);
@@ -1335,15 +1233,9 @@ export default function BankingAgent({
           if (!isDegraded) setDegradedAuthz(false);
         }
       })
-      .catch(() => {
-        if (!cancelled) setAgentToolsError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setAgentToolsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => { if (!cancelled) setAgentToolsError(true); })
+      .finally(() => { if (!cancelled) setAgentToolsLoading(false); });
+    return () => { cancelled = true; };
   }, [isLoggedIn, activeVerticalId, agentAllowWrite]);
   /** Marketing `/` guests may chat (education / hints); banking triggers PingOne + return here. */
   const marketingGuestChatEnabled = useMemo(() => {
@@ -1512,20 +1404,11 @@ export default function BankingAgent({
     // If App.js already resolved a session, use it immediately — no async needed.
     if (effectiveUser) {
       setMessages((prev) => {
-        if (
-          prev.length > 0 &&
-          prev.some((m) => m.role === "assistant" && !m.tool)
-        )
-          return prev;
+        if (prev.length > 0 && prev.some((m) => m.role === "assistant" && !m.tool)) return prev;
         const welcome = {
           id: `${Date.now()}-w`,
           role: "assistant",
-          content: welcomeMessage(
-            effectiveUser,
-            embeddedFocus,
-            brandShortName,
-            themeAgent && themeAgent.greeting,
-          ),
+          content: welcomeMessage(effectiveUser, embeddedFocus, brandShortName, themeAgent && themeAgent.greeting),
         };
         return prev.length === 0 ? [welcome] : [welcome, ...prev];
       });
@@ -1535,67 +1418,63 @@ export default function BankingAgent({
       getCachedStatus("/api/auth/oauth/status").catch(() => null),
       getCachedStatus("/api/auth/oauth/user/status").catch(() => null),
       getCachedStatus("/api/auth/session").catch(() => null),
-    ])
-      .then(([admin, endUser, session]) => {
-        const { found, cookieOnlyBffSession: cookieOnly } =
-          resolveSessionFromAuthTrio(admin, endUser, session);
-        setCookieOnlyBffSession(cookieOnly);
-        if (found) {
-          setSessionUser(found);
-          // Clear any stale consent-decline block from previous sessions.
-          setAgentBlockedByConsentDecline(false);
-          const welcome = {
-            id: `${Date.now()}-w`,
-            role: "assistant",
-            content: welcomeMessage(
-              found,
-              embeddedFocus,
-              brandShortName,
-              themeAgent && themeAgent.greeting,
-            ),
-          };
-          if (cookieOnly) {
-            sessionFixBubbleShownRef.current = true;
-            setMessages([
-              welcome,
-              {
-                id: `${Date.now()}-fix`,
-                role: "error",
-                content: buildSessionNotHydratedChat(
-                  session?.sessionStoreError ?? null,
-                  session?.sessionStoreHealthy ?? null,
-                ),
-                showSessionFixActions: true,
-              },
-            ]);
-          } else {
-            // Prepend welcome without wiping auto-loaded account/transaction messages that may have raced ahead.
-            // If a non-tool assistant message already exists (duplicate welcome), skip.
-            setMessages((prev) => {
-              if (prev.length === 0) return [welcome];
-              if (prev.some((m) => m.role === "assistant" && !m.tool))
-                return prev;
-              return [welcome, ...prev];
-            });
-          }
+    ]).then(([admin, endUser, session]) => {
+      const { found, cookieOnlyBffSession: cookieOnly } =
+        resolveSessionFromAuthTrio(admin, endUser, session);
+      setCookieOnlyBffSession(cookieOnly);
+      if (found) {
+        setSessionUser(found);
+        // Clear any stale consent-decline block from previous sessions.
+        setAgentBlockedByConsentDecline(false);
+        const welcome = {
+          id: `${Date.now()}-w`,
+          role: "assistant",
+          content: welcomeMessage(
+            found,
+            embeddedFocus,
+            brandShortName,
+            themeAgent && themeAgent.greeting,
+          ),
+        };
+        if (cookieOnly) {
+          sessionFixBubbleShownRef.current = true;
+          setMessages([
+            welcome,
+            {
+              id: `${Date.now()}-fix`,
+              role: "error",
+              content: buildSessionNotHydratedChat(
+                session?.sessionStoreError ?? null,
+                session?.sessionStoreHealthy ?? null,
+              ),
+              showSessionFixActions: true,
+            },
+          ]);
         } else {
-          // No session — show a guest greeting so the chat isn't a blank void.
-          // Guard: only seed if empty, so a re-run of this effect doesn't wipe
-          // an in-progress conversation.
-          setMessages((prev) =>
-            prev.length === 0
-              ? [
-                  {
-                    id: `${Date.now()}-guest`,
-                    role: "assistant",
-                    content: `Hi! I'm the ${brandShortName || "AI"} assistant.\n\nSign in with your customer account to access banking features — account balances, transfers, and more. Or ask me about OAuth, PKCE, MCP, or how AI agents work.`,
-                  },
-                ]
-              : prev,
-          );
+          // Prepend welcome without wiping auto-loaded account/transaction messages that may have raced ahead.
+          // If a non-tool assistant message already exists (duplicate welcome), skip.
+          setMessages((prev) => {
+            if (prev.length === 0) return [welcome];
+            if (prev.some((m) => m.role === "assistant" && !m.tool))
+              return prev;
+            return [welcome, ...prev];
+          });
         }
-      })
-      .catch(() => {});
+      } else {
+        // No session — show a guest greeting so the chat isn't a blank void.
+        // Guard: only seed if empty, so a re-run of this effect doesn't wipe
+        // an in-progress conversation.
+        setMessages((prev) =>
+          prev.length === 0
+            ? [{
+                id: `${Date.now()}-guest`,
+                role: "assistant",
+                content: `Hi! I'm the ${brandShortName || "AI"} assistant.\n\nSign in with your customer account to access banking features — account balances, transfers, and more. Or ask me about OAuth, PKCE, MCP, or how AI agents work.`,
+              }]
+            : prev
+        );
+      }
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInline, embeddedFocus, effectiveUser]);
 
@@ -1604,21 +1483,18 @@ export default function BankingAgent({
     const onAuth = () => {
       checkSelfAuth();
       setMessages((prev) => {
-        const isOnlyGuestMsg =
-          prev.length === 1 && prev[0]?.id?.endsWith("-guest");
+        const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
         if (prev.length === 0 || isOnlyGuestMsg) {
-          return [
-            {
-              id: Date.now().toString(),
-              role: "assistant",
-              content: welcomeMessage(
-                user || sessionUserRef.current,
-                embeddedFocus,
-                brandShortName,
-                themeAgent && themeAgent.greeting,
-              ),
-            },
-          ];
+          return [{
+            id: Date.now().toString(),
+            role: "assistant",
+            content: welcomeMessage(
+              user || sessionUserRef.current,
+              embeddedFocus,
+              brandShortName,
+              themeAgent && themeAgent.greeting,
+            ),
+          }];
         }
         return prev;
       });
@@ -1739,23 +1615,14 @@ export default function BankingAgent({
     fetch("/api/admin/feature-flags", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const heuristicFlag = data?.flags?.find(
-          (f) => f.id === "ff_heuristic_enabled",
-        );
-        if (heuristicFlag != null)
-          setHeuristicEnabled(Boolean(heuristicFlag.value));
-        const panelFlag = data?.flags?.find(
-          (f) => f.id === "ff_agent_results_panel",
-        );
-        if (panelFlag != null)
-          setAgentResultsPanelEnabled(Boolean(panelFlag.value));
+        const heuristicFlag = data?.flags?.find((f) => f.id === "ff_heuristic_enabled");
+        if (heuristicFlag != null) setHeuristicEnabled(Boolean(heuristicFlag.value));
+        const panelFlag = data?.flags?.find((f) => f.id === "ff_agent_results_panel");
+        if (panelFlag != null) setAgentResultsPanelEnabled(Boolean(panelFlag.value));
         const aguiFlag = data?.flags?.find((f) => f.id === "ff_agui_enabled");
         if (aguiFlag != null) setAguiEnabled(Boolean(aguiFlag.value));
-        const actFlag = data?.flags?.find(
-          (f) => f.id === "ff_activity_narration",
-        );
-        if (actFlag != null)
-          setActivityNarrationEnabled(Boolean(actFlag.value));
+        const actFlag = data?.flags?.find((f) => f.id === "ff_activity_narration");
+        if (actFlag != null) setActivityNarrationEnabled(Boolean(actFlag.value));
       })
       .catch(() => {});
   }, [isOpen, isInline, isLoggedIn, marketingGuestChatEnabled]);
@@ -1766,35 +1633,24 @@ export default function BankingAgent({
     setMcpStatus({ toolCount: ACTIONS.length, connected: true });
   }, [isOpen, isLoggedIn]);
 
+
   // AG-UI Step 3 — sync streamed messages from aguiState into the chat thread.
   // Only active when ff_agui_enabled=true; no-op otherwise.
   // Each new assistant message from AG-UI appears as a chat bubble as it streams.
   useEffect(() => {
     if (!aguiEnabled) return;
     const lastMsg = aguiState.messages[aguiState.messages.length - 1];
-    if (!lastMsg || lastMsg.role !== "assistant") return;
+    if (!lastMsg || lastMsg.role !== 'assistant') return;
     // Update or add the final assistant message in the BA chat thread
     setMessages((prev) => {
       const existing = prev.findIndex((m) => m.id === lastMsg.id);
       if (existing !== -1) {
         const next = [...prev];
-        next[existing] = {
-          ...next[existing],
-          text: lastMsg.content,
-          streaming: lastMsg.streaming,
-        };
+        next[existing] = { ...next[existing], text: lastMsg.content, streaming: lastMsg.streaming };
         return next;
       }
       // New message: append
-      return [
-        ...prev,
-        {
-          id: lastMsg.id,
-          sender: "assistant",
-          text: lastMsg.content,
-          streaming: lastMsg.streaming,
-        },
-      ];
+      return [...prev, { id: lastMsg.id, sender: 'assistant', text: lastMsg.content, streaming: lastMsg.streaming }];
     });
   }, [aguiEnabled, aguiState.messages]);
 
@@ -1802,10 +1658,10 @@ export default function BankingAgent({
   useEffect(() => {
     if (!aguiEnabled || !aguiState.tokenEvents.length) return;
     if (tokenChain) {
-      tokenChain.setTokenEvents("agent", aguiState.tokenEvents);
+      tokenChain.setTokenEvents('agent', aguiState.tokenEvents);
     }
     const rfcMsg = buildTokenEventMsg(aguiState.tokenEvents);
-    if (rfcMsg) addMessage("token-event", rfcMsg, null);
+    if (rfcMsg) addMessage('token-event', rfcMsg, null);
   }, [aguiEnabled, aguiState.tokenEvents, tokenChain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AG-UI token usage — accumulate into Token Teller when agent reports counts.
@@ -1813,18 +1669,10 @@ export default function BankingAgent({
     if (!aguiEnabled) return;
     const usage = aguiState.lastTokenUsage;
     if (!usage || (!usage.inputTokens && !usage.outputTokens)) return;
-    setSessionTokens((prev) => ({
-      input: prev.input + usage.inputTokens,
-      output: prev.output + usage.outputTokens,
-    }));
+    setSessionTokens((prev) => ({ input: prev.input + usage.inputTokens, output: prev.output + usage.outputTokens }));
     setLifetimeTokens((prev) => {
-      const next = {
-        input: prev.input + usage.inputTokens,
-        output: prev.output + usage.outputTokens,
-      };
-      try {
-        localStorage.setItem("ba_tokens_lifetime", JSON.stringify(next));
-      } catch (_) {}
+      const next = { input: prev.input + usage.inputTokens, output: prev.output + usage.outputTokens };
+      try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
       return next;
     });
   }, [aguiEnabled, aguiState.lastTokenUsage]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1836,10 +1684,8 @@ export default function BankingAgent({
         entry.tool,
         entry.durationMs != null ? 200 : 0,
         entry.durationMs ?? null,
-        entry.direction === "response" ? entry.payload : null,
-        entry.direction === "response" && entry.payload?.error
-          ? String(entry.payload.error)
-          : null,
+        entry.direction === 'response' ? entry.payload : null,
+        entry.direction === 'response' && entry.payload?.error ? String(entry.payload.error) : null,
       );
     }
   }, []);
@@ -1849,101 +1695,60 @@ export default function BankingAgent({
   const onNewAuthorizeDecisions = useCallback((newDecisions) => {
     for (const d of newDecisions) appendAuthorizeDecision(d);
   }, []);
-  useNewItems(
-    aguiState.authorizeDecisions,
-    aguiEnabled,
-    onNewAuthorizeDecisions,
-  );
+  useNewItems(aguiState.authorizeDecisions, aguiEnabled, onNewAuthorizeDecisions);
 
   // Activity narration — friendly per-step story (mirrors the useNewItems pattern above).
   // Vertical-aware institution noun for the narration copy (recomputed each render — fine).
-  const activityInstitution = pageManifest?.identity?.displayName || "service";
-  const onNewAuthorizeNarration = useCallback(
-    (newDecisions) => {
-      for (const d of newDecisions)
-        activityUpsertStep(authorizeDecisionToStep(d, activityInstitution));
-    },
-    [activityUpsertStep, activityInstitution],
-  );
-  useNewItems(
-    aguiState.authorizeDecisions,
-    aguiEnabled && activityNarrationEnabled,
-    onNewAuthorizeNarration,
-  );
+  const activityInstitution = (pageManifest?.identity?.displayName) || 'service';
+  const onNewAuthorizeNarration = useCallback((newDecisions) => {
+    for (const d of newDecisions) activityUpsertStep(authorizeDecisionToStep(d, activityInstitution));
+  }, [activityUpsertStep, activityInstitution]);
+  useNewItems(aguiState.authorizeDecisions, aguiEnabled && activityNarrationEnabled, onNewAuthorizeNarration);
 
   // Tool calls update in place (status running→done), so reconcile on every change rather than on growth.
   useEffect(() => {
     if (!aguiEnabled || !activityNarrationEnabled) return;
-    for (const step of reconcileToolSteps(aguiState.toolCalls))
-      activityUpsertStep(step);
-  }, [
-    aguiEnabled,
-    activityNarrationEnabled,
-    aguiState.toolCalls,
-    activityUpsertStep,
-  ]);
+    for (const step of reconcileToolSteps(aguiState.toolCalls)) activityUpsertStep(step);
+  }, [aguiEnabled, activityNarrationEnabled, aguiState.toolCalls, activityUpsertStep]);
 
   // Error → friendly recovery step.
   useEffect(() => {
     if (!aguiEnabled || !activityNarrationEnabled || !aguiState.error) return;
     activityUpsertStep(errorStep(activityInstitution));
-  }, [
-    aguiEnabled,
-    activityNarrationEnabled,
-    aguiState.error,
-    activityUpsertStep,
-    activityInstitution,
-  ]);
+  }, [aguiEnabled, activityNarrationEnabled, aguiState.error, activityUpsertStep, activityInstitution]);
 
   // Run finished → close the story (unless it's an HITL/step-up interrupt,
   // in which case the agent is suspended waiting for the user — keep running).
   useEffect(() => {
-    if (!aguiEnabled || !activityNarrationEnabled || !aguiState.lastOutcome)
-      return;
-    if (aguiState.lastOutcome?.type === "interrupt") {
+    if (!aguiEnabled || !activityNarrationEnabled || !aguiState.lastOutcome) return;
+    if (aguiState.lastOutcome?.type === 'interrupt') {
       // Pending approval: narrate the wait, do NOT finish the request.
       activityUpsertStep(hitlStep());
       return;
     }
-    const failed = aguiState.lastOutcome?.type === "error";
+    const failed = aguiState.lastOutcome?.type === 'error';
     if (!failed) activityUpsertStep(answerStep());
-    activityFinishRequest(failed ? "failed" : "done");
-  }, [
-    aguiEnabled,
-    activityNarrationEnabled,
-    aguiState.lastOutcome,
-    activityUpsertStep,
-    activityFinishRequest,
-  ]);
+    activityFinishRequest(failed ? 'failed' : 'done');
+  }, [aguiEnabled, activityNarrationEnabled, aguiState.lastOutcome, activityUpsertStep, activityFinishRequest]);
 
   // Legacy (non-AG-UI) narration: the BFF returns server-authoritative semantic
   // steps in response.activity.steps. Feed them into the same panel the AG-UI
   // path uses. Gated to !aguiEnabled so the two paths never double-narrate.
-  const ingestActivity = useCallback(
-    (response, prompt) => {
-      if (aguiEnabled || !activityNarrationEnabled) return;
-      const steps = response?.activity?.steps;
-      if (!Array.isArray(steps) || steps.length === 0) return;
-      activityStartRequest(prompt || "");
-      for (const record of steps) {
-        const step = mapActivityRecord(record, activityInstitution);
-        if (step) activityUpsertStep(step);
-      }
-      // finalStatus is the BFF's authoritative terminal state: 'done'|'failed'
-      // closes the story; null = suspended awaiting user approval (step-up/HITL),
-      // so the request stays open.
-      const finalStatus = response?.activity?.finalStatus;
-      if (finalStatus) activityFinishRequest(finalStatus);
-    },
-    [
-      aguiEnabled,
-      activityNarrationEnabled,
-      activityInstitution,
-      activityStartRequest,
-      activityUpsertStep,
-      activityFinishRequest,
-    ],
-  );
+  const ingestActivity = useCallback((response, prompt) => {
+    if (aguiEnabled || !activityNarrationEnabled) return;
+    const steps = response?.activity?.steps;
+    if (!Array.isArray(steps) || steps.length === 0) return;
+    activityStartRequest(prompt || '');
+    for (const record of steps) {
+      const step = mapActivityRecord(record, activityInstitution);
+      if (step) activityUpsertStep(step);
+    }
+    // finalStatus is the BFF's authoritative terminal state: 'done'|'failed'
+    // closes the story; null = suspended awaiting user approval (step-up/HITL),
+    // so the request stays open.
+    const finalStatus = response?.activity?.finalStatus;
+    if (finalStatus) activityFinishRequest(finalStatus);
+  }, [aguiEnabled, activityNarrationEnabled, activityInstitution, activityStartRequest, activityUpsertStep, activityFinishRequest]);
 
   // AG-UI cleanup — abort in-flight run and reset state on unmount.
   useEffect(() => {
@@ -1951,7 +1756,7 @@ export default function BankingAgent({
       aguiAbort();
       aguiReset();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // AG-UI Step 7 — HITL via interrupt: show GatewayConsentModal when the agent suspends.
@@ -1970,14 +1775,12 @@ export default function BankingAgent({
     // Initiate OTP (non-fatal — OTP modal still shows even if this fails)
     try {
       await initiateStepUpOtp();
-    } catch (_) {
-      /* non-fatal */
-    }
+    } catch (_) { /* non-fatal */ }
 
     // Post-OTP callback: resume the AG-UI agent with the approved interrupt
     pendingStepUpCallbackRef.current = () => {
-      const threadId = aguiThreadIdRef.current || "ba-" + Date.now();
-      const runId = "resume-" + Date.now();
+      const threadId = aguiThreadIdRef.current || ('ba-' + Date.now());
+      const runId = 'resume-' + Date.now();
       aguiActiveRunIdRef.current = runId;
       setNlLoading(true);
       const conversationHistory = (aguiState.messages || [])
@@ -1987,7 +1790,7 @@ export default function BankingAgent({
         threadId,
         runId,
         messages: conversationHistory,
-        resume: [{ interruptId: interrupt.id, status: "approved" }],
+        resume: [{ interruptId: interrupt.id, status: 'approved' }],
       }).finally(() => setNlLoading(false));
     };
 
@@ -1999,8 +1802,8 @@ export default function BankingAgent({
     const interrupt = aguiHitlPending;
     if (!interrupt) return;
     setAguiHitlPending(null);
-    const threadId = aguiThreadIdRef.current || "ba-" + Date.now();
-    const runId = "cancel-" + Date.now();
+    const threadId = aguiThreadIdRef.current || ('ba-' + Date.now());
+    const runId = 'cancel-' + Date.now();
     // Pass conversation history even for cancel so the agent can acknowledge gracefully.
     const conversationHistory = (aguiState.messages || [])
       .filter((m) => !m.streaming)
@@ -2009,20 +1812,18 @@ export default function BankingAgent({
       threadId,
       runId,
       messages: conversationHistory,
-      resume: [{ interruptId: interrupt.id, status: "cancelled" }],
+      resume: [{ interruptId: interrupt.id, status: 'cancelled' }],
     });
   }, [aguiHitlPending, aguiRun, aguiState.messages]);
 
-  // Cancel any previous in-flight send, create a fresh AbortController, and
+    // Cancel any previous in-flight send, create a fresh AbortController, and
   // return the new signal. Called once at the top of every real send path.
   const beginAbortableSend = useCallback(() => {
     // Abort any prior in-flight send. Load-bearing: the nlResumeAfterAuth
     // effect is NOT reentrancy-guard-protected, so it can supersede a
     // guarded send's I/O — cancel it rather than let it race.
     if (sendAbortRef.current) {
-      try {
-        sendAbortRef.current.abort();
-      } catch (_) {}
+      try { sendAbortRef.current.abort(); } catch (_) {}
     }
     const c = new AbortController();
     sendAbortRef.current = c;
@@ -2041,58 +1842,55 @@ export default function BankingAgent({
 
   // ── Drag-to-move ──────────────────────────────────────────────────────────
   // Uses pointer capture so dragging continues off-screen onto a second monitor.
-  const handleDragStart = useCallback(
-    (e) => {
-      // Don't intercept interactive controls. Switch toggles render as a <label>
-      // wrapping an input with pointer-events:none, so the pointerdown target is
-      // the label, not the input — match label too or the preventDefault() below
-      // kills the click that toggles the checkbox.
-      if (e.target.closest("button, input, textarea, select, label")) return;
-      const rect = panelRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      isDraggingRef.current = true;
-      dragOffsetRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
-      // Always anchor to current visual position and exit expanded mode so panelStyle
-      // uses the drag coordinates (isExpanded causes the centered style to win otherwise)
-      setIsExpanded(false);
-      setDragPos({ x: rect.left, y: rect.top });
-      e.preventDefault();
-      document.body.style.userSelect = "none";
+  const handleDragStart = useCallback((e) => {
+    // Don't intercept interactive controls. Switch toggles render as a <label>
+    // wrapping an input with pointer-events:none, so the pointerdown target is
+    // the label, not the input — match label too or the preventDefault() below
+    // kills the click that toggles the checkbox.
+    if (e.target.closest("button, input, textarea, select, label")) return;
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    isDraggingRef.current = true;
+    dragOffsetRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    // Always anchor to current visual position and exit expanded mode so panelStyle
+    // uses the drag coordinates (isExpanded causes the centered style to win otherwise)
+    setIsExpanded(false);
+    setDragPos({ x: rect.left, y: rect.top });
+    e.preventDefault();
+    document.body.style.userSelect = "none";
 
-      // Capture pointer on the panel so events keep firing even off-browser-window
-      const target = panelRef.current || e.currentTarget;
-      try {
-        target.setPointerCapture(e.pointerId);
-      } catch (_) {
-        /* noop if not pointer event */
-      }
+    // Capture pointer on the panel so events keep firing even off-browser-window
+    const target = panelRef.current || e.currentTarget;
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch (_) {
+      /* noop if not pointer event */
+    }
 
-      function onMove(ev) {
-        if (!isDraggingRef.current) return;
-        // No clamping — allow drag to second screen
-        const x = ev.clientX - dragOffsetRef.current.x;
-        const y = ev.clientY - dragOffsetRef.current.y;
-        setDragPos({ x, y });
-      }
-      function onUp() {
-        isDraggingRef.current = false;
-        document.body.style.userSelect = "";
-        // Drag itself is unclamped (second-monitor drag is intentional); on
-        // RELEASE, pull the panel back so the header strip stays reachable.
-        setDragPos(clampDragPosToViewport);
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        document.removeEventListener("pointercancel", onUp);
-      }
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
-      document.addEventListener("pointercancel", onUp);
-    },
-    [clampDragPosToViewport],
-  );
+    function onMove(ev) {
+      if (!isDraggingRef.current) return;
+      // No clamping — allow drag to second screen
+      const x = ev.clientX - dragOffsetRef.current.x;
+      const y = ev.clientY - dragOffsetRef.current.y;
+      setDragPos({ x, y });
+    }
+    function onUp() {
+      isDraggingRef.current = false;
+      document.body.style.userSelect = "";
+      // Drag itself is unclamped (second-monitor drag is intentional); on
+      // RELEASE, pull the panel back so the header strip stays reachable.
+      setDragPos(clampDragPosToViewport);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  }, [clampDragPosToViewport]);
 
   // (drag listeners now attached inline in handleDragStart via pointer capture)
   useEffect(() => {
@@ -2410,11 +2208,9 @@ export default function BankingAgent({
     // BUG 2 fix: persist pending ucId across the OAuth redirect so it survives
     // component unmount (the ref dies; sessionStorage survives the redirect).
     try {
-      const ucIdInFlight =
-        pendingUcIdRef.current ||
-        sessionStorage.getItem(BX_AGENT_PENDING_UC_ID_KEY);
-      if (ucIdInFlight)
-        sessionStorage.setItem(BX_AGENT_PENDING_UC_ID_KEY, ucIdInFlight);
+      const ucIdInFlight = pendingUcIdRef.current
+        || sessionStorage.getItem(BX_AGENT_PENDING_UC_ID_KEY);
+      if (ucIdInFlight) sessionStorage.setItem(BX_AGENT_PENDING_UC_ID_KEY, ucIdInFlight);
     } catch (_) {}
     const apiUrl = process.env.REACT_APP_API_URL || window.location.origin;
     if (actionId === "login_admin") {
@@ -2496,12 +2292,7 @@ export default function BankingAgent({
     // gate discharged → retry PERMITs instead of re-issuing the 428). Named
     // distinctly from the component-scope `hitlChallengeId` state (direct-UI
     // consent modal) to avoid shadowing it inside runAction.
-    const {
-      skipUserLabel = false,
-      isRefire = false,
-      nlSource = null,
-      hitlRetryChallengeId = null,
-    } = opts;
+    const { skipUserLabel = false, isRefire = false, nlSource = null, hitlRetryChallengeId = null } = opts;
     const resultExtra = nlSource ? { source: nlSource } : {};
     const label = ACTIONS.find((a) => a.id === actionId)?.label || actionId;
     if (!skipUserLabel) {
@@ -2540,10 +2331,7 @@ export default function BankingAgent({
         case "accounts":
           toast.update(toastId, { render: " Calling get_my_accounts…" });
           response = await getMyAccounts();
-          response = {
-            ...response,
-            result: enforceVerticalAccountTypes(response.result, terminology),
-          };
+          response = { ...response, result: enforceVerticalAccountTypes(response.result, terminology) };
           break;
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
@@ -2632,22 +2420,14 @@ export default function BankingAgent({
           try {
             featureResp = await callMcpTool(featureTool, {});
           } catch (e) {
-            console.error(
-              "[BankingAgent] vertical_feature_demo dispatch failed:",
-              e?.message,
-            );
+            console.error("[BankingAgent] vertical_feature_demo dispatch failed:", e?.message);
             toast.dismiss(toastId);
             setLoading(false);
             toolProgressIdRef.current = null;
-            addMessage(
-              "assistant",
-              `Could not load feature data: ${e?.message || "gateway call failed"}.`,
-              actionId,
-              resultExtra,
-            );
+            addMessage("assistant", `Could not load feature data: ${e?.message || "gateway call failed"}.`, actionId, resultExtra);
             return;
           }
-          const featureMcp = featureResp?.result;
+          const featureMcp  = featureResp?.result;
           const featureNorm = normalizeAgentToolResult(featureMcp);
           if (isAgentToolErrorResult(featureNorm)) {
             toast.dismiss(toastId);
@@ -2659,8 +2439,7 @@ export default function BankingAgent({
             addMessage(
               "assistant",
               insufficient
-                ? fp?.scopeError ||
-                    `The agent's access token does not carry the ${scopeName} scope. Sign out and sign back in to consent, then try again.`
+                ? (fp?.scopeError || `The agent's access token does not carry the ${scopeName} scope. Sign out and sign back in to consent, then try again.`)
                 : `Could not load feature data: ${featureNorm.message || "backend error"}.`,
               actionId,
               resultExtra,
@@ -3789,12 +3568,10 @@ export default function BankingAgent({
             "withdraw",
           ].includes(actionId);
           if (isTransactionAction) {
-            const _rawMsg =
-              normalized.message || normalized.error || "Request failed";
+            const _rawMsg = normalized.message || normalized.error || "Request failed";
             setTxErrorModal({
               title: "Transaction Failed",
-              message:
-                typeof _rawMsg === "string" ? _rawMsg : JSON.stringify(_rawMsg),
+              message: typeof _rawMsg === "string" ? _rawMsg : JSON.stringify(_rawMsg),
             });
           } else {
             notifyError(
@@ -3823,9 +3600,7 @@ export default function BankingAgent({
             e.id === "two-ex-final-token" ||
             e.id === "two-ex-exchange1",
         );
-        const badScopes = tokenEvents.find(
-          (e) => e.id === "user-scopes-insufficient",
-        );
+        const badScopes = tokenEvents.find((e) => e.id === "user-scopes-insufficient");
         const failed = tokenEvents.find((e) => e.id === "exchange-failed");
         // Fire relevant toasts
         if (exchanged) {
@@ -3838,20 +3613,13 @@ export default function BankingAgent({
             "❌ Sign in again with broader scopes (at least 5) for MCP token exchange",
             { autoClose: 7000 },
           );
-        } else if (
-          failed &&
-          !(response._localFallback && response._exchangeFailed)
-        ) {
+        } else if (failed && !(response._localFallback && response._exchangeFailed)) {
           notifyError(
             `❌ Token Exchange failed: ${failed.error || "unknown error"}`,
             { autoClose: 6000 },
           );
         }
-        const tokenMsg = buildTokenEventMsg(tokenEvents, {
-          localFallback: !!(
-            response._localFallback && response._exchangeFailed
-          ),
-        });
+        const tokenMsg = buildTokenEventMsg(tokenEvents, { localFallback: !!(response._localFallback && response._exchangeFailed) });
         if (tokenMsg) {
           addMessage("token-event", tokenMsg, actionId);
         }
@@ -3925,9 +3693,9 @@ export default function BankingAgent({
 
       if (resultType) {
         const titleMap = {
-          accounts: terminology?.accounts || "Accounts",
-          transactions: terminology?.transactions || "Recent Transactions",
-          balance: terminology?.balance || "Balance",
+          accounts:      terminology?.accounts     || "Accounts",
+          transactions:  terminology?.transactions || "Recent Transactions",
+          balance:       terminology?.balance      || "Balance",
           confirm: `${label} confirmed`,
         };
         setResultPanel({
@@ -4018,7 +3786,7 @@ export default function BankingAgent({
       };
       console.log(`[BankingAgent] ${actionId} error:`, _errDetail);
       // Store for ErrorBoundary "Error Details" panel (dev only)
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV === 'development') {
         try {
           window.__lastAgentError = {
             action: actionId,
@@ -4029,9 +3797,7 @@ export default function BankingAgent({
             needsAuth: err?.need_auth,
             tokenEvents: err?.tokenEvents?.length ?? 0,
           };
-        } catch (_) {
-          /* ignore */
-        }
+        } catch (_) { /* ignore */ }
       }
 
       markToolProgressOutcome(
@@ -4119,10 +3885,7 @@ export default function BankingAgent({
         notifyError(" MCP server unreachable — check your server connection", {
           autoClose: 8000,
         });
-      } else if (
-        err?.code === "hitl_required" ||
-        err?.code === "mcp_hitl_required"
-      ) {
+      } else if (err?.code === "hitl_required" || err?.code === "mcp_hitl_required") {
         // 428 Precondition Required — HITL consent required for transaction
         let intentPayload;
 
@@ -4188,8 +3951,7 @@ export default function BankingAgent({
               events: [
                 {
                   id: "hitl-session-expired",
-                  label:
-                    "428 Precondition Required — Session Expired During MFA",
+                  label: "428 Precondition Required — Session Expired During MFA",
                   status: "failed",
                   tokenType: "session",
                   rfc: "RFC 9470",
@@ -4265,9 +4027,7 @@ export default function BankingAgent({
       } else if (
         (err?.statusCode === 401 ||
           err?.code === "authentication_required" ||
-          /sign in to use the banking agent/i.test(
-            String(err?.message || ""),
-          )) &&
+          /sign in to use the banking agent/i.test(String(err?.message || ""))) &&
         !isLoggedIn
       ) {
         window.dispatchEvent(
@@ -4397,19 +4157,9 @@ export default function BankingAgent({
           denyLines.push("", `Rule: ${err.denyReason}`);
         }
         if (err.denyParameters) {
-          const relevant = [
-            "TokenAudience",
-            "McpResourceUri",
-            "ActClientId",
-            "ToolName",
-            "UserId",
-          ];
+          const relevant = ["TokenAudience", "McpResourceUri", "ActClientId", "ToolName", "UserId"];
           const pairs = relevant
-            .filter(
-              (k) =>
-                err.denyParameters[k] !== undefined &&
-                err.denyParameters[k] !== "",
-            )
+            .filter((k) => err.denyParameters[k] !== undefined && err.denyParameters[k] !== "")
             .map((k) => `  ${k}: ${err.denyParameters[k]}`);
           if (pairs.length) {
             denyLines.push("", "Policy inputs:", ...pairs);
@@ -4427,10 +4177,7 @@ export default function BankingAgent({
         if (err.denyReason) {
           tokenEventLines.push(`   Deny rule: ${err.denyReason}`);
         }
-        if (
-          err.denyParameters?.TokenAudience &&
-          err.denyParameters?.McpResourceUri
-        ) {
+        if (err.denyParameters?.TokenAudience && err.denyParameters?.McpResourceUri) {
           tokenEventLines.push(
             `   Token aud: ${err.denyParameters.TokenAudience}`,
             `   Expected aud (McpResourceUri): ${err.denyParameters.McpResourceUri}`,
@@ -4782,18 +4529,18 @@ export default function BankingAgent({
       // Stable thread ID for the session (persists across HITL resumes).
       // runId is per-message so each turn is distinct.
       if (!aguiThreadIdRef.current) {
-        aguiThreadIdRef.current = "ba-" + Date.now();
+        aguiThreadIdRef.current = 'ba-' + Date.now();
       }
       const threadId = aguiThreadIdRef.current;
-      const runId = "run-" + Date.now();
+      const runId = 'run-' + Date.now();
       aguiActiveRunIdRef.current = runId;
-      addMessage("user", text);
+      addMessage('user', text);
       activityStartRequest(text);
       setNlLoading(true);
       aguiRun({
         threadId,
         runId,
-        messages: [{ role: "user", content: text }],
+        messages: [{ role: 'user', content: text }],
         provider: activeLlmProvider,
       }).finally(() => {
         setNlLoading(false);
@@ -4831,12 +4578,7 @@ export default function BankingAgent({
       if (!merged) {
         // Couldn't extract — re-ask once. After that, give up and let
         // the parser try a normal interpretation.
-        addMessage(
-          "assistant",
-          `Sorry, I didn't catch that. ${pc.asked}`,
-          null,
-          { paramHint: pc.hint || null },
-        );
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
         setPendingClarification(pc);
         nlSendGuardRef.current.release();
         return;
@@ -4847,9 +4589,7 @@ export default function BankingAgent({
       // so the token-chain panel can label it correctly.
       const syntheticResult = buildClarificationResult(pc, merged);
       dispatchNlResult(syntheticResult, "clarify", text)
-        .catch((err) => {
-          if (!isAbortError(err)) reportNlFailure(err);
-        })
+        .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
         .finally(() => nlSendGuardRef.current.release());
       return;
     }
@@ -4870,15 +4610,7 @@ export default function BankingAgent({
           provider: activeLlmProvider || "heuristic",
           vertical: effectiveVerticalId,
         }),
-        signal: anySignal([
-          AbortSignal.timeout(
-            activeLlmProvider === "anthropic-lmstudio" ||
-              activeLlmProvider === "llamacpp"
-              ? 60000
-              : 15000,
-          ),
-          signal,
-        ]),
+        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "ollama" ? 60000 : 15000), signal]),
       })
         .then((r) =>
           r.json().catch(() => ({
@@ -4895,21 +4627,12 @@ export default function BankingAgent({
             heuristicSaved: !source || source === "heuristic",
           });
           // Pure-mode provider unavailable → ask before using heuristics (#1).
-          if (
-            maybeDeferToHeuristicPrompt({
-              result,
-              source,
-              text,
-              llm_not_configured,
-            })
-          ) {
+          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_not_configured })) {
             return undefined;
           }
           return dispatchNlResult(result, source || "heuristic", text);
         })
-        .catch((err) => {
-          if (!isAbortError(err)) reportNlFailure(err);
-        })
+        .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
         .finally(() => {
           setNlLoading(false);
           nlSendGuardRef.current.release();
@@ -5031,21 +4754,14 @@ export default function BankingAgent({
    * stash the heuristic result and surface an explicit "use Heuristics?" prompt.
    * Returns true when it deferred (caller must skip its own dispatch).
    */
-  function maybeDeferToHeuristicPrompt({
-    result,
-    source,
-    text,
-    llm_not_configured,
-  }) {
+  function maybeDeferToHeuristicPrompt({ result, source, text, llm_not_configured }) {
     if (!PURE_LLM_MODES.includes(agentProviderMode)) return false;
     // In a pure LLM mode (heuristicRouting:false) a `heuristic` source can only
     // mean the chosen provider didn't answer — unconfigured, unreachable, or it
     // couldn't map the request. Any non-heuristic source is a real LLM answer.
     if (source && source !== "heuristic") return false;
     const label = PURE_LLM_LABELS[agentProviderMode] || "the selected model";
-    const why = llm_not_configured
-      ? "not configured"
-      : "unavailable or couldn't answer that";
+    const why = llm_not_configured ? "not configured" : "unavailable or couldn't answer that";
     addMessage(
       "assistant",
       `⚠️ ${label} is selected but ${why} right now. I didn't fall back automatically. ` +
@@ -5065,30 +4781,21 @@ export default function BankingAgent({
     // don't show the "AI offline" banner for normal operation.
     if (_source === "helix" || _source === "helix_fallback") {
       setHelixDegraded(false);
-    } else if (
-      agentProviderMode === "helix_google" &&
-      _source === "heuristic"
-    ) {
+    } else if (agentProviderMode === "helix_google" && _source === "heuristic") {
       setHelixDegraded(true);
     }
 
     // Model advisory: surface mismatches between configured mode and query complexity.
-    if (modelAdvisoryTimerRef.current)
-      clearTimeout(modelAdvisoryTimerRef.current);
+    if (modelAdvisoryTimerRef.current) clearTimeout(modelAdvisoryTimerRef.current);
     let _advisoryMsg = null;
     if (FRONTIER_MODES.includes(agentProviderMode) && _source === "heuristic") {
-      _advisoryMsg =
-        "Tip: simple query matched a pattern — heuristics mode skips the LLM entirely.";
+      _advisoryMsg = "Tip: simple query matched a pattern — heuristics mode skips the LLM entirely.";
     } else if (agentProviderMode === "heuristics" && result.kind === "none") {
-      _advisoryMsg =
-        "Tip: query not understood in heuristics-only mode — enable an LLM provider.";
+      _advisoryMsg = "Tip: query not understood in heuristics-only mode — enable an LLM provider.";
     }
     setModelAdvisory(_advisoryMsg);
     if (_advisoryMsg) {
-      modelAdvisoryTimerRef.current = setTimeout(
-        () => setModelAdvisory(null),
-        6000,
-      );
+      modelAdvisoryTimerRef.current = setTimeout(() => setModelAdvisory(null), 6000);
     }
 
     if (result.kind === "education" && result.ciba) {
@@ -5234,7 +4941,7 @@ export default function BankingAgent({
           type: "transactions",
           title:
             action === "biggest_purchase"
-              ? terminology?.transactions || "Transactions"
+              ? (terminology?.transactions || "Transactions")
               : "Spending Breakdown",
           data: txList,
           terminology,
@@ -5301,9 +5008,9 @@ export default function BankingAgent({
       } else if (
         ["balance", "transfer", "deposit", "withdraw"].includes(action)
       ) {
-        const termAccount = terminology?.account || "account";
+        const termAccount  = terminology?.account  || "account";
         const termAccounts = terminology?.accounts || "accounts";
-        const termBalance = terminology?.balance || "balance";
+        const termBalance  = terminology?.balance  || "balance";
         const termHighValue = terminology?.highValueAction || "Transfer";
         // Tell the user which accounts they can pick. The list is derived from
         // liveAccounts (vertical-aware: re-fetched on every vertical switch), so
@@ -5318,8 +5025,8 @@ export default function BankingAgent({
           ? ` Options: ${acctTypes.map(cap).join(", ")}.`
           : "";
         const questions = {
-          balance: `Which ${termAccount} would you like to check the ${termBalance} for?${optionsHint}`,
-          deposit: `How much would you like to deposit, and to which ${termAccount}?${optionsHint}`,
+          balance:  `Which ${termAccount} would you like to check the ${termBalance} for?${optionsHint}`,
+          deposit:  `How much would you like to deposit, and to which ${termAccount}?${optionsHint}`,
           withdraw: `How much would you like to withdraw, and from which ${termAccount}?${optionsHint}`,
           transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?${optionsHint}`,
         };
@@ -5362,21 +5069,12 @@ export default function BankingAgent({
         // When clarification already filled the missing params, reconstruct a
         // message the heuristic can re-parse with the complete params intact
         // (e.g. "order status 1003" so orderId extraction fires).
-        const hasFilledParams =
-          result.params && Object.keys(result.params).length > 0;
+        const hasFilledParams = result.params && Object.keys(result.params).length > 0;
         const agentMessage = hasFilledParams
-          ? `${result.action.replace(/_/g, " ")} ${Object.values(result.params).join(" ")}`
-          : nlUserText || result.action;
-        const verticalOpts = {
-          forceHeuristic: true,
-          vertical: verticalId,
-          consentGiven: !!result.consentGiven,
-        };
-        const response = await sendAgentMessage(
-          agentMessage,
-          null,
-          verticalOpts,
-        );
+          ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
+          : (nlUserText || result.action);
+        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven };
+        const response = await sendAgentMessage(agentMessage, null, verticalOpts);
         // Admin token on the customer agent → action card (login as customer / cancel).
         if (maybeHandleCustomerLogin(response, _source)) return;
         // A tokenless session must surface as "sign in again" + redirect — not as
@@ -5385,14 +5083,8 @@ export default function BankingAgent({
         // Also catch 401 from authenticateToken when _cookie_session has no
         // _restoredFromCookie flag (returns { error: 'authentication_required' },
         // no requiresLogin/need_auth field, success absent).
-        if (
-          response?.requiresLogin ||
-          response?.error === "login_required" ||
-          response?.need_auth ||
-          response?._status === 401 ||
-          response?.error === "authentication_required" ||
-          response?.error === "session_expired"
-        ) {
+        if (response?.requiresLogin || response?.error === "login_required" || response?.need_auth ||
+            response?._status === 401 || response?.error === "authentication_required" || response?.error === "session_expired") {
           addMessage(
             "assistant",
             response.reply ||
@@ -5406,11 +5098,8 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
-          addMessage("assistant", response.reply, null, {
-            source: _source,
-            ...verticalResultExtra(response),
-            paramHint,
-          });
+          const replyWithAgentBadge = `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
+          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
           if (response.education?.panel) {
@@ -5419,18 +5108,11 @@ export default function BankingAgent({
           if (response.tokenEvents?.length) {
             appendTokenEvents(response.tokenEvents);
             if (tokenChain) {
-              tokenChain.setTokenEvents(
-                result.action || "agent",
-                response.tokenEvents,
-              );
+              tokenChain.setTokenEvents(result.action || "agent", response.tokenEvents);
             }
             const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
             if (agentTokenMsg) {
-              addMessage(
-                "token-event",
-                agentTokenMsg,
-                result.action || "agent",
-              );
+              addMessage("token-event", agentTokenMsg, result.action || "agent");
             }
           }
           // A vertical HITL directive can be either consent (hitl_required) or
@@ -5439,19 +5121,9 @@ export default function BankingAgent({
           // (Earlier this only fired on hitl_required + requiresConsent, so
           // step-up tools like healthcare release_records printed the text but
           // never opened the modal.)
-          if (
-            response.error === "hitl_required" ||
-            response.error === "step_up_required"
-          ) {
-            const actionLabel = (
-              response.action ||
-              result.action ||
-              ""
-            ).replace(/_/g, " ");
-            const isStepUp =
-              response.error === "step_up_required" ||
-              !!response.requiresStepUp ||
-              !!response.step_up_required;
+          if (response.error === 'hitl_required' || response.error === 'step_up_required') {
+            const actionLabel = (response.action || result.action || '').replace(/_/g, ' ');
+            const isStepUp = response.error === 'step_up_required' || !!response.requiresStepUp || !!response.step_up_required;
             setHitlPendingIntent({
               isVerticalConsent: true,
               verticalMessage: agentMessage,
@@ -5461,20 +5133,14 @@ export default function BankingAgent({
               hitlChallengeId: response.hitlChallengeId || null,
               tool: response.action || result.action || null,
               intentPayload: {
-                type: isStepUp
-                  ? "Identity Verification Required"
-                  : "Action Confirmation",
-                description:
-                  actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
+                type: isStepUp ? 'Identity Verification Required' : 'Action Confirmation',
+                description: actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
                 amount: 0,
               },
             });
-          } else if (
-            response.needsParams?.action &&
-            response.needsParams.missing?.length
-          ) {
+          } else if (response.needsParams?.action && response.needsParams.missing?.length) {
             setPendingClarification({
-              kind: "vertical",
+              kind: 'vertical',
               action: response.needsParams.action,
               missingParams: response.needsParams.missing,
               partialParams: result.params || {},
@@ -5484,14 +5150,8 @@ export default function BankingAgent({
           }
           return;
         }
-        if (
-          response &&
-          response.success !== false &&
-          response._status !== 401
-        ) {
-          addMessage("assistant", AGENT_UNAVAILABLE_MESSAGE, null, {
-            source: _source,
-          });
+        if (response && response.success !== false && response._status !== 401) {
+          addMessage("assistant", AGENT_UNAVAILABLE_MESSAGE, null, { source: _source });
           return;
         }
       } catch (e) {
@@ -5503,9 +5163,7 @@ export default function BankingAgent({
           e?._status === 401 ||
           e?.requiresLogin ||
           e?.code === "authentication_required" ||
-          /session expired|expired or is no longer valid/i.test(
-            String(e?.message || ""),
-          );
+          /session expired|expired or is no longer valid/i.test(String(e?.message || ""));
         if (isAuthExpired) {
           addMessage(
             "assistant",
@@ -5539,11 +5197,7 @@ export default function BankingAgent({
    * the admin console). Returns true when handled so the caller stops.
    */
   function maybeHandleCustomerLogin(response, source) {
-    if (
-      !response ||
-      (!response.requiresCustomerLogin &&
-        response.code !== "admin_token_on_customer")
-    ) {
+    if (!response || (!response.requiresCustomerLogin && response.code !== "admin_token_on_customer")) {
       return false;
     }
     addMessage(
@@ -5560,22 +5214,19 @@ export default function BankingAgent({
   function reportNlFailure(err) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
-    // swallow it and we land here. A slow local model (e.g. a llama.cpp reasoning
+    // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
     // model on cold start) is the usual cause. Show an actionable hint instead
     // of the raw "Could not parse: signal timed out" string.
     const isTimeout =
       err?.name === "TimeoutError" ||
       (typeof err?.message === "string" && err.message.includes("timed out"));
     if (isTimeout) {
-      notifyError(
-        "⏱️ The model took too long to respond — request timed out.",
-        {
-          autoClose: agentToastMs.errShort,
-        },
-      );
+      notifyError("⏱️ The model took too long to respond — request timed out.", {
+        autoClose: agentToastMs.errShort,
+      });
       addMessage(
         "assistant",
-        "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller llama.cpp model).",
+        "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller Ollama model).",
       );
       return;
     }
@@ -5683,12 +5334,7 @@ export default function BankingAgent({
       );
       if (!merged) {
         // Couldn't extract — re-ask once, then let a normal interpretation try.
-        addMessage(
-          "assistant",
-          `Sorry, I didn't catch that. ${pc.asked}`,
-          null,
-          { paramHint: pc.hint || null },
-        );
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
         setPendingClarification(pc);
         return;
       }
@@ -5734,8 +5380,7 @@ export default function BankingAgent({
           steps = parsed.steps || [];
           conclusion = parsed.conclusion || "";
         } catch (_) {}
-        if (!signal.aborted)
-          addMessage("reasoning", "", null, { steps, conclusion });
+        if (!signal.aborted) addMessage("reasoning", "", null, { steps, conclusion });
       } catch (err) {
         if (isAbortError(err)) return;
         addMessage("error", `Sequential thinking failed: ${err.message}`);
@@ -5844,8 +5489,7 @@ export default function BankingAgent({
       // they are unaffected. When aguiEnabled is false this branch is skipped and the
       // legacy /api/demo-agent/nl path below runs exactly as before.
       if (aguiEnabled) {
-        if (!aguiThreadIdRef.current)
-          aguiThreadIdRef.current = "ba-" + Date.now();
+        if (!aguiThreadIdRef.current) aguiThreadIdRef.current = "ba-" + Date.now();
         aguiActiveRunIdRef.current = "run-" + Date.now();
         if (activityNarrationEnabled) activityStartRequest(text);
         await aguiRun({
@@ -5862,33 +5506,19 @@ export default function BankingAgent({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          provider: activeLlmProvider || "heuristic",
-          vertical: effectiveVerticalId,
-        }),
-        signal: anySignal([
-          AbortSignal.timeout(
-            activeLlmProvider === "anthropic-lmstudio" ||
-              activeLlmProvider === "llamacpp"
-              ? 60000
-              : 15000,
-          ),
-          signal,
-        ]),
+        body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId }),
+        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "ollama" ? 60000 : 15000), signal]),
       });
-      const {
-        result: _nlResult,
-        source: _nlSource,
-        llm_not_configured: _nlNotConfigured,
-      } = await _nlRes.json().catch(() => ({
-        result: {
-          kind: "none",
-          message:
-            'Could not parse request. Try: "show my accounts" or "transfer $100 to savings".',
-        },
-        source: "heuristic",
-      }));
+      const { result: _nlResult, source: _nlSource, llm_not_configured: _nlNotConfigured } = await _nlRes
+        .json()
+        .catch(() => ({
+          result: {
+            kind: "none",
+            message:
+              'Could not parse request. Try: "show my accounts" or "transfer $100 to savings".',
+          },
+          source: "heuristic",
+        }));
       // Record NL routing as step 0 in Token Chain before token events arrive
       tokenChain?.setNlRoutingEvent({
         prompt: text,
@@ -5898,14 +5528,7 @@ export default function BankingAgent({
         heuristicSaved: !_nlSource || _nlSource === "heuristic",
       });
       // Pure-mode provider unavailable → ask before using heuristics (#1 consistency).
-      if (
-        maybeDeferToHeuristicPrompt({
-          result: _nlResult,
-          source: _nlSource,
-          text,
-          llm_not_configured: _nlNotConfigured,
-        })
-      ) {
+      if (maybeDeferToHeuristicPrompt({ result: _nlResult, source: _nlSource, text, llm_not_configured: _nlNotConfigured })) {
         return;
       }
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
@@ -5919,11 +5542,7 @@ export default function BankingAgent({
 
   // After marketing OAuth return OR launcher deep-link: replay NL once logged in.
   useEffect(() => {
-    if (
-      !nlResumeAfterAuth ||
-      !isLoggedIn ||
-      pendingNlResumeRef.current === nlResumeAfterAuth
-    ) {
+    if (!nlResumeAfterAuth || !isLoggedIn || pendingNlResumeRef.current === nlResumeAfterAuth) {
       return;
     }
     const text = nlResumeAfterAuth;
@@ -5940,16 +5559,12 @@ export default function BankingAgent({
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
-        const response = await sendAgentMessage(text, null, {
-          signal,
-          vertical: effectiveVerticalId,
-          useCaseId,
-        });
+        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId });
         if (!cancelled && !signal.aborted) {
           // Dispatch backend events to EventStream
           if (response.events && Array.isArray(response.events)) {
             const requestId = `req-${Date.now()}`;
-            response.events.forEach((event) => {
+            response.events.forEach(event => {
               addEvent({
                 ...event,
                 requestId: requestId || event.requestId,
@@ -5963,24 +5578,21 @@ export default function BankingAgent({
             reportNlFailure({ code: response.error || "unknown" });
             // Dispatch error event to EventStream
             addEvent({
-              type: "error",
-              message: response.error || "Request failed",
-              plainEnglish: response.error || "An error occurred",
+              type: 'error',
+              message: response.error || 'Request failed',
+              plainEnglish: response.error || 'An error occurred',
               technicalDetails: {
-                details: response.error || "Unknown error",
+                details: response.error || 'Unknown error',
                 response: response,
               },
-              severity: "error",
+              severity: 'error',
               requestId: `req-${Date.now()}`,
               timestamp: new Date().toISOString(),
             });
           } else {
-            addMessage(
-              "assistant",
-              response.reply || AGENT_UNAVAILABLE_MESSAGE,
-              null,
-              verticalResultExtra(response),
-            );
+            const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+            const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+            addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
             if (response.tokenEvents?.length) {
               appendTokenEvents(response.tokenEvents);
               if (tokenChain) {
@@ -6001,16 +5613,8 @@ export default function BankingAgent({
                 output: prev.output + inc.output,
               }));
               setLifetimeTokens((prev) => {
-                const next = {
-                  input: prev.input + inc.input,
-                  output: prev.output + inc.output,
-                };
-                try {
-                  localStorage.setItem(
-                    "ba_tokens_lifetime",
-                    JSON.stringify(next),
-                  );
-                } catch (_) {}
+                const next = { input: prev.input + inc.input, output: prev.output + inc.output };
+                try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
                 return next;
               });
             }
@@ -6022,13 +5626,13 @@ export default function BankingAgent({
           reportNlFailure(e);
           // Dispatch error event to EventStream
           addEvent({
-            type: "error",
-            message: e.message || "Request failed",
-            plainEnglish: e.message || "An error occurred",
+            type: 'error',
+            message: e.message || 'Request failed',
+            plainEnglish: e.message || 'An error occurred',
             technicalDetails: {
               details: e.stack || e.toString(),
             },
-            severity: "error",
+            severity: 'error',
             requestId: `req-${Date.now()}`,
             timestamp: new Date().toISOString(),
           });
@@ -6056,9 +5660,7 @@ export default function BankingAgent({
   useEffect(() => {
     return () => {
       if (sendAbortRef.current) {
-        try {
-          sendAbortRef.current.abort();
-        } catch (_) {}
+        try { sendAbortRef.current.abort(); } catch (_) {}
         sendAbortRef.current = null;
       }
     };
@@ -6419,6 +6021,7 @@ export default function BankingAgent({
     }
   }
 
+
   const floatShell = (
     <div
       className={`banking-agent-float-root${distinctFloatingChrome && !isInline ? " banking-agent-float-root--distinct" : ""}`}
@@ -6458,11 +6061,7 @@ export default function BankingAgent({
               : `${brandShortName} AI Agent`
           }
           ref={panelRef}
-          style={{
-            ...panelStyle,
-            "--ba-agent-bg":
-              pageManifest?.theme?.cssVars?.["--app-primary-red"],
-          }}
+          style={{ ...panelStyle, '--ba-agent-bg': pageManifest?.theme?.cssVars?.['--app-primary-red'] }}
         >
           {/* Header — spans full width */}
           {/* In inline mode: no drag handle. In float mode: drag to reposition */}
@@ -6556,45 +6155,28 @@ export default function BankingAgent({
                       aria-label="Dismiss"
                       className="ba-model-advisory-dismiss"
                       onClick={() => setModelAdvisory(null)}
-                    >
-                      ×
-                    </button>
+                    >×</button>
                   </span>
                 )}
                 {pendingLlmFallback && (
-                  <span
-                    className="ams-degraded-chip ba-model-advisory-chip"
-                    role="note"
-                  >
+                  <span className="ams-degraded-chip ba-model-advisory-chip" role="note">
                     Provider unavailable
                     <button
                       type="button"
                       className="ba-model-advisory-dismiss"
-                      style={{
-                        width: "auto",
-                        padding: "0 8px",
-                        borderRadius: 10,
-                      }}
+                      style={{ width: "auto", padding: "0 8px", borderRadius: 10 }}
                       onClick={async () => {
                         const pend = pendingLlmFallback;
                         setPendingLlmFallback(null);
-                        await dispatchNlResult(
-                          pend.result,
-                          "heuristic",
-                          pend.text,
-                        );
+                        await dispatchNlResult(pend.result, "heuristic", pend.text);
                       }}
-                    >
-                      Use Heuristics
-                    </button>
+                    >Use Heuristics</button>
                     <button
                       type="button"
                       aria-label="Dismiss"
                       className="ba-model-advisory-dismiss"
                       onClick={() => setPendingLlmFallback(null)}
-                    >
-                      ×
-                    </button>
+                    >×</button>
                   </span>
                 )}
                 {/* Compliance 12-step toggle */}
@@ -6746,16 +6328,19 @@ export default function BankingAgent({
                     setNlLoading(true);
                     (async () => {
                       try {
-                        const _discNlRes = await fetch("/api/demo-agent/nl", {
-                          method: "POST",
-                          credentials: "include",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            message: text,
-                            provider: activeLlmProvider || "heuristic",
-                          }),
-                          signal: AbortSignal.timeout(15000),
-                        });
+                        const _discNlRes = await fetch(
+                          "/api/demo-agent/nl",
+                          {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              message: text,
+                              provider: activeLlmProvider || "heuristic",
+                            }),
+                            signal: AbortSignal.timeout(15000),
+                          },
+                        );
 
                         const { result: _discNlResult } = await _discNlRes
                           .json()
@@ -6785,10 +6370,7 @@ export default function BankingAgent({
                   />
                 )}
                 {isLoggedIn && degradedAuthz && (
-                  <div
-                    className="ba-authz-degraded-badge"
-                    title="PingOne Authorize unreachable — using the demo authorize server"
-                  >
+                  <div className="ba-authz-degraded-badge" title="PingOne Authorize unreachable — using the demo authorize server">
                     Demo Authorize
                   </div>
                 )}
@@ -6797,7 +6379,7 @@ export default function BankingAgent({
                     customChips={customChips}
                     user={user}
                     llmAvailable={!!activeLlmProvider}
-                    isHelixMode={agentProviderMode === "helix_google"}
+                    isHelixMode={agentProviderMode === 'helix_google'}
                     toolPermissions={toolPermissions}
                     toolsError={agentToolsError}
                     onDeniedChip={(chip, reason) => {
@@ -6807,17 +6389,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({
-                      message,
-                      label,
-                      requiresLlm,
-                      chipId,
-                      direct,
-                      showcase,
-                      caption,
-                      stepUpMethod,
-                      denyTool,
-                    }) => {
+                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -6835,12 +6407,7 @@ export default function BankingAgent({
                       // to the normal routing below. `caption` is the presenter's
                       // plain-language "what this demonstrates" line.
                       if (showcase) {
-                        if (caption)
-                          addMessage(
-                            "assistant",
-                            `ℹ️ Expected: ${caption}`,
-                            null,
-                          );
+                        if (caption) addMessage("assistant", `ℹ️ Expected: ${caption}`, null);
                         if (showcase === "authz_deny") {
                           // Call a tool from another vertical directly → AllowedVertical DENY.
                           (async () => {
@@ -6849,9 +6416,7 @@ export default function BankingAgent({
                               const r = await callMcpTool(tool, {});
                               const denied =
                                 r?.status === 403 ||
-                                isAgentToolErrorResult(
-                                  normalizeAgentToolResult(r?.result),
-                                );
+                                isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
                               addMessage(
                                 "token-event",
                                 denied
@@ -6868,14 +6433,8 @@ export default function BankingAgent({
                                 `⛔ PingOne Authorize DENY — ${err.code || err.message || "request rejected"}`,
                                 null,
                               );
-                              if (
-                                tokenChain &&
-                                Array.isArray(err?.tokenEvents)
-                              ) {
-                                tokenChain.setTokenEvents(
-                                  tool,
-                                  err.tokenEvents,
-                                );
+                              if (tokenChain && Array.isArray(err?.tokenEvents)) {
+                                tokenChain.setTokenEvents(tool, err.tokenEvents);
                               }
                             } finally {
                               setNlLoading(false);
@@ -6890,24 +6449,15 @@ export default function BankingAgent({
                           (async () => {
                             const rogue = "rogue-agent-9f2a-not-allowlisted";
                             try {
-                              const apiBase =
-                                process.env.REACT_APP_API_URL || "";
+                              const apiBase = process.env.REACT_APP_API_URL || "";
                               const r = await fetch(`${apiBase}/api/mcp/tool`, {
                                 method: "POST",
                                 credentials: "include",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  tool: "get_my_accounts",
-                                  params: {},
-                                  _testActClientId: rogue,
-                                }),
+                                body: JSON.stringify({ tool: "get_my_accounts", params: {}, _testActClientId: rogue }),
                               });
                               const data = await r.json().catch(() => ({}));
-                              const denied =
-                                r.status >= 400 ||
-                                isAgentToolErrorResult(
-                                  normalizeAgentToolResult(data?.result),
-                                );
+                              const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
                               addMessage(
                                 "token-event",
                                 denied
@@ -6915,21 +6465,11 @@ export default function BankingAgent({
                                   : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
                                 null,
                               );
-                              if (
-                                tokenChain &&
-                                Array.isArray(data?.tokenEvents)
-                              ) {
-                                tokenChain.setTokenEvents(
-                                  "confused_deputy",
-                                  data.tokenEvents,
-                                );
+                              if (tokenChain && Array.isArray(data?.tokenEvents)) {
+                                tokenChain.setTokenEvents("confused_deputy", data.tokenEvents);
                               }
                             } catch (err) {
-                              addMessage(
-                                "token-event",
-                                `⛔ Rogue actor rejected — ${err.code || err.message || "request blocked"}`,
-                                null,
-                              );
+                              addMessage("token-event", `⛔ Rogue actor rejected — ${err.code || err.message || "request blocked"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -6943,35 +6483,17 @@ export default function BankingAgent({
                           const inj = SHOWCASE_INJECTION[showcase];
                           (async () => {
                             try {
-                              const apiBase =
-                                process.env.REACT_APP_API_URL || "";
-                              const seedRes = await fetch(
-                                `${apiBase}/api/demo/attacks/${inj.seed}`,
-                                {
-                                  method: "POST",
-                                  credentials: "include",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: "{}",
-                                },
-                              );
-                              const seedData = await seedRes
-                                .json()
-                                .catch(() => ({}));
-                              const payload =
-                                seedData.description ||
-                                seedData.notes ||
-                                "(payload planted)";
-                              const readResp = await callMcpTool(
-                                inj.readTool,
-                                inj.readTool === "get_my_transactions"
-                                  ? { limit: 25 }
-                                  : {},
-                              );
-                              const surfaced = JSON.stringify(
-                                readResp?.result ?? "",
-                              ).includes("[SYSTEM:");
+                              const apiBase = process.env.REACT_APP_API_URL || "";
+                              const seedRes = await fetch(`${apiBase}/api/demo/attacks/${inj.seed}`, {
+                                method: "POST",
+                                credentials: "include",
+                                headers: { "Content-Type": "application/json" },
+                                body: "{}",
+                              });
+                              const seedData = await seedRes.json().catch(() => ({}));
+                              const payload = seedData.description || seedData.notes || "(payload planted)";
+                              const readResp = await callMcpTool(inj.readTool, inj.readTool === "get_my_transactions" ? { limit: 25 } : {});
+                              const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
                               addMessage(
                                 "token-event",
                                 [
@@ -6986,21 +6508,11 @@ export default function BankingAgent({
                                 ].join("\n"),
                                 null,
                               );
-                              if (
-                                tokenChain &&
-                                Array.isArray(readResp?.tokenEvents)
-                              ) {
-                                tokenChain.setTokenEvents(
-                                  inj.readTool,
-                                  readResp.tokenEvents,
-                                );
+                              if (tokenChain && Array.isArray(readResp?.tokenEvents)) {
+                                tokenChain.setTokenEvents(inj.readTool, readResp.tokenEvents);
                               }
                             } catch (err) {
-                              addMessage(
-                                "token-event",
-                                `Injection demo error: ${err.code || err.message || "failed"}`,
-                                null,
-                              );
+                              addMessage("token-event", `Injection demo error: ${err.code || err.message || "failed"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -7015,78 +6527,32 @@ export default function BankingAgent({
                           (async () => {
                             const apiBase = process.env.REACT_APP_API_URL || "";
                             const call = (tool, params) =>
-                              fetch(`${apiBase}/api/mcp/tool`, {
-                                method: "POST",
-                                credentials: "include",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ tool, params }),
-                              });
+                              fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params }) });
                             try {
-                              const acctD = await (
-                                await call("get_my_accounts", {})
-                              )
-                                .json()
-                                .catch(() => ({}));
+                              const acctD = await (await call("get_my_accounts", {})).json().catch(() => ({}));
                               let accounts = [];
-                              try {
-                                accounts =
-                                  JSON.parse(
-                                    acctD.result?.content?.[0]?.text || "{}",
-                                  ).accounts || [];
-                              } catch (_) {
-                                /* shape */
-                              }
+                              try { accounts = JSON.parse(acctD.result?.content?.[0]?.text || "{}").accounts || []; } catch (_) { /* shape */ }
                               if (accounts.length < 2) {
-                                addMessage(
-                                  "token-event",
-                                  "HITL replay demo needs ≥2 accounts — click My accounts first to load them.",
-                                  null,
-                                );
+                                addMessage("token-event", "HITL replay demo needs ≥2 accounts — click My accounts first to load them.", null);
                                 setNlLoading(false);
                                 return;
                               }
                               const [a0, a1] = accounts;
-                              const t1 = await call("create_transfer", {
-                                fromAccountId: a0.id,
-                                toAccountId: a1.id,
-                                amount: 300,
-                              });
+                              const t1 = await call("create_transfer", { fromAccountId: a0.id, toAccountId: a1.id, amount: 300 });
                               const b1 = await t1.json().catch(() => ({}));
                               const challengeId = b1.challengeId || b1.taskId;
                               if (!challengeId) {
-                                addMessage(
-                                  "token-event",
-                                  `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`,
-                                  null,
-                                );
+                                addMessage("token-event", `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`, null);
                                 setNlLoading(false);
                                 return;
                               }
-                              const approve = await fetch(
-                                `${apiBase}/api/mcp/decision/${challengeId}/approve`,
-                                {
-                                  method: "POST",
-                                  credentials: "include",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: "{}",
-                                },
-                              );
+                              const approve = await fetch(`${apiBase}/api/mcp/decision/${challengeId}/approve`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
                               if (!approve.ok) {
-                                addMessage(
-                                  "token-event",
-                                  `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`,
-                                  null,
-                                );
+                                addMessage("token-event", `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`, null);
                                 setNlLoading(false);
                                 return;
                               }
-                              const replay = await call("create_withdrawal", {
-                                fromAccountId: a0.id,
-                                amount: 300,
-                                _hitl_challenge_id: challengeId,
-                              });
+                              const replay = await call("create_withdrawal", { fromAccountId: a0.id, amount: 300, _hitl_challenge_id: challengeId });
                               const rb = await replay.json().catch(() => ({}));
                               const blocked = replay.status >= 400;
                               addMessage(
@@ -7100,17 +6566,9 @@ export default function BankingAgent({
                                 ].join("\n"),
                                 null,
                               );
-                              if (tokenChain && Array.isArray(rb?.tokenEvents))
-                                tokenChain.setTokenEvents(
-                                  "hitl_replay",
-                                  rb.tokenEvents,
-                                );
+                              if (tokenChain && Array.isArray(rb?.tokenEvents)) tokenChain.setTokenEvents("hitl_replay", rb.tokenEvents);
                             } catch (err) {
-                              addMessage(
-                                "token-event",
-                                `HITL replay demo error: ${err.code || err.message || "failed"}`,
-                                null,
-                              );
+                              addMessage("token-event", `HITL replay demo error: ${err.code || err.message || "failed"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -7141,72 +6599,44 @@ export default function BankingAgent({
                               body: JSON.stringify({
                                 message,
                                 provider: "heuristic",
-                                ...(effectiveVerticalId && {
-                                  vertical: effectiveVerticalId,
-                                }),
+                                ...(effectiveVerticalId && { vertical: effectiveVerticalId }),
                               }),
                               signal: AbortSignal.timeout(10000),
                             });
-                            const { result: nlResult } = await nlRes
-                              .json()
-                              .catch(() => ({ result: null }));
+                            const { result: nlResult } = await nlRes.json().catch(() => ({ result: null }));
                             // Resolve MCP tool name from NL action.
                             // kind:banking accounts → get_my_accounts
                             // kind:banking vertical_feature_demo → featurePage.mcpTool
                             // kind:vertical → action IS the tool name (list_orders, show_health_record…)
                             let resolvedTool = null;
                             let resolvedParams = {};
-                            if (
-                              nlResult?.kind === "banking" &&
-                              nlResult.banking?.action
-                            ) {
+                            if (nlResult?.kind === "banking" && nlResult.banking?.action) {
                               const ba = nlResult.banking;
                               if (ba.action === "accounts") {
                                 resolvedTool = "get_my_accounts";
-                              } else if (
-                                ba.action === "vertical_feature_demo"
-                              ) {
-                                resolvedTool =
-                                  themeManifest?.featurePage?.mcpTool || null;
+                              } else if (ba.action === "vertical_feature_demo") {
+                                resolvedTool = themeManifest?.featurePage?.mcpTool || null;
                               }
                               resolvedParams = ba.params || {};
-                            } else if (
-                              nlResult?.kind === "vertical" &&
-                              nlResult.action
-                            ) {
+                            } else if (nlResult?.kind === "vertical" && nlResult.action) {
                               resolvedTool = nlResult.action;
                               resolvedParams = nlResult.params || {};
                             }
                             if (!resolvedTool) {
-                              addMessage(
-                                "assistant",
-                                "Could not resolve an MCP tool for this request — try rephrasing.",
-                                null,
-                              );
+                              addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(
-                              resolvedTool,
-                              resolvedParams,
-                            );
-                            if (
-                              tokenChain &&
-                              Array.isArray(mcpResp?.tokenEvents)
-                            ) {
-                              tokenChain.setTokenEvents(
-                                resolvedTool,
-                                mcpResp.tokenEvents,
-                              );
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams);
+                            if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
+                              tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }
-                            const normalized = normalizeAgentToolResult(
-                              mcpResp?.result,
-                            );
+                            const normalized = normalizeAgentToolResult(mcpResp?.result);
                             const isErr = isAgentToolErrorResult(normalized);
                             const text = isErr
                               ? `MCP returned an error: ${normalized?.error || normalized?.message || "unknown error"}`
-                              : typeof normalized === "object"
-                                ? JSON.stringify(normalized, null, 2)
-                                : String(normalized ?? "");
+                              : (typeof normalized === "object"
+                                  ? JSON.stringify(normalized, null, 2)
+                                  : String(normalized ?? ""));
                             addMessage("assistant", text, resolvedTool);
                           } catch (err) {
                             reportNlFailure(err);
@@ -7217,46 +6647,71 @@ export default function BankingAgent({
                         return;
                       }
 
-                      // PingOne Admin chips invoke the hosted PingOne MCP tools via the agent
-                      // reason loop (processAgentMessage), not NL intent routing: POST /message
-                      // with provider:"pingone-admin" and render the reply + worker-token card.
+                      // Admin chips invoke the isolated admin agent via /api/admin-agent
+                      // which uses hosted PingOne MCP tools with worker client_credentials token.
                       if (PINGONE_ADMIN_CHIP_IDS.has(chipId)) {
                         prepNlCompliance(message);
                         (async () => {
                           try {
-                            const res = await fetch("/api/demo-agent/message", {
+                            const res = await fetch("/api/admin-agent/message", {
                               method: "POST",
                               credentials: "include",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 message,
-                                provider: "pingone-admin",
-                                ...(effectiveVerticalId && {
-                                  vertical: effectiveVerticalId,
-                                }),
                               }),
                               signal: AbortSignal.timeout(30000),
                             });
                             const data = await res
                               .json()
-                              .catch(() => ({
-                                reply: "PingOne Admin request failed.",
-                                success: false,
-                              }));
-                            if (
-                              tokenChain &&
-                              Array.isArray(data?.tokenEvents)
-                            ) {
-                              tokenChain.setTokenEvents(
-                                "pingone-admin",
-                                data.tokenEvents,
-                              );
+                              .catch(() => ({ reply: "Admin agent request failed.", success: false }));
+                            if (tokenChain && Array.isArray(data?.tokenEvents)) {
+                              tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
                             }
-                            addMessage(
-                              "assistant",
-                              data?.reply || "PingOne Admin: no response.",
-                              null,
-                            );
+                            const reply = `[ADMIN AGENT - LangGraph]\n${data?.reply || "Admin agent: no response."}`;
+                            addMessage("assistant", reply, null);
+                          } catch (err) {
+                            reportNlFailure(err);
+                          } finally {
+                            setNlLoading(false);
+                          }
+                        })();
+                        return;
+                      }
+
+                      // A2A Orchestrator — detect delegation requests and route to /api/a2a
+                      const delegationKeywords = [
+                        /\bdelegate\b/i,
+                        /\bhand\s*off\b/i,
+                        /\bescalate\b/i,
+                        /\bspecialist\b/i,
+                        /\borchestrat/i,
+                        /second\s+agent/i,
+                      ];
+                      const shouldDelegateToA2a = delegationKeywords.some((kw) => kw.test(message));
+
+                      if (shouldDelegateToA2a) {
+                        prepNlCompliance(message);
+                        (async () => {
+                          try {
+                            const res = await fetch("/api/a2a/message", {
+                              method: "POST",
+                              credentials: "include",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                message,
+                                vertical: effectiveVerticalId,
+                              }),
+                              signal: AbortSignal.timeout(30000),
+                            });
+                            const data = await res
+                              .json()
+                              .catch(() => ({ reply: "A2A orchestrator request failed.", success: false }));
+                            if (tokenChain && Array.isArray(data?.tokenEvents)) {
+                              tokenChain.setTokenEvents("a2a-orchestrator", data.tokenEvents);
+                            }
+                            const reply = `[A2A ORCHESTRATOR - CrewAI]\n${data?.reply || "A2A orchestrator: no response."}`;
+                            addMessage("assistant", reply, null);
                           } catch (err) {
                             reportNlFailure(err);
                           } finally {
@@ -7281,42 +6736,31 @@ export default function BankingAgent({
                               // deliberately bypass the LLM for speed.
                               // PingOne Admin chips are handled above (POST /message); this /nl
                               // path only sees non-pingone chips.
-                              provider:
-                                requiresLlm ||
-                                agentProviderMode === "helix_google"
-                                  ? activeLlmProvider || "heuristic"
-                                  : "heuristic",
+                              provider: (requiresLlm || agentProviderMode === "helix_google")
+                                ? (activeLlmProvider || "heuristic")
+                                : "heuristic",
                             }),
                             signal: AbortSignal.timeout(15000),
                           });
-                          const {
-                            result,
-                            source,
-                            llm_attempted,
-                            llm_not_configured,
-                          } = await res.json().catch(() => ({
-                            result: {
-                              kind: "none",
-                              message: "Could not parse request.",
-                            },
-                            source: "heuristic",
-                          }));
+                          const { result, source, llm_attempted, llm_not_configured } = await res
+                            .json()
+                            .catch(() => ({
+                              result: {
+                                kind: "none",
+                                message: "Could not parse request.",
+                              },
+                              source: "heuristic",
+                            }));
                           if (result?.kind === "none") {
                             if (llm_not_configured) {
-                              const agentName =
-                                pageManifest?.agent?.persona ||
-                                pageManifest?.identity?.displayName ||
-                                "the agent";
+                              const agentName = pageManifest?.agent?.persona || pageManifest?.identity?.displayName || 'the agent';
                               result.message =
                                 `This chip needs an LLM (Helix or LM Studio) to interpret freeform questions, ` +
                                 `but no provider is configured.\n\n` +
                                 `Open the Helix tab in ${agentName} and add base_url + api_key + agent_id, ` +
                                 `or pick a different chip — the heuristic chips work without an LLM.`;
                             } else if (llm_attempted) {
-                              const agentName =
-                                pageManifest?.agent?.persona ||
-                                pageManifest?.identity?.displayName ||
-                                "the agent";
+                              const agentName = pageManifest?.agent?.persona || pageManifest?.identity?.displayName || 'the agent';
                               result.message =
                                 `${agentName} couldn't map this to a supported action. ` +
                                 `Try rephrasing, or pick one of the other chips.`;
@@ -7394,8 +6838,9 @@ export default function BankingAgent({
                     );
                   })}
                   {discoverySearch.trim() !== "" &&
-                    filteredDiscoveryGroups.filter((g) => g.chips.length > 0)
-                      .length === 0 && (
+                    filteredDiscoveryGroups.filter(
+                      (g) => g.chips.length > 0,
+                    ).length === 0 && (
                       <div className="ba-popout-empty">
                         <div className="ba-popout-empty-heading">
                           No matching actions
@@ -7418,16 +6863,9 @@ export default function BankingAgent({
                   <span className="ba-dock-identity__dot" aria-hidden="true" />
                   Active
                 </div>
-                <div className="ba-dock-identity__name">
-                  {brandShortName} Agent
-                </div>
-                <p className="ba-dock-identity__desc">
-                  Secured via PingOne · RFC&nbsp;8693
-                </p>
-                <fieldset
-                  className="ba-dock-identity__scopes"
-                  aria-label="Granted scopes"
-                >
+                <div className="ba-dock-identity__name">{brandShortName} Agent</div>
+                <p className="ba-dock-identity__desc">Secured via PingOne · RFC&nbsp;8693</p>
+                <fieldset className="ba-dock-identity__scopes" aria-label="Granted scopes">
                   <span className="ba-dock-identity__scope">read</span>
                   <span className="ba-dock-identity__scope">write</span>
                   <span className="ba-dock-identity__scope">admin</span>
@@ -7476,9 +6914,7 @@ export default function BankingAgent({
                     // Initiate OTP (non-fatal — modal still shows even if this fails)
                     try {
                       await initiateStepUpOtp();
-                    } catch (_) {
-                      /* non-fatal */
-                    }
+                    } catch (_) { /* non-fatal */ }
 
                     // Post-OTP callback: approve the HITL challenge, then retry the tool
                     pendingStepUpCallbackRef.current = async () => {
@@ -7492,35 +6928,20 @@ export default function BankingAgent({
                           },
                         );
                         if (!approveResp.ok) {
-                          const errBody = await approveResp
-                            .json()
-                            .catch(() => ({}));
-                          throw new Error(
-                            errBody.message ||
-                              `Approval failed: ${approveResp.status}`,
-                          );
+                          const errBody = await approveResp.json().catch(() => ({}));
+                          throw new Error(errBody.message || `Approval failed: ${approveResp.status}`);
                         }
-                        addMessage(
-                          "assistant",
-                          "✅ Approved — retrying your request…",
-                          retryActionId,
-                        );
+                        addMessage("assistant", "✅ Approved — retrying your request…", retryActionId);
                         runAction(retryActionId, retryForm, {
                           isRefire: true,
                           hitlRetryChallengeId: taskId,
                         });
                       } catch (approveErr) {
-                        addMessage(
-                          "error",
-                          `Failed to approve: ${approveErr.message}`,
-                          retryActionId,
-                        );
+                        addMessage("error", `Failed to approve: ${approveErr.message}`, retryActionId);
                       }
                     };
 
-                    setOtpContextLine(
-                      `Verify your identity to approve: ${toolLabel}`,
-                    );
+                    setOtpContextLine(`Verify your identity to approve: ${toolLabel}`);
                     setShowOtpModal(true);
                     return;
                   }
@@ -7529,20 +6950,13 @@ export default function BankingAgent({
                   // Vertical tool consent + step-up OTP
                   // Flow: consent approved → initiate OTP email → show OTP modal → callback executes tool
                   if (hitlPendingIntent.isVerticalConsent) {
-                    const {
-                      verticalMessage,
-                      verticalOpts,
-                      intentPayload,
-                      hitlChallengeId: verticalChallengeId,
-                    } = hitlPendingIntent;
+                    const { verticalMessage, verticalOpts, intentPayload, hitlChallengeId: verticalChallengeId } = hitlPendingIntent;
                     setHitlPendingIntent(null);
 
                     // Initiate OTP — sends to user's email/SMS (non-fatal if Notifications unconfigured)
                     try {
                       await initiateStepUpOtp();
-                    } catch (_) {
-                      /* non-fatal */
-                    }
+                    } catch (_) { /* non-fatal */ }
 
                     // Post-OTP callback: approve the HITL challenge, then retry the
                     // vertical tool carrying the challenge id. Approving records the
@@ -7554,49 +6968,26 @@ export default function BankingAgent({
                         if (verticalChallengeId) {
                           const approveResp = await fetch(
                             `/api/mcp/decision/${verticalChallengeId}/approve`,
-                            {
-                              method: "POST",
-                              credentials: "include",
-                              headers: { "Content-Type": "application/json" },
-                            },
+                            { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } },
                           );
                           if (!approveResp.ok) {
-                            const e = await approveResp
-                              .json()
-                              .catch(() => ({}));
-                            throw new Error(
-                              e.message ||
-                                `Approval failed: ${approveResp.status}`,
-                            );
+                            const e = await approveResp.json().catch(() => ({}));
+                            throw new Error(e.message || `Approval failed: ${approveResp.status}`);
                           }
                         }
                         const consentResp = await sendAgentMessage(
-                          verticalMessage,
-                          null,
-                          {
-                            ...verticalOpts,
-                            consentGiven: true,
-                            hitlChallengeId: verticalChallengeId || null,
-                          },
+                          verticalMessage, null, { ...verticalOpts, consentGiven: true, hitlChallengeId: verticalChallengeId || null },
                         );
-                        const consentParamHint =
-                          consentResp.needsParams?.hint || null;
+                        const consentParamHint = consentResp.needsParams?.hint || null;
                         addMessage(
                           "assistant",
                           consentResp.reply || "\u2705 Done.",
                           null,
-                          {
-                            source: "heuristic",
-                            ...verticalResultExtra(consentResp),
-                            paramHint: consentParamHint,
-                          },
+                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint },
                         );
-                        if (
-                          consentResp.needsParams?.action &&
-                          consentResp.needsParams.missing?.length
-                        ) {
+                        if (consentResp.needsParams?.action && consentResp.needsParams.missing?.length) {
                           setPendingClarification({
-                            kind: "vertical",
+                            kind: 'vertical',
                             action: consentResp.needsParams.action,
                             missingParams: consentResp.needsParams.missing,
                             partialParams: {},
@@ -7612,8 +7003,7 @@ export default function BankingAgent({
                       }
                     };
 
-                    const actionLabel =
-                      intentPayload?.description || "this action";
+                    const actionLabel = intentPayload?.description || "this action";
                     setOtpContextLine(
                       `Verify your identity to ${actionLabel.charAt(0).toLowerCase() + actionLabel.slice(1)}`,
                     );
@@ -7852,9 +7242,7 @@ export default function BankingAgent({
                               response.tokenEvents,
                             );
                           }
-                          const hitlTokenMsg = buildTokenEventMsg(
-                            response.tokenEvents,
-                          );
+                          const hitlTokenMsg = buildTokenEventMsg(response.tokenEvents);
                           if (hitlTokenMsg) {
                             addMessage("token-event", hitlTokenMsg, null);
                           }
@@ -7934,14 +7322,10 @@ export default function BankingAgent({
                     onAccept={handleHitlConfirm}
                     onDismiss={handleHitlCancel}
                     intentAuthDecision={hitlPendingIntent.intentAuthDecision}
-                    hitlContext={
-                      hitlPendingIntent.isMcpHitl
-                        ? {
-                            tool: hitlPendingIntent.tool,
-                            reason: hitlPendingIntent.reason,
-                          }
-                        : undefined
-                    }
+                    hitlContext={hitlPendingIntent.isMcpHitl ? {
+                      tool: hitlPendingIntent.tool,
+                      reason: hitlPendingIntent.reason,
+                    } : undefined}
                   />
                 );
               })()}
@@ -8258,7 +7642,9 @@ export default function BankingAgent({
                       </div>
                       <p style={{ margin: 0, fontSize: "14px", opacity: 0.8 }}>
                         Performing RFC 8693 token exchange to obtain a{" "}
-                        <code style={{ padding: "1px 5px" }}>write</code>
+                        <code style={{ padding: "1px 5px" }}>
+                          write
+                        </code>
                         {"-scoped MCP token."}
                       </p>
                     </>
@@ -8396,8 +7782,7 @@ export default function BankingAgent({
                         // "fido" is routed through the OTP modal, which now owns
                         // the real PingOne passkey register-then-authenticate flow.
                         const rawStepUp = err.data?.step_up_method || "otp";
-                        const stepUpMethod =
-                          rawStepUp === "fido" ? "otp" : rawStepUp;
+                        const stepUpMethod = rawStepUp === "fido" ? "otp" : rawStepUp;
                         console.log(
                           "[HITL Consent] Step-up method:",
                           stepUpMethod,
@@ -8522,9 +7907,7 @@ export default function BankingAgent({
                     ❌ {txErrorModal.title}
                   </div>
                   <div className="ba-tx-error-modal__body">
-                    {typeof txErrorModal.message === "string"
-                      ? txErrorModal.message
-                      : JSON.stringify(txErrorModal.message)}
+                    {typeof txErrorModal.message === "string" ? txErrorModal.message : JSON.stringify(txErrorModal.message)}
                   </div>
                   <button
                     type="button"
@@ -8809,8 +8192,7 @@ export default function BankingAgent({
                                       },
                                       body: JSON.stringify({
                                         message: chip.label,
-                                        provider:
-                                          activeLlmProvider || "heuristic",
+                                        provider: activeLlmProvider || "heuristic",
                                       }),
                                       signal: AbortSignal.timeout(15000),
                                     },
@@ -8966,22 +8348,16 @@ export default function BankingAgent({
                       return (
                         <div key={msg.id} className="banking-agent-msg error">
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
-                            <MessageContent
-                              text={msg.content}
-                              terminology={terminology}
-                            />
+                            <MessageContent text={msg.content} terminology={terminology} />
                             <div className="ba-session-fix-actions">
                               <button
                                 type="button"
                                 className="ba-session-fix-btn"
                                 onClick={async () => {
                                   try {
-                                    const data =
-                                      await setAgentAuthorization(true);
+                                    const data = await setAgentAuthorization(true);
                                     if (data.reauthRequired) {
-                                      requestSilentReauth(
-                                        window.location.pathname,
-                                      );
+                                      requestSilentReauth(window.location.pathname);
                                     }
                                   } catch (_) {
                                     /* leave the message in place if the grant fails */
@@ -8999,17 +8375,12 @@ export default function BankingAgent({
                       return (
                         <div key={msg.id} className="banking-agent-msg error">
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
-                            <MessageContent
-                              text={msg.content}
-                              terminology={terminology}
-                            />
+                            <MessageContent text={msg.content} terminology={terminology} />
                             <div className="ba-session-fix-actions">
                               <button
                                 type="button"
                                 className="ba-session-fix-btn"
-                                onClick={() =>
-                                  navigateToCustomerOAuthForceLogin()
-                                }
+                                onClick={() => navigateToCustomerOAuthForceLogin()}
                               >
                                 Log in as customer
                               </button>
@@ -9029,10 +8400,7 @@ export default function BankingAgent({
                       return (
                         <div key={msg.id} className="banking-agent-msg error">
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
-                            <MessageContent
-                              text={msg.content}
-                              terminology={terminology}
-                            />
+                            <MessageContent text={msg.content} terminology={terminology} />
                             <div className="ba-session-fix-actions">
                               <button
                                 type="button"
@@ -9088,20 +8456,19 @@ export default function BankingAgent({
                           </span>
                         )}
                         {msg.role === "assistant" &&
-                          (msg.source === "helix" ||
-                            msg.source === "helix_fallback") && (
-                            <span className="banking-agent-msg-avatar banking-agent-msg-avatar--helix">
-                              <img
-                                src="/images/helix.png"
-                                alt="AI"
-                                style={{
-                                  width: 22,
-                                  height: "auto",
-                                  display: "block",
-                                }}
-                              />
-                            </span>
-                          )}
+                          (msg.source === "helix" || msg.source === "helix_fallback") && (
+                          <span className="banking-agent-msg-avatar banking-agent-msg-avatar--helix">
+                            <img
+                              src="/images/helix.png"
+                              alt="AI"
+                              style={{
+                                width: 22,
+                                height: "auto",
+                                display: "block",
+                              }}
+                            />
+                          </span>
+                        )}
                         <div>
                           {msg.isPrompt && (
                             <div className="banking-agent-msg-label banking-agent-msg-label--prompt">
@@ -9122,13 +8489,8 @@ export default function BankingAgent({
                           <div
                             className={`banking-agent-msg-bubble${msg.tool ? " banking-agent-msg-bubble--tool-result" : ""}${msg.isPrompt ? " banking-agent-msg-bubble--prompt" : ""}`}
                           >
-                            <MessageContent
-                              text={msg.content}
-                              terminology={terminology}
-                            />
-                            {msg.paramHint && (
-                              <ParamHintCopy hint={msg.paramHint} />
-                            )}
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
                             {msg.verticalResult && (
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
@@ -9146,7 +8508,7 @@ export default function BankingAgent({
                                 className="banking-agent-msg-copy-prompt"
                                 onClick={() => {
                                   navigator.clipboard.writeText(msg.content);
-                                  notifySuccess("Prompt copied to clipboard");
+                                  notifySuccess('Prompt copied to clipboard');
                                 }}
                                 title="Copy prompt"
                                 aria-label="Copy prompt"
@@ -9330,12 +8692,7 @@ export default function BankingAgent({
               <div className="ba-token-footer">
                 <span>⬆ {sessionTokens.input.toLocaleString()} in</span>
                 <span>⬇ {sessionTokens.output.toLocaleString()} out</span>
-                <span>
-                  ∑{" "}
-                  {(
-                    lifetimeTokens.input + lifetimeTokens.output
-                  ).toLocaleString()}
-                </span>
+                <span>∑ {(lifetimeTokens.input + lifetimeTokens.output).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -9407,10 +8764,7 @@ export default function BankingAgent({
         onClose={() => setShowTokenChain(false)}
       />
       {showLoginModal && (
-        <QuickLoginModal
-          pathname={window.location.pathname}
-          onClose={() => setShowLoginModal(false)}
-        />
+        <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
       )}
       <DemoAuthzFallbackModal
         open={showAuthzFallbackModal}
@@ -9424,14 +8778,7 @@ export default function BankingAgent({
         />
       )}
       {showEventStream && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "2rem",
-            right: "2rem",
-            zIndex: 999,
-          }}
-        >
+        <div style={{ position: "fixed", bottom: "2rem", right: "2rem", zIndex: 999 }}>
           <EventStreamPanel onClose={() => setShowEventStream(false)} />
         </div>
       )}

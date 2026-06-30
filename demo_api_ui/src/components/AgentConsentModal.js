@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import DraggableModal from "./DraggableModal";
 import IntentAuthDecisionDisplay from "./IntentAuthDecisionDisplay";
+import { formatCurrency } from "../utils/formatters";
 import "./AgentConsentModal.css";
 
 /**
@@ -72,10 +73,7 @@ export default function AgentConsentModal({
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase())
       .trim();
-  const fmtAmount = (n) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-      Number(n || 0),
-    );
+  const fmtAmount = (n) => formatCurrency(Number(n || 0), "USD");
 
   // `transaction` may be a real money transaction OR a generic agent-action
   // descriptor (vertical intent payload, e.g. Checkout) with amount 0 and no

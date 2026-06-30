@@ -18,7 +18,7 @@ function _extractHelixConfig(cfg = {}) {
 async function processOpsMessage({ vertical, query, message, history = [], langchainConfig = {} }) {
   const { customer, records } = getCustomerContext(vertical, query);
   if (!customer) {
-    return { reply: RESPONSES.noCustomer, success: true, toolsCalled: [], inputTokens: 0, outputTokens: 0, agentConfigured: true };
+    return { reply: RESPONSES.noCustomer.userMessage, success: true, toolsCalled: [], inputTokens: 0, outputTokens: 0, agentConfigured: true };
   }
 
   const { provider, model } = resolveLlmProvider({ ...langchainConfig, provider: undefined });
@@ -40,7 +40,7 @@ async function processOpsMessage({ vertical, query, message, history = [], langc
   if (loop.ok) {
     return { reply: loop.answer, success: true, toolsCalled: [], inputTokens: loop.inputTokens || 0, outputTokens: loop.outputTokens || 0, agentConfigured: true };
   }
-  return { reply: RESPONSES.reasoningUnavailable, success: false, toolsCalled: [], inputTokens: 0, outputTokens: 0, agentConfigured: true, error: loop.reason || 'reasoning_failed' };
+  return { reply: RESPONSES.reasoningUnavailable(loop.reason || 'unknown').userMessage, success: false, toolsCalled: [], inputTokens: 0, outputTokens: 0, agentConfigured: true, error: loop.reason || 'reasoning_failed' };
 }
 
 module.exports = { processOpsMessage };

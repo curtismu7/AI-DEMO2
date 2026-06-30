@@ -1,0 +1,109 @@
+/* Shared hero section styles — uses CSS classes for variants, custom properties for theming */
+
+:root {
+  /* Avatar size tokens */
+  --hero-avatar-size-sm: 32px;
+  --hero-avatar-size-md: 56px;
+  --hero-avatar-size-lg: 80px;
+
+  /* Typography tokens */
+  --hero-size-full-gap: 1rem;
+  --hero-size-full-padding: 2.5rem 2rem 2rem;
+  --hero-size-full-h1: 1.8rem;
+  --hero-size-full-p: 0.95rem;
+
+  --hero-size-compact-gap: 0.5rem;
+  --hero-size-compact-padding: 1.5rem 2rem 1rem;
+  --hero-size-compact-h1: 1.2rem;
+  --hero-size-compact-p: 0.8rem;
+}
+
+.hero-section {
+  --_gap: var(--hero-size-full-gap);
+  --_padding: var(--hero-size-full-padding);
+  --_h1-size: var(--hero-size-full-h1);
+  --_p-size: var(--hero-size-full-p);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--_gap);
+  padding: var(--_padding);
+  text-align: center;
+  color: #fff;
+  margin: 0 1.5rem 1.5rem;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--hero-bg-gradient-from, var(--brand-navy-dark, #1e40af)) 0%, var(--hero-bg-gradient-to, #1e3a8a) 100%);
+}
+
+/* Size modifier — compact variant */
+.hero-section--compact {
+  --_gap: var(--hero-size-compact-gap);
+  --_padding: var(--hero-size-compact-padding);
+  --_h1-size: var(--hero-size-compact-h1);
+  --_p-size: var(--hero-size-compact-p);
+}
+
+/* Avatar size modifiers */
+.hero-section.hero-avatar--sm .hero-avatar {
+  width: var(--hero-avatar-size-sm);
+  height: var(--hero-avatar-size-sm);
+  font-size: 0.8rem;
+}
+
+.hero-section.hero-avatar--md .hero-avatar {
+  width: var(--hero-avatar-size-md);
+  height: var(--hero-avatar-size-md);
+  font-size: 1.3rem;
+}
+
+.hero-section.hero-avatar--lg .hero-avatar {
+  width: var(--hero-avatar-size-lg);
+  height: var(--hero-avatar-size-lg);
+  font-size: 1.6rem;
+}
+
+/* Default avatar size (md) */
+.hero-section .hero-avatar {
+  width: var(--hero-avatar-size-md);
+  height: var(--hero-avatar-size-md);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--v2-r-xl, 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+.hero-section h1 {
+  font-family: var(--v2-font-display, Georgia, serif);
+  font-size: var(--_h1-size);
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.hero-section p {
+  font-size: var(--_p-size);
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  font-weight: 500;
+}
+
+.hero-subtitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+  max-width: 520px;
+}
+
+/* Hide subtitle in compact mode */
+.hero-section--compact .hero-subtitle {
+  display: none;
+}

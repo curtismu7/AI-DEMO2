@@ -465,6 +465,29 @@ export default function LearningHub() {
           Explore {totalItems} topics about OAuth, agents, MCP, and more
         </p>
 
+        <a
+          className="learning-hub__weblink"
+          href="https://curtismu7.github.io/llama-vscode-setup-guide/learning/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            margin: "4px 0 14px",
+            padding: "8px 14px",
+            borderRadius: 999,
+            background: "#f0eefb",
+            border: "1px solid #ddd5fb",
+            color: "#5b3fd6",
+            textDecoration: "none",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          🌐 Share these topics on the web — open the public Learning Hub ↗
+        </a>
+
         <div className="learning-hub__search">
           <input
             type="text"

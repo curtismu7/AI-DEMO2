@@ -17,21 +17,18 @@ const STORAGE_KEY = 'arch-canvas-v7';
 const SEED_POSITIONS = {
   frontend:          { x: 30,   y: 220 },
   bff:               { x: 220,  y: 220 },
-  'langchain-agent': { x: 430,  y: 80  },
-  'agent-service':   { x: 430,  y: 340 },
+  'pingone-sso':     { x: 220,  y: 80  },
+  'agent-service':   { x: 430,  y: 220 },
   'mcp-gateway':     { x: 640,  y: 210 },
   'authz-server':    { x: 855,  y: 40  },
-  'pingone-sso':     { x: 855,  y: 185 },
   'hitl-service':    { x: 855,  y: 360 },
   'mcp-server':      { x: 1075, y: 40  },
   'mcp-invest':      { x: 1075, y: 200 },
-  'mortgage-service':{ x: 1075, y: 360 },
 };
 
 const NODE_LAYER = {
   frontend:          'client',
   bff:               'gateway',
-  'langchain-agent': 'agent',
   'agent-service':   'agent',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
@@ -39,7 +36,6 @@ const NODE_LAYER = {
   'hitl-service':    'tool',
   'mcp-server':      'backend',
   'mcp-invest':      'backend',
-  'mortgage-service':'backend',
 };
 
 // Human-readable display labels (overrides the id as label)
@@ -53,7 +49,6 @@ const NODE_LABEL = {
 const NODE_SUB = {
   frontend:          'Browser',
   bff:               'https:3001',
-  'langchain-agent': 'http:8888 · AG-UI',
   'agent-service':   'http:3006 · NL mode',
   'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
@@ -61,7 +56,6 @@ const NODE_SUB = {
   'hitl-service':    'http:3009',
   'mcp-server':      'http:8080 · OLB',
   'mcp-invest':      'http:8081',
-  'mortgage-service':'http:8082',
 };
 
 function buildSeedNodes() {
@@ -80,22 +74,21 @@ function buildSeedNodes() {
 
 function buildSeedEdges(nodes) {
   const pairs = [
-    ['frontend',        'bff'],
-    ['bff',             'langchain-agent'],
-    ['bff',             'agent-service'],
+    ['frontend',        'bff',                  'Send message'],
+    ['bff',             'agent-service',        'Dispatch'],
     // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
-    ['bff',             'pingone-sso'],
-    ['bff',             'mcp-gateway'],
-    ['mcp-gateway',     'authz-server'],
-    ['mcp-gateway',     'hitl-service'],
-    ['mcp-gateway',     'mcp-server'],
-    ['mcp-gateway',     'mcp-invest'],
-    ['mcp-gateway',     'mortgage-service'],
+    ['bff',             'pingone-sso',          'Token exchange'],
+    ['bff',             'mcp-gateway',          'Routing'],
+    ['mcp-gateway',     'authz-server',         'Authorize request'],
+    ['mcp-gateway',     'hitl-service',         'Challenge'],
+    ['mcp-gateway',     'mcp-server',           'MCP API call'],
+    ['mcp-gateway',     'mcp-invest',           'MCP API call'],
+    ['authz-server',    'pingone-sso',          'Token introspection'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
     .filter(([a, b]) => nodeIds.has(a) && nodeIds.has(b))
-    .map(([from, to]) => ({ id: `e-${from}-${to}`, from, to }));
+    .map(([from, to, label]) => ({ id: `e-${from}-${to}`, from, to, label }));
 }
 
 function loadFromStorage() {
@@ -175,6 +168,19 @@ export default function useCanvasLayout() {
     });
   }, [persist]);
 
+  const removeNode = useCallback((id) => {
+    setNodes(prev => {
+      const next = prev.filter(n => n.id !== id);
+      persist(next, edgesRef.current);
+      return next;
+    });
+    setEdges(prev => {
+      const next = prev.filter(e => e.from !== id && e.to !== id);
+      persist(nodesRef.current, next);
+      return next;
+    });
+  }, [persist]);
+
   const resetLayout = useCallback(() => {
     const freshNodes = buildSeedNodes();
     setNodes(freshNodes);
@@ -182,5 +188,5 @@ export default function useCanvasLayout() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
   }, []);
 
-  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout };
+  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, removeNode, resetLayout };
 }

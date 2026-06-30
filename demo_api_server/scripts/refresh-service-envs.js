@@ -309,12 +309,17 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT: `${asBase}/token`,
     AGENT_CLIENT_ID:        creds.agentClientId,
     AGENT_CLIENT_SECRET:    creds.agentSecret,
+    LLM_PROVIDER:           fb('LLM_PROVIDER') || 'helix',
+    LLAMACPP_BASE_URL:      fb('LLAMACPP_BASE_URL'),
+    OLLAMA_BASE_URL:        fb('OLLAMA_BASE_URL'),
+    LLM_MODEL:              fb('LLM_MODEL'),
   });
   console.log('[refresh-envs] Wrote demo_agent_service/.env');
 
   // ── langchain_agent/.env ──────────────────────────────────────────────────
   // Requires: PINGONE_BASE_URL, PINGONE_CLIENT_REGISTRATION_ENDPOINT,
-  // PINGONE_TOKEN_ENDPOINT, PINGONE_AUTHORIZATION_ENDPOINT, PINGONE_REDIRECT_URI
+  // PINGONE_TOKEN_ENDPOINT, PINGONE_AUTHORIZATION_ENDPOINT, PINGONE_REDIRECT_URI,
+  // and OAuth credentials (PINGONE_USER_CLIENT_ID/SECRET or AGENT_CLIENT_ID/SECRET).
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:4000';
   writeEnvFile(path.join(ROOT, 'langchain_agent', '.env'), {
     ...shared,
@@ -328,6 +333,11 @@ async function main() {
     ENCRYPTION_SALT:                       'bbbbbbbbbbbbbbbb',
     BFF_BASE_URL:                          'http://api-server:3001',
     BFF_INTERNAL_TOOL_URL:                 'http://api-server:3001/internal/agent-tool',
+    // OAuth credentials: map AI_AGENT_ACTOR credentials to the names langchain_agent expects
+    PINGONE_USER_CLIENT_ID:                creds.aiAgentClientId,
+    PINGONE_USER_CLIENT_SECRET:            creds.aiAgentSecret,
+    AGENT_CLIENT_ID:                       creds.aiAgentClientId,
+    AGENT_CLIENT_SECRET:                   creds.aiAgentSecret,
   });
   console.log('[refresh-envs] Wrote langchain_agent/.env');
 

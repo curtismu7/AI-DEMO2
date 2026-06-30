@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="claude-skills-bundle11">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/.claude/worktrees/harden-startup-checks/claude-skills-bundle.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

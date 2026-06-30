@@ -2,7 +2,7 @@
 // All are stateless w.r.t. the BankingAgent component — they render from props only.
 // (ResultsPanel keeps its own local resize state, but takes its content via props.)
 import React, { useState, useRef, useCallback } from "react";
-import { formatCurrency } from "./agentFormatters";
+import { formatCurrency } from "../utils/formatters";
 import { InlineMd, MarkdownContent } from "./shared/MarkdownText";
 import VerticalResult from "./VerticalResult";
 

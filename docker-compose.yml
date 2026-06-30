@@ -206,6 +206,7 @@ services:
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-langchain-agent
+    command: ./scripts/startup.sh
     ports:
       - "8888:8888"   # AG-UI SSE / FastAPI
       - "8889:8889"   # WebSocket chat
