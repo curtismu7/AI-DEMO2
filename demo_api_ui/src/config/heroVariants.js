@@ -9,6 +9,11 @@ export const HERO_VARIANTS = {
     backgroundEndColor: '#1e3a8a',
     label: 'Code Explorer',
   },
+  'code-search': {
+    backgroundColor: '#059669',
+    backgroundEndColor: '#047857',
+    label: 'Code Search',
+  },
   'oauth-academy': {
     backgroundColor: '#6366f1',
     backgroundEndColor: '#4f46e5',
