@@ -59,10 +59,10 @@ const STATUS_COLOR = {
 const COL_DEFS = [
   { ids: ['frontend'],                               label: 'Browser' },
   { ids: ['bff'],                                    label: 'BFF' },
-  { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
+  { ids: ['agent-service'],                          label: 'Agent Layer' },
   { ids: ['mcp-gateway'],                            label: 'Agent Gateway' },
   { ids: ['authz-server', 'pingone-sso', 'hitl-service'], label: 'Auth / Policy' },
-  { ids: ['mcp-server', 'mcp-invest', 'mortgage-service'], label: 'MCP Backends' },
+  { ids: ['mcp-server', 'mcp-invest'],               label: 'MCP Backends' },
 ];
 
 function colLabelX(colDef, nodeMap) {

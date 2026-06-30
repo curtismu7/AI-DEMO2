@@ -2924,462 +2924,6 @@
   ],
   "activityLogs": [
     {
-      "id": "de6a97f7-fe1b-4a88-9f93-8283f7a7372f",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/stream",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.340Z"
-    },
-    {
-      "id": "313c8565-ef80-45b1-9550-409cbfe0cb41",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/list",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.349Z"
-    },
-    {
-      "id": "80018c33-d318-466f-9c43-ebd51e99b2bc",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.357Z"
-    },
-    {
-      "id": "6db829c3-4220-468a-b6f9-57170f64cafb",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/ciba/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "enabled": false,
-        "deliveryMode": "poll",
-        "bindingMessage": "Banking App Authentication",
-        "setupRequired": true,
-        "setupSteps": [
-          "Set CIBA_ENABLED=true in your environment",
-          "Enable the CIBA grant type on your PingOne application",
-          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
-        ]
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.362Z"
-    },
-    {
-      "id": "de0418af-c49a-4512-9d81-701fd88d0ac9",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-06-30T18:04:34.371Z"
-    },
-    {
-      "id": "97157e25-0e27-4e33-8776-5619e0e9be90",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:34.383Z"
-    },
-    {
-      "id": "f0f7221b-63ca-4f99-9a6f-80ac11d3a895",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.391Z"
-    },
-    {
-      "id": "7e1122f2-2027-4e02-8ad9-438c020935d3",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:04:34.397Z"
-      },
-      "responseStatus": 200,
-      "duration": 16,
-      "timestamp": "2026-06-30T18:04:34.397Z"
-    },
-    {
-      "id": "0b8d917e-3050-4077-a35a-a2b0ce52fcef",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:34.406Z"
-    },
-    {
-      "id": "f4d7e611-4492-493d-a7f8-a18eedc5f76c",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.433Z"
-    },
-    {
-      "id": "3b32f21c-4a2b-4cc7-92b9-9a2898e13915",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.454Z"
-    },
-    {
-      "id": "39d18ace-7828-404f-82f0-2dbed8df0c08",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:34.470Z"
-    },
-    {
-      "id": "ea039249-92ae-41d6-9fcb-1d45ee5fef39",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:34.484Z"
-    },
-    {
-      "id": "cfa45638-50c7-4f3a-9c51-96591308effb",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:34.498Z"
-    },
-    {
-      "id": "a277b814-f21f-486c-9af5-a7773990ac74",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "UNKNOWN",
-      "endpoint": "POST /api/agent/invoke",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": {
-        "prompt": "what is a confused deputy attack",
-        "vertical": "oauth-teaching",
-        "flowTraceId": "eacc5de4-9c47-4130-9003-eb859d26d81d"
-      },
-      "responseBody": {
-        "reply": "Missing Input",
-        "success": true,
-        "toolsCalled": [],
-        "inputTokens": 251,
-        "outputTokens": 4,
-        "requiresConsent": false,
-        "agentConfigured": true,
-        "tokenEvents": [
-          {
-            "id": "intent-token",
-            "label": "Intent Token — prompt bound at origin (BFF-minted)",
-            "status": "active",
-            "timestamp": "2026-06-30T18:04:34.425Z",
-            "alg": "HS256",
-            "claims": {
-              "sub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-              "iss": "bff:intent-token",
-              "exp": 1782842974,
-              "iat": 1782842674,
-              "jti": "b35e5ac4-3c5d-4a68-91eb-b11a96246143",
-              "sid": "bPGhbb3CvfXzIdhdCCbDQBIbjmWJt1cC",
-              "intent": "unknown",
-              "confidence": 0.3,
-              "permitted_tools": [
-                "get_my_accounts",
-                "get_account_balance",
-                "get_my_transactions",
-                "get_investment_accounts",
-                "get_investment_balance",
-                "get_portfolio_summary",
-                "get_investment_transactions",
-                "get_sensitive_account_details",
-                "query_user_by_email",
-                "sequential_think",
-                "view_records",
-                "view_coverage",
-                "list_appointments",
-                "show_health_record",
-                "list_orders",
-                "order_status",
-                "rewards_balance",
-                "show_large_purchase",
-                "list_gear",
-                "list_rentals",
-                "gear_order_status",
-                "loyalty_balance",
-                "show_gear_order",
-                "view_benefits",
-                "pto_balance",
-                "list_expenses",
-                "show_expense_report",
-                "show_mortgage"
-              ],
-              "prompt_hash": "421d102bfd85936d8478868ee6df75630be09d0da43466a58b4f081d925266f6",
-              "vertical": "oauth-teaching"
-            },
-            "explanation": "The BFF extracted intent \"unknown\" (confidence 0.3) from your prompt and minted a cryptographically signed Intent Token (HMAC-SHA256). The token's permitted_tools claim lists the MCP tools this intent is allowed to invoke. The MCP gateway validates this binding before forwarding any tool call — preventing the agent from invoking tools outside the stated intent.",
-            "rfc": "draft-ietf-oauth-intent-token",
-            "intent": "unknown",
-            "confidence": 0.3,
-            "permitted_tools": [
-              "get_my_accounts",
-              "get_account_balance",
-              "get_my_transactions",
-              "get_investment_accounts",
-              "get_investment_balance",
-              "get_portfolio_summary",
-              "get_investment_transactions",
-              "get_sensitive_account_details",
-              "query_user_by_email",
-              "sequential_think",
-              "view_records",
-              "view_coverage",
-              "list_appointments",
-              "show_health_record",
-              "list_orders",
-              "order_status",
-              "rewards_balance",
-              "show_large_purchase",
-              "list_gear",
-              "list_rentals",
-              "gear_order_status",
-              "loyalty_balance",
-              "show_gear_order",
-              "view_benefits",
-              "pto_balance",
-              "list_expenses",
-              "show_expense_report",
-              "show_mortgage"
-            ],
-            "jwtFullDecode": {
-              "header": {
-                "alg": "HS256",
-                "typ": "JWT"
-              },
-              "claims": {
-                "sub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-                "iss": "bff:intent-token",
-                "exp": 1782842974,
-                "iat": 1782842674,
-                "jti": "b35e5ac4-3c5d-4a68-91eb-b11a96246143",
-                "sid": "bPGhbb3CvfXzIdhdCCbDQBIbjmWJt1cC",
-                "intent": "unknown",
-                "confidence": 0.3,
-                "permitted_tools": [
-                  "get_my_accounts",
-                  "get_account_balance",
-                  "get_my_transactions",
-                  "get_investment_accounts",
-                  "get_investment_balance",
-                  "get_portfolio_summary",
-                  "get_investment_transactions",
-                  "get_sensitive_account_details",
-                  "query_user_by_email",
-                  "sequential_think",
-                  "view_records",
-                  "view_coverage",
-                  "list_appointments",
-                  "show_health_record",
-                  "list_orders",
-                  "order_status",
-                  "rewards_balance",
-                  "show_large_purchase",
-                  "list_gear",
-                  "list_rentals",
-                  "gear_order_status",
-                  "loyalty_balance",
-                  "show_gear_order",
-                  "view_benefits",
-                  "pto_balance",
-                  "list_expenses",
-                  "show_expense_report",
-                  "show_mortgage"
-                ],
-                "prompt_hash": "421d102bfd85936d8478868ee6df75630be09d0da43466a58b4f081d925266f6",
-                "vertical": "oauth-teaching"
-              }
-            }
-          },
-          {
-            "type": "heuristic_disabled",
-            "timestamp": "2026-06-30T18:04:34.427Z",
-            "reason": "ff_heuristic_enabled=false"
-          }
-        ],
-        "intent": "unknown",
-        "confidence": 0.7,
-        "runId": "43f5c19f-601e-4a36-85fc-bcea393e0963"
-      },
-      "responseStatus": 200,
-      "duration": 1325,
-      "timestamp": "2026-06-30T18:04:35.746Z"
-    },
-    {
       "id": "8fbec05d-a8e5-4838-866f-5ebaa9016702",
       "userId": null,
       "username": null,
@@ -38315,6 +37859,916 @@
       "responseStatus": 200,
       "duration": 1242,
       "timestamp": "2026-06-30T18:58:37.943Z"
+    },
+    {
+      "id": "a73d58ac-7195-4ee7-b873-c895ba63014f",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 8,
+      "timestamp": "2026-06-30T18:58:48.324Z"
+    },
+    {
+      "id": "86673fb4-820e-44b2-9050-b9dbc6e5bab8",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/authorize/warmup",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": {},
+      "responseBody": {
+        "ok": true,
+        "cached": true
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T18:58:48.351Z"
+    },
+    {
+      "id": "64136bbc-023c-47f1-bf94-796812cb23dc",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/langchain/config/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "provider": "helix",
+        "model": "gpt-4o-mini",
+        "helix_base_url": "https://openam-helix.forgeblocks.com",
+        "helix_api_key": "••••••••",
+        "helix_environment_id": "fe213c3c-9c1d-4bdb-954a-a22879dad26d",
+        "helix_agent_id": "LLM",
+        "helix_prompt_field_id": "textInputa7c39a0e8292",
+        "key_set": {
+          "helix": true,
+          "openai": false,
+          "anthropic": false,
+          "anthropic-lmstudio": true
+        },
+        "provider_models": {
+          "openai": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo"
+          ],
+          "anthropic": [
+            "claude-opus-4-5",
+            "claude-sonnet-4-5",
+            "claude-3-5-haiku-20241022"
+          ],
+          "groq": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
+          ],
+          "google": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "helix": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gemini-1.5-pro",
+            "claude-3-5-sonnet"
+          ],
+          "anthropic-lmstudio": [
+            "google/gemma-4-e2b",
+            "google/gemma-4-e4b",
+            "google/gemma-3-12b-it",
+            "qwen/qwen3.6-27b"
+          ],
+          "llamacpp": [
+            "qwen2.5-3b-instruct",
+            "qwen3-1.7b",
+            "qwen3-8b",
+            "llama-3.1-8b-instruct"
+          ]
+        },
+        "default_models": {
+          "openai": "gpt-4o-mini",
+          "anthropic": "claude-3-5-haiku-20241022",
+          "groq": "llama-3.1-8b-instant",
+          "google": "gemini-2.0-flash",
+          "helix": "gpt-4o-mini",
+          "anthropic-lmstudio": "google/gemma-4-e2b",
+          "llamacpp": "qwen2.5-3b-instruct"
+        },
+        "fallback_order": [
+          "groq",
+          "anthropic",
+          "openai",
+          "google"
+        ],
+        "agent_mode": "helix_google",
+        "external_wiring": "bff",
+        "agent_modes": [
+          {
+            "id": "heuristics",
+            "label": "Heuristics only",
+            "external": false
+          },
+          {
+            "id": "llamacpp",
+            "label": "llama.cpp only",
+            "external": true
+          },
+          {
+            "id": "claude",
+            "label": "Anthropic only",
+            "external": true
+          },
+          {
+            "id": "helix_google",
+            "label": "Helix only",
+            "external": true
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T18:58:48.360Z"
+    },
+    {
+      "id": "06a06e9f-03e0-4ceb-9204-f9dd774cc8ed",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "GET_ACCOUNTS",
+      "endpoint": "GET /api/accounts/my",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": null,
+      "responseBody": {
+        "accounts": [
+          {
+            "id": "bf962e83-d73d-4028-b5fb-fb7a845f5994",
+            "accountType": "Rewards Points",
+            "name": "Rewards Account",
+            "balance": 4329.27,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          },
+          {
+            "id": "8a1b1e3b-2139-4e17-8517-89da1cce30e6",
+            "accountType": "Store Credit",
+            "name": "Store Credit Wallet",
+            "balance": 160.58,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T18:58:48.369Z"
+    },
+    {
+      "id": "2f38d799-7a96-4def-982d-251bfc395341",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T18:58:48.380Z"
+    },
+    {
+      "id": "58ab64d5-79d3-40a6-b6d5-31ca550f966e",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/authorize/warmup",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": {},
+      "responseBody": {
+        "ok": true,
+        "cached": true
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T18:58:48.389Z"
+    },
+    {
+      "id": "55d02025-d97f-4eb0-93f7-7d1d60948de6",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 4,
+      "timestamp": "2026-06-30T18:58:48.404Z"
+    },
+    {
+      "id": "aaad3a5d-a899-40f9-9c77-099c40c3af57",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/langchain/config/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "provider": "helix",
+        "model": "gpt-4o-mini",
+        "helix_base_url": "https://openam-helix.forgeblocks.com",
+        "helix_api_key": "••••••••",
+        "helix_environment_id": "fe213c3c-9c1d-4bdb-954a-a22879dad26d",
+        "helix_agent_id": "LLM",
+        "helix_prompt_field_id": "textInputa7c39a0e8292",
+        "key_set": {
+          "helix": true,
+          "openai": false,
+          "anthropic": false,
+          "anthropic-lmstudio": true
+        },
+        "provider_models": {
+          "openai": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo"
+          ],
+          "anthropic": [
+            "claude-opus-4-5",
+            "claude-sonnet-4-5",
+            "claude-3-5-haiku-20241022"
+          ],
+          "groq": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
+          ],
+          "google": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "helix": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gemini-1.5-pro",
+            "claude-3-5-sonnet"
+          ],
+          "anthropic-lmstudio": [
+            "google/gemma-4-e2b",
+            "google/gemma-4-e4b",
+            "google/gemma-3-12b-it",
+            "qwen/qwen3.6-27b"
+          ],
+          "llamacpp": [
+            "qwen2.5-3b-instruct",
+            "qwen3-1.7b",
+            "qwen3-8b",
+            "llama-3.1-8b-instruct"
+          ]
+        },
+        "default_models": {
+          "openai": "gpt-4o-mini",
+          "anthropic": "claude-3-5-haiku-20241022",
+          "groq": "llama-3.1-8b-instant",
+          "google": "gemini-2.0-flash",
+          "helix": "gpt-4o-mini",
+          "anthropic-lmstudio": "google/gemma-4-e2b",
+          "llamacpp": "qwen2.5-3b-instruct"
+        },
+        "fallback_order": [
+          "groq",
+          "anthropic",
+          "openai",
+          "google"
+        ],
+        "agent_mode": "helix_google",
+        "external_wiring": "bff",
+        "agent_modes": [
+          {
+            "id": "heuristics",
+            "label": "Heuristics only",
+            "external": false
+          },
+          {
+            "id": "llamacpp",
+            "label": "llama.cpp only",
+            "external": true
+          },
+          {
+            "id": "claude",
+            "label": "Anthropic only",
+            "external": true
+          },
+          {
+            "id": "helix_google",
+            "label": "Helix only",
+            "external": true
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T18:58:48.416Z"
+    },
+    {
+      "id": "98f14bd1-04a1-47ca-aa6b-b92de9764b6f",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "GET_ACCOUNTS",
+      "endpoint": "GET /api/accounts/my",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": null,
+      "responseBody": {
+        "accounts": [
+          {
+            "id": "bf962e83-d73d-4028-b5fb-fb7a845f5994",
+            "accountType": "Rewards Points",
+            "name": "Rewards Account",
+            "balance": 4329.27,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          },
+          {
+            "id": "8a1b1e3b-2139-4e17-8517-89da1cce30e6",
+            "accountType": "Store Credit",
+            "name": "Store Credit Wallet",
+            "balance": 160.58,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T18:58:48.426Z"
+    },
+    {
+      "id": "84e5dab1-6440-4ed6-b42b-57d14fef4208",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "GET_ACCOUNTS",
+      "endpoint": "GET /api/accounts/my",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiOWJhMTA3NjMtNmM4Zi00YjJjLTgzNmEtYTNhNDg5NjY1NjFiIiwiaWF0IjoxNzgyODQ1OTEwLCJleHAiOjE3ODI4NDk1MTAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiZDRhMjhjNTgtMjRmOS00NTZiLTkwYTgtYmQzYjQ3OTcwYzMyIiwiYXV0aF90aW1lIjoxNzgyODQ1OTEwLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.AIsbYnoZHOxUeMpWjOr7yW772n8GVLcRJum6sPSngTCTEdoGakRusXUCGPH-Puzhd4LPsfYeCgvU3Ue39vNuCTpxVw78bVPVFks6u57Om6f_cBr1bp1APIpglWK14KYKoG2J9ktXV38P1tKOxPTuJqnjcMKZXuVk8uveE3Y8r0fg98fDY288zkYmja_SgWQW1h6g5NfjVpLInNnTlkoy197npojP8PMmdylrwPT9J7DGOJzBInVOJ3wyfMymWZeZXWrJwFuhquDa7BcfeYItkZtrXqWiCPgJJ3_wG4N2aMQBLM4ONLT-0O-PFgF90nx8INhKVxSIatfv97pYapTP5A",
+      "requestBody": null,
+      "responseBody": {
+        "accounts": [
+          {
+            "id": "bf962e83-d73d-4028-b5fb-fb7a845f5994",
+            "accountType": "Rewards Points",
+            "name": "Rewards Account",
+            "balance": 4329.27,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          },
+          {
+            "id": "8a1b1e3b-2139-4e17-8517-89da1cce30e6",
+            "accountType": "Store Credit",
+            "name": "Store Credit Wallet",
+            "balance": 160.58,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T18:58:48.439Z"
+    },
+    {
+      "id": "bb67db6c-c222-4916-8186-b7aa13863a6d",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/demo-agent/tools",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": {
+        "vertical": "retail",
+        "allowWrite": true
+      },
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 184,
+      "timestamp": "2026-06-30T18:58:48.531Z"
+    },
+    {
+      "id": "f3175803-be5a-479d-9415-a4968bd855e5",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/demo-agent/tools",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": {
+        "vertical": "retail",
+        "allowWrite": true
+      },
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 173,
+      "timestamp": "2026-06-30T18:58:48.569Z"
+    },
+    {
+      "id": "ef8c52f3-cc20-4294-8023-b6cd6687bae1",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T18:58:53.245Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T18:58:53.245Z"
+    },
+    {
+      "id": "558702c7-df53-45ce-badb-12305b78d911",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T18:59:23.273Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T18:59:23.273Z"
+    },
+    {
+      "id": "63a00a8f-f377-4210-a3a9-76a9dc18bb43",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T18:59:53.304Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T18:59:53.304Z"
     }
   ],
   "subscriptions": []
