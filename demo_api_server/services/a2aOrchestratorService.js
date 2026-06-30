@@ -25,15 +25,16 @@ const {
 
 const appEventService = require('./appEventService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
+const { delegateToSpecialist } = require('./a2aDelegationService');
 
 /**
- * Orchestrate an A2A delegation request through the crew.
- * Returns a decision object: { shouldDelegate, specialist, scopes, authorization }
+ * Orchestrate an A2A delegation request through the crew and execute delegation.
+ * Returns: { shouldDelegate, specialist, scopes, authorized, token, tokenEvents, claims, error? }
  *
  * Note: CrewAI requires Python. For Node.js environments without Python,
  * this service provides a fallback decision path that mimics the crew logic.
  */
-async function orchestrateDelegation({ message, vertical, userId, availableSpecialists = [] }) {
+async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [] }) {
   try {
     appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
       tag: 'a2a/orchestrate',
@@ -47,27 +48,89 @@ async function orchestrateDelegation({ message, vertical, userId, availableSpeci
       availableSpecialists,
     }).catch(() => null);
 
+    let orchestrationResult;
     if (crewResult) {
       appEventService.logEvent('a2a', 'info', 'CrewAI orchestration complete', {
         tag: 'a2a/crew_complete',
         metadata: crewResult,
       });
-      return crewResult;
+      orchestrationResult = crewResult;
+    } else {
+      // Fallback: Heuristic-based orchestration (no Python needed)
+      orchestrationResult = await heuristicOrchestration({
+        message,
+        vertical,
+        availableSpecialists,
+      });
+
+      appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
+        tag: 'a2a/heuristic_fallback',
+        metadata: orchestrationResult,
+      });
     }
 
-    // Fallback: Heuristic-based orchestration (no Python needed)
-    const fallbackResult = await heuristicOrchestration({
-      message,
-      vertical,
-      availableSpecialists,
+    // If orchestration did not approve, return decision without delegation
+    if (!orchestrationResult.shouldDelegate || !orchestrationResult.authorized) {
+      appEventService.logEvent('a2a', 'info', 'A2A delegation not approved', {
+        tag: 'a2a/delegation_denied',
+        metadata: { reason: orchestrationResult.reason },
+      });
+      return {
+        ...orchestrationResult,
+        token: null,
+        tokenEvents: [],
+        claims: null,
+      };
+    }
+
+    // Delegation approved — execute the chained RFC 8693 exchange
+    const specialist = specialistForVertical(orchestrationResult.specialist);
+    if (!specialist) {
+      const err = `No specialist configured for vertical "${orchestrationResult.specialist}"`;
+      appEventService.logEvent('a2a', 'error', 'A2A specialist not found', {
+        tag: 'a2a/specialist_not_found',
+        metadata: { vertical: orchestrationResult.specialist },
+      });
+      return {
+        ...orchestrationResult,
+        token: null,
+        tokenEvents: [],
+        claims: null,
+        error: err,
+      };
+    }
+
+    const delegationResult = await delegateToSpecialist(req, {
+      vertical: orchestrationResult.specialist,
+      specialist: specialist.id,
+      scopes: orchestrationResult.scopes,
+      subtask: message,
     });
 
-    appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
-      tag: 'a2a/heuristic_fallback',
-      metadata: fallbackResult,
+    if (delegationResult.error) {
+      appEventService.logEvent('a2a', 'error', 'A2A delegation execution failed', {
+        tag: 'a2a/delegation_failed',
+        metadata: { error: delegationResult.error },
+      });
+      return {
+        ...orchestrationResult,
+        ...delegationResult,
+      };
+    }
+
+    appEventService.logEvent('a2a', 'info', 'A2A delegation successful', {
+      tag: 'a2a/delegation_success',
+      metadata: {
+        specialist: delegationResult.specialist,
+        scopes: delegationResult.scopes,
+        actChainDepth: delegationResult.actChainDepth,
+      },
     });
 
-    return fallbackResult;
+    return {
+      ...orchestrationResult,
+      ...delegationResult,
+    };
   } catch (err) {
     console.error('[a2aOrchestratorService] Orchestration error:', err.message);
     appEventService.logEvent('a2a', 'error', 'A2A orchestration failed', {
@@ -80,6 +143,9 @@ async function orchestrateDelegation({ message, vertical, userId, availableSpeci
       specialist: null,
       scopes: [],
       authorized: false,
+      token: null,
+      tokenEvents: [],
+      claims: null,
       error: err.message,
     };
   }
@@ -87,19 +153,39 @@ async function orchestrateDelegation({ message, vertical, userId, availableSpeci
 
 /**
  * Attempt to use CrewAI for orchestration.
- * This is a placeholder for when CrewAI (Python) is available.
- * For MVP, this will be stubbed or implemented via a Python subprocess.
+ * CrewAI is optional — if the npm package is not installed or fails to load,
+ * this silently falls back to heuristics. This avoids requiring Python or
+ * additional dependencies just to run the demo.
+ *
+ * If CrewAI becomes available (e.g., via npm install crewai), this will:
+ * 1. Instantiate agents with the roles defined in config/a2a/roles.js
+ * 2. Build tasks from config/a2a/tasks.js
+ * 3. Execute the crew
+ * 4. Parse the crew output into a structured decision
  */
 async function attemptCrewAiOrchestration({ message, vertical, availableSpecialists }) {
-  // TODO: Implement CrewAI integration
-  // This would require:
-  // 1. crewai npm package or Python subprocess bridge
-  // 2. Instantiating agents with the roles defined in config/a2a/roles.js
-  // 3. Building and executing tasks from config/a2a/tasks.js
-  // 4. Parsing the crew output into a structured decision
+  // Check if crewai npm package is available
+  try {
+    require('crewai');
+  } catch {
+    // CrewAI not installed — this is expected. Throw to fall back to heuristics.
+    throw new Error('CrewAI npm package not installed or not available');
+  }
 
-  // For now, throw to fall back to heuristics
-  throw new Error('CrewAI integration not yet implemented');
+  // CrewAI is available — attempt to instantiate and run the crew
+  // For now, we stub this. When crewai npm becomes available and the config
+  // files are populated, this will instantiate Decision Maker, Specialist
+  // Coordinator, and Authorization Reviewer agents and run them.
+  //
+  // Example (when ready):
+  //   const decisionMaker = new crewai.Agent(DECISION_MAKER_ROLE);
+  //   const coordinator = new crewai.Agent(SPECIALIST_COORDINATOR_ROLE);
+  //   const reviewer = new crewai.Agent(AUTHORIZATION_REVIEWER_ROLE);
+  //   const crew = new crewai.Crew({ agents: [...], tasks: [...] });
+  //   const result = await crew.kickoff({ inputs: { message, vertical, ... } });
+  //   return parseCrewResult(result);
+
+  throw new Error('CrewAI integration stubbed (ready for npm package)');
 }
 
 /**

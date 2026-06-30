@@ -5,10 +5,8 @@ const crypto = require('crypto');
 const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const { requestEventEmitterMiddleware } = require('../services/requestEventEmitter');
 const { orchestrateDelegation } = require('../services/a2aOrchestratorService');
-const { delegateToSpecialist } = require('../services/a2aDelegationService');
 const appEventService = require('../services/appEventService');
 const { prependRefreshEvent } = require('../services/agentMcpTokenService');
-const { specialistForVertical } = require('../config/a2aSpecialists');
 
 const router = express.Router();
 router.use(agentSessionMiddleware);
@@ -67,8 +65,11 @@ router.post('/message', async (req, res) => {
     const runId = crypto.randomUUID();
     void runId; // available for future correlation
 
-    // Orchestrate the delegation decision using CrewAI (or heuristics fallback)
-    const orchestrationDecision = await orchestrateDelegation({
+    // Orchestrate the delegation decision AND execute delegation
+    // orchestrateDelegation now handles both the decision (via heuristics/CrewAI)
+    // and the RFC 8693 token exchange if approved.
+    const orchestrationResult = await orchestrateDelegation({
+      req,
       message,
       vertical: activeVertical,
       userId,
@@ -76,66 +77,58 @@ router.post('/message', async (req, res) => {
     });
 
     // If delegation is not approved, return a clear response
-    if (!orchestrationDecision.shouldDelegate || !orchestrationDecision.authorized) {
+    if (!orchestrationResult.shouldDelegate || !orchestrationResult.authorized) {
+      const allTokenEvents = prependRefreshEvent(req, orchestrationResult.tokenEvents || []);
       return res.json({
         reply:
-          orchestrationDecision.reason ||
+          orchestrationResult.reason ||
           'This request does not require delegation to a specialist.',
         success: false,
         toolsCalled: [],
-        tokenEvents: tokenEvents || [],
+        tokenEvents: allTokenEvents,
         requiresConsent: false,
         agentConfigured: true,
-        delegationDecision: orchestrationDecision,
+        delegationDecision: orchestrationResult,
       });
     }
 
-    // Execute the actual delegation via a2aDelegationService
-    let delegationResult;
-    try {
-      delegationResult = await delegateToSpecialist(req, {
-        vertical: activeVertical,
-        specialist: orchestrationDecision.specialist,
-        scopes: orchestrationDecision.scopes,
-        subtask: message,
-      });
-    } catch (delegationErr) {
-      console.error('[a2a-agent/message] Delegation execution failed:', delegationErr.message);
+    // Delegation was approved and executed
+    if (orchestrationResult.error) {
+      const allTokenEvents = prependRefreshEvent(req, orchestrationResult.tokenEvents || []);
+      console.error('[a2a-agent/message] Delegation execution failed:', orchestrationResult.error);
       return res.status(502).json({
-        reply: `Delegation approved but execution failed: ${delegationErr.message}`,
+        reply: `Delegation approved but execution failed: ${orchestrationResult.error}`,
         success: false,
         toolsCalled: [],
-        tokenEvents: tokenEvents || [],
+        tokenEvents: allTokenEvents,
         requiresConsent: false,
         agentConfigured: true,
         error: 'delegation_execution_failed',
-        delegationDecision: orchestrationDecision,
+        delegationDecision: orchestrationResult,
       });
     }
 
-    // Format the delegation result for the response
-    let parsedResult;
-    try {
-      parsedResult = typeof delegationResult === 'string' ? JSON.parse(delegationResult) : delegationResult;
-    } catch (_) {
-      parsedResult = { delegated: false, error: delegationResult };
-    }
-
-    const reply = parsedResult.delegated
-      ? `Delegation complete — ${parsedResult.specialist} retrieved ${
-          parsedResult.tool ? parsedResult.tool.replace(/_/g, ' ') : 'the requested data'
-        } on your behalf (act-chain depth ${parsedResult.actChainDepth}).`
-      : `❌ ${parsedResult.error || 'Delegation failed'}`;
+    // Successful delegation with nested act chain
+    const allTokenEvents = prependRefreshEvent(req, orchestrationResult.tokenEvents || []);
+    const reply = `Delegation complete — ${orchestrationResult.specialist} received narrowed token with ${
+      orchestrationResult.scopes?.join(' ') || 'specialist scopes'
+    } (act-chain depth ${orchestrationResult.actChainDepth || 0}).`;
 
     return res.json({
       reply,
-      success: parsedResult.delegated === true,
+      success: true,
       toolsCalled: ['orchestrate_delegation', 'delegate_to_specialist'],
-      tokenEvents: tokenEvents || [],
+      tokenEvents: allTokenEvents,
       requiresConsent: false,
       agentConfigured: true,
-      delegationDecision: orchestrationDecision,
-      delegationResult: parsedResult,
+      delegationDecision: orchestrationResult,
+      delegationResult: {
+        token: orchestrationResult.token,
+        specialist: orchestrationResult.specialist,
+        scopes: orchestrationResult.scopes,
+        actChainDepth: orchestrationResult.actChainDepth,
+        claims: orchestrationResult.claims,
+      },
     });
   } catch (error) {
     console.error('[a2a-agent/message] Unexpected error:', error.message);
