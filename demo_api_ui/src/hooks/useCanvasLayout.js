@@ -17,10 +17,10 @@ const STORAGE_KEY = 'arch-canvas-v7';
 const SEED_POSITIONS = {
   frontend:          { x: 30,   y: 220 },
   bff:               { x: 220,  y: 220 },
+  'pingone-sso':     { x: 220,  y: 80  },
   'agent-service':   { x: 430,  y: 220 },
   'mcp-gateway':     { x: 640,  y: 210 },
   'authz-server':    { x: 855,  y: 40  },
-  'pingone-sso':     { x: 855,  y: 185 },
   'hitl-service':    { x: 855,  y: 360 },
   'mcp-server':      { x: 1075, y: 40  },
   'mcp-invest':      { x: 1075, y: 200 },
