@@ -228,14 +228,13 @@ const CodeExplorerPage = () => {
         </button>
       </div>
 
-      {/* Hero — only shown when no messages */}
-      {isEmpty && (
-        <div className="code-explorer-hero">
-          <div className="code-explorer-avatar">&lt;/&gt;</div>
-          <h1>Code Explorer</h1>
-          <p>Ask anything about this codebase</p>
-        </div>
-      )}
+      {/* Hero — always visible but compact when messaging */}
+      <div className={`code-explorer-hero${isEmpty ? '' : ' code-explorer-hero--compact'}`}>
+        <div className="code-explorer-avatar">&lt;/&gt;</div>
+        <h1>Code Explorer</h1>
+        <p>Powered by CodeGraph — A semantic code knowledge graph that indexes every symbol, file, and dependency in your codebase for instant AI-powered exploration.</p>
+        <p className="code-explorer-hero-subtitle">Ask about flows, architecture, patterns, implementation details, and how features work — with real, current code context</p>
+      </div>
 
       {/* Messages — scrollable, fills available space */}
       {!isEmpty && (

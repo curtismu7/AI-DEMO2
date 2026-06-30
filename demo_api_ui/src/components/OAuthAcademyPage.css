@@ -14,43 +14,72 @@
   background: var(--v2-bg, #f7f7f5);
 }
 
-/* ── Hero (empty state only) ─────────────────────────────────────────────── */
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
 .oauth-academy-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
-  padding: 2rem 1.5rem 1.25rem;
+  gap: 1rem;
+  padding: 2.5rem 2rem 2rem;
   text-align: center;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  margin: 0 1.5rem 1.5rem;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.oauth-academy-hero--compact {
+  gap: 0.5rem;
+  padding: 1.5rem 2rem 1rem;
+  margin: 0 1.5rem 1rem;
+}
+
+.oauth-academy-hero--compact .oauth-academy-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 0.9rem;
+}
+
+.oauth-academy-hero--compact h1 {
+  font-size: 1.2rem;
+}
+
+.oauth-academy-hero--compact p {
+  font-size: 0.8rem;
 }
 
 .oauth-academy-avatar {
-  width: 52px;
-  height: 52px;
-  background: var(--oa-accent);
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--v2-r-xl, 16px);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  box-shadow: var(--v2-shadow-2);
 }
 
 .oauth-academy-hero h1 {
   font-family: var(--v2-font-display, Georgia, serif);
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--v2-ink-1, #111110);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .oauth-academy-hero p {
-  font-size: 0.9rem;
-  color: var(--v2-ink-3, #8c8c88);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
   margin: 0;
+  font-weight: 500;
+  line-height: 1.5;
+  max-width: 600px;
 }
 
 /* ── Messages — scrollable, fills all available space ───────────────────── */

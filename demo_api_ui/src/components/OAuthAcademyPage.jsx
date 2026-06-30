@@ -243,20 +243,18 @@ const OAuthAcademyPage = () => {
 
   return (
     <div className="oauth-academy-page">
-      {/* Hero — only shown when no messages */}
-      {isEmpty && (
-        <div className="oauth-academy-hero">
-          <div className="oauth-academy-avatar">OA</div>
-          <h1>OAuth Academy</h1>
-          <p>
-            An interactive teacher for OAuth 2.0 &middot; 2.1 and OIDC. Ask a
-            question to get a plain-language explanation, or pick a topic below
-            to watch a real authorization flow run live — PKCE, scopes, RFC 8693
-            token exchange, act/may_act delegation, and human-in-the-loop
-            approval — with the actual token chain shown at every hop.
-          </p>
-        </div>
-      )}
+      {/* Hero — always visible but compact when messaging */}
+      <div className={`oauth-academy-hero${isEmpty ? '' : ' oauth-academy-hero--compact'}`}>
+        <div className="oauth-academy-avatar">OA</div>
+        <h1>OAuth Academy</h1>
+        <p>
+          An interactive teacher for OAuth 2.0 &middot; 2.1 and OIDC. Ask a
+          question to get a plain-language explanation, or pick a topic below
+          to watch a real authorization flow run live — PKCE, scopes, RFC 8693
+          token exchange, act/may_act delegation, and human-in-the-loop
+          approval — with the actual token chain shown at every hop.
+        </p>
+      </div>
 
       {/* Messages */}
       {!isEmpty && (
