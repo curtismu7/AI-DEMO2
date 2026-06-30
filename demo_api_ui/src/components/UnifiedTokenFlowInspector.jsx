@@ -1001,6 +1001,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         </div>
       </div>
       <ClaimDetailsModal isOpen={showClaimsModal} tokenType={selectedTokenType} onClose={closeClaimsModal} />
+      <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
     </div>
   );
 
@@ -1026,15 +1027,9 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
           </div>,
           document.body
         ) : null}
-        <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
       </>
     );
   }
 
-  return (
-    <>
-      {content}
-      <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
-    </>
-  );
+  return content;
 }
