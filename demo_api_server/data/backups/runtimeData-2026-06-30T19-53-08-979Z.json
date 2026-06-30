@@ -2924,1765 +2924,6 @@
   ],
   "activityLogs": [
     {
-      "id": "1f058783-1799-4035-8197-792ee0f6fb4a",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:38.274Z"
-    },
-    {
-      "id": "f4771c60-5804-47ec-9f39-66dd7bb43773",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:38.285Z"
-    },
-    {
-      "id": "4f11d90c-6657-439c-b0d9-5145fc8081cf",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:38.294Z"
-    },
-    {
-      "id": "0a515eb5-016c-4638-ab0b-d80bbc37f1d0",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:04:38.305Z"
-    },
-    {
-      "id": "07850a1e-5ba4-41c1-b25c-1e3dc52fd20b",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:04:53.078Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:53.078Z"
-    },
-    {
-      "id": "74aefe45-02a0-4241-881e-0683cfa19e90",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:05:23.112Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:05:23.112Z"
-    },
-    {
-      "id": "77168f90-ebc7-45da-9776-06cd010313ea",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:05:53.185Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:05:53.185Z"
-    },
-    {
-      "id": "c28e1195-6319-4a79-87b0-e4a50e30204f",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:06:23.228Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:06:23.228Z"
-    },
-    {
-      "id": "630369c7-c0d3-4d3d-b23b-07354f982618",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:06:53.270Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:06:53.270Z"
-    },
-    {
-      "id": "04fbf507-7b07-4363-a97c-15ebb5f652d5",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:07:23.329Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:07:23.329Z"
-    },
-    {
-      "id": "0a9224da-2f3a-49c1-aaee-f0969fd1aaf2",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:07:49.068Z"
-    },
-    {
-      "id": "9ef5c8e8-7527-4129-9eba-32c9dc4301ec",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:07:53.364Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:07:53.364Z"
-    },
-    {
-      "id": "848bfc31-b187-4eda-a5b2-89cff8e546b8",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:08:23.409Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:08:23.409Z"
-    },
-    {
-      "id": "979d2bca-6b97-4f5f-ae9c-a44e6a85603d",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:08:53.460Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:08:53.460Z"
-    },
-    {
-      "id": "3f6243c2-9c3d-4d5f-9050-c39d78d5ec06",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:08:57.867Z"
-    },
-    {
-      "id": "074af967-9f90-476b-b876-78c122c3cd46",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:09:23.492Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:09:23.492Z"
-    },
-    {
-      "id": "77b8045d-49a7-4ebb-ad7a-4a654ae835d0",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:09:53.526Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:09:53.526Z"
-    },
-    {
-      "id": "4bde5391-4085-4fb2-bee5-73488d08cb62",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:10:23.569Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:10:23.569Z"
-    },
-    {
-      "id": "31a4882d-945e-49a1-9eae-62644c94ba9e",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:10:53.616Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:10:53.616Z"
-    },
-    {
-      "id": "3184689f-cdfd-49d4-ae7e-1b8a2ab78c65",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:11:23.664Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:11:23.664Z"
-    },
-    {
-      "id": "2454e046-a3b8-4419-997a-330166738d06",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:11:53.708Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:11:53.708Z"
-    },
-    {
-      "id": "6947bd01-f53e-4446-807b-9469079de73c",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-06-30T18:12:23.750Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:23.750Z"
-    },
-    {
-      "id": "3532e3d1-2fc0-4134-a796-2cc3f6c3408d",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "GET_CURRENT_USER",
-      "endpoint": "GET /api/verticals/me",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 4,
-      "timestamp": "2026-06-30T18:12:42.752Z"
-    },
-    {
-      "id": "336fecad-da0d-460a-b338-619ccb13451e",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "GET_CURRENT_USER",
-      "endpoint": "GET /api/verticals/me",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-06-30T18:12:42.841Z"
-    },
-    {
-      "id": "dfbd9683-5e8c-4603-bb7c-6aba76beffd2",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "GET_CURRENT_USER",
-      "endpoint": "GET /api/verticals/me",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:43.043Z"
-    },
-    {
-      "id": "ad3f3f9c-7d56-444b-a025-446a21de9c24",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/list",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "banking",
-          "displayName": "Super Banking",
-          "tagline": "AI-Powered Banking Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#b91c1c",
-              "--app-primary-red-hover": "#991b1b",
-              "--app-primary-red-mid": "#dc2626",
-              "--app-primary-red-border": "#7f1d1d",
-              "--brand-dashboard-header-start": "#1d4ed8",
-              "--brand-dashboard-header-end": "#1d4ed8",
-              "--brand-app-shell-hero-start": "#1d4ed8",
-              "--brand-app-shell-hero-end": "#1d4ed8",
-              "--theme-accent": "#2563eb",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "government",
-          "displayName": "CivicPermit",
-          "tagline": "AI-Powered Citizen Permitting Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#1d4ed8",
-              "--app-primary-red-hover": "#1e40af",
-              "--app-primary-red-mid": "#3b82f6",
-              "--app-primary-red-border": "#1e40af",
-              "--brand-dashboard-header-start": "#1e3a8a",
-              "--brand-dashboard-header-end": "#2563eb",
-              "--brand-app-shell-hero-start": "#1e3a8a",
-              "--brand-app-shell-hero-end": "#2563eb",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "healthcare",
-          "displayName": "CareConnect",
-          "tagline": "AI-Powered Healthcare Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#0f766e",
-              "--app-primary-red-hover": "#0d6b64",
-              "--app-primary-red-mid": "#14b8a6",
-              "--app-primary-red-border": "#0d9488",
-              "--brand-dashboard-header-start": "#0f766e",
-              "--brand-dashboard-header-end": "#0d9488",
-              "--brand-app-shell-hero-start": "#0f766e",
-              "--brand-app-shell-hero-end": "#0d9488",
-              "--theme-accent": "#14b8a6",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "manufacturing",
-          "displayName": "Precision Works",
-          "tagline": "AI-Powered Manufacturing Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#3b5269",
-              "--app-primary-red-hover": "#314457",
-              "--app-primary-red-mid": "#5a748c",
-              "--app-primary-red-border": "#28394a",
-              "--brand-dashboard-header-start": "#334155",
-              "--brand-dashboard-header-end": "#475569",
-              "--brand-app-shell-hero-start": "#334155",
-              "--brand-app-shell-hero-end": "#475569",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "pingone-admin",
-          "displayName": "PingOne Admin",
-          "tagline": "AI-Driven API Discovery Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#1d4ed8",
-              "--app-primary-red-hover": "#1e40af",
-              "--app-primary-red-mid": "#3b82f6",
-              "--app-primary-red-border": "#2563eb",
-              "--brand-dashboard-header-start": "#1e3a8a",
-              "--brand-dashboard-header-end": "#1d4ed8",
-              "--brand-app-shell-hero-start": "#1e3a8a",
-              "--brand-app-shell-hero-end": "#1d4ed8",
-              "--theme-accent": "#60a5fa",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "retail",
-          "displayName": "Great Buy",
-          "tagline": "AI-Powered Retail Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#FFE000",
-              "--app-primary-red-hover": "#FFCC00",
-              "--app-primary-red-mid": "#FFE933",
-              "--app-primary-red-border": "#E6CC00",
-              "--app-primary-btn-text": "#1D1D1B",
-              "--brand-dashboard-header-start": "#1D1D1B",
-              "--brand-dashboard-header-end": "#2d2d2b",
-              "--brand-app-shell-hero-start": "#1D1D1B",
-              "--brand-app-shell-hero-end": "#2d2d2b",
-              "--theme-accent": "#FFE000",
-              "--brand-navy": "#1D1D1B",
-              "--brand-dashboard-header-text": "#FFFFFF",
-              "--brand-topnav-bg-start": "#1D1D1B",
-              "--brand-topnav-bg-end": "#2d2d2b",
-              "--brand-topnav-text": "#1D1D1B"
-            }
-          }
-        },
-        {
-          "id": "sporting-goods",
-          "displayName": "Super Sports",
-          "tagline": "AI-Powered Sporting Goods Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#b91c1c",
-              "--app-primary-red-hover": "#991b1b",
-              "--app-primary-red-mid": "#ef4444",
-              "--app-primary-red-border": "#dc2626",
-              "--brand-dashboard-header-start": "#b91c1c",
-              "--brand-dashboard-header-end": "#dc2626",
-              "--brand-app-shell-hero-start": "#b91c1c",
-              "--brand-app-shell-hero-end": "#ef4444",
-              "--theme-accent": "#f97316",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "university",
-          "displayName": "Super University",
-          "tagline": "AI-Powered Campus Registrar Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#6d28d9",
-              "--app-primary-red-hover": "#5b21b6",
-              "--app-primary-red-mid": "#8b5cf6",
-              "--app-primary-red-border": "#5b21b6",
-              "--brand-dashboard-header-start": "#4c1d95",
-              "--brand-dashboard-header-end": "#7c3aed",
-              "--brand-app-shell-hero-start": "#4c1d95",
-              "--brand-app-shell-hero-end": "#7c3aed",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "workforce",
-          "displayName": "WX Workforce",
-          "tagline": "AI-Powered HR & Workforce Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#4c1d95",
-              "--app-primary-red-hover": "#3b0764",
-              "--app-primary-red-mid": "#7c3aed",
-              "--app-primary-red-border": "#6d28d9",
-              "--brand-dashboard-header-start": "#4c1d95",
-              "--brand-dashboard-header-end": "#7c3aed",
-              "--brand-app-shell-hero-start": "#4c1d95",
-              "--brand-app-shell-hero-end": "#7c3aed",
-              "--theme-accent": "#a78bfa",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        }
-      ],
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:43.399Z"
-    },
-    {
-      "id": "fc1207a2-714f-42a4-b651-8a1f5030dfeb",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/ciba/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "enabled": false,
-        "deliveryMode": "poll",
-        "bindingMessage": "Banking App Authentication",
-        "setupRequired": true,
-        "setupSteps": [
-          "Set CIBA_ENABLED=true in your environment",
-          "Enable the CIBA grant type on your PingOne application",
-          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
-        ]
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:43.631Z"
-    },
-    {
-      "id": "5d4151a7-4c60-4ad9-9e83-61f1a1778050",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "authType": "user",
-        "cookieOnlyBffSession": false,
-        "sessionStoreError": null,
-        "sessionStoreHealthy": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:43.670Z"
-    },
-    {
-      "id": "096f04cc-a677-4d55-a79a-d0856ade5254",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 8,
-      "timestamp": "2026-06-30T18:12:43.693Z"
-    },
-    {
-      "id": "93fbd563-65a1-43ab-99df-16e58bd5d3f5",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:43.702Z"
-    },
-    {
-      "id": "4f4fe683-6a40-4996-aa72-6702da3f0c6b",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/user/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "staleSession": false,
-        "staleReason": null,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "oauthProvider": "pingone_sso",
-        "tokenType": "Bearer",
-        "expiresAt": 1782846260311,
-        "clientType": "enduser",
-        "consentGiven": false,
-        "consentedAt": null,
-        "mayAct": {
-          "sub": "71e878ea-2d79-4760-b570-66f00cbeffe7"
-        }
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:43.718Z"
-    },
-    {
-      "id": "dac8a575-16ec-4fcb-9bcc-06da3e537369",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "oauthProvider": "pingone_sso",
-        "tokenType": "Bearer",
-        "expiresAt": 1782846260311,
-        "clientType": "enduser"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:43.724Z"
-    },
-    {
-      "id": "293c3366-9651-4fe3-98a1-37761a2ea741",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:12:44.026Z"
-      },
-      "responseStatus": 200,
-      "duration": 313,
-      "timestamp": "2026-06-30T18:12:44.026Z"
-    },
-    {
-      "id": "6e5e7d1b-9bea-4c4a-aad0-39fca73c873c",
-      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/list",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNGMzN2QwZGItMmUxNy00YjQ5LWIyNzYtZDM3YjQ3OTYwOWE1IiwiaWF0IjoxNzgyODQyNjYwLCJleHAiOjE3ODI4NDYyNjAsImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.Ks-ctT87qBXUSCC7SDfQrjucFG8MTP1L5tAkaWzcpVVovSIDdSujhOB1Eyj3oIigwuBBnftjhqRlj6z-8P0YUXjkwRJchzsWx45gjSFiWOFDACSTOqdSMu3SJVnVqaPx39yVNRIW9szmgh16Jc6Egj9dPG5sWYPtCyY7uWJ_OumZEeDerkzG1NgoyjLUwfXhGUutnU98TJdEo36BSbhiseedgyc_S2RwAvHu6fCUpdRZVoBhsfRL7ro5zJL4uJQPRbo-Ynuu-lLSTfTBaJR6uzZgjqsxh2QOKLN5zb4brlKj28_bzEbUnT2dmJK5IrNMDkeJOs8UTuLircqrLa2cGA",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "banking",
-          "displayName": "Super Banking",
-          "tagline": "AI-Powered Banking Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#b91c1c",
-              "--app-primary-red-hover": "#991b1b",
-              "--app-primary-red-mid": "#dc2626",
-              "--app-primary-red-border": "#7f1d1d",
-              "--brand-dashboard-header-start": "#1d4ed8",
-              "--brand-dashboard-header-end": "#1d4ed8",
-              "--brand-app-shell-hero-start": "#1d4ed8",
-              "--brand-app-shell-hero-end": "#1d4ed8",
-              "--theme-accent": "#2563eb",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "government",
-          "displayName": "CivicPermit",
-          "tagline": "AI-Powered Citizen Permitting Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#1d4ed8",
-              "--app-primary-red-hover": "#1e40af",
-              "--app-primary-red-mid": "#3b82f6",
-              "--app-primary-red-border": "#1e40af",
-              "--brand-dashboard-header-start": "#1e3a8a",
-              "--brand-dashboard-header-end": "#2563eb",
-              "--brand-app-shell-hero-start": "#1e3a8a",
-              "--brand-app-shell-hero-end": "#2563eb",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "healthcare",
-          "displayName": "CareConnect",
-          "tagline": "AI-Powered Healthcare Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#0f766e",
-              "--app-primary-red-hover": "#0d6b64",
-              "--app-primary-red-mid": "#14b8a6",
-              "--app-primary-red-border": "#0d9488",
-              "--brand-dashboard-header-start": "#0f766e",
-              "--brand-dashboard-header-end": "#0d9488",
-              "--brand-app-shell-hero-start": "#0f766e",
-              "--brand-app-shell-hero-end": "#0d9488",
-              "--theme-accent": "#14b8a6",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "manufacturing",
-          "displayName": "Precision Works",
-          "tagline": "AI-Powered Manufacturing Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#3b5269",
-              "--app-primary-red-hover": "#314457",
-              "--app-primary-red-mid": "#5a748c",
-              "--app-primary-red-border": "#28394a",
-              "--brand-dashboard-header-start": "#334155",
-              "--brand-dashboard-header-end": "#475569",
-              "--brand-app-shell-hero-start": "#334155",
-              "--brand-app-shell-hero-end": "#475569",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "pingone-admin",
-          "displayName": "PingOne Admin",
-          "tagline": "AI-Driven API Discovery Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#1d4ed8",
-              "--app-primary-red-hover": "#1e40af",
-              "--app-primary-red-mid": "#3b82f6",
-              "--app-primary-red-border": "#2563eb",
-              "--brand-dashboard-header-start": "#1e3a8a",
-              "--brand-dashboard-header-end": "#1d4ed8",
-              "--brand-app-shell-hero-start": "#1e3a8a",
-              "--brand-app-shell-hero-end": "#1d4ed8",
-              "--theme-accent": "#60a5fa",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "retail",
-          "displayName": "Great Buy",
-          "tagline": "AI-Powered Retail Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#FFE000",
-              "--app-primary-red-hover": "#FFCC00",
-              "--app-primary-red-mid": "#FFE933",
-              "--app-primary-red-border": "#E6CC00",
-              "--app-primary-btn-text": "#1D1D1B",
-              "--brand-dashboard-header-start": "#1D1D1B",
-              "--brand-dashboard-header-end": "#2d2d2b",
-              "--brand-app-shell-hero-start": "#1D1D1B",
-              "--brand-app-shell-hero-end": "#2d2d2b",
-              "--theme-accent": "#FFE000",
-              "--brand-navy": "#1D1D1B",
-              "--brand-dashboard-header-text": "#FFFFFF",
-              "--brand-topnav-bg-start": "#1D1D1B",
-              "--brand-topnav-bg-end": "#2d2d2b",
-              "--brand-topnav-text": "#1D1D1B"
-            }
-          }
-        },
-        {
-          "id": "sporting-goods",
-          "displayName": "Super Sports",
-          "tagline": "AI-Powered Sporting Goods Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#b91c1c",
-              "--app-primary-red-hover": "#991b1b",
-              "--app-primary-red-mid": "#ef4444",
-              "--app-primary-red-border": "#dc2626",
-              "--brand-dashboard-header-start": "#b91c1c",
-              "--brand-dashboard-header-end": "#dc2626",
-              "--brand-app-shell-hero-start": "#b91c1c",
-              "--brand-app-shell-hero-end": "#ef4444",
-              "--theme-accent": "#f97316",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "university",
-          "displayName": "Super University",
-          "tagline": "AI-Powered Campus Registrar Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#6d28d9",
-              "--app-primary-red-hover": "#5b21b6",
-              "--app-primary-red-mid": "#8b5cf6",
-              "--app-primary-red-border": "#5b21b6",
-              "--brand-dashboard-header-start": "#4c1d95",
-              "--brand-dashboard-header-end": "#7c3aed",
-              "--brand-app-shell-hero-start": "#4c1d95",
-              "--brand-app-shell-hero-end": "#7c3aed",
-              "--theme-accent": "#f59e0b",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        },
-        {
-          "id": "workforce",
-          "displayName": "WX Workforce",
-          "tagline": "AI-Powered HR & Workforce Demo",
-          "theme": {
-            "cssVars": {
-              "--app-primary-red": "#4c1d95",
-              "--app-primary-red-hover": "#3b0764",
-              "--app-primary-red-mid": "#7c3aed",
-              "--app-primary-red-border": "#6d28d9",
-              "--brand-dashboard-header-start": "#4c1d95",
-              "--brand-dashboard-header-end": "#7c3aed",
-              "--brand-app-shell-hero-start": "#4c1d95",
-              "--brand-app-shell-hero-end": "#7c3aed",
-              "--theme-accent": "#a78bfa",
-              "--brand-dashboard-header-text": "#ffffff"
-            }
-          }
-        }
-      ],
-      "responseStatus": 200,
-      "duration": 3,
-      "timestamp": "2026-06-30T18:12:44.050Z"
-    },
-    {
-      "id": "e48e7d40-508b-4891-b297-2a08a569d2c2",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/ciba/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "enabled": false,
-        "deliveryMode": "poll",
-        "bindingMessage": "Banking App Authentication",
-        "setupRequired": true,
-        "setupSteps": [
-          "Set CIBA_ENABLED=true in your environment",
-          "Enable the CIBA grant type on your PingOne application",
-          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
-        ]
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:44.062Z"
-    },
-    {
-      "id": "61d123f4-34d7-4c4d-9307-ea6378148f53",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "authType": "user",
-        "cookieOnlyBffSession": false,
-        "sessionStoreError": null,
-        "sessionStoreHealthy": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.346Z"
-    },
-    {
-      "id": "b33bea62-15c2-498d-b183-97f84c8f7cd9",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-06-30T18:12:44.358Z"
-    },
-    {
-      "id": "f567cc24-a126-498c-bf40-d927b2bdbf12",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/stream",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.794Z"
-    },
-    {
-      "id": "210d740d-0329-4404-8a05-8faf367a3e0f",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:44.804Z"
-    },
-    {
-      "id": "7965752f-3060-416d-b57b-666fe6c31716",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "oauthProvider": "pingone_sso",
-        "tokenType": "Bearer",
-        "expiresAt": 1782846260311,
-        "clientType": "enduser"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:44.812Z"
-    },
-    {
-      "id": "a333d1ce-17ed-4fbd-9005-677ae9d1cbff",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/user/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "staleSession": false,
-        "staleReason": null,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "oauthProvider": "pingone_sso",
-        "tokenType": "Bearer",
-        "expiresAt": 1782846260311,
-        "clientType": "enduser",
-        "consentGiven": false,
-        "consentedAt": null,
-        "mayAct": {
-          "sub": "71e878ea-2d79-4760-b570-66f00cbeffe7"
-        }
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:44.821Z"
-    },
-    {
-      "id": "ec6dc265-96e2-4a23-ae8c-dfceb388ba82",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:12:44.833Z"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.833Z"
-    },
-    {
-      "id": "5597762f-b18a-484e-b209-1f5ab614bb2e",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "authType": "user",
-        "cookieOnlyBffSession": false,
-        "sessionStoreError": null,
-        "sessionStoreHealthy": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.844Z"
-    },
-    {
-      "id": "021b979b-fe33-4ac7-955a-b7cba0eb031b",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-06-30T18:12:44.858Z"
-    },
-    {
-      "id": "167758d9-c4e3-4e22-b592-a8175697fa5c",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.872Z"
-    },
-    {
-      "id": "13b85c35-8a20-42ad-8a97-fe635a675c26",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "authType": "user",
-        "cookieOnlyBffSession": false,
-        "sessionStoreError": null,
-        "sessionStoreHealthy": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.880Z"
-    },
-    {
-      "id": "7c993d04-68f9-4e3f-9354-836ec87f0058",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.892Z"
-    },
-    {
-      "id": "b0f06288-a132-40bd-8824-cd596382b3c7",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": true,
-        "user": {
-          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
-          "firstName": "",
-          "lastName": "",
-          "role": "customer"
-        },
-        "authType": "user",
-        "cookieOnlyBffSession": false,
-        "sessionStoreError": null,
-        "sessionStoreHealthy": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:44.900Z"
-    },
-    {
-      "id": "430fe4fc-a8b3-476c-971b-c9ec70fe8f1e",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.911Z"
-    },
-    {
-      "id": "fa94c9b2-04ce-4499-8edc-f709b5d323c6",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:44.925Z"
-    },
-    {
-      "id": "1ab8febf-e16e-4a61-9a33-fa326d5ea220",
-      "userId": null,
-      "username": null,
-      "action": "GET_CURRENT_USER",
-      "endpoint": "GET /api/verticals/me",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.718Z"
-    },
-    {
-      "id": "ca2aa012-3237-48bc-8813-28c109906a11",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/ciba/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "enabled": false,
-        "deliveryMode": "poll",
-        "bindingMessage": "Banking App Authentication",
-        "setupRequired": true,
-        "setupSteps": [
-          "Set CIBA_ENABLED=true in your environment",
-          "Enable the CIBA grant type on your PingOne application",
-          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
-        ]
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.815Z"
-    },
-    {
-      "id": "10f78685-163a-4bcf-b5f6-6eeb18051d92",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/list",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.824Z"
-    },
-    {
-      "id": "3be86eb3-96f6-47b1-b2fc-f998c831604d",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.830Z"
-    },
-    {
-      "id": "481ec243-4342-4d4a-9378-54bf9408ee58",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-06-30T18:12:45.838Z"
-    },
-    {
-      "id": "a4d71f51-e045-4253-b5b2-ff4f4b7645bb",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.847Z"
-    },
-    {
-      "id": "4cae5d7a-f041-4128-8deb-e0bf7fbff356",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null,
-        "oauthProvider": null,
-        "tokenType": null,
-        "expiresAt": null,
-        "clientType": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.858Z"
-    },
-    {
-      "id": "4e83b1bd-9bef-4dbd-abf1-4a83e52629ac",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/oauth/user/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "staleSession": false,
-        "staleReason": null,
-        "user": null,
-        "oauthProvider": null,
-        "tokenType": null,
-        "expiresAt": null,
-        "clientType": null,
-        "consentGiven": false,
-        "consentedAt": null,
-        "mayAct": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.868Z"
-    },
-    {
-      "id": "36f90f84-e6fb-4568-9e43-c9fd136c91c9",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:12:45.874Z"
-      },
-      "responseStatus": 200,
-      "duration": 18,
-      "timestamp": "2026-06-30T18:12:45.874Z"
-    },
-    {
-      "id": "bb1777be-926f-462b-bbee-0d680e9d5298",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/verticals/list",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": null,
-      "responseStatus": 401,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.882Z"
-    },
-    {
-      "id": "7603a9f2-7e51-450f-bcfc-1be9560c8c7b",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/ciba/status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "enabled": false,
-        "deliveryMode": "poll",
-        "bindingMessage": "Banking App Authentication",
-        "setupRequired": true,
-        "setupSteps": [
-          "Set CIBA_ENABLED=true in your environment",
-          "Enable the CIBA grant type on your PingOne application",
-          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
-        ]
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.889Z"
-    },
-    {
-      "id": "2d91d829-c513-43ff-8b75-3f7439cda6ae",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-06-30T18:12:45.898Z"
-    },
-    {
-      "id": "e1095e00-f32b-4bcf-aca3-9e29fecef904",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 3,
-      "timestamp": "2026-06-30T18:12:45.915Z"
-    },
-    {
-      "id": "30596c26-4bd4-44c4-b165-67fb03ce5a45",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.920Z"
-    },
-    {
-      "id": "1c8a8688-5133-4549-89eb-010c825a212d",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/health/demo-status",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "ok": true,
-        "servers": [
-          {
-            "name": "Banking API Server",
-            "key": "api_server",
-            "up": true,
-            "startCmd": "cd demo_api_server && npm start",
-            "description": "Express BFF — OAuth, sessions, banking REST API",
-            "port": 3001
-          },
-          {
-            "name": "Banking MCP Server",
-            "key": "mcp_server",
-            "up": true,
-            "startCmd": "cd demo_mcp_server && npm run dev",
-            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
-            "port": 8080,
-            "url": "http://mcp-gateway:3005"
-          }
-        ],
-        "timestamp": "2026-06-30T18:12:45.926Z"
-      },
-      "responseStatus": 200,
-      "duration": 14,
-      "timestamp": "2026-06-30T18:12:45.926Z"
-    },
-    {
-      "id": "0bc311c3-7452-44b8-b99b-e07794445a49",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/auth/session",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "authenticated": false,
-        "user": null
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.935Z"
-    },
-    {
-      "id": "886b81cc-cb8b-4b36-a973-919dcd5168c4",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/pingone-test/config",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "success": true,
-        "config": {
-          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
-          "region": "com",
-          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
-          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
-          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
-          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
-          "resourceMcpServerUri": "mcpserver.ping.demo",
-          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
-          "resourceAgentGatewayUri": "agentgateway.ping.demo",
-          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
-          "mgmtClientSecret": ".lVeBZKj...",
-          "mgmtTokenAuthMethod": "basic",
-          "tokenExchangeAuthMethod": "post",
-          "twoExchangeResourceUri": "mcpgateway.ping.demo",
-          "ffTwoExchangeDelegation": false,
-          "ffIdTokenExchange": false
-        }
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:12:45.943Z"
-    },
-    {
       "id": "b0dbc9a6-94e1-40cf-a29e-e1539da80555",
       "userId": null,
       "username": null,
@@ -41315,6 +39556,2351 @@
       "responseStatus": 200,
       "duration": 0,
       "timestamp": "2026-06-30T19:30:49.464Z"
+    },
+    {
+      "id": "ebc26fb1-2e95-4472-9ba6-83f22636e8ae",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:37:20.043Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:37:20.043Z"
+    },
+    {
+      "id": "3905884d-7a07-4d61-bd51-2c6c5f1e3f3b",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:37:50.088Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:37:50.088Z"
+    },
+    {
+      "id": "dfed066c-5701-49ff-9702-d6bccfe5e88d",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:38:20.129Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:38:20.129Z"
+    },
+    {
+      "id": "3df52aa7-9105-4d27-9ddf-f0e8e4180f02",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:38:50.207Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:38:50.207Z"
+    },
+    {
+      "id": "3f10fb03-1fa3-43c2-a6ce-b0a04cb3bb04",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:39:20.239Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:39:20.239Z"
+    },
+    {
+      "id": "5e49ab90-80cb-457b-9a7a-c75848ee55b4",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:39:50.303Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:39:50.303Z"
+    },
+    {
+      "id": "6ec75895-6c12-4aa3-aaa8-b77d94b595de",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:40:20.352Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:40:20.352Z"
+    },
+    {
+      "id": "8e9ba233-06cf-4310-8c1b-737c2f453dad",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:40:50.399Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:40:50.399Z"
+    },
+    {
+      "id": "8382a588-0f82-4626-a885-72ef2ec1c847",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:41:20.449Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:20.449Z"
+    },
+    {
+      "id": "4debedb3-1d4f-4160-8e40-3d864f3e5ce2",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "GET_CURRENT_USER",
+      "endpoint": "GET /api/verticals/me",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 6,
+      "timestamp": "2026-06-30T19:41:31.424Z"
+    },
+    {
+      "id": "69eb96b2-b9d4-4735-a138-544f16c3ec5d",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/langchain/config/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "provider": "helix",
+        "model": "gpt-4o-mini",
+        "helix_base_url": "https://openam-helix.forgeblocks.com",
+        "helix_api_key": "••••••••",
+        "helix_environment_id": "fe213c3c-9c1d-4bdb-954a-a22879dad26d",
+        "helix_agent_id": "LLM",
+        "helix_prompt_field_id": "textInputa7c39a0e8292",
+        "key_set": {
+          "helix": true,
+          "openai": false,
+          "anthropic": false,
+          "anthropic-lmstudio": true
+        },
+        "provider_models": {
+          "openai": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo"
+          ],
+          "anthropic": [
+            "claude-opus-4-5",
+            "claude-sonnet-4-5",
+            "claude-3-5-haiku-20241022"
+          ],
+          "groq": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
+          ],
+          "google": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "helix": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gemini-1.5-pro",
+            "claude-3-5-sonnet"
+          ],
+          "anthropic-lmstudio": [
+            "google/gemma-4-e2b",
+            "google/gemma-4-e4b",
+            "google/gemma-3-12b-it",
+            "qwen/qwen3.6-27b"
+          ],
+          "llamacpp": [
+            "qwen2.5-3b-instruct",
+            "qwen3-1.7b",
+            "qwen3-8b",
+            "llama-3.1-8b-instruct"
+          ]
+        },
+        "default_models": {
+          "openai": "gpt-4o-mini",
+          "anthropic": "claude-3-5-haiku-20241022",
+          "groq": "llama-3.1-8b-instant",
+          "google": "gemini-2.0-flash",
+          "helix": "gpt-4o-mini",
+          "anthropic-lmstudio": "google/gemma-4-e2b",
+          "llamacpp": "qwen2.5-3b-instruct"
+        },
+        "fallback_order": [
+          "groq",
+          "anthropic",
+          "openai",
+          "google"
+        ],
+        "agent_mode": "helix_google",
+        "external_wiring": "bff",
+        "agent_modes": [
+          {
+            "id": "heuristics",
+            "label": "Heuristics only",
+            "external": false
+          },
+          {
+            "id": "llamacpp",
+            "label": "llama.cpp only",
+            "external": true
+          },
+          {
+            "id": "claude",
+            "label": "Anthropic only",
+            "external": true
+          },
+          {
+            "id": "helix_google",
+            "label": "Helix only",
+            "external": true
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:41:31.512Z"
+    },
+    {
+      "id": "5d1101e3-65df-4999-8fc2-5f9689dc7e66",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/oauth/user/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "staleSession": false,
+        "staleReason": null,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "oauthProvider": "pingone_sso",
+        "tokenType": "Bearer",
+        "expiresAt": 1782851259187,
+        "clientType": "enduser",
+        "consentGiven": false,
+        "consentedAt": null,
+        "mayAct": {
+          "sub": "71e878ea-2d79-4760-b570-66f00cbeffe7"
+        }
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.524Z"
+    },
+    {
+      "id": "6fb384b3-6498-4238-ad94-5f1c9930a394",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/oauth/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "oauthProvider": "pingone_sso",
+        "tokenType": "Bearer",
+        "expiresAt": 1782851259187,
+        "clientType": "enduser"
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.539Z"
+    },
+    {
+      "id": "d5e6edf5-cc08-4bde-b837-1ed2e2351e10",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.558Z"
+    },
+    {
+      "id": "e47cc558-b2bb-49b9-86aa-6b78085cc054",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/ciba/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "enabled": false,
+        "deliveryMode": "poll",
+        "bindingMessage": "Banking App Authentication",
+        "setupRequired": true,
+        "setupSteps": [
+          "Set CIBA_ENABLED=true in your environment",
+          "Enable the CIBA grant type on your PingOne application",
+          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.569Z"
+    },
+    {
+      "id": "1f32df53-f4a7-4f4a-8df6-f9c4bf419f4a",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/config",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 3,
+      "timestamp": "2026-06-30T19:41:31.583Z"
+    },
+    {
+      "id": "dbfc508a-5a02-4d92-90a7-7ca2cdd5a6d7",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/feature-flags",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.596Z"
+    },
+    {
+      "id": "970ea546-c668-4ce1-9679-81ed9b71f6e1",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/langchain/config/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "provider": "helix",
+        "model": "gpt-4o-mini",
+        "helix_base_url": "https://openam-helix.forgeblocks.com",
+        "helix_api_key": "••••••••",
+        "helix_environment_id": "fe213c3c-9c1d-4bdb-954a-a22879dad26d",
+        "helix_agent_id": "LLM",
+        "helix_prompt_field_id": "textInputa7c39a0e8292",
+        "key_set": {
+          "helix": true,
+          "openai": false,
+          "anthropic": false,
+          "anthropic-lmstudio": true
+        },
+        "provider_models": {
+          "openai": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo"
+          ],
+          "anthropic": [
+            "claude-opus-4-5",
+            "claude-sonnet-4-5",
+            "claude-3-5-haiku-20241022"
+          ],
+          "groq": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
+          ],
+          "google": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "helix": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gemini-1.5-pro",
+            "claude-3-5-sonnet"
+          ],
+          "anthropic-lmstudio": [
+            "google/gemma-4-e2b",
+            "google/gemma-4-e4b",
+            "google/gemma-3-12b-it",
+            "qwen/qwen3.6-27b"
+          ],
+          "llamacpp": [
+            "qwen2.5-3b-instruct",
+            "qwen3-1.7b",
+            "qwen3-8b",
+            "llama-3.1-8b-instruct"
+          ]
+        },
+        "default_models": {
+          "openai": "gpt-4o-mini",
+          "anthropic": "claude-3-5-haiku-20241022",
+          "groq": "llama-3.1-8b-instant",
+          "google": "gemini-2.0-flash",
+          "helix": "gpt-4o-mini",
+          "anthropic-lmstudio": "google/gemma-4-e2b",
+          "llamacpp": "qwen2.5-3b-instruct"
+        },
+        "fallback_order": [
+          "groq",
+          "anthropic",
+          "openai",
+          "google"
+        ],
+        "agent_mode": "helix_google",
+        "external_wiring": "bff",
+        "agent_modes": [
+          {
+            "id": "heuristics",
+            "label": "Heuristics only",
+            "external": false
+          },
+          {
+            "id": "llamacpp",
+            "label": "llama.cpp only",
+            "external": true
+          },
+          {
+            "id": "claude",
+            "label": "Anthropic only",
+            "external": true
+          },
+          {
+            "id": "helix_google",
+            "label": "Helix only",
+            "external": true
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.606Z"
+    },
+    {
+      "id": "bd8d5c21-289e-4dc5-b5f9-c26d67001908",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.620Z"
+    },
+    {
+      "id": "881ad229-ecc8-4ade-8761-9cd66e3bfbe9",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/config",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:41:31.634Z"
+    },
+    {
+      "id": "ba920ca8-a6a7-4b6d-b48e-9b2f90f1f57c",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/ciba/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "enabled": false,
+        "deliveryMode": "poll",
+        "bindingMessage": "Banking App Authentication",
+        "setupRequired": true,
+        "setupSteps": [
+          "Set CIBA_ENABLED=true in your environment",
+          "Enable the CIBA grant type on your PingOne application",
+          "Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.680Z"
+    },
+    {
+      "id": "00bbd85c-0f2a-494e-9e68-62c7bb2f4311",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/health/demo-status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "ok": true,
+        "servers": [
+          {
+            "name": "Banking API Server",
+            "key": "api_server",
+            "up": true,
+            "startCmd": "cd demo_api_server && npm start",
+            "description": "Express BFF — OAuth, sessions, banking REST API",
+            "port": 3001
+          },
+          {
+            "name": "Banking MCP Server",
+            "key": "mcp_server",
+            "up": true,
+            "startCmd": "cd demo_mcp_server && npm run dev",
+            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
+            "port": 8080,
+            "url": "http://mcp-gateway:3005"
+          }
+        ],
+        "timestamp": "2026-06-30T19:41:31.689Z"
+      },
+      "responseStatus": 200,
+      "duration": 75,
+      "timestamp": "2026-06-30T19:41:31.689Z"
+    },
+    {
+      "id": "2d0dc378-50e2-450d-af19-318640e5a3c9",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/feature-flags",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.701Z"
+    },
+    {
+      "id": "a078411a-a335-4bea-9323-a9b31edfbe1a",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.710Z"
+    },
+    {
+      "id": "b7924880-5ece-422e-a103-ea8976808988",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "GET_ACCOUNTS",
+      "endpoint": "GET /api/accounts/my",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": {
+        "accounts": [
+          {
+            "id": "bf962e83-d73d-4028-b5fb-fb7a845f5994",
+            "accountType": "Rewards Points",
+            "name": "Rewards Account",
+            "balance": 4329.27,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          },
+          {
+            "id": "8a1b1e3b-2139-4e17-8517-89da1cce30e6",
+            "accountType": "Store Credit",
+            "name": "Store Credit Wallet",
+            "balance": 160.58,
+            "currency": "USD",
+            "status": "active",
+            "accountNumber": "****",
+            "swiftCode": "CHASUS33",
+            "iban": "",
+            "branchName": "Super Banking Main Branch",
+            "branchCode": "001",
+            "openedDate": null,
+            "accountHolderName": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "createdAt": "2026-06-30T16:17:14.226Z",
+            "notes": null
+          }
+        ]
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:41:31.744Z"
+    },
+    {
+      "id": "6cf16a25-ec43-4150-834f-5360e6cf9dd1",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/health/demo-status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "ok": true,
+        "servers": [
+          {
+            "name": "Banking API Server",
+            "key": "api_server",
+            "up": true,
+            "startCmd": "cd demo_api_server && npm start",
+            "description": "Express BFF — OAuth, sessions, banking REST API",
+            "port": 3001
+          },
+          {
+            "name": "Banking MCP Server",
+            "key": "mcp_server",
+            "up": true,
+            "startCmd": "cd demo_mcp_server && npm run dev",
+            "description": "MCP tool server — provides AI agent banking tools over WebSocket",
+            "port": 8080,
+            "url": "http://mcp-gateway:3005"
+          }
+        ],
+        "timestamp": "2026-06-30T19:41:31.765Z"
+      },
+      "responseStatus": 200,
+      "duration": 11,
+      "timestamp": "2026-06-30T19:41:31.765Z"
+    },
+    {
+      "id": "6be99505-cf87-4bbd-b12b-6af141553c6f",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.777Z"
+    },
+    {
+      "id": "05927db6-14a7-4aa4-b801-0684425e8ed2",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/oauth/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "oauthProvider": "pingone_sso",
+        "tokenType": "Bearer",
+        "expiresAt": 1782851259187,
+        "clientType": "enduser"
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.788Z"
+    },
+    {
+      "id": "5d9e3081-a01d-4534-b34b-2b4f32395a8a",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/oauth/user/status",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "staleSession": false,
+        "staleReason": null,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "oauthProvider": "pingone_sso",
+        "tokenType": "Bearer",
+        "expiresAt": 1782851259187,
+        "clientType": "enduser",
+        "consentGiven": false,
+        "consentedAt": null,
+        "mayAct": {
+          "sub": "71e878ea-2d79-4760-b570-66f00cbeffe7"
+        }
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.803Z"
+    },
+    {
+      "id": "a0a73caf-50db-4d78-81be-11ccc52e8ac2",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.816Z"
+    },
+    {
+      "id": "2177bde3-0dda-4c96-974c-63f0b0b93f1f",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/token-chain",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": {
+        "tokenChain": [
+          {
+            "id": "synthetic-session-1aee74ae",
+            "timestamp": "2026-06-30T19:41:31.811Z",
+            "eventType": "auth",
+            "tokenType": "user_token",
+            "tokenSub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "tokenAct": null,
+            "tokenAgent": null,
+            "scopes": [
+              "ai:agent:read",
+              "transfer",
+              "read",
+              "openid",
+              "largepurchase:read",
+              "write"
+            ],
+            "audience": "enduser.ping.demo",
+            "issuer": "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as",
+            "expiry": "2026-06-30T20:27:39.000Z",
+            "description": "User session token (synthesized after server restart / cold start — decoded from the session only; signature NOT verified, NOT introspected, expiry NOT enforced)",
+            "exchangeSteps": [],
+            "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+            "_synthetic": true,
+            "verified": false,
+            "status": "synthesized"
+          }
+        ],
+        "mcpToolCallsChain": [],
+        "validationMode": "introspection",
+        "metadata": {
+          "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "totalEvents": 1,
+          "totalMCPToolCalls": 0,
+          "synthetic": true,
+          "lastUpdated": "2026-06-30T19:41:31.826Z"
+        }
+      },
+      "responseStatus": 200,
+      "duration": 16,
+      "timestamp": "2026-06-30T19:41:31.826Z"
+    },
+    {
+      "id": "ac6027bc-7736-425a-8a92-b5b35366ebf3",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/feature-flags",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.838Z"
+    },
+    {
+      "id": "952d5987-9cb5-437e-8855-9f48a3f37020",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/pingone-test/config",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "success": true,
+        "config": {
+          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
+          "region": "com",
+          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
+          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
+          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
+          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
+          "resourceMcpServerUri": "mcpserver.ping.demo",
+          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
+          "resourceAgentGatewayUri": "agentgateway.ping.demo",
+          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
+          "mgmtClientSecret": ".lVeBZKj...",
+          "mgmtTokenAuthMethod": "basic",
+          "tokenExchangeAuthMethod": "post",
+          "twoExchangeResourceUri": "mcpgateway.ping.demo",
+          "ffTwoExchangeDelegation": false,
+          "ffIdTokenExchange": false
+        }
+      },
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:41:31.849Z"
+    },
+    {
+      "id": "f4e1a4a7-126f-417d-a42e-04e816a9660b",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.859Z"
+    },
+    {
+      "id": "2a5de469-9976-4315-98db-d960cf36f6b6",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.870Z"
+    },
+    {
+      "id": "6035e020-14f7-4b95-94c9-01145efe9db8",
+      "userId": null,
+      "username": null,
+      "action": "ADMIN_ACCESS",
+      "endpoint": "GET /api/admin/feature-flags",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.881Z"
+    },
+    {
+      "id": "9b73b0c9-359e-44b5-b767-389510cab5aa",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:31.890Z"
+    },
+    {
+      "id": "73606613-8aae-4e73-8041-f8b773340ca6",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/pingone-test/config",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "success": true,
+        "config": {
+          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
+          "region": "com",
+          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
+          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
+          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
+          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
+          "resourceMcpServerUri": "mcpserver.ping.demo",
+          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
+          "resourceAgentGatewayUri": "agentgateway.ping.demo",
+          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
+          "mgmtClientSecret": ".lVeBZKj...",
+          "mgmtTokenAuthMethod": "basic",
+          "tokenExchangeAuthMethod": "post",
+          "twoExchangeResourceUri": "mcpgateway.ping.demo",
+          "ffTwoExchangeDelegation": false,
+          "ffIdTokenExchange": false
+        }
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.901Z"
+    },
+    {
+      "id": "83aa21f0-6cef-4438-a375-e9fdcf0d25ee",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.910Z"
+    },
+    {
+      "id": "72bcde95-d5c2-4c93-b998-a7b0414167b1",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/pingone-test/config",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "success": true,
+        "config": {
+          "environmentId": "01d89b06-66d5-430e-9f28-65636843788b",
+          "region": "com",
+          "adminClientId": "8a711944-e625-42ce-af14-4d5a0825155a",
+          "userClientId": "83572007-b2c7-4862-8197-dc225a9fb8e1",
+          "mcpTokenExchangerClientId": "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
+          "aiAgentClientId": "71e878ea-2d79-4760-b570-66f00cbeffe7",
+          "resourceMcpServerUri": "mcpserver.ping.demo",
+          "resourceMcpGatewayUri": "mcpgateway.ping.demo",
+          "resourceAgentGatewayUri": "agentgateway.ping.demo",
+          "mgmtClientId": "89ad8921-2e90-4b58-93bd-9ec72bd33ad5",
+          "mgmtClientSecret": ".lVeBZKj...",
+          "mgmtTokenAuthMethod": "basic",
+          "tokenExchangeAuthMethod": "post",
+          "twoExchangeResourceUri": "mcpgateway.ping.demo",
+          "ffTwoExchangeDelegation": false,
+          "ffIdTokenExchange": false
+        }
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:31.936Z"
+    },
+    {
+      "id": "5fd7aec3-2cde-48eb-a216-aaa12bdb7eb1",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/authorize/warmup",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": {},
+      "responseBody": {
+        "ok": true,
+        "ms": 339
+      },
+      "responseStatus": 200,
+      "duration": 342,
+      "timestamp": "2026-06-30T19:41:32.076Z"
+    },
+    {
+      "id": "d09efdba-0f08-4d98-ac7a-191e86aa37b4",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/demo-agent/tools",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": {
+        "vertical": "retail",
+        "allowWrite": true
+      },
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 880,
+      "timestamp": "2026-06-30T19:41:32.636Z"
+    },
+    {
+      "id": "b9e9afe2-0c6e-4150-99a3-59893b44bcc1",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 2,
+      "timestamp": "2026-06-30T19:41:36.908Z"
+    },
+    {
+      "id": "904810f0-abaa-4a72-8e21-36664d7ff2a3",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/auth/session",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": null,
+      "responseBody": {
+        "authenticated": true,
+        "user": {
+          "id": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+          "firstName": "",
+          "lastName": "",
+          "role": "customer"
+        },
+        "authType": "user",
+        "cookieOnlyBffSession": false,
+        "sessionStoreError": null,
+        "sessionStoreHealthy": null
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:36.922Z"
+    },
+    {
+      "id": "7d2719f2-5c91-429d-a552-d8512bd3f51e",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.11",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiNDI5NmFmODgtMzI4NC00YmM2LTg3MGYtY2YwYjBhMzAwZDhmIiwiaWF0IjoxNzgyODQ3NjU5LCJleHAiOjE3ODI4NTEyNTksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgbGFyZ2VwdXJjaGFzZTpyZWFkIHdyaXRlIiwic3ViIjoiMWFlZTc0YWUtM2QwOS00YmNmLWE2OWYtN2UxYmMyMjViNzYxIiwic2lkIjoiOWY4ZGQyNTQtMWNiZi00MGRiLTk1MzEtMWIwNDdjODE5NmIyIiwiYXV0aF90aW1lIjoxNzgyODE5NzEyLCJhY3IiOiJTaW5nbGVfRmFjdG9yIiwibWF5X2FjdCI6eyJzdWIiOiI3MWU4NzhlYS0yZDc5LTQ3NjAtYjU3MC02NmYwMGNiZWZmZTcifSwiZW52IjoiMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiIiwib3JnIjoiOTdiYTQ0ZjItZjdlZS00MTQ0LWFhOTUtOWU2MzZiNTdjMDk2In0.hXqvCYUC1rM9GJZ0y5qBg8WnXRf56f4XGqt953LbF5FMwASbylzUnsTZb3COOWE5sh_sCnw-VyRWDzoPY886MDiyFumFnDeGY1gpZbCILwkx0J-AnrATkyQlPxSulTzip-P25jnCKbn1NkVgDDXgc-x3QV-neIJBpMxkoEcCJ2SqD-2QZTCRjq2UM_V6PxJDh7t1MYsnTwQzByQuSWZ4qGZJ4QT2JIJ276ckiEaPWh7EGM-ggZL0Q5BnMegTnlGuINJwy0DdM_MhAFYhdCjCbpDzan-hB6cy2Kd2a-FlpLV5HcSv1dTCabTcBGW8qqaE4glefXf-ch8lMMFGxJm37g",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:41:36.934Z"
+    },
+    {
+      "id": "ec0a2d39-11b4-4cab-80dd-7df9a954b50d",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:41:50.494Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:41:50.496Z"
+    },
+    {
+      "id": "b615a807-2edd-4638-972a-d9baa124f7fb",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:42:20.536Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:42:20.536Z"
+    },
+    {
+      "id": "af501b33-0e84-48d5-96d1-2037e49a7dca",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:42:50.569Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:42:50.569Z"
+    },
+    {
+      "id": "527be314-47ef-47fd-8581-f2bb69f11449",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:43:20.606Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:43:20.606Z"
+    },
+    {
+      "id": "59351788-0148-4d5c-a402-fa05c5a5fe2c",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:43:50.653Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:43:50.653Z"
+    },
+    {
+      "id": "73ec6fc3-30cd-4b62-901f-e8b1423e8b31",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:44:20.690Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:44:20.691Z"
+    },
+    {
+      "id": "06641a5d-db17-435b-b9c7-e64c405af335",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:44:50.719Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:44:50.719Z"
+    },
+    {
+      "id": "0c121df9-88a2-4298-866b-c5825ef75a50",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:45:20.757Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:45:20.757Z"
+    },
+    {
+      "id": "42ea0004-c94d-43b6-9b7c-9a249316e6ce",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:45:50.808Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:45:50.808Z"
+    },
+    {
+      "id": "347dde83-39c8-4b2e-a7aa-3d4288201dca",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:46:20.848Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:46:20.848Z"
+    },
+    {
+      "id": "4c41fae0-5717-4208-89ee-b4cb1434a779",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:46:50.885Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:46:50.885Z"
+    },
+    {
+      "id": "35d6a91e-2453-4b33-b4e6-62d0e988f491",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:47:20.934Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:47:20.934Z"
+    },
+    {
+      "id": "88c248f9-a01b-46d8-ac72-5223ac8509ab",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:47:50.987Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:47:50.987Z"
+    },
+    {
+      "id": "45ba57cc-60c4-443f-81c0-8b540a41ea2b",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:48:21.032Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:48:21.032Z"
+    },
+    {
+      "id": "11417697-ba48-4879-84b9-a2a72fa76ad5",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:48:51.080Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:48:51.080Z"
+    },
+    {
+      "id": "452db124-5225-485e-8124-d92766c493aa",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:49:21.121Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:49:21.121Z"
+    },
+    {
+      "id": "ef43ca71-5a21-40a0-8ddd-4f161fa606ed",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:49:51.169Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:49:51.169Z"
+    },
+    {
+      "id": "7b3787b7-e18d-4961-9ef1-0ae9fdee6aae",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:50:21.213Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-30T19:50:21.213Z"
+    },
+    {
+      "id": "40ef40c2-22a6-4668-8059-071d471266b9",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:50:51.256Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:50:51.256Z"
+    },
+    {
+      "id": "458dae0c-eb07-468f-a43e-0e5f311ec33c",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:51:21.297Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:51:21.297Z"
+    },
+    {
+      "id": "c8abcd4b-15bd-4d9b-82c7-a862dabbd271",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:51:51.342Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:51:51.342Z"
+    },
+    {
+      "id": "1f0ee698-b04c-4c57-8d5f-d38a25cca5f3",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:52:21.374Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:52:21.374Z"
     }
   ],
   "subscriptions": []
