@@ -32,11 +32,12 @@ async function buildOpsPrompt({ vertical, customer, records }) {
     };
   } catch (err) {
     console.error('[opsAgentService] Failed to build ops prompt:', err.message);
+    const errResponse = reasoningUnavailable();
     return {
       prompt: null,
       success: false,
-      error: reasoningUnavailable().code,
-      message: reasoningUnavailable().userMessage,
+      error: errResponse.code,
+      message: errResponse.userMessage,
     };
   }
 }

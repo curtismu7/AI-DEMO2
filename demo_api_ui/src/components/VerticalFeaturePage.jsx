@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
 import './VerticalFeaturePage.css';
@@ -42,6 +43,14 @@ export default function VerticalFeaturePage() {
     '--vfp-accent-dd':   mix(60, 'black'),
   };
 
+  const dataKey = useMemo(
+    () => {
+      if (!raw) return '';
+      return fp?.dataKey || Object.keys(raw).find((k) => k !== 'source' && k !== 'authMechanism' && k !== 'note' && k !== 'apiKeyMaskedLast4' && k !== 'message' && k !== 'backend') || '';
+    },
+    [fp?.dataKey, raw]
+  );
+
   if (!raw) {
     return (
       <div className="vfp-container" style={styles}>
@@ -61,8 +70,6 @@ export default function VerticalFeaturePage() {
       </div>
     );
   }
-
-  const dataKey  = fp?.dataKey || Object.keys(raw).find((k) => k !== 'source' && k !== 'authMechanism' && k !== 'note' && k !== 'apiKeyMaskedLast4' && k !== 'message' && k !== 'backend') || '';
   const record   = raw[dataKey] || {};
   const currency = record.currency;
   const fields   = fp?.fields || [];

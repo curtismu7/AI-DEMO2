@@ -46,19 +46,19 @@
 }
 
 /* Avatar size modifiers */
-.hero-avatar--sm .hero-avatar {
+.hero-section.hero-avatar--sm .hero-avatar {
   width: var(--hero-avatar-size-sm);
   height: var(--hero-avatar-size-sm);
   font-size: 0.8rem;
 }
 
-.hero-avatar--md .hero-avatar {
+.hero-section.hero-avatar--md .hero-avatar {
   width: var(--hero-avatar-size-md);
   height: var(--hero-avatar-size-md);
   font-size: 1.3rem;
 }
 
-.hero-avatar--lg .hero-avatar {
+.hero-section.hero-avatar--lg .hero-avatar {
   width: var(--hero-avatar-size-lg);
   height: var(--hero-avatar-size-lg);
   font-size: 1.6rem;
