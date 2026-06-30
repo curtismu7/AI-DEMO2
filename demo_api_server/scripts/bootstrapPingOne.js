@@ -39,10 +39,10 @@ if (process.stderr._handle && typeof process.stderr._handle.setBlocking === 'fun
   process.stderr._handle.setBlocking(true);
 }
 
-const path = require('path');
-const readline = require('readline');
-const crypto = require('crypto');
-const { spawn } = require('child_process');
+const path = require('node:path');
+const readline = require('node:readline');
+const crypto = require('node:crypto');
+const { spawn, execSync } = require('node:child_process');
 
 // Defer Node-version pre-flight until after --help so users can read help text
 // from any Node. checkNodeVersion() is called below, after the --help branch.
@@ -1142,7 +1142,6 @@ async function main() {
 
     // TraT claims setup — non-fatal, runs after provisioning is complete.
     try {
-      const { execSync } = require('child_process');
       execSync('node scripts/setupTratClaims.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
     } catch (err) {
       console.warn('[Bootstrap] TraT claims setup failed (non-fatal):', err.message);
@@ -1151,7 +1150,6 @@ async function main() {
     // Download Ollama phi model — non-fatal, runs after provisioning is complete.
     console.log('  Downloading Ollama phi model (2.7B, used for OAuth Academy)...');
     try {
-      const { execSync } = require('child_process');
       execSync('ollama pull phi', { stdio: 'inherit', timeout: 600000 }); // 10 min timeout
     } catch (err) {
       console.warn('[Bootstrap] Ollama phi download failed (non-fatal):', err.message);
