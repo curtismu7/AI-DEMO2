@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
 import { formatCurrency, formatPercent } from '../utils/formatters';
