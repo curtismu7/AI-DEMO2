@@ -2,6 +2,7 @@
 // No React, no JSX, no component state — safe to unit-test in isolation.
 // The only external dependency is APP_CONFIG (HITL threshold default).
 import APP_CONFIG from "../services/appConfig";
+import { formatCurrency as sharedFormatCurrency } from "../utils/formatters";
 
 export function resolveSessionFromAuthTrio(admin, endUser, session) {
   const found =
@@ -17,10 +18,9 @@ export function resolveSessionFromAuthTrio(admin, endUser, session) {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+// Re-export shared formatter with USD default for backward compatibility
 export function formatCurrency(n) {
-  return typeof n === "number"
-    ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : n;
+  return sharedFormatCurrency(n, 'USD');
 }
 
 /** Unwrap MCP `tools/call` shape `{ content: [{ text: "<json>" }] }` for display logic. */

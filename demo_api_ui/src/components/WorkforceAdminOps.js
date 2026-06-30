@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import bffAxios from '../services/bffAxios';
 import { notifyError, notifyInfo, notifySuccess } from '../utils/appToast';
-import { formatCurrency } from './agentFormatters';
+import { formatCurrency } from '../utils/formatters';
 import TokenChainDisplay from './TokenChainDisplay';
 import AIAgent from './AIAgent';
 import LookupUserChips from './LookupUserChips';

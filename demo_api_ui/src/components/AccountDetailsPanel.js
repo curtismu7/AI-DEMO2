@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { formatCurrency } from '../utils/formatters';
 import './AccountDetailsPanel.css';
 
 /**
@@ -122,10 +123,7 @@ function AccountDetailsPanel({ accountData, initialPos, onClose }) {
                       <div className="adp-detail-row">
                         <span className="adp-detail-label">Balance:</span>
                         <span className="adp-detail-value">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: account.currency || 'USD',
-                          }).format(account.balance || 0)}
+                          {formatCurrency(account.balance || 0, account.currency || 'USD')}
                         </span>
                       </div>
 

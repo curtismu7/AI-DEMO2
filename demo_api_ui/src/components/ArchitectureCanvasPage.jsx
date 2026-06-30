@@ -240,12 +240,13 @@ function midpoint(pts) {
 }
 
 export default function ArchitectureCanvasPage() {
-  const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
+  const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout, removeNode } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
   const [connectMode, setConnectMode] = useState(false);
   const [connectFrom, setConnectFrom] = useState(null);  // kept for keyboard/click fallback
   const [dragWire, setDragWire] = useState(null);         // { fromId, x1,y1, x2,y2 } while dragging
   const [selectedEdge, setSelectedEdge] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(null);
   const [renaming, setRenaming] = useState(null);
   const [stageH, setStageH] = useState(620);
   const [pingStatus, setPingStatus] = useState({});
@@ -273,9 +274,10 @@ export default function ArchitectureCanvasPage() {
   }, [moveNode]);
 
   const handleNodeClick = useCallback((id) => {
-    // kept for non-drag interactions; drag path uses handleWireStart/End
-    if (!connectMode || dragWireRef.current) return;
-  }, [connectMode]);
+    if (connectMode || dragWireRef.current) return;
+    setSelectedNode(selectedNode === id ? null : id);
+    setSelectedEdge(null);
+  }, [connectMode, selectedNode]);
 
   const handleWireStart = useCallback((node, e) => {
     if (!connectMode) return;
@@ -334,6 +336,12 @@ export default function ArchitectureCanvasPage() {
     setSelectedEdge(null);
   };
 
+  const handleDeleteNode = () => {
+    if (!selectedNode) return;
+    removeNode(selectedNode);
+    setSelectedNode(null);
+  };
+
   const handlePingAll = async () => {
     setPinging(true);
     setResultPanel(null);
@@ -367,9 +375,11 @@ export default function ArchitectureCanvasPage() {
     ? 'Press Enter or click Save to rename'
     : connectMode
     ? (dragWire ? 'Release on target node to connect' : 'Drag from any box to draw a connection')
+    : selectedNode
+    ? 'Node selected — click Delete Node to remove'
     : selectedEdge
     ? 'Arrow selected — click Delete Edge to remove'
-    : 'Drag to reposition · Double-click to rename · Click arrow to select';
+    : 'Drag to reposition · Double-click to rename · Click box to select · Click arrow to select';
 
   return (
     <div className="canvas-page">
@@ -411,6 +421,7 @@ export default function ArchitectureCanvasPage() {
               {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
             </button>
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>✕ Delete Edge</button>
+            <button className="btn-delete" disabled={!selectedNode} onClick={handleDeleteNode}>✕ Delete Node</button>
             <button className={`btn-ping${pinging ? ' pinging' : ''}`} onClick={handlePingAll} disabled={pinging}>
               {pinging ? '⏳ Pinging…' : '⚡ Ping All'}
             </button>
@@ -475,9 +486,10 @@ export default function ArchitectureCanvasPage() {
           <Layer>
             {nodes.map(node => {
               const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
+              const isSelected = selectedNode === node.id;
               const isConnectSrc = connectFrom === node.id;
-              const strokeColor = isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
-              const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
+              const strokeColor = isSelected ? '#ef4444' : isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
+              const strokeWidth = (isSelected || isConnectSrc || connectMode) ? 2.5 : 1.5;
               const status = pingStatus[node.id];
               const dotColor = STATUS_COLOR[status];
               const inFlow = flow && flow.steps.some(s => s.from === node.id || s.to === node.id);
@@ -546,6 +558,34 @@ export default function ArchitectureCanvasPage() {
                   opacity={dimmed && !isSelected ? 0.35 : 1}
                   onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
                 />
+              );
+            })}
+          </Layer>
+
+          {/* Edge labels */}
+          <Layer>
+            {edges.map(edge => {
+              if (!edge.label || flow) return null; // skip labels when a flow is selected
+              const src = nodeMap[edge.from];
+              const tgt = nodeMap[edge.to];
+              if (!src || !tgt) return null;
+              const pts = arrowPoints(src, tgt);
+              const mid = midpoint(pts);
+              const isSelected = selectedEdge === edge.id;
+              const srcStyle = LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool;
+              const textColor = isSelected ? '#ef4444' : srcStyle.stroke;
+              return (
+                <Group key={`label-${edge.id}`} x={mid.x} y={mid.y}>
+                  {/* Background rect for readability */}
+                  <Rect x={-40} y={-10} width={80} height={20}
+                    fill="#f8fafc" stroke={textColor} strokeWidth={0.5}
+                    cornerRadius={3} listening={false} />
+                  {/* Label text */}
+                  <Text x={-38} y={-8} width={76}
+                    text={edge.label} fontSize={9} fontStyle="bold"
+                    fontFamily="system-ui, sans-serif" fill={textColor}
+                    align="center" listening={false} />
+                </Group>
               );
             })}
           </Layer>

@@ -17,17 +17,8 @@
  * Path C (blue). No emojis (REGRESSION_PLAN §0).
  */
 import { useNavigate, useLocation } from 'react-router-dom';
+import { formatCurrency, formatPercent } from '../utils/formatters';
 import './MortgagePathPage.css';
-
-function fmtMoney(amt, currency = 'USD') {
-  if (typeof amt !== 'number') return String(amt ?? '');
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amt);
-}
-
-function fmtPct(rate) {
-  if (typeof rate !== 'number') return String(rate ?? '');
-  return `${rate.toFixed(3)}%`;
-}
 
 export default function MortgagePathPage() {
   const navigate = useNavigate();
@@ -84,19 +75,19 @@ export default function MortgagePathPage() {
           </div>
           <div className="mpp-field-row">
             <dt>Interest rate</dt>
-            <dd>{fmtPct(m.interestRate)}</dd>
+            <dd>{formatPercent(m.interestRate, 3)}</dd>
           </div>
           <div className="mpp-field-row">
             <dt>Original loan amount</dt>
-            <dd>{fmtMoney(m.loanAmount, m.currency)}</dd>
+            <dd>{formatCurrency(m.loanAmount, m.currency)}</dd>
           </div>
           <div className="mpp-field-row mpp-field-row--accent">
             <dt>Current balance</dt>
-            <dd>{fmtMoney(m.currentBalance, m.currency)}</dd>
+            <dd>{formatCurrency(m.currentBalance, m.currency)}</dd>
           </div>
           <div className="mpp-field-row">
             <dt>Monthly payment</dt>
-            <dd>{fmtMoney(m.monthlyPayment, m.currency)}</dd>
+            <dd>{formatCurrency(m.monthlyPayment, m.currency)}</dd>
           </div>
           <div className="mpp-field-row">
             <dt>Next payment due</dt>
