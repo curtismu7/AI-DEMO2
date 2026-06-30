@@ -16,6 +16,8 @@ import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
+import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
+import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
 
 // ============================================================================
@@ -193,6 +195,7 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
 
   return (
     <div className="utfi-agent-flow-section">
+      <SecurityGuaranteeBanner />
       <div className="utfi-section-header">
         <span className="utfi-section-icon">🔀</span>
         <h3>Agent Request Flow</h3>

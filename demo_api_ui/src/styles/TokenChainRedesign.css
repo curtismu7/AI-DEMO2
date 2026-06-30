@@ -1,0 +1,33 @@
+/* Security Guarantee Banner */
+.utfi-security-guarantee {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.utfi-security-text {
+  flex: 1;
+}
+
+.utfi-security-dismiss {
+  background: none;
+  border: none;
+  color: #92400e;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.utfi-security-dismiss:hover {
+  color: #78350f;
+}
