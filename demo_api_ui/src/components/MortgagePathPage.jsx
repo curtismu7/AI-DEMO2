@@ -17,11 +17,11 @@
  * Path C (blue). No emojis (REGRESSION_PLAN §0).
  */
 import { useNavigate, useLocation } from 'react-router-dom';
+import { formatCurrency } from '../utils/formatters';
 import './MortgagePathPage.css';
 
 function fmtMoney(amt, currency = 'USD') {
-  if (typeof amt !== 'number') return String(amt ?? '');
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amt);
+  return formatCurrency(amt, currency);
 }
 
 function fmtPct(rate) {

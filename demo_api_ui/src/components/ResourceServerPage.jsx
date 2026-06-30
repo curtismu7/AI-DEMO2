@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester from './ResourceServerTester';
+import { formatCurrency } from '../utils/formatters';
 import './ResourceServerPage.css';
 
 const CLAIM_GLOSSARY = {
@@ -80,7 +81,7 @@ function ScopesBadges({ scopes, highlightBanking }) {
 }
 
 function formatBalance(amount, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount || 0);
+  return formatCurrency(amount || 0, currency);
 }
 
 export default function ResourceServerPage() {
