@@ -31,7 +31,7 @@ describe('verticalOpsConfig', () => {
 
   it('banking adaptLookup synthesizes a customer from account-centric response', () => {
     const c = getVerticalConfig('banking');
-    const out = c.adaptLookup({ accounts: [{ id: 'ac1', accountNumber: '****4821', type: 'Checking', balance: 4210.55 }], transactions: [] });
+    const out = c.adaptLookup({ accounts: [{ id: 'ac1', accountNumber: '****4821', accountType: 'Checking', balance: 4210.55, name: 'Primary Checking' }], transactions: [] });
     expect(out.categories.find((x) => x.id === 'accounts').rows[0].id).toBe('ac1');
     expect(out.customer).toBeTruthy();
   });

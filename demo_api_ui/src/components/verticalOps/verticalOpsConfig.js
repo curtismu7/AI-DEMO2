@@ -62,13 +62,13 @@ export const CONFIGS = {
       const total = accounts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
       return {
         customer: accounts.length ? {
-          name: accounts[0].holderName || 'Account holder',
+          name: accounts[0].name || 'Account holder',
           sub: `${accounts.length} account(s)`,
           avatar: 'AC',
           stats: [['Total balance', money(total)], ['Accounts', String(accounts.length)], ['Txns', String(txns.length)]],
         } : null,
         categories: [
-          category('accounts', 'Accounts', '💳', accounts, (a) => ({ id: a.id, title: `${a.type || 'Account'} · ${a.accountNumber}`, sub: `Balance ${money(Number(a.balance))}`, status: a.status || 'Active', tone: toneFor(a.status || 'Active'), actions: ['Seed charge', 'Delete'] })),
+          category('accounts', 'Accounts', '💳', accounts, (a) => ({ id: a.id, title: `${a.accountType || 'Account'} · ${a.accountNumber}`, sub: `Balance ${money(Number(a.balance))}`, status: a.status || 'Active', tone: toneFor(a.status || 'Active'), actions: ['Seed charge', 'Delete'] })),
           category('transactions', 'Transactions', '🔁', txns, (t) => ({ id: t.id, title: t.description || t.type || 'Transaction', sub: `${t._accountNumber || ''} · ${money(Number(t.amount))}`, status: t.status || 'Posted', tone: toneFor(t.status), actions: ['Delete'] })),
         ],
       };
@@ -86,11 +86,11 @@ export const CONFIGS = {
       'Release': { method: 'post', buildUrl: (row) => `/api/admin/healthcare/records/${encodeURIComponent(row.id)}/release`, body: (_r, c) => ({ userId: c.id }) },
     },
     adaptLookup: userCentric([
-      { id: 'appointments', slice: 'appointments', label: 'Appointments', icon: '📅', title: (r) => r.reason || 'Appointment', sub: (r) => `${r.date || ''} · ${r.provider || ''}`, actions: ['Cancel'] },
+      { id: 'appointments', slice: 'appointments', label: 'Appointments', icon: '📅', title: (r) => r.reason || 'Appointment', sub: (r) => `${r.when || ''} · ${r.provider || ''}`, actions: ['Cancel'] },
       { id: 'medications', slice: 'medications', label: 'Medications', icon: '💊', title: (r) => r.name || 'Medication', sub: (r) => `${r.dosage || ''} · ${r.frequency || ''}`, actions: ['Refill'] },
-      { id: 'billing', slice: 'billingHistory', label: 'Billing', icon: '🧾', title: (r) => r.description || 'Bill', sub: (r) => money(Number(r.amount)), actions: ['Pay bill'] },
-      { id: 'records', slice: 'patientRecords', label: 'Records', icon: '📁', title: (r) => r.type || 'Record', sub: (r) => r.provider || '', actions: ['Release'] },
-      { id: 'referrals', slice: 'referrals', label: 'Referrals', icon: '➡️', title: (r) => r.specialty || 'Referral', sub: (r) => r.provider || '', actions: ['Cancel'] },
+      { id: 'billing', slice: 'billingHistory', label: 'Billing', icon: '🧾', title: (r) => r.description || 'Bill', sub: (r) => money(Number(r.amountDue)), actions: ['Pay bill'] },
+      { id: 'records', slice: 'patientRecords', label: 'Records', icon: '📁', title: (r) => r.recordType || 'Record', sub: (r) => r.provider || '', actions: ['Release'] },
+      { id: 'referrals', slice: 'referrals', label: 'Referrals', icon: '➡️', title: (r) => r.specialty || 'Referral', sub: (r) => r.toProvider || '', actions: ['Cancel'] },
     ]),
   },
   retail: {
@@ -105,10 +105,10 @@ export const CONFIGS = {
       'Approve': { method: 'post', buildUrl: (row) => `/api/admin/retail/returns/${encodeURIComponent(row.id)}/approve`, body: (_r, c) => ({ userId: c.id }) },
     },
     adaptLookup: userCentric([
-      { id: 'orders', slice: 'orders', label: 'Orders', icon: '📦', title: (r) => r.summary || `Order ${r.id}`, sub: (r) => money(Number(r.total)), actions: ['Cancel order'] },
-      { id: 'returns', slice: 'returns', label: 'Returns', icon: '↩️', title: (r) => r.reason || `Return ${r.id}`, sub: (r) => money(Number(r.amount)), actions: ['Approve'] },
-      { id: 'subscriptions', slice: 'subscriptions', label: 'Subscriptions', icon: '🔄', title: (r) => r.plan || 'Subscription', sub: (r) => r.cadence || '', actions: ['Cancel sub'] },
-      { id: 'support_tickets', slice: 'support_tickets', label: 'Support', icon: '🎧', title: (r) => r.subject || 'Ticket', sub: (r) => r.opened || '', actions: ['Resolve'] },
+      { id: 'orders', slice: 'orders', label: 'Orders', icon: '📦', title: (r) => r.product || `Order ${r.id}`, sub: (r) => money(Number(r.amount)), actions: ['Cancel order'] },
+      { id: 'returns', slice: 'returns', label: 'Returns', icon: '↩️', title: (r) => r.product || `Return ${r.id}`, sub: (r) => r.reason || '', actions: ['Approve'] },
+      { id: 'subscriptions', slice: 'subscriptions', label: 'Subscriptions', icon: '🔄', title: (r) => r.product || 'Subscription', sub: (r) => r.frequency || '', actions: ['Cancel sub'] },
+      { id: 'support_tickets', slice: 'support_tickets', label: 'Support', icon: '🎧', title: (r) => r.subject || 'Ticket', sub: (r) => r.created_date || '', actions: ['Resolve'] },
       { id: 'rewards', slice: 'rewards', label: 'Rewards', icon: '⭐', title: (r) => r.tier || 'Rewards', sub: (r) => `${r.points || 0} pts`, actions: [] },
     ]),
   },
@@ -124,10 +124,10 @@ export const CONFIGS = {
       'Cancel coaching': { method: 'post', buildUrl: (row) => `/api/admin/sporting-goods/coaching/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
     },
     adaptLookup: userCentric([
-      { id: 'orders', slice: 'orders', label: 'Orders', icon: '📦', title: (r) => r.summary || `Order ${r.id}`, sub: (r) => money(Number(r.total)), actions: ['Cancel order'] },
-      { id: 'rentals', slice: 'rentals', label: 'Rentals', icon: '🎿', title: (r) => r.item || 'Rental', sub: (r) => r.dueBack || '', actions: ['Return'] },
-      { id: 'coaching_sessions', slice: 'coaching_sessions', label: 'Coaching', icon: '🏃', title: (r) => r.title || 'Session', sub: (r) => r.when || '', actions: ['Cancel coaching'] },
-      { id: 'support_tickets', slice: 'support_tickets', label: 'Support', icon: '🎧', title: (r) => r.subject || 'Ticket', sub: (r) => r.opened || '', actions: ['Resolve'] },
+      { id: 'orders', slice: 'orders', label: 'Orders', icon: '📦', title: (r) => r.product || `Order ${r.id}`, sub: (r) => money(Number(r.amount)), actions: ['Cancel order'] },
+      { id: 'rentals', slice: 'rentals', label: 'Rentals', icon: '🎿', title: (r) => r.item || 'Rental', sub: (r) => r.dueDate || '', actions: ['Return'] },
+      { id: 'coaching_sessions', slice: 'coaching_sessions', label: 'Coaching', icon: '🏃', title: (r) => r.sport || 'Session', sub: (r) => r.date || '', actions: ['Cancel coaching'] },
+      { id: 'support_tickets', slice: 'support_tickets', label: 'Support', icon: '🎧', title: (r) => r.subject || 'Ticket', sub: (r) => r.createdAt || '', actions: ['Resolve'] },
       { id: 'loyalty', slice: 'loyalty', label: 'Loyalty', icon: '⭐', title: (r) => r.tier || 'Loyalty', sub: (r) => `${r.points || 0} pts`, actions: [] },
     ]),
   },
@@ -145,9 +145,9 @@ export const CONFIGS = {
     adaptLookup: userCentric([
       { id: 'expenses', slice: 'expenses', label: 'Expenses', icon: '💵', title: (r) => r.description || 'Expense', sub: (r) => money(Number(r.amount)), actions: ['Approve', 'Deny'] },
       { id: 'tickets', slice: 'tickets', label: 'IT Tickets', icon: '🛠️', title: (r) => r.subject || 'Ticket', sub: (r) => r.priority || '', actions: ['Resolve'] },
-      { id: 'trainings', slice: 'trainings', label: 'Training', icon: '🎓', title: (r) => r.name || 'Training', sub: (r) => r.due || '', actions: ['Complete'] },
+      { id: 'trainings', slice: 'trainings', label: 'Training', icon: '🎓', title: (r) => r.title || 'Training', sub: (r) => r.dueDate || '', actions: ['Complete'] },
       { id: 'pto', slice: 'pto', label: 'PTO', icon: '🌴', title: (r) => r.kind || 'PTO', sub: (r) => r.range || '', actions: [] },
-      { id: 'benefits', slice: 'benefits', label: 'Benefits', icon: '🏥', title: (r) => r.plan || 'Benefit', sub: (r) => r.status || '', actions: [] },
+      { id: 'benefits', slice: 'benefits', label: 'Benefits', icon: '🏥', title: (r) => r.name || 'Benefit', sub: (r) => r.enrollmentStatus || '', actions: [] },
     ]),
   },
 };
