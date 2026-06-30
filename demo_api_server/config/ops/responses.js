@@ -1,7 +1,5 @@
 'use strict';
 
-const { getMessage } = require('./messages');
-
 const REASON_CODES = {
   unknown: 'The Ops Assistant is temporarily unavailable. Please try again shortly.',
   llm_timeout: 'The reasoning service is slow. Please try again.',
@@ -11,14 +9,12 @@ const REASON_CODES = {
 };
 
 module.exports = {
-  noCustomer: function(locale = 'en') {
-    return {
-      userMessage: getMessage('errors.noCustomer', locale),
-      code: 'NO_CUSTOMER_LOADED',
-    };
+  noCustomer: {
+    userMessage: 'No customer is loaded yet. Look up a customer first, then ask me about them.',
+    code: 'NO_CUSTOMER_LOADED',
   },
 
-  reasoningUnavailable: function(reason = 'unknown', locale = 'en') {
+  reasoningUnavailable: function(reason = 'unknown') {
     return {
       userMessage: REASON_CODES[reason] || REASON_CODES.unknown,
       code: 'REASONING_UNAVAILABLE_' + reason.toUpperCase(),
