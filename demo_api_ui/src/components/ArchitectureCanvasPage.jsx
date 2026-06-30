@@ -25,6 +25,8 @@ const NODE_ICON = {
   bff:               '⚡',
   'langchain-agent': '🤖',
   'agent-service':   '🤖',
+  'a2a-orchestrator':'🤝',
+  'a2a-specialist':  '🎯',
   'mcp-gateway':     '🔀',
   'authz-server':    '🛡️',
   'pingone-sso':     '🔑',

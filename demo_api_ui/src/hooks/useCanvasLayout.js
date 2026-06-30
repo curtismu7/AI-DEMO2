@@ -19,6 +19,8 @@ const SEED_POSITIONS = {
   bff:               { x: 165,  y: 340 },
   'pingone-sso':     { x: 255,  y: 60  },
   'agent-service':   { x: 420,  y: 180 },
+  'a2a-orchestrator':{ x: 420,  y: 360 },
+  'a2a-specialist':  { x: 500,  y: 520 },
   'mcp-gateway':     { x: 570,  y: 340 },
   'authz-server':    { x: 930,  y: 80  },
   'hitl-service':    { x: 1010, y: 400 },
@@ -30,6 +32,8 @@ const NODE_LAYER = {
   frontend:          'client',
   bff:               'gateway',
   'agent-service':   'agent',
+  'a2a-orchestrator':'agent',
+  'a2a-specialist':  'agent',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
   'pingone-sso':     'policy',
@@ -40,6 +44,8 @@ const NODE_LAYER = {
 
 // Human-readable display labels (overrides the id as label)
 const NODE_LABEL = {
+  'a2a-orchestrator': 'A2A Orchestrator',
+  'a2a-specialist':   'Specialist Agent',
   'mcp-gateway':  'Ping Agent Gateway',
   'authz-server': 'PingOne Authorize',
   'pingone-sso':  'PingOne SSO',
@@ -50,6 +56,8 @@ const NODE_SUB = {
   frontend:          'Browser',
   bff:               'https:3001',
   'agent-service':   'http:3006 · NL mode',
+  'a2a-orchestrator':'CrewAI · decide/authorize',
+  'a2a-specialist':  'Investment / Records / Purchase',
   'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
   'pingone-sso':     'IDP · Token Exchange',
@@ -84,6 +92,11 @@ function buildSeedEdges(nodes) {
     ['bff',             'mcp-gateway',          'Routing'],
     ['mcp-gateway',     'bff',                  'Routing'],
     ['mcp-gateway',     'authz-server',         'Authorize request'],
+    // A2A — agent-to-agent delegation subsystem
+    ['agent-service',   'a2a-orchestrator',     'Delegate? (A2A)'],
+    ['a2a-orchestrator','authz-server',         'Approve act-chain'],
+    ['a2a-orchestrator','a2a-specialist',       'RFC 8693 nested act'],
+    ['a2a-specialist',  'mcp-gateway',          'Narrow tool call'],
     ['mcp-gateway',     'hitl-service',         'Challenge'],
     // MCP Gateway ↔ MCP Server
     ['mcp-gateway',     'mcp-server',           'MCP API call'],

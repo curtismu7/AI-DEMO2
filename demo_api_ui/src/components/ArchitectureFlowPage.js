@@ -355,6 +355,32 @@ const INITIAL_NODES = [
       colorClass: "",
     },
   },
+  // A2A (agent-to-agent delegation): the Agent can delegate a narrow sensitive
+  // task to the A2A Orchestrator (CrewAI crew), which gets PingOne Authorize
+  // approval, then nested RFC 8693 token-exchanges to a Specialist Agent that
+  // calls narrow tools via the MCP Gateway.
+  {
+    id: "a2a-orch",
+    type: "arch",
+    position: { x: 270, y: 440 },
+    data: {
+      label: "A2A Orchestrator",
+      label2: "CrewAI: decide·coordinate·authorize",
+      icon: "🧠",
+      colorClass: "",
+    },
+  },
+  {
+    id: "a2a-specialist",
+    type: "arch",
+    position: { x: 460, y: 440 },
+    data: {
+      label: "Specialist Agent",
+      label2: "Investment / Records / Purchase",
+      icon: "🎯",
+      colorClass: "",
+    },
+  },
 ];
 
 const B = { stroke: "#cbd5e1", strokeWidth: 1 };
@@ -501,6 +527,36 @@ const INITIAL_EDGES = [
     target: "agent",
     style: B,
     label: "Approved ✓",
+  },
+  // A2A delegation flow (drawn with the prominent blue "active path" style A
+  // to distinguish agent-to-agent delegation from the default grey edges).
+  {
+    id: "agent-a2a-orch",
+    source: "agent",
+    target: "a2a-orch",
+    style: A,
+    label: "Delegate? (A2A)",
+  },
+  {
+    id: "a2a-orch-authz",
+    source: "a2a-orch",
+    target: "pingauthorize",
+    style: A,
+    label: "Approve act-chain",
+  },
+  {
+    id: "a2a-orch-specialist",
+    source: "a2a-orch",
+    target: "a2a-specialist",
+    style: A,
+    label: "RFC 8693 (nested act)",
+  },
+  {
+    id: "a2a-specialist-mcp-gw",
+    source: "a2a-specialist",
+    target: "mcp-gw",
+    style: A,
+    label: "Narrow tool call",
   },
 ];
 
