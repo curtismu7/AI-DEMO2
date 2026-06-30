@@ -17,9 +17,9 @@ describe('VerticalOpsConsole page actions', () => {
     expect(screen.getByText('granted to app')).toBeInTheDocument();
   });
 
-  it('does not render page-action tools for a vertical without any', () => {
+  it('renders the shared "Fix PingOne Scopes" tool on non-banking verticals too', () => {
     render(<VerticalOpsConsole vertical="healthcare" user={{ role: 'user' }} />);
-    expect(screen.queryByText('Fix PingOne Scopes')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('vops-tools')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fix PingOne Scopes' })).toBeInTheDocument();
+    expect(screen.getByTestId('vops-tools')).toBeInTheDocument();
   });
 });
