@@ -1,0 +1,611 @@
+/* StepDetailsSection.css - Expandable step details with native <details> element */
+
+/* ============================================================================
+ * MAIN CONTAINER & DETAILS ELEMENT
+ * ============================================================================ */
+
+.step-details-container {
+  margin-bottom: 12px;
+}
+
+.step-details-element {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.step-details-element:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.step-details-element[open] {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+}
+
+/* ============================================================================
+ * SUMMARY (ALWAYS VISIBLE)
+ * ============================================================================ */
+
+.step-details-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  transition: background 0.2s ease;
+}
+
+.step-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.step-details-summary:hover {
+  background: #f1f5f9;
+}
+
+.step-details-element[open] .step-details-summary {
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+}
+
+.step-details-summary-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-details-step-number {
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.step-details-step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-details-step-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.step-details-step-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.step-details-timestamp {
+  color: #1e293b;
+  font-style: italic;
+}
+
+.step-details-summary-indicator {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.step-details-toggle-icon {
+  display: inline-block;
+  color: #334155;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+
+.step-details-element[open] .step-details-toggle-icon {
+  transform: rotate(90deg);
+}
+
+/* ============================================================================
+ * EXPANDED CONTENT
+ * ============================================================================ */
+
+.step-details-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-details-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.step-details-subsection-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+/* ============================================================================
+ * TEXT & DESCRIPTIONS
+ * ============================================================================ */
+
+.step-details-text {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+.step-details-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 12px;
+}
+
+.step-details-value {
+  color: #1e293b;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+/* ============================================================================
+ * STATUS BADGES
+ * ============================================================================ */
+
+.step-details-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.step-details-badge--active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.step-details-badge--done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.step-details-badge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.step-details-badge--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ============================================================================
+ * VALIDATION CHECKS
+ * ============================================================================ */
+
+.step-details-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-details-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border-radius: 4px;
+  border-left: 3px solid #e5e7eb;
+  font-size: 12px;
+}
+
+.step-details-check-status {
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.step-details-check-status--pass {
+  color: #10b981;
+  background: #f0fdf4;
+}
+
+.step-details-check-status--warning {
+  color: #f59e0b;
+  background: #fef3c7;
+}
+
+.step-details-check {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-details-check-label {
+  font-weight: 600;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.step-details-check-detail {
+  color: #1e293b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+ * WARNINGS
+ * ============================================================================ */
+
+.step-details-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-details-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border-left: 3px solid #f97316;
+  background: #fff7ed;
+  font-size: 12px;
+}
+
+.step-details-warning--warning {
+  border-left-color: #f97316;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.step-details-warning--info {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.step-details-warning--error {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.step-details-warning-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-details-warning-text {
+  line-height: 1.4;
+}
+
+/* ============================================================================
+ * CODE BLOCKS & JSON
+ * ============================================================================ */
+
+.step-details-code-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.step-details-code-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.step-details-code {
+  margin: 0;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  color: #1e293b;
+  overflow-x: auto;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.step-details-code::-webkit-scrollbar {
+  height: 6px;
+}
+
+.step-details-code::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.step-details-code::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.step-details-code::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================================================
+ * TOKEN METADATA & CLAIMS
+ * ============================================================================ */
+
+.step-details-token-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.step-details-token-meta-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.step-details-claims-section {
+  margin-top: 8px;
+}
+
+.step-details-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.step-details-claim {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  font-size: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.step-details-claim:last-child {
+  border-bottom: none;
+}
+
+.step-details-claim-key {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: 600;
+  color: #1d4ed8;
+  white-space: nowrap;
+}
+
+.step-details-claim-value {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+/* ============================================================================
+ * HTTP EXCHANGE SECTION
+ * ============================================================================ */
+
+.step-details-http-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-details-http-exchange {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.step-details-http-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.step-details-http-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.step-details-http-method {
+  padding: 2px 6px;
+  background: #3b82f6;
+  color: #ffffff;
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.step-details-http-endpoint {
+  color: #1e293b;
+  font-family: 'Monaco', 'Menlo', monospace;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.step-details-http-response {
+  background: #f0fdf4;
+  border-color: #10b981;
+}
+
+.step-details-http-status {
+  padding: 2px 6px;
+  background: #10b981;
+  color: #ffffff;
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.step-details-http-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.step-details-http-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-details-http-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ============================================================================
+ * RESPONSIVE LAYOUT
+ * ============================================================================ */
+
+@media (max-width: 768px) {
+  .step-details-summary-content {
+    gap: 8px;
+  }
+
+  .step-details-step-number {
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .step-details-step-title {
+    font-size: 13px;
+  }
+
+  .step-details-http-exchange {
+    flex-direction: column;
+  }
+
+  .step-details-http-arrow {
+    transform: rotate(90deg);
+    padding: 3px 0;
+  }
+
+  .step-details-token-meta-row {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .step-details-claim {
+    grid-template-columns: 70px 1fr;
+  }
+}
+
+/* ============================================================================
+ * ACCESSIBILITY & MOTION PREFERENCES
+ * ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .step-details-element,
+  .step-details-element[open],
+  .step-details-summary,
+  .step-details-toggle-icon,
+  .step-details-expanded {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+.step-details-summary:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.step-details-summary:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}

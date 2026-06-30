@@ -8,6 +8,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import TokenCard from './TokenCard';
+import TokenCardGrid from './TokenCardGrid';
 import bffAxios from '../services/bffAxios';
 import { fetchEnrichedUserInfo } from '../services/userInfoService';
 import { createPortal } from 'react-dom';
@@ -16,9 +17,13 @@ import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
+import TokenFlowDiagram from './TokenFlowDiagram';
 import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
 import TokenExchangeModeSummary from './TokenExchangeModeSummary';
 import TokenLegendModal from './TokenLegendModal';
+import ScopeChangesCallout from './ScopeChangesCallout';
+import StepDetailsSection from './StepDetailsSection';
+import { STEP_DETAILS } from '../data/stepDetails';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
 
@@ -247,6 +252,9 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
           </div>
         )}
 
+        {/* RFC 8693 Flow Reference Diagram */}
+        <TokenFlowDiagram />
+
         {/* Token Exchange Flow Diagram */}
         {steps.length > 0 && (
           <div className="utfi-flow-section">
@@ -284,6 +292,21 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
                   </div>
                   <div className="utfi-step-status">{statusBadge(step.status)}</div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Step Breakdown (expandable sections) */}
+        {steps.length > 0 && (
+          <div className="utfi-detailed-steps">
+            <div className="utfi-detailed-steps-header">
+              <span>Step Details</span>
+              <span className="utfi-detail-hint">Click to expand for HTTP requests, token claims, validation</span>
+            </div>
+            <div className="utfi-detailed-steps-list">
+              {STEP_DETAILS.map((step) => (
+                <StepDetailsSection key={step.id} step={step} />
               ))}
             </div>
           </div>
@@ -367,11 +390,21 @@ function OAuthInspectorSection({ selectedToken }) {
     account: true,
     rawJson: false,
     tokenExchange: true,
+    tokenGrid: true,
   });
 
   // Token exchange details state
   const [tokenExchangeEvents, setTokenExchangeEvents] = useState([]);
   const [displayedTokenId, setDisplayedTokenId] = useState(null);
+
+  // Token Card Grid state
+  const [gridInspectedTokenType, setGridInspectedTokenType] = useState(null);
+  const [gridInspectedTokenData, setGridInspectedTokenData] = useState(null);
+
+  const handleGridInspect = useCallback((type, tokenData) => {
+    setGridInspectedTokenType(type);
+    setGridInspectedTokenData(tokenData);
+  }, []);
 
   // Refetch token data whenever auth state changes or agent actions complete
   const fetchTokenData = useCallback(async (skipLoading = false) => {
@@ -640,6 +673,16 @@ function OAuthInspectorSection({ selectedToken }) {
       </div>
 
       <div className="utfi-sections">
+        {/* Token Card Grid — 3-column overview of User/Agent/MCP tokens */}
+        {renderSection('tokenGrid', 'Token Overview', '📊', (
+          <TokenCardGrid
+            userToken={tokenExchangeEvents.find((e) => e.id === 'user-token' || e.label?.toLowerCase().includes('user'))?.decoded || null}
+            agentToken={tokenExchangeEvents.find((e) => e.label?.toLowerCase().includes('agent') || e.id?.toLowerCase().includes('agent'))?.decoded || null}
+            mcpToken={tokenExchangeEvents.find((e) => e.label?.toLowerCase().includes('mcp') || e.id?.toLowerCase().includes('mcp') || e.label?.toLowerCase().includes('resource'))?.decoded || null}
+            onInspectToken={handleGridInspect}
+          />
+        ))}
+
         <TokenCard
           decoded={tokenClaims}
           title="OAuth Token"
@@ -719,6 +762,7 @@ function OAuthInspectorSection({ selectedToken }) {
                 },
               ]}
             />
+            <ScopeChangesCallout />
             <div className="utfi-token-exchange-events">
             {tokenExchangeEvents.length === 0 ? (
               <div className="utfi-exchange-empty">
