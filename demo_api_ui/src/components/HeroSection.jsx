@@ -1,4 +1,6 @@
-export function HeroSection({
+import React from 'react';
+
+function HeroSectionBase({
   avatar,
   title,
   description,
@@ -6,9 +8,8 @@ export function HeroSection({
   isEmpty,
   variant,
 }) {
-  const compactClass = isEmpty ? '' : ' hero-section--compact';
   return (
-    <div className={`hero-section hero-section--${variant}${compactClass}`}>
+    <div className={`hero-section hero-section--${variant}${!isEmpty ? ' hero-section--compact' : ''}`}>
       <div className="hero-avatar">{avatar}</div>
       <h1>{title}</h1>
       <p>{description}</p>
@@ -16,3 +17,5 @@ export function HeroSection({
     </div>
   );
 }
+
+export const HeroSection = React.memo(HeroSectionBase);
