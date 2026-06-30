@@ -146,11 +146,13 @@ body > .banking-agent-float-root .banking-agent-panel {
   --ba-shadow: 0 4px 24px rgba(30, 64, 175, 0.08);
 
   position: fixed;
+  top: 100px;
   bottom: var(--agent-panel-bottom, 24px);
   right: 16px;
-  z-index: 10059;
+  z-index: 10050;
   width: 380px;
-  height: calc(100vh - var(--agent-panel-bottom, 24px) - 24px);
+  height: auto;
+  max-height: calc(100vh - 140px);
   min-width: 280px;
   min-height: 220px;
   display: flex;
