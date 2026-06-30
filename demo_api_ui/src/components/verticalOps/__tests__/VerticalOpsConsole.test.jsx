@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import VerticalOpsConsole from '../VerticalOpsConsole';
 
-vi.mock('../../../services/bffAxios', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn(), delete: jest.fn() } }));
-vi.mock('../../../utils/appToast', () => ({ notifySuccess: jest.fn(), notifyError: jest.fn(), notifyWarning: jest.fn(), notifyInfo: jest.fn() }));
+vi.mock('../../../services/bffAxios', () => ({ __esModule: true, default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
+vi.mock('../../../utils/appToast', () => ({ notifySuccess: vi.fn(), notifyError: vi.fn(), notifyWarning: vi.fn(), notifyInfo: vi.fn() }));
 import bffAxios from '../../../services/bffAxios';
 
 it('renders the vertical hero and applies the accent theme var', () => {
@@ -19,6 +19,6 @@ it('looks up a customer and renders category cards from the response', async () 
   fireEvent.submit(screen.getByTestId('vops-lookup-form'));
   await waitFor(() => expect(screen.getByText('Maya Chen')).toBeInTheDocument());
   expect(bffAxios.get).toHaveBeenCalledWith('/api/admin/healthcare/lookup', { params: { q: 'maya' } });
-  expect(screen.getByText('Appointments')).toBeInTheDocument();
+  expect(within(screen.getByTestId('vops-grid')).getByText('Appointments')).toBeInTheDocument();
   expect(screen.getByText('Follow-up')).toBeInTheDocument();
 });

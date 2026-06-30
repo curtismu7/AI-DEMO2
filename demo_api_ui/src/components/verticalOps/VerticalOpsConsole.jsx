@@ -56,14 +56,19 @@ export default function VerticalOpsConsole({ vertical }) {
       </header>
 
       {result?.customer && (
-        <section className="vops__summary">
+        <section className="vops__summary" data-testid="vops-summary">
           <div className="vops__avatar">{result.customer.avatar}</div>
           <div><div className="vops__name">{result.customer.name}</div><div className="vops__sub">{result.customer.sub}</div></div>
+          <div className="vops__stats">
+            {result.customer.stats.map(([k, v]) => (
+              <div key={k} className="vops__stat"><div className="vops__statv">{v}</div><div className="vops__statk">{k}</div></div>
+            ))}
+          </div>
         </section>
       )}
 
       {result && (
-        <section className="vops__grid">
+        <section className="vops__grid" data-testid="vops-grid">
           {result.categories.map((c) => (
             <div className="vops__card" key={c.id}>
               <div className="vops__cardhead"><span>{c.icon}</span><b>{c.label}</b><span className="vops__count">{c.rows.length}</span></div>
