@@ -18,6 +18,7 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
 import TokenExchangeModeSummary from './TokenExchangeModeSummary';
+import TokenLegendModal from './TokenLegendModal';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
 
@@ -836,6 +837,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [visible, setVisible] = useState(true);
   const [selectedToken, setSelectedToken] = useState(null);
+  const [showLegendModal, setShowLegendModal] = useState(false);
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -899,6 +901,15 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
           <p className="utfi-subtitle">Real-time visibility into agent execution and OAuth token lifecycle</p>
         </div>
         <div className="utfi-header-actions">
+          <button
+            type="button"
+            className="utfi-btn utfi-btn-primary"
+            onClick={() => setShowLegendModal(true)}
+            title="Show token legend"
+            aria-label="Token Legend"
+          >
+            📋 Token Legend
+          </button>
           {showToggle && (
             <button
               className="utfi-btn utfi-btn-primary"
@@ -935,26 +946,36 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   );
 
   if (isFloating) {
-    return snap.visible ? createPortal(
-      <div
-        className="utfi-floating-wrapper"
-        style={{
-          position: 'fixed',
-          left: pos.x,
-          top: pos.y,
-          width: size.w,
-          height: size.h,
-          zIndex: 10000,
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="utfi-title"
-      >
-        {content}
-      </div>,
-      document.body
-    ) : null;
+    return (
+      <>
+        {snap.visible ? createPortal(
+          <div
+            className="utfi-floating-wrapper"
+            style={{
+              position: 'fixed',
+              left: pos.x,
+              top: pos.y,
+              width: size.w,
+              height: size.h,
+              zIndex: 10000,
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="utfi-title"
+          >
+            {content}
+          </div>,
+          document.body
+        ) : null}
+        <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
+      </>
+    );
   }
 
-  return content;
+  return (
+    <>
+      {content}
+      <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
+    </>
+  );
 }

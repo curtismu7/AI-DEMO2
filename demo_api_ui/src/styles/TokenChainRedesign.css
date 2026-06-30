@@ -197,3 +197,142 @@
     padding: 10px 12px;
   }
 }
+
+/* ============================================================================
+ * TokenLegendModal Component
+ * ============================================================================ */
+
+.tlm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tlm-modal-content {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.tlm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #dbeafe;
+}
+
+.tlm-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tlm-close-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.tlm-close-btn:hover {
+  transform: scale(1.2);
+}
+
+.tlm-modal-body {
+  padding: 24px;
+}
+
+/* Legend grid */
+.tlm-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.tlm-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.tlm-swatch {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Token type gradient swatches */
+.tlm-swatch--user {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  border: 2px solid #f472b6;
+}
+
+.tlm-swatch--agent {
+  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+  border: 2px solid #c084fc;
+}
+
+.tlm-swatch--mcp {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #34d399;
+}
+
+.tlm-item-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tlm-item-description {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 768px) {
+  .tlm-legend-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .tlm-modal-header {
+    padding: 16px 20px;
+  }
+
+  .tlm-modal-body {
+    padding: 16px 20px;
+  }
+
+  .tlm-modal-title {
+    font-size: 16px;
+  }
+
+  .tlm-close-btn {
+    font-size: 24px;
+  }
+}
