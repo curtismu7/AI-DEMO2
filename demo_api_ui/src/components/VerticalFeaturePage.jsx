@@ -1,14 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
-import { formatCurrency, formatPercent } from '../utils/formatters';
+import { formatValue } from '../utils/formatters';
 import './VerticalFeaturePage.css';
-
-function formatValue(value, fmt, currency) {
-  if (fmt === 'money') return formatCurrency(value, currency);
-  if (fmt === 'percent') return formatPercent(value, 3);
-  return String(value ?? '');
-}
 
 export default function VerticalFeaturePage() {
   const navigate  = useNavigate();
