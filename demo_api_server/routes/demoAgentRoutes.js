@@ -17,6 +17,7 @@ const { trackTokenEvent } = require('../services/tokenChainService');
 const { prependRefreshEvent } = require('../services/agentMcpTokenService');
 const { buildActivitySteps } = require('../services/activityStepsBuilder');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
+const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { requestEventEmitterMiddleware } = require('../services/requestEventEmitter');
 
 const router = express.Router();
@@ -436,6 +437,20 @@ router.post('/message', async (req, res) => {
         success: response.success !== false,
         files: [],
       });
+
+      // Save conversation history for continuity
+      const verticalForHistory = vertical || response.vertical || 'banking';
+      try {
+        conversationStore.saveMessage(userId, verticalForHistory, 'user', message, { runId });
+        conversationStore.saveMessage(userId, verticalForHistory, 'assistant', response.reply || '', {
+          runId,
+          intent: response.intent,
+          agentPath: response.agentPath,
+          success: response.success !== false,
+        });
+      } catch (convErr) {
+        console.warn('[demo-agent/message] conversationStore.saveMessage failed:', convErr.message);
+      }
     } catch (saveErr) {
       console.warn('[demo-agent/message] reportStore.saveRun failed:', saveErr.message);
     }

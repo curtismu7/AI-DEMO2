@@ -26,6 +26,7 @@ const { logDelegationEvent } = require('../middleware/delegationAuditLogger');
 const { verticalManifest } = require('./verticalManifest');
 const verticalDispatch = require('./verticalDispatch');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
+const conversationStore = require('./lmdb/conversationStore.lmdb');
 
 /**
  * IN-04: agent chat content is PII-equivalent in a banking context. The
@@ -1253,8 +1254,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // pre-consolidation in-process graph path — it never produced a clean 428
     // here either). Do NOT assume the LLM path yields a 428; do NOT remove the
     // heuristic floor believing it does.
+
+    // Load conversation history for continuity (per-user, per-vertical thread)
+    const verticalForHistory = vertical || 'banking';
+    const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
+    const messages = [...historyMessages, { role: 'user', content: message }];
+
     const loopResult = await runReasonLoop({
-      messages: [{ role: 'user', content: message }],
+      messages,
       tools: toolSchemas,
       provider,
       model,

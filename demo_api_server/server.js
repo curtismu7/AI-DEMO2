@@ -144,6 +144,7 @@ const agentInvokeRoutes = require('./routes/agentInvokeRoute');
 const intentAuthRoutes = require('./routes/intentAuthRoute');
 const langchainConfigRoutes = require('./routes/langchainConfig');
 const lmstudioRoutes = require('./routes/lmstudio');
+const conversationRoutes = require('./routes/conversations');
 const tokenRoutes = require('./routes/tokens');
 const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
@@ -1033,6 +1034,7 @@ app.post('/api/codegraph/reindex', codegraphReindexProxy);
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
 app.use('/api/admin/authorize', authorizeConfigRoutes);
 app.use('/api/introspect', introspectRoutes);

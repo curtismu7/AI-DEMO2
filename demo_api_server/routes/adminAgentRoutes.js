@@ -8,6 +8,7 @@ const { processAdminMessage } = require('../services/adminAgentService');
 const { buildAdminToolSchemas } = require('../config/admin/tools');
 const appEventService = require('../services/appEventService');
 const { prependRefreshEvent } = require('../services/agentMcpTokenService');
+const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 
 const router = express.Router();
 router.use(agentSessionMiddleware);
@@ -94,6 +95,17 @@ router.post('/message', async (req, res) => {
       langchainConfig,
       req,
     });
+
+    // Save conversation history for admin agent (vertical='admin')
+    try {
+      conversationStore.saveMessage(userId, 'admin', 'user', message, { runId });
+      conversationStore.saveMessage(userId, 'admin', 'assistant', response.reply || '', {
+        runId,
+        success: response.success !== false,
+      });
+    } catch (convErr) {
+      console.warn('[admin-agent/message] conversationStore.saveMessage failed:', convErr.message);
+    }
 
     if (response.requiresConsent) {
       return res.status(428).json(response);
