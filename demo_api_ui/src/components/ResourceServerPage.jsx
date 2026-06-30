@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester from './ResourceServerTester';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDateTime } from '../utils/formatters';
 import './ResourceServerPage.css';
 
 const CLAIM_GLOSSARY = {
@@ -28,12 +28,7 @@ const CLAIM_GLOSSARY = {
 };
 
 function formatTimestamp(ts) {
-  if (!ts) return '—';
-  try {
-    return new Date(typeof ts === 'number' ? ts * 1000 : ts).toLocaleString();
-  } catch {
-    return String(ts);
-  }
+  return formatDateTime(ts) || '—';
 }
 
 function calculateTimeRemaining(expTs) {

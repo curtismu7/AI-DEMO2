@@ -1,20 +1,18 @@
 import React from "react";
 import { useVertical } from "../vertical/useVertical";
+import { formatCurrency, formatDate, formatPercent } from "../utils/formatters";
 
 function formatValue(value, format) {
   if (value === null || value === undefined) return "—";
   switch (format) {
     case "money":
-      return "$" + Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return formatCurrency(Number(value), "USD");
     case "count":
       return String(Math.round(Number(value)));
     case "date":
-      return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    case "percent": {
-      const n = Number(value);
-      if (Number.isNaN(n)) return String(value);
-      return n.toFixed(2) + "%";
-    }
+      return formatDate(value);
+    case "percent":
+      return formatPercent(Number(value), 2);
     case "text":
     default:
       return String(value);
