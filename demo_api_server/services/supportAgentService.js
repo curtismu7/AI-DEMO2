@@ -120,7 +120,13 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       toolsCalled,
       tokenEvents,
       agentConfigured: true,
-      framework: 'mastra'
+      framework: 'mastra',
+      agentHeader: '🤖 [SUPPORT AGENT - Mastra - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'Mastra',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'customer-support'
+      }
     };
   } catch (error) {
     console.error('Support agent error:', error);
@@ -130,7 +136,13 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       toolsCalled: [],
       tokenEvents,
       agentConfigured: true,
-      framework: 'mastra'
+      framework: 'mastra',
+      agentHeader: '🤖 [SUPPORT AGENT - Mastra - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'Mastra',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'customer-support'
+      }
     };
   }
 }

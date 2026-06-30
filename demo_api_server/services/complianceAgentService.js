@@ -107,7 +107,14 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
       assessment,
       toolsCalled: ['compliance_rules_check'],
       tokenEvents,
-      agentConfigured: true
+      agentConfigured: true,
+      agentHeader: '🤖 [COMPLIANCE CHECKER - Pydantic AI - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'Pydantic AI',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'compliance-checker',
+        service: 'Python/FastAPI'
+      }
     };
   } catch (error) {
     console.error('Compliance check error:', error);
@@ -117,7 +124,14 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
       assessment: null,
       toolsCalled: [],
       tokenEvents,
-      agentConfigured: true
+      agentConfigured: true,
+      agentHeader: '🤖 [COMPLIANCE CHECKER - Pydantic AI - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'Pydantic AI',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'compliance-checker',
+        service: 'Python/FastAPI'
+      }
     };
   }
 }

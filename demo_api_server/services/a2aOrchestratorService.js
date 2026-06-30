@@ -80,6 +80,12 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
         token: null,
         tokenEvents: [],
         claims: null,
+        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+        metadata: {
+          framework: 'CrewAI',
+          model: 'Claude 3.5 Sonnet',
+          agentType: 'orchestrator'
+        }
       };
     }
 
@@ -97,6 +103,12 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
         tokenEvents: [],
         claims: null,
         error: err,
+        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+        metadata: {
+          framework: 'CrewAI',
+          model: 'Claude 3.5 Sonnet',
+          agentType: 'orchestrator'
+        }
       };
     }
 
@@ -115,6 +127,12 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       return {
         ...orchestrationResult,
         ...delegationResult,
+        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+        metadata: {
+          framework: 'CrewAI',
+          model: 'Claude 3.5 Sonnet',
+          agentType: 'orchestrator'
+        }
       };
     }
 
@@ -130,6 +148,13 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
     return {
       ...orchestrationResult,
       ...delegationResult,
+      agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'CrewAI',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'orchestrator',
+        features: ['multi-agent delegation', 'RFC 8693 token exchange', 'heuristic fallback']
+      }
     };
   } catch (err) {
     console.error('[a2aOrchestratorService] Orchestration error:', err.message);
@@ -147,6 +172,12 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       tokenEvents: [],
       claims: null,
       error: err.message,
+      agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'CrewAI',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'orchestrator'
+      }
     };
   }
 }
