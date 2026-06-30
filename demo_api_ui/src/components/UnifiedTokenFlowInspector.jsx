@@ -23,6 +23,7 @@ import TokenExchangeModeSummary from './TokenExchangeModeSummary';
 import TokenLegendModal from './TokenLegendModal';
 import ScopeChangesCallout from './ScopeChangesCallout';
 import StepDetailsSection from './StepDetailsSection';
+import ClaimDetailsModal from './ClaimDetailsModal';
 import { STEP_DETAILS } from '../data/stepDetails';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
@@ -374,7 +375,7 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
 // RIGHT: OAUTH TOKEN INSPECTOR SECTION
 // ============================================================================
 
-function OAuthInspectorSection({ selectedToken }) {
+function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
   const [userStatus, setUserStatus] = useState(null);
   const [tokenClaims, setTokenClaims] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -404,7 +405,8 @@ function OAuthInspectorSection({ selectedToken }) {
   const handleGridInspect = useCallback((type, tokenData) => {
     setGridInspectedTokenType(type);
     setGridInspectedTokenData(tokenData);
-  }, []);
+    onOpenClaimsModal?.(type);
+  }, [onOpenClaimsModal]);
 
   // Refetch token data whenever auth state changes or agent actions complete
   const fetchTokenData = useCallback(async (skipLoading = false) => {
@@ -882,6 +884,8 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [visible, setVisible] = useState(true);
   const [selectedToken, setSelectedToken] = useState(null);
   const [showLegendModal, setShowLegendModal] = useState(false);
+  const [showClaimsModal, setShowClaimsModal] = useState(false);
+  const [selectedTokenType, setSelectedTokenType] = useState(null);
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -929,6 +933,16 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
       handleClose();
     }
   }, [handleClose, effectiveShowClose]);
+
+  const openClaimsModal = useCallback((tokenType) => {
+    setSelectedTokenType(tokenType);
+    setShowClaimsModal(true);
+  }, []);
+
+  const closeClaimsModal = useCallback(() => {
+    setShowClaimsModal(false);
+    setSelectedTokenType(null);
+  }, []);
 
   useEffect(() => {
     document.addEventListener('keydown', handleEsc);
@@ -983,9 +997,10 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         </div>
         <div className="utfi-divider"></div>
         <div className="utfi-right">
-          <OAuthInspectorSection selectedToken={selectedToken} />
+          <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
         </div>
       </div>
+      <ClaimDetailsModal isOpen={showClaimsModal} tokenType={selectedTokenType} onClose={closeClaimsModal} />
     </div>
   );
 
