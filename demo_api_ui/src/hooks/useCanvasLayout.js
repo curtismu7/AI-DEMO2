@@ -76,14 +76,22 @@ function buildSeedEdges(nodes) {
   const pairs = [
     ['frontend',        'bff',                  'Send message'],
     ['bff',             'agent-service',        'Dispatch'],
-    // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
+    ['agent-service',   'bff',                  'Dispatch'],
+    // BFF ↔ PingOne SSO for RFC 8693 token exchange
     ['bff',             'pingone-sso',          'Token exchange'],
+    ['pingone-sso',     'bff',                  'Token exchange'],
+    // BFF ↔ MCP Gateway routing
     ['bff',             'mcp-gateway',          'Routing'],
+    ['mcp-gateway',     'bff',                  'Routing'],
     ['mcp-gateway',     'authz-server',         'Authorize request'],
     ['mcp-gateway',     'hitl-service',         'Challenge'],
+    // MCP Gateway ↔ MCP Server
     ['mcp-gateway',     'mcp-server',           'MCP API call'],
+    ['mcp-server',      'mcp-gateway',          'MCP API call'],
     ['mcp-gateway',     'mcp-invest',           'MCP API call'],
+    // Token introspection bidirectional
     ['authz-server',    'pingone-sso',          'Token introspection'],
+    ['pingone-sso',     'authz-server',         'Token introspection'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
