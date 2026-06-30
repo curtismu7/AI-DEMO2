@@ -70,9 +70,6 @@ const initials = (name) =>
 const avatarHue = (str) =>
   str.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
 
-/** Format ISO date as "Nov 14, 2025". */
-const fmtDate = (iso) => formatDate(iso);
-
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ name, size = 42 }) {
@@ -569,7 +566,7 @@ function DelegateCard({ delegate, accounts, onRevoke, onActAs }) {
         </div>
 
         <div className="da-card__footer">
-          <span className="da-card__since">Since {fmtDate(delegate.since)}</span>
+          <span className="da-card__since">Since {formatDate(delegate.since)}</span>
           <div className="da-card__actions">
             <button
               type="button"
