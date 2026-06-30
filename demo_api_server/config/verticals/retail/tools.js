@@ -153,8 +153,10 @@ function buildRetailTools(store) {
         if (!order) return { result: { error: 'order not found' }, render: 'text' };
         return { result: order, render: 'order_status' };
       }
-      case 'rewards_balance':
-        return { result: store.get(userId).rewards, render: 'rewards_balance' };
+      case 'rewards_balance': {
+        const rewards = store.get(userId).rewards;
+        return { result: Array.isArray(rewards) ? rewards[0] : rewards, render: 'rewards_balance' };
+      }
       case 'checkout':
         return { result: store.checkout(userId, params || {}), render: 'checkout' };
       case 'sensitive_order_history':

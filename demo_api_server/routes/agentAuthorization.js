@@ -81,10 +81,10 @@ router.post('/revoke', async (req, res) => {
 });
 
 router.get('/status', (req, res) => {
-  const sub = agentMayActSub();
-  const authorized = sub
-    ? !!delegationStore.findActiveByActorAndGrantor(sub, req.user.id)
-    : false;
+  // Authorization is reflected by the may_act claim carried in the user's current
+  // session access token (the SPA silently re-auths after grant/revoke). PingOne's
+  // user GET omits custom attributes, so the live token is the source of truth.
+  const authorized = !!sessionTokenMayAct(req);
   res.json({ authorized, enforced: isEnforced() });
 });
 

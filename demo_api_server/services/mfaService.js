@@ -51,11 +51,7 @@ async function _getWorkerToken() {
     reqConfig.auth = { username: clientId, password: clientSecret };
   }
   const resp = await axios.post(tokenUrl, body.toString(), reqConfig);
-  return {
-    token: resp.data.access_token,
-    source: "worker",
-    obtainedAt: new Date().toISOString(),
-  };
+  return resp.data.access_token;
 }
 
 let _cachedDefaultPolicyId = null;

@@ -5,10 +5,12 @@
  */
 
 describe('configStore ff_customer_skin_ping2026', () => {
-  it('should have ff_customer_skin_ping2026 defined with default true', () => {
+  it('should have ff_customer_skin_ping2026 defined with default false', () => {
+    // Authoritative default is OFF — see routes/featureFlags.js flag def
+    // ("When OFF (default), the classic UserDashboard component is shown").
     const configStore = require('../../services/configStore');
     const value = configStore.getEffective('ff_customer_skin_ping2026');
-    expect(value).toBe('true');
+    expect(value).toBe('false');
   });
 
   it('should have ff_customer_skin_ping2026 marked as public', () => {

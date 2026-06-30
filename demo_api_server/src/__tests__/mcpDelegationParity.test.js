@@ -18,7 +18,11 @@
 // configStore mock — supply worker creds + an MCP decision endpoint so
 // evaluateMcpToolDelegation proceeds to the fetch calls.
 jest.mock('../../services/configStore', () => ({
-  get: jest.fn((key) => {
+  // pingOneAuthorizeService._getCredentials() resolves every credential via
+  // getEffective() (the alias/env-aware resolver), NOT get(). Supply the demo
+  // values through getEffective so the service proceeds to the fetch calls.
+  get: jest.fn(() => null),
+  getEffective: jest.fn((key) => {
     const vals = {
       pingone_environment_id: 'env-123',
       pingone_region: 'com',
@@ -28,7 +32,6 @@ jest.mock('../../services/configStore', () => ({
     };
     return vals[key] || null;
   }),
-  getEffective: jest.fn(() => null),
   isReadOnly: jest.fn(() => true),
 }));
 

@@ -200,8 +200,10 @@ function buildSportingGoodsTools(store) {
         if (!order) return { result: { error: 'order not found' }, render: 'text' };
         return { result: order, render: 'gear_order_status' };
       }
-      case 'loyalty_balance':
-        return { result: store.get(userId).loyalty, render: 'loyalty_balance' };
+      case 'loyalty_balance': {
+        const loyalty = store.get(userId).loyalty;
+        return { result: Array.isArray(loyalty) ? loyalty[0] : loyalty, render: 'loyalty_balance' };
+      }
       case 'extend_rental': {
         const r = store.extendRental(userId, params || {});
         if (!r) return { result: { error: 'rental not found' }, render: 'text' };

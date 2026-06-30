@@ -41,7 +41,9 @@ const FLOWS = {
 
 const LOCAL_TOOLS = new Set([
   'explain_concept', 'open_education_panel', 'show_flow_diagram', 'inspect_token',
-  'demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl',
+  // 'demonstrate' is the umbrella alias for the three demonstrate_* tools; it is
+  // handled locally (never forwarded to the remote MCP, which has no such tool).
+  'demonstrate', 'demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl',
   'api_key_demo', 'dual_token_demo',
 ]);
 

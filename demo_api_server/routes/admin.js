@@ -201,7 +201,7 @@ router.post('/transactions/lookup', requireAdmin, requireScopes(['admin']), asyn
 });
 
 // Get all activity logs
-router.get('/activity', authenticateToken, (req, res) => {
+router.get('/activity', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const { page = 1, limit = 50, username, action, startDate, endDate } = req.query;
     // Coerce + clamp pagination — query values are strings; non-numeric input

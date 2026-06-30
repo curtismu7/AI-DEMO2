@@ -87,6 +87,17 @@ function setupDefaultMocks() {
     };
     return vals[key] ?? null;
   });
+  // The route resolves PingOne credentials via getEffective() using lowercase
+  // logical keys (which internally fall back to the PINGONE_AUTHORIZE_* env vars).
+  configStore.getEffective.mockImplementation((key) => {
+    const vals = {
+      authorize_worker_client_id: 'some-uuid',
+      authorize_decision_endpoint_id: 'ep-123',
+      authorize_mcp_decision_endpoint_id: '',
+      authorize_policy_id: '',
+    };
+    return vals[String(key).toLowerCase()] ?? '';
+  });
   configStore.setConfig = jest.fn().mockResolvedValue(undefined);
 }
 
@@ -128,6 +139,9 @@ describe('GET /api/admin/authorize/config', () => {
   it('shows (not set) for workerClientId when blank', async () => {
     configStore.get.mockImplementation((key) =>
       key === 'PINGONE_AUTHORIZE_WORKER_CLIENT_ID' ? '' : null,
+    );
+    configStore.getEffective.mockImplementation((key) =>
+      String(key).toLowerCase() === 'authorize_worker_client_id' ? '' : '',
     );
     const res = await request(buildApp()).get('/api/admin/authorize/config');
     expect(res.body.pingone.workerClientId).toBe('(not set)');

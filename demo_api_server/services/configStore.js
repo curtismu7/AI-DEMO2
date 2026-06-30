@@ -301,7 +301,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_use_pingone_server:          { public: true, default: 'false' }, // Route PingOne admin tools to the hosted PingOne MCP server (HTTP); bypass custom gateway
   mcp_inspector_pingone_live:      { public: true, default: 'true'  }, // PingOne MCP Inspector page queries the stdio server live (page-only; does NOT reroute agent calls)
   ff_show_agent_in_middle: { public: true, default: 'false' }, // Show banking column alongside centered agent (legacy dashboard layout)
-  ff_customer_skin_ping2026: { public: true, default: 'true' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent)
+  ff_customer_skin_ping2026: { public: true, default: 'false' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent) — default OFF, see routes/featureFlags.js flag def
   ff_use_cases_launcher:     { public: true, default: 'true'  }, // Use-Case Launcher page at /use-cases (A5)
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
@@ -1272,17 +1272,17 @@ class ConfigStore {
       const stored = this.get(key);
       if (stored) return stored;
     } else {
-      // Everything else: .env > Vault/LMDB. Env vars set at deploy time
-      // (docker-compose, process env) must always override stored values so
-      // that a stale LMDB entry from a past UI toggle cannot silently shadow
-      // a deployment-level setting (e.g. FF_MCP_GATEWAY_PINGGATEWAY=false).
-      // this.get(key) reads the cache holding both vault ('vault') and LMDB
-      // ('sqlite') values; vault-owned keys retain vault provenance via
-      // _setCache, so a single this.get() encodes "vault, then sqlite".
-      const envVal = readEnv();
-      if (envVal) return envVal;
+      // Everything else: Vault > LMDB > .env. this.get(key) reads the cache
+      // holding BOTH vault (provenance 'vault') and LMDB ('sqlite') values;
+      // vault-owned keys retain vault provenance via _setCache, so a single
+      // this.get() already encodes "vault, then sqlite". .env is the fallback.
+      // Stale env-scoped LMDB rows that should yield to a changed deploy-time
+      // env var are handled separately by envReconcile (which purges them on
+      // env change), not by letting .env outrank stored values here.
       const stored = this.get(key);
       if (stored) return stored;
+      const envVal = readEnv();
+      if (envVal) return envVal;
     }
 
     // Helix agent API key: when nothing above has it, look for a per-agent

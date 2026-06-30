@@ -29,6 +29,7 @@
 | `users:read` | medium | Super Banking API | Read access to user management data |
 | `users:manage` | high | Super Banking API | Full user management capabilities |
 | `workorders:read` | low | Super Banking API | Read Work Order Status data (manufacturing vertical) |
+| `sensitive:read` | high | Super Banking API | Read sensitive account details (full account/routing numbers) — requires user consent |
 
 ## Resources
 
@@ -36,7 +37,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Server
 
@@ -44,7 +45,7 @@ Audience: `mcpserver.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Gateway
 
@@ -52,13 +53,15 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`
 
 ### Super Banking Agent Gateway
 
 Audience: `agentgateway.ping.demo`
 
 Native scopes: `agent:invoke`
+
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`
 
 ### Super Banking A2A Intermediate
 
@@ -166,7 +169,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_my_accounts` | gateway | `read` | — |
 | `get_account_balance` | gateway | `read` | — |
 | `get_my_transactions` | gateway | `read` | — |
-| `get_sensitive_account_details` | gateway | `read` | — |
+| `get_sensitive_account_details` | gateway | `read` `sensitive:read` | consent |
 | `sequential_think` | gateway | `read` | — |
 | `get_investment_balance` | gateway | `invest:read` | — |
 | `get_investment_accounts` | gateway | `invest:read` | — |

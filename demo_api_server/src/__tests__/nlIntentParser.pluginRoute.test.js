@@ -1,6 +1,9 @@
 jest.mock('../../services/verticalDispatch', () => ({
   hasPlugin: jest.fn(),
   heuristicsFor: jest.fn(),
+  // nlIntentParser resolves the admin overlay plugin to detect admin-overlay
+  // actions; default to null (no admin overlay) for these routing tests.
+  resolvePlugin: jest.fn(() => null),
 }));
 const dispatch = require('../../services/verticalDispatch');
 const { parseHeuristic } = require('../../services/nlIntentParser');

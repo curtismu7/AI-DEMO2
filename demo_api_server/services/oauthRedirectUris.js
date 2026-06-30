@@ -159,7 +159,7 @@ function getOAuthRedirectDebugInfo(req) {
  */
 const REFERENCE_REDIRECT_SETS = [
   {
-    id: 'demo-api-server',
+    id: 'api-ping-demo',
     label: 'Local development (default)',
     adminRedirectUri: 'https://demo-api-server:3001/api/auth/oauth/callback',
     userRedirectUri: 'https://demo-api-server:3001/api/auth/oauth/user/callback',
