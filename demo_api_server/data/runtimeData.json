@@ -2924,38 +2924,6 @@
   ],
   "activityLogs": [
     {
-      "id": "79ec1629-e5a4-46f0-9acb-88c20f066020",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:38.243Z"
-    },
-    {
-      "id": "58a7e32d-1b52-4878-a21c-17ad2a8e197b",
-      "userId": null,
-      "username": null,
-      "action": "ADMIN_ACCESS",
-      "endpoint": "GET /api/admin/feature-flags",
-      "ipAddress": "::ffff:192.168.97.16",
-      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.126.0 Chrome/148.0.7778.97 Electron/42.2.0 Safari/537.36",
-      "requestBody": null,
-      "responseBody": {
-        "message": "Response too large to display"
-      },
-      "responseStatus": 200,
-      "duration": 0,
-      "timestamp": "2026-06-30T18:04:38.252Z"
-    },
-    {
       "id": "95b7d566-f202-491d-aa0a-22e96c81e0a3",
       "userId": null,
       "username": null,
@@ -41309,6 +41277,42 @@
       "responseStatus": 200,
       "duration": 0,
       "timestamp": "2026-06-30T19:29:19.343Z"
+    },
+    {
+      "id": "da7b87a2-6678-485e-8434-96cabf48b1f4",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:29:49.380Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:29:49.380Z"
+    },
+    {
+      "id": "b7fea5d8-feb0-416a-89b4-d0b2073bbe23",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/healthz",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/8.19.0",
+      "requestBody": null,
+      "responseBody": {
+        "status": "ok",
+        "timestamp": "2026-06-30T19:30:19.420Z",
+        "port": 3001
+      },
+      "responseStatus": 200,
+      "duration": 0,
+      "timestamp": "2026-06-30T19:30:19.420Z"
     }
   ],
   "subscriptions": []
