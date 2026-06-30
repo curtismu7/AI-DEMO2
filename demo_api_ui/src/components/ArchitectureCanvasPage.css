@@ -71,8 +71,8 @@
 .btn-connect { background: #10b981; color: #fff; }
 .btn-connect.active { background: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
 .btn-connect:hover { background: #059669; }
-.btn-reset   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.btn-reset:hover   { background: #e2e8f0; }
+.btn-reset   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.btn-reset:hover   { background: #fde68a; }
 .btn-delete  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .btn-delete:hover  { background: #fca5a5; }
 
