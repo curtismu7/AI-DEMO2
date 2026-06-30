@@ -33,4 +33,7 @@ HeroSectionBase.propTypes = {
   avatarSize: PropTypes.oneOf(['sm', 'md', 'lg']),
 };
 
-export const HeroSection = React.memo(HeroSectionBase);
+// Custom comparison: re-render if size or backgroundColor change (title/description rarely change)
+export const HeroSection = React.memo(HeroSectionBase, (prev, next) => {
+  return prev.size === next.size && prev.backgroundColor === next.backgroundColor;
+});
