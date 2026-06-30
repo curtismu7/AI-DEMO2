@@ -1,8 +1,9 @@
 // RecordDrawer.jsx
 import React from 'react';
 import { buildTimeline } from './buildTimeline';
+import OpsAssistantChat from './OpsAssistantChat';
 
-export default function RecordDrawer({ open, category, row, customer, onClose, onAction }) {
+export default function RecordDrawer({ open, vertical, category, row, customer, query, onClose, onAction }) {
   if (!open || !row) return <div className="vops-scrim" aria-hidden="true" />;
   return (
     <>
@@ -22,8 +23,7 @@ export default function RecordDrawer({ open, category, row, customer, onClose, o
               <button key={a} className={i === 0 ? 'vops-btn vops-btn--primary' : 'vops-btn'} onClick={() => onAction(a, row, category.id)}>{a}</button>
             ))}
           </div>
-          {/* Ops Assistant stub — wired in the Ops Assistant plan */}
-          <div className="vops-assistant-stub" data-testid="ops-assistant-slot" />
+          <OpsAssistantChat vertical={vertical} query={query} />
           <p className="vops-tl__h">Activity</p>
           <div className="vops-tl">
             {buildTimeline(row, customer?.name).map((e, i) => (

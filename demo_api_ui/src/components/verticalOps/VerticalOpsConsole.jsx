@@ -87,7 +87,7 @@ export default function VerticalOpsConsole({ vertical }) {
         </section>
       )}
 
-      <RecordDrawer open={!!drawer} vertical={vertical} category={drawer?.category || {}} row={drawer?.row} customer={result?.customer} onClose={() => setDrawer(null)} onAction={runAction} />
+      <RecordDrawer open={!!drawer} vertical={vertical} category={drawer?.category || {}} row={drawer?.row} customer={result?.customer} query={q} onClose={() => setDrawer(null)} onAction={runAction} />
     </div>
   );
 }
