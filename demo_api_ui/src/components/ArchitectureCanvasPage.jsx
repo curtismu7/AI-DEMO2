@@ -550,6 +550,34 @@ export default function ArchitectureCanvasPage() {
             })}
           </Layer>
 
+          {/* Edge labels */}
+          <Layer>
+            {edges.map(edge => {
+              if (!edge.label || flow) return null; // skip labels when a flow is selected
+              const src = nodeMap[edge.from];
+              const tgt = nodeMap[edge.to];
+              if (!src || !tgt) return null;
+              const pts = arrowPoints(src, tgt);
+              const mid = midpoint(pts);
+              const isSelected = selectedEdge === edge.id;
+              const srcStyle = LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool;
+              const textColor = isSelected ? '#ef4444' : srcStyle.stroke;
+              return (
+                <Group key={`label-${edge.id}`} x={mid.x} y={mid.y}>
+                  {/* Background rect for readability */}
+                  <Rect x={-40} y={-10} width={80} height={20}
+                    fill="#f8fafc" stroke={textColor} strokeWidth={0.5}
+                    cornerRadius={3} listening={false} />
+                  {/* Label text */}
+                  <Text x={-38} y={-8} width={76}
+                    text={edge.label} fontSize={9} fontStyle="bold"
+                    fontFamily="system-ui, sans-serif" fill={textColor}
+                    align="center" listening={false} />
+                </Group>
+              );
+            })}
+          </Layer>
+
           {/* Rubber-band wire while dragging a connection */}
           {dragWire && (
             <Layer listening={false}>

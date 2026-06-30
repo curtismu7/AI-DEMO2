@@ -80,22 +80,23 @@ function buildSeedNodes() {
 
 function buildSeedEdges(nodes) {
   const pairs = [
-    ['frontend',        'bff'],
-    ['bff',             'langchain-agent'],
-    ['bff',             'agent-service'],
+    ['frontend',        'bff',                  'Send message'],
+    ['bff',             'langchain-agent',      'Dispatch (AG-UI)'],
+    ['bff',             'agent-service',        'Dispatch (NL mode)'],
     // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
-    ['bff',             'pingone-sso'],
-    ['bff',             'mcp-gateway'],
-    ['mcp-gateway',     'authz-server'],
-    ['mcp-gateway',     'hitl-service'],
-    ['mcp-gateway',     'mcp-server'],
-    ['mcp-gateway',     'mcp-invest'],
-    ['mcp-gateway',     'mortgage-service'],
+    ['bff',             'pingone-sso',          'Token exchange'],
+    ['bff',             'mcp-gateway',          'Routing'],
+    ['mcp-gateway',     'authz-server',         'Authorize request'],
+    ['mcp-gateway',     'hitl-service',         'Challenge'],
+    ['mcp-gateway',     'mcp-server',           'MCP API call'],
+    ['mcp-gateway',     'mcp-invest',           'MCP API call'],
+    ['mcp-gateway',     'mortgage-service',     'MCP API call'],
+    ['authz-server',    'pingone-sso',          'Token introspection'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
     .filter(([a, b]) => nodeIds.has(a) && nodeIds.has(b))
-    .map(([from, to]) => ({ id: `e-${from}-${to}`, from, to }));
+    .map(([from, to, label]) => ({ id: `e-${from}-${to}`, from, to, label }));
 }
 
 function loadFromStorage() {
