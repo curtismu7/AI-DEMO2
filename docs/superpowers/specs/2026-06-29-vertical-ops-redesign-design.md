@@ -71,13 +71,25 @@ Throwaway HTML mockups produced during brainstorming (scratchpad `ops-mockups/`)
 - **Actions:** existing write endpoints (e.g. `POST /api/admin/healthcare/appointments/:id/cancel`, `/bills/:id/pay`, `/medications/:id/refill`; retail/sporting/workforce equivalents; banking seed-charges). No new action endpoints.
 
 ### 5.3 Backend — Ops Assistant (new, read-only)
-- **New endpoint:** `POST /api/admin/<vertical>/ops-assistant` (mounted under `authenticateToken`).
-- **Input:** `{ customerQuery | customerId, question, history? }`.
-- **Server-side grounding:** resolve the customer and fetch their vertical records by reusing the same lookup logic that backs `/lookup` — the assistant only ever receives the **current customer's** data. The client never supplies the record payload.
-- **Prompt:** system prompt frames it as the `{Vertical}` Ops Assistant for an operator; injects the fetched records as context; instructs answer/summarize only, never invent, never imply actions were taken.
-- **LLM call:** via the existing `llmProviderResolver` → configured provider (`helixLlmService` / Anthropic / LM Studio / Ollama). No tool definitions passed → structurally cannot call tools or write. When the configured provider is Anthropic, default to the latest Claude model per project convention.
-- **Output:** `{ answer }` (plus token/usage metadata if cheap). Streaming optional; start non-streaming.
-- **Guardrails:** read-only by construction (no tools, no write calls). Cap injected record size; cap question length; scope strictly to the resolved customer.
+
+**Framework decision: reuse the existing in-house agent pattern — no new agent framework / dependency.** The project already has a consistent, framework-free way to build agents (used by `adminAgentService` and `demoAgentLangGraphService`):
+
+- An agent is a **service** that returns a standard response envelope: `{ reply, success, toolsCalled, inputTokens, outputTokens, tokenEvents, agentConfigured, error? }`.
+- It is assembled from **per-agent config** — tool schemas, system prompt, and canned responses (cf. `config/admin/{tools,systemPrompt,responses}`).
+- It runs a custom reason/tool loop via `agentReasoningClient.runReasonLoop` over a provider resolved by `llmProviderResolver` (Helix / Anthropic / LM Studio / Ollama).
+
+This template is also the basis for future agents the team plans to build, so the Ops Assistant follows it rather than introducing Vercel AI SDK / Mastra / LangGraph add-ons. (Researched alternatives — Vercel AI SDK, PocketFlow.js, Mastra — were rejected in favor of in-repo consistency.)
+
+**Ops Assistant implementation:**
+
+- **New service:** `opsAssistantService.processOpsMessage({ vertical, customerId | customerQuery, message, history?, req })`.
+- **New endpoint:** `POST /api/admin/<vertical>/ops-assistant` (mounted under `authenticateToken`), thin wrapper calling the service — mirrors `adminAgentRoutes.js` `POST /message`.
+- **Per-vertical config:** `config/ops/<vertical>/systemPrompt.js` (or one shared prompt parameterized by vertical). **No tool schemas** (read-only) — so the reason loop performs a single grounded completion with no tool-call path.
+- **Server-side grounding:** the service resolves the customer and fetches their vertical records by reusing the same lookup logic that backs `/lookup` — the assistant only ever receives the **current customer's** data. The client never supplies the record payload.
+- **Prompt:** frames it as the `{Vertical}` Ops Assistant for an operator; injects the fetched records as context; instructs answer/summarize only, never invent, never imply actions were taken.
+- **LLM call:** `llmProviderResolver.resolveLlmProvider` → configured provider. With no tools passed it is structurally read-only. When the provider is Anthropic, default to the latest Claude model per project convention.
+- **Output:** the standard envelope (`reply` + token/usage metadata). Streaming optional; start non-streaming.
+- **Guardrails:** read-only by construction (no tool schemas, no write calls). Cap injected record size; cap message length; scope strictly to the resolved customer.
 
 ### 5.4 Data flow
 ```
