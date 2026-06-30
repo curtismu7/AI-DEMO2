@@ -12,7 +12,7 @@ When a user submits a prompt in the chat UI, the request passes through the foll
 | 2 | **Chat Interface** | 4000 | React (client-side) | User-facing chat component; submits prompts, renders SSE-streamed responses and token events |
 | 3 | **BFF** (banking-api-server) | 3001 | Node.js / Express | Session auth, NL intent extraction, Intent Token minting; acts as tool-execution proxy for the agent |
 | 4 | **Agent** | 3006 | TypeScript / LangGraph | Reasoning loop; decides when to call tools, assembles final answer, streams SSE back to browser |
-| 5 | **LLM** | external | Anthropic API / LM Studio / Ollama | Large language model inference; called by the Agent on each reasoning step |
+| 5 | **LLM** | external | Anthropic API / LM Studio / llama.cpp | Large language model inference; called by the Agent on each reasoning step |
 | 6 | **PingOne** | external | Ping Identity (SaaS) | OAuth token issuance (login, client credentials, RFC 8693 token exchange) |
 | 7 | **Ping Agent Gateway** | 3005 | TypeScript | Authorization enforcement proxy; validates tokens, enforces policy, routes tool calls to upstream MCP servers |
 | 8 | **PingOne Authorization Server** | 9001 | Node.js (mock) | Two inline calls per tool request: (1) RFC 7662 token introspection — is the token active? (2) PingOne Authorize policy decision — PERMIT / DENY / HITL required. In production, replaced by real PingOne Authorize. |
@@ -147,7 +147,7 @@ BFF :3001  POST /api/agent/invoke  (agentInvokeRoute.js)
 Agent :3006  POST /invoke
   • reasoning loop (runReasonLoop)
   ├──▶ LLM (external)
-  │      Anthropic API / LM Studio / Ollama
+  │      Anthropic API / LM Studio / llama.cpp
   │      ← decides tool calls, assembles answer
   │
   └── (each tool call) — executeTool callback (JavaScript closure, BFF-side)

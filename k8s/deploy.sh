@@ -77,7 +77,7 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/63-mcp-invest-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-mortgage-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/55-ollama-deployment.yaml"   # in-cluster local LLM
+  kubectl apply -f "$SCRIPT_DIR/55-llamacpp-deployment.yaml"   # in-cluster local LLM
   # BFF (token custodian)
   kubectl apply -f "$SCRIPT_DIR/20-api-server-deployment.yaml"
   # Gateway + agent runtimes
@@ -133,14 +133,14 @@ deploy() {
   done
   [ "$_failed" -eq 0 ] || die "$_failed deployment(s) failed to roll out — check: kubectl get pods -n $NS"
 
-  # Ollama is waited on separately and non-fatally: its readiness gates on the
-  # llama3.2:3b model being pulled (~2GB), which on a cold network can exceed the
-  # 180s used above. A slow pull should not fail the whole deploy — the rest of
-  # the stack is already up; the Ollama agent mode just becomes usable once the
-  # pull finishes.
-  info "Waiting for Ollama (pulls llama3.2:3b on first start; up to 10m)..."
-  if ! kubectl rollout status deployment/ollama -n "$NS" --timeout=600s; then
-    warn "Ollama not ready yet — model may still be pulling. Check: kubectl logs deploy/ollama -n $NS"
+  # llama.cpp is waited on separately and non-fatally: its readiness gates on the
+  # GGUF model being downloaded (~2GB), which on a cold network can exceed the
+  # 180s used above. A slow download should not fail the whole deploy — the rest
+  # of the stack is already up; the llama.cpp agent mode just becomes usable once
+  # the download finishes.
+  info "Waiting for llama.cpp (downloads the GGUF on first start; up to 10m)..."
+  if ! kubectl rollout status deployment/llamacpp -n "$NS" --timeout=600s; then
+    warn "llama.cpp not ready yet — model may still be downloading. Check: kubectl logs deploy/llamacpp -n $NS"
   fi
 
   success "Core deployments ready (${AGENT_SELECTION}-agent on; others off)."

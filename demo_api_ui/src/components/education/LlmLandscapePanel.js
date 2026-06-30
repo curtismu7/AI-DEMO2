@@ -216,7 +216,7 @@ function OpenSourceContent() {
         context="10M tokens (Scout)"
         color="#f97316"
         strengths="Llama 4 (2025): Scout is a natively multimodal MoE model with a 10M token context window. Maverick rivals GPT-4o and Claude Sonnet at frontier quality. Llama 3.3 70B remains the best dense open-weight option."
-        note="License: Llama 4 Community (commercial use permitted). Available via HuggingFace, Meta AI, AWS Bedrock, Azure AI Foundry, Ollama."
+        note="License: Llama 4 Community (commercial use permitted). Available via HuggingFace, Meta AI, AWS Bedrock, Azure AI Foundry, llama.cpp."
       />
 
       <ModelCard
@@ -235,7 +235,7 @@ function OpenSourceContent() {
         context="128K tokens"
         color="#d97706"
         strengths="Qwen 3 (2025): hybrid thinking model — toggle between extended reasoning and fast response modes. 235B MoE flagship rivals frontier commercial models. Extremely strong multilingual (Chinese + English) and coding."
-        note="Apache 2.0. Available via HuggingFace, Ollama, Alibaba Cloud. Qwen3-Coder is state-of-the-art open-source code model."
+        note="Apache 2.0. Available via HuggingFace, llama.cpp, Alibaba Cloud. Qwen3-Coder is state-of-the-art open-source code model."
       />
 
       <ModelCard
@@ -255,7 +255,7 @@ function OpenSourceContent() {
         context="128K tokens"
         color="#0d9488"
         strengths="Gemma 3 (2025): natively multimodal across all sizes, 128K context window (up from 8K in Gemma 2). 27B achieves near-GPT-4o quality on key benchmarks. Lightweight 1B/4B for on-device inference."
-        note="Gemma Terms of Use (permissive commercial). Available via HuggingFace, Google AI Studio, Vertex AI, Ollama."
+        note="Gemma Terms of Use (permissive commercial). Available via HuggingFace, Google AI Studio, Vertex AI, llama.cpp."
       />
 
       <div
@@ -271,17 +271,18 @@ function OpenSourceContent() {
       >
         <strong>Local inference:</strong>{" "}
         <a
-          href="https://ollama.com"
+          href="https://github.com/ggml-org/llama.cpp"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "#166534" }}
         >
-          Ollama
+          llama.cpp
         </a>{" "}
         lets you run Llama, Mistral, Qwen, Gemma, and DeepSeek locally with one
-        command (<code>ollama run llama3</code>). <strong>LM Studio</strong>{" "}
-        provides a desktop GUI. Quantised models (GGUF via llama.cpp) reduce
-        memory significantly — a 7B Q4 model runs on 8 GB RAM.
+        command (<code>llama-server -hf &lt;model&gt;</code>), exposing an
+        OpenAI-compatible API. <strong>LM Studio</strong> provides a desktop GUI.
+        Quantised GGUF models reduce memory significantly — a 7B Q4 model runs on
+        8 GB RAM.
       </div>
     </div>
   );
@@ -793,7 +794,7 @@ function ComparisonContent() {
           mini, or Gemini 2.0 Flash — strong for high-volume pipelines.
         </li>
         <li>
-          <strong>Local inference / privacy:</strong> Ollama + Llama 3.3 70B
+          <strong>Local inference / privacy:</strong> llama.cpp + Llama 3.3 70B
           (GPU) or Qwen 3 8B (consumer GPU) — runs with quantisation.
         </li>
         <li>

@@ -92,7 +92,8 @@ Two call sites implement this with the same `!== 'false'` flag read and the same
 
 LLM provider order when the heuristic doesn't answer: **Helix is the default
 provider.** The intended path is **heuristic → Helix**. Do not describe the
-flow as "heuristic → Ollama"; Ollama has been removed from this codebase.
+flow as "heuristic → llama.cpp"; the local llama.cpp provider is an explicit
+opt-in mode, never the default.
 
 **Single-resolver enforcement (binding as the agent-consolidation spec lands).**
 Provider resolution must be computed in **exactly one** BFF-side function

@@ -177,7 +177,7 @@ export default function BankingChips({
                       : isDirect
                       ? `${chip.message} — calls MCP server directly, no gateway auth`
                       : llmDisabled
-                      ? "Needs an LLM — switch to Ollama, Anthropic, or Helix mode"
+                      ? "Needs an LLM — switch to llama.cpp, Anthropic, or Helix mode"
                       : chip.hitlTrigger && chip.elicitationTrigger
                       ? `${chip.message} — requires consent, identity verification, and may request additional input`
                       : chip.hitlTrigger
@@ -267,7 +267,7 @@ export default function BankingChips({
                   className={`banking-chips-dropdown__button banking-chips-dropdown__button--${isLlm ? 'llm' : 'heuristic'}`}
                   onClick={() => handleChipClick({ message: chip.prompt, label: chip.label, id: chip.id }, isLlm)}
                   disabled={isLoading || llmDisabled}
-                  title={llmDisabled ? 'Needs an LLM — switch to Ollama, Anthropic, or Helix mode' : chip.prompt}
+                  title={llmDisabled ? 'Needs an LLM — switch to llama.cpp, Anthropic, or Helix mode' : chip.prompt}
                 >
                   {chip.label}
                   {isLlm && isHelixMode && <span className="banking-chips-dropdown__helix-badge">Helix</span>}

@@ -1,7 +1,7 @@
 # Core production dependencies for Docker deployment
 langchain>=0.3.0,<0.4.0
 langchain-core>=0.3.0,<0.4.0
-langchain-ollama>=0.2.0,<0.3.0
+langchain-openai>=0.2.0,<0.4.0  # OpenAI-compatible local endpoints (llama.cpp / LM Studio)
 pydantic>=2.0.0,<3.0.0
 fastapi>=0.100.0
 uvicorn>=0.20.0

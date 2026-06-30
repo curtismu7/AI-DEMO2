@@ -1,0 +1,133 @@
+# In-cluster llama.cpp (local LLM) — replaces the old host.docker.internal route.
+#
+# Why this exists: the agent's "llama.cpp" mode used to reach a Mac-native runtime
+# via host.docker.internal, which only resolves on a local cluster (OrbStack /
+# Docker Desktop). On a remote cluster there is no host, so the mode was dead.
+# Running llama-server as a pod makes that mode work everywhere; the consumers
+# (agent-service / langchain-agent) now point LLAMACPP_BASE_URL at the in-cluster
+# `llamacpp` Service instead of the host. (Bare-metal `./run.sh` is unaffected —
+# it still starts a host-native llama-server on localhost.)
+#
+# CPU-only: no nvidia.com/gpu request. The model is a ~2GB q4 3B GGUF — small
+# enough to run on CPU and to stay inside the namespace ResourceQuota
+# (k8s/01-namespace.yaml: requests.memory 8Gi / limits.memory 16Gi). If you
+# switch to a larger model raise the memory limit below and confirm the quota has
+# headroom, or it will fail to schedule.
+#
+# Model persistence: the GGUF weights live on a PVC (llama-server caches `-hf`
+# downloads under /root/.cache/llama.cpp) so a pod restart does not re-download.
+# llama-server only starts serving once the model is loaded; the /health probe
+# gates readiness so the agent never routes to a not-yet-ready server.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llamacpp-models
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llamacpp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llamacpp
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llamacpp
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU/memory quota. The model PVC is
+  # ReadWriteOnce, so two pods could not mount it simultaneously anyway.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llamacpp
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llamacpp
+    spec:
+      containers:
+      - name: llamacpp
+        image: ghcr.io/ggml-org/llama.cpp:server
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8090
+          name: http
+        # --host 0.0.0.0 so other pods in the namespace can reach it (the default
+        # 127.0.0.1 bind refuses cross-pod connections). -hf pulls the GGUF from
+        # HuggingFace into the PVC-backed cache on first start (a no-op once
+        # cached). Swap the model/quant here to change what the server serves.
+        args:
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8090"
+          - "-hf"
+          - "Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
+        volumeMounts:
+        - name: models
+          mountPath: /root/.cache/llama.cpp
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "250m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        # Liveness: the server process is answering HTTP at all.
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Readiness: /health returns 200 only once the model is loaded, so
+        # consumers route here only when inference will succeed. The first
+        # download (~2GB) can take a few minutes on a cold network — hence the
+        # generous failureThreshold.
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 60
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: llamacpp-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llamacpp
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llamacpp
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8090
+    targetPort: 8090
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: llamacpp
