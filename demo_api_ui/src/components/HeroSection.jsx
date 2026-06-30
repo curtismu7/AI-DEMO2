@@ -6,21 +6,18 @@ function HeroSectionBase({
   description,
   subtitle,
   size = 'full',
-  backgroundColor = '#1e40af',
+  backgroundColor,
   avatarSize = 'md',
 }) {
-  const style = {
-    '--hero-bg-gradient-from': backgroundColor,
-    '--hero-size': size,
-    '--hero-avatar-size': avatarSize,
-  };
+  const classes = `hero-section hero-section--${size}${avatarSize !== 'md' ? ` hero-avatar--${avatarSize}` : ''}`;
+  const style = backgroundColor ? { '--hero-bg-gradient-from': backgroundColor } : {};
 
   return (
-    <div className="hero-section" style={style}>
+    <div className={classes} style={style}>
       <div className="hero-avatar">{avatar}</div>
       <h1>{title}</h1>
       <p>{description}</p>
-      {subtitle && size === 'full' && <p className="hero-subtitle">{subtitle}</p>}
+      {subtitle && <p className="hero-subtitle">{subtitle}</p>}
     </div>
   );
 }
