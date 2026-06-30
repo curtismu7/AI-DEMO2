@@ -36,10 +36,14 @@
       "Bash(node --check services/a2aOrchestratorService.js)",
       "Bash(node --check routes/a2aAgentRoutes.js)",
       "Bash(node --check config/a2a/roles.js)",
-      "Bash(node --check config/a2a/tasks.js)"
+      "Bash(node --check config/a2a/tasks.js)",
+      "Bash(rm -f /Users/cmuir/Development/AI-DEMO2/.claude/settings.json && git merge worktree-a2a-orchestrator-agent --no-edit && git log --oneline -3)",
+      "Bash(node -c services/a2aOrchestratorService.js)",
+      "Bash(node -c routes/a2aAgentRoutes.js)"
     ],
     "additionalDirectories": [
-      "/tmp"
+      "/tmp",
+      "/Users/cmuir/Development/AI-DEMO2/.claude"
     ]
   }
 }
