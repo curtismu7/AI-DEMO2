@@ -108,6 +108,7 @@ const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
+const opsAgentRoutes = require('./routes/opsAgentRoutes');
 const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
@@ -1021,6 +1022,7 @@ app.use('/api/demo-agent', demoAgentNlRoutes);
 app.use('/api/demo-agent', demoAgentRoutes);
 // Admin agent: isolated stack for administrative operations
 app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // Intent authorization and unified agent invocation
