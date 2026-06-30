@@ -6,10 +6,10 @@
 <title>Set Up llama-vscode — The Easy Guide 🦙</title>
 <style>
   :root{
-    --bg:#0f1117; --card:#1a1d27; --card2:#222633; --ink:#e7e9ee; --muted:#a7adba;
-    --accent:#7c5cff; --accent2:#23c97d; --warn:#ffb020; --danger:#ff5c6c;
-    --line:#2c3140; --code:#0b0d13; --blue:#3da9fc;
-    --vsbar:#181a26; --vsstatus:#7c5cff;
+    --bg:#ffffff; --card:#f6f7f9; --card2:#eceef2; --ink:#1c2230; --muted:#5a6271;
+    --accent:#6b46ff; --accent2:#15a36a; --warn:#b9760a; --danger:#d63a4a;
+    --line:#e3e6ec; --code:#0b0d13; --blue:#1f7ae0;
+    --vsbar:#181a26; --vsstatus:#6b46ff;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -56,11 +56,12 @@
   pre{background:var(--code); border:1px solid var(--line); border-radius:10px;
     padding:14px 16px; overflow:auto; font-size:.9rem; color:#cfe3ff}
   pre code{color:inherit}
-  p code{background:var(--code); padding:2px 6px; border-radius:5px; font-size:.88em; color:#ffd9a0}
+  p code{background:var(--card2); padding:2px 6px; border-radius:5px; font-size:.88em; color:#b5530a}
 
   /* mockups */
-  .mock{background:var(--vsbar); border:1px solid var(--line); border-radius:12px;
-    overflow:hidden; margin:18px 0; font-size:.82rem; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .mock{--card2:#222633; --line:#2c3140; --ink:#e7e9ee; --muted:#a7adba;
+    background:var(--vsbar); color:#e7e9ee; border:1px solid #2c3140; border-radius:12px;
+    overflow:hidden; margin:18px 0; font-size:.82rem; box-shadow:0 10px 30px rgba(0,0,0,.18)}
   .mock .titlebar{background:#11131c; padding:8px 12px; display:flex; gap:7px; align-items:center;
     border-bottom:1px solid var(--line)}
   .dot{width:11px; height:11px; border-radius:50%}
@@ -106,11 +107,11 @@
   .toc a{color:var(--blue); text-decoration:none; display:block; padding:3px 0}
   .toc a:hover{text-decoration:underline}
 
-  .cheat{background:linear-gradient(160deg,#1a1d27,#171a24); border:1px dashed var(--accent);
+  .cheat{background:linear-gradient(160deg,#f4f2ff,#eef2fb); border:1px dashed var(--accent);
     border-radius:16px; padding:24px}
   .cheat h2{margin-top:0}
   .photo-slot{border:2px dashed var(--line); border-radius:10px; padding:18px; text-align:center;
-    color:var(--muted); font-size:.85rem; margin:14px 0; background:rgba(255,255,255,.02)}
+    color:var(--muted); font-size:.85rem; margin:14px 0; background:var(--card)}
   hr{border:none; border-top:1px solid var(--line); margin:50px 0}
   .footer{color:var(--muted); font-size:.85rem; text-align:center; margin-top:40px}
   @media print{

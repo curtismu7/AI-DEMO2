@@ -17,7 +17,7 @@ export default function LlamaVscodeGuidePage() {
         display: "flex",
         flexDirection: "column",
         height: "calc(100vh - 64px)",
-        background: "#0f1117",
+        background: "#ffffff",
       }}
     >
       <div
@@ -26,15 +26,15 @@ export default function LlamaVscodeGuidePage() {
           alignItems: "center",
           gap: 12,
           padding: "12px 20px",
-          borderBottom: "1px solid #2c3140",
-          background: "#1a1d27",
-          color: "#e7e9ee",
+          borderBottom: "1px solid #e3e6ec",
+          background: "#ffffff",
+          color: "#1c2230",
         }}
       >
         <span style={{ fontSize: 22 }}>🦙</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700 }}>llama-vscode Setup Guide</div>
-          <div style={{ fontSize: 13, color: "#a7adba" }}>
+          <div style={{ fontSize: 13, color: "#5a6271" }}>
             Beginner walkthrough for running a local AI coding helper in VS Code
           </div>
         </div>
@@ -43,7 +43,7 @@ export default function LlamaVscodeGuidePage() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            background: "#7c5cff",
+            background: "#6b46ff",
             color: "#fff",
             textDecoration: "none",
             borderRadius: 8,
@@ -59,9 +59,9 @@ export default function LlamaVscodeGuidePage() {
           download="llama-vscode-setup-guide.html"
           style={{
             background: "transparent",
-            color: "#a7adba",
+            color: "#5a6271",
             textDecoration: "none",
-            border: "1px solid #2c3140",
+            border: "1px solid #d6dae1",
             borderRadius: 8,
             padding: "8px 14px",
             fontSize: 14,
