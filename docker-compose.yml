@@ -300,12 +300,8 @@ services:
       AGENT_SERVICE_PORT: "3006"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
-<<<<<<< HEAD
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-=======
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "qwen3-8b"
->>>>>>> origin/main
     env_file:
       - path: ./demo_agent_service/.env
         required: false

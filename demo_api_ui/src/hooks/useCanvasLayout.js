@@ -176,6 +176,19 @@ export default function useCanvasLayout() {
     });
   }, [persist]);
 
+  const removeNode = useCallback((id) => {
+    setNodes(prev => {
+      const next = prev.filter(n => n.id !== id);
+      persist(next, edgesRef.current);
+      return next;
+    });
+    setEdges(prev => {
+      const next = prev.filter(e => e.from !== id && e.to !== id);
+      persist(nodesRef.current, next);
+      return next;
+    });
+  }, [persist]);
+
   const resetLayout = useCallback(() => {
     const freshNodes = buildSeedNodes();
     setNodes(freshNodes);
@@ -183,5 +196,5 @@ export default function useCanvasLayout() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
   }, []);
 
-  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout };
+  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, removeNode, resetLayout };
 }

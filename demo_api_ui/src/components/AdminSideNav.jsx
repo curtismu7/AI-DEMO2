@@ -579,6 +579,11 @@ export default function AdminSideNav({ user }) {
       icon: "arc",
       children: [
         {
+          label: "System Diagram",
+          path: "/architecture/system",
+          icon: "arc",
+        },
+        {
           label: "Overview Diagram",
           path: "/architecture/overview",
           icon: "bld",
