@@ -31,3 +31,169 @@
 .utfi-security-dismiss:hover {
   color: #78350f;
 }
+
+/* ============================================================================
+ * TokenExchangeModeSummary Component
+ * ============================================================================ */
+
+.tems-container {
+  margin: 16px 0;
+}
+
+/* Summary line */
+.tems-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.tems-summary-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tems-summary-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.tems-summary-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  background: #dbeafe;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #004687;
+  flex-shrink: 0;
+}
+
+.tems-toggle-btn {
+  padding: 6px 12px;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tems-toggle-btn:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.tems-toggle-btn:active {
+  background: #1e40af;
+}
+
+/* Expanded table */
+.tems-table-container {
+  margin-top: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.tems-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.tems-table thead {
+  background: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tems-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+}
+
+.tems-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tems-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tems-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Token type badges */
+.tems-token-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tems-token-badge--user {
+  background: #fce7f3;
+  color: #be123c;
+  border: 1px solid #f472b6;
+}
+
+.tems-token-badge--agent {
+  background: #e9d5ff;
+  color: #7e22ce;
+  border: 1px solid #c084fc;
+}
+
+.tems-token-badge--mcp {
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #34d399;
+}
+
+.tems-token-badge--default {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tems-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tems-toggle-btn {
+    width: 100%;
+    order: 3;
+  }
+
+  .tems-table {
+    font-size: 12px;
+  }
+
+  .tems-table th,
+  .tems-table td {
+    padding: 10px 12px;
+  }
+}

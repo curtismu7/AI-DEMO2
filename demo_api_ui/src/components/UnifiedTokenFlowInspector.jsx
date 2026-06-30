@@ -17,6 +17,7 @@ import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
+import TokenExchangeModeSummary from './TokenExchangeModeSummary';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
 
@@ -694,7 +695,30 @@ function OAuthInspectorSection({ selectedToken }) {
         ))}
 
         {renderSection('tokenExchange', 'Token Exchange & Scopes', '🔄', (
-          <div className="utfi-token-exchange-events">
+          <>
+            <TokenExchangeModeSummary
+              tokens={[
+                {
+                  type: 'User',
+                  name: 'customer access token',
+                  issuedBy: 'PingOne AS',
+                  rfc8693Role: 'subject token',
+                },
+                {
+                  type: 'Agent',
+                  name: 'BFF-delegated MCP token',
+                  issuedBy: 'PingOne AS (via RFC 8693)',
+                  rfc8693Role: 'delegated token',
+                },
+                {
+                  type: 'MCP',
+                  name: 'resource-scoped access token',
+                  issuedBy: 'PingOne AS (RFC 8693 + 8707)',
+                  rfc8693Role: 'narrowed resource token',
+                },
+              ]}
+            />
+            <div className="utfi-token-exchange-events">
             {tokenExchangeEvents.length === 0 ? (
               <div className="utfi-exchange-empty">
                 <p className="utfi-exchange-desc">Perform a banking action (transfer, deposit, etc.) to see token exchanges and scopes in real-time</p>
@@ -778,7 +802,8 @@ function OAuthInspectorSection({ selectedToken }) {
                 </div>
               </>
             )}
-          </div>
+            </div>
+          </>
         ))}
 
         {(enrichedLoading || enrichedInfo?.error || hasAnyField(enrichedInfo?.data)) && renderSection('account', 'Account Information', '📋', (
