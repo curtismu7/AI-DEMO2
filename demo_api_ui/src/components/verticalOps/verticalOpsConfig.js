@@ -27,6 +27,7 @@ function userCentric(sliceDefs) {
     const data = resp.data || {};
     return {
       customer: {
+        id: u.id,
         name: u.name || u.username,
         sub: `ID ${u.id}${u.email ? ' · ' + u.email : ''}`,
         avatar: (u.name || u.username || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
@@ -62,7 +63,7 @@ export const CONFIGS = {
       const total = accounts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
       return {
         customer: accounts.length ? {
-          name: accounts[0].name || 'Account holder',
+          name: 'Account holder',
           sub: `${accounts.length} account(s)`,
           avatar: 'AC',
           stats: [['Total balance', money(total)], ['Accounts', String(accounts.length)], ['Txns', String(txns.length)]],

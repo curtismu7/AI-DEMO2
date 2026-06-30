@@ -24,9 +24,14 @@ describe('verticalOpsConfig', () => {
       data: { appointments: [{ id: 'a1', provider: 'Dr Park', reason: 'Follow-up', status: 'Scheduled' }], medications: null },
     });
     expect(out.customer.name).toBe('Maya Chen');
+    expect(out.customer.id).toBe('u1');
     const appts = out.categories.find((x) => x.id === 'appointments');
     expect(appts.rows[0].id).toBe('a1');
     expect(appts.rows[0].actions).toContain('Cancel');
+  });
+
+  it('userCentric actions carry userId from customer.id (C1)', () => {
+    expect(getVerticalConfig('healthcare').actions['Cancel'].body({ id: 'x' }, { id: 'u1' })).toEqual({ userId: 'u1' });
   });
 
   it('banking adaptLookup synthesizes a customer from account-centric response', () => {
