@@ -10,6 +10,16 @@ const { buildSupportSystemPrompt, SUPPORT_TOOLS } = require('../config/support')
  * Uses Mastra framework for simpler tool-calling compared to LangGraph
  */
 async function processSupportMessage(message, sessionId, tokenEvents = []) {
+  // Get actual model from proxy configuration
+  let llmModel = 'Claude 3.5 Sonnet';
+  try {
+    const { resolveLlmProvider } = require('./llmProviderResolver');
+    const resolved = resolveLlmProvider({});
+    if (resolved.model) llmModel = resolved.model;
+  } catch {
+    // Use default if resolution fails
+  }
+
   try {
     // Map Mastra tools to handler functions
     const toolExecutors = {
@@ -121,10 +131,10 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       tokenEvents,
       agentConfigured: true,
       framework: 'mastra',
-      agentHeader: '🤖 [SUPPORT AGENT - Mastra - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [SUPPORT AGENT - Mastra - ${llmModel}]`,
       metadata: {
         framework: 'Mastra',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'customer-support'
       }
     };
@@ -137,10 +147,10 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       tokenEvents,
       agentConfigured: true,
       framework: 'mastra',
-      agentHeader: '🤖 [SUPPORT AGENT - Mastra - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [SUPPORT AGENT - Mastra - ${llmModel}]`,
       metadata: {
         framework: 'Mastra',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'customer-support'
       }
     };

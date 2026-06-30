@@ -30,7 +30,7 @@ function makeRequest(method, path, data = null) {
         try {
           const parsed = JSON.parse(body);
           resolve({ status: res.statusCode, data: parsed });
-        } catch (e) {
+        } catch {
           resolve({ status: res.statusCode, data: body });
         }
       });
@@ -67,6 +67,16 @@ async function initializeComplianceSession(userId) {
  * @returns {Object} Compliance assessment with structured output
  */
 async function processComplianceMessage(message, transaction, userId, tokenEvents = []) {
+  // Get actual model from proxy configuration
+  let llmModel = 'Claude 3.5 Sonnet';
+  try {
+    const { resolveLlmProvider } = require('./llmProviderResolver');
+    const resolved = resolveLlmProvider({});
+    if (resolved.model) llmModel = resolved.model;
+  } catch {
+    // Use default if resolution fails
+  }
+
   try {
     // Build compliance request
     const request = {
@@ -108,10 +118,10 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
       toolsCalled: ['compliance_rules_check'],
       tokenEvents,
       agentConfigured: true,
-      agentHeader: '🤖 [COMPLIANCE CHECKER - Pydantic AI - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [COMPLIANCE CHECKER - Pydantic AI - ${llmModel}]`,
       metadata: {
         framework: 'Pydantic AI',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'compliance-checker',
         service: 'Python/FastAPI'
       }
@@ -125,10 +135,10 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
       toolsCalled: [],
       tokenEvents,
       agentConfigured: true,
-      agentHeader: '🤖 [COMPLIANCE CHECKER - Pydantic AI - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [COMPLIANCE CHECKER - Pydantic AI - ${llmModel}]`,
       metadata: {
         framework: 'Pydantic AI',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'compliance-checker',
         service: 'Python/FastAPI'
       }

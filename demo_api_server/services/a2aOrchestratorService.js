@@ -35,6 +35,16 @@ const { delegateToSpecialist } = require('./a2aDelegationService');
  * this service provides a fallback decision path that mimics the crew logic.
  */
 async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [] }) {
+  // Get actual model from proxy configuration
+  let llmModel = 'Claude 3.5 Sonnet';
+  try {
+    const { resolveLlmProvider } = require('./llmProviderResolver');
+    const resolved = resolveLlmProvider({});
+    if (resolved.model) llmModel = resolved.model;
+  } catch {
+    // Use default if resolution fails
+  }
+
   try {
     appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
       tag: 'a2a/orchestrate',
@@ -148,10 +158,10 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
     return {
       ...orchestrationResult,
       ...delegationResult,
-      agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [A2A ORCHESTRATOR - CrewAI - ${llmModel}]`,
       metadata: {
         framework: 'CrewAI',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'orchestrator',
         features: ['multi-agent delegation', 'RFC 8693 token exchange', 'heuristic fallback']
       }
@@ -172,10 +182,10 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       tokenEvents: [],
       claims: null,
       error: err.message,
-      agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
+      agentHeader: `🤖 [A2A ORCHESTRATOR - CrewAI - ${llmModel}]`,
       metadata: {
         framework: 'CrewAI',
-        model: 'Claude 3.5 Sonnet',
+        model: llmModel,
         agentType: 'orchestrator'
       }
     };
