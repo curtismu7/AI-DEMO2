@@ -230,12 +230,12 @@ const CodeExplorerPage = () => {
       </div>
 
       <HeroSection
-        variant="code-explorer"
         avatar="&lt;/&gt;"
         title="Code Explorer"
         description="Powered by CodeGraph — A semantic code knowledge graph that indexes every symbol, file, and dependency in your codebase for instant AI-powered exploration."
         subtitle="Ask about flows, architecture, patterns, implementation details, and how features work — with real, current code context"
-        isEmpty={isEmpty}
+        size={isEmpty ? 'full' : 'compact'}
+        backgroundColor="#1e40af"
       />
 
       {/* Messages — scrollable, fills available space */}
