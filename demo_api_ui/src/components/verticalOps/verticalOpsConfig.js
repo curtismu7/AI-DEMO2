@@ -53,6 +53,11 @@ export const CONFIGS = {
     theme: { accent: '#2563eb', accent2: '#1e3a8a', tint: '#eef4ff' },
     lookupPath: '/api/admin/banking/lookup',
     lookupPlaceholder: 'Look up account by number or holder…',
+    // Page-level utility actions (not tied to a record). Renders as buttons in
+    // the hero; the handler shows the returned { steps, summary, success }.
+    pageActions: [
+      { label: 'Fix PingOne Scopes', method: 'post', url: '/api/admin/pingone/update-scopes' },
+    ],
     actions: {
       'Seed charge': { method: 'post', buildUrl: (row) => `/api/admin/banking/accounts/${encodeURIComponent(row.id)}/seed-charges` },
       'Delete': { method: 'delete', buildUrl: (row, _c, catId) => catId === 'transactions' ? `/api/transactions/${encodeURIComponent(row.id)}` : `/api/accounts/${encodeURIComponent(row.id)}` },

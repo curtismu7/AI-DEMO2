@@ -6,6 +6,17 @@
 .vops__lookup { margin-top:16px; display:flex; gap:8px; max-width:560px; }
 .vops__lookup input { flex:1; border:0; border-radius:10px; padding:12px 14px; font-size:14px; }
 .vops__lookup button { border:0; border-radius:10px; padding:0 18px; font-weight:700; background:#ffffff; color:var(--accent2); cursor:pointer; }
+.vops__tools { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+.vops__toolbtn { border:1px solid #ffffff66; background:#ffffff1f; color:#fff; border-radius:9px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; }
+.vops__toolbtn:hover { background:#ffffff33; }
+.vops__toolbtn:disabled { opacity:.6; cursor:default; }
+.vops__paresult { position:relative; max-width:1080px; margin:14px auto 0; background:#fff; border:1px solid #eceef5; border-left:4px solid var(--accent); border-radius:12px; padding:14px 18px 14px; box-shadow:0 12px 30px -22px #1a223040; }
+.vops__paresult--warn { border-left-color:#c77c14; }
+.vops__paclose { position:absolute; top:10px; right:12px; border:0; background:transparent; color:#8a94a6; font-size:14px; cursor:pointer; }
+.vops__pasummary { font-weight:700; font-size:14px; color:#1a2230; }
+.vops__paerror { color:#c0392b; font-size:13px; margin-top:4px; }
+.vops__pasteps { margin:10px 0 0; padding-left:18px; color:#5a647a; font-size:13px; }
+.vops__pasteps li { margin:3px 0; }
 .vops__summary { max-width:1080px; margin:-36px auto 8px; background:#fff; border:1px solid #eef0f6; border-radius:16px; padding:16px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 16px 40px -24px #1a223040; }
 .vops__avatar { width:52px;height:52px;border-radius:14px;background:var(--tint);color:var(--accent2);display:grid;place-items:center;font-weight:800; }
 .vops__name { font-weight:800; } .vops__sub { color:#69748a; font-size:13px; }
