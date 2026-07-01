@@ -848,7 +848,7 @@ async function initFido2Registration(userId, allowCleanupRetry = true) {
     if (allowCleanupRetry && limitReached) {
       try {
         const active = await listMfaDevices(userId);
-        const fidoDevices = active.filter((d) =>
+        const fidoDevices = active.devices.filter((d) =>
           String(d?.type || "")
             .toUpperCase()
             .startsWith("FIDO2"),
