@@ -25,6 +25,9 @@ const NODE_GRID = {
   bff:               { col: 1, row: 0 },
   'langchain-agent': { col: 2, row: -1 },
   'agent-service':   { col: 2, row: 1 },
+  // A2A delegation subsystem (agent layer)
+  'a2a-orchestrator':{ col: 2, row: 2 },
+  'a2a-specialist':  { col: 3, row: 2 },
   'mcp-gateway':     { col: 3, row: 0 },
   'authz-server':    { col: 4, row: -1 },
   'pingone-sso':     { col: 4, row: 0 },
@@ -50,6 +53,8 @@ const NODE_LAYER = {
   bff:               'gateway',
   'langchain-agent': 'agent',
   'agent-service':   'agent',
+  'a2a-orchestrator':'agent',
+  'a2a-specialist':  'agent',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
   'pingone-sso':     'policy',
@@ -61,6 +66,8 @@ const NODE_LAYER = {
 
 // Human-readable display labels (overrides the id as label)
 const NODE_LABEL = {
+  'a2a-orchestrator': 'A2A Orchestrator',
+  'a2a-specialist':   'Specialist Agent',
   'mcp-gateway':  'Ping Agent Gateway',
   'authz-server': 'PingOne Authorize',
   'pingone-sso':  'PingOne SSO',
@@ -72,6 +79,8 @@ const NODE_SUB = {
   bff:               'https:3001',
   'langchain-agent': 'http:8888 · AG-UI',
   'agent-service':   'http:3006 · NL mode',
+  'a2a-orchestrator':'CrewAI · decide/authorize',
+  'a2a-specialist':  'Investment / Records / Purchase',
   'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
   'pingone-sso':     'IDP · Token Exchange',
@@ -100,6 +109,11 @@ function buildSeedEdges(nodes) {
     ['frontend',        'bff'],
     ['bff',             'langchain-agent'],
     ['bff',             'agent-service'],
+    // A2A — agent-to-agent delegation subsystem
+    ['agent-service',   'a2a-orchestrator'],
+    ['a2a-orchestrator','authz-server'],
+    ['a2a-orchestrator','a2a-specialist'],
+    ['a2a-specialist',  'mcp-gateway'],
     // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
     ['bff',             'pingone-sso'],
     ['bff',             'mcp-gateway'],
