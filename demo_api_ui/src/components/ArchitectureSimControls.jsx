@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/ArchitectureSimControls.jsx
 import { memo } from 'react';
-import { DiagramControls } from './diagram';
+import { DiagramControls, StepTimeSelector } from './diagram';
 
 /**
  * Toolbar for the architecture simulation page.
@@ -106,18 +106,11 @@ function ArchitectureSimControls({
       {mode !== 'live' && (
         <>
           <div style={{ width: '1px', height: '18px', background: '#e2e8f0' }} />
-          <label className="dc-steptime" title="Time each step takes during playback">
-            <span className="dc-steptime-label">Step time:</span>
-            <select
-              className="dc-steptime-select"
-              value={stepMs}
-              onChange={e => onSetStepMs(Number(e.target.value))}
-            >
-              {stepTimeOptions.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </label>
+          <StepTimeSelector
+            value={stepMs}
+            options={stepTimeOptions}
+            onChange={onSetStepMs}
+          />
         </>
       )}
 
