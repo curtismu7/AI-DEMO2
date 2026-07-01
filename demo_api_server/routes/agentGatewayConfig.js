@@ -30,16 +30,30 @@ const { createBackup, writeAtomic } = require('../services/agentGatewayConfig/ba
 const { restartTargets, restartEnabled, socketAvailable } = require('../services/agentGatewayConfig/dockerRestart');
 
 // ---------------------------------------------------------------------------
-// Auth gate — mirrors requireAdminOrUnconfigured in routes/adminConfig.js.
+// Auth gates.
+//
+// Reads use the lenient posture shared with routes/adminConfig.js (open on
+// first-run and in local dev — no secrets are returned). WRITES and the
+// docker.sock RESTART are stricter: once the app is configured they always
+// require a real admin session, even in local/Docker deployments. Unlike
+// adminConfig, this router can rewrite the gateway's OAuth/route config and
+// bounce host containers, so we do NOT inherit the "non-Replit ⇒ always open"
+// bypass for state-changing calls. (The page itself is admin-gated in the UI;
+// a legitimate user already holds an admin session.)
 // ---------------------------------------------------------------------------
 function isAdminSession(req) {
   return !!(req.session?.user?.role === 'admin' || req.session?.isAdmin);
 }
-function requireAdmin(req, res, next) {
+function requireRead(req, res, next) {
   if (!configStore.isConfigured()) return next();  // first-run: open
-  if (!hosting.isReplit()) return next();           // local dev: open
+  if (!hosting.isReplit()) return next();           // local dev: open (read-only)
   if (isAdminSession(req)) return next();
-  return res.status(401).json({ error: 'unauthorized', message: 'Admin session required to edit gateway config.' });
+  return res.status(401).json({ error: 'unauthorized', message: 'Admin session required.' });
+}
+function requireAdminWrite(req, res, next) {
+  if (!configStore.isConfigured()) return next();  // first-run setup only
+  if (isAdminSession(req)) return next();
+  return res.status(401).json({ error: 'unauthorized', message: 'Admin session required to modify or restart the gateway.' });
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +109,7 @@ function restartTargetsForType(type) {
 // Routes
 // ---------------------------------------------------------------------------
 
-router.get('/files', requireAdmin, (req, res) => {
+router.get('/files', requireRead, (req, res) => {
   res.json({
     ok: true,
     files: registry.listFiles(),
@@ -103,7 +117,7 @@ router.get('/files', requireAdmin, (req, res) => {
   });
 });
 
-router.get('/files/:id', requireAdmin, (req, res) => {
+router.get('/files/:id', requireRead, (req, res) => {
   const entry = registry.resolveEntry(req.params.id);
   if (!entry) return res.status(404).json({ error: 'not_found', message: 'Unknown gateway config file.' });
   try {
@@ -126,7 +140,7 @@ router.get('/files/:id', requireAdmin, (req, res) => {
   }
 });
 
-router.post('/files/:id/validate', requireAdmin, (req, res) => {
+router.post('/files/:id/validate', requireRead, (req, res) => {
   const entry = registry.resolveEntry(req.params.id);
   if (!entry) return res.status(404).json({ error: 'not_found', message: 'Unknown gateway config file.' });
   const raw = typeof req.body?.raw === 'string' ? req.body.raw : '';
@@ -134,7 +148,7 @@ router.post('/files/:id/validate', requireAdmin, (req, res) => {
   res.json({ ok: result.ok, errors: result.errors });
 });
 
-router.post('/files/:id', requireAdmin, async (req, res) => {
+router.post('/files/:id', requireAdminWrite, async (req, res) => {
   const entry = registry.resolveEntry(req.params.id);
   if (!entry) return res.status(404).json({ error: 'not_found', message: 'Unknown gateway config file.' });
 
@@ -146,11 +160,14 @@ router.post('/files/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'validation_failed', message: 'Config has errors — not saved.', errors: result.errors });
   }
 
+  // Normalise to pretty JSON so the file stays diff-friendly on disk. Returned
+  // to the client too, so the editor reflects exactly what was written (no
+  // phantom "unsaved" state from whitespace differences).
+  const normalized = JSON.stringify(result.parsed, null, 2) + '\n';
   let backupPath = null;
   try {
     backupPath = createBackup(entry);
-    // Normalise to pretty JSON so the file stays diff-friendly on disk.
-    writeAtomic(entry, JSON.stringify(result.parsed, null, 2) + '\n');
+    writeAtomic(entry, normalized);
   } catch (err) {
     return res.status(500).json({ error: 'write_error', message: err.message });
   }
@@ -176,11 +193,12 @@ router.post('/files/:id', requireAdmin, async (req, res) => {
     id: entry.id,
     backup: backupPath ? require('path').basename(backupPath) : null,
     warnings: result.errors.filter((e) => e.level === 'warn'),
+    raw: normalized,
     reload,
   });
 });
 
-router.post('/reload', requireAdmin, async (req, res) => {
+router.post('/reload', requireAdminWrite, async (req, res) => {
   let targets = Array.isArray(req.body?.targets) ? req.body.targets : null;
   if (!targets && req.body?.id) {
     const entry = registry.resolveEntry(req.body.id);

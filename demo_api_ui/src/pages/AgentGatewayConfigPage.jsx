@@ -128,10 +128,14 @@ export default function AgentGatewayConfigPage() {
     setReload(null);
     try {
       const { data } = await apiClient.post(`${API}/files/${encodeURIComponent(selectedId)}`, { raw: editorValue });
-      setBaseline(editorValue);
+      // Sync editor + baseline to the server-normalized text so the "unsaved"
+      // dot clears correctly (server rewrites as pretty 2-space JSON).
+      const saved = typeof data.raw === 'string' ? data.raw : editorValue;
+      setEditorValue(saved);
+      setBaseline(saved);
       setErrors((data.warnings || []).length ? data.warnings : []);
       applyMarkers([]);
-      (data.warnings || []).forEach((w) => notifyWarning(w.message));
+      (data.warnings || []).forEach((w) => { notifyWarning(w.message); });
       setReload(data.reload || null);
       if (data.reload?.mode === 'auto') {
         notifySuccess(data.reload.reloaded
