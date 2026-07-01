@@ -49,8 +49,8 @@ describe('Code Search Routes', () => {
       const response = await request(buildApp())
         .post('/api/code-search/index')
         .field('codebase_name', 'my-project')
-        .attach('files', Buffer.from('function hello() { return "world"; }'), 'hello.js')
-        .attach('files', Buffer.from('const x = 42;'), 'constants.js')
+        .attach('file', Buffer.from('function hello() { return "world"; }'), 'hello.js')
+        .attach('file', Buffer.from('const x = 42;'), 'constants.js')
         .expect(200);
 
       expect(response.body).toEqual({
@@ -77,7 +77,7 @@ describe('Code Search Routes', () => {
     test('returns 400 when codebase_name is missing', async () => {
       const response = await request(buildApp())
         .post('/api/code-search/index')
-        .attach('files', Buffer.from('code'), 'file.js')
+        .attach('file', Buffer.from('code'), 'file.js')
         .expect(400);
 
       expect(response.body.error).toBe('missing_codebase_name');
@@ -102,7 +102,7 @@ describe('Code Search Routes', () => {
       const response = await request(buildApp())
         .post('/api/code-search/index')
         .field('codebase_name', 'my-project')
-        .attach('files', Buffer.from('code'), 'file.js')
+        .attach('file', Buffer.from('code'), 'file.js')
         .expect(503);
 
       expect(response.body.error).toBe('mcp_server_unavailable');
@@ -116,7 +116,7 @@ describe('Code Search Routes', () => {
       const response = await request(buildApp())
         .post('/api/code-search/index')
         .field('codebase_name', 'my-project')
-        .attach('files', Buffer.from('code'), 'file.js')
+        .attach('file', Buffer.from('code'), 'file.js')
         .expect(500);
 
       expect(response.body.error).toBe('index_failed');
@@ -132,7 +132,7 @@ describe('Code Search Routes', () => {
       const response = await request(buildApp())
         .post('/api/code-search/index')
         .field('codebase_name', 'my-project')
-        .attach('files', Buffer.from('code'), 'file.js')
+        .attach('file', Buffer.from('code'), 'file.js')
         .expect(200);
 
       expect(response.body.codebase_id).toBe('generated-id-123');

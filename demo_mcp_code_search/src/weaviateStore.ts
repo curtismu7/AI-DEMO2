@@ -12,6 +12,12 @@ import { globToMatcher } from './fileFilter';
 
 export const CLASS_NAME = 'CodeChunk';
 
+// Minimal shape of a single weaviate-ts-client batch result element; the client
+// returns one of these per submitted object, with per-object errors attached.
+interface BatchResultItem {
+  result?: { errors?: { error?: Array<{ message?: string }> } };
+}
+
 export interface SearchHit {
   file: string;
   line_start: number;
@@ -107,7 +113,21 @@ export function createStore(host: string): Store {
           vector: c.vector,
         });
       }
-      await batcher.do();
+      // batcher.do() resolves even when individual objects fail (e.g. wrong
+      // vector dimension, null vector, class validation): each element carries
+      // its own `result.errors`. Inspect them so a partial/failed insert surfaces
+      // as an error instead of being reported as a fully-successful index.
+      const results = (await batcher.do()) as unknown as BatchResultItem[];
+      const failed = (results ?? []).filter(
+        (r) => (r?.result?.errors?.error?.length ?? 0) > 0
+      );
+      if (failed.length > 0) {
+        const firstMsg =
+          failed[0]?.result?.errors?.error?.[0]?.message ?? 'unknown error';
+        throw new Error(
+          `Weaviate batch insert failed for ${failed.length}/${results.length} objects: ${firstMsg}`
+        );
+      }
     },
 
     async search(vector: number[], opts: SearchOptions): Promise<SearchHit[]> {

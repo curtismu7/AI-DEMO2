@@ -35,18 +35,20 @@ export async function indexCodebase(file, codebaseName, chunkStrategy = 'simple'
  * @returns {Promise<Array>}
  */
 export async function searchCode(query, codebaseId, limit = 10, fileFilter = undefined) {
-  const params = new URLSearchParams({
+  const body = {
     query,
     codebase_id: codebaseId,
-    limit: String(limit),
-  });
+    limit,
+  };
 
   if (fileFilter) {
-    params.append('file_filter', fileFilter);
+    body.file_filter = fileFilter;
   }
 
-  const response = await fetch(`${API_BASE}/search?${params}`, {
-    method: 'GET',
+  const response = await fetch(`${API_BASE}/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

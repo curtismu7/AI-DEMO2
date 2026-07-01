@@ -27,6 +27,10 @@ function resolveCustomer(q) {
 
 function bankingContext(q) {
   const needle = String(q || '').trim().toLowerCase();
+  // Guard against an empty query: `''.includes('')` is true for every account,
+  // which would dump ALL customers' accounts and transactions into the prompt.
+  // Mirror resolveCustomer()'s empty-needle early return.
+  if (!needle) return { customer: null, records: null };
   const digits = needle.replace(/\D/g, '');
   const accounts = dataStore.getAllAccounts().filter((a) => {
     if (String(a.accountNumber).toLowerCase().includes(needle)) return true;
