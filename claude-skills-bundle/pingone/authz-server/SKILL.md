@@ -21,9 +21,9 @@ BFF (3001) ──RFC 8693──► MCP Gateway (3005) ──decision──► Au
 |--------|------|----------------|
 | `demo_authz_server` | 9001 | **ALL authorization**: token introspection, `act` claim, scopes, HITL |
 | `demo_mcp_gateway`  | 3005 | **Routing only**: calls authz server, proxies to correct MCP server |
-| `demo_mcp_server`   | 8080 | **Tool execution**: handles tools/list and tools/call |
+| `demo_mcp_server`   | 8080 / 8081 *(verify)* | **Tool execution**: handles tools/list and tools/call |
 
-The gateway has **zero inline authorization logic**. Every decision comes from the Authorization Server.
+The gateway **delegates to the Authorization Server when P1AZ is active** (`MCP_GW_P1AZ_ENABLED=true`). It retains one inline fallback: when P1AZ is disabled, `tools/call` decisions are made locally via `evaluateScopeDecisionLocally(toolName, decoded.scope)` (a mock-engine local scope check — `PingOneAuthorizeClient.ts:191-206`). All other decisions still come from the Authorization Server when it is active.
 
 ---
 
@@ -77,21 +77,47 @@ Content-Type: application/json
   "policy_version": "mock-v1" }
 ```
 
+### Additional endpoints
+
+Beyond `/health`, `/as/introspect`, and the decision endpoint, the server also exposes:
+- `POST /as/token` — token endpoint
+- `GET /rules`, `PUT /rules`, `POST /rules` — read/update the runtime rule overlay (`ruleStore.js`)
+- `POST /admin/import-snapshot`, `GET /admin/current-snapshot` — rule-store snapshot import/export
+
 ---
 
 ## Authorization Rules (in order)
 
-1. **tools/list** (`DecisionContext === 'McpToolsList'`) → always PERMIT (tool discovery is not gated)
+> The rule set below is the core sequence in `demo_authz_server/routes/decision.js`. The full set is **larger and feature-flag-gated** — several rules only fire when their flag is enabled. Treat `decision.js` as the source of truth; the numbering here follows its rule labels.
+
+1. **tools/list** (`DecisionContext === 'McpToolsList'`) → **PERMIT by default, but gateable**. Subject to the admin discovery toggle (`ruleStore.getToolDiscoveryDecision() === 'DENY'` → DENY), user existence/enabled/status checks, and **per-tool candidate evaluation** via `CandidateTools` (`decision.js:231-253`).
 
 2. **act claim** — if `ActClientId` is present AND `PINGONE_MCP_EXCHANGER_CLIENT_ID` is configured:
    - `ActClientId` must equal the configured authorized actor (MCP exchanger)
    - Mismatch → DENY (`act.sub "X" is not the authorized actor`)
 
-3. **scope check** — reads required scopes from `scope-topology.json`:
-   - Missing required scopes → DENY (`insufficient_scope: missing read`)
+2.5. **require-act** (`REQUIRE_ACT_FOR_AGENT_TOOLS`) — agent tools may be required to carry an `act` claim.
 
-4. **HITL** — if tool requires `write` scope AND `HitlApproved !== 'true'`:
-   - Returns INDETERMINATE (`HITL_REQUIRED`) → gateway creates HITL challenge
+3. **scope check** — reads required scopes from `ruleStore.requiredScopesForTool()` (a **runtime-editable overlay**, not `scopeTopology.js` directly — `scopeTopology.js` is only used to derive the gateway audience):
+   - Missing required scopes → DENY (`insufficient_scope: missing read`)
+   - **Bypass:** banking scopes are skipped when `pinggateway:invoke` is present in the token scopes (`decision.js:413`).
+
+3b. **deny-ceiling** — `TransactionAmount ≥ SIMULATED_AUTHORIZE_DENY_AMOUNT` (default `2000`) → DENY.
+
+3c. **RAR** (`FF_RAR`) — Rich Authorization Requests / `RarAuthorizationDetails` evaluation.
+
+3d. **entitlement-tier** (`FF_AUTHORIZE_GROUP_POLICY`) — group/tier-based entitlement checks.
+
+3.5a. **resource-owner** — resource-ownership check.
+
+3.5b. **group-membership** — group-membership check.
+
+4. **HITL (amount-driven, two-tier)** — `decision.js:545-587`. Driven by `TransactionAmount`:
+   - `amount ≥ SIMULATED_AUTHORIZE_STEPUP_AMOUNT` (default `500`) → INDETERMINATE, reason **`STEP_UP`**. A step-up is **not** discharged by `HitlApproved` — it requires a re-authentication / step-up flow.
+   - `amount ≥ SIMULATED_AUTHORIZE_CONFIRM_AMOUNT` (default `250`, below the step-up threshold) → INDETERMINATE, reason **`HITL_CONSENT`**. Discharged when `HitlApproved === 'true'`.
+   - (Reason strings are `STEP_UP` / `HITL_CONSENT`, not `HITL_REQUIRED`.)
+
+4b. **intent-token** — intent-token validation (`intentValid`, tool/JTI match, confidence).
 
 ---
 
@@ -105,7 +131,7 @@ PINGAUTHORIZE_WORKER_ID=mcp-gateway-policy        # Policy ID (any string for mo
 MCP_GW_P1AZ_ENABLED=true                          # REQUIRED — enables authz server calls
 ```
 
-When `MCP_GW_P1AZ_ENABLED` is false or `PINGAUTHORIZE_ENDPOINT` is not set, the gateway **fails closed** (DENY all) — no inline fallback.
+When `MCP_GW_P1AZ_ENABLED` is false or `PINGAUTHORIZE_ENDPOINT` is not set, the gateway **fails closed (DENY all) for `tools/list` and other methods**. The one exception is `tools/call`, which falls back to a local scope decision via `evaluateScopeDecisionLocally()` (`PingOneAuthorizeClient.ts:201-206`).
 
 ---
 
@@ -156,10 +182,9 @@ tail -f /tmp/demo-authorize.log    # Authorization Server decisions + introspect
 tail -f /tmp/demo-mcp-gateway.log  # Gateway routing + auth calls
 ```
 
-Decision log format:
+Decision log format (illustrative — the current line in `decision.js:153` also carries `sub=`, `mayActSub=`, `enforceMayAct=`, `aud=`, `exp=`, `intentValid=`, `rar=`, and there is **no** separate `PERMIT — tool=…` line):
 ```
-[AuthzServer/decision] policy=mcp-gateway-policy ctx=McpToolCall tool=get_my_accounts actor=d3f8fead scopes=[read] hitlApproved=false
-[AuthzServer/decision] PERMIT — tool="get_my_accounts" actor="d3f8fead"
+[AuthzServer/decision] policy=mcp-gateway-policy ctx=McpToolCall tool=get_my_accounts actor=d3f8fead sub=... mayActSub=... enforceMayAct=... scopes=[read] aud=... exp=... intentValid=... rar=... hitlApproved=false
 ```
 
 ---
@@ -171,7 +196,8 @@ Decision log format:
 | `demo_authz_server/index.js` | Express server entry point, port binding |
 | `demo_authz_server/routes/introspect.js` | RFC 7662 introspection (delegates to PingOne or local) |
 | `demo_authz_server/routes/decision.js` | PingOne Authorize decision endpoint (all policy logic) |
-| `demo_authz_server/scopeTopology.js` | Reads `scope-topology.json` for tool→scope mapping |
+| `demo_authz_server/ruleStore.js` | **Now core** — runtime-editable rule overlay: required-scope-per-tool, tool-discovery toggle, candidate-tool rules (read by `decision.js`) |
+| `demo_authz_server/scopeTopology.js` | Reads `scope-topology.json`; used to derive the gateway audience (not the primary source of tool→scope mapping) |
 | `demo_authz_server/.env` | Configuration (introspection, act claim, HITL thresholds) |
 | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts` | Gateway's client for calling the authz server decision endpoint |
 | `demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts` | Gateway's client for calling the authz server introspection endpoint |

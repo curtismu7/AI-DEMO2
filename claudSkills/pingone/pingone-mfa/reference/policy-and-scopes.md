@@ -1,18 +1,20 @@
 # Policy & Scopes
 
 **Banking status:** ⚠️ **Partially wired.** `mfaService.js` reads policies
-(`_getDefaultMfaPolicy` via `GET {apiBase}/mfaPolicies`, cached) but does
-**not** create or update device-auth policies. Policy CRUD here is PingOne
-reference for wiring new code; the scope matrix *is* what the banking worker
-app needs. Verify against `mfaService.js` before assuming a create/update path
-exists.
+(`_getDefaultMfaPolicy` via `GET {apiBase}/deviceAuthenticationPolicies`,
+cached) but does **not** create or update device-auth policies. Policy CRUD
+here is PingOne reference for wiring new code; the scope matrix *is* what the
+banking worker app needs. Verify against `mfaService.js` before assuming a
+create/update path exists.
 
 ---
 
 ## 1. Full worker-token scope matrix
 
-Worker (client_credentials) token on the **PingOne API** resource. Least
-privilege — do not expand without a documented reason.
+These scopes are **granted on the worker app** in PingOne and are inherited
+into the minted token. They are **not** sent in the token request —
+`_getWorkerToken()` posts `grant_type=client_credentials` with **no `scope`
+parameter**. Least privilege — do not expand without a documented reason.
 
 | Scope | Required for | Notes |
 |---|---|---|
@@ -30,11 +32,14 @@ Keep the scope string in one place. A `403` from any `/devices` or
 `/deviceAuthentications` call is almost always a missing `p1:*:device` scope on
 the worker app, not a code bug. Never log the worker `access_token`.
 
-Banking minting path: `mfaService._getWorkerToken()` →
-`pingone_worker_token_client_id` / `_secret` (fallback: management creds),
-posted to `getTokenEndpoint()` with `grant_type=client_credentials`. Read all
-of these via `configStore.getEffective(key)` — never `process.env` in a route
-handler (CLAUDE.md non-negotiable).
+Banking minting path: `mfaService._getWorkerToken()` posts
+`grant_type=client_credentials` (no `scope`) to `getTokenEndpoint()`.
+Credential lookup is **env-first**: it reads
+`PINGONE_WORKER_TOKEN_CLIENT_ID` / `_SECRET` / `_AUTH_METHOD` (and
+`PINGONE_RESOURCE_DEVICE_AUTH_URI`) from `process.env` first, then falls back to
+`configStore.getEffective(...)` and management creds. For these worker
+credentials the "never `process.env` in a handler" rule does not apply — env
+wins by design.
 
 ---
 
@@ -49,10 +54,11 @@ handler (CLAUDE.md non-negotiable).
 | By name | list, then filter on `name` (no native by-name endpoint) |
 | Create | `POST {apiBase}/deviceAuthenticationPolicies` (full policy body) |
 
-> Banking legacy: `mfaService.js` reads `GET {apiBase}/mfaPolicies` (alias) and
-> caches the default in `_cachedDefaultPolicyId`; `_resetDefaultPolicyCache()`
-> clears it (used by unit tests). New code should prefer
-> `deviceAuthenticationPolicies`.
+> Banking: `_getDefaultMfaPolicy` reads
+> `GET {apiBase}/deviceAuthenticationPolicies` and caches the default in
+> `_cachedDefaultPolicyId`; `_resetDefaultPolicyCache()` clears it (used by unit
+> tests). The legacy `/mfaPolicies` alias returns 403 for the worker bearer in
+> this environment and is deliberately avoided.
 
 ### Create-from-template
 

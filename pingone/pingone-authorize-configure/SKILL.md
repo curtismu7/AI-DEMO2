@@ -5,19 +5,22 @@ description: Configure the cloud PingOne Authorize policy for AI-Demo. Use when 
 
 # PingOne Authorize Configuration Skill
 
-Covers all configuration of the cloud PingOne Authorize (P1AZ) trust framework for AI-Demo. The authoritative snapshot is at `docs/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`.
+Covers all configuration of the cloud PingOne Authorize (P1AZ) trust framework for AI-Demo. The authoritative snapshot is at `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`.
 
 ---
 
 ## Environment & Credentials
 
+Read all three values from `demo_api_server/.env` — do NOT hardcode them here.
 ```
-ENV_ID:        d02d2305-f445-406d-82ee-7cdbf6eeabfd
-WORKER_ID:     15881ac7-4d83-4cbf-9ab0-4d7cda31fab8
-WORKER_SECRET: 8q58m8IAGqgq36NF_4uEpjVcYM9sFVqhGMZ8u8kijJ.nHbeVaG.QT.oRW1z7CZ5p
+ENV_ID:        read PINGONE_ENVIRONMENT_ID from demo_api_server/.env
+WORKER_ID:     read PINGONE_WORKER_CLIENT_ID from demo_api_server/.env
+WORKER_SECRET: read PINGONE_WORKER_CLIENT_SECRET from demo_api_server/.env
 AUTH_URL:      https://auth.pingone.com/${ENV_ID}/as/token
 API_BASE:      https://api.pingone.com/v1/environments/${ENV_ID}
 ```
+
+> **Never commit these literals into the skill; they live in `.env`.** If the previously-committed `WORKER_SECRET` was a live credential, rotate it in the PingOne admin console.
 
 Get a token:
 ```bash
@@ -42,7 +45,7 @@ Decision endpoints (look up via API — IDs change per environment):
 curl -s -H "Authorization: Bearer $TOKEN" \
   "${API_BASE}/decisionEndpoints"
 ```
-DEV endpoint ID: `f6752166-f78b-44db-a064-ead8f6a83142` (verify after re-import)
+DEV endpoint ID: `f6752166-f78b-44db-a064-ead8f6a83142` (may be stale — cannot be verified from code, it depends on live cloud state). After any re-import, re-fetch it via `GET ${API_BASE}/decisionEndpoints` against the correct environment and update this value.
 
 ---
 
@@ -50,7 +53,7 @@ DEV endpoint ID: `f6752166-f78b-44db-a064-ead8f6a83142` (verify after re-import)
 
 The snapshot is the most reliable way to configure P1AZ. The cloud API condition POST does not support `COMPARISON` type inline (returns UNEXPECTED_ERROR); snapshot import handles the full condition DSL.
 
-**File:** `docs/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
+**File:** `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
 
 **To import:**
 1. PingOne Authorize console → your environment
@@ -143,7 +146,7 @@ These cannot be encoded in the snapshot:
 ### 1. Update HasValidActorChain condition
 `HasValidActorChain` (id `23456789-0009-...`) currently only checks `ActClientId != "none"`. After import, add a clause: `ActClientId == "<actual BFF client ID>"`.
 
-BFF client ID is from `demo_api_server/.env` → look for `PINGONE_CLIENT_ID` on the BFF Admin application.
+BFF actor client ID is from `demo_api_server/.env` → look for `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` (the BFF actor client whose `act.client_id` becomes `ActClientId`).
 
 ### 2. Wire decision endpoint to policy set
 The decision endpoint must point to the `Super Banking Policies` policy set (`56789012-0003-...`):
