@@ -108,33 +108,7 @@
 .dc-ctrl-btn--reset  { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
 .dc-ctrl-btn--reset:hover:not(:disabled)  { background: #f1f5f9; }
 
-/* Step-time selector */
-.dc-steptime {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.dc-steptime-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #475569;
-  white-space: nowrap;
-}
-.dc-steptime-select {
-  font-size: 0.78rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #1e293b;
-  cursor: pointer;
-  font-family: inherit;
-}
-.dc-steptime-select:disabled {
-  color: #94a3b8;
-  cursor: not-allowed;
-  background: #f8fafc;
-}
+/* .dc-steptime* rules live in StepTimeSelector.css (owned by that component). */
 
 /* ── DiagramLegend ────────────────────────────────────────────────────────── */
 
