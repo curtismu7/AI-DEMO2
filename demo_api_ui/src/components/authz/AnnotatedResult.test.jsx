@@ -14,7 +14,9 @@ describe('AnnotatedResult', () => {
       trace: { policySet: 'Account Access', rule: 'Region match', condition: 'user.region == EU', effect: 'PERMIT', statements: [{ type: 'ADVICE', detail: 'logged' }] },
       obligations: [], statements: [{ type: 'ADVICE', detail: 'logged' }], raw: { engine: 'simulated-learning' },
     }} />);
-    expect(screen.getByText('PERMIT')).toBeInTheDocument();
+    expect(screen.getAllByText('PERMIT').length).toBeGreaterThanOrEqual(2); // badge + effect row
+    expect(screen.getByText('Effect')).toBeInTheDocument();
+    expect(screen.getByText('ADVICE')).toBeInTheDocument(); // the statement in the trace renders
     expect(screen.getByText('Account Access')).toBeInTheDocument();
     expect(screen.getByText('Region match')).toBeInTheDocument();
     expect(screen.getByText(/user\.region == EU/)).toBeInTheDocument();

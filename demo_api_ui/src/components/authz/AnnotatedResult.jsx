@@ -37,9 +37,7 @@ export default function AnnotatedResult({ result }) {
         <div className="ar-trace-row"><span className="ar-k">Policy set</span><span className="ar-v">{trace.policySet}</span></div>
         <div className="ar-trace-row"><span className="ar-k">Rule</span><span className="ar-v">{trace.rule}</span></div>
         <div className="ar-trace-row"><span className="ar-k">Condition</span><span className="ar-v ar-mono">{trace.condition}</span></div>
-        {trace.effect && trace.effect !== decision ? (
-          <div className="ar-trace-row"><span className="ar-k">Effect</span><span className="ar-v">{trace.effect}</span></div>
-        ) : null}
+        <div className="ar-trace-row"><span className="ar-k">Effect</span><span className="ar-v">{trace.effect || decision}</span></div>
       </div>
 
       <StatementList items={result.obligations} title="Obligations (enforced)" />
