@@ -13,6 +13,7 @@
  * (e.g. a scenario dropdown, a title chip).
  */
 import { memo } from "react";
+import StepTimeSelector from "./StepTimeSelector";
 import "./DiagramControls.css";
 
 /**
@@ -64,8 +65,6 @@ function DiagramControls({
 }) {
   const hasZoom = zoom !== undefined && zoom !== null;
   const hasStep = currentStep !== undefined && currentStep !== null;
-  const hasStepTime =
-    Array.isArray(stepTimeOptions) && stepTimeOptions.length > 0;
 
   const zoomPct = hasZoom ? Math.round(zoom * 100) : null;
   const canZoomOut = hasZoom && zoom > zoomMin + 0.001;
@@ -115,23 +114,13 @@ function DiagramControls({
       {/* Step nav block */}
       {hasStep && (
         <>
-          {hasStepTime && (
-            <label className="dc-steptime" title="Time each step takes during Simulate">
-              <span className="dc-steptime-label">Step time:</span>
-              <select
-                className="dc-steptime-select"
-                value={stepMs}
-                onChange={(e) => onSetStepMs(Number(e.target.value))}
-                disabled={isSimulating}
-              >
-                {stepTimeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <StepTimeSelector
+            value={stepMs}
+            options={stepTimeOptions}
+            onChange={onSetStepMs}
+            disabled={isSimulating}
+            title="Time each step takes during Simulate"
+          />
           {!isSimulating ? (
             <button
               type="button"
