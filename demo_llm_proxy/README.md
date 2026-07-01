@@ -6,19 +6,22 @@ Smart routing proxy for managing 4 different language models through a single en
 
 The proxy implements **smart classification and cascading fallback**:
 
-- **Tier 1**: Phi-2 (2.7B) — simple explanations, "what is", basic Q&A
-- **Tier 2**: Phi-3 (3.8B) — moderate complexity, "how does", multi-step reasoning
-- **Tier 3**: Qwen3-8b (8B) — complex technical, "demonstrate", token flows
+- **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
+- **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
+- **Tier 3**: Qwen2.5-Coder-14B (14B) — complex technical, "demonstrate", token flows
 - **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
+
+The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
+filenames in `start-local-models.sh`; keep those two in sync when changing models.
 
 ## Request Classification
 
 The proxy analyzes incoming requests and routes to the **smallest model that can handle it**:
 
 ```
-"what is OAuth?" → Phi-2 (fastest)
-"how does token exchange work?" → Phi-3 (balanced)
-"demonstrate HITL approval" → Qwen (accurate)
+"what is OAuth?" → Gemma-3-4B (fastest)
+"how does token exchange work?" → Gemma-4-12B (balanced)
+"demonstrate HITL approval" → Qwen2.5-Coder (accurate)
 ```
 
 If the selected tier is unavailable or overloaded, it cascades to the next larger model automatically.
@@ -103,10 +106,9 @@ The router classifies the prompt and sends to the appropriate tier.
 
 ## Load Balancing
 
-- **Round-robin** within each model tier
 - **Load tracking** — counts in-flight requests per model
-- **Cascading fallback** — if tier N is full (>3 requests), try tier N+1
-- **Health checks** — pings each instance every 10s
+- **Cascading fallback** — if tier N is full (>3 requests) or unhealthy, try tier N+1
+- **Health checks** — pings each instance every 30s
 
 ## Monitoring
 
