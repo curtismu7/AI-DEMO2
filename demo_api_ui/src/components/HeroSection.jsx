@@ -1,15 +1,20 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 function HeroSectionBase({
   avatar,
   title,
   description,
   subtitle,
-  isEmpty,
-  variant,
+  size = 'full',
+  backgroundColor,
+  avatarSize = 'md',
 }) {
+  const classes = `hero-section hero-section--${size}${avatarSize !== 'md' ? ` hero-avatar--${avatarSize}` : ''}`;
+  const style = backgroundColor ? { '--hero-bg-gradient-from': backgroundColor } : {};
+
   return (
-    <div className={`hero-section hero-section--${variant}${!isEmpty ? ' hero-section--compact' : ''}`}>
+    <div className={classes} style={style}>
       <div className="hero-avatar">{avatar}</div>
       <h1>{title}</h1>
       <p>{description}</p>
@@ -18,4 +23,17 @@ function HeroSectionBase({
   );
 }
 
-export const HeroSection = React.memo(HeroSectionBase);
+HeroSectionBase.propTypes = {
+  avatar: PropTypes.node,
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  subtitle: PropTypes.string,
+  size: PropTypes.oneOf(['full', 'compact']),
+  backgroundColor: PropTypes.string,
+  avatarSize: PropTypes.oneOf(['sm', 'md', 'lg']),
+};
+
+// Custom comparison: re-render if size or backgroundColor change (title/description rarely change)
+export const HeroSection = React.memo(HeroSectionBase, (prev, next) => {
+  return prev.size === next.size && prev.backgroundColor === next.backgroundColor;
+});

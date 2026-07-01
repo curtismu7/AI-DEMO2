@@ -34,6 +34,10 @@ flowchart LR
     %% ── Agent service ───────────────────────────────────────────────────
     Agent["demo_agent_service<br/>LLM tool-calling agent<br/>:3006"]
 
+    %% ── A2A agent-to-agent delegation ──────────────────────────────────
+    A2AOrch["A2A Orchestrator<br/>CrewAI crew: decide / coordinate / authorize"]
+    Specialist["Specialist Agent<br/>Investment Advisor / Records / Purchase"]
+
     %% ── Policy-aware gateway (the credential broker) ───────────────────
     Gateway["demo_mcp_gateway<br/>Policy-aware credential broker<br/>:3005<br/><br/>• Inbound: user token + agent actor<br/>• Outbound: backend-appropriate creds<br/>• Calls Authorize per request"]
 
@@ -97,6 +101,12 @@ flowchart LR
     Agent -->|"RFC 8693 token exchange<br/>(subject = user, actor = agent)"| AS
     Agent -->|"tool call + TX token"| Gateway
 
+    %% ── A2A delegation: generalist → orchestrator → specialist → tool ──
+    Agent -->|"Delegate? (A2A)"| A2AOrch
+    A2AOrch -->|"Approve act-chain"| Authorize
+    A2AOrch -->|"RFC 8693 nested act"| Specialist
+    Specialist -->|"Narrow tool call"| Gateway
+
     %% ── Phase 270: edges for newly-named services ─────────────────────
     Gateway -->|"WS MCP - exchanged Bearer<br/>tools/call"| MCPServer
     Gateway -->|"WS MCP - invest tools"| MCPInvest
@@ -157,6 +167,7 @@ flowchart LR
     class UI frontend
     class BFF bff
     class Agent,Gateway,HITL tool
+    class A2AOrch,Specialist tool
     class Authorize authorize
     class OAuthRS backend
     class APIKeyRS planned

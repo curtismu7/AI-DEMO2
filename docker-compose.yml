@@ -300,12 +300,8 @@ services:
       AGENT_SERVICE_PORT: "3006"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
-<<<<<<< HEAD
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-=======
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "qwen3-8b"
->>>>>>> origin/main
     env_file:
       - path: ./demo_agent_service/.env
         required: false
@@ -560,6 +556,70 @@ services:
       - authz-server
     restart: unless-stopped
 
+  # ── RAG Code Search Services ──────────────────────────────────────────────
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    container_name: ai-demo-weaviate
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 20
+      AUTHENTICATION_APIKEY_ENABLED: "false"
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    networks:
+      - ai-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  llama-embedding:
+    image: ollama/ollama:latest
+    container_name: ai-demo-llama-embedding
+    ports:
+      - "8084:11434"
+    environment:
+      MODEL_NAME: nomic-embed-text
+    volumes:
+      - llama-models:/root/.ollama
+    networks:
+      - ai-demo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  demo-mcp-code-search:
+    build:
+      context: .
+      dockerfile: demo_mcp_code_search/Dockerfile
+    container_name: ai-demo-mcp-code-search
+    ports:
+      - "8095:8095"
+    environment:
+      WEAVIATE_URL: http://weaviate:8080
+      EMBEDDING_API_URL: http://llama-embedding:11434
+      LOG_LEVEL: info
+    networks:
+      - ai-demo
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      llama-embedding:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 networks:
   ai-demo:
     driver: bridge
@@ -567,3 +627,6 @@ networks:
 volumes:
   # BFF persistent LMDB store — survives `docker compose up --force-recreate`.
   ai-demo-bff-data:
+  # RAG Code Search volumes
+  weaviate-data:
+  llama-models:

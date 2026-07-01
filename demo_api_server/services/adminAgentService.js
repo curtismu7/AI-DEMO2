@@ -111,6 +111,13 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
         requiresConsent: false,
         agentConfigured: true,
         tokenEvents: tokenEvents || [],
+        agentHeader: '🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]',
+        metadata: {
+          framework: 'LangGraph',
+          model: 'Claude 3.5 Sonnet',
+          agentType: 'admin',
+          features: ['MCP tools', 'state graphs', 'RFC 8693 tokens']
+        }
       };
     }
 
@@ -123,6 +130,12 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
       error: loopResult.reason || 'reasoning_unavailable',
+      agentHeader: '🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'LangGraph',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'admin'
+      }
     };
   } catch (err) {
     console.error('[adminAgentService] Unhandled error:', err.message);
@@ -135,6 +148,12 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
       error: 'internal_error',
+      agentHeader: '🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]',
+      metadata: {
+        framework: 'LangGraph',
+        model: 'Claude 3.5 Sonnet',
+        agentType: 'admin'
+      }
     };
   }
 }

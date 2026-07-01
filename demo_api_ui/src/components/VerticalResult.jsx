@@ -1,26 +1,10 @@
 import React from 'react';
 import TokenCard from './TokenCard';
+import { formatValue } from '../utils/formatters';
 
 function valueByPath(obj, path) {
   if (!obj || !path) return undefined;
   return String(path).split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
-}
-
-function formatValue(value, format) {
-  if (value === null || value === undefined) return '';
-
-  switch (format) {
-    case 'money':
-      return '$' + Number(value).toFixed(2);
-    case 'date':
-      return String(value);
-    case 'percent':
-      return String(value) + '%';
-    case 'count':
-    case 'text':
-    default:
-      return String(value);
-  }
 }
 
 function VerticalResult({ descriptor, data }) {

@@ -1,22 +1,8 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
+import { formatValue } from '../utils/formatters';
 import './VerticalFeaturePage.css';
-
-function fmtMoney(amt, currency = 'USD') {
-  if (typeof amt !== 'number') return String(amt ?? '');
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amt);
-}
-
-function fmtPct(rate) {
-  if (typeof rate !== 'number') return String(rate ?? '');
-  return `${rate.toFixed(3)}%`;
-}
-
-function formatValue(value, fmt, currency) {
-  if (fmt === 'money') return fmtMoney(value, currency);
-  if (fmt === 'percent') return fmtPct(value);
-  return String(value ?? '');
-}
 
 export default function VerticalFeaturePage() {
   const navigate  = useNavigate();
@@ -42,6 +28,14 @@ export default function VerticalFeaturePage() {
     '--vfp-accent-dd':   mix(60, 'black'),
   };
 
+  const dataKey = useMemo(
+    () => {
+      if (!raw) return '';
+      return fp?.dataKey || Object.keys(raw).find((k) => k !== 'source' && k !== 'authMechanism' && k !== 'note' && k !== 'apiKeyMaskedLast4' && k !== 'message' && k !== 'backend') || '';
+    },
+    [fp?.dataKey, raw]
+  );
+
   if (!raw) {
     return (
       <div className="vfp-container" style={styles}>
@@ -61,8 +55,6 @@ export default function VerticalFeaturePage() {
       </div>
     );
   }
-
-  const dataKey  = fp?.dataKey || Object.keys(raw).find((k) => k !== 'source' && k !== 'authMechanism' && k !== 'note' && k !== 'apiKeyMaskedLast4' && k !== 'message' && k !== 'backend') || '';
   const record   = raw[dataKey] || {};
   const currency = record.currency;
   const fields   = fp?.fields || [];

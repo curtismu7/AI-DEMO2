@@ -3,6 +3,7 @@ import AppShell from "./AppShell";
 import AuthzTestPage from "../components/AuthzTestPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
+import { CodeSearchPage } from "../pages/CodeSearchPage";
 import OAuthAcademyPage from "../components/OAuthAcademyPage";
 import CopilotPage from "../components/CopilotPage";
 import OASDemoPage from "../components/OASDemoPage";
@@ -109,6 +110,14 @@ export function CodeExplorerPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <CodeExplorerPage />
+    </AppShell>
+  );
+}
+
+export function CodeSearchPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <CodeSearchPage />
     </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { HeroSection } from "./HeroSection";
+import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -245,11 +246,11 @@ const OAuthAcademyPage = () => {
   return (
     <div className="oauth-academy-page">
       <HeroSection
-        variant="oauth-academy"
         avatar="OA"
         title="OAuth Academy"
         description="An interactive teacher for OAuth 2.0 &middot; 2.1 and OIDC. Ask a question to get a plain-language explanation, or pick a topic below to watch a real authorization flow run live — PKCE, scopes, RFC 8693 token exchange, act/may_act delegation, and human-in-the-loop approval — with the actual token chain shown at every hop."
-        isEmpty={isEmpty}
+        size={isEmpty ? 'full' : 'compact'}
+        backgroundColor={HERO_VARIANTS['oauth-academy'].backgroundColor}
       />
 
       {/* Messages */}

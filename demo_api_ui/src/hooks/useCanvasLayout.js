@@ -25,6 +25,9 @@ const NODE_GRID = {
   bff:               { col: 1, row: 0 },
   'langchain-agent': { col: 2, row: -1 },
   'agent-service':   { col: 2, row: 1 },
+  // A2A delegation subsystem (agent layer), preserved from the A2A diagrams work
+  'a2a-orchestrator':{ col: 2, row: 2 },
+  'a2a-specialist':  { col: 3, row: 2 },
   'mcp-gateway':     { col: 3, row: 0 },
   'authz-server':    { col: 4, row: -1 },
   'pingone-sso':     { col: 4, row: 0 },
@@ -48,19 +51,21 @@ const AUTO_POSITIONS = computeAutoLayout();
 const NODE_LAYER = {
   frontend:          'client',
   bff:               'gateway',
-  'langchain-agent': 'agent',
   'agent-service':   'agent',
+  'a2a-orchestrator':'agent',
+  'a2a-specialist':  'agent',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
   'pingone-sso':     'policy',
   'hitl-service':    'tool',
   'mcp-server':      'backend',
   'mcp-invest':      'backend',
-  'mortgage-service':'backend',
 };
 
 // Human-readable display labels (overrides the id as label)
 const NODE_LABEL = {
+  'a2a-orchestrator': 'A2A Orchestrator',
+  'a2a-specialist':   'Specialist Agent',
   'mcp-gateway':  'Ping Agent Gateway',
   'authz-server': 'PingOne Authorize',
   'pingone-sso':  'PingOne SSO',
@@ -70,15 +75,15 @@ const NODE_LABEL = {
 const NODE_SUB = {
   frontend:          'Browser',
   bff:               'https:3001',
-  'langchain-agent': 'http:8888 · AG-UI',
   'agent-service':   'http:3006 · NL mode',
+  'a2a-orchestrator':'CrewAI · decide/authorize',
+  'a2a-specialist':  'Investment / Records / Purchase',
   'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
   'pingone-sso':     'IDP · Token Exchange',
   'hitl-service':    'http:3009',
   'mcp-server':      'http:8080 · OLB',
   'mcp-invest':      'http:8081',
-  'mortgage-service':'http:8082',
 };
 
 function buildSeedNodes() {
@@ -97,22 +102,34 @@ function buildSeedNodes() {
 
 function buildSeedEdges(nodes) {
   const pairs = [
-    ['frontend',        'bff'],
-    ['bff',             'langchain-agent'],
-    ['bff',             'agent-service'],
-    // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
-    ['bff',             'pingone-sso'],
-    ['bff',             'mcp-gateway'],
-    ['mcp-gateway',     'authz-server'],
-    ['mcp-gateway',     'hitl-service'],
-    ['mcp-gateway',     'mcp-server'],
-    ['mcp-gateway',     'mcp-invest'],
-    ['mcp-gateway',     'mortgage-service'],
+    ['frontend',        'bff',                  'Send message'],
+    ['bff',             'agent-service',        'Dispatch'],
+    ['agent-service',   'bff',                  'Dispatch'],
+    // BFF ↔ PingOne SSO for RFC 8693 token exchange
+    ['bff',             'pingone-sso',          'Token exchange'],
+    ['pingone-sso',     'bff',                  'Token exchange'],
+    // BFF ↔ MCP Gateway routing
+    ['bff',             'mcp-gateway',          'Routing'],
+    ['mcp-gateway',     'bff',                  'Routing'],
+    ['mcp-gateway',     'authz-server',         'Authorize request'],
+    // A2A — agent-to-agent delegation subsystem
+    ['agent-service',   'a2a-orchestrator',     'Delegate? (A2A)'],
+    ['a2a-orchestrator','authz-server',         'Approve act-chain'],
+    ['a2a-orchestrator','a2a-specialist',       'RFC 8693 nested act'],
+    ['a2a-specialist',  'mcp-gateway',          'Narrow tool call'],
+    ['mcp-gateway',     'hitl-service',         'Challenge'],
+    // MCP Gateway ↔ MCP Server
+    ['mcp-gateway',     'mcp-server',           'MCP API call'],
+    ['mcp-server',      'mcp-gateway',          'MCP API call'],
+    ['mcp-gateway',     'mcp-invest',           'MCP API call'],
+    // Token introspection bidirectional
+    ['authz-server',    'pingone-sso',          'Token introspection'],
+    ['pingone-sso',     'authz-server',         'Token introspection'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
     .filter(([a, b]) => nodeIds.has(a) && nodeIds.has(b))
-    .map(([from, to]) => ({ id: `e-${from}-${to}`, from, to }));
+    .map(([from, to, label]) => ({ id: `e-${from}-${to}`, from, to, label }));
 }
 
 function loadFromStorage() {
@@ -192,6 +209,19 @@ export default function useCanvasLayout() {
     });
   }, [persist]);
 
+  const removeNode = useCallback((id) => {
+    setNodes(prev => {
+      const next = prev.filter(n => n.id !== id);
+      persist(next, edgesRef.current);
+      return next;
+    });
+    setEdges(prev => {
+      const next = prev.filter(e => e.from !== id && e.to !== id);
+      persist(nodesRef.current, next);
+      return next;
+    });
+  }, [persist]);
+
   const resetLayout = useCallback(() => {
     const freshNodes = buildSeedNodes();
     setNodes(freshNodes);
@@ -199,5 +229,5 @@ export default function useCanvasLayout() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
   }, []);
 
-  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout };
+  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, removeNode, resetLayout };
 }

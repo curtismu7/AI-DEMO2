@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { MdSyncAlt, MdVpnKey, MdInfo, MdDelete, MdLock, MdGroup, MdMailOutline } from 'react-icons/md';
 import { notifySuccess, notifyInfo } from '../utils/appToast';
+import { formatDate } from '../utils/formatters';
 import { clientAuthMethodLabel } from '../utils/clientAuthMethod';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import '../styles/appShellPages.css';
@@ -68,9 +69,6 @@ const initials = (name) =>
 /** Hue derived from a string for consistent avatar colours. */
 const avatarHue = (str) =>
   str.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
-
-/** Format ISO date as "Nov 14, 2025". */
-const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -568,7 +566,7 @@ function DelegateCard({ delegate, accounts, onRevoke, onActAs }) {
         </div>
 
         <div className="da-card__footer">
-          <span className="da-card__since">Since {fmtDate(delegate.since)}</span>
+          <span className="da-card__since">Since {formatDate(delegate.since)}</span>
           <div className="da-card__actions">
             <button
               type="button"
