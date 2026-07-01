@@ -90,11 +90,12 @@ services:
       # flag in resolveAuthorizeMode() and would make the flip a no-op.
       FF_AUTHORIZE_SIMULATED: "false"
       AUTHORIZE_FAILOVER_MODE: "deny"
-      # Default agent to the real Ping (Helix) reasoning engine. Seeds a fresh
-      # bff-data volume; persisted /config selection still wins. Requires the
-      # Helix key (LLM2.json mount / HELIX_API_KEY) — falls back to heuristic
-      # routing if Helix is unconfigured.
-      AGENT_MODE: "helix_google"
+      # Default agent to the local llama.cpp reasoning engine (free, no external
+      # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
+      # OVERRIDES any persisted /config selection on every read — it is the
+      # single source of truth for the default agent mode. The reason loop runs
+      # in agent-service (:3006) against LLAMACPP_BASE_URL (the :8090 model proxy).
+      AGENT_MODE: "llamacpp"
       LANGCHAIN_AGENT_HTTP_URL: "http://langchain-agent:8888"
       AGENT_SERVICE_HOST: "langchain-agent"
       HITL_SERVICE_URL: "http://hitl-service:3009"
@@ -618,6 +619,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────
+  # Serves the :8090 endpoint that BFF + agent-service already target via
+  # LLAMACPP_BASE_URL. Classifies each request and routes to the smallest
+  # capable of 4 local llama-server tiers (8091-8094), cascading on overload.
+  # Start the model backends first: bash demo_llm_proxy/start-local-models.sh
+  llm-proxy:
+    build:
+      context: ./demo_llm_proxy
+      dockerfile: Dockerfile
+    container_name: ai-demo-llm-proxy
+    ports:
+      - "8090:8090"
+    environment:
+      NODE_ENV: production
+      LLM_PROXY_PORT: "8090"
+    networks:
+      - ai-demo
+    # Access host llama-server instances via host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 networks:
