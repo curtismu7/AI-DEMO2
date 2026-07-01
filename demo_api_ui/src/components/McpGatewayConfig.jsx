@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import "./McpGatewayConfig.css";
 import CopyableValue from "./CopyableValue";
 import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
+import AgentGatewayConfigEditor from "./AgentGatewayConfigEditor";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
@@ -258,6 +259,12 @@ function McpGatewayConfigInner() {
 					onClick={() => setActiveTab("docs")}
 				>
 					Docs & Setup
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "json" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("json")}
+				>
+					JSON Config
 				</button>
 			</div>
 
@@ -649,6 +656,11 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 							docs.pingidentity.com — PingGateway Docs
 						</a>
 					</div>
+				</div>
+			)}
+			{activeTab === "json" && (
+				<div className="mgc-panel">
+					<AgentGatewayConfigEditor />
 				</div>
 			)}
 		</div>
