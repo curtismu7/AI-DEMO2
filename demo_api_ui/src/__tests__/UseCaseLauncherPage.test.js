@@ -130,6 +130,24 @@ const UC_WRONG_AUD = {
   advanced: false,
 };
 
+// Link-type UC (developer tool) — navigates to a page instead of running an agent.
+const UC_LINK = {
+  id: 'UC-TOOL1',
+  useCaseId: 'code-search',
+  track: 'tools',
+  title: 'RAG code search',
+  buyerStory: 'Semantic search across an indexed codebase.',
+  pingOneSolution: 'n/a',
+  trigger: { type: 'link', path: '/code-search', label: 'Open Code Search' },
+  expectedOutcome: 'n/a',
+  evidence: {},
+  codeRefs: [],
+  maturity: 'works',
+  owasp: {},
+  whatToSay: 'Open the code search tool.',
+  advanced: false,
+};
+
 const SAMPLE_SIM_RESULT = {
   sim: 'insufficient-scope',
   status: 403,
@@ -221,6 +239,16 @@ describe('UseCaseLauncherPage', () => {
         state: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip' },
       }),
     );
+  });
+
+  it('renders an Open button for a link-type UC and navigates to its path', async () => {
+    apiClient.get.mockResolvedValue({ data: { vertical: 'banking', useCases: [UC_LINK] } });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('RAG code search')).toBeInTheDocument());
+    const openBtn = screen.getByRole('button', { name: /open code search/i });
+    expect(openBtn.disabled).toBe(false);
+    fireEvent.click(openBtn);
+    expect(mockNavigate).toHaveBeenCalledWith('/code-search');
   });
 
   it('shows OWASP badge for UCs with owasp data', async () => {

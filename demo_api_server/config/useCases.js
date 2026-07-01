@@ -602,6 +602,28 @@ const RAW_USE_CASES = [
     },
     primaryTool: null,
   },
+
+  // --- DEVELOPER TOOLS ---
+  {
+    id: 'UC-TOOL1',
+    useCaseId: 'code-search',
+    track: 'tools',
+    title: 'RAG code search',
+    buyerStory: 'Semantic search across an indexed codebase — ask in plain language, get the relevant code back.',
+    pingOneSolution: 'Local RAG pipeline: llama.cpp embeddings + Weaviate vector store, served by the code-search service. No cloud calls, no Ollama.',
+    trigger: { type: 'link', path: '/code-search', label: 'Open Code Search' },
+    expectedOutcome: 'RANKED_RESULTS',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: ['demo_mcp_code_search/src/server.ts', 'demo_mcp_code_search/src/weaviateStore.ts', 'demo_api_server/routes/codeSearch.js'],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Index a codebase, then ask in natural language — the RAG pipeline returns the most relevant chunks, ranked.',
+    advanced: false,
+    whatLong: 'A developer utility (not an identity scenario): upload a codebase, and it is chunked, embedded with a local llama.cpp embedding model, and stored in Weaviate as bring-your-own vectors. A natural-language query is embedded and matched by vector similarity, returning ranked code chunks with file and line ranges.',
+    businessValue: 'Semantic code search runs entirely locally — llama.cpp for embeddings, Weaviate for the vector index — with no external API calls and no Ollama dependency.',
+    productRoles: {},
+    primaryTool: null,
+  },
 ];
 
 function deepFreeze(o) {
