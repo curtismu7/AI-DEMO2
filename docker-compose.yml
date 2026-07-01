@@ -561,8 +561,9 @@ services:
   weaviate:
     image: semitechnologies/weaviate:latest
     container_name: ai-demo-weaviate
-    ports:
-      - "8080:8080"
+    # No host port publish — consumed only container-to-container as
+    # http://weaviate:8080 (compose DNS). Publishing host :8080 collides with
+    # mcp-server, which owns host :8080.
     environment:
       QUERY_DEFAULTS_LIMIT: 20
       AUTHENTICATION_APIKEY_ENABLED: "false"
@@ -572,7 +573,8 @@ services:
     networks:
       - ai-demo
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      # weaviate image ships wget, not curl.
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/v1/meta"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -590,7 +592,9 @@ services:
     networks:
       - ai-demo
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      # ollama image ships neither curl nor wget; use its own CLI (talks to the
+      # local server on 11434, exits 0 when reachable).
+      test: ["CMD", "ollama", "list"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -598,11 +602,14 @@ services:
 
   demo-mcp-code-search:
     build:
-      context: .
-      dockerfile: demo_mcp_code_search/Dockerfile
+      context: ./demo_mcp_code_search
+      dockerfile: Dockerfile
     container_name: ai-demo-mcp-code-search
-    ports:
-      - "8095:8095"
+    # No host port / HTTP healthcheck: this is a stdio MCP server (no HTTP
+    # listener). stdin_open keeps stdin attached so the stdio transport doesn't
+    # hit EOF and exit on a detached container.
+    stdin_open: true
+    tty: true
     environment:
       WEAVIATE_URL: http://weaviate:8080
       EMBEDDING_API_URL: http://llama-embedding:11434
@@ -614,11 +621,6 @@ services:
         condition: service_healthy
       llama-embedding:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
   # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────

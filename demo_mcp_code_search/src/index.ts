@@ -1,15 +1,22 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CallToolRequest,
-  ListToolsRequest,
-  Tool,
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const server = new Server({
-  name: "code-search",
-  version: "1.0.0",
-});
+const server = new Server(
+  {
+    name: "code-search",
+    version: "1.0.0",
+  },
+  {
+    // Must declare the tools capability or the SDK throws
+    // "Server does not support tools" when registering tools/list handlers.
+    capabilities: { tools: {} },
+  },
+);
 
 const tools: Tool[] = [
   {
@@ -67,12 +74,12 @@ const tools: Tool[] = [
   },
 ];
 
-server.setRequestHandler(ListToolsRequest, async () => ({
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools,
 }));
 
-server.setRequestHandler(CallToolRequest, async (request) => {
-  const { name, arguments: args } = request;
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
 
   try {
     if (name === "index_codebase") {
