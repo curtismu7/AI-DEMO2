@@ -1,0 +1,33 @@
+# Repo-root build-context excludes.
+#
+# Applies to every image built with `context: .` (the repo root): currently
+# demo_api_server, demo_authz_server, and demo_mcp_gateway. Until this file
+# existed there was NO .dockerignore for those builds (a service-local
+# demo_api_server/.dockerignore is never consulted when the context is the repo
+# root), so `COPY demo_api_server/ .` copied the host's stale node_modules OVER
+# the clean `npm ci` install — making image contents depend on host state
+# (e.g. zod pinned to whatever version happened to be on disk).
+#
+# Only list things that are NEVER build inputs. The repo-root Dockerfiles need
+# demo_api_server/**, demo_authz_server/**, demo_mcp_gateway/**,
+# demo_mcp_server/openapi/**, demo_mcp_invest/openapi/**, scope-topology.json,
+# service-topology.json, and docs/** — none of which are excluded here.
+
+# Never copy host node_modules into an image; npm ci/npm install provides them.
+**/node_modules
+
+# VCS, agent worktrees, and editor scratch dirs — large and irrelevant to builds.
+# (.claude holds nested git worktrees; sending it as context was very expensive.)
+.git
+.gitignore
+.claude
+.zed-worktrees
+
+# Runtime logs, caches, OS cruft, and test artifacts.
+**/*.log
+**/logs
+**/.DS_Store
+**/coverage
+**/.vite
+**/.turbo
+test-results
