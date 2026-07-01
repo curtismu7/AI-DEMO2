@@ -8,7 +8,7 @@
  * Renders nothing when `options` is empty/missing.
  */
 import { memo } from "react";
-import "./DiagramControls.css";
+import "./StepTimeSelector.css";
 
 function StepTimeSelector({
   value,
