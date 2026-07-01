@@ -13,10 +13,12 @@ argument-hint: 'Describe the MFA device operation (e.g. enroll SMS device, list 
 > `oauth-pingone`. Generic Management API user CRUD belongs to
 > `pingone-api-calls`.
 
-> **Config rule (CLAUDE.md non-negotiable).** Route handlers and services read
-> PingOne config via `configStore.getEffective(key)` — **never** `process.env`
-> directly in a handler. `mfaService.js` resolves env id, region, worker creds
-> and policy id this way.
+> **Config rule (CLAUDE.md).** Route handlers and services read PingOne config
+> via `configStore.getEffective(key)` for env id, region, and policy id.
+> **Exception:** worker-token credentials are **env-first** — `_getWorkerToken()`
+> reads `PINGONE_WORKER_TOKEN_CLIENT_ID` / `_SECRET` / `_AUTH_METHOD` and
+> `PINGONE_RESOURCE_DEVICE_AUTH_URI` from `process.env` first, then falls back
+> to `configStore.getEffective(...)`.
 
 ---
 
@@ -47,7 +49,10 @@ argument-hint: 'Describe the MFA device operation (e.g. enroll SMS device, list 
 
 **Shared across all flows:**
 - Same two endpoints: `POST {authBase}/{envId}/deviceAuthentications` (initiate) and `POST/{daId}` (verify)
-- Same token rule: **user token to initiate, worker token to verify**
+- Same token rule: **worker token for the initiate + sub-resource calls**
+  (`initiateDeviceAuth`, `selectDevice`, `submitOtp`, `getDeviceAuthStatus`,
+  `initiateOneTimeOtp` all use the worker token). The **only** exception is
+  `submitFido2Assertion`, which uses the **user** access token.
 - Same `_wrapError` / `_tryRefresh` error handling
 - Same `_debug` pattern on every service method
 
@@ -74,12 +79,19 @@ Device **enrollment** lives on the Platform API. Device **authentication**
 ## 1. Worker token + MFA scope matrix
 
 Device management uses a **worker (client_credentials) token**, not the user's
-access token. `mfaService._getWorkerToken()` mints it from worker creds
-(`pingone_worker_token_client_id` / `_secret`, falling back to management
-creds) at `getTokenEndpoint()`.
+access token. `mfaService._getWorkerToken()` mints it by posting
+`grant_type=client_credentials` (with **no `scope` parameter** — the token
+inherits whatever scopes are granted on the worker app) to `getTokenEndpoint()`.
 
-Required PingOne API scopes on the worker app (least privilege — do not expand
-without reason):
+Credential lookup is **env-first**: `_getWorkerToken()` reads
+`process.env.PINGONE_WORKER_TOKEN_CLIENT_ID` (then `_SECRET`,
+`_AUTH_METHOD`) first, falling back to `configStore.getEffective(...)` and
+management creds. So for these worker-credential reads the config-first /
+"never `process.env` in a handler" rule does not apply — env wins.
+
+The scopes below describe grants configured on the worker **app** in PingOne
+(inherited into the minted token); they are **not** sent in the token request.
+Keep them least-privilege — do not expand without reason:
 
 | Scope | Enables |
 |---|---|
@@ -122,10 +134,11 @@ behavior. `mfaService._getDefaultMfaPolicy()` resolves the default when
 | By name | list, then filter on `name` (no native by-name endpoint) |
 | Create from template | read template policy, strip `id`/`createdAt`/`updatedAt`/`_links`, set new `name`, `POST {apiBase}/deviceAuthenticationPolicies` |
 
-> Banking note: `mfaService.js` reads `GET {apiBase}/mfaPolicies` (the legacy
-> alias) and caches the resolved default id in `_cachedDefaultPolicyId`
-> (`_resetDefaultPolicyCache()` clears it for tests). Newer code should prefer
-> `deviceAuthenticationPolicies`. Policy create-from-template payloads:
+> Banking note: `_getDefaultMfaPolicy` reads
+> `GET {apiBase}/deviceAuthenticationPolicies` and caches the resolved default
+> id in `_cachedDefaultPolicyId` (`_resetDefaultPolicyCache()` clears it for
+> tests). The legacy `/mfaPolicies` alias returns 403 and is deliberately
+> avoided. Policy create-from-template payloads:
 > see [reference/policy-and-scopes.md](reference/policy-and-scopes.md).
 
 Create-from-template (server-side, config-driven):
@@ -199,10 +212,11 @@ PingOne content-types at challenge time (used in `mfaService.js`):
 | Check FIDO2 assertion | `application/vnd.pingidentity.assertion.check+json` |
 | Activate device (enrollment) | `application/vnd.pingidentity.device.activate+json` |
 
-> Token rule observed in `mfaService.js`: `initiateDeviceAuth` and `submitOtp`
-> use the **user** access token; `selectDevice` and `getDeviceAuthStatus`
-> require the **worker** token (PingOne rejects user tokens on
-> `/deviceAuthentications/{daId}` with `INVALID_TOKEN`).
+> Token rule observed in `mfaService.js`: `initiateDeviceAuth`, `selectDevice`,
+> `submitOtp`, and `getDeviceAuthStatus` all use the **worker** token
+> (`initiateDeviceAuth`'s docstring notes a user token is rejected). The **only**
+> exception is `submitFido2Assertion`, which uses the **user** access token.
+> `initiateOneTimeOtp` likewise uses the worker token.
 
 ---
 
@@ -211,14 +225,14 @@ PingOne content-types at challenge time (used in `mfaService.js`):
 | Code | Role |
 |---|---|
 | `demo_api_server/services/mfaService.js` | All device + deviceAuthentications calls. Worker token, default policy cache, RFC 8693 device-auth exchange, `_debug` request/response capture |
-| `demo_api_server/routes/mfa.js` | `POST /challenge`, `PUT /challenge/:daId`, `GET /challenge/:daId/status`, `POST /test/otp-verify`, `GET /devices`, `DELETE /devices/:deviceId`, `PATCH /devices/:deviceId/nickname`, `POST /enroll/{sms-init,sms-complete,email,fido2-init,fido2-complete}` |
+| `demo_api_server/routes/mfa.js` | `POST /challenge`, `PUT /challenge/:daId`, `GET /challenge/:daId/status`, `POST /test/otp-verify`, `GET /devices`, `DELETE /devices/:deviceId`, `PATCH /devices/:deviceId/nickname`, `POST /enroll/{sms-init,sms-complete,email,email/verify,fido2-init,fido2-complete}`, admin `GET`/`POST /ensure-fido2-rp` |
 | `demo_api_server/routes/mfaTest.js` | `/integration/*` teaching harness exercising the full lifecycle with `_debug` surfaced to the UI |
 
 Wired device types in `mfaService.js`:
 
 | Type | Enroll | Activate | Status |
 |---|---|---|---|
-| EMAIL | `enrollEmailDevice` | OTP via deviceAuthentications | ✅ wired |
+| EMAIL | `enrollEmailDevice` | `completeEmailEnrollment` (PUT + OTP, `device.activate+json`) | ✅ wired |
 | SMS | `enrollSmsDevice` | `completeSmsEnrollment` (PUT + OTP) | ✅ wired |
 | FIDO2 | `initFido2Registration` | `completeFido2Registration` (attestation) | ✅ wired |
 | TOTP | — | — | reference only — see [reference/device-totp.md](reference/device-totp.md) |
@@ -229,10 +243,13 @@ Service contract notes:
 - Every service method attaches `_debug: { request, response }` so the
   teaching UI / Token Chain can render the exact PingOne round-trip. Keep this
   when adding methods.
-- `_wrapError` maps PingOne `401 → code:'token_expired'`,
-  `404|410 → code:'challenge_expired'`; these drive a one-shot
-  refresh + retry via `_tryRefresh` (defined in `mfaService.js`, called from
-  `routes/mfa.js`).
+- `_wrapError(fn, err, opts)` maps PingOne `404|410 → code:'challenge_expired'`.
+  For `401` the mapping is token-kind-aware: a **worker-token** call
+  (`opts.workerToken`) maps to `mfa_service_auth_failed` (a credential/service
+  failure, surfaced by the route as HTTP 502 `mfa_service_unavailable`);
+  a non-worker-token call maps to `token_expired`. Only `token_expired` (and
+  `challenge_expired`) drive the one-shot refresh + retry via `_tryRefresh`
+  (defined in `mfaService.js`, called from `routes/mfa.js`).
 - New Management-API device operations go on `mfaService.js` — do not fork a
   parallel service in a route file (`pingone-api-calls` rule).
 
@@ -246,11 +263,13 @@ Worker-token → lookup user → create device → activate. Replace `{...}`.
 ENV=...; REGION=com; WT="<worker_token>"
 API="https://api.pingone.${REGION}/v1/environments/${ENV}"
 
-# 1. Worker token (client_credentials) — confirm scopes
+# 1. Worker token (client_credentials).
+# NOTE: mfaService._getWorkerToken() sends NO scope parameter — the token
+# inherits the scopes granted on the worker app. The `-d 'scope=...'` line is
+# omitted here to match the real code (add it only if you need to override).
 curl -s -X POST "https://auth.pingone.${REGION}/${ENV}/as/token" \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
-  -d 'grant_type=client_credentials' \
-  -d 'scope=p1:read:user p1:read:device p1:create:device p1:update:device p1:delete:device'
+  -d 'grant_type=client_credentials'
 
 # 2. Lookup user by username
 curl -s "$API/users?filter=username%20eq%20%22user@example.com%22" \
@@ -287,7 +306,9 @@ return `_debug` request/response for the UI.
 | 410 | gone | deviceAuthentications transaction expired — start a new challenge |
 | 429 | `REQUEST_LIMITED` / `LIMIT_EXCEEDED` | Device cap hit — delete an old device and retry (`initFido2Registration` does this) |
 
-`_wrapError` collapses `404|410 → challenge_expired` and `401 → token_expired`.
+`_wrapError` collapses `404|410 → challenge_expired`. A `401` maps to
+`mfa_service_auth_failed` on a **worker-token** call (surfaced as HTTP 502
+`mfa_service_unavailable`), or `token_expired` on a non-worker-token call.
 
 ---
 

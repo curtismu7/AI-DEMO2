@@ -122,14 +122,19 @@ Same as email — `POST {daId}` with `Content-Type: application/vnd.pingidentity
 
 | Operation | Token |
 |---|---|
-| POST initiate (step 1) | **User access token** |
+| POST initiate (step 1) | **Worker token** |
 | POST otp.check (step 2) | **Worker token** |
 | GET poll status | **Worker token** |
 | POST device.select | **Worker token** |
+| POST assertion.check (FIDO2) | **User access token** ⚠️ only exception |
 
-PingOne returns `401 INVALID_TOKEN` if you use a user token on the `{daId}`
-sub-resource calls. `_wrapError` in `mfaService.js` maps this to
-`code:'token_expired'` for retry.
+`mfaService.js` uses the **worker** token for `initiateDeviceAuth`,
+`initiateOneTimeOtp`, `selectDevice`, `submitOtp`, and `getDeviceAuthStatus`.
+The **only** call that uses the **user** access token is
+`submitFido2Assertion`. On a worker-token call a `401` maps to
+`code:'mfa_service_auth_failed'` (a credential/service failure surfaced by the
+route as HTTP 502 `mfa_service_unavailable`), **not** `token_expired` — so it
+does not drive a user-token refresh + retry.
 
 ---
 

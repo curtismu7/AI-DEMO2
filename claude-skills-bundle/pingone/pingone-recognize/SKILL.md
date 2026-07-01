@@ -1,6 +1,6 @@
 ---
 name: pingone-recognize
-description: 'PingOne Recognize biometric face authentication for the Super Banking demo. USE FOR: Recognize WebSDK integration, face enrollment (WEB_ENROLLMENT capability), face authentication (WEB_AUTHENTICATION capability), enroll-from-image (TRUSTED_SOURCE / SELFIE / DOCUMENT scenarios), unenroll, recognizeService.js, RecognizeOverlay.tsx, RecognizeEnrollCard.tsx, hitl_consent_mfa_mode=recognize, verify-recognize and recognize-fallback BFF routes, OTP fallback chain, RECOGNIZE_API_KEY / RECOGNIZE_TENANT_NAME config, SDK CDN script loading, sessionToken lifecycle, Recognize REST API endpoints. DO NOT USE FOR: PingOne MFA device lifecycle (use pingone-mfa); OTP/onetime path internals (use hitl-consent); OAuth/session (use oauth-pingone); BFF session cookie patterns (use bff-sessions).'
+description: 'PingOne Recognize biometric face authentication for the Super Banking demo. USE FOR: Recognize WebSDK integration, face enrollment (WEB_ENROLLMENT capability), face authentication (WEB_AUTHENTICATION capability), enroll-from-image (TRUSTED_SOURCE / SELFIE / DOCUMENT scenarios), unenroll, recognizeService.js, RecognizeOverlay.tsx, hitl_consent_mfa_mode=recognize, verify-recognize and recognize-fallback BFF routes, OTP fallback chain, RECOGNIZE_API_KEY / RECOGNIZE_TENANT_NAME config, SDK CDN script loading, sessionToken lifecycle, Recognize REST API endpoints. DO NOT USE FOR: PingOne MFA device lifecycle (use pingone-mfa); OTP/onetime path internals (use hitl-consent); OAuth/session (use oauth-pingone); BFF session cookie patterns (use bff-sessions).'
 argument-hint: 'Describe the Recognize operation (e.g. initiate face auth session, enroll user, handle SDK error, fallback to OTP)'
 ---
 
@@ -13,7 +13,7 @@ argument-hint: 'Describe the Recognize operation (e.g. initiate face auth sessio
 ## When to Use
 
 - Integrating or debugging PingOne Recognize biometric face authentication (WebSDK, face enrollment, face authentication)
-- Working with `recognizeService.js`, `RecognizeOverlay.tsx`, `RecognizeEnrollCard.tsx`, or the BFF Recognize routes
+- Working with `recognizeService.js`, `RecognizeOverlay.tsx`, or the BFF Recognize routes
 - Configuring `hitl_consent_mfa_mode=recognize`, `RECOGNIZE_API_KEY`, `RECOGNIZE_TENANT_NAME`, or sessionToken lifecycle
 - Implementing enroll-from-image (`TRUSTED_SOURCE`/`SELFIE`/`DOCUMENT` scenarios) or the OTP fallback chain
 
@@ -25,7 +25,7 @@ argument-hint: 'Describe the Recognize operation (e.g. initiate face auth sessio
 
 ## Overview
 
-PingOne Recognize is a biometric face authentication service by Keyless (now part of Ping Identity). In this demo it is wired as the fourth `hitl_consent_mfa_mode` value (`recognize`). When selected, a face scan replaces OTP as the HITL consent verification step. Enrollment is managed from the Profile page.
+PingOne Recognize is a biometric face authentication service by Keyless (now part of Ping Identity). In this demo it is wired as the fourth `hitl_consent_mfa_mode` value (`recognize`). When selected, a face scan replaces OTP as the HITL consent verification step. Enrollment is exposed server-side via the `/api/recognize/enroll` routes; there is **no Profile enrollment UI** — the client-side enrollment card described below is planned/unbuilt.
 
 **This feature is PoC-grade.** Recognize's DaVinci connector is explicitly marked proof-of-concept by Ping PM. The WebSDK path used here is the more stable option for demos.
 
@@ -113,7 +113,7 @@ X-API-Key: {apiKey}
 { "username": "{userId}", "image": "{base64jpeg}", "scenario": "TRUSTED_SOURCE" }
 ```
 
-Remove `\n` characters and the `-----BEGIN/END PUBLIC KEY-----` wrapper from any image public key before use (per Recognize API docs).
+`enrollFromImage` passes `imageBase64` **verbatim** — it does not strip `\n` characters or `-----BEGIN/END PUBLIC KEY-----` wrappers. If your source produces a wrapped/newline-formatted value, the **caller** must clean it to raw base64 before passing it in.
 
 ### `unenrollUser(userId)`
 
@@ -135,14 +135,16 @@ POST /consent-challenge/:id/confirm
   → mfaMode === 'recognize'
   → recognizeService.initiateSession(userId)
   → { ok: true, mode: 'recognize', sessionToken, sessionId }
-  → UI mounts RecognizeOverlay with sessionToken
-  → SDK WEB_AUTHENTICATION runs
+  → (PLANNED) UI mounts RecognizeOverlay with sessionToken
+  → (PLANNED) SDK WEB_AUTHENTICATION runs
   → onFinish(sdkResult)
   → POST /consent-challenge/:id/verify-recognize { result: sdkResult }
   → recognizeService.verifySession(sessionId, sdkResult) → true
   → ch.status = 'confirmed'
   → POST /api/transactions { consentChallengeId } → executes
 ```
+
+> ⚠️ **Client-side integration is NOT wired.** The server side of this flow (initiate, verify-recognize, recognize-fallback) is implemented, but `TransactionConsentModal.tsx` has no recognize handling — it never sends `mode: 'recognize'`, never mounts `RecognizeOverlay`, and never calls `verify-recognize`/`recognize-fallback`. The steps marked `(PLANNED)` above and in the fallback table describe how the (unbuilt) client integration is intended to work.
 
 ### Fallback chain — OTP on any failure
 
@@ -151,11 +153,11 @@ Every failure point falls back to `onetime` OTP. The fallback is **transparent**
 | Failure point | How fallback triggers |
 |---|---|
 | `initiateSession` throws (API down, bad key) | `confirmChallenge` catches, runs `_initiateOnetimeOtp` inline, returns `{ mode: 'onetime_fallback', ... }` |
-| SDK `onError` fires in browser | `RecognizeOverlay` calls `onFallback` after 3000ms auto-dismiss; UI calls `POST /recognize-fallback` |
+| SDK `onError` fires in browser (PLANNED) | `RecognizeOverlay` would call `onFallback` after 3000ms auto-dismiss; UI would call `POST /recognize-fallback` — not wired today |
 | `verifySession` returns `false` | `verifyRecognize` returns `{ ok: false, fallback: true }` → UI calls `POST /recognize-fallback` |
 | `verifySession` throws | Same as above |
 
-**`/recognize-fallback` route:** resets challenge from `recognize_pending` back to `pending`, then runs the `onetime` OTP path. Returns the same shape as `confirmChallenge` in `onetime` mode.
+**`/recognize-fallback` route:** resets challenge from `recognize_pending` back to `pending`, then runs the `onetime` OTP path. `recognizeFallback` returns the standard `onetime` shape but with `mode` overridden to `'onetime_fallback'` (so callers can tell a fallback OTP from a normally-initiated one).
 
 ### Challenge status lifecycle for `recognize` mode
 
@@ -183,7 +185,7 @@ All under `/api/transactions/` prefix in `server.js` (same pattern as `verify-ot
 
 | Route | Handler | Purpose |
 |---|---|---|
-| `POST /consent-challenge/:id/verify-recognize` | `txConsent.verifyRecognize(req, challengeId, req.body.result)` | Validate SDK result, advance to confirmed |
+| `POST /consent-challenge/:id/verify-recognize` | `txConsent.verifyRecognize(req, challengeId, req.body.result \|\| req.body)` | Validate SDK result, advance to confirmed |
 | `POST /consent-challenge/:id/recognize-fallback` | `txConsent.recognizeFallback(req, challengeId)` | Pivot from recognize_pending to onetime OTP |
 
 Enrollment lifecycle routes under `/api/recognize/`:
@@ -205,7 +207,7 @@ Enrollment lifecycle routes under `/api/recognize/`:
 https://cdn.keyless.technology/web-sdk/latest/pingone-recognize.js
 ```
 
-Loaded via a `<script>` tag injected by React components (`RecognizeOverlay`, `RecognizeEnrollCard`). The tag is idempotent — both components check for `window.PingOneRecognize` before injecting a second tag.
+Loaded via a `<script>` tag injected by the `RecognizeOverlay` component. The tag is idempotent — the component checks for `window.PingOneRecognize` before injecting a second tag.
 
 ### Content-Security-Policy
 
@@ -234,6 +236,8 @@ instance.destroy?.();
 
 ### `RecognizeOverlay` component (`demo_api_ui/src/components/RecognizeOverlay.tsx`)
 
+> ⚠️ This component **exists in the repo but is never imported or mounted**. `TransactionConsentModal.tsx` has no recognize handling, so the overlay is not reachable in the running app. The props/behaviour below describe the component as written, for when the client-side consent integration is eventually wired up.
+
 Props:
 - `sessionToken: string` — from `confirmChallenge` response
 - `onSuccess(sdkResult)` — called by `onFinish`; posts to `/verify-recognize`
@@ -242,9 +246,9 @@ Props:
 
 Renders as a full-page overlay (`position: fixed; inset: 0; z-index: 9999`) with a centred card containing the SDK camera container.
 
-### `RecognizeEnrollCard` component (`demo_api_ui/src/components/RecognizeEnrollCard.tsx`)
+### Profile enrollment UI — NOT BUILT
 
-Rendered as a third `up-card` section on the Profile page (below MFA Devices). Shows:
+There is **no Profile enrollment component** (`RecognizeEnrollCard.tsx` does not exist anywhere in the repo). The `/api/recognize/enroll` and `DELETE /api/recognize/enroll` routes are live and usable server-side, but no client card currently drives them. A planned Profile card would expose:
 - Enrollment status (enrolled ✅ / not enrolled)
 - "Enroll Face ID" button → SDK `WEB_ENROLLMENT` capability
 - "Remove Face ID" button → `DELETE /api/recognize/enroll`
@@ -262,9 +266,9 @@ The flag is read in `transactionConsentChallenge.js:confirmChallenge`. All exist
 
 ## Debugging
 
-**Check env vars are set:**
+**Check env vars are set:** there is no dedicated RECOGNIZE check — `./run.sh status` calls `print_status_table` (not `check-env.js`), and `check-env.js` has no RECOGNIZE group. Verify the values directly:
 ```bash
-./run.sh status   # check-env.js prints RECOGNIZE group as ok / partial
+grep -E 'RECOGNIZE_(API_KEY|TENANT_NAME|BASE_URL)' .env
 ```
 
 **Initiate a session manually:**
@@ -286,7 +290,7 @@ Expected: `{ "sessionToken": "...", "sessionId": "..." }`
 | SDK script fails to load | CSP `scriptSrc` missing CDN domain | Add `https://cdn.keyless.technology` to `scriptSrc` in `server.js` helmet config |
 | `recognize_not_expected` (409) | Challenge not in `recognize_pending` state | UI called verify-recognize on wrong challenge or after expiry |
 | `recognize_expired` (410) | OTP_TTL_MS elapsed | User took too long — start transaction again |
-| Face scan rejected immediately | User not enrolled | Direct user to Profile → Enroll Face ID |
+| Face scan rejected immediately | User not enrolled | Enroll the user via `POST /api/recognize/enroll` (no Profile UI exists yet) |
 
 ---
 
@@ -295,7 +299,7 @@ Expected: `{ "sessionToken": "...", "sessionId": "..." }`
 - `transactionConsentChallenge.js` — the `recognize` branch must come **before** the homegrown OTP block. Do not move it after the `generateOtp()` call.
 - `verifyRecognize` sets `ch.status = 'confirmed'` only on `ACCEPTED`. It must **not** set confirmed on `verifySession` returning `false` — that path goes to `fallback: true`.
 - `recognizeFallback` resets `ch.status` back to `'pending'` before calling `_initiateOnetimeOtp`. If you skip this reset, `_initiateOnetimeOtp` will see `status !== 'pending'` and return a 409.
-- The `ontime_fallback` mode key is checked by name in `TransactionConsentModal.tsx`. Do not rename it.
+- The server emits `mode: 'onetime_fallback'` from `recognizeFallback` (`transactionConsentChallenge.js:789,794`). No client currently checks this key by name (`TransactionConsentModal.tsx` has no recognize handling), but keep the exact spelling for the planned UI and any log/consumer that reads it.
 
 ---
 

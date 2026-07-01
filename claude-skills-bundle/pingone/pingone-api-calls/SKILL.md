@@ -1,6 +1,6 @@
 ---
 name: pingone-api-calls
-description: 'Patterns for calling PingOne Management API from demo_api_server. USE FOR: read user, update user attributes, p1:read:user, p1:update:user, list users, create user, delete user, PingOne Management API /v1/environments, /users endpoint, worker app token calls, admin PingOne REST API, new service file, new route calling PingOne, error handling for PingOne responses, existing services (mfaService.js, pingoneManagementService.js, pingoneUserService.js, pingoneBootstrapService.js). DO NOT USE FOR: OAuth login, token exchange, or session flows (use oauth-pingone); MFA device lifecycle (use pingone-mfa); MCP server tools (use mcp-server); session/cookie patterns (use bff-sessions); HITL/consent (use hitl-consent).'
+description: 'Patterns for calling PingOne Management API from demo_api_server. USE FOR: read user, update user attributes, p1:read:user, p1:update:user, list users, create user, delete user, PingOne Management API /v1/environments, /users endpoint, worker app token calls, admin PingOne REST API, new service file, new route calling PingOne, error handling for PingOne responses, existing services (mfaService.js, pingoneManagementService.js, pingOneUserService.js, pingoneBootstrapService.js). DO NOT USE FOR: OAuth login, token exchange, or session flows (use oauth-pingone); MFA device lifecycle (use pingone-mfa); MCP server tools (use mcp-server); session/cookie patterns (use bff-sessions); HITL/consent (use hitl-consent).'
 argument-hint: 'Describe the PingOne API call you need to make (e.g. read user, update MFA)'
 ---
 
@@ -11,7 +11,7 @@ argument-hint: 'Describe the PingOne API call you need to make (e.g. read user, 
 - Making calls to the PingOne Management API from `demo_api_server` (read user, update user, list users, create/delete)
 - Adding a new service file or route that calls PingOne's `/v1/environments/{envId}/users` endpoint
 - Working with worker app `client_credentials` tokens for Management API access
-- Extending existing services: `mfaService.js`, `pingoneManagementService.js`, `pingoneUserService.js`, `pingoneBootstrapService.js`
+- Extending existing services: `mfaService.js`, `pingoneManagementService.js`, `pingOneUserService.js`, `pingoneBootstrapService.js`
 - Handling PingOne error responses or debugging `invalid_client` / `INVALID_DATA` errors from Management API calls
 
 ## When NOT to Use
@@ -77,6 +77,10 @@ Use for provisioning/management calls (user CRUD, app registration, etc.):
 const axios = require('axios');
 const configStore = require('../services/configStore');
 
+// Illustrative only. The canonical worker-token implementation is
+// `pingOneClientService.getManagementToken()` — use it; don't hand-roll this.
+// The real client-id lookup falls back through a key chain:
+//   pingone_worker_token_client_id → PINGONE_MGMT_CLIENT_ID → PINGONE_MANAGEMENT_CLIENT_ID
 async function getManagementToken() {
   const envId        = configStore.getEffective('pingone_environment_id');
   const region       = configStore.getEffective('pingone_region') || 'com';
@@ -173,7 +177,7 @@ const configStore = require('../services/configStore');
 const mcpToken = await oauthService.performTokenExchange(
   req.session.oauthTokens.access_token,
   configStore.getEffective('pingone_resource_mcp_server_uri'),
-  ['banking:read', 'banking:write', 'banking:mcp:invoke']
+  ['read', 'write', 'mcp:invoke']
 );
 
 // Refresh
@@ -195,7 +199,7 @@ const cibaService = require('../services/cibaService');
 const { auth_req_id, expires_in, interval } = await cibaService.initiateBackchannelAuth(
   loginHint,        // user's email or sub
   bindingMessage,   // short string shown in push/email
-  'openid profile email banking:write',
+  'openid profile email write',
   acrValues         // e.g. 'Multi_factor' for step-up
 );
 
@@ -217,7 +221,7 @@ export const getSession = () =>
   fetch('/api/auth/session', { credentials: 'include' }).then(r => r.ok ? r.json() : null);
 
 export const loginAdmin = () => { window.location.href = '/api/auth/oauth/login'; };
-export const loginUser  = () => { window.location.href = '/api/auth/oauthuser/login'; };
+export const loginUser  = () => { window.location.href = '/api/auth/oauth/user/login'; };
 export const logout     = () => fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
 
 // CIBA from UI
@@ -245,9 +249,9 @@ export async function pollCiba(authReqId) {
 | Route | Auth Required | Description |
 |-------|---------------|-------------|
 | `GET  /api/auth/oauth/login` | No | Start admin login (PKCE) |
-| `GET  /api/auth/oauthuser/login` | No | Start user login (PKCE) |
+| `GET  /api/auth/oauth/user/login` | No | Start user login (PKCE) |
 | `GET  /api/auth/oauth/callback` | No | Admin OAuth callback |
-| `GET  /api/auth/oauthuser/callback` | No | User OAuth callback |
+| `GET  /api/auth/oauth/user/callback` | No | User OAuth callback |
 | `GET  /api/auth/session` | No | Returns current session user info |
 | `POST /api/auth/logout` | No | Revoke tokens + destroy session |
 | `POST /api/auth/ciba/initiate` | Yes | Start CIBA backchannel flow |
@@ -257,10 +261,10 @@ export async function pollCiba(authReqId) {
 | `GET  /api/accounts` | Yes | List user's bank accounts |
 | `GET  /api/transactions` | Yes | List transactions |
 | `POST /api/transactions/transfer` | Yes | Initiate transfer |
-| `GET  /api/admin/users` | Admin | PingOne user directory (via Management API) |
-| `POST /api/admin/client-registration` | Admin | Create PingOne app (CIMD flow) |
-| `GET  /api/config` | Admin | Read app config |
-| `POST /api/config` | Admin | Update app config |
+| `GET  /api/users` | Yes | PingOne user directory (routes/users.js; `/api/admin` via pingOneUserLookupService) |
+| `POST /api/clients` | Admin | Create PingOne app (CIMD flow; mounted server.js:1211) |
+| `GET  /api/admin/config` | Admin | Read app config (server.js:949, routes/adminConfig.js) |
+| `POST /api/admin/config` | Admin | Update app config (routes/adminConfig.js) |
 
 ---
 
@@ -354,9 +358,11 @@ Before writing a new service that calls PingOne Management API, check whether th
 | Service | Owns |
 |---|---|
 | `demo_api_server/services/mfaService.js` | MFA device list/delete/rename, nickname patch, enrollment helpers |
-| `demo_api_server/services/pingoneUserService.js` | User CRUD against `/v1/environments/{envId}/users` |
-| `demo_api_server/services/pingoneManagementService.js` | Generic Management API helpers (HTTP client, error wrapping, worker-token caching) |
-| `demo_api_server/services/pingoneBootstrapService.js` | Idempotent provisioning used by `npm run pingone:bootstrap` (apps, resources, scopes, demo users) |
+| `demo_api_server/services/pingOneUserService.js` | User CRUD against `/v1/environments/{envId}/users`; owns the real token cache (`this.accessToken` / `this.tokenExpiry`) |
+| `demo_api_server/services/pingoneManagementService.js` | Thin resource/scope/app helper — consumes an injected token param or reads `PINGONE_MANAGEMENT_API_TOKEN` from `process.env`; does **not** cache tokens |
+| `demo_api_server/services/pingOneClientService.js` | Worker-token acquisition (`getManagementToken()`) — canonical `client_credentials` mgmt-token implementation |
+| `demo_api_server/services/pingoneProvisionService.js` | Idempotent provisioning (`provisionEnvironment()`) used by `npm run pingone:bootstrap` via `scripts/bootstrapPingOne.js` (apps, resources, scopes, demo users) |
+| `demo_api_server/services/pingoneBootstrapService.js` | Separate manifest-plan / probe helper (not what `npm run pingone:bootstrap` runs) |
 
 When you add a new Management API operation, add it as a method on the appropriate service above — don't fork a parallel service in a route file. The token-custody and `configStore` rules apply to anything you add.
 
@@ -366,7 +372,7 @@ When you add a new Management API operation, add it as a method on the appropria
 
 - ✅ All PingOne calls go through `demo_api_server` — never from the browser
 - ✅ Client secrets read from `configStore.getEffective()` — not `process.env` in route files (CLAUDE.md non-negotiable)
-- ✅ Management API tokens are short-lived, obtained per-request via client_credentials and cached for their TTL by `pingoneManagementService`
+- ✅ Management API tokens are short-lived, obtained via `client_credentials`; the token cache lives in `pingOneUserService` (`this.accessToken` / `this.tokenExpiry`), and worker-token acquisition in `pingOneClientService.getManagementToken()` — `pingoneManagementService` does **not** cache tokens (it consumes an injected token or `process.env.PINGONE_MANAGEMENT_API_TOKEN`)
 - ✅ `timeout: 10000` on all `axios` calls
 - ✅ Check `configStore.isConfigured()` (or per-key `configStore.getEffective` returning non-null) before PingOne calls; return graceful error if not set up
 - ❌ Never log `access_token`, `client_secret`, or `code_verifier` values

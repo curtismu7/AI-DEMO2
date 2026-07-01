@@ -33,7 +33,7 @@ argument-hint: 'Describe the OAuth flow or token operation you need to implement
 
 | Scenario | Grant Type | Use In This Project |
 |---|---|---|
-| User signs in via browser redirect | `authorization_code` + PKCE S256 | Admin login (`/api/auth/login`), User login (`/api/auth/oauthuser/login`) |
+| User signs in via browser redirect | `authorization_code` + PKCE S256 | Admin login (`/api/auth/oauth/login`), User login (`/api/auth/oauth/user/login`) |
 | Server-side machine-to-machine | `client_credentials` | Agent actor token (`oauthService.getAgentClientCredentialsToken()`) |
 | Out-of-band user approval (no browser) | CIBA (`urn:openid:params:grant-type:ciba`) | Step-up auth, transfer approval (`cibaService.js`) |
 | Delegate user token to another audience | Token Exchange (`urn:ietf:params:oauth:grant-type:token-exchange`) | MCP server access (`oauthService.performTokenExchange()`) |
@@ -122,7 +122,7 @@ PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID=<agent-client-id>
 PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET="<agent-client-secret>"
 PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SCOPES=openid
 PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD=basic           # basic | post (post for PingOne AI_AGENT apps)
-MCP_TOKEN_EXCHANGE_SCOPES=banking:read banking:write banking:mcp:invoke
+MCP_TOKEN_EXCHANGE_SCOPES=read write mcp:invoke largepurchase:read records:read gear:read expense:read
 
 # CIBA
 CIBA_ENABLED=true
@@ -236,6 +236,8 @@ router.get('/callback', async (req, res) => {
     tokenType: tokens.token_type,
   };
   req.session.oauthType = 'admin';
+  // determineRole() below is ILLUSTRATIVE PSEUDOCODE — no helper by this exact name
+  // exists; derive the role from your own id_token claims / group mapping.
   req.session.user = { ...idTokenClaims, role: determineRole(idTokenClaims) };
 
   clearPkceCookie(res, isProd());
@@ -381,19 +383,21 @@ Used to mint a scoped delegated token for a specific audience (e.g., MCP server)
 ### 7a. Simple Token Exchange (subject only)
 
 ```javascript
-// services/oauthService.js — performTokenExchange()
+// services/oauthService.js — performTokenExchange(subjectToken, audience, scopes)
+// The caller passes the subject token, target audience, and scopes; client auth is
+// applied to the request via header by applyAdminTokenEndpointClientAuth() — there is
+// NO client_secret in the body.
 // T1 (user access token) → T2 (MCP-scoped delegated token)
-const configStore = require('./configStore');
 const body = new URLSearchParams({
   grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-  subject_token: userAccessToken,           // T1 — end-user's token
+  subject_token: subjectToken,              // T1 — end-user's token
   subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
   requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
-  audience: configStore.getEffective('pingone_resource_mcp_server_uri'),
-  scope: configStore.getEffective('mcp_token_exchange_scopes') || 'banking:read banking:write banking:mcp:invoke',
-  client_id: configStore.getEffective('pingone_admin_client_id'),
-  client_secret: configStore.getEffective('pingone_admin_client_secret'),
+  audience,                                 // caller-supplied target audience
+  scope: scopes,                            // caller-supplied (default from mcp_token_exchange_scopes)
 });
+// Client auth (Basic header or client_id in body per configured method) is added here:
+applyAdminTokenEndpointClientAuth(body, headers);
 // T2: sub = user sub (unchanged), act = { client_id: <bff-client-id> }
 // This is delegation, NOT impersonation
 ```
@@ -411,7 +415,7 @@ const body = new URLSearchParams({
   actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
   requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
   audience: configStore.getEffective('pingone_resource_mcp_server_uri'),
-  scope: configStore.getEffective('mcp_token_exchange_scopes') || 'banking:read banking:write banking:mcp:invoke',
+  scope: configStore.getEffective('mcp_token_exchange_scopes') || 'read write mcp:invoke largepurchase:read records:read gear:read expense:read',
   client_id: configStore.getEffective('pingone_admin_client_id'),
   client_secret: configStore.getEffective('pingone_admin_client_secret'),
 });
@@ -435,9 +439,9 @@ Rules of thumb for this codebase:
 - **In a two-exchange delegation chain, each exchange requests scopes for ONE
   resource only.** The intermediate-audience exchange (Exchange #1) requests
   only the scope unique to the Intermediate resource
-  (`two_exchange_intermediate_scope`, default `banking:two-exchange:intermediate`);
+  (`two_exchange_intermediate_scope`, default `agent:invoke`);
   the actor-CC tokens use `agent_gateway_cc_scope` / `mcp_gateway_cc_scope`. The
-  real tool scopes (`banking:read` + `banking:mcp:invoke`, which span resources)
+  real tool scopes (`read` + `mcp:invoke`, which span resources)
   belong **only** at the final exchange against the final audience — never at an
   intermediate leg.
 - A worker/AI-agent app *should* still be granted scopes across multiple
@@ -578,7 +582,7 @@ async revokeToken(token, tokenType) {
   }).catch(err => console.warn('[RFC7009] revocation failed (non-fatal):', err.message));
 }
 
-router.post('/logout', async (req, res) => {
+router.get('/logout', async (req, res) => {
   const { oauthTokens } = req.session;
   await oauthService.revokeToken(oauthTokens?.refreshToken, 'refresh_token');
   await oauthService.revokeToken(oauthTokens?.accessToken,  'access_token');
@@ -601,7 +605,8 @@ const response = await axios.post(
 );
 // { active: true, sub, scope, client_id, aud, exp, iss, token_type }
 // { active: false }  ← revoked, expired, or unknown token
-// See middleware/tokenIntrospection.js — caches results for 60s per token prefix
+// See middleware/tokenIntrospection.js — per-client cache key, 30s TTL / 60s eviction
+// (the earlier token-prefix cache key was removed as a collision risk)
 ```
 
 ---
@@ -643,12 +648,18 @@ res.redirect(`${AUTH_BASE}/authorize?client_id=${CLIENT_ID}&request_uri=${encode
 | `profile` | Admin, User | name, given_name, family_name |
 | `email` | Admin, User | email, email_verified |
 | `offline_access` | User | Adds refresh_token |
-| `banking:read` | User | Read accounts/transactions |
-| `banking:write` | User | Transfer/payment actions |
-| `banking:admin` | Admin | User management, admin config |
-| `p1:read:user` | Worker | Read PingOne directory |
-| `p1:update:user` | Worker | Update user attributes |
-| `p1:update:userMfaEnabled` | Worker | Enable/disable MFA |
+| `read` | User | Read accounts/transactions |
+| `write` | User | Transfer/payment actions |
+| `mcp:invoke` | User | Invoke MCP server tools |
+| `admin:read` | Admin | Read admin config / user management |
+| `admin:write` | Admin | Write admin config / user management |
+
+> **Worker directory access is NOT a scope.** PingOne reserves the `p1:*` namespace
+> (e.g. `p1:read:user`, `p1:update:user`, `p1:update:userMfaEnabled`) and **rejects any
+> attempt to provision them as custom resource scopes**. A Worker app's ability to read
+> the PingOne directory or toggle MFA is granted via **ROLE assignments** (e.g. Identity
+> Data Admin) on the worker app / service account — not by requesting these as OAuth
+> scopes. Do not add them to a resource server's scope list.
 
 ---
 
@@ -660,7 +671,7 @@ res.redirect(`${AUTH_BASE}/authorize?client_id=${CLIENT_ID}&request_uri=${encode
 | Grant types | `authorization_code`, `refresh_token`, `token-exchange`, CIBA | `authorization_code`, `refresh_token` | `client_credentials` |
 | PKCE enforcement | `S256_REQUIRED` | `S256_REQUIRED` | N/A |
 | Token endpoint auth | `CLIENT_SECRET_BASIC` | `CLIENT_SECRET_BASIC` | `CLIENT_SECRET_BASIC` |
-| Redirect URIs | `/api/auth/oauth/callback` | `/api/auth/oauthuser/callback` | N/A |
+| Redirect URIs | `/api/auth/oauth/callback` | `/api/auth/oauth/user/callback` | N/A |
 | Token exchange | ✅ Enable | ❌ | ❌ |
 | CIBA | ✅ Enable | ❌ | ❌ |
 
