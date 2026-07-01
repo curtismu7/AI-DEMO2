@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { processSupportMessage } = require('../services/supportAgentService');
-const agentSessionMiddleware = require('../middleware/agentSessionMiddleware');
+const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const requestEventEmitterMiddleware = require('../middleware/requestEventEmitterMiddleware');
 
 /**
