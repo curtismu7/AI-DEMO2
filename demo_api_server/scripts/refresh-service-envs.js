@@ -309,6 +309,10 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT: `${asBase}/token`,
     AGENT_CLIENT_ID:        creds.agentClientId,
     AGENT_CLIENT_SECRET:    creds.agentSecret,
+    LLM_PROVIDER:           fb('LLM_PROVIDER') || 'helix',
+    LLAMACPP_BASE_URL:      fb('LLAMACPP_BASE_URL'),
+    OLLAMA_BASE_URL:        fb('OLLAMA_BASE_URL'),
+    LLM_MODEL:              fb('LLM_MODEL'),
   });
   console.log('[refresh-envs] Wrote demo_agent_service/.env');
 

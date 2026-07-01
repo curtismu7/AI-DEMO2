@@ -122,7 +122,7 @@ export default function InlineTokenChainView() {
         <div className="itcv-flow" id="itcv-flow-row" role="list" aria-label="Token exchange steps">
           {events.map((ev, i) => (
             <InlineStep
-              key={ev.id ? `${ev.id}-${i}` : i}
+              key={ev.id ? `${ev.id}-${i}` : `no-id-${i}`}
               event={ev}
               halted={isHaltedAt(events, i)}
               didNotRun={haltedIdx !== -1 && i > haltedIdx}

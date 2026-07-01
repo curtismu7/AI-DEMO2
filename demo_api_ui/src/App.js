@@ -119,6 +119,7 @@ import PublicRoutes, {
   AgentPageRoute,
   AuthzTestPageRoute,
   CodeExplorerPageRoute,
+  CodeSearchPageRoute,
   ConfigurePage,
   CopilotPageRoute,
   MFATestPageRoute,
@@ -437,6 +438,12 @@ function AppWithAuth() {
                   path="/code-explorer"
                   element={
                     <CodeExplorerPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/code-search"
+                  element={
+                    <CodeSearchPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

@@ -579,15 +579,19 @@ export default function AdminSideNav({ user }) {
       icon: "arc",
       children: [
         {
+          label: "System Diagram",
+          path: "/architecture/system",
+          icon: "arc",
+        },
+        {
           label: "Overview Diagram",
           path: "/architecture/overview",
           icon: "bld",
         },
         {
           label: "Token Flow (Interactive)",
+          path: "/architecture/token-flow",
           icon: "lnk",
-          action: () =>
-            window.open("/architecture/token-flow.html", "_blank", "noopener"),
         },
         { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
         {

@@ -107,6 +107,10 @@ runtime switchable"]
 
     %% ── Additional Node services ───────────────────────────────────────
     AgentService["demo_agent_service<br/>TypeScript LangGraph agent :3006<br/>(optional alternative — default agent is<br/>in-process BFF LangGraph /api/banking-agent)"]
+
+    %% ── A2A agent-to-agent delegation ──────────────────────────────────
+    A2AOrch["A2A Orchestrator<br/>CrewAI crew: decide / coordinate / authorize"]
+    Specialist["Specialist Agent<br/>Investment Advisor / Records / Purchase"]
     MCPInvestSvc["demo_mcp_invest<br/>Investment MCP server :8081"]
     MortgageSvc["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
     HITLSvc["demo_hitl_service<br/>Out-of-band consent :3009"]
@@ -194,6 +198,12 @@ runtime switchable"]
     GwProxy -->|"Bearer + id_token (Path B)<br/>Bearer exchanged (Path C)"| BankingRS
     AuthRoutes -->|"prompt + user token"| AgentService
     AgentService -->|"WS exchanged Bearer"| GwProxy
+
+    %% ── A2A delegation: generalist → orchestrator → specialist → tool ──
+    AgentService -->|"Delegate? (A2A)"| A2AOrch
+    A2AOrch -->|"Approve act-chain"| PDP
+    A2AOrch -->|"RFC 8693 nested act"| Specialist
+    Specialist -->|"Narrow tool call"| GwProxy
     AuthRoutes -->|"consent challenge"| HITLSvc
     HITLSvc -.->|"approval / deny callback"| AuthRoutes
     AuthRoutes -->|"vaultLoader.js startup-load<br/>configStore.setRaw persist:false"| Vault
@@ -269,6 +279,7 @@ env: VALIDATION_MODE · runtime switchable"]
     class API,AuthRoutes,CibaRoutes,McpInspectorRoutes,TxRoutes,AdminRoutes,UserRoutes,AccountRoutes,Health,Middleware,Gates,RuntimeSettings,DataStore,AuthorizeService,OAuthMonitor,ValidationMode,ValidationRoutes,IntrospectionHealth backend
     class MCP,MCPProtocol,MCPTools,MCPAuth mcp
     class Agent,FastAPI,HealthInsp,LangChain,MCPClientPy agent
+    class A2AOrch,Specialist agent
     class Standards,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 standard
     class Gateway,GwProxy,GwAuthorize,AgentService,MCPInvestSvc,MortgageSvc,HITLSvc,ResourceServer,BankingRS,BankingSQLite,PingGW,AGUIRoutes backend
     class Vault,AgentTokenSvc planned

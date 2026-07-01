@@ -102,6 +102,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
 
     if (loopResult.ok) {
       appEventService.logEvent('agent', 'info', 'Admin agent response ready', { tag: 'agent/admin_complete' });
+      const displayModel = llmModel || 'Claude 3.5 Sonnet';
       return {
         reply: loopResult.answer,
         success: true,
@@ -111,9 +112,18 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
         requiresConsent: false,
         agentConfigured: true,
         tokenEvents: tokenEvents || [],
+        agentHeader: `🤖 [ADMIN AGENT - LangGraph - ${displayModel}]`,
+        metadata: {
+          framework: 'LangGraph',
+          model: displayModel,
+          provider: llmProvider,
+          agentType: 'admin',
+          features: ['MCP tools', 'state graphs', 'RFC 8693 tokens']
+        }
       };
     }
 
+    const displayModel = llmModel || 'Claude 3.5 Sonnet';
     return {
       reply: loopResult.reason === 'max_iterations' ? maxIterationsReached() : reasoningUnavailable(),
       success: false,
@@ -123,9 +133,27 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
       error: loopResult.reason || 'reasoning_unavailable',
+      agentHeader: `🤖 [ADMIN AGENT - LangGraph - ${displayModel}]`,
+      metadata: {
+        framework: 'LangGraph',
+        model: displayModel,
+        provider: llmProvider,
+        agentType: 'admin'
+      }
     };
   } catch (err) {
     console.error('[adminAgentService] Unhandled error:', err.message);
+    // Fallback: if llmModel wasn't captured, get it again
+    let displayModel = llmModel;
+    if (!displayModel) {
+      try {
+        const { resolveLlmProvider } = require('./llmProviderResolver');
+        const resolved = resolveLlmProvider({ ...langchainConfig, provider: undefined });
+        displayModel = resolved.model;
+      } catch {
+        displayModel = 'Claude 3.5 Sonnet';
+      }
+    }
     return {
       reply: reasoningUnavailable(),
       success: false,
@@ -135,6 +163,12 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
       error: 'internal_error',
+      agentHeader: `🤖 [ADMIN AGENT - LangGraph - ${displayModel || 'Claude 3.5 Sonnet'}]`,
+      metadata: {
+        framework: 'LangGraph',
+        model: displayModel || 'Claude 3.5 Sonnet',
+        agentType: 'admin'
+      }
     };
   }
 }

@@ -1,25 +1,6 @@
 import React from "react";
 import { useVertical } from "../vertical/useVertical";
-
-function formatValue(value, format) {
-  if (value === null || value === undefined) return "—";
-  switch (format) {
-    case "money":
-      return "$" + Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    case "count":
-      return String(Math.round(Number(value)));
-    case "date":
-      return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    case "percent": {
-      const n = Number(value);
-      if (Number.isNaN(n)) return String(value);
-      return n.toFixed(2) + "%";
-    }
-    case "text":
-    default:
-      return String(value);
-  }
-}
+import { formatValue } from "../utils/formatters";
 
 function resolveValue(dataKey, heroStats) {
   if (!heroStats) return undefined;

@@ -101,7 +101,6 @@ import { appendMcpCall } from "../services/mcpCallStore";
 import { appendAuthorizeDecision } from "../services/authorizeDecisionStore";
 import {
   resolveSessionFromAuthTrio,
-  formatCurrency,
   normalizeAgentToolResult,
   enforceVerticalAccountTypes,
   buildConsentIntent,

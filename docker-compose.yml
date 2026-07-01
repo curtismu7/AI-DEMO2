@@ -90,11 +90,12 @@ services:
       # flag in resolveAuthorizeMode() and would make the flip a no-op.
       FF_AUTHORIZE_SIMULATED: "false"
       AUTHORIZE_FAILOVER_MODE: "deny"
-      # Default agent to the real Ping (Helix) reasoning engine. Seeds a fresh
-      # bff-data volume; persisted /config selection still wins. Requires the
-      # Helix key (LLM2.json mount / HELIX_API_KEY) — falls back to heuristic
-      # routing if Helix is unconfigured.
-      AGENT_MODE: "helix_google"
+      # Default agent to the local llama.cpp reasoning engine (free, no external
+      # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
+      # OVERRIDES any persisted /config selection on every read — it is the
+      # single source of truth for the default agent mode. The reason loop runs
+      # in agent-service (:3006) against LLAMACPP_BASE_URL (the :8090 model proxy).
+      AGENT_MODE: "llamacpp"
       LANGCHAIN_AGENT_HTTP_URL: "http://langchain-agent:8888"
       AGENT_SERVICE_HOST: "langchain-agent"
       HITL_SERVICE_URL: "http://hitl-service:3009"
@@ -300,12 +301,8 @@ services:
       AGENT_SERVICE_PORT: "3006"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
-<<<<<<< HEAD
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-=======
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "qwen3-8b"
->>>>>>> origin/main
     env_file:
       - path: ./demo_agent_service/.env
         required: false
@@ -560,6 +557,94 @@ services:
       - authz-server
     restart: unless-stopped
 
+  # ── RAG Code Search Services ──────────────────────────────────────────────
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    container_name: ai-demo-weaviate
+    # No host port publish — consumed only container-to-container as
+    # http://weaviate:8080 (compose DNS). Publishing host :8080 collides with
+    # mcp-server, which owns host :8080.
+    environment:
+      QUERY_DEFAULTS_LIMIT: 20
+      AUTHENTICATION_APIKEY_ENABLED: "false"
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    networks:
+      - ai-demo
+    healthcheck:
+      # weaviate image ships wget, not curl.
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/v1/meta"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  llama-embedding:
+    image: ollama/ollama:latest
+    container_name: ai-demo-llama-embedding
+    ports:
+      - "8084:11434"
+    environment:
+      MODEL_NAME: nomic-embed-text
+    volumes:
+      - llama-models:/root/.ollama
+    networks:
+      - ai-demo
+    healthcheck:
+      # ollama image ships neither curl nor wget; use its own CLI (talks to the
+      # local server on 11434, exits 0 when reachable).
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  demo-mcp-code-search:
+    build:
+      context: ./demo_mcp_code_search
+      dockerfile: Dockerfile
+    container_name: ai-demo-mcp-code-search
+    # No host port / HTTP healthcheck: this is a stdio MCP server (no HTTP
+    # listener). stdin_open keeps stdin attached so the stdio transport doesn't
+    # hit EOF and exit on a detached container.
+    stdin_open: true
+    tty: true
+    environment:
+      WEAVIATE_URL: http://weaviate:8080
+      EMBEDDING_API_URL: http://llama-embedding:11434
+      LOG_LEVEL: info
+    networks:
+      - ai-demo
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      llama-embedding:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────
+  # Serves the :8090 endpoint that BFF + agent-service already target via
+  # LLAMACPP_BASE_URL. Classifies each request and routes to the smallest
+  # capable of 4 local llama-server tiers (8091-8094), cascading on overload.
+  # Start the model backends first: bash demo_llm_proxy/start-local-models.sh
+  llm-proxy:
+    build:
+      context: ./demo_llm_proxy
+      dockerfile: Dockerfile
+    container_name: ai-demo-llm-proxy
+    ports:
+      - "8090:8090"
+    environment:
+      NODE_ENV: production
+      LLM_PROXY_PORT: "8090"
+    networks:
+      - ai-demo
+    # Access host llama-server instances via host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 networks:
   ai-demo:
     driver: bridge
@@ -567,3 +652,6 @@ networks:
 volumes:
   # BFF persistent LMDB store — survives `docker compose up --force-recreate`.
   ai-demo-bff-data:
+  # RAG Code Search volumes
+  weaviate-data:
+  llama-models:

@@ -1,0 +1,16 @@
+{
+  "name": "demo-llm-proxy",
+  "version": "1.0.0",
+  "description": "Smart routing proxy for multi-model llama.cpp instances",
+  "main": "router.js",
+  "scripts": {
+    "start": "node router.js",
+    "dev": "node --watch router.js"
+  },
+  "keywords": ["llm", "proxy", "router", "llama.cpp"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

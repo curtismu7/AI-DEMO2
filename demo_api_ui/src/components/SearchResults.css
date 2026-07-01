@@ -1,0 +1,139 @@
+.search-results {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.results-header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+}
+
+.results-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.result-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.result-item:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.result-header {
+  padding: 12px;
+  background: #f9fafb;
+  cursor: pointer;
+  user-select: none;
+}
+
+.result-item.expanded .result-header {
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.result-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.file-path {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  word-break: break-all;
+  flex: 1;
+}
+
+.score {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #ecfdf5;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.result-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.line-info {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.result-body {
+  padding: 12px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.code-snippet {
+  margin: 0;
+  padding: 12px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #374151;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 14px;
+  min-height: 300px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 14px;
+  min-height: 300px;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #dc2626;
+  font-size: 14px;
+  min-height: 300px;
+  padding: 20px;
+  text-align: center;
+}
