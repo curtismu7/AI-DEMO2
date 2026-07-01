@@ -36,6 +36,7 @@ const { getMcpFirstToolGateStatus, resolveExpectedMcpResourceUri } = require('..
 const { buildActorBridgeHeaders } = require('../services/mcpActorBridge');
 const { logEvent } = require('../services/appEventService');
 const agentPreflightService = require('../services/agentPreflightService');
+const { evaluateLearningDemo, LEARNING_DEMO_TYPES } = require('../services/authorizeLearningDemos');
 
 const router = express.Router();
 
@@ -310,6 +311,34 @@ router.get('/test-status', async (_req, res) => {
  */
 router.post('/test-evaluate', async (req, res) => {
   const { amount, type, acr, userId: bodyUserId } = req.body || {};
+
+  // Learning-page demos (abac / indeterminate / payloadFilter / obligations).
+  // Routed by an explicit demoType discriminator; the default transaction path
+  // (no demoType, or demoType === 'transaction') is untouched below.
+  const demoType = req.body?.demoType;
+  if (demoType && demoType !== 'transaction') {
+    if (!LEARNING_DEMO_TYPES.includes(demoType)) {
+      return res.status(400).json({ ok: false, error: `unknown demoType: ${demoType}` });
+    }
+    try {
+      const d = await evaluateLearningDemo({ demoType, input: req.body?.input || {} });
+      return res.json({
+        ok: true,
+        engine: 'simulated-learning',
+        demoType,
+        decision: d.decision,
+        effect: d.effect,
+        obligations: d.obligations || [],
+        statements: d.statements || [],
+        trace: d.trace,
+        ...(d.output !== undefined ? { output: d.output } : {}),
+        raw: d.raw,
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  }
+
   const useCaseId = req.body?.useCaseId || '';
   // Force-live: call the configured PingOne Authorize decision endpoint directly,
   // regardless of the global enable flag or simulated mode. Lets the test page get
