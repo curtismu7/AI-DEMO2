@@ -39,6 +39,10 @@ export interface AuthzDecision {
   // 'mock' = primary endpoint IS the mock base, 'mock-failover' = real
   // endpoint failed and the mock base was used as fallback.
   engine?: 'real' | 'mock' | 'mock-failover';
+  // The exact `parameters` block POSTed to the P1AZ decision endpoint, surfaced
+  // so the Agent Gateway Tester can show WHAT was evaluated. Undefined on the
+  // no-P1AZ local-scope fallback path (no decision call is made).
+  sentParameters?: Record<string, string>;
 }
 
 export interface ToolArgs {
@@ -202,20 +206,19 @@ export class PingOneAuthorizeClient {
       return { decision: 'DENY', reason: 'Authorization Server not configured — set PINGAUTHORIZE_ENDPOINT', engine: 'mock' };
     }
 
-    const body = {
-      parameters: buildAuthorizeParameters(
-        decoded,
-        method,
-        this.config.gatewayResourceUri,
-        toolName,
-        toolArgs,
-        tratClaims ?? null,
-        hitlApproved,
-        intentValidation,
-        undefined,
-        introspectionResult,
-      ),
-    };
+    const params = buildAuthorizeParameters(
+      decoded,
+      method,
+      this.config.gatewayResourceUri,
+      toolName,
+      toolArgs,
+      tratClaims ?? null,
+      hitlApproved,
+      intentValidation,
+      undefined,
+      introspectionResult,
+    );
+    const body = { parameters: params };
 
     const postDecision = async (base: string) =>
       axios.post(
@@ -250,22 +253,22 @@ export class PingOneAuthorizeClient {
       const response = await postDecision(primary);
       // A 5xx (axios throws by default) lands in catch; a 200 + DENY is a valid
       // decision and must NOT trigger failover.
-      return toDecision(response.data, primaryEngine);
+      return { ...toDecision(response.data, primaryEngine), sentParameters: params };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (canFailover) {
         try {
           const fb = await postDecision(mockBase as string);
           console.warn('[PingOneAuthorizeClient] real Authorize unreachable — failed over to mock:', msg);
-          return toDecision(fb.data, 'mock-failover');
+          return { ...toDecision(fb.data, 'mock-failover'), sentParameters: params };
         } catch (fbErr) {
           const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
           console.warn('[PingOneAuthorizeClient] mock failover also unreachable — failing closed:', fbMsg);
-          return { decision: 'DENY', reason: 'Authorization service unavailable', engine: 'mock-failover' };
+          return { decision: 'DENY', reason: 'Authorization service unavailable', engine: 'mock-failover', sentParameters: params };
         }
       }
       console.warn('[PingOneAuthorizeClient] Authorize endpoint unavailable — failing closed:', msg);
-      return { decision: 'DENY', reason: 'Authorization service unavailable', engine: primaryEngine };
+      return { decision: 'DENY', reason: 'Authorization service unavailable', engine: primaryEngine, sentParameters: params };
     }
   }
 }
