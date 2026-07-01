@@ -71,8 +71,8 @@
 .btn-connect { background: #10b981; color: #fff; }
 .btn-connect.active { background: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
 .btn-connect:hover { background: #059669; }
-.btn-reset   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-.btn-reset:hover   { background: #fde68a; }
+.btn-reset   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.btn-reset:hover   { background: #e2e8f0; }
 .btn-delete  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .btn-delete:hover  { background: #fca5a5; }
 
@@ -245,90 +245,52 @@
   outline: none;
 }
 
-/* Reset modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+/* Play / Pause button in steps header */
+.canvas-steps-play {
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+.canvas-steps-play:hover { filter: brightness(0.92); }
+
+/* Per-step duration control */
+.canvas-step-duration {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64748b;
 }
-
-.modal-dialog {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  max-width: 400px;
-  width: 90%;
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+.canvas-step-duration-label { font-weight: 600; color: #475569; }
+.canvas-step-duration input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'ui-monospace', monospace;
   color: #1e293b;
 }
-
-.modal-body {
-  padding: 16px 20px;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.5;
+.canvas-step-duration input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
+.canvas-step-duration-unit { font-weight: 600; color: #94a3b8; }
 
-.modal-body p {
-  margin: 0;
+/* Active step highlight during playback */
+.canvas-step--active .canvas-step-desc { color: #0f172a; font-weight: 600; }
+
+@keyframes pulse-step {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  50%      { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
 }
-
-.modal-footer {
-  padding: 12px 20px;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.modal-btn-cancel {
-  padding: 6px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #fff;
-  color: #475569;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.modal-btn-cancel:hover {
-  background: #f1f5f9;
-}
-
-.modal-btn-confirm {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: #fef3c7;
-  color: #92400e;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.modal-btn-confirm:hover {
-  background: #fde68a;
+.canvas-step-num--active {
+  animation: pulse-step 1.4s ease-in-out infinite;
 }

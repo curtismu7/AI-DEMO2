@@ -206,23 +206,26 @@ const NODE_TYPES = { arch: ArchNode };
 
 // ─── Nodes ────────────────────────────────────────────────────────────────────
 
+// Positions use a uniform grid — columns 190px apart (> node maxWidth 135) and
+// rows 180px apart (> expanded node height with step label + token badge) so
+// boxes never overlap, even when a step expands a node during simulation.
 const INITIAL_NODES = [
   {
     id: "user",
     type: "arch",
-    position: { x: 20, y: 180 },
+    position: { x: 20, y: 200 },
     data: { label: "User", icon: "👤", colorClass: "" },
   },
   {
     id: "chatbot",
     type: "arch",
-    position: { x: 140, y: 180 },
+    position: { x: 210, y: 200 },
     data: { label: "Chatbot", label2: "UI", icon: "💬", colorClass: "" },
   },
   {
     id: "agent",
     type: "arch",
-    position: { x: 270, y: 180 },
+    position: { x: 400, y: 200 },
     data: {
       label: "Agent",
       label2: "BFF LangGraph (default)",
@@ -233,13 +236,13 @@ const INITIAL_NODES = [
   {
     id: "llm",
     type: "arch",
-    position: { x: 270, y: 310 },
+    position: { x: 400, y: 380 },
     data: { label: "LLM", label2: "Claude", icon: "🧠", colorClass: "" },
   },
   {
     id: "idp-oauth-as",
     type: "arch",
-    position: { x: 460, y: 30 },
+    position: { x: 590, y: 20 },
     data: {
       label: "Your IdP",
       label2: "OAuth AS / SSO",
@@ -250,7 +253,7 @@ const INITIAL_NODES = [
   {
     id: "pingauthorize",
     type: "arch",
-    position: { x: 650, y: 30 },
+    position: { x: 780, y: 20 },
     data: {
       label: "PingOne Authorization Server",
       label2: "Fine-grained AZ",
@@ -261,7 +264,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-gw",
     type: "arch",
-    position: { x: 650, y: 180 },
+    position: { x: 780, y: 200 },
     data: {
       label: "Agent Gw",
       label2: "banking_mcp_gateway :3005",
@@ -272,7 +275,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-server",
     type: "arch",
-    position: { x: 650, y: 310 },
+    position: { x: 780, y: 380 },
     data: {
       label: "MCP Server",
       label2: "banking_mcp_server :8080",
@@ -283,7 +286,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-invest",
     type: "arch",
-    position: { x: 650, y: 440 },
+    position: { x: 780, y: 560 },
     data: {
       label: "MCP Invest",
       label2: "banking_mcp_invest :8081",
@@ -294,7 +297,7 @@ const INITIAL_NODES = [
   {
     id: "banking-api",
     type: "arch",
-    position: { x: 840, y: 120 },
+    position: { x: 970, y: 110 },
     data: {
       label: "Banking API",
       label2: "OAuth bearer",
@@ -310,7 +313,7 @@ const INITIAL_NODES = [
   {
     id: "api-key-backend",
     type: "arch",
-    position: { x: 840, y: 260 },
+    position: { x: 970, y: 290 },
     data: {
       label: "banking_mortgage_service",
       label2: "X-API-Key + X-User-Sub",
@@ -323,7 +326,7 @@ const INITIAL_NODES = [
   {
     id: "banking-resource-server",
     type: "arch",
-    position: { x: 840, y: 360 },
+    position: { x: 970, y: 470 },
     data: {
       label: "banking_resource_server",
       label2: "/identity · /accounts · /transactions",
@@ -335,7 +338,7 @@ const INITIAL_NODES = [
   {
     id: "lmdb-banking-db",
     type: "arch",
-    position: { x: 1040, y: 360 },
+    position: { x: 1160, y: 470 },
     data: {
       label: "LMDB",
       label2: "banking-resource-server (lmdb)",
@@ -348,11 +351,37 @@ const INITIAL_NODES = [
   {
     id: "hitl",
     type: "arch",
-    position: { x: 140, y: 310 },
+    position: { x: 210, y: 380 },
     data: {
       label: "HITL Service",
       label2: "banking_hitl_service :3009",
       icon: "🧑‍⚖️",
+      colorClass: "",
+    },
+  },
+  // A2A (agent-to-agent delegation): the Agent can delegate a narrow sensitive
+  // task to the A2A Orchestrator (CrewAI crew), which gets PingOne Authorize
+  // approval, then nested RFC 8693 token-exchanges to a Specialist Agent that
+  // calls narrow tools via the MCP Gateway.
+  {
+    id: "a2a-orch",
+    type: "arch",
+    position: { x: 270, y: 440 },
+    data: {
+      label: "A2A Orchestrator",
+      label2: "CrewAI: decide·coordinate·authorize",
+      icon: "🧠",
+      colorClass: "",
+    },
+  },
+  {
+    id: "a2a-specialist",
+    type: "arch",
+    position: { x: 460, y: 440 },
+    data: {
+      label: "Specialist Agent",
+      label2: "Investment / Records / Purchase",
+      icon: "🎯",
       colorClass: "",
     },
   },
@@ -502,6 +531,36 @@ const INITIAL_EDGES = [
     target: "agent",
     style: B,
     label: "Approved ✓",
+  },
+  // A2A delegation flow (drawn with the prominent blue "active path" style A
+  // to distinguish agent-to-agent delegation from the default grey edges).
+  {
+    id: "agent-a2a-orch",
+    source: "agent",
+    target: "a2a-orch",
+    style: A,
+    label: "Delegate? (A2A)",
+  },
+  {
+    id: "a2a-orch-authz",
+    source: "a2a-orch",
+    target: "pingauthorize",
+    style: A,
+    label: "Approve act-chain",
+  },
+  {
+    id: "a2a-orch-specialist",
+    source: "a2a-orch",
+    target: "a2a-specialist",
+    style: A,
+    label: "RFC 8693 (nested act)",
+  },
+  {
+    id: "a2a-specialist-mcp-gw",
+    source: "a2a-specialist",
+    target: "mcp-gw",
+    style: A,
+    label: "Narrow tool call",
   },
 ];
 

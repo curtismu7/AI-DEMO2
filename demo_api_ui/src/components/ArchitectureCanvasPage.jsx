@@ -7,7 +7,7 @@ const W = 155;
 const H = 86;
 const H_ICON = 36;   // colored icon strip height
 const R = 8;
-const STAGE_W = 1600;  // fixed wide canvas — wrapper scrolls on small screens
+const STAGE_W = 1400;  // fixed wide canvas — wrapper scrolls on small screens
 
 const LAYER_STYLE = {
   client:   { fill: '#f0f4ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1', icon: '#4f46e5' },
@@ -59,10 +59,10 @@ const STATUS_COLOR = {
 const COL_DEFS = [
   { ids: ['frontend'],                               label: 'Browser' },
   { ids: ['bff'],                                    label: 'BFF' },
-  { ids: ['agent-service'],                          label: 'Agent Layer' },
+  { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
   { ids: ['mcp-gateway'],                            label: 'Agent Gateway' },
   { ids: ['authz-server', 'pingone-sso', 'hitl-service'], label: 'Auth / Policy' },
-  { ids: ['mcp-server', 'mcp-invest'],               label: 'MCP Backends' },
+  { ids: ['mcp-server', 'mcp-invest', 'mortgage-service'], label: 'MCP Backends' },
 ];
 
 function colLabelX(colDef, nodeMap) {
@@ -77,39 +77,39 @@ const FLOWS = {
     label: 'AG-UI · Streaming',
     color: '#059669',
     steps: [
-      { from: 'frontend',        to: 'bff',             desc: 'User sends a message. Browser POSTs to BFF (/api/agent/run) and opens an SSE stream for the response.' },
-      { from: 'bff',             to: 'langchain-agent', desc: 'BFF forwards to LangChain agent (POST :8888/run) with tool schemas, thread ID, and a callback URL for tool execution.' },
-      { from: 'langchain-agent', to: 'bff',             desc: 'Agent decides to call a tool. It POSTs back to BFF (/internal/agent-tool) with the tool name and arguments.' },
-      { from: 'bff',             to: 'pingone-sso',     desc: 'BFF performs RFC 8693 token exchange with PingOne SSO — minting a delegated mcp-gateway-scoped token with act claim.' },
-      { from: 'bff',             to: 'mcp-gateway',     desc: 'BFF calls Ping Agent Gateway (POST JSON-RPC tools/call) with the delegated token.' },
-      { from: 'mcp-gateway',     to: 'authz-server',    desc: 'Gateway sends 18-parameter policy decision to PingOne Authorize (P1AZ): user, tool, scopes, amounts, act chain. Expects PERMIT / DENY / INDETERMINATE.' },
-      { from: 'mcp-gateway',     to: 'mcp-server',      desc: 'PERMIT received. Gateway opens a WebSocket to mcp-server and proxies the tools/call. Result travels back up the chain to the browser.' },
+      { from: 'frontend',        to: 'bff',             desc: 'User sends a message. Browser POSTs to BFF (/api/agent/run) and opens an SSE stream for the response.', duration: 500 },
+      { from: 'bff',             to: 'langchain-agent', desc: 'BFF forwards to LangChain agent (POST :8888/run) with tool schemas, thread ID, and a callback URL for tool execution.', duration: 1500 },
+      { from: 'langchain-agent', to: 'bff',             desc: 'Agent decides to call a tool. It POSTs back to BFF (/internal/agent-tool) with the tool name and arguments.', duration: 300 },
+      { from: 'bff',             to: 'pingone-sso',     desc: 'BFF performs RFC 8693 token exchange with PingOne SSO — minting a delegated mcp-gateway-scoped token with act claim.', duration: 800 },
+      { from: 'bff',             to: 'mcp-gateway',     desc: 'BFF calls Ping Agent Gateway (POST JSON-RPC tools/call) with the delegated token.', duration: 1000 },
+      { from: 'mcp-gateway',     to: 'authz-server',    desc: 'Gateway sends 18-parameter policy decision to PingOne Authorize (P1AZ): user, tool, scopes, amounts, act chain. Expects PERMIT / DENY / INDETERMINATE.', duration: 1200 },
+      { from: 'mcp-gateway',     to: 'mcp-server',      desc: 'PERMIT received. Gateway opens a WebSocket to mcp-server and proxies the tools/call. Result travels back up the chain to the browser.', duration: 2000 },
     ],
   },
   nl: {
     label: 'NL Mode · Agent service',
     color: '#7c3aed',
     steps: [
-      { from: 'frontend',      to: 'bff',          desc: 'User sends a natural-language message. Browser POSTs to BFF (/api/demo-agent/message).' },
-      { from: 'bff',           to: 'agent-service', desc: 'BFF dispatches to agent-service (/api/agent/reason) with tool schemas only — no user tokens leave the BFF.' },
-      { from: 'agent-service', to: 'bff',           desc: 'Agent-service returns tool_calls from the LLM. BFF executes each tool via its own MCP pipeline and loops until it gets a final answer.' },
-      { from: 'bff',           to: 'pingone-sso',   desc: 'BFF performs RFC 8693 token exchange with PingOne SSO to obtain a delegated mcp-scoped token.' },
-      { from: 'bff',           to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token.' },
-      { from: 'mcp-gateway',   to: 'authz-server',  desc: 'PingOne Authorize evaluates the request (user identity, tool, scopes, transaction amount).' },
-      { from: 'mcp-gateway',   to: 'mcp-server',    desc: 'PERMIT → gateway proxies the tool call over WebSocket to the mcp-server backend.' },
+      { from: 'frontend',      to: 'bff',          desc: 'User sends a natural-language message. Browser POSTs to BFF (/api/demo-agent/message).', duration: 400 },
+      { from: 'bff',           to: 'agent-service', desc: 'BFF dispatches to agent-service (/api/agent/reason) with tool schemas only — no user tokens leave the BFF.', duration: 1000 },
+      { from: 'agent-service', to: 'bff',           desc: 'Agent-service returns tool_calls from the LLM. BFF executes each tool via its own MCP pipeline and loops until it gets a final answer.', duration: 800 },
+      { from: 'bff',           to: 'pingone-sso',   desc: 'BFF performs RFC 8693 token exchange with PingOne SSO to obtain a delegated mcp-scoped token.', duration: 700 },
+      { from: 'bff',           to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token.', duration: 900 },
+      { from: 'mcp-gateway',   to: 'authz-server',  desc: 'PingOne Authorize evaluates the request (user identity, tool, scopes, transaction amount).', duration: 1100 },
+      { from: 'mcp-gateway',   to: 'mcp-server',    desc: 'PERMIT → gateway proxies the tool call over WebSocket to the mcp-server backend.', duration: 1800 },
     ],
   },
   hitl: {
     label: 'HITL · Human approval',
     color: '#db2777',
     steps: [
-      { from: 'frontend',     to: 'bff',          desc: 'High-value action triggered (e.g. large transfer). BFF initiates the MCP tool call pipeline.' },
-      { from: 'bff',          to: 'pingone-sso',   desc: 'BFF mints a delegated token via RFC 8693 with PingOne SSO before calling the gateway.' },
-      { from: 'bff',          to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token and full transaction context.' },
-      { from: 'mcp-gateway',  to: 'authz-server',  desc: 'PingOne Authorize evaluates policy and returns INDETERMINATE — the transaction requires explicit human approval.' },
-      { from: 'mcp-gateway',  to: 'hitl-service',  desc: 'Gateway creates a challenge (POST /challenges) and returns JSON-RPC error -32002 to BFF with challengeId.' },
-      { from: 'hitl-service', to: 'bff',           desc: 'User approves the challenge in the UI. HITL service notifies BFF; agent retries the tool call with _hitl_challenge_id.' },
-      { from: 'mcp-gateway',  to: 'mcp-server',    desc: 'P1AZ now returns PERMIT for the approved challenge. Tool executes on mcp-server and result returns to user.' },
+      { from: 'frontend',     to: 'bff',          desc: 'High-value action triggered (e.g. large transfer). BFF initiates the MCP tool call pipeline.', duration: 500 },
+      { from: 'bff',          to: 'pingone-sso',   desc: 'BFF mints a delegated token via RFC 8693 with PingOne SSO before calling the gateway.', duration: 750 },
+      { from: 'bff',          to: 'mcp-gateway',   desc: 'BFF calls Ping Agent Gateway with the delegated token and full transaction context.', duration: 1000 },
+      { from: 'mcp-gateway',  to: 'authz-server',  desc: 'PingOne Authorize evaluates policy and returns INDETERMINATE — the transaction requires explicit human approval.', duration: 1300 },
+      { from: 'mcp-gateway',  to: 'hitl-service',  desc: 'Gateway creates a challenge (POST /challenges) and returns JSON-RPC error -32002 to BFF with challengeId.', duration: 600 },
+      { from: 'hitl-service', to: 'bff',           desc: 'User approves the challenge in the UI. HITL service notifies BFF; agent retries the tool call with _hitl_challenge_id.', duration: 3000 },
+      { from: 'mcp-gateway',  to: 'mcp-server',    desc: 'P1AZ now returns PERMIT for the approved challenge. Tool executes on mcp-server and result returns to user.', duration: 2000 },
     ],
   },
 };
@@ -202,6 +202,23 @@ function downloadFile(content, filename, mime) {
   URL.revokeObjectURL(url);
 }
 
+// Per-step playback durations, persisted separately from the node/edge layout.
+const DURATIONS_KEY = 'arch-canvas-v8-durations';
+const DEFAULT_STEP_MS = 1000;
+
+function loadStepDurations() {
+  try {
+    const raw = localStorage.getItem(DURATIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveStepDurations(durations) {
+  try { localStorage.setItem(DURATIONS_KEY, JSON.stringify(durations)); } catch (_) {}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Returns the point on node's bounding box edge in the direction of (toX, toY).
@@ -240,24 +257,23 @@ function midpoint(pts) {
 }
 
 export default function ArchitectureCanvasPage() {
-  const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout, removeNode } = useCanvasLayout();
+  const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
   const [connectMode, setConnectMode] = useState(false);
   const [connectFrom, setConnectFrom] = useState(null);  // kept for keyboard/click fallback
   const [dragWire, setDragWire] = useState(null);         // { fromId, x1,y1, x2,y2 } while dragging
   const [selectedEdge, setSelectedEdge] = useState(null);
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [selectedNodes, setSelectedNodes] = useState(new Set());
   const [renaming, setRenaming] = useState(null);
-  const [showResetModal, setShowResetModal] = useState(false);
   const [stageH, setStageH] = useState(620);
   const [pingStatus, setPingStatus] = useState({});
   const [pinging, setPinging] = useState(false);
   const [resultPanel, setResultPanel] = useState(null);
   const [selectedFlow, setSelectedFlow] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(null);  // active step during playback (null = none)
+  const [stepDurations, setStepDurations] = useState(loadStepDurations);
   const wrapRef = useRef(null);
   const dragWireRef = useRef(null);  // mirrors dragWire for mousemove closure
-  const lastDragPosRef = useRef(null);  // track last position during group drag
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -269,61 +285,17 @@ export default function ArchitectureCanvasPage() {
   }, []);
 
   const handleDragMove = useCallback((id, e) => {
-    const x = e.target.x();
-    const y = e.target.y();
-
-    if (selectedNodes.size > 0 && selectedNodes.has(id)) {
-      // Group drag: move all selected nodes relative to this node's movement
-      if (!lastDragPosRef.current) {
-        lastDragPosRef.current = { x, y };
-        return;
-      }
-      const dx = x - lastDragPosRef.current.x;
-      const dy = y - lastDragPosRef.current.y;
-
-      selectedNodes.forEach(nodeId => {
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-          moveNode(nodeId, node.x + dx, node.y + dy);
-        }
-      });
-      lastDragPosRef.current = { x, y };
-    } else {
-      // Single node drag
-      moveNode(id, x, y);
-    }
-  }, [moveNode, selectedNodes, nodes]);
-
-  const handleDragEnd = useCallback((id, e) => {
-    lastDragPosRef.current = null;
-    const x = e.target.x();
-    const y = e.target.y();
-    moveNode(id, x, y);
+    moveNode(id, e.target.x(), e.target.y());
   }, [moveNode]);
 
-  const handleNodeClick = useCallback((id, e) => {
-    if (connectMode || dragWireRef.current) return;
-    const isMultiSelect = e?.evt?.ctrlKey || e?.evt?.metaKey || e?.evt?.shiftKey;
+  const handleDragEnd = useCallback((id, e) => {
+    moveNode(id, e.target.x(), e.target.y());
+  }, [moveNode]);
 
-    if (isMultiSelect) {
-      setSelectedNodes(prev => {
-        const next = new Set(prev);
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-        return next;
-      });
-      setSelectedNode(null);
-    } else {
-      if (selectedNodes.size > 0) {
-        setSelectedNodes(new Set());
-      }
-      setSelectedNode(selectedNode === id ? null : id);
-    }
-    setSelectedEdge(null);
-  }, [connectMode, selectedNode, selectedNodes]);
+  const handleNodeClick = useCallback((id) => {
+    // kept for non-drag interactions; drag path uses handleWireStart/End
+    if (!connectMode || dragWireRef.current) return;
+  }, [connectMode]);
 
   const handleWireStart = useCallback((node, e) => {
     if (!connectMode) return;
@@ -382,11 +354,60 @@ export default function ArchitectureCanvasPage() {
     setSelectedEdge(null);
   };
 
-  const handleDeleteNode = () => {
-    if (!selectedNode) return;
-    removeNode(selectedNode);
-    setSelectedNode(null);
-  };
+  // ── Flow playback ───────────────────────────────────────────────────────────
+  const durationFor = useCallback((flowId, stepIndex, step) => {
+    const key = `${flowId}-${stepIndex}`;
+    return stepDurations[key] ?? step?.duration ?? DEFAULT_STEP_MS;
+  }, [stepDurations]);
+
+  const stopPlayback = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentStepIndex(null);
+  }, []);
+
+  // Play from the start, or resume from the current step if paused mid-flow.
+  const playFlow = useCallback(() => {
+    if (!selectedFlow || !FLOWS[selectedFlow]) return;
+    setCurrentStepIndex(prev => (prev === null ? 0 : prev));
+    setIsPlaying(true);
+  }, [selectedFlow]);
+
+  const pausePlayback = useCallback(() => {
+    setIsPlaying(false);  // effect cleanup clears the pending timer; current step stays highlighted
+  }, []);
+
+  // Single self-rescheduling timer: whenever a step becomes active during
+  // playback, schedule the advance to the next step after its duration. The
+  // effect re-runs on every step change (and on duration edits via durationFor)
+  // and cleans up its prior timer, so pausing or editing mid-flow is handled.
+  useEffect(() => {
+    if (!isPlaying || currentStepIndex === null || !selectedFlow) return;
+    const steps = FLOWS[selectedFlow]?.steps;
+    if (!steps) return;
+    const duration = durationFor(selectedFlow, currentStepIndex, steps[currentStepIndex]);
+    const id = setTimeout(() => {
+      if (currentStepIndex + 1 >= steps.length) {
+        stopPlayback();  // reached the end
+      } else {
+        setCurrentStepIndex(currentStepIndex + 1);
+      }
+    }, Math.max(0, duration));
+    return () => clearTimeout(id);
+  }, [isPlaying, currentStepIndex, selectedFlow, durationFor, stopPlayback]);
+
+  const handleSelectFlow = useCallback((value) => {
+    stopPlayback();
+    setSelectedFlow(value || null);
+  }, [stopPlayback]);
+
+  const updateStepDuration = useCallback((flowId, stepIndex, value) => {
+    const key = `${flowId}-${stepIndex}`;
+    setStepDurations(prev => {
+      const next = { ...prev, [key]: value };
+      saveStepDurations(next);
+      return next;
+    });
+  }, []);
 
   const handlePingAll = async () => {
     setPinging(true);
@@ -421,11 +442,9 @@ export default function ArchitectureCanvasPage() {
     ? 'Press Enter or click Save to rename'
     : connectMode
     ? (dragWire ? 'Release on target node to connect' : 'Drag from any box to draw a connection')
-    : selectedNode
-    ? 'Node selected — click Delete Node to remove'
     : selectedEdge
     ? 'Arrow selected — click Delete Edge to remove'
-    : 'Drag to reposition · Double-click to rename · Click box to select · Click arrow to select';
+    : 'Drag to reposition · Double-click to rename · Click arrow to select';
 
   return (
     <div className="canvas-page">
@@ -447,7 +466,7 @@ export default function ArchitectureCanvasPage() {
             <select
               className="flow-select"
               value={selectedFlow || ''}
-              onChange={e => setSelectedFlow(e.target.value || null)}
+              onChange={e => handleSelectFlow(e.target.value)}
             >
               <option value="">All flows</option>
               {Object.entries(FLOWS).map(([k, f]) => (
@@ -467,7 +486,6 @@ export default function ArchitectureCanvasPage() {
               {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
             </button>
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>✕ Delete Edge</button>
-            <button className="btn-delete" disabled={!selectedNode} onClick={handleDeleteNode}>✕ Delete Node</button>
             <button className={`btn-ping${pinging ? ' pinging' : ''}`} onClick={handlePingAll} disabled={pinging}>
               {pinging ? '⏳ Pinging…' : '⚡ Ping All'}
             </button>
@@ -479,7 +497,11 @@ export default function ArchitectureCanvasPage() {
               const slug = selectedFlow ? `-${selectedFlow}` : '-full';
               downloadFile(buildDrawio(nodes, edges, flow), `architecture${slug}.drawio`, 'application/xml');
             }}>⬇ LucidChart</button>
-            <button className="btn-reset" onClick={() => setShowResetModal(true)}>↺ Reset</button>
+            <button className="btn-reset" onClick={() => {
+              if (window.confirm('Reset canvas to default layout?')) {
+                resetLayout(); setPingStatus({}); setResultPanel(null);
+              }
+            }}>↺ Reset</button>
           </>
         )}
       </div>
@@ -528,11 +550,9 @@ export default function ArchitectureCanvasPage() {
           <Layer>
             {nodes.map(node => {
               const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
-              const isSelected = selectedNode === node.id;
-              const isMultiSelected = selectedNodes.has(node.id);
               const isConnectSrc = connectFrom === node.id;
-              const strokeColor = isSelected ? '#ef4444' : isMultiSelected ? '#3b82f6' : isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
-              const strokeWidth = (isSelected || isMultiSelected || isConnectSrc || connectMode) ? 2.5 : 1.5;
+              const strokeColor = isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
+              const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
               const status = pingStatus[node.id];
               const dotColor = STATUS_COLOR[status];
               const inFlow = flow && flow.steps.some(s => s.from === node.id || s.to === node.id);
@@ -544,7 +564,7 @@ export default function ArchitectureCanvasPage() {
                   draggable={!connectMode} opacity={dimmed ? 0.2 : 1}
                   onDragMove={e => handleDragMove(node.id, e)}
                   onDragEnd={e => handleDragEnd(node.id, e)}
-                  onClick={e => handleNodeClick(node.id, e)}
+                  onClick={() => handleNodeClick(node.id)}
                   onDblClick={() => handleNodeDblClick(node)}
                   onMouseDown={connectMode ? e => handleWireStart(node, e) : undefined}
                   onMouseUp={connectMode ? () => handleWireEnd(node.id) : undefined}
@@ -605,34 +625,6 @@ export default function ArchitectureCanvasPage() {
             })}
           </Layer>
 
-          {/* Edge labels */}
-          <Layer>
-            {edges.map(edge => {
-              if (!edge.label || flow) return null; // skip labels when a flow is selected
-              const src = nodeMap[edge.from];
-              const tgt = nodeMap[edge.to];
-              if (!src || !tgt) return null;
-              const pts = arrowPoints(src, tgt);
-              const mid = midpoint(pts);
-              const isSelected = selectedEdge === edge.id;
-              const srcStyle = LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool;
-              const textColor = isSelected ? '#ef4444' : srcStyle.stroke;
-              return (
-                <Group key={`label-${edge.id}`} x={mid.x} y={mid.y}>
-                  {/* Background rect for readability */}
-                  <Rect x={-40} y={-10} width={80} height={20}
-                    fill="#f8fafc" stroke={textColor} strokeWidth={0.5}
-                    cornerRadius={3} listening={false} />
-                  {/* Label text */}
-                  <Text x={-38} y={-8} width={76}
-                    text={edge.label} fontSize={9} fontStyle="bold"
-                    fontFamily="system-ui, sans-serif" fill={textColor}
-                    align="center" listening={false} />
-                </Group>
-              );
-            })}
-          </Layer>
-
           {/* Rubber-band wire while dragging a connection */}
           {dragWire && (
             <Layer listening={false}>
@@ -654,20 +646,29 @@ export default function ArchitectureCanvasPage() {
                 const pts = arrowPoints(src, tgt);
                 const mid = midpoint(pts);
                 const num = String(i + 1);
+                // During playback, spotlight the active step and dim the others.
+                const playing = currentStepIndex !== null;
+                const isActive = i === currentStepIndex;
+                const stepOpacity = playing && !isActive ? 0.2 : 1;
+                const strokeW = isActive ? 4 : 2.5;
+                const badgeR = isActive ? 13 : 11;
                 return (
                   <React.Fragment key={`fs-${i}`}>
                     <Arrow points={pts}
-                      stroke={flow.color} strokeWidth={2.5} fill={flow.color}
+                      stroke={flow.color} strokeWidth={strokeW} fill={flow.color}
                       pointerLength={9} pointerWidth={8} listening={false}
-                      shadowColor={flow.color} shadowBlur={6} shadowOpacity={0.35}
+                      opacity={stepOpacity}
+                      shadowColor={flow.color} shadowBlur={isActive ? 14 : 6}
+                      shadowOpacity={isActive ? 0.6 : 0.35}
                     />
                     {/* Number badge */}
-                    <Circle x={mid.x} y={mid.y} radius={11}
-                      fill={flow.color} stroke="#fff" strokeWidth={2} listening={false} />
-                    <Text x={mid.x - 11} y={mid.y - 7} width={22}
+                    <Circle x={mid.x} y={mid.y} radius={badgeR}
+                      fill={flow.color} stroke="#fff" strokeWidth={2}
+                      opacity={stepOpacity} listening={false} />
+                    <Text x={mid.x - badgeR} y={mid.y - 7} width={badgeR * 2}
                       text={num} fontSize={11} fontStyle="bold"
                       fontFamily="system-ui, sans-serif" fill="#fff"
-                      align="center" listening={false} />
+                      opacity={stepOpacity} align="center" listening={false} />
                   </React.Fragment>
                 );
               })}
@@ -675,29 +676,6 @@ export default function ArchitectureCanvasPage() {
           )}
         </Stage>
       </div>
-
-      {/* Reset confirmation modal */}
-      {showResetModal && (
-        <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
-          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Reset Canvas?</h3>
-            </div>
-            <div className="modal-body">
-              <p>This will reset all nodes and connections to the default layout. This action cannot be undone.</p>
-            </div>
-            <div className="modal-footer">
-              <button className="modal-btn-cancel" onClick={() => setShowResetModal(false)}>Cancel</button>
-              <button className="modal-btn-confirm" onClick={() => {
-                resetLayout();
-                setPingStatus({});
-                setResultPanel(null);
-                setShowResetModal(false);
-              }}>Reset Layout</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Step explanation panel */}
       {flow && (
@@ -707,18 +685,42 @@ export default function ArchitectureCanvasPage() {
               {flow.label}
             </span>
             <span className="canvas-steps-sub">Numbered steps map to arrows on the diagram above</span>
-            <button className="canvas-steps-close" onClick={() => setSelectedFlow(null)}>✕ Close</button>
+            <button
+              className="canvas-steps-play"
+              style={{ background: flow.color }}
+              onClick={() => (isPlaying ? pausePlayback() : playFlow())}
+            >
+              {isPlaying ? '⏸ Pause' : '▶ Play'}
+            </button>
+            <button className="canvas-steps-close" onClick={() => { stopPlayback(); setSelectedFlow(null); }}>✕ Close</button>
           </div>
           <div className="canvas-steps-list">
-            {flow.steps.map((step, i) => (
-              <div key={i} className="canvas-step">
-                <span className="canvas-step-num" style={{ background: flow.color }}>{i + 1}</span>
-                <div className="canvas-step-body">
-                  <span className="canvas-step-route">{step.from} → {step.to}</span>
-                  <span className="canvas-step-desc">{step.desc}</span>
+            {flow.steps.map((step, i) => {
+              const isActive = i === currentStepIndex;
+              const duration = durationFor(selectedFlow, i, step);
+              return (
+                <div key={i} className={`canvas-step${isActive ? ' canvas-step--active' : ''}`}>
+                  <span
+                    className={`canvas-step-num${isActive ? ' canvas-step-num--active' : ''}`}
+                    style={{ background: flow.color }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="canvas-step-body">
+                    <span className="canvas-step-route">{step.from} → {step.to}</span>
+                    <span className="canvas-step-desc">{step.desc}</span>
+                    <label className="canvas-step-duration">
+                      <span className="canvas-step-duration-label">Duration</span>
+                      <input
+                        type="number" min="0" step="100" value={duration}
+                        onChange={e => updateStepDuration(selectedFlow, i, parseInt(e.target.value, 10) || 0)}
+                      />
+                      <span className="canvas-step-duration-unit">ms</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
