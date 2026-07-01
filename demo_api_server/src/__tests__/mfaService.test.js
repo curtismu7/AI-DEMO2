@@ -441,6 +441,36 @@ describe('initFido2Registration', () => {
     expect(body.type).toBe('FIDO2');
     expect(body.nickname).toBe('My Passkey');
   });
+
+  it('on LIMIT_EXCEEDED, deletes the existing FIDO2 device and retries (regression: listMfaDevices returns {devices})', async () => {
+    // Sequence of axios.post calls:
+    //   #0 worker token (entry) → #1 create device (LIMIT_EXCEEDED) →
+    //   #2 worker token (inside listMfaDevices) → #3 worker token (retry entry) →
+    //   #4 create device (success)
+    const limitErr = new Error('limit');
+    limitErr.response = { status: 429, data: { code: 'REQUEST_LIMITED' } };
+    axios.post
+      .mockResolvedValueOnce({ data: { access_token: 'worker-tok' } })
+      .mockRejectedValueOnce(limitErr)
+      .mockResolvedValueOnce({ data: { access_token: 'worker-tok' } })
+      .mockResolvedValueOnce({ data: { access_token: 'worker-tok' } })
+      .mockResolvedValueOnce({
+        data: { id: 'dev-fido-new', publicKeyCredentialCreationOptions: { challenge: 'xyz' } },
+      });
+    // listMfaDevices returns an OBJECT { devices, _debug } — the cleanup path must
+    // read .devices before filtering (the bug was calling .filter on the object).
+    axios.get.mockResolvedValueOnce({
+      data: { _embedded: { devices: [{ id: 'fido-old', type: 'FIDO2' }] } },
+    });
+    axios.delete.mockResolvedValueOnce({ data: {} });
+
+    const result = await mfaService.initFido2Registration('user-1');
+
+    expect(result.deviceId).toBe('dev-fido-new');
+    expect(axios.delete).toHaveBeenCalledTimes(1);
+    const [delUrl] = axios.delete.mock.calls[0];
+    expect(delUrl).toContain('users/user-1/devices/fido-old');
+  });
 });
 
 // ─── completeFido2Registration ────────────────────────────────────────────────
