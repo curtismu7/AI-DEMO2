@@ -37,70 +37,63 @@ Attacks track and would duplicate).
 
 ## Design
 
-### Key decision: frontend-only, no backend
+> **Implementation note (revised during build):** The original draft proposed a new
+> `launch` trigger type and a frontend-only static array. On inspecting current
+> `origin/main` we found the mechanism already exists: a **`link`** trigger type
+> (`{ type: 'link', path, label }`) with an "Open" button + `handleOpen` navigation, and
+> a 5th **`tools`** ("Developer Tools") track whose cards are sourced from the **backend
+> catalog** (`config/useCases.js`) — including an existing `oauth-academy` link card.
+> The design below reflects what was actually built: reuse the `link` type and the
+> catalog-driven pattern rather than inventing a parallel one.
 
-The existing runnable cards live in the backend catalog
-([config/useCases.js](../../../demo_api_server/config/useCases.js)) because they need
-vertical resolution, maturity/flag gating, and run endpoints. That catalog also feeds
-the audit table and docs generator.
+### Key decision: reuse the existing `link` trigger + backend catalog
 
-Launch cards need **none** of that — they are vertical-agnostic and simply navigate.
-So they live entirely in the frontend and do **not** touch the backend catalog (which
-would otherwise pollute the audit/docs consumers with non-runnable entries).
+Link cards already live in the backend catalog and render via the existing `isLink`
+branch. Adding Learn cards is therefore **data + one track label**, not new UI plumbing.
+We add a `learn` track to the catalog and register it in the frontend's track list.
 
-### New trigger type: `launch`
+### Catalog changes ([config/useCases.js](../../../demo_api_server/config/useCases.js))
 
-Extend the trigger union with `{ type: 'launch', route: string }`.
+- **Relocate** the existing `oauth-academy` card from `track: 'tools'` → `track: 'learn'`
+  (renumbered `UC-TOOL3` → `UC-LEARN1`; no external refs to the old id). This dedups —
+  OAuth Academy belongs with the learning material, not Developer Tools.
+- **Add 5 new `link` cards** in a new `// --- LEARN ---` section, following the existing
+  link-card shape exactly:
 
-### Frontend changes (all in [UseCaseLauncherPage.js](../../../demo_api_ui/src/pages/UseCaseLauncherPage.js))
+  | id | useCaseId | path | title |
+  |---|---|---|---|
+  | UC-LEARN2 | pingone-mcp-inspector | `/pingone-mcp-inspector` | PingOne MCP Inspector |
+  | UC-LEARN3 | demo-mcp-inspector | `/mcp-inspector` | Demo MCP Inspector |
+  | UC-LEARN4 | mcp-tools | `/mcp-tools` | MCP Tools |
+  | UC-LEARN5 | learning-hub | `/learning` | Learning Hub |
+  | UC-LEARN6 | token-flow | `/architecture/token-flow` | Token Flow (Interactive) |
 
-1. **`LEARN_CARDS` constant** — static array of 6 entries, inline in the page file
-   (small enough not to warrant a separate module):
+- **Typedef** — extend the `Trigger` union to include the `link` variant and add
+  `'tools'|'learn'` to the `track` property (both were already stale on main).
 
-   ```js
-   const LEARN_CARDS = [
-     { id: 'L1', track: 'learn', title: 'PingOne MCP Inspector',
-       buyerStory: 'Call the hosted PingOne MCP server live and inspect its tools.',
-       trigger: { type: 'launch', route: '/pingone-mcp-inspector' } },
-     // ...Demo MCP Inspector, MCP Tools, OAuth Academy, Learning Hub, Token Flow
-   ];
-   ```
+Result: Developer Tools keeps `code-search` + `code-explorer`; Learn holds the 6 cards.
 
-2. **Track wiring** — add `'learn'` to `TRACK_ORDER` (last, after `controls`) and a
-   `TRACK_LABELS.learn` heading (e.g. `'Learn — explore the platform hands-on'`).
+### Frontend changes ([UseCaseLauncherPage.js](../../../demo_api_ui/src/pages/UseCaseLauncherPage.js))
 
-3. **Merge into render** — `const allCases = [...useCases, ...LEARN_CARDS];` and group
-   `allCases` (instead of `useCases`) by track. The existing group-by-track render loop
-   then picks up the Learn section unchanged.
+- Add `'learn'` to `TRACK_ORDER` (positioned **before `tools`**, after `controls`) and a
+  `TRACK_LABELS.learn` heading: `'Learn — explore the platform hands-on'`.
+- No other changes — the `isLink` render branch, `handleOpen`, and the group-by-track
+  loop already handle everything.
 
-4. **`UseCaseCard` launch branch** —
-   - `const isLaunch = uc.trigger?.type === 'launch';`
-   - Render an **"Open →"** button that calls `onLaunch(uc)`.
-   - Suppress the flag-gate, maturity label, and Explain button for launch cards
-     (they have no maturity and no explain content).
-   - Exclude `launch` from the `!isChip && !isAttack` "No trigger defined" fallback.
+### CSS
 
-5. **`handleLaunch`** — `const handleLaunch = useCallback((uc) => navigate(uc.trigger.route), [navigate]);`
-   Wire it through to `UseCaseCard` as `onLaunch`.
-
-6. **Header copy** — the subtitle hardcodes "N security use cases … Click Run to launch
-   a scenario." Adjust so it does not misrepresent the Learn cards (e.g. drop the fixed
-   count or split the sentence).
-
-### CSS ([UseCaseLauncherPage.css](../../../demo_api_ui/src/pages/UseCaseLauncherPage.css))
-
-Optional, light. The "Open →" button can reuse the existing `.uc-run-btn`. Add a Learn
-track heading style only if the default heading looks off. No new layout.
+None. Link cards reuse the existing `.uc-run-btn` styling already used by Developer Tools.
 
 ### Placement
 
-The Learn track renders **last** (after Controls) so runnable scenarios stay the primary
-focus. Changing the order is a one-line edit to `TRACK_ORDER` if desired later.
+`learn` renders after `controls` and before `tools`, so the two link-based tracks sit at
+the end with learning material ahead of developer utilities. Reordering is a one-line
+edit to `TRACK_ORDER`.
 
 ## Non-goals
 
 - No embedding/iframing — cards navigate in the same tab.
-- No backend catalog, route, or docs-generator changes.
+- No new trigger type, no docs-generator changes.
 - No changes to the target pages themselves.
 - Not surfacing AI Attack Demos here.
 
