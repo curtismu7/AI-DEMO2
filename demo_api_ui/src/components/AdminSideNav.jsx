@@ -450,12 +450,6 @@ export default function AdminSideNav({ user }) {
       icon: "rte",
       children: [
         {
-          label: "JSON Config Editor",
-          path: "/agent-gateway-config",
-          icon: "edt",
-          adminOnly: true,
-        },
-        {
           label: "PingGateway Config",
           path: "/setup?tab=mcp-gateway",
           icon: "rte",

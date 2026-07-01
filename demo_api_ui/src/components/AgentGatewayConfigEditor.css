@@ -1,16 +1,10 @@
-.agc-root {
-  padding: 1.5rem 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Embedded inside the McpGatewayConfig "JSON Config" tab (mgc-panel already
+   provides outer padding), so no page chrome here. */
+.agc-embed {
+  width: 100%;
 }
-
-.agc-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.4rem;
-  color: #0f172a;
-}
-.agc-header p {
-  margin: 0 0 1.25rem;
+.agc-intro {
+  margin: 0 0 1rem;
   color: #64748b;
   font-size: 0.9rem;
   max-width: 70ch;

@@ -3,7 +3,7 @@ import Monaco from '@monaco-editor/react';
 import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
-import './AgentGatewayConfigPage.css';
+import './AgentGatewayConfigEditor.css';
 
 const API = '/api/admin/agent-gateway';
 
@@ -15,7 +15,7 @@ function restartTargetsForType(type) {
   return [];
 }
 
-export default function AgentGatewayConfigPage() {
+export default function AgentGatewayConfigEditor() {
   const [files, setFiles] = useState([]);
   const [restartCaps, setRestartCaps] = useState({ enabled: true, socket: false });
   const [selectedId, setSelectedId] = useState(null);
@@ -196,12 +196,9 @@ export default function AgentGatewayConfigPage() {
   }, {});
 
   return (
-    <div className="agc-root">
-      <header className="agc-header">
-        <h1>Agent Gateway Configuration</h1>
-        <p>View, validate, and edit the gateway&apos;s JSON config. Route files reload
-          automatically (~10s); core &amp; scope-topology files need a restart.</p>
-      </header>
+    <div className="agc-embed">
+      <p className="agc-intro">View, validate, and edit the gateway&apos;s JSON config files.
+        Route files reload automatically (~10s); core &amp; scope-topology files need a restart.</p>
 
       <div className="agc-layout">
         {/* File picker */}
