@@ -1944,6 +1944,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           >
             Learning Hub
           </Link>
+          <Link
+            to="/code-search"
+            className="ud-super-pill"
+            aria-label="RAG code search"
+          >
+            Code Search
+          </Link>
         </nav>
       </div>
 
