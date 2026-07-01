@@ -70,8 +70,9 @@ into **7 teaching sections**. Each section is a self-contained unit:
 
 ### Frontend
 
-- Single page, sectioned layout (collapsible sections or an in-page section
-  nav — decided at plan time). Preserve the existing Engine Status banner,
+- Single page, **collapsible sections** (each section expands/collapses;
+  one open at a time is acceptable, or independent — decided at plan time).
+  Preserve the existing Engine Status banner,
   Engine Settings panel, and Run History table as page-level chrome shared
   across sections.
 - New shared presentational unit: a **DemoSection** component (concept panel +
@@ -89,11 +90,12 @@ into **7 teaching sections**. Each section is a self-contained unit:
   obligation**. Each handler returns, in addition to the decision, a structured
   **policy-element trace** (which policy/rule/condition/statement fired) so the
   frontend can annotate.
-- Widen the demo request contract: either extend
-  `POST /api/authorize/test-evaluate` to accept the richer inputs (attributes
-  map, payload, demo-type discriminator) or add sibling endpoints per demo
-  type. Chosen at plan time; the existing amount-threshold path must keep
-  working unchanged.
+- Widen the demo request contract by **extending the single
+  `POST /api/authorize/test-evaluate` endpoint** with a **demo-type
+  discriminator** plus the richer inputs (attributes map, payload). No sibling
+  endpoints. The existing amount-threshold request shape must remain valid and
+  behave unchanged when the discriminator is absent or set to the default
+  transaction demo.
 - **Live path is best-effort.** Where a provisioned decision endpoint exists
   for a demo, the Live toggle calls it (reusing existing live-call plumbing).
   Where it does not, the Live toggle is hidden/disabled and Simulated is the
