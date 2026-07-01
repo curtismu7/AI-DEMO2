@@ -98,6 +98,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
+import AgentGatewayConfigPage from "./pages/AgentGatewayConfigPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
@@ -789,6 +790,19 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/agent-gateway-config"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <>
+                                    <TopNav user={user} onLogout={logout} />
+                                    <main className="main-content">
+                                      <AgentGatewayConfigPage />
+                                    </main>
+                                  </>
                                 </RequireAdminLogin>
                               }
                             />
