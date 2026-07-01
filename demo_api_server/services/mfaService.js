@@ -51,11 +51,10 @@ async function _getWorkerToken() {
     reqConfig.auth = { username: clientId, password: clientSecret };
   }
   const resp = await axios.post(tokenUrl, body.toString(), reqConfig);
-  return {
-    token: resp.data.access_token,
-    source: "worker",
-    obtainedAt: new Date().toISOString(),
-  };
+  // Return the raw access-token string: every caller interpolates the result
+  // directly as `Bearer ${token}`. Returning an object here yields
+  // "Bearer [object Object]" and 401s every worker-token call.
+  return resp.data.access_token;
 }
 
 let _cachedDefaultPolicyId = null;
