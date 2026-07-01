@@ -568,6 +568,10 @@ services:
       QUERY_DEFAULTS_LIMIT: 20
       AUTHENTICATION_APIKEY_ENABLED: "false"
       PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      # Bring-your-own vectors: the code-search service supplies embeddings,
+      # so Weaviate needs no vectorizer module of its own.
+      DEFAULT_VECTORIZER_MODULE: none
+      ENABLE_MODULES: ""
     volumes:
       - weaviate-data:/var/lib/weaviate
     networks:
@@ -580,24 +584,28 @@ services:
       retries: 5
     restart: unless-stopped
 
-  llama-embedding:
-    image: ollama/ollama:latest
-    container_name: ai-demo-llama-embedding
+  # Embedding model server — llama.cpp in --embedding mode (NOT Ollama).
+  # Serves the OpenAI-compatible /v1/embeddings endpoint. The GGUF model
+  # (~140MB) downloads once via -hf and is cached in the embed-models volume.
+  embeddings:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: ai-demo-embeddings
     ports:
-      - "8084:11434"
-    environment:
-      MODEL_NAME: nomic-embed-text
+      - "8084:8080"
+    command: >
+      --host 0.0.0.0 --port 8080
+      --embedding --pooling mean
+      -hf nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0
     volumes:
-      - llama-models:/root/.ollama
+      - embed-models:/root/.cache/llama.cpp
     networks:
       - ai-demo
     healthcheck:
-      # ollama image ships neither curl nor wget; use its own CLI (talks to the
-      # local server on 11434, exits 0 when reachable).
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 20
+      start_period: 180s
     restart: unless-stopped
 
   demo-mcp-code-search:
@@ -605,22 +613,27 @@ services:
       context: ./demo_mcp_code_search
       dockerfile: Dockerfile
     container_name: ai-demo-mcp-code-search
-    # No host port / HTTP healthcheck: this is a stdio MCP server (no HTTP
-    # listener). stdin_open keeps stdin attached so the stdio transport doesn't
-    # hit EOF and exit on a detached container.
-    stdin_open: true
-    tty: true
+    ports:
+      - "8095:8095"
     environment:
       WEAVIATE_URL: http://weaviate:8080
-      EMBEDDING_API_URL: http://llama-embedding:11434
+      EMBEDDING_URL: http://embeddings:8080
+      EMBEDDING_MODEL: nomic-embed-text-v1.5
       LOG_LEVEL: info
     networks:
       - ai-demo
     depends_on:
       weaviate:
         condition: service_healthy
-      llama-embedding:
-        condition: service_healthy
+      # service_started (not _healthy): this service's own /health stays green
+      # while the embedder warms up; index/search return 503 until it's ready.
+      embeddings:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8095/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────
@@ -654,4 +667,4 @@ volumes:
   ai-demo-bff-data:
   # RAG Code Search volumes
   weaviate-data:
-  llama-models:
+  embed-models:
