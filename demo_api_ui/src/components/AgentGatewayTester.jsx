@@ -29,6 +29,20 @@ const FALLBACK_TOOLS = [
   { name: 'create_transfer', description: 'Transfer funds between accounts (write; may require HITL consent).' },
 ];
 
+// Curated, human-ordered subset of the P1AZ decision `parameters` block to show
+// in the inspector table. The full set stays in the raw audit-trail JSON below.
+const P1AZ_ATTR_ROWS = [
+  ['DecisionContext', 'Decision context'],
+  ['ToolName', 'Tool'],
+  ['ClientId', 'Subject (user)'],
+  ['ActClientId', 'Acting agent'],
+  ['ActChainDepth', 'Delegation depth'],
+  ['TokenScopes', 'Token scopes'],
+  ['TokenAudience', 'Resource audience'],
+  ['TransactionAmount', 'Amount'],
+  ['TransactionType', 'Transaction type'],
+];
+
 export default function AgentGatewayTester() {
   const [tools, setTools] = useState(FALLBACK_TOOLS);
   const [toolsSource, setToolsSource] = useState('static');
@@ -221,6 +235,44 @@ export default function AgentGatewayTester() {
               {(az?.reason || resp.message) && (
                 <div className={`mgc-alert ${resp.ok ? 'mgc-alert--info' : 'mgc-alert--error'}`} style={{ marginTop: 10 }}>
                   {az?.reason || resp.message}
+                </div>
+              )}
+
+              {az && (az.attributes || az.decisionId || az.engine) && (
+                <div className="mgc-section" style={{ marginTop: 12 }}>
+                  <h4 style={{ marginTop: 0 }}>PingOne Authorize decision</h4>
+                  <p className="mgc-field-hint">
+                    Fine-grained ABAC layered on top of the gateway's coarse OAuth scope check.
+                    In production this is the pre-built <code>PingOneApiAccessManagementFilter</code>;
+                    this demo gateway emulates it by calling the P1AZ decision endpoint
+                    (<code>{'POST /governance/pap/alpha/policy/{workerId}/decision'}</code>).
+                  </p>
+                  <table className="mgc-env-table">
+                    <tbody>
+                      <tr><td className="mgc-env-key">Decision</td><td className="mgc-env-val">{az.decision}</td></tr>
+                      {az.engine && <tr><td className="mgc-env-key">Engine</td><td className="mgc-env-val">{az.engine}</td></tr>}
+                      {az.decisionId && <tr><td className="mgc-env-key">Decision ID</td><td className="mgc-env-val"><code>{az.decisionId}</code></td></tr>}
+                      {az.policyVersion && <tr><td className="mgc-env-key">Policy version</td><td className="mgc-env-val">{az.policyVersion}</td></tr>}
+                      {az.traceId && <tr><td className="mgc-env-key">Trace ID</td><td className="mgc-env-val"><code>{az.traceId}</code></td></tr>}
+                    </tbody>
+                  </table>
+                  {az.attributes && (
+                    <>
+                      <div className="mgc-field-label" style={{ marginTop: 10 }}>Attributes evaluated by policy</div>
+                      <table className="mgc-env-table">
+                        <tbody>
+                          {P1AZ_ATTR_ROWS
+                            .filter(([key]) => az.attributes[key] !== undefined && az.attributes[key] !== '')
+                            .map(([key, label]) => (
+                              <tr key={key}>
+                                <td className="mgc-env-key">{label}</td>
+                                <td className="mgc-env-val"><code>{az.attributes[key]}</code></td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
                 </div>
               )}
 
