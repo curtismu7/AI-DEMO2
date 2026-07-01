@@ -56,7 +56,7 @@ The PingOne API endpoint for resource servers returned a 403 error (authorizatio
 ```bash
 # ✅ CORRECT
 PINGONE_ADMIN_CLIENT_ID=14cefa5b-d9d6-4e51-8749-e938d4edd1c0       # Super Banking Admin App
-PINGONE_ADMIN_CLIENT_SECRET=x6EeiOL3J-...                           # ✅ Matches app
+PINGONE_ADMIN_CLIENT_SECRET=<RETIRED-ENV-SECRET-REMOVED>                           # ✅ Matches app
 
 PINGONE_USER_CLIENT_ID=b2752071-2d03-4927-b865-089dc40b9c85        # Super Banking User App
 PINGONE_USER_CLIENT_SECRET=3NX~XdVZ1...                             # ✅ Matches app
