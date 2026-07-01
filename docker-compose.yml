@@ -138,6 +138,13 @@ services:
       # recreate. Without this, `docker compose up --force-recreate` rebuilds
       # the writable layer and wipes runtime config (e.g. authorize_mode).
       - ai-demo-bff-data:/app/data/persistent
+    # Join the docker.sock's group so the non-root BFF (appuser) can call the
+    # Docker Engine API for the /agent-gateway one-click restart. OrbStack/Docker
+    # Desktop expose the socket as root:root (mode 660), so group 0 is required.
+    # The restart endpoint is admin-gated and only touches two allowlisted
+    # containers; this does NOT run the BFF as root.
+    group_add:
+      - "0"
     networks:
       - ai-demo
     depends_on:
