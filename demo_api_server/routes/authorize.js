@@ -310,12 +310,11 @@ router.get('/test-status', async (_req, res) => {
  * Body: { amount: number, type: 'transfer'|'withdrawal'|'deposit', acr?: string, userId?: string }
  */
 router.post('/test-evaluate', async (req, res) => {
-  const { amount, type, acr, userId: bodyUserId } = req.body || {};
+  const { amount, type, acr, userId: bodyUserId, demoType } = req.body || {};
 
   // Learning-page demos (abac / indeterminate / payloadFilter / obligations).
   // Routed by an explicit demoType discriminator; the default transaction path
   // (no demoType, or demoType === 'transaction') is untouched below.
-  const demoType = req.body?.demoType;
   if (demoType && demoType !== 'transaction') {
     if (!LEARNING_DEMO_TYPES.includes(demoType)) {
       return res.status(400).json({ ok: false, error: `unknown demoType: ${demoType}` });

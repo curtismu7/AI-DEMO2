@@ -12,5 +12,4 @@
 .ar-statements { margin: 6px 0; }
 .ar-statements-title { font-weight: 600; font-size: 12px; color: #344054; margin-bottom: 2px; }
 .ar-stmt-type { font-weight: 700; }
-.ar-raw summary { cursor: pointer; color: #667085; font-size: 12px; }
-.ar-output pre, .ar-raw pre { background: #f9fafb; padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; }
+.ar-output pre { background: #f9fafb; padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; }

@@ -42,40 +42,23 @@ function acrLooksStrong(acr) {
 // Rule 2: write actions require role == 'manager'. Combining algorithm: deny-overrides.
 function evalAbac({ role, userRegion, resourceRegion, action }) {
   const wantsWrite = String(action || 'read').toLowerCase() === 'write';
+  // All three outcomes share the same shape (effect === decision, no obligations,
+  // raw keyed to this demo) — so build them through one local factory.
+  const result = (decision, rule, condition, reason) => ({
+    decision, effect: decision, obligations: [], statements: [],
+    trace: buildTrace({ policySet: 'Account Access', rule, condition, effect: decision }),
+    raw: { engine: 'simulated-learning', demoType: 'abac', reason },
+  });
+  const residencyRule = 'Data residency — region match';
+  const residencyCondition = `user.region (${userRegion}) == resource.region (${resourceRegion})`;
   if (userRegion !== resourceRegion) {
-    return {
-      decision: 'DENY', effect: 'DENY', obligations: [], statements: [],
-      trace: buildTrace({
-        policySet: 'Account Access',
-        rule: 'Data residency — region match',
-        condition: `user.region (${userRegion}) == resource.region (${resourceRegion})`,
-        effect: 'DENY',
-      }),
-      raw: { engine: 'simulated-learning', demoType: 'abac', reason: 'region_mismatch' },
-    };
+    return result('DENY', residencyRule, residencyCondition, 'region_mismatch');
   }
   if (wantsWrite && String(role).toLowerCase() !== 'manager') {
-    return {
-      decision: 'DENY', effect: 'DENY', obligations: [], statements: [],
-      trace: buildTrace({
-        policySet: 'Account Access',
-        rule: 'Privilege — write requires manager',
-        condition: `action == write AND user.role (${role}) == manager`,
-        effect: 'DENY',
-      }),
-      raw: { engine: 'simulated-learning', demoType: 'abac', reason: 'insufficient_role_for_write' },
-    };
+    return result('DENY', 'Privilege — write requires manager',
+      `action == write AND user.role (${role}) == manager`, 'insufficient_role_for_write');
   }
-  return {
-    decision: 'PERMIT', effect: 'PERMIT', obligations: [], statements: [],
-    trace: buildTrace({
-      policySet: 'Account Access',
-      rule: 'Data residency — region match',
-      condition: `user.region (${userRegion}) == resource.region (${resourceRegion})`,
-      effect: 'PERMIT',
-    }),
-    raw: { engine: 'simulated-learning', demoType: 'abac', reason: 'attributes_satisfied' },
-  };
+  return result('PERMIT', residencyRule, residencyCondition, 'attributes_satisfied');
 }
 
 // ── Demo: INDETERMINATE / fail-closed ────────────────────────────────────────

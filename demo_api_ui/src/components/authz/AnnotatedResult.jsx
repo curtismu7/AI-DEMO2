@@ -1,3 +1,4 @@
+import JsonField from "../shared/JsonField";
 import "./AnnotatedResult.css";
 
 const BADGE_CLASS = {
@@ -50,13 +51,10 @@ export default function AnnotatedResult({ result }) {
         </div>
       ) : null}
 
-      <details className="ar-raw">
-        <summary>Raw decision JSON</summary>
-        <pre className="ar-mono">{JSON.stringify(
-          { raw: result.raw, pingoneRequest: result.pingoneRequest, pingoneResponse: result.pingoneResponse },
-          null, 2,
-        )}</pre>
-      </details>
+      <JsonField
+        label="Raw decision JSON"
+        value={{ raw: result.raw, pingoneRequest: result.pingoneRequest, pingoneResponse: result.pingoneResponse }}
+      />
     </div>
   );
 }

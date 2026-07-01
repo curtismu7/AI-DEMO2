@@ -81,3 +81,19 @@ export const AUTHZ_SECTIONS = [
     demoType: null, fields: [],
   },
 ];
+
+/**
+ * Build the `input` payload for a runnable section from its current form
+ * `values`, applying each field's declared coercion (`coerce: "boolean"`,
+ * `type: "number"`) and merging any `section.fixedInput` constants. Kept here,
+ * next to the field descriptors it interprets, so the coercion rules and their
+ * declarations live in one place rather than split across the component.
+ */
+export function buildDemoInput(section, values) {
+  const input = { ...(section.fixedInput || {}) };
+  for (const f of section.fields) {
+    const raw = values[f.name];
+    input[f.name] = f.coerce === "boolean" ? raw === "true" : f.type === "number" ? Number(raw) : raw;
+  }
+  return input;
+}

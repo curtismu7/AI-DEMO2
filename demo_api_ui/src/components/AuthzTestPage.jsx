@@ -8,7 +8,7 @@ import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import DemoSection from "./authz/DemoSection";
 import DemoForm from "./authz/DemoForm";
 import AnnotatedResult from "./authz/AnnotatedResult";
-import { AUTHZ_SECTIONS } from "./authz/authzSections";
+import { AUTHZ_SECTIONS, buildDemoInput } from "./authz/authzSections";
 import { useDemoRunner } from "./authz/useDemoRunner";
 
 // ---------------------------------------------------------------------------
@@ -156,23 +156,19 @@ function RawJson({ data, label }) {
 
 function LearningSection({ section, open, onToggle }) {
 	const { result, loading, error, run } = useDemoRunner();
-	const initial = {};
-	for (const f of section.fields) initial[f.name] = f.default;
-	const [values, setValues] = useState(initial);
-	const onChange = (name, value) => setValues((v) => ({ ...v, [name]: value }));
+	// Function initializer so the defaults are computed once, not every render.
+	const [values, setValues] = useState(() =>
+		Object.fromEntries(section.fields.map((f) => [f.name, f.default])),
+	);
+	const onChange = useCallback((name, value) => setValues((v) => ({ ...v, [name]: value })), []);
 
 	const runnable = section.demoType != null;
 	const onRun = () => {
 		if (section.demoType === "transaction") {
 			run({ demoType: "transaction", transaction: values });
 		} else {
-			// coerce booleans declared in the registry; merge any fixedInput
-			const input = { ...(section.fixedInput || {}) };
-			for (const f of section.fields) {
-				const raw = values[f.name];
-				input[f.name] = f.coerce === "boolean" ? raw === "true" : (f.type === "number" ? Number(raw) : raw);
-			}
-			run({ demoType: section.demoType, input });
+			// buildDemoInput applies the registry's coercion + fixedInput merge.
+			run({ demoType: section.demoType, input: buildDemoInput(section, values) });
 		}
 	};
 
