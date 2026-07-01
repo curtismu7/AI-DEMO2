@@ -205,23 +205,26 @@ const NODE_TYPES = { arch: ArchNode };
 
 // ─── Nodes ────────────────────────────────────────────────────────────────────
 
+// Positions use a uniform grid — columns 190px apart (> node maxWidth 135) and
+// rows 180px apart (> expanded node height with step label + token badge) so
+// boxes never overlap, even when a step expands a node during simulation.
 const INITIAL_NODES = [
   {
     id: "user",
     type: "arch",
-    position: { x: 20, y: 180 },
+    position: { x: 20, y: 200 },
     data: { label: "User", icon: "👤", colorClass: "" },
   },
   {
     id: "chatbot",
     type: "arch",
-    position: { x: 140, y: 180 },
+    position: { x: 210, y: 200 },
     data: { label: "Chatbot", label2: "UI", icon: "💬", colorClass: "" },
   },
   {
     id: "agent",
     type: "arch",
-    position: { x: 270, y: 180 },
+    position: { x: 400, y: 200 },
     data: {
       label: "Agent",
       label2: "BFF LangGraph (default)",
@@ -232,13 +235,13 @@ const INITIAL_NODES = [
   {
     id: "llm",
     type: "arch",
-    position: { x: 270, y: 310 },
+    position: { x: 400, y: 380 },
     data: { label: "LLM", label2: "Claude", icon: "🧠", colorClass: "" },
   },
   {
     id: "idp-oauth-as",
     type: "arch",
-    position: { x: 460, y: 30 },
+    position: { x: 590, y: 20 },
     data: {
       label: "Your IdP",
       label2: "OAuth AS / SSO",
@@ -249,7 +252,7 @@ const INITIAL_NODES = [
   {
     id: "pingauthorize",
     type: "arch",
-    position: { x: 650, y: 30 },
+    position: { x: 780, y: 20 },
     data: {
       label: "PingOne Authorization Server",
       label2: "Fine-grained AZ",
@@ -260,7 +263,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-gw",
     type: "arch",
-    position: { x: 650, y: 180 },
+    position: { x: 780, y: 200 },
     data: {
       label: "Agent Gw",
       label2: "banking_mcp_gateway :3005",
@@ -271,7 +274,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-server",
     type: "arch",
-    position: { x: 650, y: 310 },
+    position: { x: 780, y: 380 },
     data: {
       label: "MCP Server",
       label2: "banking_mcp_server :8080",
@@ -282,7 +285,7 @@ const INITIAL_NODES = [
   {
     id: "mcp-invest",
     type: "arch",
-    position: { x: 650, y: 440 },
+    position: { x: 780, y: 560 },
     data: {
       label: "MCP Invest",
       label2: "banking_mcp_invest :8081",
@@ -293,7 +296,7 @@ const INITIAL_NODES = [
   {
     id: "banking-api",
     type: "arch",
-    position: { x: 840, y: 120 },
+    position: { x: 970, y: 110 },
     data: {
       label: "Banking API",
       label2: "OAuth bearer",
@@ -309,7 +312,7 @@ const INITIAL_NODES = [
   {
     id: "api-key-backend",
     type: "arch",
-    position: { x: 840, y: 260 },
+    position: { x: 970, y: 290 },
     data: {
       label: "banking_mortgage_service",
       label2: "X-API-Key + X-User-Sub",
@@ -322,7 +325,7 @@ const INITIAL_NODES = [
   {
     id: "banking-resource-server",
     type: "arch",
-    position: { x: 840, y: 360 },
+    position: { x: 970, y: 470 },
     data: {
       label: "banking_resource_server",
       label2: "/identity · /accounts · /transactions",
@@ -334,7 +337,7 @@ const INITIAL_NODES = [
   {
     id: "lmdb-banking-db",
     type: "arch",
-    position: { x: 1040, y: 360 },
+    position: { x: 1160, y: 470 },
     data: {
       label: "LMDB",
       label2: "banking-resource-server (lmdb)",
@@ -347,7 +350,7 @@ const INITIAL_NODES = [
   {
     id: "hitl",
     type: "arch",
-    position: { x: 140, y: 310 },
+    position: { x: 210, y: 380 },
     data: {
       label: "HITL Service",
       label2: "banking_hitl_service :3009",
@@ -2255,7 +2258,14 @@ const PHASE_TO_NODES = {
 
 const HIGHLIGHT_MS = 4000;
 const HISTORICAL_MS = 15000;
-const STEP_MS = 2500;
+const DEFAULT_STEP_MS = 2500;
+// Selectable playback speeds — how long each simulation step is held.
+const STEP_SPEEDS = [
+  { label: "0.6s / step", ms: 600 },
+  { label: "1.2s / step", ms: 1200 },
+  { label: "2.5s / step", ms: DEFAULT_STEP_MS },
+  { label: "4s / step", ms: 4000 },
+];
 
 export default function ArchitectureFlowPage({ user }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES);
@@ -2266,6 +2276,7 @@ export default function ArchitectureFlowPage({ user }) {
   const [history, setHistory] = useState([]);
   const [agentSnap, setAgentSnap] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState("full-flow");
+  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);  // playback speed: how long each step is held
   const pausedStep = useRef(-1);
   const clearTimers = useRef({});
   const simTimeouts = useRef([]);
@@ -2369,12 +2380,12 @@ export default function ArchitectureFlowPage({ user }) {
               simTimeouts.current.push(done);
             }
           },
-          (offset + (startIdx === 0 ? 0 : 1)) * STEP_MS,
+          (offset + (startIdx === 0 ? 0 : 1)) * stepMs,
         );
         simTimeouts.current.push(t);
       });
     },
-    [applyStep, resetDiagram],
+    [applyStep, resetDiagram, stepMs],
   );
 
   const clearHistory = useCallback(() => setHistory([]), []);
@@ -2621,10 +2632,64 @@ export default function ArchitectureFlowPage({ user }) {
             </option>
           </select>
         </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              color: "#475569",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Speed:
+          </span>
+          <select
+            value={stepMs}
+            onChange={(e) => setStepMs(Number(e.target.value))}
+            disabled={isSimulating}
+            style={{
+              fontSize: "0.78rem",
+              padding: "4px 8px",
+              borderRadius: 6,
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              color: "#1e293b",
+              cursor: isSimulating ? "not-allowed" : "pointer",
+            }}
+          >
+            {STEP_SPEEDS.map((s) => (
+              <option key={s.ms} value={s.ms}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
         {!isSimulating && (
-          <button className="arch-simulate-btn" onClick={runSimulation}>
-            ▶ Simulate Flow
-          </button>
+          <>
+            <button className="arch-simulate-btn" onClick={runSimulation}>
+              ▶ Simulate Flow
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetDiagram();
+                clearHistory();
+              }}
+              title="Reset the diagram to its starting state"
+              style={{
+                padding: "0.4rem 0.8rem",
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                background: "#fff",
+                fontSize: "0.82rem",
+                cursor: "pointer",
+                fontWeight: 600,
+                color: "#475569",
+              }}
+            >
+              ↺ Reset
+            </button>
+          </>
         )}
         {isSimulating && !isPaused && (
           <>
