@@ -122,11 +122,29 @@ services:
       # Hot reload: mount source code so changes reflect instantly without rebuild
       - ./demo_api_server:/app
       - /app/node_modules  # exclude node_modules from mount (use container's version)
+      # Agent Gateway JSON config editor (/agent-gateway-config admin page): the BFF
+      # reads/writes the gateway's JSON on the host. RW (not :ro) so saves persist;
+      # IG picks up routes/*.json via its ~10s directory watcher, config/admin need a
+      # restart. scope-topology.json is also configStore's SoT — mounting it here at
+      # the path configStore expects (/scope-topology.json) fixes its load in Docker.
+      - ./ping-gateway/config:/app/gateway-config
+      - ./scope-topology.json:/scope-topology.json
+      # One-click "Restart gateway" button hits the Docker Engine API over this socket
+      # (no docker CLI/dep in the image). Admin-gated; only restarts the two allowlisted
+      # containers. This grants host container control — keep the endpoint locked down.
+      - /var/run/docker.sock:/var/run/docker.sock
       # Persist the BFF LMDB store (configStore, sessions, accounts, demo
       # scenarios, client registry, security monitoring) across container
       # recreate. Without this, `docker compose up --force-recreate` rebuilds
       # the writable layer and wipes runtime config (e.g. authorize_mode).
       - ai-demo-bff-data:/app/data/persistent
+    # Join the docker.sock's group so the non-root BFF (appuser) can call the
+    # Docker Engine API for the /agent-gateway one-click restart. OrbStack/Docker
+    # Desktop expose the socket as root:root (mode 660), so group 0 is required.
+    # The restart endpoint is admin-gated and only touches two allowlisted
+    # containers; this does NOT run the BFF as root.
+    group_add:
+      - "0"
     networks:
       - ai-demo
     depends_on:
