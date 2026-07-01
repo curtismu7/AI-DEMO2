@@ -40,6 +40,17 @@ export function createEmbedder(opts: EmbedderOptions): Embedder {
       for (const item of items) {
         vectors[item.index] = item.embedding;
       }
+      // Fail loud on a partial/short/out-of-order response rather than letting
+      // `undefined` vectors flow silently into the store (which Weaviate would
+      // then reject or index without a usable vector).
+      for (let i = 0; i < texts.length; i++) {
+        if (!Array.isArray(vectors[i]) || vectors[i].length === 0) {
+          throw new Error(
+            `Embedding response is incomplete: missing vector for input index ${i} ` +
+            `(${items.length} vectors returned for ${texts.length} inputs)`
+          );
+        }
+      }
       return vectors;
     },
   };

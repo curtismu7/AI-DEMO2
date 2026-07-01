@@ -53,7 +53,7 @@ function classifyRequest(body) {
   const text = (typeof body === 'string' ? body : '').toLowerCase();
   const isLong = text.length > COMPLEXITY_CHAR_THRESHOLD;
 
-  if (matchesAny(text, COMPLEX)) return 3;        // largest reasoning tier
+  if (matchesAny(text, COMPLEX)) return 2;        // Qwen2.5-Coder-14B: complex technical / token flows
   if (matchesAny(text, MODERATE)) return isLong ? 2 : 1;
   return isLong ? 1 : 0;                           // default: smallest tier
 }
@@ -105,14 +105,32 @@ proxy.on('proxyReq', (proxyReq, req) => {
   }
 });
 
+// Release the tier's load slot exactly once per request, whether the request
+// completed (proxyRes) or failed (error). Without this, requests that error
+// after proxyReq incremented the counter never decrement it, so `load` drifts
+// upward and selectTier permanently cascades away from an otherwise-healthy tier.
+function releaseTier(req) {
+  if (req.proxyTarget && !req._released) {
+    req._released = true;
+    req.proxyTarget.load = Math.max(0, req.proxyTarget.load - 1);
+  }
+}
+
 proxy.on('proxyRes', (proxyRes, req) => {
-  if (req.proxyTarget) req.proxyTarget.load = Math.max(0, req.proxyTarget.load - 1);
+  releaseTier(req);
 });
 
 proxy.on('error', (err, req, res) => {
   console.error(`[proxy] Error: ${err.message}`);
-  res.writeHead(502, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'Bad Gateway', message: err.message }));
+  releaseTier(req);
+  // Guard against writing headers after a partial/streamed response has begun,
+  // which would throw ERR_HTTP_HEADERS_SENT and crash the proxy uncaught.
+  if (!res.headersSent) {
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Bad Gateway', message: err.message }));
+  } else {
+    res.end();
+  }
 });
 
 // Serializable view of a tier for the /health and /status endpoints.

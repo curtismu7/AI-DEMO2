@@ -17,6 +17,20 @@ PINGAUTHORIZE_ENDPOINT=http://localhost:9001               # mock
 
 If the mock diverges from real PingOne, the switch to production breaks silently.
 
+### Parity is now THREE-WAY (not just gateway ↔ mock)
+
+The decision contract is implemented by **more than two components**. A change to the contract must be mirrored across all replicas, not only `demo_authz_server`:
+
+| Replica | File | Role |
+|---------|------|------|
+| MCP Gateway | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts` | Builds `parameters`, calls the decision endpoint |
+| Mock Authz Server | `demo_authz_server/routes/decision.js` | Reference policy engine |
+| BFF simulated authorize | `demo_api_server/services/simulatedAuthorizeService.js` | Replicates the decision contract (referenced 15+ times by `decision.js`) |
+| BFF MCP tool authz | `demo_api_server/services/mcpToolAuthorizationService.js` | Tool-level authorization on the API server |
+| PingGateway groovy | `ping-gateway/scripts/groovy/p1az-decision.groovy` | Groovy filter re-implementing the same decision contract |
+
+Any contract change (new parameter, new context, new rule, response field) must be applied to **all** of these in the same commit.
+
 ---
 
 ## What Must Stay in Sync
@@ -30,7 +44,7 @@ Real PingOne and mock both implement this exact path. Never change one without t
 ### 2. Request `parameters` object
 Any new parameter added to `buildAuthorizeParameters()` in the gateway must be handled in `demo_authz_server/routes/decision.js`.
 
-Current parameters (keep this list current):
+Current parameters (keep this list current — `buildAuthorizeParameters()`, `PingOneAuthorizeClient.ts:106-163`):
 ```json
 {
   "parameters": {
@@ -38,14 +52,32 @@ Current parameters (keep this list current):
     "McpMethod":        "tools/call | tools/list",
     "ToolName":         "view_records",
     "ClientId":         "user-sub",
+    "UserId":           "resolved user id",
     "ActClientId":      "act.sub from token",
+    "ActChainDepth":    "delegation chain depth",
+    "MayActSub":        "may_act.sub from token",
     "TokenScopes":      "read write",
     "TokenAudience":    "mcpgateway.ping.demo",
+    "TokenAudActual":   "aud actually present on the token",
+    "McpResourceUri":   "target MCP resource uri",
+    "TokenExp":         "exp",
+    "TokenIat":         "iat",
+    "TokenNbf":         "nbf",
+    "TokenIss":         "iss",
     "TransactionAmount": "500",
     "TransactionType":  "create_transfer",
     "ToAccountId":      "acc_456",
     "HitlApproved":     "true | ''",
     "Vertical":         "healthcare | sporting-goods | ...",
+    "RarAuthorizationDetails": "RAR authorization_details JSON",
+    "IntentTokenValid":       "true | false",
+    "IntentTokenMatchesTool": "true | false",
+    "IntentTokenJti":         "...",
+    "IntentTokenIntent":      "...",
+    "IntentTokenConfidence":  "0.0–1.0",
+    "TokenActive":               "introspection active",
+    "TokenIntrospectionSub":     "introspection sub",
+    "TokenIntrospectionExp":     "introspection exp",
     "TratPurp":         "...",
     "TratAzdAct":       "...",
     "TratSessionId":    "...",
@@ -61,7 +93,8 @@ Current parameters (keep this list current):
   "decision": "PERMIT | DENY | INDETERMINATE",
   "reason": "optional string",
   "decision_id": "uuid",
-  "policy_version": "mock-v1 | real-policy-version"
+  "policy_version": "mock-v1 | real-policy-version",
+  "advice": "optional — PERMIT path may include an advice field (decision.js:620)"
 }
 ```
 
@@ -74,10 +107,10 @@ Each `DecisionContext` represents a policy branch. When adding a new one (e.g. `
 Current contexts:
 | Context | When Called | Policy |
 |---------|-------------|--------|
-| `McpToolsList` | Gateway tools/list guard | Always PERMIT |
-| `McpToolCall` | Gateway per-tool guard | act + scope + HITL |
+| `McpToolsList` | Gateway tools/list guard (`pingAuthorizeGuard.ts`) | **PERMIT by default, but gated**: admin discovery toggle + user-status checks + per-tool candidate eval (not "always PERMIT") |
+| `McpToolCall` | Gateway per-tool guard | act + require-act + scope (with `pinggateway:invoke` bypass) + deny-ceiling + RAR + entitlement-tier + resource-owner + group-membership + amount-driven two-tier HITL (STEP_UP / HITL_CONSENT) + intent-token |
 | `McpRequest` | Generic MCP request | act + scope |
-| `ChipAuthorization` | Setup page chip validation | vertical + scope per chip |
+| `ChipAuthorization` | **Setup page chip validation — sent by the BFF/API server, NOT the gateway** (`demo_api_server/routes/verticalManifest.js:174`) | vertical + scope per chip |
 
 ### 5. Introspection endpoint
 ```
@@ -90,19 +123,23 @@ Delegates to real PingOne when `PINGONE_INTROSPECTION_ENDPOINT` is set.
 
 ## Files to Touch in Parallel
 
-| Change type | Gateway file | Mock file |
-|-------------|-------------|-----------|
-| New parameter | `src/auth/PingOneAuthorizeClient.ts` | `demo_authz_server/routes/decision.js` |
-| New DecisionContext | `src/pingAuthorizeGuard.ts` | `demo_authz_server/routes/decision.js` |
-| Response field | `src/auth/PingOneAuthorizeClient.ts` | `demo_authz_server/routes/decision.js` |
-| Introspection change | `src/auth/GatewayIntrospectionClient.ts` | `demo_authz_server/routes/introspect.js` |
+Because parity is three-way (see above), a contract change usually touches the gateway, the mock, **and** the BFF/PingGateway replicas:
+
+| Change type | Gateway file | Mock file | Other replicas |
+|-------------|-------------|-----------|----------------|
+| New parameter | `src/auth/PingOneAuthorizeClient.ts` | `demo_authz_server/routes/decision.js` | `demo_api_server/services/simulatedAuthorizeService.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy` |
+| New DecisionContext | `src/pingAuthorizeGuard.ts` (McpToolsList) / `demo_api_server/routes/verticalManifest.js` (ChipAuthorization) | `demo_authz_server/routes/decision.js` | `demo_api_server/services/mcpToolAuthorizationService.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy` |
+| Response field | `src/auth/PingOneAuthorizeClient.ts` | `demo_authz_server/routes/decision.js` | `demo_api_server/services/simulatedAuthorizeService.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy` |
+| Introspection change | `src/auth/GatewayIntrospectionClient.ts` | `demo_authz_server/routes/introspect.js` | — |
+
+> **Note on `ChipAuthorization`:** it is **not** emitted by the gateway. `buildAuthorizeParameters()` (`PingOneAuthorizeClient.ts:103`) only emits `McpToolCall`/`McpRequest`, and the guard adds `McpToolsList`. `ChipAuthorization` is produced by the BFF/API server (`demo_api_server/routes/verticalManifest.js:174`).
 
 ---
 
 ## Checklist Before Marking Auth Work Done
 
-- [ ] Decision parameters match between gateway and mock
-- [ ] New DecisionContext handled in mock with equivalent logic
-- [ ] Response shape identical (decision, reason, decision_id, policy_version)
+- [ ] Decision parameters match across gateway, mock, BFF `simulatedAuthorizeService.js`, and PingGateway groovy filter
+- [ ] New DecisionContext handled in mock with equivalent logic (and in `mcpToolAuthorizationService.js` / groovy filter if applicable)
+- [ ] Response shape identical (decision, reason, decision_id, policy_version; optional `advice`)
 - [ ] Mock `.env` has all required config vars (propagated from api server via ensure_service_env)
 - [ ] `demo_authz_server` restarted and health check passes at `:9001/health`

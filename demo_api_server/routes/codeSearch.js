@@ -23,7 +23,15 @@ const upload = multer({
 
 // Get MCP server URL from env or use default
 const mcpServerUrl = process.env.MCP_CODE_SEARCH_URL || 'http://localhost:8095';
-const mcpClient = new MCPCodeSearchClient(mcpServerUrl);
+
+// Instantiate the client lazily on first use rather than at module load, so
+// requiring this route (e.g. from server.js at startup or in tests) has no
+// network-client construction side effect (axios.create()).
+let mcpClient;
+function getClient() {
+  if (!mcpClient) mcpClient = new MCPCodeSearchClient(mcpServerUrl);
+  return mcpClient;
+}
 
 /**
  * POST /api/code-search/index
@@ -37,7 +45,7 @@ const mcpClient = new MCPCodeSearchClient(mcpServerUrl);
  *
  * Response: { codebase_id, files_indexed, chunks_created, errors? }
  */
-router.post('/index', upload.array('files'), async (req, res) => {
+router.post('/index', upload.array('file'), async (req, res) => {
   try {
     const { codebase_name, codebase_id } = req.body;
 
@@ -66,7 +74,7 @@ router.post('/index', upload.array('files'), async (req, res) => {
     }));
 
     // Call MCP server to index
-    const result = await mcpClient.index({
+    const result = await getClient().index({
       files,
       codebase_id: finalCodebaseId,
       codebase_name,
@@ -118,7 +126,7 @@ router.post('/search', express.json(), async (req, res) => {
     }
 
     // Call MCP server to search
-    const result = await mcpClient.search({
+    const result = await getClient().search({
       query,
       codebase_id,
       limit: limit || 10,

@@ -51,11 +51,10 @@ async function _getWorkerToken() {
     reqConfig.auth = { username: clientId, password: clientSecret };
   }
   const resp = await axios.post(tokenUrl, body.toString(), reqConfig);
-  return {
-    token: resp.data.access_token,
-    source: "worker",
-    obtainedAt: new Date().toISOString(),
-  };
+  // Return the raw access-token string: every caller interpolates the result
+  // directly as `Bearer ${token}`. Returning an object here yields
+  // "Bearer [object Object]" and 401s every worker-token call.
+  return resp.data.access_token;
 }
 
 let _cachedDefaultPolicyId = null;
@@ -848,7 +847,7 @@ async function initFido2Registration(userId, allowCleanupRetry = true) {
     if (allowCleanupRetry && limitReached) {
       try {
         const active = await listMfaDevices(userId);
-        const fidoDevices = active.filter((d) =>
+        const fidoDevices = active.devices.filter((d) =>
           String(d?.type || "")
             .toUpperCase()
             .startsWith("FIDO2"),

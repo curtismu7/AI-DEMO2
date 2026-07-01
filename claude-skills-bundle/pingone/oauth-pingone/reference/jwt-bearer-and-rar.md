@@ -50,7 +50,7 @@ parameterized** permissions and the IdP render an exact consent screen.
 
 | `scope` (today, banking) | `authorization_details` (RAR) |
 |---|---|
-| `banking:write` | `{ "type": "payment_initiation", "instructedAmount": {...}, "creditorName": "..." }` |
+| `write` | `{ "type": "payment_initiation", "instructedAmount": {...}, "creditorName": "..." }` |
 | Coarse: "can transfer" | Specific: "authorize **$250** to **ABC Supplies**" |
 | Opaque to audit | Structured, auditable, compliance-friendly |
 
