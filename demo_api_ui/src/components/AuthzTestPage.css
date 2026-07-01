@@ -886,3 +886,72 @@
   max-height: 220px;
   overflow-y: auto;
 }
+
+/* ── Learning sections (P1AZ learning page) ───────────────────────────── */
+.authz-learning-sections {
+  margin: 24px 0;
+}
+
+.authz-learning-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text, #1a1a2e);
+  margin: 0 0 12px;
+}
+
+.demo-section-note {
+  color: var(--color-text-muted, #374151);
+  font-size: 0.875rem;
+  margin: 8px 0 0;
+}
+
+.demo-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.demo-form-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .demo-form-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.demo-form-row label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text, #1a1a2e);
+}
+
+.demo-form-row input,
+.demo-form-row select {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+  color: var(--color-text, #1a1a2e);
+}
+
+.demo-form-row input:focus,
+.demo-form-row select:focus {
+  outline: none;
+  border-color: #4338ca;
+}
+
+.authz-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fdeceb;
+  color: #b42318;
+  font-size: 0.8125rem;
+}
