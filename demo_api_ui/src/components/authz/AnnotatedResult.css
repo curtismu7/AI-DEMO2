@@ -1,9 +1,6 @@
 .annotated-result { border: 1px solid var(--border, #d0d5dd); border-radius: 8px; padding: 12px; margin-top: 12px; }
 .ar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-.ar-badge { font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
-.ar-permit { background: #e7f6ec; color: #087443; }
-.ar-deny { background: #fdeceb; color: #b42318; }
-.ar-indeterminate { background: #fef6e7; color: #b54708; }
+/* Decision badge styles are reused from .authz-badge in AuthzTestPage.css. */
 .ar-engine { color: #667085; font-size: 12px; }
 .ar-trace { display: grid; gap: 4px; margin-bottom: 8px; }
 .ar-trace-row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 13px; }

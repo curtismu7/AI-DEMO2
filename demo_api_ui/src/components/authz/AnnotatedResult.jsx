@@ -1,10 +1,12 @@
 import JsonField from "../shared/JsonField";
 import "./AnnotatedResult.css";
 
+// Reuse the page's decision-badge styles (AuthzTestPage.css) so the learning
+// results match the transaction badges rather than maintaining a second palette.
 const BADGE_CLASS = {
-  PERMIT: "ar-badge ar-permit",
-  DENY: "ar-badge ar-deny",
-  INDETERMINATE: "ar-badge ar-indeterminate",
+  PERMIT: "authz-badge authz-badge--permit",
+  DENY: "authz-badge authz-badge--deny",
+  INDETERMINATE: "authz-badge authz-badge--indeterminate",
 };
 
 function StatementList({ items, title }) {
@@ -30,7 +32,7 @@ export default function AnnotatedResult({ result }) {
   return (
     <div className="annotated-result">
       <div className="ar-header">
-        <span className={BADGE_CLASS[decision] || "ar-badge"}>{decision}</span>
+        <span className={BADGE_CLASS[decision] || "authz-badge"}>{decision}</span>
         {result.engine ? <span className="ar-engine">engine: {result.engine}</span> : null}
       </div>
 
