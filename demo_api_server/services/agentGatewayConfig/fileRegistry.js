@@ -123,7 +123,12 @@ function resolveEntry(id) {
   if (!entry) return null;
   const resolved = path.resolve(entry.absPath);
   const base = path.resolve(entry.baseDir);
-  if (resolved !== base && !resolved.startsWith(base + path.sep)) return null;
+  // Guard against traversal: the file must sit inside baseDir. Handle baseDir
+  // being the filesystem root ('/') — there `base + path.sep` would be '//',
+  // which no real path starts with (this is how scope-topology.json lives at
+  // '/scope-topology.json' in the Docker deployment).
+  const prefix = base.endsWith(path.sep) ? base : base + path.sep;
+  if (resolved !== base && !resolved.startsWith(prefix)) return null;
   return { ...entry, absPath: resolved };
 }
 
