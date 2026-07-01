@@ -1,32 +1,49 @@
 import { useState, useCallback, useRef, useEffect } from 'react'; // v7
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v7';
+const STORAGE_KEY = 'arch-canvas-v8';
 
 // Layout — single Agent Gateway node (Node/IG modes are the same product),
-// PingOne SSO added as IDP for RFC 8693 token exchange
+// PingOne SSO added as IDP for RFC 8693 token exchange.
+//
+// Positions are computed deterministically from NODE_GRID rather than
+// hard-coded, so the default layout is guaranteed overlap-free and stays
+// clean as nodes are added. Each node has a column index (left → right) and
+// a row offset from the horizontal "spine" (row 0). Column pitch and row
+// pitch both exceed the box size (W=155, H=86), so no two nodes overlap.
 //
 // Columns (left → right):
-//  0  Browser         x=30
-//  1  BFF             x=220
-//  2  Agent Layer     x=430   (langchain-agent top, agent-service bottom)
-//  3  Gateway         x=640   (single Agent Gateway, centred)
-//  4  Auth / Policy   x=855   (authz-server top, pingone-sso middle, hitl-service bottom)
-//  5  MCP Backends    x=1075
+//  0 Browser  1 BFF  2 Agent Layer  3 Gateway  4 Auth / Policy  5 MCP Backends
 
-const SEED_POSITIONS = {
-  frontend:          { x: 30,   y: 220 },
-  bff:               { x: 220,  y: 220 },
-  'langchain-agent': { x: 430,  y: 80  },
-  'agent-service':   { x: 430,  y: 340 },
-  'mcp-gateway':     { x: 640,  y: 210 },
-  'authz-server':    { x: 855,  y: 40  },
-  'pingone-sso':     { x: 855,  y: 185 },
-  'hitl-service':    { x: 855,  y: 360 },
-  'mcp-server':      { x: 1075, y: 40  },
-  'mcp-invest':      { x: 1075, y: 200 },
-  'mortgage-service':{ x: 1075, y: 360 },
+const COL_PITCH = 208;  // horizontal gap between columns (> W = 155)
+const ROW_PITCH = 140;  // vertical gap between stacked nodes (> H = 86)
+const X0 = 30;          // left margin of column 0
+const SPINE_Y = 210;    // y of the primary (row 0) flow nodes
+
+const NODE_GRID = {
+  frontend:          { col: 0, row: 0 },
+  bff:               { col: 1, row: 0 },
+  'langchain-agent': { col: 2, row: -1 },
+  'agent-service':   { col: 2, row: 1 },
+  'mcp-gateway':     { col: 3, row: 0 },
+  'authz-server':    { col: 4, row: -1 },
+  'pingone-sso':     { col: 4, row: 0 },
+  'hitl-service':    { col: 4, row: 1 },
+  'mcp-server':      { col: 5, row: -1 },
+  'mcp-invest':      { col: 5, row: 0 },
+  'mortgage-service':{ col: 5, row: 1 },
 };
+
+// Deterministic, overlap-free positions keyed by node id. NODE_GRID is static,
+// so this is computed once at module load rather than on every render.
+function computeAutoLayout() {
+  const out = {};
+  for (const [id, { col, row }] of Object.entries(NODE_GRID)) {
+    out[id] = { x: X0 + col * COL_PITCH, y: SPINE_Y + row * ROW_PITCH };
+  }
+  return out;
+}
+const AUTO_POSITIONS = computeAutoLayout();
 
 const NODE_LAYER = {
   frontend:          'client',
@@ -65,14 +82,14 @@ const NODE_SUB = {
 };
 
 function buildSeedNodes() {
-  return Object.keys(SEED_POSITIONS).map(id => {
+  return Object.keys(AUTO_POSITIONS).map(id => {
     const svc = topologyRaw.services?.[id];
     return {
       id,
       label: NODE_LABEL[id] ?? id,
       sub:   NODE_SUB[id] ?? (svc ? `${svc.scheme}:${svc.port}` : ''),
-      x: SEED_POSITIONS[id].x,
-      y: SEED_POSITIONS[id].y,
+      x: AUTO_POSITIONS[id].x,
+      y: AUTO_POSITIONS[id].y,
       layer: NODE_LAYER[id] ?? 'tool',
     };
   });

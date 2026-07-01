@@ -244,3 +244,53 @@
   width: 200px;
   outline: none;
 }
+
+/* Play / Pause button in steps header */
+.canvas-steps-play {
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+.canvas-steps-play:hover { filter: brightness(0.92); }
+
+/* Per-step duration control */
+.canvas-step-duration {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64748b;
+}
+.canvas-step-duration-label { font-weight: 600; color: #475569; }
+.canvas-step-duration input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'ui-monospace', monospace;
+  color: #1e293b;
+}
+.canvas-step-duration input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.canvas-step-duration-unit { font-weight: 600; color: #94a3b8; }
+
+/* Active step highlight during playback */
+.canvas-step--active .canvas-step-desc { color: #0f172a; font-weight: 600; }
+
+@keyframes pulse-step {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  50%      { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+}
+.canvas-step-num--active {
+  animation: pulse-step 1.4s ease-in-out infinite;
+}
