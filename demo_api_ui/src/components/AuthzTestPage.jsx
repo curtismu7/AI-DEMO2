@@ -5,6 +5,11 @@ import { navigateToAdminOAuthLogin } from "../utils/authUi";
 import "./AuthzTestPage.css";
 import PingOneApiPanel from "./PingOneApiPanel";
 import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
+import DemoSection from "./authz/DemoSection";
+import DemoForm from "./authz/DemoForm";
+import AnnotatedResult from "./authz/AnnotatedResult";
+import { AUTHZ_SECTIONS } from "./authz/authzSections";
+import { useDemoRunner } from "./authz/useDemoRunner";
 
 // ---------------------------------------------------------------------------
 // Preset scenarios — cover all three decision branches
@@ -146,6 +151,51 @@ function RawJson({ data, label }) {
 }
 
 // ---------------------------------------------------------------------------
+// Learning section — self-contained: owns its own form state + demo runner
+// ---------------------------------------------------------------------------
+
+function LearningSection({ section, open, onToggle }) {
+	const { result, loading, error, run } = useDemoRunner();
+	const initial = {};
+	for (const f of section.fields) initial[f.name] = f.default;
+	const [values, setValues] = useState(initial);
+	const onChange = (name, value) => setValues((v) => ({ ...v, [name]: value }));
+
+	const runnable = section.demoType != null;
+	const onRun = () => {
+		if (section.demoType === "transaction") {
+			run({ demoType: "transaction", transaction: values });
+		} else {
+			// coerce booleans declared in the registry; merge any fixedInput
+			const input = { ...(section.fixedInput || {}) };
+			for (const f of section.fields) {
+				const raw = values[f.name];
+				input[f.name] = f.coerce === "boolean" ? raw === "true" : (f.type === "number" ? Number(raw) : raw);
+			}
+			run({ demoType: section.demoType, input });
+		}
+	};
+
+	return (
+		<DemoSection id={section.id} number={section.number} title={section.title}
+			concept={section.concept} docHref={section.docHref} open={open} onToggle={onToggle}>
+			{runnable ? (
+				<>
+					<DemoForm fields={section.fields} values={values} onChange={onChange} />
+					<button type="button" className="btn btn-primary" onClick={onRun} disabled={loading}>
+						{loading ? "Evaluating…" : "Evaluate"}
+					</button>
+					{error ? <div className="authz-error">{error}</div> : null}
+					<AnnotatedResult result={result} />
+				</>
+			) : (
+				<p className="demo-section-note">Explainer section — see "Learn more" for the full documentation.</p>
+			)}
+		</DemoSection>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -178,6 +228,11 @@ export default function AuthzTestPage() {
 	const [availableEndpoints, setAvailableEndpoints] = useState([]);
 	const [endpointsLoading, setEndpointsLoading] = useState(false);
 	const [endpointsError, setEndpointsError] = useState(null); // null | "403" | "fetch_failed"
+
+	const [openSection, setOpenSection] = useState("overview");
+	const toggleSection = useCallback((id) => {
+		setOpenSection((cur) => (cur === id ? null : id));
+	}, []);
 
 	const pushHistory = useCallback((result, label) => {
 		setHistory((h) =>
@@ -802,6 +857,14 @@ export default function AuthzTestPage() {
 				docLabel="PingOne Authorize Docs"
 				description="PingOne Authorize policy decision — evaluates Trust Framework parameters and returns PERMIT / DENY / step-up obligation"
 			/>
+			{/* Learning sections */}
+			<div className="authz-learning-sections">
+				<h2 className="authz-learning-heading">Learn PingOne Authorize</h2>
+				{AUTHZ_SECTIONS.map((s) => (
+					<LearningSection key={s.id} section={s} open={openSection === s.id} onToggle={toggleSection} />
+				))}
+			</div>
+
 			{/* Preset scenarios */}
 			<section className="authz-section">
 				<div className="authz-section-title-row">
