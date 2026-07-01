@@ -69,15 +69,29 @@ describe('useCanvasLayout', () => {
   it('persists layout to localStorage on moveNode', () => {
     const { result } = renderHook(() => useCanvasLayout());
     act(() => result.current.moveNode(result.current.nodes[0].id, 42, 42));
-    const stored = JSON.parse(localStorageMock.getItem('arch-canvas-v1'));
+    const stored = JSON.parse(localStorageMock.getItem('arch-canvas-v8'));
     expect(stored.nodes[0].x === 42 || stored.nodes.find(n => n.x === 42)).toBeTruthy();
   });
 
   it('loads persisted layout on mount', () => {
     const seed = { nodes: [{ id: 'n-test', label: 'Test', sub: '', x: 55, y: 77, color: '#aaa' }], edges: [] };
-    localStorageMock.setItem('arch-canvas-v1', JSON.stringify(seed));
+    localStorageMock.setItem('arch-canvas-v8', JSON.stringify(seed));
     const { result } = renderHook(() => useCanvasLayout());
     expect(result.current.nodes.find(n => n.id === 'n-test')).toBeTruthy();
+  });
+
+  it('computeAutoLayout produces non-overlapping nodes', () => {
+    const { result } = renderHook(() => useCanvasLayout());
+    const W = 155, H = 86;
+    const ns = result.current.nodes;
+    for (let i = 0; i < ns.length; i++) {
+      for (let j = i + 1; j < ns.length; j++) {
+        const a = ns[i], b = ns[j];
+        const overlapX = Math.abs(a.x - b.x) < W;
+        const overlapY = Math.abs(a.y - b.y) < H;
+        expect(overlapX && overlapY).toBe(false);
+      }
+    }
   });
 
   it('moveNode after addEdge persists both correctly', () => {
@@ -85,7 +99,7 @@ describe('useCanvasLayout', () => {
     const [a, b] = result.current.nodes;
     act(() => result.current.addEdge(a.id, b.id));
     act(() => result.current.moveNode(a.id, 11, 22));
-    const stored = JSON.parse(localStorageMock.getItem('arch-canvas-v1'));
+    const stored = JSON.parse(localStorageMock.getItem('arch-canvas-v8'));
     expect(stored.edges.some(e => e.from === a.id && e.to === b.id)).toBe(true);
     expect(stored.nodes.find(n => n.id === a.id)?.x).toBe(11);
   });
