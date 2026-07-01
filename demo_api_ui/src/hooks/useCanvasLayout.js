@@ -1,51 +1,66 @@
 import { useState, useCallback, useRef, useEffect } from 'react'; // v7
 import topologyRaw from '../service-topology.json';
 
-const STORAGE_KEY = 'arch-canvas-v7';
+const STORAGE_KEY = 'arch-canvas-v8';
 
 // Layout — single Agent Gateway node (Node/IG modes are the same product),
-// PingOne SSO added as IDP for RFC 8693 token exchange
+// PingOne SSO added as IDP for RFC 8693 token exchange.
+//
+// Positions are computed deterministically from NODE_GRID rather than
+// hard-coded, so the default layout is guaranteed overlap-free and stays
+// clean as nodes are added. Each node has a column index (left → right) and
+// a row offset from the horizontal "spine" (row 0). Column pitch and row
+// pitch both exceed the box size (W=155, H=86), so no two nodes overlap.
 //
 // Columns (left → right):
-//  0  Browser         x=30
-//  1  BFF             x=220
-//  2  Agent Layer     x=430   (langchain-agent top, agent-service bottom)
-//  3  Gateway         x=640   (single Agent Gateway, centred)
-//  4  Auth / Policy   x=855   (authz-server top, pingone-sso middle, hitl-service bottom)
-//  5  MCP Backends    x=1075
+//  0 Browser  1 BFF  2 Agent Layer  3 Gateway  4 Auth / Policy  5 MCP Backends
 
-const SEED_POSITIONS = {
-  frontend:          { x: 30,   y: 200 },
-  bff:               { x: 165,  y: 340 },
-  'pingone-sso':     { x: 255,  y: 60  },
-  'agent-service':   { x: 420,  y: 180 },
-  'a2a-orchestrator':{ x: 420,  y: 360 },
-  'a2a-specialist':  { x: 500,  y: 520 },
-  'mcp-gateway':     { x: 570,  y: 340 },
-  'authz-server':    { x: 930,  y: 80  },
-  'hitl-service':    { x: 1010, y: 400 },
-  'mcp-server':      { x: 1220, y: 80  },
-  'mcp-invest':      { x: 1220, y: 200 },
+const COL_PITCH = 208;  // horizontal gap between columns (> W = 155)
+const ROW_PITCH = 140;  // vertical gap between stacked nodes (> H = 86)
+const X0 = 30;          // left margin of column 0
+const SPINE_Y = 210;    // y of the primary (row 0) flow nodes
+
+const NODE_GRID = {
+  frontend:          { col: 0, row: 0 },
+  bff:               { col: 1, row: 0 },
+  'langchain-agent': { col: 2, row: -1 },
+  'agent-service':   { col: 2, row: 1 },
+  'mcp-gateway':     { col: 3, row: 0 },
+  'authz-server':    { col: 4, row: -1 },
+  'pingone-sso':     { col: 4, row: 0 },
+  'hitl-service':    { col: 4, row: 1 },
+  'mcp-server':      { col: 5, row: -1 },
+  'mcp-invest':      { col: 5, row: 0 },
+  'mortgage-service':{ col: 5, row: 1 },
 };
+
+// Deterministic, overlap-free positions keyed by node id. NODE_GRID is static,
+// so this is computed once at module load rather than on every render.
+function computeAutoLayout() {
+  const out = {};
+  for (const [id, { col, row }] of Object.entries(NODE_GRID)) {
+    out[id] = { x: X0 + col * COL_PITCH, y: SPINE_Y + row * ROW_PITCH };
+  }
+  return out;
+}
+const AUTO_POSITIONS = computeAutoLayout();
 
 const NODE_LAYER = {
   frontend:          'client',
   bff:               'gateway',
+  'langchain-agent': 'agent',
   'agent-service':   'agent',
-  'a2a-orchestrator':'agent',
-  'a2a-specialist':  'agent',
   'mcp-gateway':     'mcp',
   'authz-server':    'policy',
   'pingone-sso':     'policy',
   'hitl-service':    'tool',
   'mcp-server':      'backend',
   'mcp-invest':      'backend',
+  'mortgage-service':'backend',
 };
 
 // Human-readable display labels (overrides the id as label)
 const NODE_LABEL = {
-  'a2a-orchestrator': 'A2A Orchestrator',
-  'a2a-specialist':   'Specialist Agent',
   'mcp-gateway':  'Ping Agent Gateway',
   'authz-server': 'PingOne Authorize',
   'pingone-sso':  'PingOne SSO',
@@ -55,26 +70,26 @@ const NODE_LABEL = {
 const NODE_SUB = {
   frontend:          'Browser',
   bff:               'https:3001',
+  'langchain-agent': 'http:8888 · AG-UI',
   'agent-service':   'http:3006 · NL mode',
-  'a2a-orchestrator':'CrewAI · decide/authorize',
-  'a2a-specialist':  'Investment / Records / Purchase',
   'mcp-gateway':     'http:3005 · Node / IG',
   'authz-server':    'http:9001 · P1AZ',
   'pingone-sso':     'IDP · Token Exchange',
   'hitl-service':    'http:3009',
   'mcp-server':      'http:8080 · OLB',
   'mcp-invest':      'http:8081',
+  'mortgage-service':'http:8082',
 };
 
 function buildSeedNodes() {
-  return Object.keys(SEED_POSITIONS).map(id => {
+  return Object.keys(AUTO_POSITIONS).map(id => {
     const svc = topologyRaw.services?.[id];
     return {
       id,
       label: NODE_LABEL[id] ?? id,
       sub:   NODE_SUB[id] ?? (svc ? `${svc.scheme}:${svc.port}` : ''),
-      x: SEED_POSITIONS[id].x,
-      y: SEED_POSITIONS[id].y,
+      x: AUTO_POSITIONS[id].x,
+      y: AUTO_POSITIONS[id].y,
       layer: NODE_LAYER[id] ?? 'tool',
     };
   });
@@ -82,34 +97,22 @@ function buildSeedNodes() {
 
 function buildSeedEdges(nodes) {
   const pairs = [
-    ['frontend',        'bff',                  'Send message'],
-    ['bff',             'agent-service',        'Dispatch'],
-    ['agent-service',   'bff',                  'Dispatch'],
-    // BFF ↔ PingOne SSO for RFC 8693 token exchange
-    ['bff',             'pingone-sso',          'Token exchange'],
-    ['pingone-sso',     'bff',                  'Token exchange'],
-    // BFF ↔ MCP Gateway routing
-    ['bff',             'mcp-gateway',          'Routing'],
-    ['mcp-gateway',     'bff',                  'Routing'],
-    ['mcp-gateway',     'authz-server',         'Authorize request'],
-    // A2A — agent-to-agent delegation subsystem
-    ['agent-service',   'a2a-orchestrator',     'Delegate? (A2A)'],
-    ['a2a-orchestrator','authz-server',         'Approve act-chain'],
-    ['a2a-orchestrator','a2a-specialist',       'RFC 8693 nested act'],
-    ['a2a-specialist',  'mcp-gateway',          'Narrow tool call'],
-    ['mcp-gateway',     'hitl-service',         'Challenge'],
-    // MCP Gateway ↔ MCP Server
-    ['mcp-gateway',     'mcp-server',           'MCP API call'],
-    ['mcp-server',      'mcp-gateway',          'MCP API call'],
-    ['mcp-gateway',     'mcp-invest',           'MCP API call'],
-    // Token introspection bidirectional
-    ['authz-server',    'pingone-sso',          'Token introspection'],
-    ['pingone-sso',     'authz-server',         'Token introspection'],
+    ['frontend',        'bff'],
+    ['bff',             'langchain-agent'],
+    ['bff',             'agent-service'],
+    // BFF → PingOne SSO for RFC 8693 token exchange before calling gateway
+    ['bff',             'pingone-sso'],
+    ['bff',             'mcp-gateway'],
+    ['mcp-gateway',     'authz-server'],
+    ['mcp-gateway',     'hitl-service'],
+    ['mcp-gateway',     'mcp-server'],
+    ['mcp-gateway',     'mcp-invest'],
+    ['mcp-gateway',     'mortgage-service'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs
     .filter(([a, b]) => nodeIds.has(a) && nodeIds.has(b))
-    .map(([from, to, label]) => ({ id: `e-${from}-${to}`, from, to, label }));
+    .map(([from, to]) => ({ id: `e-${from}-${to}`, from, to }));
 }
 
 function loadFromStorage() {
@@ -189,19 +192,6 @@ export default function useCanvasLayout() {
     });
   }, [persist]);
 
-  const removeNode = useCallback((id) => {
-    setNodes(prev => {
-      const next = prev.filter(n => n.id !== id);
-      persist(next, edgesRef.current);
-      return next;
-    });
-    setEdges(prev => {
-      const next = prev.filter(e => e.from !== id && e.to !== id);
-      persist(nodesRef.current, next);
-      return next;
-    });
-  }, [persist]);
-
   const resetLayout = useCallback(() => {
     const freshNodes = buildSeedNodes();
     setNodes(freshNodes);
@@ -209,5 +199,5 @@ export default function useCanvasLayout() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
   }, []);
 
-  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, removeNode, resetLayout };
+  return { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout };
 }

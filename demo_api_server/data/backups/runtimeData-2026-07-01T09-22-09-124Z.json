@@ -4427,6 +4427,217 @@
   ],
   "activityLogs": [
     {
+      "id": "2f759303-c226-4384-8ede-c981b59d7e41",
+      "userId": null,
+      "username": null,
+      "action": "UNKNOWN",
+      "endpoint": "POST /api/demo-agent/tools",
+      "ipAddress": "::ffff:192.168.97.9",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "requestBody": {
+        "vertical": "banking",
+        "allowWrite": true
+      },
+      "responseBody": {
+        "message": "Response too large to display"
+      },
+      "responseStatus": 200,
+      "duration": 186,
+      "timestamp": "2026-06-29T22:39:01.443Z"
+    },
+    {
+      "id": "046e3633-24fc-4908-8ddc-8f897ae1d15c",
+      "userId": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "username": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+      "action": "UNKNOWN",
+      "endpoint": "GET /api/verticals/list",
+      "ipAddress": "::ffff:192.168.97.9",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "authorization": "Bearer eyJraWQiOiI1Y2JjN2Q2MC0wMWQzLTExZjEtYWQ4Mi1mMWNlYWExZjQ2MzQiLCJhbGciOiJSUzI1NiJ9.eyJjbGllbnRfaWQiOiI4MzU3MjAwNy1iMmM3LTQ4NjItODE5Ny1kYzIyNWE5ZmI4ZTEiLCJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vMDFkODliMDYtNjZkNS00MzBlLTlmMjgtNjU2MzY4NDM3ODhiL2FzIiwianRpIjoiZDAwNThhNWItZGRjYi00YTM0LWJiODUtMzM3MTg2MzI1YzA0IiwiaWF0IjoxNzgyNzcyNjY5LCJleHAiOjE3ODI3NzYyNjksImF1ZCI6WyJlbmR1c2VyLnBpbmcuZGVtbyJdLCJzY29wZSI6ImFpOmFnZW50OnJlYWQgdHJhbnNmZXIgcmVhZCBvcGVuaWQgd3JpdGUgbW9ydGdhZ2U6cmVhZCIsInN1YiI6IjFhZWU3NGFlLTNkMDktNGJjZi1hNjlmLTdlMWJjMjI1Yjc2MSIsInNpZCI6IjNkY2NlMWQ2LWE4ZmMtNGE1ZS1hZTNmLTMxYTY5ZTE0NWE0YyIsImF1dGhfdGltZSI6MTc4Mjc3MjY2OSwiYWNyIjoiU2luZ2xlX0ZhY3RvciIsIm1heV9hY3QiOnsic3ViIjoiNzFlODc4ZWEtMmQ3OS00NzYwLWI1NzAtNjZmMDBjYmVmZmU3In0sImVudiI6IjAxZDg5YjA2LTY2ZDUtNDMwZS05ZjI4LTY1NjM2ODQzNzg4YiIsIm9yZyI6Ijk3YmE0NGYyLWY3ZWUtNDE0NC1hYTk1LTllNjM2YjU3YzA5NiJ9.PBX1SOgQg9iDBNhkvpq5loDhNcAag0fY5jqVxKrmX_7j9obCMvFLCnOphihjm3F05jIBwy3us-QQVk4Susjorg1uNEao8fQZ_RFq9JOXQaQLYBBuef9kJxHAiL_LLh0nbmrF91_7rjCBP1fgBSfNgGBTOx2Ho2s-54M-sqLP0PuZHpir2XI3xTvLcxgI3MCCvPumNA5OVZHodaeyCYwOw1eP4sNpB9vonpAdeokmRBeKPrkD8tMSdgZlmCkAEZ3Jq785UtJ6Z32KLGVQ-3dUaYRvR31EStGNVaZRHIi5o8fibhZtGuScKAsXkaOxhzytGoNPU5fjNcWKkrP7ETlBwQ",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "banking",
+          "displayName": "Super Banking",
+          "tagline": "AI-Powered Banking Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#dc2626",
+              "--app-primary-red-border": "#7f1d1d",
+              "--brand-dashboard-header-start": "#1d4ed8",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1d4ed8",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#2563eb",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "government",
+          "displayName": "CivicPermit",
+          "tagline": "AI-Powered Citizen Permitting Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#1e40af",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#2563eb",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#2563eb",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "healthcare",
+          "displayName": "CareConnect",
+          "tagline": "AI-Powered Healthcare Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#0f766e",
+              "--app-primary-red-hover": "#0d6b64",
+              "--app-primary-red-mid": "#14b8a6",
+              "--app-primary-red-border": "#0d9488",
+              "--brand-dashboard-header-start": "#0f766e",
+              "--brand-dashboard-header-end": "#0d9488",
+              "--brand-app-shell-hero-start": "#0f766e",
+              "--brand-app-shell-hero-end": "#0d9488",
+              "--theme-accent": "#14b8a6",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "manufacturing",
+          "displayName": "Precision Works",
+          "tagline": "AI-Powered Manufacturing Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#3b5269",
+              "--app-primary-red-hover": "#314457",
+              "--app-primary-red-mid": "#5a748c",
+              "--app-primary-red-border": "#28394a",
+              "--brand-dashboard-header-start": "#334155",
+              "--brand-dashboard-header-end": "#475569",
+              "--brand-app-shell-hero-start": "#334155",
+              "--brand-app-shell-hero-end": "#475569",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "pingone-admin",
+          "displayName": "PingOne Admin",
+          "tagline": "AI-Driven API Discovery Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#1d4ed8",
+              "--app-primary-red-hover": "#1e40af",
+              "--app-primary-red-mid": "#3b82f6",
+              "--app-primary-red-border": "#2563eb",
+              "--brand-dashboard-header-start": "#1e3a8a",
+              "--brand-dashboard-header-end": "#1d4ed8",
+              "--brand-app-shell-hero-start": "#1e3a8a",
+              "--brand-app-shell-hero-end": "#1d4ed8",
+              "--theme-accent": "#60a5fa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "retail",
+          "displayName": "Great Buy",
+          "tagline": "AI-Powered Retail Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#FFE000",
+              "--app-primary-red-hover": "#FFCC00",
+              "--app-primary-red-mid": "#FFE933",
+              "--app-primary-red-border": "#E6CC00",
+              "--app-primary-btn-text": "#1D1D1B",
+              "--brand-dashboard-header-start": "#1D1D1B",
+              "--brand-dashboard-header-end": "#2d2d2b",
+              "--brand-app-shell-hero-start": "#1D1D1B",
+              "--brand-app-shell-hero-end": "#2d2d2b",
+              "--theme-accent": "#FFE000",
+              "--brand-navy": "#1D1D1B",
+              "--brand-dashboard-header-text": "#FFFFFF",
+              "--brand-topnav-bg-start": "#1D1D1B",
+              "--brand-topnav-bg-end": "#2d2d2b",
+              "--brand-topnav-text": "#1D1D1B"
+            }
+          }
+        },
+        {
+          "id": "sporting-goods",
+          "displayName": "Super Sports",
+          "tagline": "AI-Powered Sporting Goods Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#b91c1c",
+              "--app-primary-red-hover": "#991b1b",
+              "--app-primary-red-mid": "#ef4444",
+              "--app-primary-red-border": "#dc2626",
+              "--brand-dashboard-header-start": "#b91c1c",
+              "--brand-dashboard-header-end": "#dc2626",
+              "--brand-app-shell-hero-start": "#b91c1c",
+              "--brand-app-shell-hero-end": "#ef4444",
+              "--theme-accent": "#f97316",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "university",
+          "displayName": "Super University",
+          "tagline": "AI-Powered Campus Registrar Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#6d28d9",
+              "--app-primary-red-hover": "#5b21b6",
+              "--app-primary-red-mid": "#8b5cf6",
+              "--app-primary-red-border": "#5b21b6",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#f59e0b",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        },
+        {
+          "id": "workforce",
+          "displayName": "WX Workforce",
+          "tagline": "AI-Powered HR & Workforce Demo",
+          "theme": {
+            "cssVars": {
+              "--app-primary-red": "#4c1d95",
+              "--app-primary-red-hover": "#3b0764",
+              "--app-primary-red-mid": "#7c3aed",
+              "--app-primary-red-border": "#6d28d9",
+              "--brand-dashboard-header-start": "#4c1d95",
+              "--brand-dashboard-header-end": "#7c3aed",
+              "--brand-app-shell-hero-start": "#4c1d95",
+              "--brand-app-shell-hero-end": "#7c3aed",
+              "--theme-accent": "#a78bfa",
+              "--brand-dashboard-header-text": "#ffffff"
+            }
+          }
+        }
+      ],
+      "responseStatus": 200,
+      "duration": 1,
+      "timestamp": "2026-06-29T22:39:01.468Z"
+    },
+    {
       "id": "aa582381-3860-47bb-a44d-0114e643d50a",
       "userId": null,
       "username": null,
@@ -58721,42 +58932,6 @@
       "responseStatus": 200,
       "duration": 0,
       "timestamp": "2026-06-30T00:19:02.483Z"
-    },
-    {
-      "id": "4799435e-f12f-42ce-86b1-8a88e60cbea0",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-07-01T09:22:14.719Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 1,
-      "timestamp": "2026-07-01T09:22:14.720Z"
-    },
-    {
-      "id": "f613c444-7e7a-4d5d-b19e-b1b8461717e6",
-      "userId": null,
-      "username": null,
-      "action": "UNKNOWN",
-      "endpoint": "GET /api/healthz",
-      "ipAddress": "127.0.0.1",
-      "userAgent": "curl/8.19.0",
-      "requestBody": null,
-      "responseBody": {
-        "status": "ok",
-        "timestamp": "2026-07-01T09:22:44.823Z",
-        "port": 3001
-      },
-      "responseStatus": 200,
-      "duration": 2,
-      "timestamp": "2026-07-01T09:22:44.823Z"
     }
   ],
   "subscriptions": []
