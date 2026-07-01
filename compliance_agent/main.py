@@ -36,7 +36,7 @@ class HealthResponse(BaseModel):
 class ComplianceResponse(BaseModel):
     """Compliance check response"""
     success: bool = Field(description="Whether the compliance check succeeded")
-    data: ComplianceCheck = Field(description="Compliance assessment result")
+    data: ComplianceCheck | None = Field(default=None, description="Compliance assessment result")
     error: str | None = Field(default=None, description="Error message if failed")
 
 

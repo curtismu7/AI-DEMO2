@@ -20,7 +20,10 @@ function makeRequest(method, path, data = null) {
       method: method,
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      // Fail fast if the Python compliance service accepts the socket but never
+      // responds; without this the promise (and the Express handler) hangs forever.
+      timeout: 30000
     };
 
     const req = http.request(options, (res) => {
@@ -37,6 +40,9 @@ function makeRequest(method, path, data = null) {
     });
 
     req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('compliance service request timed out'));
+    });
 
     if (data) {
       req.write(JSON.stringify(data));
