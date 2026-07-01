@@ -56,7 +56,15 @@ interface JsonRpcBody {
 interface GwAuditTrail {
   introspection: { active: boolean; sub?: string; exp?: number; error?: string } | null;
   policy: { passed: boolean; error?: string } | null;
-  authorize: { decision: string; reason?: string } | null;
+  authorize: {
+    decision: string;
+    reason?: string;
+    decisionId?: string;
+    policyVersion?: string;
+    traceId?: string;
+    engine?: string;
+    attributes?: Record<string, string>;
+  } | null;
   mtls: { enabled: boolean; subject?: string } | null;
 }
 
@@ -68,7 +76,15 @@ interface GwAuditTrail {
 export interface AuthorizeMcpRequestDeps {
   introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number }>;
   authorize: (decoded: any, method: string, toolName?: string, toolArgs?: any, hitlApproved?: boolean, intentValidation?: ReturnType<typeof validateIntentToken> | null) =>
-    Promise<{ decision: 'PERMIT' | 'DENY' | 'INDETERMINATE'; reason?: string }>;
+    Promise<{
+      decision: 'PERMIT' | 'DENY' | 'INDETERMINATE';
+      reason?: string;
+      decisionId?: string;
+      policyVersion?: string;
+      traceId?: string;
+      engine?: 'real' | 'mock' | 'mock-failover';
+      sentParameters?: Record<string, string>;
+    }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -536,7 +552,15 @@ export function buildAuthorizeMcpRequest(
     } catch {
       authzDecision = { decision: 'DENY' as const, reason: 'Authorization service unavailable' };
     }
-    auditTrail.authorize = { decision: authzDecision.decision, reason: authzDecision.reason };
+    auditTrail.authorize = {
+      decision: authzDecision.decision,
+      reason: authzDecision.reason,
+      decisionId: authzDecision.decisionId,
+      policyVersion: authzDecision.policyVersion,
+      traceId: authzDecision.traceId,
+      engine: authzDecision.engine,
+      attributes: authzDecision.sentParameters,
+    };
 
     if (authzDecision.decision !== 'PERMIT') {
       setAuditHeader(res);
