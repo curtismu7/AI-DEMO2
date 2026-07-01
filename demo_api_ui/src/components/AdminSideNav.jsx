@@ -649,6 +649,7 @@ export default function AdminSideNav({ user }) {
       ],
     },
     { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
+    { label: "Code Search", path: "/code-search", icon: "srch" },
     { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
     { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
     { label: "Learning Hub", path: "/learning", icon: "doc" },

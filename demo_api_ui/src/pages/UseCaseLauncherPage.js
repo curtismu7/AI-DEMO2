@@ -19,12 +19,13 @@ import './UseCaseLauncherPage.css';
 import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
 
-const TRACK_ORDER = ['foundations', 'attacks', 'hitl', 'controls'];
+const TRACK_ORDER = ['foundations', 'attacks', 'hitl', 'controls', 'tools'];
 const TRACK_LABELS = {
   foundations: 'Happy Paths — core delegation and authorization',
   attacks:     'Attacks — malicious attempts blocked by PingOne',
   hitl:        'Human-in-the-Loop — approval, step-up, and consent requirements',
   controls:    'Other Controls — additional policy gates',
+  tools:       'Developer Tools — utilities and explorers',
 };
 
 // Attack sims wired to POST /api/demo/attack-sim/run in A6.
@@ -223,9 +224,10 @@ function FlagGate({ flagId, isOn, loading, onToggle }) {
   );
 }
 
-function UseCaseCard({ uc, onRun, onRunAttack, onExplain, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
+  const isLink   = uc.trigger?.type === 'link';
   const mat = maturityLabel(uc.maturity);
 
   const simId = uc.trigger?.sim;
@@ -320,7 +322,16 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, attackState, chipRunni
             Run (coming in A6.2)
           </button>
         )}
-        {!isChip && !isAttack && (
+        {isLink && (
+          <button
+            type="button"
+            className="uc-run-btn"
+            onClick={() => onOpen(uc)}
+          >
+            {uc.trigger.label || 'Open'}
+          </button>
+        )}
+        {!isChip && !isAttack && !isLink && (
           <span className="uc-card__no-trigger">No trigger defined</span>
         )}
       </div>
@@ -418,6 +429,11 @@ export default function UseCaseLauncherPage() {
       });
   }, [navigate]);
 
+  // Link-type use cases (developer tools) just navigate to their page.
+  const handleOpen = useCallback((uc) => {
+    if (uc.trigger?.path) navigate(uc.trigger.path);
+  }, [navigate]);
+
   const handleRunAttack = useCallback((uc, sim) => {
     // Clear anatomy explainer while a new run is in flight
     setLastSimResult(null);
@@ -488,6 +504,7 @@ export default function UseCaseLauncherPage() {
                   onRun={handleRun}
                   onRunAttack={handleRunAttack}
                   onExplain={setExplainUc}
+                  onOpen={handleOpen}
                   attackState={attackStates[uc.id]}
                   chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                   chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}

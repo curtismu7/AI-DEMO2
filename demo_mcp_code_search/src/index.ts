@@ -1,141 +1,47 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  type Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+/**
+ * Bootstrap for the code-search service: read config, wire the real embedder
+ * and Weaviate store, ensure the schema exists, then start the HTTP server.
+ */
 
-const server = new Server(
-  {
-    name: "code-search",
-    version: "1.0.0",
-  },
-  {
-    // Must declare the tools capability or the SDK throws
-    // "Server does not support tools" when registering tools/list handlers.
-    capabilities: { tools: {} },
-  },
+import 'dotenv/config';
+import pino from 'pino';
+import { createEmbedder } from './embeddings';
+import { createStore } from './weaviateStore';
+import { createServer } from './server';
+
+const log = pino({ name: 'code-search' });
+
+const PORT = Number(process.env.PORT || 8095);
+const EMBEDDING_URL = process.env.EMBEDDING_URL || 'http://embeddings:8080';
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'nomic-embed-text-v1.5';
+const WEAVIATE_HOST = (process.env.WEAVIATE_URL || 'http://weaviate:8080').replace(
+  /^https?:\/\//,
+  ''
 );
 
-const tools: Tool[] = [
-  {
-    name: "index_codebase",
-    description: "Index a codebase into the vector database",
-    inputSchema: {
-      type: "object",
-      properties: {
-        files: {
-          type: "string",
-          description: "Base64-encoded ZIP of source files",
-        },
-        codebase_id: {
-          type: "string",
-          description: "Unique identifier for the codebase",
-        },
-        codebase_name: {
-          type: "string",
-          description: "Human-readable name for the codebase",
-        },
-        chunk_strategy: {
-          type: "string",
-          enum: ["simple", "ast_aware"],
-          description: "Chunking strategy (default: simple)",
-        },
-      },
-      required: ["files", "codebase_id", "codebase_name"],
-    },
-  },
-  {
-    name: "search_code",
-    description: "Search indexed code by semantic query",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Natural language or code query",
-        },
-        codebase_id: {
-          type: "string",
-          description: "Which codebase to search",
-        },
-        limit: {
-          type: "number",
-          description: "Max results (default: 10)",
-        },
-        file_filter: {
-          type: "string",
-          description: "Glob pattern to filter files",
-        },
-      },
-      required: ["query", "codebase_id"],
-    },
-  },
-];
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+async function main(): Promise<void> {
+  const embedder = createEmbedder({ baseUrl: EMBEDDING_URL, model: EMBEDDING_MODEL });
+  const store = createStore(WEAVIATE_HOST);
 
   try {
-    if (name === "index_codebase") {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              codebase_id: (args as any).codebase_id,
-              files_indexed: 0,
-              chunks_created: 0,
-              errors: ["MCP server is running but services not fully initialized. Run with Docker for full functionality."],
-            }),
-          },
-        ],
-      };
-    } else if (name === "search_code") {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              results: [],
-              query_time_ms: 0,
-              query: (args as any).query,
-            }),
-          },
-        ],
-      };
-    }
-
-    return {
-      content: [{ type: "text", text: `Unknown tool: ${name}` }],
-      isError: true,
-    };
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${error instanceof Error ? error.message : error}`,
-        },
-      ],
-      isError: true,
-    };
+    await store.ensureSchema();
+    log.info({ class: 'CodeChunk' }, 'Weaviate schema ready');
+  } catch (err) {
+    // Don't crash if Weaviate is slow to come up — health stays green and
+    // index/search requests surface 503 until the dependency is reachable.
+    log.warn({ err: (err as Error).message }, 'Could not ensure schema at startup');
   }
-});
 
-async function main() {
-  console.error("[MCP Code Search] Initializing server...");
-  console.error("[MCP Code Search] For full functionality, run with Docker:");
-  console.error("  docker-compose up");
-  console.error("[MCP Code Search] Listening on stdio transport");
-
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  const app = createServer({ embedder, store });
+  app.listen(PORT, () => {
+    log.info(
+      { port: PORT, embedding: EMBEDDING_URL, weaviate: WEAVIATE_HOST },
+      'code-search listening'
+    );
+  });
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  log.error({ err: (err as Error).message }, 'fatal startup error');
+  process.exit(1);
+});
