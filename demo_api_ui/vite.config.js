@@ -7,16 +7,28 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig(({ mode }) => {
-  // Load env vars prefixed with REACT_APP_ or VITE_ (REACT_APP_ for CRA compat)
+  // Load env vars prefixed with REACT_APP_ or VITE_ (REACT_APP_ for CRA compat).
+  // IMPORTANT: loadEnv only reads .env* files — it does NOT see process.env. In
+  // Docker the proxy-target vars (REACT_APP_API_HOST/PORT/HTTPS) arrive via the
+  // container environment, so we must prefer process.env and fall back to .env.
+  // Missing this made REACT_APP_API_HOST=demo-api-server silently ignored: the
+  // proxy fell back to api.ping.demo → 127.0.0.1 inside the container
+  // (ECONNREFUSED), surfacing as a false "Required servers not running" modal.
   const env = loadEnv(mode, process.cwd(), ['REACT_APP_', 'VITE_'])
+  const cfg = (key) => process.env[key] || env[key]
 
   // Proxy config — mirrors setupProxy.js logic exactly
-  const apiPort = env.REACT_APP_API_PORT || '3001'
+  const apiPort = cfg('REACT_APP_API_PORT') || '3001'
   const certFile = resolve(__dirname, '../certs/api.ping.demo+2.pem')
-  const apiHttps = existsSync(certFile) || env.REACT_APP_API_HTTPS === 'true'
-  const hostname = env.REACT_APP_API_HOST || (apiHttps ? 'api.ping.demo' : 'localhost')
+  const apiHttps = existsSync(certFile) || cfg('REACT_APP_API_HTTPS') === 'true'
+  const hostname = cfg('REACT_APP_API_HOST') || (apiHttps ? 'api.ping.demo' : 'localhost')
   const httpTarget = `${apiHttps ? 'https' : 'http'}://${hostname}:${apiPort}`
   const wsTarget = `${apiHttps ? 'wss' : 'ws'}://${hostname}:${apiPort}`
+
+  // Fail loud: surface the resolved proxy target at boot so a misconfigured
+  // host/port is visible in `docker logs ai-demo-ui` instead of silently
+  // hitting loopback and masquerading as a "servers down" error.
+  console.log(`[vite] dev proxy: /api,/health → ${httpTarget}  |  /ws → ${wsTarget}`)
 
   // Shim process.env.REACT_APP_* so existing source files need no changes.
   // Vite replaces these string patterns at build time with the actual values.
@@ -88,8 +100,13 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           configure: (proxy) => {
-            proxy.on('error', (err, req) => {
-              console.error('[proxy] Error forwarding', req.method, req.url, '->', httpTarget, ':', err.code || err.message)
+            proxy.on('error', (err, req, res) => {
+              const detail = err.code || err.message
+              console.error('[proxy] Error forwarding', req.method, req.url, '->', httpTarget, ':', detail)
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(502, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'proxy_error', target: httpTarget, detail }))
+              }
             })
           },
         },

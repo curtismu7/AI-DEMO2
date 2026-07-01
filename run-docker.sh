@@ -434,6 +434,44 @@ cmd_build_one() {
   echo ""
 }
 
+# ── Host port-conflict preflight ──────────────────────────────────────────────
+# A stale bare-metal `./run.sh` session (or any non-Docker process) holding a
+# port Docker publishes will SILENTLY shadow the container: `docker ps` shows
+# the mapping as bound, but the OS routes localhost:<port> to the host process
+# that grabbed it first. Symptom: a false "Required servers not running" modal
+# even though every container is healthy (the UI's :4000 is served by the stale
+# host vite, whose proxy points at a dev API port that isn't running).
+#
+# Before `up`, clear any NON-Docker listener on a Docker-published port. Docker's
+# own forwarders (OrbStack / com.docker / vpnkit) are left alone, and the
+# intentional host llama.cpp on :8090 is never touched (it is not in SERVICES).
+clear_stale_host_listeners() {
+  local cleared=0 entry _svc _label port pids pid cmd
+  for entry in "${SERVICES[@]}"; do
+    IFS='|' read -r _svc _label port _ <<< "${entry}"
+    port="${port//[[:space:]]/}"
+    [[ -z "${port}" ]] && continue
+    pids=$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null || true)
+    [[ -z "${pids}" ]] && continue
+    for pid in ${pids}; do
+      cmd=$(ps -o comm= -p "${pid}" 2>/dev/null || true)
+      # Skip Docker/OrbStack's own port forwarders — those ARE the container.
+      case "${cmd}" in
+        *[Dd]ocker*|*[Oo]rb[Ss]tack*|*vpnkit*|*containerd*) continue ;;
+      esac
+      warn "Port ${port} held by non-Docker process '${cmd##*/}' (pid ${pid}) — a stale ./run.sh session would shadow the container. Stopping it."
+      kill "${pid}" 2>/dev/null || true
+      cleared=1
+    done
+  done
+  if [[ "${cleared}" == "1" ]]; then
+    sleep 1
+    ok "Cleared stale bare-metal listeners on Docker-published ports"
+  else
+    ok "No host/port conflicts — Docker owns all published ports"
+  fi
+}
+
 cmd_start() {
   local build_flag="${1:-}"
 
@@ -458,6 +496,11 @@ cmd_start() {
   # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't
   # reported "not configured" on the first request.
   start_llamacpp
+  echo ""
+
+  # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
+  # that would silently shadow a Docker container's published port.
+  clear_stale_host_listeners
   echo ""
 
   if [[ "${build_flag}" == "--build" ]]; then

@@ -36,8 +36,17 @@ module.exports = function (app) {
   // Use api.ping.demo as hostname to match the SSL certificate issued for that domain.
   // The server.js also uses this hostname when HTTPS is enabled.
   // When certificates are present, must use matching hostname for SSL/TLS handshake.
-  const hostname = apiHttps ? 'api.ping.demo' : 'localhost';
+  // Honor REACT_APP_API_HOST (e.g. the docker service name "demo-api-server")
+  // so the proxy targets the API container over the compose network. Without
+  // it the default api.ping.demo resolves to 127.0.0.1 inside a container and
+  // the proxy dials its own loopback → ECONNREFUSED. Falls back to the
+  // cert-matching hostname on bare metal.
+  const hostname = process.env.REACT_APP_API_HOST || (apiHttps ? 'api.ping.demo' : 'localhost');
   const target = `${protocol}://${hostname}:${apiPort}`;
+
+  // Fail loud: surface the resolved proxy target at boot so a misconfigured
+  // host/port is visible in the logs instead of silently hitting loopback.
+  console.log('[proxy] dev proxy: /api → ' + target);
 
   app.use(
     '/api',
