@@ -110,6 +110,8 @@ const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
 const opsAgentRoutes = require('./routes/opsAgentRoutes');
 const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
+const supportAgentRoutes = require('./routes/supportAgentRoutes');
+const complianceAgentRoutes = require('./routes/complianceAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
 const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
@@ -1025,6 +1027,10 @@ app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
+// Support Agent: customer support via Mastra framework
+app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
+// Compliance Agent: transaction compliance checking via Pydantic AI
+app.use('/api/compliance-agent', authenticateToken, complianceAgentRoutes);
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
@@ -1188,6 +1194,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
+app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, adminRoutes);
