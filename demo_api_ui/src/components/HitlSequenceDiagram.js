@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { DiagramControls } from "./diagram";
+import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 
 // ─── Token card components (copied from SequenceDiagramPage.js) ─────────────
 
@@ -1820,6 +1820,7 @@ export default function HitlSequenceDiagram() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentStepIdx, setCurrentStepIdx] = useState(-1);
+  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
   const [leftPanelWidth, setLeftPanelWidth] = useState(300);
   const [zoomLevel, setZoomLevel] = useState(100);
   const simTimeouts = useRef([]);
@@ -1849,10 +1850,10 @@ export default function HitlSequenceDiagram() {
           const done = setTimeout(() => { resetDiagram(); setIsSimulating(false); }, 4000);
           simTimeouts.current.push(done);
         }
-      }, (offset + (startIdx === 0 ? 0 : 1)) * 2500);
+      }, (offset + (startIdx === 0 ? 0 : 1)) * stepMs);
       simTimeouts.current.push(t);
     });
-  }, [steps, applyStep, resetDiagram]);
+  }, [steps, applyStep, resetDiagram, stepMs]);
 
   const runSimulation = useCallback(() => {
     if (isSimulating) return;
@@ -1942,6 +1943,10 @@ export default function HitlSequenceDiagram() {
           onResume={resume}
           onNext={nextStep}
           onStop={stopSim}
+          onReset={stopSim}
+          stepTimeOptions={STEP_TIME_OPTIONS}
+          stepMs={stepMs}
+          onSetStepMs={setStepMs}
           extra={
             <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
               <label htmlFor="hitl-scenario-select" style={{ fontSize: "0.8rem", fontWeight: 600, color: "#475569" }}>Scenario:</label>

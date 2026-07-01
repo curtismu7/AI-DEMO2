@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 import { DEFAULT_SCENARIO_ID, SCENARIO_MAP, SCENARIOS } from '../config/architecture-sim-scenarios';
+import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS } from './diagram';
 import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
 import ArchitectureSimSvg from './ArchitectureSimSvg';
@@ -13,7 +14,7 @@ const INITIAL_STATE = {
   scenarioId: DEFAULT_SCENARIO_ID,
   stepIndex: 0,                // 0 = not started; 1..n = step number
   playing: false,
-  speed: 1,                    // 0.5 | 1 | 2  (multiplier; 1× = 1000ms/step)
+  stepMs: DEFAULT_STEP_MS,      // dwell time per step, in ms (shared STEP_TIME_OPTIONS)
   nodeStates: {},              // { [nodeId]: 'idle' | 'active' | 'done' }
   edgeStates: {},              // { [edgeId]: 'idle' | 'active' | 'done' }
 };
@@ -58,8 +59,8 @@ function simReducer(state, action) {
     case 'SET_SCENARIO':
       return { ...state, ...resetStates(), scenarioId: action.scenarioId };
 
-    case 'SET_SPEED':
-      return { ...state, speed: action.speed };
+    case 'SET_STEP_MS':
+      return { ...state, stepMs: action.stepMs };
 
     case 'PLAY': {
       if (state.mode === 'live') return { ...state, playing: true };
@@ -122,11 +123,11 @@ export default function ArchitectureOverviewPage() {
   // Auto-play ticker
   useEffect(() => {
     if (sim.playing && sim.mode !== 'live') {
-      const delay = 1000 / sim.speed;
+      const delay = sim.stepMs;
       playTimerRef.current = setTimeout(() => dispatch({ type: 'TICK' }), delay);
     }
     return () => clearTimeout(playTimerRef.current);
-  }, [sim.playing, sim.mode, sim.speed]);
+  }, [sim.playing, sim.mode, sim.stepMs]);
 
   // SSE connection for Live Trace mode
   useEffect(() => {
@@ -173,7 +174,7 @@ export default function ArchitectureOverviewPage() {
     onReset:       useCallback(() => dispatch({ type: 'RESET' }),                   []),
     onSetMode:     useCallback((mode) => dispatch({ type: 'SET_MODE', mode }),      []),
     onSetScenario: useCallback((id) => dispatch({ type: 'SET_SCENARIO', scenarioId: id }), []),
-    onSetSpeed:    useCallback((speed) => dispatch({ type: 'SET_SPEED', speed }),   []),
+    onSetStepMs:   useCallback((stepMs) => dispatch({ type: 'SET_STEP_MS', stepMs }), []),
   };
 
   return (
@@ -197,7 +198,8 @@ export default function ArchitectureOverviewPage() {
           scenarioId={sim.scenarioId}
           scenarios={SCENARIOS}
           playing={sim.playing}
-          speed={sim.speed}
+          stepMs={sim.stepMs}
+          stepTimeOptions={STEP_TIME_OPTIONS}
           stepIndex={sim.stepIndex}
           totalSteps={totalSteps}
           {...handlers}

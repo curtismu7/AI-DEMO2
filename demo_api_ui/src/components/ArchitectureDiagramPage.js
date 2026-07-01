@@ -297,6 +297,10 @@ export default function ArchitectureDiagramPage({
   tokenHistory,
   onClearHistory,
   toolbarExtra,
+  stepTimeOptions,
+  stepMs,
+  onSetStepMs,
+  onReset,
 }) {
   const [zoom, setZoom] = useState(1.0);
   const zoomIn    = () => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
@@ -327,6 +331,10 @@ export default function ArchitectureDiagramPage({
             onResume={onResume}
             onNext={onNextStep}
             onStop={onStop}
+            stepTimeOptions={stepTimeOptions}
+            stepMs={stepMs}
+            onSetStepMs={onSetStepMs}
+            onReset={onReset}
             extra={toolbarExtra}
           />
         </div>
