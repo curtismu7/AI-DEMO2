@@ -61,20 +61,33 @@ consent, audit, or revoke it short of killing John's own session.
 
 ## Part A′ — Ungoverned, reproducible (containerized sidecar)
 
-A headless-Playwright `ungoverned-agent` service authenticates as the demo
-customer (obtaining the same `connect.sid` session cookie a human gets) and
-drives the same transfer form. It runs **inside the cluster**, beside the
-governed gateway — even here it's still just the user's cookie.
+A headless-Playwright `ungoverned-agent` service **reuses a signed-in customer's
+session** and drives the same transfer form. It runs **inside the cluster**,
+beside the governed gateway — even here it's still just the user's session.
+
+> **The bank APIs require a real PingOne customer session** (the demo does not
+> use password grant, so a local username/password login can authenticate a
+> session but cannot call the banking APIs). Give the sidecar a real session,
+> which is exactly the point — a session-riding agent needs nothing more than
+> the human's cookie:
+>
+> 1. Sign in at `https://localhost:4000` as a customer (PingOne "Customer Sign
+>    In"). In DevTools → Application → Cookies, copy the **`connect.sid`** value.
+> 2. Pass it to the sidecar as `UNGOV_SESSION_COOKIE` (recommended — the headless
+>    browser literally rides that session and drives the UI). Alternatively pass a
+>    customer OAuth bearer token as `UNGOV_ACCESS_TOKEN`.
 
 **Docker Compose** (gated behind the `demo-attack` profile so it never
 auto-starts):
 
 ```bash
-docker compose run --rm ungoverned-agent
+UNGOV_SESSION_COOKIE='<connect.sid value>' docker compose run --rm ungoverned-agent
 ```
 
-Optional overrides: `UNGOV_AMOUNT`, `UNGOV_DEMO_USER`, `UNGOV_DEMO_PASS`,
-`UNGOV_DESCRIPTION`, `UNGOV_UI_URL` (default `https://ui:4000`).
+Optional overrides: `UNGOV_ACCESS_TOKEN`, `UNGOV_AMOUNT`, `UNGOV_DESCRIPTION`,
+`UNGOV_UI_URL` (default `https://ui:4000`). `UNGOV_ALLOW_LOCAL_LOGIN=true` enables
+the local-login path for dev deployments that accept local sessions (the default
+PingOne-gated stack does not).
 
 **Kubernetes** (one-shot Job; opt-in — `deploy.sh` does not apply it):
 

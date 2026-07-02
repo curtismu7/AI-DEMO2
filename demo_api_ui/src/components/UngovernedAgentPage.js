@@ -281,11 +281,12 @@ export default function UngovernedAgentPage() {
           <div className="ungov-demo-col">
             <h3>Reproducible: containerized sidecar</h3>
             <p>
-              A headless-Playwright <code>ungoverned-agent</code> service logs in
-              as the demo customer and drives the same transfer form — no presenter
-              install. It runs <em>inside the cluster</em>, beside the governed
-              gateway: even here, it's still just the user's cookie, with no
-              gateway, authz, or audit.
+              A headless-Playwright <code>ungoverned-agent</code> service reuses a
+              signed-in customer's session and drives the same transfer form — no
+              presenter install. It runs <em>inside the cluster</em>, beside the
+              governed gateway: even here, it's still just the user's cookie, with
+              no gateway, authz, or audit. (Pass the customer's <code>connect.sid</code>{" "}
+              via <code>UNGOV_SESSION_COOKIE</code> — see the runbook.)
             </p>
             <CommandBlock command={sidecarCmd} id="sidecar" copied={copied} onCopy={copy} />
             <p className="ungov-demo-note">

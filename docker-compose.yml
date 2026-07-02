@@ -690,6 +690,11 @@ services:
     profiles: ["demo-attack"]
     environment:
       UI_URL: ${UNGOV_UI_URL:-https://ui:4000}
+      # Supply ONE of these from a signed-in customer (see the runbook). The bank
+      # APIs require a real PingOne customer session — a local login is not enough.
+      SESSION_COOKIE: ${UNGOV_SESSION_COOKIE:-}
+      ACCESS_TOKEN: ${UNGOV_ACCESS_TOKEN:-}
+      ALLOW_LOCAL_LOGIN: ${UNGOV_ALLOW_LOCAL_LOGIN:-false}
       DEMO_USER: ${UNGOV_DEMO_USER:-john.doe}
       DEMO_PASS: ${UNGOV_DEMO_PASS:-${SEED_CUSTOMER_PASSWORD:-password123}}
       AMOUNT: ${UNGOV_AMOUNT:-50}

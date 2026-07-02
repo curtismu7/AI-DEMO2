@@ -38,12 +38,11 @@ spec:
         # In-cluster the UI Service is `frontend:4000` (k8s/10-frontend-deployment.yaml).
         - name: UI_URL
           value: "https://frontend:4000"
-        - name: DEMO_USER
-          value: "john.doe"
-        # Matches the api-server seed default (SEED_CUSTOMER_PASSWORD). Override
-        # here if you set a custom seed password in ai-demo-secrets.
-        - name: DEMO_PASS
-          value: "password123"
+        # The bank APIs require a real PingOne customer session. Paste the
+        # connect.sid value from a signed-in customer's browser here (or supply
+        # ACCESS_TOKEN). See docs/runbooks/ungoverned-agent-opencli.md.
+        - name: SESSION_COOKIE
+          value: ""
         - name: AMOUNT
           value: "50"
         - name: DESCRIPTION
