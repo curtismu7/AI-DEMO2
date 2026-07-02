@@ -551,8 +551,13 @@ services:
       # watches the routes dir every ~10s; with per-file bind mounts the watcher
       # mis-detects changes and UNLOADS the routes at runtime (then /mcp 404s). A stable
       # read-only directory mount has consistent mtimes, so routes load once and stay.
-      - ./ping-gateway/config:/var/gateway/config:ro
+      # config is NOT :ro (unlike scripts/groovy): the nested mcp-tool-schemas.json
+      # bind mount below needs to create its mountpoint inside this directory, and
+      # runc/OCI cannot create a mountpoint inside an already-read-only bind mount
+      # (verified: "make mountpoint ... read-only file system" with :ro here).
+      - ./ping-gateway/config:/var/gateway/config
       - ./ping-gateway/scripts/groovy:/var/gateway/scripts/groovy:ro
+      - ./mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
