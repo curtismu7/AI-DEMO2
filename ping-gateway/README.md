@@ -99,6 +99,9 @@ introspecting. Success stamps `X-Token-Validation-Mode: jwks` on the response;
 failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}`.
 Any other header value (or none) falls through to the unchanged introspection
 route. Tradeoff (educational, by design): no revocation detection until expiry.
+The secondary `/mcp/invest` path has the same switch: `00-mcp-invest-jwks.json`
+is route `02-mcp-invest.json` with the shared `rsFilter` stage replaced by the
+same Groovy validator, selected by the same header.
 
 ## Files
 
@@ -107,6 +110,8 @@ route. Tradeoff (educational, by design): no revocation detection until expiry.
 - `config/routes/02-mcp-invest.json` — secondary route (`/mcp/invest`, strips prefix).
 - `config/routes/00-mcp-olb-jwks.json` — local (no-introspection) JWKS validation route, selected
   per request via the `X-Token-Validation: jwks` header (effective `ff_mcp_gateway_jwks`).
+- `config/routes/00-mcp-invest-jwks.json` — same JWKS switch for the `/mcp/invest` path
+  (route 02 with the `rsFilter` stage replaced by the Groovy validator).
 - `scripts/groovy/p1az-decision.groovy` — the authorize decision filter.
 - `scripts/groovy/jwks-token-validation.groovy` — local inbound token validation for the JWKS
   route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.
