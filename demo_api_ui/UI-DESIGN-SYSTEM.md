@@ -1,4 +1,4 @@
-# Super Banking — UI Design System
+# The AI Demo — UI Design System
 
 > **Status:** Active standard as of 2026-05-07.
 > All new components must conform. Existing components are being brought into compliance per the remediation plan in §7.
