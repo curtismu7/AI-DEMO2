@@ -50,7 +50,7 @@ def deny = { String reason ->
     resp.headers.put('Content-Type', 'application/json')
     resp.headers.put('WWW-Authenticate',
         'Bearer realm="mcp", error="invalid_token", error_description="' + reason + '"')
-    resp.entity = '{"error":"invalid_token","validation":"jwks","reason":"' + reason + '"}'
+    resp.entity.setString('{"error":"invalid_token","validation":"jwks","reason":"' + reason + '"}')
     return Promises.newResultPromise(resp)
 }
 
@@ -121,10 +121,14 @@ if (alg == 'RS256') {
         return deny('jwks_fetch_failed')
     }
     if (jwk == null) return deny('no_matching_jwk')
-    def sig = Signature.getInstance('SHA256withRSA')
-    sig.initVerify(rsaKeyFor(jwk))
-    sig.update(signedBytes)
-    if (!sig.verify(sigBytes)) return deny('bad_signature')
+    try {
+        def sig = Signature.getInstance('SHA256withRSA')
+        sig.initVerify(rsaKeyFor(jwk))
+        sig.update(signedBytes)
+        if (!sig.verify(sigBytes)) return deny('bad_signature')
+    } catch (Exception e) {
+        return deny('bad_signature')
+    }
 } else if (alg == 'HS256') {
     if (!mockSecret) return deny('hs256_secret_not_configured')
     def mac = Mac.getInstance('HmacSHA256')
