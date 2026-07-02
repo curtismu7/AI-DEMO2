@@ -8,9 +8,9 @@ The proxy implements **smart classification and cascading fallback**:
 
 - **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
 - **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
-- **Tier 3**: StarCoder2-15B-Instruct (15B) — complex technical, "demonstrate", token flows
+- **Tier 3**: StarCoder2-15B-Instruct (15B) — code generation/debugging ("implement", "function", "regex")
 - **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
-- **Tier 5**: gpt-oss-20B (20B) — top tier, last-resort cascade target (reasoning model, slower)
+- **Tier 5**: gpt-oss-20B (20B) — first-class tier for complex technical/reasoning prompts ("demonstrate", token flows) and last-resort cascade target; MoE with ~3.6B active params, so fast despite its size
 
 The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
 filenames in `start-local-models.sh`; keep those two in sync when changing models.
@@ -22,7 +22,8 @@ The proxy analyzes incoming requests and routes to the **smallest model that can
 ```
 "what is OAuth?" → Gemma-3-4B (fastest)
 "how does token exchange work?" → Gemma-4-12B (balanced)
-"demonstrate HITL approval" → StarCoder2-15B-Instruct (accurate)
+"implement a PKCE verifier function" → StarCoder2-15B-Instruct (code)
+"demonstrate HITL approval" → gpt-oss-20B (reasoning)
 ```
 
 If the selected tier is unavailable or overloaded, it cascades to the next larger model automatically.

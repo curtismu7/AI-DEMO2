@@ -21,9 +21,10 @@ const TIERS = [
   { name: 'gemma-4-12b-qat', port: 8092, size: '12B', host: HOST },
   { name: 'starcoder2-15b-instruct', port: 8093, size: '15B', host: HOST },
   { name: 'gemma-4-12b',     port: 8094, size: '12B', host: HOST },
-  // Top tier + last-resort cascade target. gpt-oss is a reasoning model, so it
-  // is slower — it only sees traffic when smaller tiers are down or saturated.
-  // On :8096 because the mcp-code-search container publishes :8095.
+  // Top tier: first-class target for complex/reasoning prompts AND last-resort
+  // cascade for everything else. gpt-oss-20b is an MoE (~3.6B active params),
+  // so despite the size it is the fastest of the large tiers; it also does
+  // native tool calls. On :8096 because mcp-code-search publishes :8095.
   { name: 'gpt-oss-20b',     port: 8096, size: '20B', host: HOST },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
@@ -39,11 +40,16 @@ const partition = (kws) => {
   return { substrings, patterns };
 };
 
-// Complex prompts → tier 3; moderate → tier 2 (long) or 1 (short).
+// Complex/reasoning prompts → gpt-oss (tier 5); code prompts → StarCoder2
+// (tier 3); moderate → tier 2 (long) or 1 (short).
 const COMPLEX = partition([
   'demonstrate', 'show.*flow', 'show.*diagram', 'token exchange', 'rfc 8693',
   'act and may_act', 'delegation', 'pkce', 'confused deputy', 'introspection',
   'authorization code flow', 'client credentials',
+]);
+const CODE = partition([
+  'write.*code', 'code.*example', 'implement', 'function', 'script', 'snippet',
+  'regex', 'sql', 'json.*schema', 'refactor', 'debug',
 ]);
 const MODERATE = partition([
   'how does', 'how to', 'explain.*flow', 'what is.*scope', 'what is.*delegation',
@@ -57,7 +63,8 @@ function classifyRequest(body) {
   const text = (typeof body === 'string' ? body : '').toLowerCase();
   const isLong = text.length > COMPLEXITY_CHAR_THRESHOLD;
 
-  if (matchesAny(text, COMPLEX)) return 2;        // StarCoder2-15B-Instruct: complex technical / token flows
+  if (matchesAny(text, CODE)) return 2;           // StarCoder2-15B-Instruct: code generation / debugging
+  if (matchesAny(text, COMPLEX)) return 4;        // gpt-oss-20b: complex technical / token flows / reasoning
   if (matchesAny(text, MODERATE)) return isLong ? 2 : 1;
   return isLong ? 1 : 0;                           // default: smallest tier
 }
