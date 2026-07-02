@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Super Banking \u2014 1-Exchange Step-by-Step (RFC 8693)",
-    "description": "Super Banking 1-Exchange Delegated Chain \u2014 Step-by-Step (RFC 8693)\n\nAudience: Learners, workshop participants.\nPairs with: Super-Banking-Shared.postman_environment.json\n\nWalks through each OAuth/OIDC step individually so you can inspect tokens at every stage.\n\nToken chain:\n  Step 1:   Authorization Code + PKCE (pi.flow) \u2192 Subject Token (aud = ENDUSER_AUDIENCE)\n  Step 2:   RFC 8693 Token Exchange #1 \u2192 MCP Token (act.sub = PINGONE_CORE_CLIENT_ID)\n  Step 3:   Client Credentials \u2192 PingOne API Token\n  Step 4:   User Lookup (PingOne Management API)\n\nRun steps in order. Tokens are automatically saved to collection variables by test scripts.\n\nPrerequisites:\n  1. Import and select Super-Banking-Shared.postman_environment.json as the active environment.\n  2. Fill all required variables in the environment file.\n  3. Run Utility B (Set mayAct) once per test user before Step 2.",
+    "name": "The AI Demo \u2014 1-Exchange Step-by-Step (RFC 8693)",
+    "description": "The AI Demo 1-Exchange Delegated Chain \u2014 Step-by-Step (RFC 8693)\n\nAudience: Learners, workshop participants.\nPairs with: The-AI-Demo-Shared.postman_environment.json\n\nWalks through each OAuth/OIDC step individually so you can inspect tokens at every stage.\n\nToken chain:\n  Step 1:   Authorization Code + PKCE (pi.flow) \u2192 Subject Token (aud = ENDUSER_AUDIENCE)\n  Step 2:   RFC 8693 Token Exchange #1 \u2192 MCP Token (act.sub = PINGONE_CORE_CLIENT_ID)\n  Step 3:   Client Credentials \u2192 PingOne API Token\n  Step 4:   User Lookup (PingOne Management API)\n\nRun steps in order. Tokens are automatically saved to collection variables by test scripts.\n\nPrerequisites:\n  1. Import and select The-AI-Demo-Shared.postman_environment.json as the active environment.\n  2. Fill all required variables in the environment file.\n  3. Run Utility B (Set mayAct) once per test user before Step 2.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,37 +18,37 @@
     {
       "key": "PINGONE_CORE_USER_CLIENT_ID",
       "value": "",
-      "description": "Client ID \u2014 Super Banking User app"
+      "description": "Client ID \u2014 The AI Demo User app"
     },
     {
       "key": "PINGONE_CORE_CLIENT_ID",
       "value": "",
-      "description": "Client ID \u2014 Super Banking App"
+      "description": "Client ID \u2014 The AI Demo App"
     },
     {
       "key": "PINGONE_CORE_CLIENT_SECRET",
       "value": "",
-      "description": "Client Secret \u2014 Super Banking App"
+      "description": "Client Secret \u2014 The AI Demo App"
     },
     {
       "key": "MCP_CLIENT_ID",
       "value": "",
-      "description": "Client ID \u2014 Super Banking MCP Service"
+      "description": "Client ID \u2014 The AI Demo MCP Service"
     },
     {
       "key": "MCP_CLIENT_SECRET",
       "value": "",
-      "description": "Client Secret \u2014 Super Banking MCP Service"
+      "description": "Client Secret \u2014 The AI Demo MCP Service"
     },
     {
       "key": "ENDUSER_AUDIENCE",
       "value": "",
-      "description": "Subject Token audience \u2014 set via Super-Banking-Shared environment (ENDUSER_AUDIENCE)"
+      "description": "Subject Token audience \u2014 set via The-AI-Demo-Shared environment (ENDUSER_AUDIENCE)"
     },
     {
       "key": "MCP_RESOURCE_URI",
       "value": "",
-      "description": "MCP Token audience \u2014 set via Super-Banking-Shared environment (MCP_RESOURCE_URI)"
+      "description": "MCP Token audience \u2014 set via The-AI-Demo-Shared environment (MCP_RESOURCE_URI)"
     },
     {
       "key": "PINGONE_API_AUDIENCE",
@@ -88,7 +88,7 @@
     {
       "key": "PINGONE_CORE_USER_CLIENT_SECRET",
       "value": "",
-      "description": "Client Secret of Super Banking User app \u2014 required if token endpoint auth = CLIENT_SECRET_POST"
+      "description": "Client Secret of The AI Demo User app \u2014 required if token endpoint auth = CLIENT_SECRET_POST"
     },
     {
       "key": "pkce_code_verifier",
@@ -432,7 +432,7 @@
                 {
                   "key": "client_secret",
                   "value": "{{PINGONE_CORE_USER_CLIENT_SECRET}}",
-                  "description": "Client Secret of Super Banking User app (required for CLIENT_SECRET_POST token endpoint auth)"
+                  "description": "Client Secret of The AI Demo User app (required for CLIENT_SECRET_POST token endpoint auth)"
                 },
                 {
                   "key": "code",
@@ -447,7 +447,7 @@
                 {
                   "key": "redirect_uri",
                   "value": "https://oauth.pstmn.io/v1/callback",
-                  "description": "Must match the redirect_uri registered on the Super Banking User app"
+                  "description": "Must match the redirect_uri registered on the The AI Demo User app"
                 }
               ]
             },

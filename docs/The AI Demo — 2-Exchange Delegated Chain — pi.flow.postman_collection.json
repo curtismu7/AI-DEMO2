@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "2e4f8a1c-7b3d-4e9f-a5c2-8d6b1e0f3a7e",
-    "name": "Super Banking \u2014 2-Exchange Delegated Chain \u2014 pi.flow",
-    "description": "Super Banking 2-Exchange Delegated Chain \u2014 Full Flow (RFC 8693)\n\nAudience: Demo runners, customers (full 2-hop delegation scenario).\nPairs with: Super-Banking-Shared.postman_environment.json\n\nRuns the complete 2-exchange delegated chain.\n\nFlow:\n  Steps 1\u20134:  Auth Code + PKCE via pi.flow \u2192 Subject Token\n  Steps 5a\u20135b: Exchange #1 \u2192 Agent Exchanged Token (act.sub = AI Agent client)\n  Steps 6a\u20136b: Exchange #2 \u2192 MCP Exchanged Token (nested act chain)\n  Step 7:     Client Credentials \u2192 PingOne API Token\n  Step 8:     User Lookup\n\nThe final MCP token has a nested act chain: act.sub (MCP actor) \u2192 act.act.sub (AI Agent actor).\nSee docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md for full token claim shapes at each step.\n\nRun steps 1 \u2192 2 \u2192 3 \u2192 4 \u2192 5a \u2192 5b \u2192 6a \u2192 6b \u2192 7 \u2192 8 in order.",
+    "name": "The AI Demo \u2014 2-Exchange Delegated Chain \u2014 pi.flow",
+    "description": "The AI Demo 2-Exchange Delegated Chain \u2014 Full Flow (RFC 8693)\n\nAudience: Demo runners, customers (full 2-hop delegation scenario).\nPairs with: The-AI-Demo-Shared.postman_environment.json\n\nRuns the complete 2-exchange delegated chain.\n\nFlow:\n  Steps 1\u20134:  Auth Code + PKCE via pi.flow \u2192 Subject Token\n  Steps 5a\u20135b: Exchange #1 \u2192 Agent Exchanged Token (act.sub = AI Agent client)\n  Steps 6a\u20136b: Exchange #2 \u2192 MCP Exchanged Token (nested act chain)\n  Step 7:     Client Credentials \u2192 PingOne API Token\n  Step 8:     User Lookup\n\nThe final MCP token has a nested act chain: act.sub (MCP actor) \u2192 act.act.sub (AI Agent actor).\nSee docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md for full token claim shapes at each step.\n\nRun steps 1 \u2192 2 \u2192 3 \u2192 4 \u2192 5a \u2192 5b \u2192 6a \u2192 6b \u2192 7 \u2192 8 in order.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "1648215"
   },
@@ -462,7 +462,7 @@
             "type": "text/javascript",
             "exec": [
               "if (!pm.collectionVariables.get('ai_agent_client_id') || pm.collectionVariables.get('ai_agent_client_id') === 'YOUR_AI_AGENT_CLIENT_ID') {",
-              "  throw new Error('ai_agent_client_id not set \u2014 fill in Super Banking AI Agent App client ID');",
+              "  throw new Error('ai_agent_client_id not set \u2014 fill in The AI Demo AI Agent App client ID');",
               "}"
             ]
           }
@@ -531,7 +531,7 @@
             {
               "key": "client_id",
               "value": "{{PINGONE_CORE_CLIENT_ID}}",
-              "description": "Super Banking AI Agent App"
+              "description": "The AI Demo AI Agent App"
             },
             {
               "key": "client_secret",
@@ -540,7 +540,7 @@
             {
               "key": "audience",
               "value": "{{ENDUSER_AUDIENCE}}",
-              "description": "Super Banking Agent Gateway audience"
+              "description": "The AI Demo Agent Gateway audience"
             }
           ]
         },
@@ -678,7 +678,7 @@
             {
               "key": "audience",
               "value": "{{MCP_RESOURCE_URI}}",
-              "description": "Super Banking MCP Server audience"
+              "description": "The AI Demo MCP Server audience"
             },
             {
               "key": "scope",
@@ -687,7 +687,7 @@
             {
               "key": "client_id",
               "value": "{{PINGONE_CORE_CLIENT_ID}}",
-              "description": "Super Banking AI Agent App \u2014 exchanger"
+              "description": "The AI Demo AI Agent App \u2014 exchanger"
             },
             {
               "key": "client_secret",
@@ -722,7 +722,7 @@
               "  throw new Error('agent_exchanged_token is empty \u2014 run steps 5a and 5b first');",
               "}",
               "if (!pm.collectionVariables.get('mcp_client_id') || pm.collectionVariables.get('mcp_client_id') === 'YOUR_MCP_CLIENT_ID') {",
-              "  throw new Error('mcp_client_id not set \u2014 fill in Super Banking MCP Service client ID');",
+              "  throw new Error('mcp_client_id not set \u2014 fill in The AI Demo MCP Service client ID');",
               "}"
             ]
           }
@@ -791,7 +791,7 @@
             {
               "key": "client_id",
               "value": "{{MCP_CLIENT_ID}}",
-              "description": "Super Banking MCP Service"
+              "description": "The AI Demo MCP Service"
             },
             {
               "key": "client_secret",
@@ -800,7 +800,7 @@
             {
               "key": "audience",
               "value": "{{MCP_RESOURCE_URI}}",
-              "description": "Super Banking MCP Gateway audience"
+              "description": "The AI Demo MCP Gateway audience"
             }
           ]
         },
@@ -853,7 +853,7 @@
               "if (body.error) {",
               "  console.error('[Step 6b] Error:', body.error, body.error_description || '');",
               "  if (body.error === 'invalid_grant') {",
-              "    console.error('[Step 6b] FIX: Agent Exchanged Token has no act claim \u2014 check act expression on Super Banking MCP Server resource server (doc Part 1c)');",
+              "    console.error('[Step 6b] FIX: Agent Exchanged Token has no act claim \u2014 check act expression on The AI Demo MCP Server resource server (doc Part 1c)');",
               "  }",
               "  if (body.error === 'unauthorized_client') console.error('[Step 6b] FIX: Token Exchange grant not enabled on MCP Service App');",
               "}",
@@ -940,7 +940,7 @@
             {
               "key": "audience",
               "value": "{{MCP_RESOURCE_URI}}",
-              "description": "Super Banking Resource Server audience (final token)"
+              "description": "The AI Demo Resource Server audience (final token)"
             },
             {
               "key": "scope",
@@ -949,7 +949,7 @@
             {
               "key": "client_id",
               "value": "{{MCP_CLIENT_ID}}",
-              "description": "Super Banking MCP Service \u2014 exchanger"
+              "description": "The AI Demo MCP Service \u2014 exchanger"
             },
             {
               "key": "client_secret",
@@ -981,7 +981,7 @@
             "type": "text/javascript",
             "exec": [
               "if (!pm.collectionVariables.get('mcp_client_id') || pm.collectionVariables.get('mcp_client_id') === 'YOUR_MCP_CLIENT_ID') {",
-              "  throw new Error('mcp_client_id not set \u2014 fill in Super Banking MCP Service client ID');",
+              "  throw new Error('mcp_client_id not set \u2014 fill in The AI Demo MCP Service client ID');",
               "}"
             ]
           }
@@ -1049,7 +1049,7 @@
             {
               "key": "client_id",
               "value": "{{MCP_CLIENT_ID}}",
-              "description": "Super Banking MCP Service"
+              "description": "The AI Demo MCP Service"
             },
             {
               "key": "client_secret",
@@ -1336,12 +1336,12 @@
     {
       "key": "PINGONE_CORE_USER_CLIENT_ID",
       "value": "62d5fb56-5a0a-406e-9005-eec2fee23b8f",
-      "description": "Super Banking User app \u2014 issues Subject Token via PKCE"
+      "description": "The AI Demo User app \u2014 issues Subject Token via PKCE"
     },
     {
       "key": "PINGONE_CORE_USER_CLIENT_SECRET",
       "value": "YOUR_CLIENT_SECRET",
-      "description": "Super Banking User app client secret"
+      "description": "The AI Demo User app client secret"
     },
     {
       "key": "PINGONE_CORE_USER_REDIRECT_URI",
@@ -1356,7 +1356,7 @@
     {
       "key": "ENDUSER_AUDIENCE",
       "value": "",
-      "description": "Subject Token audience \u2014 Super Banking AI Agent resource server audience"
+      "description": "Subject Token audience \u2014 The AI Demo AI Agent resource server audience"
     },
     {
       "key": "TEST_USERNAME",
@@ -1371,22 +1371,22 @@
     {
       "key": "PINGONE_CORE_CLIENT_ID",
       "value": "YOUR_AI_AGENT_CLIENT_ID",
-      "description": "Client ID of Super Banking AI Agent App (performs Exchange #1). Set as mayAct.sub on user records."
+      "description": "Client ID of The AI Demo AI Agent App (performs Exchange #1). Set as mayAct.sub on user records."
     },
     {
       "key": "PINGONE_CORE_CLIENT_SECRET",
       "value": "YOUR_AI_AGENT_CLIENT_SECRET",
-      "description": "Client Secret of Super Banking AI Agent App"
+      "description": "Client Secret of The AI Demo AI Agent App"
     },
     {
       "key": "MCP_CLIENT_ID",
       "value": "YOUR_MCP_CLIENT_ID",
-      "description": "Client ID of Super Banking MCP Service (performs Exchange #2 + Client Credentials for PingOne API)"
+      "description": "Client ID of The AI Demo MCP Service (performs Exchange #2 + Client Credentials for PingOne API)"
     },
     {
       "key": "MCP_CLIENT_SECRET",
       "value": "YOUR_MCP_CLIENT_SECRET",
-      "description": "Client Secret of Super Banking MCP Service"
+      "description": "Client Secret of The AI Demo MCP Service"
     },
     {
       "key": "state",

@@ -456,7 +456,7 @@ Note: PingOne's native token errors do **not** include an `error_code` body fiel
 
 ## Error Response Examples
 
-> Note: the RFC 8693 token exchange is performed **server-side** by `services/rfc8693TokenExchangeService.js` against the PingOne token endpoint — there is no client-facing `/api/exchange` endpoint. To reproduce an exchange by hand, use the Postman "RFC 8693 Token Exchange" request in `docs/Super-Banking-1-Exchange-Step-by-Step.postman_collection.json` (it POSTs directly to the PingOne `/token` endpoint). The responses below are what that exchange returns.
+> Note: the RFC 8693 token exchange is performed **server-side** by `services/rfc8693TokenExchangeService.js` against the PingOne token endpoint — there is no client-facing `/api/exchange` endpoint. To reproduce an exchange by hand, use the Postman "RFC 8693 Token Exchange" request in `docs/The-AI-Demo-1-Exchange-Step-by-Step.postman_collection.json` (it POSTs directly to the PingOne `/token` endpoint). The responses below are what that exchange returns.
 
 ### Example 1: Invalid Client Credentials
 
