@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PingOne MCP Tools — Updated 2026-07-02</title>
+  <style>
+    body { font-family: sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; color: #333; }
+    h1 { color: #c00; }
+    h2 { color: #555; border-bottom: 2px solid #eee; padding-bottom: 6px; margin-top: 32px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    th { background: #c00; color: white; text-align: left; padding: 8px 12px; }
+    td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #fafafa; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+    .meta { color: #888; font-size: 0.9em; margin-bottom: 24px; }
+    .changes { background: #fff8e6; border: 2px solid #e6a700; border-radius: 8px; padding: 4px 20px 12px; margin: 24px 0 32px; }
+    .changes h2 { color: #a67c00; border-bottom-color: #e6a700; margin-top: 20px; }
+    .changes th { background: #e6a700; }
+    .removed { color: #c00; text-decoration: line-through; }
+    .badge { display: inline-block; background: #e6a700; color: white; font-size: 0.7em; padding: 1px 6px; border-radius: 8px; vertical-align: middle; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <h1>PingOne MCP Tools</h1>
+  <p class="meta">67 tools — verified live against the hosted PingOne MCP server (<code>pingone-mcp v0.1.0</code>, environment <code>01d89b06</code>) on 2026-07-02. Previous version of this document: 2026-06-11 (68 tools).</p>
+
+  <div class="changes">
+    <h2>⚠ What Changed Since 2026-06-11</h2>
+    <p>No functionally new tools were added, but <strong>25 tools were renamed</strong> and <strong>1 tool was removed</strong>. All platform tools dropped the <code>__platform_</code> snake_case naming for camelCase, and all DaVinci <code>describe*</code> tools became <code>get*</code>.</p>
+
+    <h3>Renamed — Platform (16)</h3>
+    <table>
+      <tr><th>Old Name</th><th>New Name</th></tr>
+      <tr><td><code>list_environments__platform_</code></td><td><code>listEnvironments</code></td></tr>
+      <tr><td><code>get_environment__platform_</code></td><td><code>getEnvironment</code></td></tr>
+      <tr><td><code>update_environment__platform_</code></td><td><code>updateEnvironment</code></td></tr>
+      <tr><td><code>get_environment_services__platform_</code></td><td><code>getEnvironmentServices</code></td></tr>
+      <tr><td><code>update_environment_services__platform_</code></td><td><code>updateEnvironmentServices</code></td></tr>
+      <tr><td><code>list_populations__platform_</code></td><td><code>listPopulations</code></td></tr>
+      <tr><td><code>get_population__platform_</code></td><td><code>getPopulation</code></td></tr>
+      <tr><td><code>create_population__platform_</code></td><td><code>createPopulation</code></td></tr>
+      <tr><td><code>update_population__platform_</code></td><td><code>updatePopulation</code></td></tr>
+      <tr><td><code>list_users__platform_</code></td><td><code>listUsers</code></td></tr>
+      <tr><td><code>get_user__platform_</code></td><td><code>getUser</code></td></tr>
+      <tr><td><code>create_user__platform_</code></td><td><code>createUser</code></td></tr>
+      <tr><td><code>update_user__platform_</code></td><td><code>updateUser</code></td></tr>
+      <tr><td><code>manage_user_account__platform_</code></td><td><code>manageUserAccount</code></td></tr>
+      <tr><td><code>manage_user_mfa__platform_</code></td><td><code>manageUserMfa</code></td></tr>
+      <tr><td><code>manage_user_password__platform_</code></td><td><code>manageUserPassword</code></td></tr>
+    </table>
+
+    <h3>Renamed — DaVinci (9)</h3>
+    <table>
+      <tr><th>Old Name</th><th>New Name</th></tr>
+      <tr><td><code>describeDavinciFlow</code></td><td><code>getDavinciFlow</code></td></tr>
+      <tr><td><code>describeDavinciFlowVersion</code></td><td><code>getDavinciFlowVersion</code></td></tr>
+      <tr><td><code>describeDavinciFlowExecution</code></td><td><code>getDavinciFlowExecution</code></td></tr>
+      <tr><td><code>describeDavinciApplication</code></td><td><code>getDavinciApplication</code></td></tr>
+      <tr><td><code>describeDavinciApplicationFlowPolicy</code></td><td><code>getDavinciApplicationFlowPolicy</code></td></tr>
+      <tr><td><code>describeDavinciConnector</code></td><td><code>getDavinciConnector</code></td></tr>
+      <tr><td><code>describeDavinciConnectorInstance</code></td><td><code>getDavinciConnectorInstance</code></td></tr>
+      <tr><td><code>describeDavinciVariable</code></td><td><code>getDavinciVariable</code></td></tr>
+      <tr><td><code>describeDavinciForm</code></td><td><code>getDavinciForm</code></td></tr>
+    </table>
+
+    <h3>Removed (1)</h3>
+    <table>
+      <tr><th>Tool</th><th>Note</th></tr>
+      <tr><td><code class="removed">create_environment__platform_</code></td><td>Environment creation is no longer exposed via MCP — use the direct PingOne API.</td></tr>
+    </table>
+  </div>
+
+  <h2>Platform — Environments</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listEnvironments</code></td><td>Lists PingOne environments accessible to the authenticated user; discover by name or status.</td></tr>
+    <tr><td><code>getEnvironment</code></td><td>Returns an environment's full configuration.</td></tr>
+    <tr><td><code>updateEnvironment</code></td><td>Updates an environment by full replacement (get first — omitted fields are cleared). Region cannot change.</td></tr>
+    <tr><td><code>getEnvironmentServices</code></td><td>Returns the services (Bill of Materials) enabled for an environment.</td></tr>
+    <tr><td><code>updateEnvironmentServices</code></td><td>Updates enabled services by full replacement — omitted services are removed.</td></tr>
+  </table>
+
+  <h2>Platform — Populations</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listPopulations</code></td><td>Lists populations in an environment; discover by name.</td></tr>
+    <tr><td><code>getPopulation</code></td><td>Returns a population's full configuration.</td></tr>
+    <tr><td><code>createPopulation</code></td><td>Creates a new population in an environment.</td></tr>
+    <tr><td><code>updatePopulation</code></td><td>Updates a population by full replacement — name, description, password policy, theme references.</td></tr>
+  </table>
+
+  <h2>Platform — Users</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listUsers</code></td><td>Lists users; find by username, email, population, or status.</td></tr>
+    <tr><td><code>getUser</code></td><td>Returns the full profile of a single user.</td></tr>
+    <tr><td><code>createUser</code></td><td>Creates a new user, with or without an initial password.</td></tr>
+    <tr><td><code>updateUser</code></td><td>Updates profile attributes; only supplied fields change. Cannot change MFA or password.</td></tr>
+    <tr><td><code>manageUserAccount</code></td><td>Locks or unlocks a user account; unlocking also resets the MFA lockout counter.</td></tr>
+    <tr><td><code>manageUserMfa</code></td><td>Reads or changes MFA settings: enable/disable, status, temporary bypass. The only tool that can change MFA enablement.</td></tr>
+    <tr><td><code>manageUserPassword</code></td><td>Reads or changes password state: set, reset, force expiry, unlock, verify, OTP recovery. The only tool that operates on passwords.</td></tr>
+  </table>
+
+  <h2>Applications — Core</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplications</code></td><td>Lists applications; discover by name, type, or protocol.</td></tr>
+    <tr><td><code>getApplication</code></td><td>Returns the full configuration of a single application.</td></tr>
+    <tr><td><code>createApplication</code></td><td>Creates an application; subtypes: oidc_web_app, oidc_native, oidc_single_page, oidc_worker, oidc_device_authorization, saml. SAML supports raw xmlMetadata import.</td></tr>
+    <tr><td><code>updateApplication</code></td><td>Updates an application; read-merge-write internally, pass only changed fields. Type and protocol cannot change.</td></tr>
+    <tr><td><code>deleteApplication</code></td><td>Permanently deletes an application; refuses system-managed apps. Supports dryRun.</td></tr>
+    <tr><td><code>getApplicationMetadata</code></td><td>Retrieves the custom metadata stored on an application.</td></tr>
+    <tr><td><code>updateApplicationMetadata</code></td><td>Updates custom metadata; pass only changed keys, null removes a key.</td></tr>
+    <tr><td><code>getApplicationSecret</code></td><td>Retrieves the masked client secret and rotation state; full value never returned.</td></tr>
+    <tr><td><code>regenerateApplicationSecret</code></td><td>Rotates the client secret; optional grace period keeps the old one valid.</td></tr>
+    <tr><td><code>deleteApplicationPreviousSecret</code></td><td>Revokes the prior secret kept alive after rotation, ending its grace period early.</td></tr>
+  </table>
+
+  <h2>Applications — Attribute Mappings</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplicationAttributeMappings</code></td><td>Lists how tokens or SAML assertions are populated from user attributes.</td></tr>
+    <tr><td><code>createApplicationAttributeMapping</code></td><td>Adds a custom attribute to tokens/assertions from a user attribute or expression.</td></tr>
+    <tr><td><code>updateApplicationAttributeMapping</code></td><td>Changes a mapping's value or required flag; the attribute name cannot change.</td></tr>
+    <tr><td><code>deleteApplicationAttributeMapping</code></td><td>Removes a custom mapping (built-in mappings cannot be removed).</td></tr>
+  </table>
+
+  <h2>Applications — Flow Policies</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplicationFlowPolicyAssignments</code></td><td>Lists DaVinci flow policies assigned to an application and their evaluation order.</td></tr>
+    <tr><td><code>createApplicationFlowPolicyAssignment</code></td><td>Assigns a DaVinci flow policy to drive the application's authentication experience.</td></tr>
+    <tr><td><code>updateApplicationFlowPolicyAssignment</code></td><td>Changes a flow policy assignment, such as its evaluation priority.</td></tr>
+    <tr><td><code>deleteApplicationFlowPolicyAssignment</code></td><td>Unassigns a DaVinci flow policy from an application.</td></tr>
+  </table>
+
+  <h2>Applications — Sign-On Policies</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplicationSignOnPolicyAssignments</code></td><td>Lists sign-on policies assigned to an application and their evaluation order.</td></tr>
+    <tr><td><code>createApplicationSignOnPolicyAssignment</code></td><td>Assigns a sign-on policy to control how users authenticate.</td></tr>
+    <tr><td><code>updateApplicationSignOnPolicyAssignment</code></td><td>Changes a sign-on policy assignment, such as its evaluation priority.</td></tr>
+    <tr><td><code>deleteApplicationSignOnPolicyAssignment</code></td><td>Unassigns a sign-on policy from an application.</td></tr>
+  </table>
+
+  <h2>Applications — Grants &amp; Roles</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplicationGrants</code></td><td>Lists resource grants — the resources and scopes an application may request.</td></tr>
+    <tr><td><code>createApplicationGrant</code></td><td>Grants an application access to a resource's scopes; refused for system applications.</td></tr>
+    <tr><td><code>updateApplicationGrant</code></td><td>Changes the scopes on an existing grant; the scope set is replaced as a whole.</td></tr>
+    <tr><td><code>deleteApplicationGrant</code></td><td>Revokes an application's access to a resource by removing a grant.</td></tr>
+    <tr><td><code>listApplicationRoleAssignments</code></td><td>Lists admin roles a worker application can act with, and the scope of each.</td></tr>
+    <tr><td><code>createApplicationRoleAssignment</code></td><td>Grants a worker application an admin role at a chosen scope.</td></tr>
+    <tr><td><code>deleteApplicationRoleAssignment</code></td><td>Revokes an admin role from a worker application.</td></tr>
+  </table>
+
+  <h2>Applications — Push Credentials</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listApplicationPushCredentials</code></td><td>Lists mobile push providers configured on an application for MFA.</td></tr>
+    <tr><td><code>createApplicationPushCredential</code></td><td>Configures a push provider (Apple, Google, or Huawei) for MFA push notifications.</td></tr>
+    <tr><td><code>updateApplicationPushCredential</code></td><td>Replaces a push provider's secrets (full replacement); provider type cannot change.</td></tr>
+    <tr><td><code>deleteApplicationPushCredential</code></td><td>Removes a mobile push provider from an application.</td></tr>
+  </table>
+
+  <h2>DaVinci</h2>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listDavinciFlows</code></td><td>Lists DaVinci flows; flow type derives from the <code>trigger</code> field (standard, PingOne, CIBA, scheduled, batch subflow).</td></tr>
+    <tr><td><code>getDavinciFlow</code></td><td>Returns a flow's complete definition, including its full node graph and settings.</td></tr>
+    <tr><td><code>listDavinciFlowVersions</code></td><td>Lists the saved versions of a flow.</td></tr>
+    <tr><td><code>getDavinciFlowVersion</code></td><td>Returns the complete definition of a specific historical flow version.</td></tr>
+    <tr><td><code>listDavinciFlowExecutions</code></td><td>Lists past executions of a flow.</td></tr>
+    <tr><td><code>getDavinciFlowExecution</code></td><td>Returns the event log of a single execution — for debugging failures and data transformations.</td></tr>
+    <tr><td><code>listDavinciApplications</code></td><td>Lists DaVinci applications.</td></tr>
+    <tr><td><code>getDavinciApplication</code></td><td>Returns the full configuration of a single DaVinci application.</td></tr>
+    <tr><td><code>listDavinciApplicationFlowPolicies</code></td><td>Lists an application's flow policies; policy type derives from the <code>trigger</code> field.</td></tr>
+    <tr><td><code>getDavinciApplicationFlowPolicy</code></td><td>Returns the full configuration of a single application flow policy.</td></tr>
+    <tr><td><code>listDavinciConnectors</code></td><td>Lists available connector types from the catalog.</td></tr>
+    <tr><td><code>getDavinciConnector</code></td><td>Returns full details of a connector type, including capabilities and required credentials.</td></tr>
+    <tr><td><code>listDavinciConnectorInstances</code></td><td>Lists connector instances deployed in the environment.</td></tr>
+    <tr><td><code>getDavinciConnectorInstance</code></td><td>Returns the full configuration of a single deployed connector instance.</td></tr>
+    <tr><td><code>listDavinciVariables</code></td><td>Lists DaVinci variables with their data types and context.</td></tr>
+    <tr><td><code>getDavinciVariable</code></td><td>Returns a variable's full configuration: context, type, and default value.</td></tr>
+    <tr><td><code>listDavinciForms</code></td><td>Lists DaVinci forms.</td></tr>
+    <tr><td><code>getDavinciForm</code></td><td>Returns a form's full configuration, including all fields and layout.</td></tr>
+  </table>
+
+</body>
+</html>
