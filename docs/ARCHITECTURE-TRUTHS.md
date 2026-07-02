@@ -1,4 +1,4 @@
-# Super Banking — Architectural Truths
+# The AI Demo — Architectural Truths
 
 Load-bearing system invariants that hold across the whole demo. These are the
 "this is how the system actually works" statements that are easy to get wrong

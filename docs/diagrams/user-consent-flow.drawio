@@ -187,7 +187,7 @@
         </mxCell>
         
         <!-- Title -->
-        <mxCell id="title" value="Super Banking User Consent Flow&#xa;High-Value Transaction Approval with HITL and CIBA&#xa;RFC 6749 + RFC 8628 Implementation" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="title" value="The AI Demo User Consent Flow&#xa;High-Value Transaction Approval with HITL and CIBA&#xa;RFC 6749 + RFC 8628 Implementation" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#333;fontSize=16;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="240" y="520" width="600" height="60" as="geometry" />
         </mxCell>
         
