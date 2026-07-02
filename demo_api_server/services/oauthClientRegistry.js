@@ -616,17 +616,221 @@ function getClientStatistics() {
   return stats;
 }
 
+// ── CIMD: register-by-URL (draft-ietf-oauth-client-id-metadata-document) ─────
+//
+// PingOne does NOT support CIMD, so the demo mocks the AS side here: a
+// URL-shaped client_id is resolved by fetching the client metadata document
+// from that URL at first use instead of requiring pre-registration. Validation
+// reuses the EXISTING Phase 57-01 rules (CLIENT_VALIDATION_RULES grant
+// allow-list + validateRequestedScopes). Every result is badged engine:'mock'
+// (same convention as demo_mcp_gateway PingOneAuthorizeClient).
+
+const CIMD_DEFAULT_TTL_MS = 5 * 60 * 1000;
+
+/** url -> { document, fetchedAt } — resolved documents, refreshed after TTL. */
+const cimdDocumentCache = new Map();
+
+/**
+ * CIMD URL policy: client_id must be an absolute http(s) URL. https is
+ * required, except for localhost/loopback and demo hosts (dotless docker
+ * service names like `demo-api-server`, or `*.demo` like api.ping.demo)
+ * where plain http is allowed so the local demo can resolve itself.
+ */
+function validateCimdClientIdUrl(raw) {
+  let url;
+  try {
+    url = new URL(String(raw));
+  } catch {
+    return { valid: false, errors: ['client_id must be an absolute http(s) URL (CIMD)'] };
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    return { valid: false, errors: [`client_id URL protocol not allowed: ${url.protocol}`] };
+  }
+  if (url.username || url.password) {
+    return { valid: false, errors: ['client_id URL must not contain credentials'] };
+  }
+  const host = url.hostname.toLowerCase();
+  const isDemoHost =
+    host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1' ||
+    host.endsWith('.demo') || !host.includes('.');
+  if (url.protocol === 'http:' && !isDemoHost) {
+    return { valid: false, errors: ['client_id URL must use https (http is allowed only for localhost/demo hosts)'] };
+  }
+  return { valid: true, url };
+}
+
+/**
+ * Default document fetcher. Uses node http/https directly so self-signed demo
+ * TLS (mkcert on the local BFF) does not break loopback fetches — the URL
+ * policy above already restricts which hosts we will dial. Returns the same
+ * minimal { ok, status, json() } surface tests inject via opts.fetchImpl.
+ */
+function defaultCimdFetch(urlString) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const lib = url.protocol === 'https:' ? require('https') : require('http');
+    const req = lib.get(
+      url,
+      { headers: { accept: 'application/json' }, rejectUnauthorized: false, timeout: 5000 },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: async () => JSON.parse(body)
+        }));
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('CIMD document fetch timed out')));
+    req.on('error', reject);
+  });
+}
+
+/**
+ * Register (or re-resolve) an OAuth client whose client_id IS its metadata
+ * document URL. Returns a step-by-step result the inspector UI can render:
+ *   { ok, status, steps: [{ step, status, engine:'mock', detail }], client?, errors? }
+ */
+async function registerClientByUrl(clientIdUrl, metadata = {}, opts = {}) {
+  const fetchImpl = opts.fetchImpl || defaultCimdFetch;
+  const ttlMs = opts.ttlMs ?? CIMD_DEFAULT_TTL_MS;
+  const steps = [];
+  const fail = (status, errors) => ({ ok: false, status, errors, steps });
+
+  // Step 1: fetch the metadata document (cache with TTL).
+  const urlCheck = validateCimdClientIdUrl(clientIdUrl);
+  if (!urlCheck.valid) {
+    steps.push({ step: 'fetch', status: 'failed', engine: 'mock', detail: { url: String(clientIdUrl), errors: urlCheck.errors } });
+    return fail(400, urlCheck.errors);
+  }
+  let document;
+  const cached = cimdDocumentCache.get(clientIdUrl);
+  if (cached && Date.now() - cached.fetchedAt < ttlMs) {
+    document = cached.document;
+    steps.push({ step: 'fetch', status: 'success', engine: 'mock', detail: { url: clientIdUrl, cache: 'hit', fetchedAt: new Date(cached.fetchedAt).toISOString() } });
+  } else {
+    let response;
+    try {
+      response = await fetchImpl(clientIdUrl);
+    } catch (err) {
+      const msg = `Failed to fetch client metadata document: ${err.message}`;
+      steps.push({ step: 'fetch', status: 'failed', engine: 'mock', detail: { url: clientIdUrl, cache: 'miss', error: msg } });
+      return fail(502, [msg]);
+    }
+    if (!response.ok) {
+      const msg = `Client metadata document URL returned HTTP ${response.status}`;
+      steps.push({ step: 'fetch', status: 'failed', engine: 'mock', detail: { url: clientIdUrl, cache: 'miss', httpStatus: response.status } });
+      return fail(400, [msg]);
+    }
+    try {
+      document = await response.json();
+    } catch {
+      const msg = 'Client metadata document is not valid JSON';
+      steps.push({ step: 'fetch', status: 'failed', engine: 'mock', detail: { url: clientIdUrl, cache: 'miss', error: msg } });
+      return fail(400, [msg]);
+    }
+    cimdDocumentCache.set(clientIdUrl, { document, fetchedAt: Date.now() });
+    steps.push({ step: 'fetch', status: 'success', engine: 'mock', detail: { url: clientIdUrl, cache: 'miss', httpStatus: response.status } });
+  }
+
+  // Step 2: validate — the client_id INSIDE the document must equal the
+  // document URL (CIMD §4), then the existing registration rules apply.
+  if (document.client_id !== clientIdUrl) {
+    const msg = 'client_id inside the document must equal the document URL';
+    steps.push({ step: 'validate', status: 'failed', engine: 'mock', detail: { expected: clientIdUrl, actual: document.client_id, errors: [msg] } });
+    return fail(400, [msg]);
+  }
+  const registrationRequest = {
+    client_name: document.client_name,
+    // CIMD documents do not carry the (non-RFC) client_type field; the mock AS
+    // registers confidential clients only.
+    client_type: document.client_type || 'confidential',
+    grant_types: document.grant_types,
+    scope: typeof document.scope === 'string'
+      ? document.scope.trim().split(/\s+/).filter(Boolean)
+      : document.scope,
+    token_endpoint_auth_method: document.token_endpoint_auth_method,
+    redirect_uris: document.redirect_uris
+  };
+  const validation = validateClientRegistration(registrationRequest);
+  if (!validation.valid) {
+    steps.push({ step: 'validate', status: 'failed', engine: 'mock', detail: { errors: validation.errors } });
+    return fail(400, validation.errors);
+  }
+  steps.push({ step: 'validate', status: 'success', engine: 'mock', detail: { client_name: validation.validated.client_name, grant_types: validation.validated.grant_types, scope: validation.validated.scope } });
+
+  // Step 3: register (or refresh) — client_id IS the URL; the secret is a
+  // demo-only convenience so the mock AS can still mint tokens for the client,
+  // and it survives TTL-driven re-resolution.
+  const existing = clientRegistry.get(clientIdUrl);
+  const refreshed = !!existing;
+  const clientRecord = {
+    client_id: clientIdUrl,
+    client_secret: existing ? existing.client_secret : crypto.randomBytes(32).toString('hex'),
+    client_id_issued_at: existing ? existing.client_id_issued_at : Math.floor(Date.now() / 1000),
+    client_secret_expires_at: 0,
+    ...validation.validated,
+    registration_type: 'cimd',
+    engine: 'mock',
+    client_id_metadata_document: clientIdUrl,
+    userId: null,
+    registration_metadata: existing ? existing.registration_metadata : {
+      registered_at: new Date().toISOString(),
+      registered_by: metadata.registeredBy || 'cimd',
+      source_ip: metadata.sourceIP,
+      user_agent: metadata.userAgent,
+      request_id: metadata.requestId
+    },
+    status: 'active',
+    last_used: existing ? existing.last_used : null,
+    usage_count: existing ? existing.usage_count : 0,
+    ...(refreshed ? { updated_at: new Date().toISOString(), updated_by: 'cimd-refresh' } : {})
+  };
+  clientRegistry.set(clientIdUrl, clientRecord);
+  clientStore.saveClient(clientIdUrl, clientRecord);
+
+  logClientEvent(refreshed ? 'client_refreshed_cimd' : 'client_registered_cimd', clientIdUrl, {
+    engine: 'mock',
+    mocked: true,
+    registration_type: 'cimd',
+    client_name: validation.validated.client_name,
+    scopes: validation.validated.scope,
+    grant_types: validation.validated.grant_types,
+    ...metadata
+  });
+  steps.push({ step: 'register', status: 'success', engine: 'mock', detail: { client_id: clientIdUrl, refreshed, persisted: true } });
+
+  return {
+    ok: true,
+    status: 201,
+    steps,
+    client: {
+      client_id: clientIdUrl,
+      client_secret: clientRecord.client_secret,
+      client_id_issued_at: clientRecord.client_id_issued_at,
+      client_name: validation.validated.client_name,
+      grant_types: validation.validated.grant_types,
+      scope: validation.validated.scope.join(' '),
+      registration_type: 'cimd',
+      engine: 'mock'
+    }
+  };
+}
+
 /**
  * Clear the client registry (for testing purposes only)
  */
 function clearRegistry() {
   clientRegistry.clear();
   clientRotation.clear();
+  cimdDocumentCache.clear();
   clientStore.clearAll();
 }
 
 module.exports = {
   registerOAuthClient,
+  registerClientByUrl,
   getClient,
   updateClient,
   deleteClient,
