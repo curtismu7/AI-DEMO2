@@ -47,6 +47,7 @@ import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
+import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -373,6 +374,13 @@ async function handleMessage(
 
   const { method, id } = msg;
 
+  // Spec §2 — formal method allow-list + tools/call shape check (both transports).
+  const shapeFailure = validateMethodAndShape(method, msg.params);
+  if (shapeFailure) {
+    send(jsonRpcError(id, shapeFailure.code, shapeFailure.message, shapeFailure.data));
+    return;
+  }
+
   // tools/list — validate agent can discover tools, then aggregate from all backends
   if (method === 'tools/list') {
     let decoded;
@@ -600,6 +608,15 @@ async function handleMessage(
     delete toolArgs._hitl_challenge_id;
     if (msgParams) {
       msgParams.arguments = toolArgs;
+    }
+
+    // Spec §2 — per-tool argument schema validation. Runs after the auth
+    // pipeline (identity known, audit hook set) and before HITL/PingOne
+    // Authorize so malformed calls never create challenges or burn a PDP call.
+    const argsFailure = validateToolArgs(toolName, toolArgs);
+    if (argsFailure) {
+      send(jsonRpcError(id, argsFailure.code, argsFailure.message, argsFailure.data));
+      return;
     }
 
     // If agent is retrying with a HITL receipt, verify the challenge is
