@@ -1142,3 +1142,63 @@
   border-radius: 3px;
   font-family: inherit;
 }
+
+/* ============================================================================
+ * DETAILED STEPS SECTION (Step Details Component Integration)
+ * ============================================================================ */
+
+.utfi-detailed-steps {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.utfi-detailed-steps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.utfi-detail-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
+  font-style: italic;
+}
+
+.utfi-detailed-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.utfi-detailed-steps-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.utfi-detailed-steps-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.utfi-detailed-steps-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.utfi-detailed-steps-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
