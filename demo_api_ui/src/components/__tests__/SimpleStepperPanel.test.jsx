@@ -94,11 +94,11 @@ describe('SimpleStepperPanel', () => {
       ],
     };
     const { baseElement } = render(<SimpleStepperPanel isOpen onClose={() => {}} />);
-    const halted = baseElement.querySelectorAll('.ssp-row--halted');
+    const halted = baseElement.querySelectorAll('.sstp-row--halted');
     expect(halted.length).toBe(1);
     expect(halted[0].textContent).toContain('Bad Step');
     expect(halted[0].textContent).toContain('intent_mismatch');
-    const ghosts = baseElement.querySelectorAll('.ssp-row--ghost');
+    const ghosts = baseElement.querySelectorAll('.sstp-row--ghost');
     expect(ghosts.length).toBe(1);
     expect(ghosts[0].textContent).toContain('Ghost Step');
     expect(ghosts[0].textContent).toContain('did not run');

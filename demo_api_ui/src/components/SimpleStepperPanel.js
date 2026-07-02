@@ -30,7 +30,7 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
       y: Math.max(60, 90),
     }),
     { w: 560, h: 480 },
-    { storageKey: 'ssp-pos', minW: 360, minH: 240 }
+    { storageKey: 'sstp-pos', minW: 360, minH: 240 }
   );
 
   if (!ctx || !isOpen) return null;
@@ -40,7 +40,7 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
 
   return createPortal(
     <div
-      className="ssp-card"
+      className="sstp-card"
       style={{
         position: 'fixed',
         left: pos.x,
@@ -52,13 +52,13 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
       role="dialog"
       aria-label="Simple Stepper"
     >
-      <div className="ssp-header" onPointerDown={handleDragStart} title="Drag to move">
-        <span className="ssp-title">Simple Stepper</span>
-        {events.length > 0 && <span className="ssp-count">{events.length}</span>}
-        <div className="ssp-controls">
+      <div className="sstp-header" onPointerDown={handleDragStart} title="Drag to move">
+        <span className="sstp-title">Simple Stepper</span>
+        {events.length > 0 && <span className="sstp-count">{events.length}</span>}
+        <div className="sstp-controls">
           <button
             type="button"
-            className="ssp-btn"
+            className="sstp-btn"
             onClick={() => setMinimized((m) => !m)}
             title={minimized ? 'Expand' : 'Minimize'}
             aria-label={minimized ? 'Expand panel' : 'Minimize panel'}
@@ -67,7 +67,7 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
           </button>
           <button
             type="button"
-            className="ssp-btn ssp-btn--close"
+            className="sstp-btn sstp-btn--close"
             onClick={onClose}
             title="Close"
             aria-label="Close Simple Stepper"
@@ -78,11 +78,11 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
       </div>
 
       {!minimized && (
-        <div className="ssp-body">
+        <div className="sstp-body">
           {events.length === 0 ? (
-            <div className="ssp-empty">No token events yet.</div>
+            <div className="sstp-empty">No token events yet.</div>
           ) : (
-            <table className="ssp-table">
+            <table className="sstp-table">
               <thead>
                 <tr>
                   <th scope="col">#</th>
@@ -130,26 +130,26 @@ function StepRow({ event, index, halted, didNotRun }) {
   const product = productForEvent(event);
 
   let rowClass = '';
-  if (halted) rowClass = 'ssp-row--halted';
-  else if (didNotRun) rowClass = 'ssp-row--ghost';
+  if (halted) rowClass = 'sstp-row--halted';
+  else if (didNotRun) rowClass = 'sstp-row--ghost';
 
   let statusCell;
   if (didNotRun) {
-    statusCell = <span className="ssp-st ssp-st--skip">— did not run</span>;
+    statusCell = <span className="sstp-st sstp-st--skip">— did not run</span>;
   } else if (halted) {
-    statusCell = <span className="ssp-st ssp-st--halt">✕ {event.errorCode || 'halted'}</span>;
+    statusCell = <span className="sstp-st sstp-st--halt">✕ {event.errorCode || 'halted'}</span>;
   } else if (bucket === 'success') {
-    statusCell = <span className="ssp-st ssp-st--ok" aria-label="Success">✓</span>;
+    statusCell = <span className="sstp-st sstp-st--ok" aria-label="Success">✓</span>;
   } else {
-    statusCell = <span className={`ssp-st ssp-st--${bucket}`}>{statusLabel}</span>;
+    statusCell = <span className={`sstp-st sstp-st--${bucket}`}>{statusLabel}</span>;
   }
 
   return (
     <tr className={rowClass}>
-      <td className="ssp-num">{index + 1}</td>
-      <td className="ssp-step">{label}</td>
-      <td className="ssp-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
-      <td className="ssp-status">{statusCell}</td>
+      <td className="sstp-num">{index + 1}</td>
+      <td className="sstp-step">{label}</td>
+      <td className="sstp-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
+      <td className="sstp-status">{statusCell}</td>
     </tr>
   );
 }
