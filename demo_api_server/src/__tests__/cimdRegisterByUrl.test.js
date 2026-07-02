@@ -123,6 +123,27 @@ describe('CIMD register-by-URL (mocked AS)', () => {
       // …and written through to the existing LMDB store.
       expect(clientStore.loadClients().map(([id]) => id)).toContain(DOC_URL);
     });
+
+    test('the main AI Agent registers cleanly with its topology scope agent:invoke', async () => {
+      const url = 'http://localhost:3001/api/cimd/agents/super-banking-ai-agent/client-metadata.json';
+      const fetchImpl = makeFetch({
+        client_id: url,
+        client_name: 'Demo AI App - AI Agent Actor',
+        grant_types: ['client_credentials'],
+        // agent:invoke is defined in scope-topology.json (the SSOT) but not in
+        // the MCP tool-scope map — the validator must accept topology scopes.
+        scope: 'agent:invoke',
+        token_endpoint_auth_method: 'client_secret_basic',
+      });
+
+      const result = await registry.registerClientByUrl(url, {}, { fetchImpl });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.ok).toBe(true);
+      expect(result.client.client_id).toBe(url);
+      expect(result.client.scope).toBe('agent:invoke');
+      expect(result.steps.every((s) => s.status === 'success')).toBe(true);
+    });
   });
 
   describe('document cache', () => {

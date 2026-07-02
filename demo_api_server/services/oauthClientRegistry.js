@@ -15,6 +15,10 @@ const { validateTokenExchangeConfig } = require('./tokenExchangeConfigValidator'
 
 // Use existing MCP_TOOL_SCOPES for scope validation
 const { MCP_TOOL_SCOPES } = require('./mcpWebSocketClient');
+// scope-topology.json accessor (SSOT) — scope validation accepts every scope
+// the topology defines, not just MCP tool scopes. Already loaded transitively
+// by mcpWebSocketClient, so this adds no new dependency weight.
+const scopeTopology = require('./scopeTopology');
 
 // LMDB persistence so registered clients + rotation history survive restart.
 const clientStore = require('./lmdb/clientRegistryStore.lmdb');
@@ -141,6 +145,14 @@ function validateRequestedScopes(scopes) {
 
   // Add administrative scopes
   ['admin:read', 'admin:write', 'admin:delete', 'users:read', 'users:manage', 'ai_agent'].forEach(scope => {
+    allValidScopes.add(scope);
+  });
+
+  // Also accept every scope defined in scope-topology.json (the SSOT). The MCP
+  // tool map above only covers tool scopes, so topology infra scopes like
+  // agent:invoke were rejected — which broke CIMD registrations whose metadata
+  // documents are DERIVED from that same topology.
+  Object.keys(scopeTopology._manifest().scopes || {}).forEach(scope => {
     allValidScopes.add(scope);
   });
 

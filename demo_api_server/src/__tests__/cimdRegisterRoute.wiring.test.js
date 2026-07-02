@@ -52,6 +52,19 @@ describe('POST /api/oauth/clients/register-cimd (route wiring)', () => {
     expect(res.body.steps.map((s) => s.step)).toEqual(['fetch', 'validate', 'register']);
   });
 
+  test('the main AI Agent (scope agent:invoke) registers end-to-end from its published document', async () => {
+    const docUrl = `${baseUrl}/api/cimd/agents/super-banking-ai-agent/client-metadata.json`;
+
+    const res = await request(makeApp())
+      .post('/api/oauth/clients/register-cimd')
+      .send({ client_id: docUrl });
+
+    expect(res.status).toBe(201);
+    expect(res.body.client.client_id).toBe(docUrl);
+    expect(res.body.client.scope).toBe('agent:invoke');
+    expect(res.body.steps.every((s) => s.status === 'success')).toBe(true);
+  });
+
   test('missing client_id is a 400 invalid_request', async () => {
     const res = await request(makeApp()).post('/api/oauth/clients/register-cimd').send({});
     expect(res.status).toBe(400);
