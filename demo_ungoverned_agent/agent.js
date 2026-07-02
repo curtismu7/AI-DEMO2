@@ -134,8 +134,23 @@ async function main() {
       const r = await context.request.post(`${CFG.apiUrl}/api/transactions`, {
         headers: { 'Content-Type': 'application/json' }, data: payload,
       });
-      if (r.status() >= 400) throw new Error(`transfer failed: ${r.status()} ${await r.text()}`);
-      log('transfer submitted via bearer token (API mode)');
+      if (r.status() === 428) {
+        // The transfer tripped a policy-driven human-in-the-loop consent (a control
+        // tied to the user, requiring genuine step-up the rider can't fake). Fall
+        // back to a lower-friction write to still demonstrate the clientType point:
+        // even this proceeds with full user power and no agent attribution.
+        log('transfer required human consent (428 HITL) — a real control; falling back to a deposit to show the clientType');
+        const d = await context.request.post(`${CFG.apiUrl}/api/transactions`, {
+          headers: { 'Content-Type': 'application/json' },
+          data: { type: 'deposit', amount: CFG.amount, toAccountId: to.id, description: `${CFG.description} (deposit)` },
+        });
+        if (d.status() >= 400) throw new Error(`deposit failed: ${d.status()} ${await d.text()}`);
+        log('deposit submitted via bearer token (API mode)');
+      } else if (r.status() >= 400) {
+        throw new Error(`transfer failed: ${r.status()} ${await r.text()}`);
+      } else {
+        log('transfer submitted via bearer token (API mode)');
+      }
     } else {
       // Session-riding: drive the real dashboard UI with the human's cookie.
       await page.goto(`${CFG.uiUrl}/dashboard`, { waitUntil: 'networkidle' });

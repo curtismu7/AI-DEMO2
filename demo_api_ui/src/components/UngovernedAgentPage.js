@@ -30,8 +30,8 @@ const COMPARISON = [
   },
   {
     dimension: "Consent / HITL",
-    governed: "High-value or sensitive actions trigger a human-in-the-loop consent challenge (HTTP 428).",
-    ungoverned: "None. The agent clicks through — no approval, no step-up.",
+    governed: "Agent-aware: the agent's high-risk actions trigger a human-in-the-loop consent challenge (HTTP 428), attributed to the agent.",
+    ungoverned: "No agent-level consent. Reads and low-friction writes proceed unchecked; only the user's own transaction prompts (e.g. step-up) still apply.",
   },
   {
     dimension: "Authorization",
