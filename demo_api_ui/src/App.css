@@ -8,7 +8,10 @@
   --float-gap: 12px;
   --fab-size: 56px;
   --ciba-action-height: 44px;
-  --fab-bottom: var(--float-edge);
+  /* Lift the agent FAB above the bottom-right toast stack (Toastify bottom-right)
+     so toasts and the FAB no longer overlap. Clears ~2–3 stacked toasts. */
+  --toast-clearance: 200px;
+  --fab-bottom: calc(var(--float-edge) + var(--toast-clearance));
   --ciba-bottom: calc(var(--float-edge) + var(--fab-size) + var(--float-gap));
   --agent-panel-bottom: calc(
     var(--ciba-bottom) + var(--ciba-action-height) + var(--float-gap)
