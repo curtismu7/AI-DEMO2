@@ -423,13 +423,12 @@ derive_se_namespace() {
   echo "ping-devops-${slug}"
 }
 
-# Ensure a host llama.cpp server is installed and running for the Code Explorer.
-# Called before any deploy that uses docker-compose (se-deploy, se-all).
-# The langchain-agent container connects via host.docker.internal:8090.
+# Ensure llama.cpp is installed and the multi-model LLM proxy serves :8090 for
+# the Code Explorer. :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier
+# llama-servers on :8091-8094) — never a raw llama-server pointing straight at
+# one model. Called before any deploy that uses docker-compose (se-deploy,
+# se-all); the langchain-agent container connects via host.docker.internal:8090.
 ensure_llamacpp_running() {
-  local model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
-  local hf_spec="ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
-
   if ! command -v llama-server >/dev/null 2>&1; then
     info "Installing llama.cpp (required for Code Explorer)..."
     if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
@@ -441,22 +440,30 @@ ensure_llamacpp_running() {
     fi
   fi
 
-  # Start the server if /health isn't already responding. The -hf flag downloads
-  # and caches the GGUF on first start (tool-capable, runs on 32 GB machines).
-  if ! curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-    info "Starting llama-server (${model}) — downloads the GGUF on first start..."
-    llama-server --host 0.0.0.0 --port 8090 -hf "${hf_spec}" >/dev/null 2>&1 &
+  # Reuse whatever healthy proxy already serves :8090 (llm-proxy container when
+  # the compose stack is up, or a host router started earlier).
+  if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
+    success "LLM proxy already serving :8090."
+    return 0
+  fi
+
+  if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
+    info "Starting LLM proxy stack (tier servers :8091-8094 + router :8090)..."
+    bash demo_llm_proxy/start-local-models.sh start \
+      || { info "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
+    LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
+    echo $! > /tmp/demo-llm-proxy.pid
     local waited=0
-    while [[ $waited -lt 120 ]]; do
+    while [[ $waited -lt 60 ]]; do
       if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-        success "llama-server ready (model ${model})."
+        success "LLM proxy ready on :8090 (routing tiers 8091-8094)."
         return 0
       fi
       sleep 3; (( waited += 3 ))
     done
-    info "llama-server started but /health not ready yet — start manually: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
+    info "LLM proxy not ready yet — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
   else
-    success "llama-server already running (model ${model})."
+    info "demo_llm_proxy/ not found (run from the repo root) — :8090 left unserved; no raw llama-server fallback."
   fi
 }
 
