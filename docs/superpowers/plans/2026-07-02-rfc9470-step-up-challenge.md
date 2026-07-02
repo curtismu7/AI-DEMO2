@@ -1076,22 +1076,21 @@ In each of the transfer (~1522), deposit (~1618), and withdrawal (~1718) catch b
       } else if (error.response?.status === 403) {
 ```
 
-At each site, insert an `else if` between the 428 branch and the 403 branch:
+At each site, declare `rfc9470StepUp` directly above the `if` chain (after the existing `const d = error.response?.data;`) and insert an `else if` between the 428 branch and the 403 branch:
 
 ```javascript
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       if (error.response?.status === 428) {
         if (d?.error === "hitl_required" && d?.hitl?.type === "consent") {
           // ... (unchanged consent block)
         }
         beginStepUp(error.response.data);
-      } else if (extractRfc9470Challenge(error.response)) {
-        // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
-        // Ordinary 401s return null here and keep their existing handling.
-        beginStepUp(extractRfc9470Challenge(error.response));
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
 ```
-
-(The double call is deliberate to keep the diff to a pure insertion; the function is a cheap pure parse.)
 
 - [ ] **Step 5: Wire the post-consent retry site (~line 2631)**
 
