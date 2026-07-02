@@ -309,6 +309,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'false' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
+  ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
@@ -1042,6 +1043,7 @@ class ConfigStore {
       ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
       ff_a2a_delegation:               ['FF_A2A_DELEGATION'],
       ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
+      ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
       pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
       ff_authorize_simulated:          ['FF_AUTHORIZE_SIMULATED'],
       pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
@@ -1913,6 +1915,7 @@ async function syncOAuthEndpointsToLmdb() {
     ff_prompt_injection_guard:  'FF_PROMPT_INJECTION_GUARD',
     ff_a2a_delegation:          'FF_A2A_DELEGATION',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
+    ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
     ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
   };
   let ffSynced = 0;

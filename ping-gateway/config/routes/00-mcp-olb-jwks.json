@@ -1,0 +1,89 @@
+{
+  "name": "mcp-olb-jwks",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "heap": [
+    {
+      "name": "SecretsStore",
+      "type": "SystemAndEnvSecretStore",
+      "config": {
+        "format": "PLAIN"
+      }
+    },
+    {
+      "name": "TokenExchangeEndpointHandler",
+      "type": "Chain",
+      "config": {
+        "filters": [
+          {
+            "name": "TokenExchangeClientAuth",
+            "type": "ScriptableFilter",
+            "config": {
+              "type": "application/x-groovy",
+              "source": "import java.net.URLEncoder\ndef body = request.entity.string ?: ''\ndef cid = System.getenv('TE_CLIENT_ID') ?: ''\ndef cs  = System.getenv('TE_CLIENT_SECRET') ?: ''\nlogger.info('[TEClientAuth] body_len=' + body.length() + ' cid_len=' + cid.length())\nif (cid) { def newBody = body + '&client_id=' + URLEncoder.encode(cid, 'UTF-8') + '&client_secret=' + URLEncoder.encode(cs, 'UTF-8'); logger.info('[TEClientAuth] newBody_len=' + newBody.length()); request.entity.setString(newBody) }\nreturn next.handle(context, request)"
+            }
+          }
+        ],
+        "handler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "TokenExchangeFailureHandler",
+      "type": "StaticResponseHandler",
+      "config": {
+        "status": 401,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "entity": "{\"error\":\"token_exchange_failed\"}"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "JwksTokenValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "jwks-token-validation.groovy"
+          }
+        },
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*"
+          }
+        },
+        {
+          "name": "P1AZDecision",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "p1az-decision.groovy"
+          }
+        },
+        {
+          "name": "GatewayToOlbTokenExchange",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "olb-token-exchange.groovy"
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "config": {
+          "baseURI": "${env['PG_OLB_BACKEND_URL']}"
+        }
+      }
+    }
+  }
+}
