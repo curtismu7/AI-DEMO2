@@ -9,6 +9,7 @@
  */
 
 import Ajv, { ValidateFunction } from 'ajv';
+import addFormats from 'ajv-formats';
 import artifact from '../../../mcp-tool-schemas.json';
 
 export const ALLOWED_METHODS: ReadonlySet<string> = new Set([
@@ -25,6 +26,7 @@ export interface ValidationFailure {
 }
 
 const ajv = new Ajv({ allErrors: true, strict: false });
+addFormats(ajv);
 const validators = new Map<string, ValidateFunction>();
 for (const [name, entry] of Object.entries(
   (artifact as { tools: Record<string, { inputSchema: Record<string, unknown> }> }).tools,

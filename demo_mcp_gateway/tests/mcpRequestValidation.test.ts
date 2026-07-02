@@ -36,4 +36,9 @@ describe('validateToolArgs', () => {
   it('fails closed on unknown tool names', () => {
     expect(validateToolArgs('not_a_real_tool', {})).toMatchObject({ code: -32602 });
   });
+  it('enforces format constraints (email)', () => {
+    const f = validateToolArgs('query_user_by_email', { email: 'not-an-email' });
+    expect(f).toMatchObject({ code: -32602 });
+    expect(validateToolArgs('query_user_by_email', { email: 'a@b.co' })).toBeNull();
+  });
 });
