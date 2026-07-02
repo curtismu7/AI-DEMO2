@@ -1,5 +1,5 @@
 <mxfile host="app.diagrams.net" version="21.0.0" pages="1">
-  <diagram id="bx-agent-flow" name="Super Banking Agent Flow">
+  <diagram id="bx-agent-flow" name="The AI Demo Agent Flow">
     <mxGraphModel dx="1600" dy="900" grid="0" gridSize="10" guides="0" tooltips="1" connect="0" arrows="0" fold="0" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
@@ -11,7 +11,7 @@
         </mxCell>
 
         <!-- ─── TITLE ─── -->
-        <mxCell id="title" value="Super Banking — AI Banking Agent" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
+        <mxCell id="title" value="The AI Demo — AI Banking Agent" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
           <mxGeometry x="300" y="14" width="860" height="40" as="geometry" />
         </mxCell>
         <mxCell id="subtitle_right" value="Banking Tools" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#888888;" vertex="1" parent="1">

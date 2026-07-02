@@ -10,6 +10,7 @@ import DemoForm from "./authz/DemoForm";
 import AnnotatedResult from "./authz/AnnotatedResult";
 import { AUTHZ_SECTIONS, buildDemoInput } from "./authz/authzSections";
 import { useDemoRunner } from "./authz/useDemoRunner";
+import LivePolicyScenarios from "./authz/LivePolicyScenarios";
 import McpDelegationScenarios from "./authz/McpDelegationScenarios";
 
 // ---------------------------------------------------------------------------
@@ -861,6 +862,9 @@ export default function AuthzTestPage() {
 					<LearningSection key={s.id} section={s} open={openSection === s.id} onToggle={toggleSection} />
 				))}
 			</div>
+
+			{/* Live PingOne Authorize — real provisioned policy scenarios (Transaction) */}
+			<LivePolicyScenarios configured={Boolean(status?.pingoneConfigured && status?.hasDecisionEndpointId)} />
 
 			{/* Live PingOne Authorize — MCP Delegation Authorization policy scenarios */}
 			<McpDelegationScenarios configured={Boolean(status?.pingoneConfigured && status?.hasDecisionEndpointId)} />

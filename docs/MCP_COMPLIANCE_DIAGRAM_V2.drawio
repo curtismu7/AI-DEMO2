@@ -9,7 +9,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- TITLE -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <mxCell id="title" value="Super Banking — MCP Spec 2025-11-25 Compliance Map" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+    <mxCell id="title" value="The AI Demo — MCP Spec 2025-11-25 Compliance Map" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
       <mxGeometry x="280" y="20" width="1340" height="40" as="geometry" />
     </mxCell>
     <mxCell id="subtitle" value="Green = Implemented ✔   |   Orange = Opt-in / Partial ⚠   |   Red = Not Implemented ✗   |   Grey = Out of Scope / N/A" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#444444;" vertex="1" parent="1">
@@ -577,7 +577,7 @@
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
 
-    <mxCell id="ov_title" value="Super Banking — System Architecture Overview" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+    <mxCell id="ov_title" value="The AI Demo — System Architecture Overview" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
       <mxGeometry x="100" y="10" width="1700" height="34" as="geometry"/>
     </mxCell>
     <mxCell id="ov_sub" value="Simplified overview — open BFF / MCP Server / Summary tabs for full compliance annotations" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="1">

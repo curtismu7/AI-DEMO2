@@ -301,7 +301,7 @@ export default function SdkLoginPage() {
       <div style={styles.wrap}>
         <div style={styles.headRow}>
           <div style={styles.topbar}>
-            <span style={styles.dot} /> Super Banking · Developer Sandbox
+            <span style={styles.dot} /> The AI Demo · Developer Sandbox
           </div>
           <ThemeToggle theme={theme} onToggle={toggleTheme} C={C} />
         </div>

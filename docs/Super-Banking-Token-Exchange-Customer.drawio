@@ -4,7 +4,7 @@
     <mxCell id="1" parent="0" />
 
     <!-- Title -->
-    <mxCell id="title" value="Super Banking — RFC 8693 Token Exchange Flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+    <mxCell id="title" value="The AI Demo — RFC 8693 Token Exchange Flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
       <mxGeometry x="350" y="20" width="900" height="40" as="geometry" />
     </mxCell>
     <mxCell id="subtitle" value="Showing 1-Exchange (BFF path) and 2-Exchange Delegated Chain (Agent path)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#64748b;" vertex="1" parent="1">

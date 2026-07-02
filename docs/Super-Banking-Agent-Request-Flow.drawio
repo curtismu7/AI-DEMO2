@@ -6,7 +6,7 @@
         <mxCell id="1" parent="0"/>
 
         <!-- Title -->
-        <mxCell id="title" value="Super Banking — Agent Request Flow (End-to-End with RFC Annotations)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="title" value="The AI Demo — Agent Request Flow (End-to-End with RFC Annotations)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="20" y="8" width="1360" height="28" as="geometry"/>
         </mxCell>
 
