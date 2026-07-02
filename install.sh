@@ -492,7 +492,7 @@ ensure_llamacpp() {
 
   # Local models are served through the multi-model LLM proxy on :8090
   # (demo_llm_proxy/router.js), which routes to 4 tier llama-server backends on
-  # :8091-8094 — never a raw llama-server pointing straight at one model.
+  # :8091-8096 — never a raw llama-server pointing straight at one model.
   if command -v llama-server >/dev/null 2>&1; then
     info "Local models are served via the multi-model LLM proxy on :8090."
     info "  Verify tier GGUFs:  bash demo_llm_proxy/download-models.sh"
@@ -502,7 +502,7 @@ ensure_llamacpp() {
 
 # Ensure llama.cpp is installed and the multi-model LLM proxy is serving :8090.
 # :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier llama-servers on
-# :8091-8094) — never a raw llama-server pointing straight at one model.
+# :8091-8096) — never a raw llama-server pointing straight at one model.
 # Called for all run modes where the host needs a local LLM (local, docker, se).
 ensure_codegraph_llamacpp() {
   # Install if missing
@@ -527,7 +527,7 @@ ensure_codegraph_llamacpp() {
   fi
 
   if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
-    info "Starting LLM proxy stack (tier servers :8091-8094 + router :8090)..."
+    info "Starting LLM proxy stack (tier servers :8091-8096 + router :8090)..."
     bash demo_llm_proxy/start-local-models.sh start \
       || { warn "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
     LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
@@ -535,7 +535,7 @@ ensure_codegraph_llamacpp() {
     local waited=0
     while [[ $waited -lt 60 ]]; do
       if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-        ok "LLM proxy ready on :8090 (routing tiers 8091-8094)."
+        ok "LLM proxy ready on :8090 (routing tiers 8091-8096)."
         return 0
       fi
       sleep 3; (( waited += 3 ))

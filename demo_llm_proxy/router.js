@@ -21,6 +21,10 @@ const TIERS = [
   { name: 'gemma-4-12b-qat', port: 8092, size: '12B', host: HOST },
   { name: 'starcoder2-15b-instruct', port: 8093, size: '15B', host: HOST },
   { name: 'gemma-4-12b',     port: 8094, size: '12B', host: HOST },
+  // Top tier + last-resort cascade target. gpt-oss is a reasoning model, so it
+  // is slower — it only sees traffic when smaller tiers are down or saturated.
+  // On :8096 because the mcp-code-search container publishes :8095.
+  { name: 'gpt-oss-20b',     port: 8096, size: '20B', host: HOST },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
 // ── Request classifier: determine minimum tier needed ──────────────────────

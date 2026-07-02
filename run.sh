@@ -360,7 +360,7 @@ preflight_checks() {
   #
   # Architecture note: :8090 is the multi-model LLM proxy (demo_llm_proxy/router.js).
   # It classifies each request and routes it to 4 tier llama-server backends on
-  # :8091-8094, managed by demo_llm_proxy/start-local-models.sh (GGUFs verified by
+  # :8091-8096, managed by demo_llm_proxy/start-local-models.sh (GGUFs verified by
   # demo_llm_proxy/download-models.sh). NEVER bind a raw llama-server straight onto
   # :8090 — the proxy owns that port and exposes the same OpenAI-compatible /v1 API
   # the services expect. Both the router and the tiers bind 0.0.0.0, so Docker/k8s
@@ -423,9 +423,9 @@ preflight_checks() {
             warn "Automatic install unavailable on this platform — build from https://github.com/ggml-org/llama.cpp"
           fi
           if command -v llama-server >/dev/null 2>&1; then
-            echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8094 + router :8090)…"
+            echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8096 + router :8090)…"
             _start_llm_proxy_stack \
-              && ok "LLM proxy ready on :8090 (routing tiers 8091-8094)" \
+              && ok "LLM proxy ready on :8090 (routing tiers 8091-8096)" \
               || warn "LLM proxy did not become ready — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
           fi
           ;;
@@ -437,9 +437,9 @@ preflight_checks() {
   elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
     ok "LLM proxy already serving :${llamacpp_port} (multi-model router)"
   else
-    echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8094 + router :8090)…"
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8096 + router :8090)…"
     if _start_llm_proxy_stack; then
-      ok "LLM proxy ready on :8090 (routing tiers 8091-8094)"
+      ok "LLM proxy ready on :8090 (routing tiers 8091-8096)"
     else
       warn "LLM proxy did not become ready on :8090 — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
     fi
