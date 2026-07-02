@@ -161,7 +161,7 @@ git_sync_check() {
 # model serves both BFF NL intent and agent reasoning); the `-hf` flag downloads
 # and caches the GGUF on first start.
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
-LLAMACPP_MODEL="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"   # single model serving BFF + agent
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-gemma-3-4b-it}"   # single model serving BFF + agent
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"
 
 _llamacpp_up()        { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1; }
@@ -170,7 +170,7 @@ _llamacpp_bound_all() { lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | grep -q '
 # Launch llama-server as a plain background process bound to all interfaces.
 # `-hf` downloads + caches the GGUF on first run (replaces an explicit pull).
 _llamacpp_spawn() {
-  llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+  llama-server --host 0.0.0.0 --port 8090 -hf ggml-org/gemma-3-4b-it-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
   echo $! > "$_LLAMACPP_PIDFILE"
 }
 

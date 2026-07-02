@@ -493,8 +493,8 @@ ensure_llamacpp() {
   # The default model used by the demo. llama-server's -hf flag downloads and
   # caches the GGUF on first start (replaces 'ollama pull'), so there is no
   # separate pull step. Optionally pre-warm by starting the server once.
-  local model="qwen2.5-3b-instruct"
-  local hf_spec="Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
+  local model="gemma-3-4b-it"
+  local hf_spec="ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
   if command -v llama-server >/dev/null 2>&1; then
     info "Default model (${model}) downloads automatically on first 'llama-server -hf' start."
     info "  Start it with: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
@@ -502,11 +502,11 @@ ensure_llamacpp() {
 }
 
 # Ensure llama.cpp is installed and a tool-capable model server is running.
-# Uses Qwen/Qwen3-1.7B-GGUF:Q4_K_M — tool-calling capable, small, runs on 32 GB machines.
+# Uses ggml-org/gemma-3-4b-it-GGUF:Q4_K_M — tool-calling capable, small, runs on 32 GB machines.
 # Called for all run modes where the host needs a local LLM (local, docker, se).
 ensure_codegraph_llamacpp() {
-  local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
-  local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
+  local model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
+  local hf_spec="ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
 
   # Install if missing
   if ! command -v llama-server >/dev/null 2>&1; then

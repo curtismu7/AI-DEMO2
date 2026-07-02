@@ -369,7 +369,7 @@ preflight_checks() {
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
-  local llamacpp_model="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"
+  local llamacpp_model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
   local llamacpp_host llamacpp_port
@@ -405,7 +405,7 @@ preflight_checks() {
           fi
           if command -v llama-server >/dev/null 2>&1; then
             echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
-            llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+            llama-server --host 0.0.0.0 --port 8090 -hf ggml-org/gemma-3-4b-it-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
             echo $! > /tmp/demo-llamacpp.pid
             local _i=0
             while [[ $_i -lt 60 ]]; do
@@ -428,7 +428,7 @@ preflight_checks() {
     echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
     # The -hf flag downloads + caches the GGUF from HuggingFace on first start
     # (a no-op once cached) — this replaces the old model-pull step.
-    llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
+    llama-server --host 0.0.0.0 --port 8090 -hf ggml-org/gemma-3-4b-it-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
     echo $! > /tmp/demo-llamacpp.pid
     local i=0
     while [[ $i -lt 60 ]]; do

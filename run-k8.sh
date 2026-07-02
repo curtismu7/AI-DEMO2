@@ -427,8 +427,8 @@ derive_se_namespace() {
 # Called before any deploy that uses docker-compose (se-deploy, se-all).
 # The langchain-agent container connects via host.docker.internal:8090.
 ensure_llamacpp_running() {
-  local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
-  local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
+  local model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
+  local hf_spec="ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
 
   if ! command -v llama-server >/dev/null 2>&1; then
     info "Installing llama.cpp (required for Code Explorer)..."
