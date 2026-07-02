@@ -376,12 +376,18 @@ preflight_checks() {
   llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
   [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
 
-  # Start the local LLM proxy stack: tier backends first (idempotent — running
-  # tiers are left alone), then the smart router on :8090 if nothing healthy is
-  # already serving it (e.g. the llm-proxy container in docker mode).
+  # Start the local LLM proxy stack in SWAP MODE: the tier-manager daemon
+  # (:8097) + only the smallest tier, then the smart router on :8090 if nothing
+  # healthy is already serving it (e.g. the llm-proxy container in docker mode).
+  # The router asks the manager to swap up when a request needs a bigger model
+  # and decays back to the smallest tier when idle — one model loaded at a time.
   _start_llm_proxy_stack() {
-    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" start || {
-      warn "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    if ! curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
+      nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+      echo $! > /tmp/demo-tier-manager.pid
+    fi
+    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure 8091 || {
+      warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
       return 1
     }
     if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then

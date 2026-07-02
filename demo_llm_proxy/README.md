@@ -1,10 +1,20 @@
 # Multi-Model LLM Proxy
 
-Smart routing proxy for managing 4 different language models through a single endpoint.
+Smart routing proxy for managing 5 local language models through a single endpoint.
 
 ## Architecture
 
-The proxy implements **smart classification and cascading fallback**:
+The proxy runs in **swap mode** — only ONE tier is loaded at a time ("smallest
+that does the job"). A request is classed by its `model` field (per-agent pin
+via `LLAMACPP_MODEL`: BFF → gemma-3-4b-it, agent-service → gpt-oss-20b, Code
+Explorer → starcoder2-15b-instruct) or, absent a pin, by keyword
+classification. It is served by the smallest *loaded* tier that covers the
+class; if nothing loaded covers it, the router asks the host `tier-manager.js`
+(:8097) to swap — unload everything, load the needed tier — and after 5 idle
+minutes it decays back to Tier 1. The first request after a swap pays the
+model-load pause (a few seconds warm, up to ~30s cold for gpt-oss).
+
+Tier capability order (smallest → largest):
 
 - **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
 - **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
@@ -26,7 +36,7 @@ The proxy analyzes incoming requests and routes to the **smallest model that can
 "demonstrate HITL approval" → gpt-oss-20B (reasoning)
 ```
 
-If the selected tier is unavailable or overloaded, it cascades to the next larger model automatically.
+A bigger loaded tier serves smaller classes without a swap; swaps happen only upward, and idle decay brings it back down.
 
 ## Setup
 
