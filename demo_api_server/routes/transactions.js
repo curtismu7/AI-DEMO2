@@ -540,9 +540,26 @@ router.post('/', authenticateToken, async (req, res) => {
     // If the user completed step-up MFA via email OTP in this session, treat as strong acr.
     // Consume the flag (single-use) so subsequent transactions still enforce the gate.
     let effectiveAcr = req.user.acr;
+    let sessionStepUpFresh = false;
     if (req.session?.stepUpVerified > Date.now()) {
       effectiveAcr = 'Multi_Factor';
+      sessionStepUpFresh = true;
       req.session.stepUpVerified = 0;
+    }
+
+    // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
+    // authentication event is NOT sufficient — downgrade it so the gate fires
+    // and the challenge sends the user back through a fresh ceremony.
+    const stepUpMaxAge = parseFloat(runtimeSettings.get('stepUpMaxAge')) || 0;
+    if (stepUpMaxAge > 0 && !sessionStepUpFresh && effectiveAcr) {
+      const authTime = Number(req.user.authTime);
+      const ageSeconds = Number.isFinite(authTime) ? Date.now() / 1000 - authTime : Infinity;
+      if (ageSeconds > stepUpMaxAge) {
+        console.log(
+          `[StepUp] auth_time stale (${Math.round(ageSeconds)}s > ${stepUpMaxAge}s) — downgrading acr for gate evaluation`
+        );
+        effectiveAcr = null;
+      }
     }
 
     const authz = await transactionAuthorizationService.evaluateTransactionPolicy({
@@ -587,6 +604,8 @@ router.post('/', authenticateToken, async (req, res) => {
               { tag: 'hitl/consent-verified', metadata: { type, amount: hitlAmount, userId: req.user?.id } });
           }
         } else {
+          // RFC 9470 mode attaches a WWW-Authenticate challenge to the block.
+          if (authz.block.headers) res.set(authz.block.headers);
           return res.status(authz.block.status).json(body);
         }
       }
