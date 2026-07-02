@@ -8,3 +8,34 @@ if git diff --cached --name-only | grep -q '^scope-topology\.json$'; then
   git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
   echo "[pre-commit] Snapshot updated and staged."
 fi
+
+# ─── Secret & backup-artifact guard (added to prevent leak/stale-data recurrence) ───
+# 1) Block accidental commits of app-generated backups even if .gitignore is bypassed (git add -f).
+#    Only inspect added/modified files (--diff-filter=ACM) so REMOVING these backups is allowed.
+BLOCKED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(\.bak$|\.env\.pre-import-|/data/backups/|(^|/)\.env$)' || true)
+if [ -n "$BLOCKED" ]; then
+  echo "[pre-commit] ❌ Refusing to commit backup/secret files:"
+  echo "$BLOCKED" | sed 's/^/    /'
+  echo "[pre-commit]    These are gitignored for a reason. Remove them from the commit."
+  exit 1
+fi
+
+# 2) Scan staged changes for secrets. Prefer gitleaks; fall back to a high-signal regex.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || {
+    echo "[pre-commit] ❌ gitleaks found a secret in staged changes. Commit blocked."
+    exit 1
+  }
+else
+  HITS=$(git diff --cached -U0 | grep -E '^\+' \
+    | grep -viE 'example|placeholder|redact|<.*>|process\.env|import\.meta|\$\{|test|mock|dummy|REACT_APP_' \
+    | grep -EinC0 '(client[_-]?secret|worker[_-]?secret|api[_-]?key)["'"'"' ]*[:=]["'"'"' ]*[A-Za-z0-9._~/+-]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY-----' \
+    || true)
+  if [ -n "$HITS" ]; then
+    echo "[pre-commit] ❌ Possible secret in staged changes (regex fallback):"
+    echo "$HITS" | sed -E 's/([:=]).{4}.*/\1***REDACTED***/' | head -5 | sed 's/^/    /'
+    echo "[pre-commit]    Install gitleaks for accurate scanning: brew install gitleaks"
+    echo "[pre-commit]    If this is a false positive, commit with --no-verify."
+    exit 1
+  fi
+fi

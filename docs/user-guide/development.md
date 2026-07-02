@@ -504,10 +504,10 @@ const toolName: string = params.name;
 
 ```bash
 # ❌ Wrong — shell parsing breaks:
-PINGONE_CLIENT_SECRET=x6Ee...8u0_w8F9a.qA9-j47z
+PINGONE_CLIENT_SECRET=<RETIRED-ENV-SECRET-REMOVED>
 
 # ✅ Right — quoted:
-PINGONE_CLIENT_SECRET="x6Ee...8u0_w8F9a.qA9-j47z"
+PINGONE_CLIENT_SECRET="<RETIRED-ENV-SECRET-REMOVED>"
 ```
 
 ### Credentials Priority (Highest to Lowest)
