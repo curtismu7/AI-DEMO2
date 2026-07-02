@@ -110,6 +110,23 @@ const FLAG_REGISTRY = [
     defaultValue: true,
     runtimeKey:   'stepUpEnabled', // maps to runtimeSettings for live toggle
   },
+  {
+    id:           'ff_rfc9470_challenge',
+    name:         'Step-Up — RFC 9470 Challenge (401 + WWW-Authenticate)',
+    category:     'Step-Up Auth',
+    description:
+      'Emit the step-up challenge in the standard **RFC 9470** wire format: `401 Unauthorized` with ' +
+      '`WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…, max_age=…`. ' +
+      'OFF (default) keeps the legacy demo format: `428 Precondition Required` with a JSON body. ' +
+      'Same gate, same policy — only the signaling changes. The JSON body is included in both modes; ' +
+      'in RFC mode the header is the normative signal the client parses.',
+    impact:
+      'OFF = 428 + JSON body (pre-standard demo format). ' +
+      'ON = 401 + WWW-Authenticate header per RFC 9470 — the UI parses the header and runs the same MFA flow.',
+    type:         'boolean',
+    defaultValue: false,
+    docsUrl:      'https://datatracker.ietf.org/doc/rfc9470/',
+  },
 
   // ── HITL / Agent Consent ───────────────────────────────────────────────────
   {
