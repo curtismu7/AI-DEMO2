@@ -166,9 +166,13 @@ if (alg == 'RS256') {
     if (iss != mockIssuer) return deny('issuer_mismatch')
 }
 
+// Fail closed if the gateway has no configured audience identity at all —
+// otherwise a signed token carrying an empty-string aud entry would match the
+// two empty env fallbacks below.
+if (!gatewayResourceUri && !gatewayResourceId) return deny('aud_config_missing')
 def rawAud = claims['aud']
 def audList = rawAud instanceof List ? rawAud.collect { it as String } : (rawAud ? [rawAud as String] : [])
-def audOk = audList.any { it == gatewayResourceUri || it == gatewayResourceId }
+def audOk = audList.any { it && (it == gatewayResourceUri || it == gatewayResourceId) }
 if (!audOk) return deny('audience_mismatch')
 
 def scopes = ((claims['scope'] ?: '') as String).tokenize(' ')
