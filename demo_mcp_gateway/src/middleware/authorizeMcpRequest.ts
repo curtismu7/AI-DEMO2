@@ -535,7 +535,7 @@ export function buildAuthorizeMcpRequest(
       if (_wba.ok) {
         teachLog.info('[GW] Web Bot Auth signature verified', { keyid: _wba.keyid, agent: _wba.signatureAgent });
       } else {
-        console.warn(`[GW] Web Bot Auth ${config.wbaMode === 'enforce' ? 'DENY' : 'monitor'}: ${_wba.reason} (tool: ${toolName})`);
+        teachLog.warn(`[GW] Web Bot Auth ${config.wbaMode === 'enforce' ? 'DENY' : 'monitor'}: ${_wba.reason} (tool: ${toolName})`);
         if (config.wbaMode === 'enforce') {
           setAuditHeader(res);
           res.writeHead(401, {
