@@ -88,6 +88,18 @@ the MCP-server-side reconciliation vars.
 | Decision backend not configured | `403` (Groovy fails closed) |
 | Token exchange failure (e.g. `invalid_target`) | `401 {"error":"token_exchange_failed"}` |
 
+### Local JWKS validation route (`00-mcp-olb-jwks.json`)
+
+When the BFF flag `ff_mcp_gateway_jwks` is ON it stamps `X-Token-Validation: jwks`
+on each request; this route (file name sorts before `01-mcp-olb.json`, so it is
+matched first) then validates the inbound token **locally** in
+`jwks-token-validation.groovy` — RS256 via `PINGONE_JWKS_URI`, mock HS256 via
+`AUTHZ_JWT_SECRET` — with `exp`/`nbf`, `iss`, `aud`, and scope checks, instead of
+introspecting. Success stamps `X-Token-Validation-Mode: jwks` on the response;
+failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}`.
+Any other header value (or none) falls through to the unchanged introspection
+route. Tradeoff (educational, by design): no revocation detection until expiry.
+
 ## Files
 
 - `config/admin.json` — IG admin (PRODUCTION mode, streaming on).
