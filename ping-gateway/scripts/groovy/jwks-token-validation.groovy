@@ -117,8 +117,15 @@ if (alg == 'RS256') {
     try {
         jwk = findJwk(fetchJwks(false), kid)
         if (jwk == null) {
-            // Key rotation: refetch once on kid miss before rejecting.
-            jwk = findJwk(fetchJwks(true), kid)
+            // Key rotation: refetch on kid miss before rejecting — but at most
+            // once per 60s (globals-throttled), so unauthenticated bogus-kid
+            // tokens can't bypass the cache and drive a fetch per request.
+            long nowMs = System.currentTimeMillis()
+            def lastForced = (globals._jwksForcedFetchAt ?: 0L) as long
+            if (nowMs - lastForced > 60_000L) {
+                globals._jwksForcedFetchAt = nowMs
+                jwk = findJwk(fetchJwks(true), kid)
+            }
         }
     } catch (Exception e) {
         logger.warn('[JWKS] JWKS fetch failed: ' + e.message)

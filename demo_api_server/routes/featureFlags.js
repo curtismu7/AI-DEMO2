@@ -642,7 +642,10 @@ const FLAG_REGISTRY = [
     impact:
       'OFF (default) = introspection: every request round-trips to the authorization server, so revoked tokens ' +
       'are caught immediately. ON = local JWKS validation: faster and works offline, but **cannot detect ' +
-      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates.',
+      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates. ' +
+      'Prerequisite for the Simulated-Authorize (HS256 mock token) combination: AUTHZ_JWT_SECRET must be set ' +
+      'in ping-gateway/.env (same value as the authz-server) — without it that combo fails closed with 401 ' +
+      'hs256_secret_not_configured. The default real-PingOne (RS256) path needs no extra gateway env.',
     type:         'boolean',
     defaultValue: false,
   },

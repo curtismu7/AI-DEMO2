@@ -105,7 +105,11 @@ route. Tradeoff (educational, by design): no revocation detection until expiry.
 - `config/admin.json` — IG admin (PRODUCTION mode, streaming on).
 - `config/routes/01-mcp-olb.json` — primary route (`/mcp`).
 - `config/routes/02-mcp-invest.json` — secondary route (`/mcp/invest`, strips prefix).
+- `config/routes/00-mcp-olb-jwks.json` — local (no-introspection) JWKS validation route, selected
+  per request via the `X-Token-Validation: jwks` header (effective `ff_mcp_gateway_jwks`).
 - `scripts/groovy/p1az-decision.groovy` — the authorize decision filter.
+- `scripts/groovy/jwks-token-validation.groovy` — local inbound token validation for the JWKS
+  route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.
 - `scripts/validate-config.sh` — route JSON validity + placeholder<->env cross-check.
 - `scripts/check-groovy-params.sh` — static 18-key parity + decision-path check.
 - `scripts/e2e-pinggateway.sh` — live e2e (401 enforcement + live authz decision; full
