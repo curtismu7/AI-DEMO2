@@ -666,9 +666,11 @@ router.post('/', authenticateToken, async (req, res) => {
         userId: req.user.id || userId,
         performedBy: performedByName,
         clientType: req.user.clientType || 'unknown',
-        tokenType: req.user.tokenType || 'unknown'
+        tokenType: req.user.tokenType || 'unknown',
+        viaDelegation: !!req.user.isDelegated,
+        actorSub: req.user.actor?.sub || req.user.actor?.client_id || null
       });
-      
+
       // Create deposit transaction to destination account
       const depositTransaction = await dataStore.createTransaction({
         fromAccountId: null,
@@ -679,7 +681,9 @@ router.post('/', authenticateToken, async (req, res) => {
         userId: req.user.id || userId,
         performedBy: performedByName,
         clientType: req.user.clientType || 'unknown',
-        tokenType: req.user.tokenType || 'unknown'
+        tokenType: req.user.tokenType || 'unknown',
+        viaDelegation: !!req.user.isDelegated,
+        actorSub: req.user.actor?.sub || req.user.actor?.client_id || null
       });
       
       // Balances were already moved atomically above (applyTransfer).
@@ -733,7 +737,9 @@ router.post('/', authenticateToken, async (req, res) => {
         userId: req.user.id || userId,
         performedBy: performedByName,
         clientType: req.user.clientType || 'unknown',
-        tokenType: req.user.tokenType || 'unknown'
+        tokenType: req.user.tokenType || 'unknown',
+        viaDelegation: !!req.user.isDelegated,
+        actorSub: req.user.actor?.sub || req.user.actor?.client_id || null
       });
       
       // Balances were already moved atomically above (applyTransfer).

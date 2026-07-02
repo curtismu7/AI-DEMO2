@@ -941,6 +941,11 @@ export default function AdminSideNav({ user }) {
           icon: "shld",
           action: () => navigate("/owasp"),
         },
+        {
+          label: "Ungoverned Agent",
+          icon: "shld",
+          action: () => navigate("/ungoverned-agent"),
+        },
       ],
     },
   ];

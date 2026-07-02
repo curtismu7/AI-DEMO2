@@ -1,0 +1,13 @@
+{
+  "name": "demo-ungoverned-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo prop: a headless browser that rides a logged-in bank session to move money through the UI, showing the ungoverned (no identity/scope/consent/audit) anti-pattern.",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

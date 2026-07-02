@@ -1,0 +1,334 @@
+/* UngovernedAgentPage.css — the "before" picture: session-riding agents.
+   Visual language borrows the OWASP learner page but leans on an amber/red
+   "danger" accent to signal the ungoverned anti-pattern. */
+.ungov-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  color: #1a2330;
+}
+
+/* Header */
+.ungov-header {
+  border-bottom: 1px solid #e3e8ef;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+}
+.ungov-badge-hero {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: #b42318;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.ungov-header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.ungov-subtitle {
+  font-size: 16px;
+  color: #4a586b;
+  margin: 0;
+  max-width: 760px;
+  line-height: 1.5;
+}
+
+/* Sections */
+.ungov-section {
+  margin-bottom: 36px;
+}
+.ungov-section h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.ungov-intro,
+.ungov-section-intro {
+  font-size: 15px;
+  color: #4a586b;
+  line-height: 1.6;
+  max-width: 820px;
+  margin: 0 0 16px;
+}
+.ungov-page a {
+  color: #0a66c2;
+  text-decoration: none;
+}
+.ungov-page a:hover {
+  text-decoration: underline;
+}
+.ungov-page code {
+  background: #eef1f6;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+/* Comparison table */
+.ungov-table {
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ungov-table__head,
+.ungov-table__row {
+  display: grid;
+  grid-template-columns: 130px 1fr 1fr;
+}
+.ungov-table__head {
+  background: #0a2540;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ungov-table__head > span {
+  padding: 10px 14px;
+}
+.ungov-table__row {
+  border-top: 1px solid #e3e8ef;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.ungov-table__row:nth-child(even) {
+  background: #f8fafc;
+}
+.ungov-table__dim {
+  padding: 12px 14px;
+  font-weight: 700;
+  color: #0a2540;
+}
+.ungov-table__gov {
+  padding: 12px 14px;
+  border-left: 3px solid #12805c;
+  color: #29404f;
+}
+.ungov-table__ungov {
+  padding: 12px 14px;
+  border-left: 3px solid #b42318;
+  color: #29404f;
+}
+
+/* Live demo columns */
+.ungov-demo-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.ungov-demo-col {
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+.ungov-demo-col h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.ungov-demo-col p {
+  font-size: 13.5px;
+  color: #4a586b;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.ungov-demo-note {
+  font-size: 12.5px !important;
+  color: #6b7a8d !important;
+}
+
+/* Code block with copy button (mirrors PingCliPage) */
+.ungov-code-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #0f172a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+.ungov-code-block code {
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 13px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.ungov-copy-btn {
+  flex-shrink: 0;
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ungov-copy-btn:hover {
+  background: #334155;
+  color: #fff;
+}
+
+/* Recent transfers widget */
+.ungov-widget {
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ungov-widget__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e3e8ef;
+}
+.ungov-widget__head h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+.ungov-widget__hint {
+  font-size: 12px;
+  color: #6b7a8d;
+}
+.ungov-widget__empty {
+  padding: 20px 16px;
+  font-size: 13.5px;
+  color: #6b7a8d;
+  margin: 0;
+}
+.ungov-widget__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ungov-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 16px;
+  border-top: 1px solid #eef1f6;
+}
+.ungov-row:first-child {
+  border-top: none;
+}
+.ungov-row__main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.ungov-row__type {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7a8d;
+}
+.ungov-row__amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0a2540;
+}
+.ungov-row__desc {
+  font-size: 13px;
+  color: #4a586b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ungov-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.ungov-row__time {
+  font-size: 12px;
+  color: #98a4b3;
+}
+.ungov-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ungov-badge--governed {
+  color: #0b6b4f;
+  background: #d7f2e6;
+  border: 1px solid #9fdcc2;
+}
+.ungov-badge--direct {
+  color: #93370d;
+  background: #fdeede;
+  border: 1px solid #f5c78a;
+}
+
+/* OWASP threats */
+.ungov-threats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ungov-threat {
+  border: 1px solid #e3e8ef;
+  border-left: 3px solid #b42318;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.ungov-threat__id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b42318;
+}
+.ungov-threat__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0a2540;
+}
+.ungov-threat__why {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: #4a586b;
+  line-height: 1.5;
+}
+.ungov-owasp-link {
+  background: none;
+  border: none;
+  color: #0a66c2;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.ungov-owasp-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .ungov-table__head,
+  .ungov-table__row,
+  .ungov-demo-cols,
+  .ungov-threats {
+    grid-template-columns: 1fr;
+  }
+  .ungov-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
