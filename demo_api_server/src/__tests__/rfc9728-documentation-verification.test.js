@@ -97,8 +97,8 @@ describe('RFC 9728 Documentation Verification Tests', () => {
     test('should have comprehensive API documentation', () => {
       // Check for API documentation in various forms
       const apiDocs = [
-        'docs/Super-Banking-BFF-API.postman_collection.json',
-        'docs/Super-Banking-BFF-API-Vercel.postman_collection.json'
+        'docs/The-AI-Demo-BFF-API.postman_collection.json',
+        'docs/The-AI-Demo-BFF-API-Vercel.postman_collection.json'
       ];
 
       // At least one API doc should exist

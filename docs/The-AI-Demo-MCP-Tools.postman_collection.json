@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "5026c0a5-299b-4a95-822d-3d509a2ceb0d",
-    "name": "Super Banking \u2014 MCP Server Tools",
-    "description": "Direct HTTP calls to the Super Banking MCP server (banking_mcp_server). Use MCP_SERVER_URL in the shared Super-Banking environment.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). Start the MCP server with: cd banking_mcp_server && npm start",
+    "name": "The AI Demo \u2014 MCP Server Tools",
+    "description": "Direct HTTP calls to the The AI Demo MCP server (banking_mcp_server). Use MCP_SERVER_URL in the shared The AI Demo environment.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). Start the MCP server with: cd banking_mcp_server && npm start",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [],
@@ -22,7 +22,7 @@
             "mcp-server"
           ]
         },
-        "description": "Public MCP server discovery manifest. Returns serverInfo, capabilities, tools list, and oauth_metadata_url. No authentication required.\n\nSpec: MCP Protocol discovery via /.well-known endpoint.\n\nSample response fields:\n- serverInfo.name: Super Banking MCP Server\n- capabilities.tools: { listChanged: false }\n- tools[]: list of available banking tools with inputSchema\n- oauth_metadata_url: PingOne OIDC discovery URL"
+        "description": "Public MCP server discovery manifest. Returns serverInfo, capabilities, tools list, and oauth_metadata_url. No authentication required.\n\nSpec: MCP Protocol discovery via /.well-known endpoint.\n\nSample response fields:\n- serverInfo.name: The AI Demo MCP Server\n- capabilities.tools: { listChanged: false }\n- tools[]: list of available banking tools with inputSchema\n- oauth_metadata_url: PingOne OIDC discovery URL"
       },
       "response": []
     },

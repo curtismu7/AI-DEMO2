@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a3ca444a-d78b-47c5-b3e0-803c2642ba16",
-    "name": "Super Banking \u2014 Advanced Utilities",
-    "description": "Advanced utility requests for Super Banking delegated token flows.\n\nRequires: Super-Banking-Shared.postman_environment.json imported and active in Postman.\n\nPAZ Policy Decision: Tests the PingOne Authorize (PAZ) policy engine against an MCP token. Set PAZ_DECISION_ENDPOINT_ID in the shared env (PingOne Admin \u2192 Authorize \u2192 Decision Endpoints \u2192 copy the UUID). Requires an MCP token in {{mcp_exchanged_token}} \u2014 run the 2-Exchange pi.flow collection first (Step 6b saves the token).\n\nToken Revocation: Revokes an MCP token using the MCP service client credentials. Set the token to revoke in {{token_to_revoke}} collection variable before running.",
+    "name": "The AI Demo \u2014 Advanced Utilities",
+    "description": "Advanced utility requests for The AI Demo delegated token flows.\n\nRequires: The-AI-Demo-Shared.postman_environment.json imported and active in Postman.\n\nPAZ Policy Decision: Tests the PingOne Authorize (PAZ) policy engine against an MCP token. Set PAZ_DECISION_ENDPOINT_ID in the shared env (PingOne Admin \u2192 Authorize \u2192 Decision Endpoints \u2192 copy the UUID). Requires an MCP token in {{mcp_exchanged_token}} \u2014 run the 2-Exchange pi.flow collection first (Step 6b saves the token).\n\nToken Revocation: Revokes an MCP token using the MCP service client credentials. Set the token to revoke in {{token_to_revoke}} collection variable before running.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,7 +10,7 @@
       "key": "PAZ_DECISION_ENDPOINT_ID",
       "value": "",
       "type": "default",
-      "description": "PingOne Authorize (PAZ) decision endpoint UUID \u2014 from PingOne Admin \u2192 Authorize \u2192 Decision Endpoints. Also set in Super-Banking-Shared.postman_environment.json."
+      "description": "PingOne Authorize (PAZ) decision endpoint UUID \u2014 from PingOne Admin \u2192 Authorize \u2192 Decision Endpoints. Also set in The-AI-Demo-Shared.postman_environment.json."
     },
     {
       "key": "mcp_exchanged_token",

@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
-    "name": "Super Banking — BFF API (Vercel)",
-    "description": "Direct calls to the Super Banking BFF deployed on Vercel (banking_api_server). Covers new endpoints added in phases 29-34 that have no coverage in the existing token exchange collections.\n\nUses BANKING_API_BASE_URL_VERCEL by default.\n\nMost endpoints require an active session cookie. Run a login flow first (PKCE via the Super Banking Vercel UI or Step-by-Step collection), then re-use cookies in Postman.",
+    "name": "The AI Demo — BFF API (Vercel)",
+    "description": "Direct calls to the The AI Demo BFF deployed on Vercel (banking_api_server). Covers new endpoints added in phases 29-34 that have no coverage in the existing token exchange collections.\n\nUses BANKING_API_BASE_URL_VERCEL by default.\n\nMost endpoints require an active session cookie. Run a login flow first (PKCE via the The AI Demo Vercel UI or Step-by-Step collection), then re-use cookies in Postman.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
