@@ -12,6 +12,7 @@
 // polls GET /api/transactions/my and badges each row by clientType.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatCurrency, formatDateTime } from "../utils/formatters";
 import "./UngovernedAgentPage.css";
 
 const OPENCLI_URL = "https://github.com/jackwener/OpenCLI";
@@ -77,19 +78,6 @@ function CommandBlock({ command, id, copied, onCopy }) {
       </button>
     </div>
   );
-}
-
-function fmtAmount(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return String(n ?? "");
-  return v.toLocaleString(undefined, { style: "currency", currency: "USD" });
-}
-
-function fmtTime(ts) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 // Recent Transfers widget — polls /api/transactions/my and badges each row by
@@ -167,11 +155,11 @@ function RecentTransfersWidget() {
               <li key={t.id} className="ungov-row">
                 <span className="ungov-row__main">
                   <span className="ungov-row__type">{t.type}</span>
-                  <span className="ungov-row__amount">{fmtAmount(t.amount)}</span>
+                  <span className="ungov-row__amount">{formatCurrency(Number(t.amount))}</span>
                   <span className="ungov-row__desc">{t.description}</span>
                 </span>
                 <span className="ungov-row__meta">
-                  <span className="ungov-row__time">{fmtTime(t.createdAt)}</span>
+                  <span className="ungov-row__time">{formatDateTime(t.createdAt)}</span>
                   <span className={`ungov-badge ungov-badge--${agent ? "governed" : "direct"}`}>
                     {agent ? "Governed agent (act-as chain)" : "Direct user session"}
                     {agent && t.actorSub ? ` · acting as ${t.actorSub}` : ""}

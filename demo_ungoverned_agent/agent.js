@@ -46,6 +46,7 @@ const CFG = {
 
 const log = (...a) => console.log('[ungoverned-agent]', ...a);
 const typeOf = (a) => String(a.accountType || a.type || '').toLowerCase();
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 async function shot(page, name) {
   if (!page) return;
@@ -132,7 +133,7 @@ async function main() {
     if (mode === 'token') {
       // API-style: a headless client wielding a stolen bearer token.
       const r = await context.request.post(`${CFG.apiUrl}/api/transactions`, {
-        headers: { 'Content-Type': 'application/json' }, data: payload,
+        headers: JSON_HEADERS, data: payload,
       });
       if (r.status() === 428) {
         // The transfer tripped a policy-driven human-in-the-loop consent (a control
@@ -141,7 +142,7 @@ async function main() {
         // even this proceeds with full user power and no agent attribution.
         log('transfer required human consent (428 HITL) — a real control; falling back to a deposit to show the clientType');
         const d = await context.request.post(`${CFG.apiUrl}/api/transactions`, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: JSON_HEADERS,
           data: { type: 'deposit', amount: CFG.amount, toAccountId: to.id, description: `${CFG.description} (deposit)` },
         });
         if (d.status() >= 400) throw new Error(`deposit failed: ${d.status()} ${await d.text()}`);
