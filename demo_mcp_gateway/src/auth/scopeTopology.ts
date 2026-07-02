@@ -41,3 +41,17 @@ export function isAgentMediatedTool(name: string): boolean {
   const t = M.tools[name];
   return t?.requiresAgentMediation === true;
 }
+
+interface ResourceEntry { uri: string; scopes?: string[]; mirroredScopes?: string[]; }
+interface ManifestWithResources { resources: Record<string, ResourceEntry>; }
+
+const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest', string> = {
+  olb: 'Super Banking MCP Server',
+  invest: 'Super Banking MCP Invest',
+};
+
+/** All scopes (native + mirrored) registered on a backend's resource server. */
+export function resourceScopesForBackend(backend: 'olb' | 'invest'): string[] {
+  const r = (manifest as unknown as ManifestWithResources).resources[BACKEND_RESOURCE_NAME[backend]];
+  return r ? [...(r.scopes || []), ...(r.mirroredScopes || [])] : [];
+}

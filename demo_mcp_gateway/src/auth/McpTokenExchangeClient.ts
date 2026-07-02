@@ -12,16 +12,26 @@
  *
  * The upstream token is ONLY used by the gateway to call the MCP server.
  * It is never returned to, logged for, or visible to the LLM.
+ *
+ * RFC 8707 `resource=` (not `audience=`): PingOne silently ignores `audience=`
+ * and requires `resource=` to narrow to ONE resource server when the client
+ * has grants on several — otherwise it fails with "May not request scopes
+ * for multiple resources". The scope must also be explicit and single-
+ * resource: subject scopes ∩ target-resource scopes (native + mirroredScopes).
+ * Same proven pattern as the BFF's Exchange #1 (agentMcpTokenService.js).
  */
 
 import axios from 'axios';
+import * as jwt from 'jsonwebtoken';
 import { routeTool, backendResourceUri } from '../router';
 import type { GatewayConfig } from '../config';
 import { cacheInsertWithEviction } from '../boundedTokenCache';
+import { resourceScopesForBackend } from './scopeTopology';
 
 export interface ExchangeResult {
   token: string;
   targetAud: string;
+  cached: boolean;
 }
 
 // Simple in-memory cache: sha256(subjectToken + targetAud) → { token, expiresAt }
@@ -51,22 +61,43 @@ export class McpTokenExchangeClient {
    *                       undefined → default to OLB (for tools/list etc.)
    */
   async exchange(subjectToken: string, toolName?: string): Promise<ExchangeResult> {
-    const backend = toolName ? routeTool(toolName) : 'olb';
+    const target = toolName ? routeTool(toolName) : 'olb';
+    const backend: 'olb' | 'invest' = target === 'invest' ? 'invest' : 'olb';
+    return this.exchangeForBackend(subjectToken, backend);
+  }
+
+  /**
+   * Exchange for an explicit backend — used by tools/list proxying and by
+   * `exchange()` after tool→backend routing.
+   */
+  async exchangeForBackend(subjectToken: string, backend: 'olb' | 'invest'): Promise<ExchangeResult> {
     const targetAud = backendResourceUri(backend, this.config);
 
     const key = cacheKey(subjectToken, targetAud);
     const cached = _cache.get(key);
     if (cached && cached.expiresAt > Date.now() + 5000) {
-      return { token: cached.token, targetAud };
+      return { token: cached.token, targetAud, cached: true };
     }
+
+    // RFC 8707: PingOne requires `resource=` to narrow to ONE resource server
+    // when the client has grants on several — `audience=` alone is silently
+    // ignored ("May not request scopes for multiple resources"). The scope
+    // must be explicit and single-resource: subject scopes ∩ target resource
+    // scopes (native + mirroredScopes). Same pattern as the BFF's Exchange #1
+    // (agentMcpTokenService.js).
+    const decoded = jwt.decode(subjectToken) as { scope?: string } | null;
+    const subjectScopes = (decoded?.scope || '').split(' ').filter(Boolean);
+    const allowed = new Set(resourceScopesForBackend(backend));
+    const requestScopes = subjectScopes.filter((s) => allowed.has(s));
 
     const params = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       subject_token: subjectToken,
       subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
       requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
-      audience: targetAud,
+      resource: targetAud,
     });
+    if (requestScopes.length > 0) params.set('scope', requestScopes.join(' '));
 
     let exchangeHeaders: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -100,7 +131,7 @@ export class McpTokenExchangeClient {
       expiresAt: Date.now() + (expires_in ?? 300) * 1000,
     });
 
-    return { token: access_token, targetAud };
+    return { token: access_token, targetAud, cached: false };
   }
 
   static clearCache(): void {
