@@ -33,6 +33,7 @@ import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
 import { validateIntentToken } from '../intentTokenValidator';
+import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
 import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from '../gatewayAudit';
 import { verifyDpopProof } from '../dpopVerify';
@@ -341,6 +342,24 @@ export function buildAuthorizeMcpRequest(
       _audCtx.operation = toolName;
       _audCtx.userId = decoded?.sub;
       _audCtx.agentId = decoded?.act?.sub;
+    }
+
+    // Spec §2 — method allow-list + shape + per-tool schema validation, after
+    // token introspection but before any PingOne Authorize cost. HTTP transport
+    // returns 400 with a JSON-RPC error body (-32601 / -32602 + data).
+    const sendRpcError = (status: number, id: unknown, f: { code: number; message: string; data?: Record<string, unknown> }) => {
+      setAuditHeader(res);
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, error: { code: f.code, message: f.message, data: f.data } }));
+    };
+    const shapeFailure = validateMethodAndShape(parsedBody.method, parsedBody.params);
+    if (shapeFailure) { sendRpcError(400, parsedBody.id, shapeFailure); return; }
+    if (parsedBody.method === 'tools/call') {
+      const rawArgs = { ...(parsedBody.params?.arguments || {}) };
+      delete (rawArgs as Record<string, unknown>)._hitl_challenge_id;
+      // Shape check above guarantees params.name is a non-empty string here.
+      const argsFailure = validateToolArgs(toolName ?? '', rawArgs as Record<string, unknown>);
+      if (argsFailure) { sendRpcError(400, parsedBody.id, argsFailure); return; }
     }
 
     // WR-03: `_hitl_challenge_id` is a gateway-internal control field. The WS
