@@ -293,3 +293,18 @@
   color: #475569;
 }
 .p1mcp-gap-foot { margin-top: 14px; font-style: italic; }
+
+/* CIMD section — honest "mocked" badge (PingOne has no CIMD support yet). */
+.p1mcp-cimd-badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

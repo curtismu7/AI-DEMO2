@@ -1315,6 +1315,11 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 // Mounted after session/auth middleware but before static files.
 app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
 
+// Public CIMD agent metadata documents — no authentication required (an AS
+// must be able to fetch them). Derived from scope-topology.json at request
+// time. Consumed by the mocked register-by-URL path (PingOne has no CIMD).
+app.use('/api/cimd', require('./routes/cimdAgentMetadata'));
+
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
