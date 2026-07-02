@@ -88,4 +88,17 @@ describe('extractRfc9470Challenge', () => {
     expect(extractRfc9470Challenge(undefined)).toBeNull();
     expect(extractRfc9470Challenge(null)).toBeNull();
   });
+
+  it('falls back to body fields when the header is present but unparseable', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = extractRfc9470Challenge({
+      status: 401,
+      headers: { 'www-authenticate': 'Bearer error=oops-unquoted' },
+      data: body,
+    });
+    expect(out.step_up_acr).toBe('Multi_Factor');
+    expect(out.rfc9470).toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

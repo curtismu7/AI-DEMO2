@@ -26,6 +26,7 @@ import {
   splitGridClass,
 } from "../utils/dashboardLayout";
 import { toastCustomerError } from "../utils/dashboardToast";
+import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainDisplay from "./TokenChainDisplay";
@@ -1510,6 +1511,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       notifySuccess("Transfer completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Transfer error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1531,6 +1535,8 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1606,6 +1612,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       notifySuccess("Deposit completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Deposit error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1626,6 +1635,8 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1706,6 +1717,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       notifySuccess("Withdrawal completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Withdrawal error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1726,6 +1740,8 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -2826,8 +2842,11 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                   }),
                 );
               } catch (err) {
+                const rfc9470StepUp = extractRfc9470Challenge(err.response);
                 if (err.response?.status === 428) {
                   beginStepUp(err.response.data);
+                } else if (rfc9470StepUp) {
+                  beginStepUp(rfc9470StepUp);
                 } else {
                   notifyError(
                     err.response?.data?.error_description ||

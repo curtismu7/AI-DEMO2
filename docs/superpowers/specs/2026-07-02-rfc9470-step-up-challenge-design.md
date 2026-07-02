@@ -135,11 +135,13 @@ fields instead, with a console warning (demo resilience over hard failure).
   pre-standard/proprietary pattern, 401 + `WWW-Authenticate:
   error="insufficient_user_authentication"` as the RFC 9470 standard — and
   why standardization matters (any conforming client interoperates).
-- **Token flow inspector**: when the RFC-mode challenge fires, the step
-  detail shows the raw `WWW-Authenticate` header with a per-parameter
-  breakdown (`acr_values` → required strength, `max_age` → required
-  freshness), complementing the `acr`/`auth_time` claims already shown on
-  the token side.
+- **Raw challenge visibility** (scope reduced during implementation —
+  recorded deviation): the raw `WWW-Authenticate` header is shown on the
+  step-up toast (Ping2026 skin) and appears in the API traffic inspector
+  via the existing response-header capture. The originally specified
+  per-parameter breakdown in the token flow inspector step details was
+  not implemented; the `acr_values`/`max_age` semantics are taught in the
+  step-up scenario copy instead.
 - **Flag description** in the admin UI doubles as micro-education
   ("RFC 9470 standard challenge vs legacy 428").
 

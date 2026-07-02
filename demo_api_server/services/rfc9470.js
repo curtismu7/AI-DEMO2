@@ -14,9 +14,12 @@
 
 const INSUFFICIENT_USER_AUTHENTICATION = 'insufficient_user_authentication';
 
-/** Quote a param value per RFC 7235 quoted-string (escape backslash + dquote). */
+/** Quote a param value per RFC 7235 quoted-string (escape backslash + dquote; strip control chars — res.set throws on them). */
 function quote(value) {
-  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  return `"${String(value)
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')}"`;
 }
 
 /**

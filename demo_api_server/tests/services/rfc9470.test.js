@@ -69,4 +69,10 @@ describe('rfc9470 challenge header', () => {
     expect(parseChallengeHeader(undefined)).toBeNull();
     expect(parseChallengeHeader('')).toBeNull();
   });
+
+  it('strips control characters from admin-settable values (no header-injection 500s)', () => {
+    expect(buildChallengeHeader({ acrValues: ['Multi\r\nFactor'] })).toBe(
+      'Bearer error="insufficient_user_authentication", acr_values="Multi  Factor"'
+    );
+  });
 });
