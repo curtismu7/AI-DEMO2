@@ -1,0 +1,56 @@
+# Ungoverned Agent — demo prop (opt-in; NOT applied by deploy.sh).
+#
+# A one-shot Job: a headless browser signs in as the seeded demo customer and
+# moves money through the bank UI, riding a plain user session — the in-cluster,
+# reproducible analog of an agent driving your logged-in Chrome (e.g. OpenCLI).
+# It carries no agent identity, scope, consent, or audit, so the demo records it
+# as an ordinary user session, right beside the governed Agent Gateway.
+#
+# Build + load the image first, then run on demand:
+#   docker build -t ai-demo-ungoverned-agent:latest ./demo_ungoverned_agent
+#   # (kind) kind load docker-image ai-demo-ungoverned-agent:latest
+#   kubectl apply -f k8s/80-ungoverned-agent-job.yaml
+#   kubectl -n ai-demo logs job/ungoverned-agent -f
+#   kubectl -n ai-demo delete job/ungoverned-agent   # before re-running
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ungoverned-agent
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ungoverned-agent
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: ungoverned-agent
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: ungoverned-agent
+        image: ai-demo-ungoverned-agent:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        # In-cluster the UI Service is `frontend:4000` (k8s/10-frontend-deployment.yaml).
+        - name: UI_URL
+          value: "https://frontend:4000"
+        # The bank APIs require a real PingOne customer session. Paste the
+        # connect.sid value from a signed-in customer's browser here (or supply
+        # ACCESS_TOKEN). See docs/runbooks/ungoverned-agent-opencli.md.
+        - name: SESSION_COOKIE
+          value: ""
+        - name: AMOUNT
+          value: "50"
+        - name: DESCRIPTION
+          value: "Ungoverned agent transfer"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"

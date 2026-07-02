@@ -676,6 +676,33 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  # ── Ungoverned Agent (demo prop — DOES NOT auto-start) ───────────────────────
+  # A headless browser that rides a logged-in bank session and moves money via
+  # the UI — the containerized analog of an agent driving your logged-in Chrome
+  # (e.g. OpenCLI). No agent identity / scope / consent / audit: the demo records
+  # it as a plain user session. Gated behind the "demo-attack" profile so it is
+  # only run on demand:  docker compose run --rm ungoverned-agent
+  ungoverned-agent:
+    build:
+      context: ./demo_ungoverned_agent
+      dockerfile: Dockerfile
+    container_name: ai-demo-ungoverned-agent
+    profiles: ["demo-attack"]
+    environment:
+      UI_URL: ${UNGOV_UI_URL:-https://ui:4000}
+      # Supply ONE of these from a signed-in customer (see the runbook). The bank
+      # APIs require a real PingOne customer session — a local login is not enough.
+      SESSION_COOKIE: ${UNGOV_SESSION_COOKIE:-}
+      ACCESS_TOKEN: ${UNGOV_ACCESS_TOKEN:-}
+      ALLOW_LOCAL_LOGIN: ${UNGOV_ALLOW_LOCAL_LOGIN:-false}
+      DEMO_USER: ${UNGOV_DEMO_USER:-john.doe}
+      DEMO_PASS: ${UNGOV_DEMO_PASS:-${SEED_CUSTOMER_PASSWORD:-password123}}
+      AMOUNT: ${UNGOV_AMOUNT:-50}
+      DESCRIPTION: ${UNGOV_DESCRIPTION:-Ungoverned agent transfer}
+    networks:
+      - ai-demo
+    restart: "no"
+
 networks:
   ai-demo:
     driver: bridge
