@@ -27,6 +27,7 @@ const configStore = require('./configStore');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { logEvent, EVENT_CATEGORIES } = require('./appEventService');
+const { buildChallengeHeader } = require('./rfc9470');
 
 /**
  * Build 428/403 bodies shared between engines (Feature Flags + Config labels).
@@ -45,6 +46,32 @@ function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
     step_up_url: '/api/auth/oauth/user/stepup',
     authorize_policy_id: policyId || undefined,
     authorize_engine: useSimulated ? 'simulated' : 'pingone',
+  };
+}
+
+/**
+ * Wrap the step-up body in a transport block — the RFC 9470 mode switch.
+ * ff_rfc9470_challenge OFF (default): legacy 428 + JSON body (RFC 6585 demo format).
+ * ON: RFC 9470 — 401 + WWW-Authenticate insufficient_user_authentication challenge.
+ * The JSON body is kept in BOTH modes (step_up_url / step_up_method are demo
+ * conveniences); in RFC mode the header is the normative signal clients parse.
+ */
+function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, extra = {} }) {
+  const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings }), ...extra };
+  if (configStore.getEffective('ff_rfc9470_challenge') !== 'true') {
+    return { status: 428, body };
+  }
+  const maxAge = parseFloat(runtimeSettings.get('stepUpMaxAge')) || 0;
+  return {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': buildChallengeHeader({
+        acrValues: [runtimeSettings.get('stepUpAcrValue')],
+        maxAge,
+        errorDescription: 'A different authentication level is required',
+      }),
+    },
+    body,
   };
 }
 
@@ -172,14 +199,11 @@ async function evaluateTransactionPolicy({
       if (r.stepUpRequired) {
         return {
           ran: true,
-          block: {
-            status: 428,
-            body: buildStepUpBody({
-              useSimulated: true,
-              policyId: AUTHORIZE_POLICY_ID,
-              runtimeSettings,
-            }),
-          },
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+          }),
         };
       }
 
@@ -225,14 +249,11 @@ async function evaluateTransactionPolicy({
     if (r.stepUpRequired) {
       return {
         ran: true,
-        block: {
-          status: 428,
-          body: buildStepUpBody({
-            useSimulated: false,
-            policyId: AUTHORIZE_POLICY_ID,
-            runtimeSettings,
-          }),
-        },
+        block: buildStepUpBlock({
+          useSimulated: false,
+          policyId: AUTHORIZE_POLICY_ID,
+          runtimeSettings,
+        }),
       };
     }
 
@@ -331,10 +352,12 @@ async function evaluateTransactionPolicy({
       if (fallback.stepUpRequired) {
         return {
           ran: true,
-          block: {
-            status: 428,
-            body: { ...buildStepUpBody({ useSimulated: true, policyId: AUTHORIZE_POLICY_ID, runtimeSettings }), authorizeFallback },
-          },
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+            extra: { authorizeFallback },
+          }),
         };
       }
       if (fallback.consentRequired) {
