@@ -46,6 +46,7 @@ import { runWithCorrelation } from './correlationContext';
 import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
+import { GATEWAY_TOOLS } from './gatewayTools';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -435,64 +436,7 @@ async function handleMessage(
     // on their presence. Strategy 1: inject descriptors directly into the merged list.
     // Phase 267+: per-vertical api_key-path feature tools are also gateway-owned —
     // they must appear here so their chips are not hidden by the tool-permission check.
-    const gatewayTools = [
-      {
-        name: 'special_offers',
-        description: 'Demo: API-key credential path — gateway swaps OAuth bearer for a service API key. No backend call. Renders info page.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'user_profile_card',
-        description: 'Demo: Access + ID-Token credential path — gateway forwards both tokens to banking_resource_server /identity, returns decoded claims.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'dual_token',
-      },
-      // Per-vertical API-key feature tools. Each is routed by APIKEY_TOOLS in router.ts;
-      // injected here so they appear in tools/list and their featurePage chips are not hidden.
-      {
-        name: 'show_health_record',
-        description: 'Demo: API-key path — fetch the patient health record from the CareConnect backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_gear_order',
-        description: 'Demo: API-key path — fetch the most recent gear order from the Super Sports backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_enrollment',
-        description: 'Demo: API-key path — fetch the student enrollment record from the Super University backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_large_purchase',
-        description: 'Demo: API-key path — fetch a large purchase record from the Great Buy retail backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_expense_report',
-        description: 'Demo: API-key path — fetch the expense report from the WX Workforce backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_permit',
-        description: 'Demo: API-key path — fetch a permit record from the CivicPermit backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_work_order',
-        description: 'Demo: API-key path — fetch a work order from the Precision Works manufacturing backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-    ];
+    const gatewayTools = GATEWAY_TOOLS;
     allTools.push(...gatewayTools);
 
     // Authorize per-tool decision: pass the merged tool names so the policy can
