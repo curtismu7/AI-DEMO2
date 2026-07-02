@@ -51,14 +51,16 @@ function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
 
 /**
  * Wrap the step-up body in a transport block — the RFC 9470 mode switch.
- * ff_rfc9470_challenge OFF (default): legacy 428 + JSON body (RFC 6585 demo format).
- * ON: RFC 9470 — 401 + WWW-Authenticate insufficient_user_authentication challenge.
+ * ff_rfc9470_challenge ON (default): RFC 9470 — 401 + WWW-Authenticate
+ * insufficient_user_authentication challenge. Explicitly OFF ('false'):
+ * legacy 428 + JSON body (RFC 6585 demo format) — default-ON check style
+ * matches ff_hitl_enabled.
  * The JSON body is kept in BOTH modes (step_up_url / step_up_method are demo
  * conveniences); in RFC mode the header is the normative signal clients parse.
  */
 function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, extra = {} }) {
   const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings }), ...extra };
-  if (configStore.getEffective('ff_rfc9470_challenge') !== 'true') {
+  if (configStore.getEffective('ff_rfc9470_challenge') === 'false') {
     return { status: 428, body };
   }
   const maxAge = parseFloat(runtimeSettings.get('stepUpMaxAge')) || 0;

@@ -2,7 +2,9 @@
 
 **Date:** 2026-07-02
 **Status:** Approved design, pending implementation plan
-**Feature flag:** `ff_rfc9470_challenge` (default OFF)
+**Feature flag:** `ff_rfc9470_challenge` (default **ON** — changed from the
+original default-OFF design by user decision on 2026-07-02, after
+implementation and review; see §1)
 
 ## Background
 
@@ -64,10 +66,17 @@ freshness is not enforced server-side today).
 
 ### 1. Feature flag
 
-`ff_rfc9470_challenge`, default **OFF**, registered in `featureFlags.js`
-under the existing "Step-Up Auth" category, read via
-`configStore.getEffective()`. OFF preserves byte-identical current behavior.
-Toggleable live from the admin feature-flags UI.
+`ff_rfc9470_challenge`, registered in `featureFlags.js` under the existing
+"Step-Up Auth" category, read via `configStore.getEffective()`. Toggleable
+live from the admin feature-flags UI.
+
+**Default change (user decision, 2026-07-02):** the feature was designed,
+built, and reviewed with default **OFF** (byte-identical legacy behavior
+unless opted in). After review the default was flipped to **ON**: unset ⇒
+RFC 9470 mode; enforcement uses the repo's default-ON idiom
+(`getEffective(...) === 'false'` ⇒ legacy), matching `ff_hitl_enabled`.
+Setting the flag OFF in the admin UI restores the legacy 428+JSON format
+exactly.
 
 ### 2. Backend — challenge module + gate wiring
 

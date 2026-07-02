@@ -76,8 +76,10 @@ afterAll(() => {
 });
 
 describe('step-up block mode switch (ff_rfc9470_challenge)', () => {
-  it('flag OFF → legacy 428 block with no headers', async () => {
-    configStore.getEffective.mockReturnValue(null); // flag unset = OFF
+  it('flag explicitly OFF → legacy 428 block with no headers', async () => {
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'ff_rfc9470_challenge' ? 'false' : null
+    );
 
     const res = await evaluateTransactionPolicy(evaluateOpts);
 
@@ -87,6 +89,18 @@ describe('step-up block mode switch (ff_rfc9470_challenge)', () => {
     expect(res.block.body.error).toBe('step_up_required');
     expect(res.block.body.step_up_acr).toBe('Multi_Factor');
     expect(res.block.body.step_up_url).toBe('/api/auth/oauth/user/stepup');
+  });
+
+  it('flag unset → defaults ON (401 RFC 9470 challenge)', async () => {
+    configStore.getEffective.mockReturnValue(null); // unset = default ON
+
+    const res = await evaluateTransactionPolicy(evaluateOpts);
+
+    expect(res.block.status).toBe(401);
+    expect(res.block.headers['WWW-Authenticate']).toContain(
+      'insufficient_user_authentication'
+    );
+    expect(res.block.body.error).toBe('step_up_required');
   });
 
   it('flag ON → 401 with spec-exact WWW-Authenticate header, same body', async () => {
