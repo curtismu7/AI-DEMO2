@@ -11,6 +11,7 @@ import AnnotatedResult from "./authz/AnnotatedResult";
 import { AUTHZ_SECTIONS, buildDemoInput } from "./authz/authzSections";
 import { useDemoRunner } from "./authz/useDemoRunner";
 import LivePolicyScenarios from "./authz/LivePolicyScenarios";
+import McpDelegationScenarios from "./authz/McpDelegationScenarios";
 
 // ---------------------------------------------------------------------------
 // Preset scenarios — cover all three decision branches
@@ -862,8 +863,11 @@ export default function AuthzTestPage() {
 				))}
 			</div>
 
-			{/* Live PingOne Authorize — real provisioned policy scenarios */}
+			{/* Live PingOne Authorize — real provisioned policy scenarios (Transaction) */}
 			<LivePolicyScenarios configured={Boolean(status?.pingoneConfigured && status?.hasDecisionEndpointId)} />
+
+			{/* Live PingOne Authorize — MCP Delegation Authorization policy scenarios */}
+			<McpDelegationScenarios configured={Boolean(status?.pingoneConfigured && status?.hasDecisionEndpointId)} />
 
 			{/* Preset scenarios */}
 			<section className="authz-section">
