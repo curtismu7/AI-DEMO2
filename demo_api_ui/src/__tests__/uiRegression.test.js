@@ -291,7 +291,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("ActivityLogs.js") ||
         f.includes("SequenceDiagramPage.js") ||
         f.includes("SetupWizard.js") ||
-        f.includes("HitlSequenceDiagram.js")   // sequence diagram node code display (intentional)
+        f.includes("HitlSequenceDiagram.js") ||   // sequence diagram node code display (intentional)
+        f.includes("UserDashboardPing2026.js")     // RFC 9470 raw challenge header display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");

@@ -26,6 +26,7 @@ import {
   splitGridClass,
 } from "../utils/dashboardLayout";
 import { toastCustomerError } from "../utils/dashboardToast";
+import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainDisplay from "./TokenChainDisplay";
@@ -263,6 +264,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [stepUpRequired, setStepUpRequired] = useState(false);
   // 'ciba' | 'email' — set from the 428 response step_up_method field
   const [stepUpMethod, setStepUpMethod] = useState("email");
+  // Raw RFC 9470 WWW-Authenticate value (set when the challenge arrived as
+  // 401 + header rather than legacy 428 + body) — shown on the step-up toast.
+  const [stepUpChallengeRaw, setStepUpChallengeRaw] = useState("");
   // CIBA step-up state
   const [cibaAuthReqId, setCibaAuthReqId] = useState(null);
   const [cibaStatus, setCibaStatus] = useState("idle"); // 'idle' | 'pending' | 'completed' | 'error'
@@ -1074,10 +1078,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     toast.dismiss("customer-step-up");
   }, []);
 
-  /** Enter the step-up gate from a 428 body (method + ACR for CIBA). Inverse of dismissStepUp. */
+  /** Enter the step-up gate from a 428 body or an RFC 9470 401 challenge (method + ACR for CIBA). Inverse of dismissStepUp. */
   const beginStepUp = useCallback((d) => {
     setStepUpMethod(d?.step_up_method || "email");
     setCibaAcr(d?.step_up_acr || "");
+    setStepUpChallengeRaw(d?.rfc9470?.raw || "");
     setCibaStatus("idle");
     setStepUpRequired(true);
   }, []);
@@ -1207,6 +1212,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       setCibaAuthReqId(null);
       setCibaStatus("idle");
       setCibaAcr("");
+      setStepUpChallengeRaw("");
     };
 
     const body = (
@@ -1219,6 +1225,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           withdrawals of $250 or more require MFA. Verify your identity to
           continue.
         </p>
+        {stepUpChallengeRaw && (
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: 11,
+              background: "rgba(0,0,0,0.25)",
+              padding: 6,
+              borderRadius: 4,
+              wordBreak: "break-all",
+              marginBottom: 8,
+            }}
+          >
+            <strong>RFC 9470 challenge:</strong> WWW-Authenticate:{" "}
+            {stepUpChallengeRaw}
+          </p>
+        )}
         <div
           style={{
             display: "flex",
@@ -1327,6 +1349,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   }, [
     stepUpRequired,
     stepUpMethod,
+    stepUpChallengeRaw,
     cibaStatus,
     handleCibaStepUp,
     dismissStepUp,
@@ -1511,6 +1534,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       notifySuccess("Transfer completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Transfer error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1532,6 +1558,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1607,6 +1635,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       notifySuccess("Deposit completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Deposit error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1627,6 +1658,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1707,6 +1740,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       notifySuccess("Withdrawal completed successfully!");
     } catch (error) {
       const d = error.response?.data;
+      // RFC 9470 mode (ff_rfc9470_challenge): 401 + WWW-Authenticate challenge.
+      // Ordinary 401s yield null here and keep their existing handling.
+      const rfc9470StepUp = extractRfc9470Challenge(error.response);
       console.error("Withdrawal error:", error);
       if (error.response?.data?.error === "amount_exceeds_hard_limit") {
         notifyError(
@@ -1727,6 +1763,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           return;
         }
         beginStepUp(error.response.data);
+      } else if (rfc9470StepUp) {
+        beginStepUp(rfc9470StepUp);
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -2628,8 +2666,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                   }),
                 );
               } catch (err) {
+                const rfc9470StepUp = extractRfc9470Challenge(err.response);
                 if (err.response?.status === 428) {
                   beginStepUp(err.response.data);
+                } else if (rfc9470StepUp) {
+                  beginStepUp(rfc9470StepUp);
                 } else {
                   notifyError(
                     err.response?.data?.error_description ||

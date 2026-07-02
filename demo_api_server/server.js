@@ -288,7 +288,9 @@ app.use(cors({
     // The React CRA dev proxy makes requests same-origin in development, so this
     // fallback only affects calls from a different origin without the env var set.
     origin: process.env.CORS_ORIGIN || 'https://api.ping.demo',
-    credentials: true
+    credentials: true,
+    // RFC 9470: let cross-origin clients read the step-up challenge header
+    exposedHeaders: ['WWW-Authenticate']
 }));
 
 // Trust proxy headers from any load balancer in front of Express.
