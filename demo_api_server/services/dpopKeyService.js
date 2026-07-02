@@ -99,10 +99,80 @@ function getSessionDpopKey(req) {
   return req.session.dpopKey;
 }
 
+// ---------------------------------------------------------------------------
+// Web Bot Auth (RFC 9421 HTTP Message Signatures, draft-meunier profile)
+// ---------------------------------------------------------------------------
+//
+// Unlike the per-session DPoP key, the Web Bot Auth key is the AGENT's stable
+// identity key: its public half is published as a JWKS at
+// /.well-known/http-message-signatures-directory (served by this BFF) and
+// referenced from outbound requests via the Signature-Agent header. One
+// Ed25519 keypair per process; the directory and the signer share it.
+
+let _wbaKey = null;
+
+/**
+ * Get-or-create the process-wide Ed25519 Web Bot Auth keypair.
+ * Returns { privatePem, publicJwk, keyid } — keyid is the RFC 7638 JWK
+ * thumbprint (canonical members crv,kty,x for OKP), as required by the
+ * web-bot-auth profile. Note jwkThumbprint() handles OKP too: JSON.stringify
+ * drops the undefined `y` member, leaving exactly {crv,kty,x}.
+ */
+function getWebBotAuthKey() {
+  if (!_wbaKey) {
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+    const publicJwk = publicKey.export({ format: 'jwk' }); // { kty:'OKP', crv:'Ed25519', x }
+    _wbaKey = {
+      privatePem: privateKey.export({ format: 'pem', type: 'pkcs8' }),
+      publicJwk,
+      keyid: jwkThumbprint(publicJwk),
+    };
+  }
+  return _wbaKey;
+}
+
+/**
+ * Sign a Web Bot Auth request (RFC 9421, tag="web-bot-auth").
+ * Covered components per the profile: `@authority` and `signature-agent`.
+ * Params: created, expires, keyid (RFC 7638 thumbprint), nonce, tag.
+ *
+ * @param {object} p
+ * @param {string} p.authority       host[:port] of the target URI (e.g. new URL(url).host)
+ * @param {string} p.signatureAgent  the agent's key-directory origin (this BFF's base URL)
+ * @param {string} [p.label]         signature label (default 'sig1')
+ * @param {number} [p.lifetimeSecs]  created→expires window (default 300)
+ * @returns {{ 'Signature-Agent': string, 'Signature-Input': string, 'Signature': string }}
+ */
+function signWebBotAuthHeaders({ authority, signatureAgent, label = 'sig1', lifetimeSecs = 300 }) {
+  const key = getWebBotAuthKey();
+  const created = Math.floor(Date.now() / 1000);
+  const expires = created + lifetimeSecs;
+  const nonce = crypto.randomBytes(32).toString('base64'); // base64 is sf-string-safe
+  const agentValue = `"${signatureAgent}"`; // sf-string, as sent on the wire
+  const params =
+    `("@authority" "signature-agent");created=${created};expires=${expires}` +
+    `;keyid="${key.keyid}";nonce="${nonce}";tag="web-bot-auth"`;
+  // RFC 9421 §2.5 signature base: covered components in order, then the
+  // @signature-params line carrying the exact Signature-Input member value.
+  const base =
+    `"@authority": ${String(authority).toLowerCase()}\n` +
+    `"signature-agent": ${agentValue}\n` +
+    `"@signature-params": ${params}`;
+  // Ed25519 signs the raw base (no prehash) — crypto.sign(null, ...).
+  const sig = crypto.sign(null, Buffer.from(base, 'utf-8'), crypto.createPrivateKey(key.privatePem));
+  return {
+    'Signature-Agent': agentValue,
+    'Signature-Input': `${label}=${params}`,
+    'Signature': `${label}=:${sig.toString('base64')}:`,
+  };
+}
+
 module.exports = {
   jwkThumbprint,
   generateDpopKeypair,
   accessTokenHash,
   signDpopProof,
   getSessionDpopKey,
+  getWebBotAuthKey,
+  signWebBotAuthHeaders,
 };
