@@ -39,18 +39,33 @@ function requestUrl(req) {
   return `${proto}://${req.get('host')}${req.originalUrl}`;
 }
 
+/**
+ * Base URL under which the BFF can fetch its OWN metadata documents when the
+ * inspector triggers a registration. Loopback is deterministic regardless of
+ * which proxy/host the browser used; the mock-AS fetcher accepts the demo's
+ * self-signed TLS on loopback.
+ */
+function selfBaseUrl() {
+  const scheme = process.env.BFF_LOOPBACK_SCHEME || 'http';
+  const port = process.env.PORT || 3001;
+  return `${scheme}://127.0.0.1:${port}`;
+}
+
 // GET /api/cimd/agents — agent list for the inspector UI.
 router.get('/agents', (req, res) => {
   const manifest = scopeTopology._manifest();
   const appNames = (manifest.provisioning && manifest.provisioning.appNames) || {};
   const agents = agentApps().map((app) => {
     const slug = slugify(app);
+    const metadataPath = `/api/cimd/agents/${slug}/client-metadata.json`;
     return {
       app,
       slug,
       client_name: appNames[app] || app,
       granted_scopes: scopeTopology.appGrantedScopes(app),
-      metadata_path: `/api/cimd/agents/${slug}/client-metadata.json`
+      metadata_path: metadataPath,
+      // URL-shaped client_id: the identifier a CIMD registration presents.
+      client_id: `${selfBaseUrl()}${metadataPath}`
     };
   });
   res.json({

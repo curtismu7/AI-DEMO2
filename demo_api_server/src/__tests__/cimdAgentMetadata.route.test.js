@@ -32,6 +32,8 @@ describe('CIMD agent metadata routes', () => {
     expect(advisor.metadata_path).toBe(
       '/api/cimd/agents/super-banking-investment-advisor-agent/client-metadata.json'
     );
+    // URL-shaped client_id the BFF can resolve against itself (loopback).
+    expect(advisor.client_id).toMatch(/^https?:\/\/127\.0\.0\.1:\d+\/api\/cimd\/agents\//);
   });
 
   test('GET client-metadata.json derives the document from scope-topology.json', async () => {
