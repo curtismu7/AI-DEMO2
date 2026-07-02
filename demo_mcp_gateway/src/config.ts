@@ -101,6 +101,14 @@ export interface GatewayConfig {
    * Controlled by GATEWAY_RATE_LIMIT_ENABLED env var (default false).
    */
   rateLimitEnabled: boolean;
+  /**
+   * Web Bot Auth (RFC 9421 HTTP Message Signatures, draft-meunier profile).
+   * 'off'     — never checked.
+   * 'monitor' — verify + audit/log every outcome, never block (default).
+   * 'enforce' — 401 on missing/invalid signature.
+   * Controlled by MCP_GW_WBA_MODE.
+   */
+  wbaMode: 'off' | 'monitor' | 'enforce';
   /** Max calls per windowMs per (agentSub, toolName) key. Default 20. */
   rateLimitMaxRequests: number;
   /** Sliding window duration in ms. Default 60000. */
@@ -239,6 +247,8 @@ export function loadConfig(): GatewayConfig {
     requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
     // UC18 rate-limiting (default OFF — must also set GATEWAY_RATE_LIMIT_ENABLED=true)
     rateLimitEnabled: process.env.GATEWAY_RATE_LIMIT_ENABLED === 'true',
+    // Web Bot Auth mode (default 'monitor' — verify + audit, never block)
+    wbaMode: (['off', 'monitor', 'enforce'] as const).find((m) => m === process.env.MCP_GW_WBA_MODE) ?? 'monitor',
     rateLimitMaxRequests: parseInt(process.env.GATEWAY_RATE_LIMIT_MAX_REQUESTS ?? '20', 10) || 20,
     rateLimitWindowMs: parseInt(process.env.GATEWAY_RATE_LIMIT_WINDOW_MS ?? '60000', 10) || 60000,
   };
