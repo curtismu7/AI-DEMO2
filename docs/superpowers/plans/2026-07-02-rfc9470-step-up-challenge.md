@@ -15,7 +15,7 @@
 - Flag default is **OFF**: with `ff_rfc9470_challenge` unset/false, every response must be byte-identical to today (428 + JSON body). All pre-existing tests must keep passing untouched.
 - The flag id is exactly `ff_rfc9470_challenge`; the runtime setting is exactly `stepUpMaxAge` (seconds, number, default `0` = freshness check disabled).
 - The challenge error code is exactly `insufficient_user_authentication` (RFC 9470 §3).
-- Server tests: `npm --prefix demo_api_server test -- <path>` (jest). UI tests: `npm --prefix demo_api_ui run test:unit -- <path>` (vitest).
+- Server tests: `npm --prefix demo_api_server test -- <path>` (jest). **In this worktree the repo jest config ignores `.claude/worktrees/` paths (0 tests match), so ALWAYS append `--testPathIgnorePatterns='/node_modules/' --testPathIgnorePatterns='/tests/real/'` to every jest invocation.** "No tests found" output means the override is missing — it is not a pass. UI tests: `npm --prefix demo_api_ui run test:unit -- <path>` (vitest).
 - The running Docker stack mounts the MAIN checkout, not this worktree — do not attempt live browser verification from the worktree; verification is via the test suites.
 
 ---
