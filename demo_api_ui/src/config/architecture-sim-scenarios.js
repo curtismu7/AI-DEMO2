@@ -223,8 +223,8 @@ export const SCENARIOS = [
       {
         nodes: ['n-bff'],
         edges: ['e-browser-bff'],
-        desc: 'BFF Step-Up Gate: amount ≥ threshold → 428 step_up_required.',
-        why: '428 Precondition Required (RFC 6585) signals "satisfy a prerequisite before this request can proceed." The BFF tells the client exactly what is needed (acr_values, nonce) so the UI can guide the user through the MFA step. The existing access token is explicitly NOT used for this transaction.',
+        desc: 'BFF Step-Up Gate: amount ≥ threshold → challenge. Legacy: 428 step_up_required · RFC 9470 mode: 401 + WWW-Authenticate.',
+        why: 'One gate, two wire formats — toggled by the "Step-Up — RFC 9470 Challenge" feature flag. Legacy mode returns 428 Precondition Required (RFC 6585) with a JSON body. RFC 9470 mode returns the IETF standard: 401 with WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="Multi_Factor", max_age="300". acr_values says how STRONG the new authentication must be; max_age says how FRESH (seconds since auth_time). Because the challenge is standardized, any conforming OAuth client — not just this UI — knows to re-run authorization with exactly those parameters. The raw header is shown on the step-up toast and in the API traffic inspector. In both modes the existing access token is explicitly NOT used for this transaction.',
       },
       {
         nodes: ['n-pingone'],
@@ -235,8 +235,8 @@ export const SCENARIOS = [
       {
         nodes: ['n-bff'],
         edges: ['e-bff-pingone'],
-        desc: 'BFF exchanges the new code; verifies the acr claim matches the required level.',
-        why: 'ACR verification is critical. Without it, an attacker could submit the original low-ACR token and bypass the step-up requirement — the amount check alone is not sufficient. Only a token with the correct acr claim (proving recent MFA) is accepted.',
+        desc: 'BFF exchanges the new code; verifies the acr claim matches the required level and auth_time satisfies max_age.',
+        why: 'ACR verification is critical. Without it, an attacker could submit the original low-ACR token and bypass the step-up requirement — the amount check alone is not sufficient. Only a token with the correct acr claim (proving recent MFA) is accepted. When a max_age freshness window is configured (stepUpMaxAge), the resource server also checks the auth_time claim — a strong acr from a stale login is rejected, per RFC 9470 §5.',
       },
       {
         nodes: ['n-pingauthorize'],
