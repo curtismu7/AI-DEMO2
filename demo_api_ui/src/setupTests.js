@@ -19,7 +19,6 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn();
 // but it may not be aliased to the bare `localStorage` global in all Vitest
 // worker configurations. Ensure the bare global points to jsdom's store so
 // tests that call localStorage.getItem / .setItem / .clear() work correctly.
-// If jsdom doesn't provide localStorage, create a minimal in-memory implementation.
 if (typeof window !== "undefined") {
   if (window.localStorage) {
     try {
@@ -36,18 +35,40 @@ if (typeof window !== "undefined") {
     }
   } else {
     // Fallback: create an in-memory localStorage mock for Node.js v22+
-    const mockStorage = {};
-    const localStorageMock = {
-      getItem: (key) => mockStorage[key] || null,
-      setItem: (key, value) => { mockStorage[key] = String(value); },
-      removeItem: (key) => { delete mockStorage[key]; },
-      clear: () => { Object.keys(mockStorage).forEach(key => delete mockStorage[key]); },
-      key: (index) => Object.keys(mockStorage)[index] || null,
-      get length() { return Object.keys(mockStorage).length; },
+    // Must use fresh store per test file to avoid state leakage.
+    // Each test file's beforeEach will install a fresh mock.
+    const createLocalStorageMock = () => {
+      const mockStorage = {};
+      return {
+        getItem: (key) =>
+          Object.prototype.hasOwnProperty.call(mockStorage, key)
+            ? mockStorage[key]
+            : null,
+        setItem: (key, value) => {
+          mockStorage[key] = String(value);
+        },
+        removeItem: (key) => {
+          delete mockStorage[key];
+        },
+        clear: () => {
+          Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
+        },
+        key: (index) => Object.keys(mockStorage)[index] ?? null,
+        get length() {
+          return Object.keys(mockStorage).length;
+        },
+      };
     };
+
+    // Install initial fallback at module load.
+    // Test files can call this hook in their own beforeEach to reset per test.
+    let localStorageMock = createLocalStorageMock();
     try {
       Object.defineProperty(globalThis, "localStorage", {
         get: () => localStorageMock,
+        set: (value) => {
+          localStorageMock = value;
+        },
         configurable: true,
       });
     } catch (_) {
@@ -60,6 +81,9 @@ if (typeof window !== "undefined") {
         /* best-effort */
       }
     }
+
+    // Export for test files to reset per test.
+    globalThis._createLocalStorageMock = createLocalStorageMock;
   }
 }
 if (typeof global.TextEncoder === "undefined") {

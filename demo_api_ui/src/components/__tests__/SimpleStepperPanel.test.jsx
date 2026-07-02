@@ -34,6 +34,10 @@ vi.mock('../PingProductChip', () => ({
 }));
 
 beforeEach(() => {
+  // Reset localStorage mock if available (Node.js v22+ fallback)
+  if (globalThis._createLocalStorageMock) {
+    globalThis.localStorage = globalThis._createLocalStorageMock();
+  }
   if (typeof localStorage !== 'undefined') {
     localStorage.clear();
   }

@@ -21,6 +21,10 @@ vi.mock('../SimpleStepperPanel', () => ({
 }));
 
 beforeEach(() => {
+  // Reset localStorage mock if available (Node.js v22+ fallback)
+  if (globalThis._createLocalStorageMock) {
+    globalThis.localStorage = globalThis._createLocalStorageMock();
+  }
   localStorage.clear();
   _mockCtx = null;
 });
