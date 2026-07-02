@@ -12,6 +12,7 @@ const express = require('express');
 const router = express.Router();
 const {
   registerOAuthClient,
+  registerClientByUrl,
   getClient,
   updateClient,
   deleteClient,
@@ -72,6 +73,44 @@ router.post('/register', extractRequestMetadata, requireAdmin, async (req, res, 
         errors: err.errors || []
       });
     }
+    next(err);
+  }
+});
+
+/**
+ * POST /api/oauth/clients/register-cimd
+ * CIMD (draft-ietf-oauth-client-id-metadata-document) register-by-URL:
+ * the client_id IS an https URL; the (mocked) AS fetches the client metadata
+ * document from it, validates, and registers. PingOne does not support CIMD —
+ * every response is badged engine:'mock'.
+ */
+router.post('/register-cimd', extractRequestMetadata, requireAdmin, async (req, res, next) => {
+  try {
+    const clientIdUrl = req.body.client_id;
+    if (!clientIdUrl || typeof clientIdUrl !== 'string') {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'client_id (the metadata document URL) is required'
+      });
+    }
+
+    const result = await registerClientByUrl(clientIdUrl, req.metadata);
+
+    const payload = {
+      engine: 'mock',
+      mocked: true,
+      notice: 'Mocked — PingOne does not yet support CIMD (draft-ietf-oauth-client-id-metadata-document)',
+      steps: result.steps
+    };
+    if (!result.ok) {
+      return res.status(result.status || 400).json({
+        ...payload,
+        error: 'invalid_client_metadata',
+        errors: result.errors
+      });
+    }
+    return res.status(201).json({ ...payload, client: result.client });
+  } catch (err) {
     next(err);
   }
 });
