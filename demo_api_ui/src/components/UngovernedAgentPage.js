@@ -119,7 +119,7 @@ function RecentTransfersWidget() {
       load();
     };
     tick();
-    timerRef.current = setInterval(tick, 5000);
+    timerRef.current = setInterval(tick, 5 * 60 * 1000);
     return () => clearInterval(timerRef.current);
   }, [load]);
 
@@ -128,7 +128,7 @@ function RecentTransfersWidget() {
       <div className="ungov-widget__head">
         <h3>Recent transfers</h3>
         <span className="ungov-widget__hint">
-          Live · polls <code>/api/transactions/my</code> every 5s
+          Live · polls <code>/api/transactions/my</code> every 5 min
         </span>
       </div>
 
