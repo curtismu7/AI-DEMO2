@@ -10,6 +10,7 @@ import DemoForm from "./authz/DemoForm";
 import AnnotatedResult from "./authz/AnnotatedResult";
 import { AUTHZ_SECTIONS, buildDemoInput } from "./authz/authzSections";
 import { useDemoRunner } from "./authz/useDemoRunner";
+import LivePolicyScenarios from "./authz/LivePolicyScenarios";
 
 // ---------------------------------------------------------------------------
 // Preset scenarios — cover all three decision branches
@@ -860,6 +861,9 @@ export default function AuthzTestPage() {
 					<LearningSection key={s.id} section={s} open={openSection === s.id} onToggle={toggleSection} />
 				))}
 			</div>
+
+			{/* Live PingOne Authorize — real provisioned policy scenarios */}
+			<LivePolicyScenarios configured={Boolean(status?.pingoneConfigured && status?.hasDecisionEndpointId)} />
 
 			{/* Preset scenarios */}
 			<section className="authz-section">
