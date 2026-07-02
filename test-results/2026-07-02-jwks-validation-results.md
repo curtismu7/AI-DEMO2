@@ -96,9 +96,48 @@ All calls made via `docker run --rm --add-host=host.docker.internal:host-gateway
 | 11 (ADDENDUM) | `rs256-garbage-sig` (3rd segment replaced with `AAAA`) + `jwks` | `401` reason `bad_signature`, NOT a 500 | `401` `{"error":"invalid_token","validation":"jwks","reason":"bad_signature"}` | **PASS** — confirms the try/catch around `Signature.verify` is sound |
 | 12 (ADDENDUM) | raw body of a 401 case is parseable JSON, not double-encoded | e.g. case 2 raw body: `{"error":"invalid_token","validation":"jwks","reason":"undecodable_jwt"}` — a single well-formed JSON object, no surrounding quotes/escaping | confirmed across every 401 case captured above (`curl -si` raw bodies shown are exactly `{"error":...}`, never `"{...}"`) | **PASS** |
 
-**Cache check:** before the matrix, `docker logs ... | grep -c fetched` = 0. After case 1 (first `rs256-valid` call): 1. After the full matrix (11 total requests, RS256 validated 4+ times across cases 1, 2 payload-decode-fails-before-fetch-is-irrelevant, 9's fallthrough doesn't hit the JWKS route at all, 11) plus 3 additional repeat calls to `rs256-valid` + `jwks` specifically for the cache check: still **1** `[JWKS] fetched 1 key(s) from http://host.docker.internal:9777/jwks.json` line total. **Cache confirmed working** (~5 min TTL, no re-fetch across the whole session).
+**Cache check:** before the matrix, `docker logs ... | grep -c fetched` = 0. After case 1 (first `rs256-valid` call): 1. After the full matrix (11 total requests, RS256 validated 4+ times across cases 1, 2 payload-decode-fails-before-fetch-is-irrelevant, 9's fallthrough doesn't hit the JWKS route at all, 11) plus 3 additional repeat calls to `rs256-valid` + `jwks` specifically for the cache check: still **1** `[JWKS] fetched 1 key(s) from http://host.docker.internal:9777/jwks.json` line total. **Cache confirmed working** (~5 min TTL, no re-fetch across the whole session). Literal transcript in the verification-rerun section below.
 
-**Case 1 header check (ADDENDUM):** `X-Token-Validation-Mode: jwks` response header **is present** on every successful-validation call (verified via `curl -si` on cases 1 and 7). No `MissingMethodException` in the gateway logs. The `next.handle(context, request).thenOnResult { rsp -> ... }` closure form (without the `as ResultHandler` cast that a sibling script, `p1az-decision.groovy`, needed) **works correctly on this IG version (PingGateway 2026.3.0)** — no fix needed here.
+**Case 1 header check (ADDENDUM):** `X-Token-Validation-Mode: jwks` response header **is present** on every successful-validation call (verified via `curl -si` on cases 1 and 7 — literal transcripts below). No `MissingMethodException` in the gateway logs (literal count transcript below). The `next.handle(context, request).thenOnResult { rsp -> ... }` closure form (without the `as ResultHandler` cast that a sibling script, `p1az-decision.groovy`, needed) **works correctly on this IG version (PingGateway 2026.3.0)** — no fix needed here.
+
+### Verification rerun — literal transcripts for the ADDENDUM header check and cache check
+
+These checks were re-executed on a fresh boot of the identical harness (same compose project `-p jwks-test`, container `ping-gateway-jwks-test` on 3037, JWKS stub on 9777; tokens re-minted because the original set's `exp=now+600` had lapsed; routes `mcp-olb-jwks` and `mcp-olb-primary` again loaded cleanly). Outputs below are verbatim.
+
+**1. Case 1 (`rs256-valid` + `X-Token-Validation: jwks`), `curl -si` — complete response header block:**
+
+```
+HTTP/1.1 400 Bad Request
+Content-Length: 175
+Content-Type: application/json; charset=UTF-8
+X-Token-Validation-Mode: jwks
+
+{"jsonrpc":"2.0","id":"1","error":{"code":-32600,"message":"Invalid Request: Missing, malformed or unsupported MCP-Protocol-Version header. Supported version is: 2025-06-18"}}
+```
+
+`X-Token-Validation-Mode: jwks` is present — the `thenOnResult` promise callback fired on the success path. (The 400 is the downstream `McpValidationFilter` rejecting the missing `MCP-Protocol-Version` header; the request had already passed the JWKS validator, per the scope note.)
+
+**2. `MissingMethodException` check (expect 0):**
+
+```
+$ docker logs ping-gateway-jwks-test 2>&1 | grep -c MissingMethodException
+0
+```
+
+**3. `[JWKS]` log tail after case 1 was called 3 times in total (cache check — exactly ONE `fetched` line, three `validation ok` lines):**
+
+```
+$ docker logs ping-gateway-jwks-test 2>&1 | grep '\[JWKS\]' | tail -5
+[vert.x-eventloop-thread-0] INFO  o.f.o.f.S.JwksTokenValidation @00-mcp-olb-jwks - [JWKS] fetched 1 key(s) from http://host.docker.internal:9777/jwks.json
+[vert.x-eventloop-thread-0] INFO  o.f.o.f.S.JwksTokenValidation @00-mcp-olb-jwks - [JWKS] validation ok: alg=RS256 sub=user-jwks-test aud=mcpgateway.ping.demo (local validation — no introspection call)
+[vert.x-eventloop-thread-10] INFO  o.f.o.f.S.JwksTokenValidation @00-mcp-olb-jwks - [JWKS] validation ok: alg=RS256 sub=user-jwks-test aud=mcpgateway.ping.demo (local validation — no introspection call)
+[vert.x-eventloop-thread-14] INFO  o.f.o.f.S.JwksTokenValidation @00-mcp-olb-jwks - [JWKS] validation ok: alg=RS256 sub=user-jwks-test aud=mcpgateway.ping.demo (local validation — no introspection call)
+
+$ docker logs ping-gateway-jwks-test 2>&1 | grep -c 'fetched'
+1
+```
+
+The rerun harness was torn down after capture (compose `down` + stub-server stop) and `ai-demo-ping-gateway` re-verified running.
 
 ---
 
