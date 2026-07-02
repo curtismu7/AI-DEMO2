@@ -1,0 +1,53 @@
+/* -- SimpleStepperBar ------------------------------------------------------------
+   Namespace: ssb-  (no overlap with ssp- / itcv- / tcd- / ba-)
+   Compact header bar; the toggle pops out SimpleStepperPanel.
+   ------------------------------------------------------------------------------- */
+
+.ssb-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.ssb-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ssb-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.ssb-toggle {
+  margin-left: auto;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  background: none;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.ssb-toggle:hover {
+  background: #eff6ff;
+}

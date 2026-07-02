@@ -14,7 +14,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
-import InlineTokenChainView from './InlineTokenChainView';
+import SimpleStepperBar from './SimpleStepperBar';
 import EventStreamPanel from "./EventStreamPanel";
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
@@ -8275,8 +8275,8 @@ export default function BankingAgent({
               </div>
             )}
             <div className="ba-right-col">
-              {/* Inline horizontal token chain — A4.2 */}
-              <InlineTokenChainView />
+              {/* Simple Stepper — compact bar + pop-out step table */}
+              <SimpleStepperBar />
               {/* Messages */}
               <div
                 className="banking-agent-messages"

@@ -1,0 +1,188 @@
+/* -- SimpleStepperPanel --------------------------------------------------------
+   Namespace: sstp-  (avoids collision with ssp- from SelfServicePage; no overlap with ftcp- / tcd- / itcv- / ba-)
+   Floating draggable/resizable table panel popped out from SimpleStepperBar.
+   ----------------------------------------------------------------------------- */
+
+.sstp-card {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* -- Header (drag handle) ------------------------------------------------------ */
+
+.sstp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.sstp-header:active {
+  cursor: grabbing;
+}
+
+.sstp-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.sstp-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  background: #eff6ff;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.sstp-controls {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.sstp-btn {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  color: #475569;
+}
+
+.sstp-btn:hover {
+  background: #f8fafc;
+}
+
+.sstp-btn--close:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+/* -- Body / table ---------------------------------------------------------------- */
+
+.sstp-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.sstp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.sstp-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1;
+}
+
+.sstp-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.sstp-num {
+  color: #64748b;
+  font-size: 12px;
+  width: 34px;
+}
+
+.sstp-step {
+  line-height: 1.35;
+}
+
+.sstp-status {
+  width: 110px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.sstp-st--ok {
+  color: #16a34a;
+}
+
+.sstp-st--halt {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.sstp-st--skip {
+  color: #94a3b8;
+}
+
+.sstp-st--acquiring {
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.sstp-st--waiting {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.sstp-st--failed {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+/* Halted row — red wash, matches itcv halted semantics */
+.sstp-row--halted td {
+  background: #fef2f2;
+}
+
+.sstp-row--halted .sstp-step {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+/* Ghost row — step after the halt; never ran */
+.sstp-row--ghost td {
+  opacity: 0.45;
+}
+
+.sstp-row--ghost .sstp-step {
+  font-style: italic;
+}
+
+/* -- Empty state ----------------------------------------------------------------- */
+
+.sstp-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 16px;
+}
