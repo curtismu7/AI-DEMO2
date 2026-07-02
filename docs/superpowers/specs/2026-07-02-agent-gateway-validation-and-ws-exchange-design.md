@@ -13,10 +13,17 @@ claims only partially implemented:
    but neither validates `tools/call` arguments against the tool's
    `inputSchema`; the Node gateway also has no formal method allow-list
    (unknown methods fall through to `-32601` implicitly).
-2. **Token transformation** — the Node gateway's WebSocket proxy path forwards
-   the inbound gateway-audience token to the olb/invest backends unchanged
-   (`demo_mcp_gateway/src/index.ts` ~line 963, documented as WR-02), while the
-   HTTP path and both IG routes already do RFC 8693 exchange.
+2. **Token transformation** — the Node gateway forwards the inbound
+   gateway-audience token to the olb/invest backends unchanged on **both**
+   transports: the WS proxy path (`demo_mcp_gateway/src/index.ts` ~line 963,
+   documented as WR-02) and the HTTP path (`authorizeMcpRequest.ts`, pinned by
+   `tests/authorizeMcpRequest-no-exchange.test.ts`). `McpTokenExchangeClient`
+   exists but is dead code (only `clearCache()` is called). The passthrough was
+   a deliberate workaround for a PingOne `invalid_scope` failure when
+   exchanging to backend audiences (see docker-compose.yml comment at the
+   mcp-server service). The IG routes have exchange filters configured, but
+   the backends only accept the gateway audience, so that exchange is not
+   exercised against the live stack.
 
 Constraints discovered during scoping:
 
@@ -85,41 +92,67 @@ routes (`01-mcp-olb.json`, `02-mcp-invest.json`) after the native
 - Failures return HTTP 400 with a JSON-RPC `-32602` body.
 - No other IG changes (envelope validation and exchange are already native).
 
-### 4. WebSocket token exchange (Node gateway, closes WR-02)
+### 4. Gateway token exchange (Node gateway, both transports — closes WR-02)
 
-- In the WS `olb`/`invest` proxy branch of `handleMessage`, replace
-  `const backendToken = token` with a call to the existing
-  `McpTokenExchangeClient`. Extend the client slightly so `proxyToolsList` can
-  exchange **per backend** (aud = olb or invest resource URI) rather than only
-  per tool name. Existing bounded cache semantics unchanged.
-- **Fail closed:** exchange failure → `-32500` with
-  `data.error: 'token_exchange_failed'`; the inbound gateway-audience token is
-  never forwarded upstream.
+**Amended after discovery** (user-approved 2026-07-02): the original spec
+assumed the Node HTTP path already exchanged; it does not. Scope is now the
+full fix, gated on a live PingOne verification.
+
+- **PingOne provisioning (prerequisite, self-healing):** the two backend
+  resource servers (`mcpserver.ping.demo`, `mcp-invest.ping.demo`) get
+  `mirroredScopes` in `scope-topology.json`, and the exchanging client gets
+  grants on them — the exact pattern used for the Agent Gateway resource in
+  the June two-exchange hardening. The startup `twoExchangeReconciler` in
+  `demo_api_server` is extended to diff + heal these, so provisioning drift
+  self-repairs. No secret rotation.
+- **Explicit-scope exchange:** `McpTokenExchangeClient` sends an explicit
+  `scope` parameter (the subject token's scopes filtered to the target
+  resource's registered scopes, via scope-topology) — this is what fixes the
+  historical `invalid_scope` failure. It also gets a per-backend entry point
+  so `tools/list` proxying can exchange for each backend.
+- **Live verification gate:** before wiring exchange into the request paths, a
+  spike script performs a real RFC 8693 exchange against the live PingOne env
+  (01d89b06) for both backend audiences and asserts scopes survive. If it
+  fails after the provisioning fixes, STOP and surface — do not ship
+  passthrough removal on top of a broken exchange.
+- **WS path:** in the `olb`/`invest` proxy branch of `handleMessage`, replace
+  `const backendToken = token` with the exchange call. `proxyToolsList`
+  exchanges per backend.
+- **HTTP path:** `authorizeMcpRequest.ts` exchanges before invoking the
+  forward callback. The `authorizeMcpRequest-no-exchange.test.ts` pinning test
+  is replaced by a test asserting the exchanged token (not the inbound one) is
+  forwarded.
+- **Fail closed (both transports):** exchange failure → `-32500` with
+  `data.error: 'token_exchange_failed'` (HTTP: status 502 with the same
+  JSON-RPC body); the inbound gateway-audience token is never forwarded
+  upstream.
 - **Token Chain UI:** replace the `gw-passthrough` event with a real
   `gw-exchange` event (target audience + cache hit/miss);
   `tokenExchangeCached` gets a real value instead of `null`.
-- **Backends:** accepted audience becomes a comma-separated list.
+- **Backends:** accepted audience becomes a comma-separated list
+  (`demo_mcp_server` TokenIntrospector, `demo_mcp_invest` tokenValidator).
   docker-compose sets each backend to `[own backend URI, gateway URI]` during
   rollout so the stack cannot break mid-transition (mTLS already prevents
   direct backend access, so the transitional second audience is low-risk).
   Tightening to own-URI-only is an explicit follow-up, out of scope here.
-- **Untouched:** dispatch paths A/B/C (`apikey` / `dualtoken` / `bankingdata`).
-  B's dual-token forwarding is by design; C already exchanges.
-- **Prerequisite (verify before flipping):** the live PingOne environment's
-  token-exchange policy must permit the gateway client to mint tokens for
-  `mcpserver.ping.demo` and `mcp-invest.ping.demo`. The IG variant's env vars
-  (`PG_OLB_RESOURCE_URI`, `PG_INVEST_RESOURCE_URI`) suggest yes; confirm
-  against the live env (01d89b06) during implementation.
+- **Untouched:** dispatch paths A/B/C (`apikey` / `dualtoken` / `bankingdata`)
+  keep their current credential handling; only the olb/invest MCP proxy paths
+  gain exchange.
+- **Claims note:** exchanged tokens lose nothing the backends rely on today —
+  inbound TX tokens already lack `act`/`may_act` (PingOne cannot emit them on
+  exchanged tokens; the BFF bridges via headers), and tool scopes survive via
+  the mirroredScopes pattern.
 
 ## Error handling summary
 
 | Condition | Response |
-|---|---|
+| --- | --- |
 | Unknown JSON-RPC method | `-32601 Method not found` |
 | Bad `tools/call` shape | `-32602 Invalid params` |
 | Arguments fail tool schema | `-32602` + `data.validationErrors` |
 | Unknown tool name | `-32602` (fail closed) |
 | RFC 8693 exchange failure (WS) | `-32500` + `data.error: 'token_exchange_failed'`; nothing forwarded |
+| RFC 8693 exchange failure (HTTP) | 502 with the same JSON-RPC `-32500` body; nothing forwarded |
 | IG validation failure | HTTP 400 with JSON-RPC `-32602` body |
 
 ## Testing / success criteria
