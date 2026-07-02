@@ -629,6 +629,24 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_mcp_gateway_jwks',
+    name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'When **ON** and MCP traffic routes through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway), ' +
+      'the gateway validates inbound MCP access tokens **locally**: RS256 tokens against the PingOne **JWKS** ' +
+      '(signature, exp/nbf, iss, aud, scope) and mock demo_authz_server HS256 tokens against the shared demo ' +
+      'secret — no introspection round-trip to the authorization server. When **OFF** (default), the gateway ' +
+      'uses **remote token introspection** (RFC 7662) as today. Carried per request via the ' +
+      'X-Token-Validation header; switching requires no gateway restart.',
+    impact:
+      'OFF (default) = introspection: every request round-trips to the authorization server, so revoked tokens ' +
+      'are caught immediately. ON = local JWKS validation: faster and works offline, but **cannot detect ' +
+      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_mcp_rate_limit',
     name:         'UC18 Gateway Rate Limiting',
     category:     'MCP / Agent',

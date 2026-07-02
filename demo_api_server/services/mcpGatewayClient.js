@@ -130,6 +130,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
         const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
+        // Per-request token-validation mode for the gateway: 'jwks' selects route
+        // 00-mcp-olb-jwks.json (local JWT validation, no introspection round-trip);
+        // 'introspect' (default) falls through to route 01-mcp-olb.json unchanged.
+        const jwksMode = configStore.getEffective('ff_mcp_gateway_jwks') === 'true';
+        headers['X-Token-Validation'] = jwksMode ? 'jwks' : 'introspect';
     }
 
     const rawTimeout = parseInt(
