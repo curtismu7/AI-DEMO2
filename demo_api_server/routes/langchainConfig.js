@@ -30,7 +30,7 @@ const PROVIDER_MODELS = {
   // launched with via `-m`/`-hf`). Prefer a small NON-reasoning model: NL intent +
   // short teaching answers must return under the SPA fetch timeout, which reasoning
   // models routinely blow.
-  llamacpp:            ['gemma-3-4b-it', 'gemma-4-12b-it', 'starcoder2-15b-instruct', 'llama-3.1-8b-instruct'],
+  llamacpp:            ['gemma-3-4b-it', 'gemma-4-12b-it', 'starcoder2-15b-instruct', 'gpt-oss-20b', 'llama-3.1-8b-instruct'],
 };
 
 const DEFAULT_MODELS = {
