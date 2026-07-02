@@ -77,7 +77,16 @@ beside the governed gateway — even here it's still just the user's session.
 >    browser literally rides that session and drives the UI). Alternatively pass a
 >    customer OAuth bearer token as `UNGOV_ACCESS_TOKEN`.
 
-**Docker Compose** (gated behind the `demo-attack` profile so it never
+**One-command helper (recommended):** signs a Customer in once, then this
+grabs a fresh token from the BFF session store — refreshing it automatically if
+it has under 5 minutes left — and runs the sidecar with it:
+
+```bash
+./demo_ungoverned_agent/run-with-token.sh
+# knobs: MIN_MINUTES=10 AMOUNT=75 ./demo_ungoverned_agent/run-with-token.sh
+```
+
+**Docker Compose** (manual; gated behind the `demo-attack` profile so it never
 auto-starts):
 
 ```bash
