@@ -19,11 +19,11 @@ and is hard to read (user screenshot, 2026-07-02). The user wants:
 ## Decisions (from brainstorm)
 
 | Question | Decision |
-|---|---|
+| --- | --- |
 | Keep the inline pill flow? | **No — replace it.** Only a compact header bar remains inline; the button pops out the floating table panel. |
 | Table columns | **# / Step / Product / Status.** Status: green ✓ ok, red ✕ + error code for the halted step, greyed "— did not run" for post-halt steps (row greyed + italic). |
 | Naming | **Simple Stepper** everywhere (component names, CSS prefix, titles, storage keys). |
-| Surfaces | Banking agent **all display modes** (float / embedded / bottom-dock — one shared mount covers all), **all backend agent frameworks** (LangChain, helix, etc. — same chat UI), **OAuth Academy**, and the **clinical agent TalkPane** (new mount). **Not** the Copilot Studio agent (isolated; has no token chain events). |
+| Surfaces | Banking agent **all display modes** (float / embedded / bottom-dock — one shared mount covers all), **all backend agent frameworks** (LangChain, helix, etc. — same chat UI), **OAuth Academy**, and the **clinical agent TalkPane** (inherited — TalkPane hosts the portalled `<AIAgent>`, see mounts table). **Not** the Copilot Studio agent (built but disabled behind `copilot_mode_enabled`, isolated, no token chain events). |
 
 ## Architecture
 
@@ -74,10 +74,10 @@ Rejected alternatives:
 **Changed mounts:**
 
 | File | Change |
-|---|---|
+| --- | --- |
 | `AIAgent.js` (~line 8279, `.ba-right-col`) | `InlineTokenChainView` → `SimpleStepperBar`. Single mount already covers float, embedded, and bottom-dock modes (single portalled `<AIAgent>`) and every backend framework. |
 | `OAuthAcademyPage.jsx` | Same swap. |
-| `agent-clinical/TalkPane.jsx` | **New**: mount `SimpleStepperBar` above the chat messages (TalkPane already subscribes to `TokenChainContext`). Styling must sit cleanly in clinical-split styling — reuse the bar as-is. |
+| `agent-clinical/TalkPane.jsx` | **No change needed** (verified 2026-07-02): TalkPane hosts the same portalled `<AIAgent>` instance via `setSurfaceHostEl`, so the clinical surface inherits the bar from the `AIAgent.js` mount automatically. Mounting again would duplicate the bar. |
 
 ### Data flow
 
