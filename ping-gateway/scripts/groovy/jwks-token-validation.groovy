@@ -60,7 +60,11 @@ def b64url = { String s -> java.util.Base64.getUrlDecoder().decode(s) }
 def authz = request.headers.getFirst('Authorization') ?: ''
 if (!authz.toLowerCase().startsWith('bearer ')) return deny('missing_bearer')
 def token = authz.substring(7).trim()
-def parts = token.split('\\.')
+// limit=-1 preserves trailing empty strings (e.g. the empty "none"-alg signature
+// segment "header.payload." would otherwise be silently collapsed to 2 parts by
+// Java's default String.split() and misreported as malformed_jwt instead of the
+// intended unsupported_alg check below).
+def parts = token.split('\\.', -1)
 if (parts.length != 3) return deny('malformed_jwt')
 
 def slurper = new JsonSlurper()
