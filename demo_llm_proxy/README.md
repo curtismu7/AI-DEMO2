@@ -8,7 +8,7 @@ The proxy implements **smart classification and cascading fallback**:
 
 - **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
 - **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
-- **Tier 3**: Qwen2.5-Coder-14B (14B) — complex technical, "demonstrate", token flows
+- **Tier 3**: StarCoder2-15B-Instruct (15B) — complex technical, "demonstrate", token flows
 - **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
 
 The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
@@ -21,7 +21,7 @@ The proxy analyzes incoming requests and routes to the **smallest model that can
 ```
 "what is OAuth?" → Gemma-3-4B (fastest)
 "how does token exchange work?" → Gemma-4-12B (balanced)
-"demonstrate HITL approval" → Qwen2.5-Coder (accurate)
+"demonstrate HITL approval" → StarCoder2-15B-Instruct (accurate)
 ```
 
 If the selected tier is unavailable or overloaded, it cascades to the next larger model automatically.
@@ -41,7 +41,7 @@ This script checks for required models and provides download links if missing.
 **Model files needed:**
 - `phi-2.gguf` (or similar, ~5.5GB)
 - `phi-3.gguf` (or similar, ~2.3GB)
-- `qwen3-8b.gguf` or `Qwen2.5-Coder-*-Q4_K_M.gguf` (~8B)
+- `starcoder2-15b-instruct-v0.1-Q4_K_M.gguf` (~9.1GB)
 - `gemma-4-12b-it-UD-Q4_K_XL.gguf` (~6.9GB)
 
 ### 2. Update docker-compose.yml
@@ -78,7 +78,7 @@ Response:
   "models": [
     {"name": "phi-2", "port": 8091, "healthy": true, "load": 0},
     {"name": "phi-3", "port": 8092, "healthy": true, "load": 1},
-    {"name": "qwen3-8b", "port": 8093, "healthy": true, "load": 0},
+    {"name": "starcoder2-15b-instruct", "port": 8093, "healthy": true, "load": 0},
     {"name": "gemma-4-12b", "port": 8094, "healthy": false, "load": 0}
   ]
 }
@@ -152,7 +152,7 @@ If the proxy reports all models unhealthy:
 
 - Check load per model: `curl http://localhost:8090/health | jq .models`
 - Verify model tier selection is appropriate for your prompts
-- Increase context size in `docker-compose.yml` for larger models (qwen, gemma)
+- Increase context size in `docker-compose.yml` for larger models (starcoder2, gemma)
 
 ## Configuration
 
@@ -168,7 +168,7 @@ Example: use CPU only by setting `N_GPU_LAYERS=0` in all llm-* services.
 
 1. **Phi-2 for chat** — fastest, good for simple explanations
 2. **Phi-3 for reasoning** — balanced speed/quality
-3. **Qwen for technical** — complex OAuth/token flows
+3. **StarCoder2 for technical** — complex OAuth/token flows
 4. **Gemma as fallback** — only when others are overloaded
 
 If you're seeing slow responses:

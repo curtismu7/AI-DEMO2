@@ -19,7 +19,7 @@ const HEALTH_INTERVAL_MS = HEALTH_TTL_MS; // sweep cadence — matches the TTL s
 const TIERS = [
   { name: 'gemma-3-4b',      port: 8091, size: '4B',  host: HOST },
   { name: 'gemma-4-12b-qat', port: 8092, size: '12B', host: HOST },
-  { name: 'qwen2.5-coder-14b', port: 8093, size: '14B', host: HOST },
+  { name: 'starcoder2-15b-instruct', port: 8093, size: '15B', host: HOST },
   { name: 'gemma-4-12b',     port: 8094, size: '12B', host: HOST },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
@@ -53,7 +53,7 @@ function classifyRequest(body) {
   const text = (typeof body === 'string' ? body : '').toLowerCase();
   const isLong = text.length > COMPLEXITY_CHAR_THRESHOLD;
 
-  if (matchesAny(text, COMPLEX)) return 2;        // Qwen2.5-Coder-14B: complex technical / token flows
+  if (matchesAny(text, COMPLEX)) return 2;        // StarCoder2-15B-Instruct: complex technical / token flows
   if (matchesAny(text, MODERATE)) return isLong ? 2 : 1;
   return isLong ? 1 : 0;                           // default: smallest tier
 }

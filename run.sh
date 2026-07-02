@@ -354,28 +354,47 @@ preflight_checks() {
     fi
   done
 
-  # llama.cpp (local LLM for NL intent fallback) — optional, local-only.
+  # Local LLM (NL intent fallback + agent reasoning) — optional, local-only.
   # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
   # and just verify reachability. If unset, default to localhost:8090.
   #
-  # Architecture note: `llama-server` is ONE process serving ONE model. A single
-  # server on :8090 serves BOTH the BFF NL-intent path AND agent reasoning — there
-  # is no longer a separate BFF model vs agent model. The OpenAI-compatible /v1 API
-  # is exposed on the same port.
-  #
-  # Durability note: for the Docker/k8s deployments the BFF reaches llama.cpp via
-  # host.docker.internal, so we bind 0.0.0.0 via the --host flag (no launchd hack
-  # is needed — llama-server binds all interfaces directly).
+  # Architecture note: :8090 is the multi-model LLM proxy (demo_llm_proxy/router.js).
+  # It classifies each request and routes it to 4 tier llama-server backends on
+  # :8091-8094, managed by demo_llm_proxy/start-local-models.sh (GGUFs verified by
+  # demo_llm_proxy/download-models.sh). NEVER bind a raw llama-server straight onto
+  # :8090 — the proxy owns that port and exposes the same OpenAI-compatible /v1 API
+  # the services expect. Both the router and the tiers bind 0.0.0.0, so Docker/k8s
+  # containers can reach them via host.docker.internal.
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
-  local llamacpp_model="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"
+  local llamacpp_model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
   local llamacpp_host llamacpp_port
   llamacpp_host=$(echo "$llamacpp_base" | sed -E 's|https?://([^:/]+).*|\1|')
   llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
   [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
+
+  # Start the local LLM proxy stack: tier backends first (idempotent — running
+  # tiers are left alone), then the smart router on :8090 if nothing healthy is
+  # already serving it (e.g. the llm-proxy container in docker mode).
+  _start_llm_proxy_stack() {
+    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" start || {
+      warn "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+      return 1
+    }
+    if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then
+      LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
+      echo $! > /tmp/demo-llm-proxy.pid
+    fi
+    local _w=0
+    while [[ $_w -lt 30 ]]; do
+      curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && return 0
+      sleep 1; (( _w++ )) || true
+    done
+    return 1
+  }
 
   if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
     # Remote llama.cpp — just check reachability, never try to start locally
@@ -404,17 +423,10 @@ preflight_checks() {
             warn "Automatic install unavailable on this platform — build from https://github.com/ggml-org/llama.cpp"
           fi
           if command -v llama-server >/dev/null 2>&1; then
-            echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
-            llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
-            echo $! > /tmp/demo-llamacpp.pid
-            local _i=0
-            while [[ $_i -lt 60 ]]; do
-              curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && break
-              sleep 1; (( _i++ )) || true
-            done
-            curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 \
-              && ok "llama.cpp started on :8090 — model: ${llamacpp_model}" \
-              || warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
+            echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8094 + router :8090)…"
+            _start_llm_proxy_stack \
+              && ok "LLM proxy ready on :8090 (routing tiers 8091-8094)" \
+              || warn "LLM proxy did not become ready — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
           fi
           ;;
         *) warn "Skipping llama.cpp — NL fallback disabled. Install later: https://github.com/ggml-org/llama.cpp" ;;
@@ -423,22 +435,13 @@ preflight_checks() {
       warn "  Install it for NL intent routing: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp)"
     fi
   elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
-    ok "llama.cpp running on :${llamacpp_port} — model: ${llamacpp_model}"
+    ok "LLM proxy already serving :${llamacpp_port} (multi-model router)"
   else
-    echo -e "  ${CYAN}[SPIN]${RESET}  Starting llama.cpp (model: ${llamacpp_model})…"
-    # The -hf flag downloads + caches the GGUF from HuggingFace on first start
-    # (a no-op once cached) — this replaces the old model-pull step.
-    llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
-    echo $! > /tmp/demo-llamacpp.pid
-    local i=0
-    while [[ $i -lt 60 ]]; do
-      curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1 && break
-      sleep 1; (( i++ )) || true
-    done
-    if curl -sf --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1; then
-      ok "llama.cpp started on :8090 — model: ${llamacpp_model}"
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8094 + router :8090)…"
+    if _start_llm_proxy_stack; then
+      ok "LLM proxy ready on :8090 (routing tiers 8091-8094)"
     else
-      warn "llama.cpp did not become ready on :8090 — check /tmp/demo-llamacpp.log"
+      warn "LLM proxy did not become ready on :8090 — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
     fi
   fi
 
