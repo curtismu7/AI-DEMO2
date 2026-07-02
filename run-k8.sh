@@ -425,7 +425,7 @@ derive_se_namespace() {
 
 # Ensure llama.cpp is installed and the multi-model LLM proxy serves :8090 for
 # the Code Explorer. :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier
-# llama-servers on :8091-8094) — never a raw llama-server pointing straight at
+# llama-servers on :8091-8096) — never a raw llama-server pointing straight at
 # one model. Called before any deploy that uses docker-compose (se-deploy,
 # se-all); the langchain-agent container connects via host.docker.internal:8090.
 ensure_llamacpp_running() {
@@ -448,7 +448,7 @@ ensure_llamacpp_running() {
   fi
 
   if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
-    info "Starting LLM proxy stack (tier servers :8091-8094 + router :8090)..."
+    info "Starting LLM proxy stack (tier servers :8091-8096 + router :8090)..."
     bash demo_llm_proxy/start-local-models.sh start \
       || { info "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
     LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
@@ -456,7 +456,7 @@ ensure_llamacpp_running() {
     local waited=0
     while [[ $waited -lt 60 ]]; do
       if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-        success "LLM proxy ready on :8090 (routing tiers 8091-8094)."
+        success "LLM proxy ready on :8090 (routing tiers 8091-8096)."
         return 0
       fi
       sleep 3; (( waited += 3 ))

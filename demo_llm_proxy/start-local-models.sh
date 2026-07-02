@@ -1,7 +1,7 @@
 #!/bin/bash
-# start-local-models.sh — start 4 local llama-server instances for the LLM proxy
+# start-local-models.sh — start 5 local llama-server instances for the LLM proxy
 #
-# Runs 4 separate llama-server processes in background on ports 8091-8094.
+# Runs 5 separate llama-server processes in background on ports 8091-8096.
 # Call this BEFORE starting the docker-compose stack.
 #
 # Usage: bash demo_llm_proxy/start-local-models.sh [start|stop|status]
@@ -12,18 +12,23 @@ MODELS_DIR="/Users/cmuir/models"
 LOG_DIR="/tmp/llama-models"
 mkdir -p "$LOG_DIR"
 
-# Model configuration: (port, name, model_file, threads)
+# Model configuration: (port, name, model_file, threads, extra llama-server args)
+# gpt-oss needs --jinja (harmony chat template, enables tool calls); the default
+# reasoning-format (auto) parses reasoning into reasoning_content so plain chat
+# clients get only the final answer in content.
+# NOTE: :8095 is skipped — the mcp-code-search container publishes it.
 declare -a MODELS=(
-  "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4"
-  "8092:Tier2:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf:4"
-  "8093:Tier3:starcoder2-15b-instruct-v0.1-Q4_K_M.gguf:6"
-  "8094:Tier4:gemma-4-12b-it-UD-Q4_K_XL.gguf:8"
+  "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4:"
+  "8092:Tier2:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf:4:"
+  "8093:Tier3:starcoder2-15b-instruct-v0.1-Q4_K_M.gguf:6:"
+  "8094:Tier4:gemma-4-12b-it-UD-Q4_K_XL.gguf:8:"
+  "8096:Tier5:gpt-oss-20b-mxfp4.gguf:6:--jinja"
 )
 
 # Helper functions
 start_model() {
   local config="$1"
-  IFS=':' read -r port tier model threads <<< "$config"
+  IFS=':' read -r port tier model threads extra <<< "$config"
 
   local model_path="$MODELS_DIR/$model"
   if [ ! -f "$model_path" ]; then
@@ -45,12 +50,15 @@ start_model() {
 
   echo "🚀 $tier (port $port): Starting $model on port $port..."
 
+  # $extra is intentionally unquoted — it holds optional extra llama-server
+  # flags (word-split on spaces; empty for most tiers).
   llama-server \
     -m "$model_path" \
     --port "$port" \
     --threads "$threads" \
     --n-gpu-layers 33 \
     --ctx-size 4096 \
+    $extra \
     >"$log_file" 2>&1 &
 
   local new_pid=$!
@@ -111,7 +119,7 @@ ACTION="${1:-start}"
 case "$ACTION" in
   start)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔷 Starting 4-tier LLM proxy backend (local llama-server instances)"
+    echo "🔷 Starting 5-tier LLM proxy backend (local llama-server instances)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     failed=0
@@ -120,8 +128,8 @@ case "$ACTION" in
     done
     echo ""
     if [ $failed -eq 0 ]; then
-      echo "✅ All 4 models started successfully!"
-      echo "   Proxy will route to these instances on ports 8091-8094"
+      echo "✅ All ${#MODELS[@]} models started successfully!"
+      echo "   Proxy will route to these instances on ports 8091-8096"
       echo "   Start proxy with: docker compose up llm-proxy"
     else
       echo "❌ $failed model(s) failed to start"

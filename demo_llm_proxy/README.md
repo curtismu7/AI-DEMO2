@@ -10,6 +10,7 @@ The proxy implements **smart classification and cascading fallback**:
 - **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
 - **Tier 3**: StarCoder2-15B-Instruct (15B) — complex technical, "demonstrate", token flows
 - **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
+- **Tier 5**: gpt-oss-20B (20B) — top tier, last-resort cascade target (reasoning model, slower)
 
 The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
 filenames in `start-local-models.sh`; keep those two in sync when changing models.
@@ -39,10 +40,11 @@ bash demo_llm_proxy/download-models.sh
 This script checks for required models and provides download links if missing.
 
 **Model files needed:**
-- `phi-2.gguf` (or similar, ~5.5GB)
-- `phi-3.gguf` (or similar, ~2.3GB)
+- `gemma-3-4b-it-qat-Q4_0.gguf` (~2.2GB)
+- `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` (~6.3GB)
 - `starcoder2-15b-instruct-v0.1-Q4_K_M.gguf` (~9.1GB)
 - `gemma-4-12b-it-UD-Q4_K_XL.gguf` (~6.9GB)
+- `gpt-oss-20b-mxfp4.gguf` (~11GB)
 
 ### 2. Update docker-compose.yml
 
