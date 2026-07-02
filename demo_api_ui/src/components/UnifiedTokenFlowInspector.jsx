@@ -876,7 +876,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
 // MAIN UNIFIED COMPONENT
 // ============================================================================
 
-export default function UnifiedTokenFlowInspector({ floatingByDefault = false, showToggle = true, showClose }) {
+export default function UnifiedTokenFlowInspector({ floatingByDefault = false, showToggle = true, showClose, embedded = false }) {
   const [isFloating, setIsFloating] = useState(floatingByDefault);
   // showClose defaults true; hide when showToggle=false (embedded in tab — tab is the dismiss)
   const effectiveShowClose = showClose !== false && showToggle !== false;
@@ -952,7 +952,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   if (!visible) return null;
 
   const content = (
-    <div className={`utfi-container ${isFloating ? 'utfi-floating' : 'utfi-fixed'}`}>
+    <div className={`utfi-container ${isFloating ? 'utfi-floating' : 'utfi-fixed'}${embedded ? ' utfi-embedded' : ''}`}>
       <div className="utfi-header" onPointerDown={isFloating ? handleDragStart : undefined}>
         <div className="utfi-header-content">
           <h2 className="utfi-title">🔐 Agent & Token Flow Inspector</h2>

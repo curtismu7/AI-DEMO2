@@ -29,7 +29,7 @@ import { toastCustomerError } from "../utils/dashboardToast";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
-import TokenChainDisplay from "./TokenChainDisplay";
+import UnifiedTokenFlowInspector from "./UnifiedTokenFlowInspector";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
 import TransactionConsentModal from "./TransactionConsentModal";
@@ -2622,7 +2622,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           <aside className="ud-token-rail" aria-label="Token chain">
             <div className="section ud-token-rail__inner">
               <ExchangeModeToggle />
-              <TokenChainDisplay />
+              <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
             </div>
           </aside>
 
@@ -2721,7 +2721,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                 <AgentIdentityCard />
                 <div className="rd2-token-card">
                   <ExchangeModeToggle />
-                  <TokenChainDisplay />
+                  <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
                 </div>
               </aside>
             </div>
@@ -2738,7 +2738,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               <aside className="ud-token-rail" aria-label="Token chain">
                 <div className="section ud-token-rail__inner">
                   <ExchangeModeToggle />
-                  <TokenChainDisplay />
+                  <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
                 </div>
               </aside>
 

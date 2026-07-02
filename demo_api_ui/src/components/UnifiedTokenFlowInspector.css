@@ -170,6 +170,47 @@
   }
 }
 
+/* Embedded mode — narrow portal rails/cards (~320-380px). The viewport media
+ * query above never fires there on wide screens, so force the stacked layout
+ * unconditionally and let the host rail provide the scroll. */
+.utfi-container.utfi-embedded {
+  height: auto;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+}
+
+.utfi-container.utfi-embedded .utfi-content {
+  grid-template-columns: 1fr;
+  overflow: visible;
+}
+
+.utfi-container.utfi-embedded .utfi-left {
+  border-right: none;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-y: visible;
+  padding: 12px 4px;
+}
+
+.utfi-container.utfi-embedded .utfi-right {
+  overflow-y: visible;
+  padding: 12px 4px;
+}
+
+.utfi-container.utfi-embedded .utfi-divider {
+  display: none;
+}
+
+.utfi-container.utfi-embedded .utfi-header {
+  padding: 12px 8px;
+}
+
+/* Token cards single-column — 3-up needs ≥768px, the rail has ~320px */
+.utfi-container.utfi-embedded .tcg-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 /* ============================================================================
  * SECTION HEADERS
  * ============================================================================ */
