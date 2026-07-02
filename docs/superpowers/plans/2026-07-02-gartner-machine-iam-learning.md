@@ -95,7 +95,7 @@ git add docs/superpowers/plans/2026-07-02-gartner-machine-iam-learning.md
 git commit -m "docs: record Gartner Google Doc link for learning modal"
 ```
 
-**Task 1 Result:** `GARTNER_DOC_URL = ` *(fill in webViewLink here)*
+**Task 1 Result:** `GARTNER_DOC_URL = https://docs.google.com/document/d/1gNl6VIUUahSrOZHizf3cH6TwlaJb_5zxW8y1NxrAdEc/edit`
 
 **Fallback:** if the Drive connector fails, ask the user to create the doc manually from the markdown above and paste the link; do not block Tasks 2–3 on it (use the link when available, leave the Resources button pointing at the value recorded here).
 
