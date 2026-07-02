@@ -491,12 +491,12 @@ ensure_llamacpp() {
   fi
 
   # Local models are served through the multi-model LLM proxy on :8090
-  # (demo_llm_proxy/router.js), which routes to 4 tier llama-server backends on
-  # :8091-8096 — never a raw llama-server pointing straight at one model.
+  # (demo_llm_proxy/router.js) in swap mode — one tier loaded at a time,
+  # swapped by the tier-manager (:8097). Never a raw llama-server on :8090.
   if command -v llama-server >/dev/null 2>&1; then
-    info "Local models are served via the multi-model LLM proxy on :8090."
-    info "  Verify tier GGUFs:  bash demo_llm_proxy/download-models.sh"
-    info "  Start tier servers: bash demo_llm_proxy/start-local-models.sh start"
+    info "Local models are served via the multi-model LLM proxy on :8090 (swap mode)."
+    info "  Verify tier GGUFs:   bash demo_llm_proxy/download-models.sh"
+    info "  Load smallest tier:  bash demo_llm_proxy/start-local-models.sh ensure 8091"
   fi
 }
 
@@ -527,9 +527,13 @@ ensure_codegraph_llamacpp() {
   fi
 
   if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
-    info "Starting LLM proxy stack (tier servers :8091-8096 + router :8090)..."
-    bash demo_llm_proxy/start-local-models.sh start \
-      || { warn "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
+    info "Starting LLM proxy stack in swap mode (tier-manager :8097 + smallest tier + router :8090)..."
+    if ! curl -sf --max-time 2 http://localhost:8097/health >/dev/null 2>&1; then
+      nohup node demo_llm_proxy/tier-manager.js > /tmp/demo-tier-manager.log 2>&1 &
+      echo $! > /tmp/demo-tier-manager.pid
+    fi
+    bash demo_llm_proxy/start-local-models.sh ensure 8091 \
+      || { warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
     LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
     echo $! > /tmp/demo-llm-proxy.pid
     local waited=0

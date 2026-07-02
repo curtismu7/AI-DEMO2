@@ -156,13 +156,14 @@ git_sync_check() {
 # ── Local LLM (host) lifecycle — multi-model proxy ───────────────────────────
 # :8090 is the multi-model LLM proxy (the llm-proxy container running
 # demo_llm_proxy/router.js) — NEVER bind a raw llama-server straight onto it.
-# The proxy classifies each request and routes to 4 tier llama-server backends
-# on host ports 8091-8096, managed by demo_llm_proxy/start-local-models.sh
-# (GGUFs verified by demo_llm_proxy/download-models.sh). Dockerized services
+# The proxy routes per agent (request model pin) or by keyword class to tier
+# llama-server backends on host ports 8091-8096, managed by
+# demo_llm_proxy/start-local-models.sh (GGUFs verified by download-models.sh).
+# SWAP MODE: only one tier is loaded at a time — the router asks the
+# tier-manager daemon (:8097, host) to swap up when a request needs a bigger
+# model, and decays back to the smallest tier when idle. Dockerized services
 # reach the proxy at http://llm-proxy:8090 (in-network) or
-# host.docker.internal:8090; the proxy reaches the tiers via
-# host.docker.internal:8091-8096. We start the tiers before the stack and stop
-# them with the stack.
+# host.docker.internal:8090.
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-gemma-3-4b-it}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
@@ -182,23 +183,42 @@ _clear_8090_squatter() {
   fi
 }
 
+# Swap mode: only ONE tier is loaded at a time ("smallest that does the job").
+# The tier-manager daemon on :8097 performs swaps when the router (in the
+# llm-proxy container) asks for a bigger model; startup loads just the manager
+# and the smallest tier.
+_TIER_MANAGER_PIDFILE="/tmp/demo-tier-manager.pid"
+_manager_up() { curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; }
+
+_start_tier_manager() {
+  _manager_up && return 0
+  nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+  echo $! > "$_TIER_MANAGER_PIDFILE"
+  local i=0; while [[ $i -lt 10 ]]; do _manager_up && return 0; sleep 1; (( i++ )) || true; done
+  return 1
+}
+
 start_llamacpp() {
   command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
   _clear_8090_squatter
-  # Start the 4 tier backends (idempotent — already-running tiers are left alone).
-  # :8090 itself is served by the llm-proxy container once the stack is up.
-  if bash "$_TIERS_SCRIPT" start; then
-    ok "model tiers ready on :8091-8096 — llm-proxy container serves :8090"
+  _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
+  # Load only the smallest tier; the router swaps up on demand and decays back.
+  if bash "$_TIERS_SCRIPT" ensure 8091; then
+    ok "tier-manager on :8097, smallest tier loaded (:8091) — llm-proxy container serves :8090 and swaps on demand"
   else
-    warn "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
   fi
 }
 
 stop_llamacpp() {
   bash "$_TIERS_SCRIPT" stop 2>/dev/null || true
+  if [[ -f "$_TIER_MANAGER_PIDFILE" ]]; then
+    kill "$(cat "$_TIER_MANAGER_PIDFILE")" 2>/dev/null || true
+    rm -f "$_TIER_MANAGER_PIDFILE"
+  fi
   _clear_8090_squatter
   rm -f "$_LLAMACPP_PIDFILE"
-  ok "model tiers stopped"
+  ok "model tiers + tier-manager stopped"
 }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
