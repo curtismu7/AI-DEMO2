@@ -96,6 +96,15 @@ function loadRefreshMs() {
   }
 }
 
+// Union `incoming` (falsy values dropped) into the existing option list, sorted.
+// Used to grow the Agent-ID / operation filter dropdowns from the values that
+// actually appear in the audit events, so the user picks from real data.
+function mergeSorted(prev, incoming) {
+  const set = new Set(prev);
+  for (const v of incoming) if (v) set.add(v);
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 export default function AuditPage({ onClose } = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -116,6 +125,10 @@ export default function AuditPage({ onClose } = {}) {
   // cadence survives reloads. lastUpdated stamps the most recent successful fetch.
   const [refreshMs, setRefreshMs] = useState(loadRefreshMs);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // Distinct Agent IDs / operations seen this session — populate the filter
+  // dropdowns (accumulated so they don't collapse once a filter is applied).
+  const [agentIdOptions, setAgentIdOptions] = useState([]);
+  const [operationOptions, setOperationOptions] = useState([]);
 
   // Floating window position + size — centred on first render (not used in popout mode)
   const [pos, setPos] = useState(() => ({
@@ -204,9 +217,12 @@ export default function AuditPage({ onClose } = {}) {
         eventsRes.json(),
         summaryRes.ok ? summaryRes.json() : null,
       ]);
-      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      const rows = Array.isArray(eventsData) ? eventsData : [];
+      setEvents(rows);
       setSummary(summaryData);
       setLastUpdated(Date.now());
+      setAgentIdOptions((prev) => mergeSorted(prev, rows.map((ev) => ev.agentId)));
+      setOperationOptions((prev) => mergeSorted(prev, rows.map((ev) => ev.operation ?? ev.resourceType)));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -265,22 +281,26 @@ export default function AuditPage({ onClose } = {}) {
           <option value="">All outcomes</option>
           {OUTCOMES.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        <input
-          type="text"
+        <select
           value={filterAgentId}
           onChange={e => setFilterAgentId(e.target.value)}
           className="audit-filter-select"
-          placeholder="Agent ID…"
           aria-label="Filter by agent ID"
-        />
-        <input
-          type="text"
+          disabled={agentIdOptions.length === 0}
+        >
+          <option value="">{agentIdOptions.length ? 'All agents' : 'No agents yet'}</option>
+          {agentIdOptions.map((id) => <option key={id} value={id}>{id}</option>)}
+        </select>
+        <select
           value={filterOperation}
           onChange={e => setFilterOperation(e.target.value)}
           className="audit-filter-select"
-          placeholder="Tool / operation…"
           aria-label="Filter by tool or operation"
-        />
+          disabled={operationOptions.length === 0}
+        >
+          <option value="">{operationOptions.length ? 'All tools / operations' : 'No tools yet'}</option>
+          {operationOptions.map((op) => <option key={op} value={op}>{op}</option>)}
+        </select>
       </div>
       {error && (
         <div className="audit-page__error">
