@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+# Auto-export the public Learning Hub mirror when a branch checkout touches
+# the in-app education panels, so the public GitHub Pages site stops drifting
+# from the app. Runs in the background and never blocks or fails the git
+# operation. Manual escape hatch: npm run export:learning.
+#
+# git passes: $1=prev HEAD, $2=new HEAD, $3=1 for a branch checkout (0 for a
+# plain file checkout, which we ignore here).
+
+prev_head=$1
+new_head=$2
+is_branch_checkout=$3
+
+if [ "$is_branch_checkout" = "1" ] && git diff --name-only "$prev_head" "$new_head" 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
+  echo "[post-checkout] education panels changed — exporting Learning Hub in background (logs/learning-hub-export.log)..."
+  mkdir -p logs
+  nohup npm run export:learning >> logs/learning-hub-export.log 2>&1 &
+fi
+
+exit 0
