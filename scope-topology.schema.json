@@ -16,6 +16,11 @@
       }
     },
     "version": { "type": "integer", "enum": [1, 2, 3] },
+    "aliases": {
+      "type": "object",
+      "description": "External-spelling -> canonical-manifest-scope map. Reconciles scope spellings used outside the manifest (PingGateway env, OAuth /authorize) with the canonical scope declared in scopes{}. Keys are the external spelling; values MUST be a scope declared in scopes{}.",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
     "deployment": {
       "type": "object",
       "description": "v3: Public app URLs per deployment environment (non-sensitive). Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Kept separate from .env (which holds secrets) for better auditability and version control.",

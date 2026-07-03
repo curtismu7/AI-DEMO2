@@ -12,6 +12,8 @@
     "topology:generate": "node scripts/gen-service-topology.js generate",
     "snapshot:check": "node snapshots/gen-authorize-snapshot.js --check",
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
+    "topology:verify": "bash scripts/topology-verify.sh",
+    "topology:verify:live": "bash scripts/topology-verify.sh && cd demo_api_server && npm run verify:scopes -- --manifest-diff",
     "test": "bash scripts/run-all-tests.sh",
     "test:api-server": "cd demo_api_server && npm test -- --forceExit",
     "test:mcp-server": "cd demo_mcp_server && npm run test:unit",

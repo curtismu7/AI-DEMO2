@@ -1,12 +1,25 @@
 #!/usr/bin/env sh
-# Auto-regenerate the P1AZ snapshot whenever scope-topology.json is staged.
-# Prevents the "cloud policy drifts silently" class of bugs caught post-commit.
-
-if git diff --cached --name-only | grep -q '^scope-topology\.json$'; then
-  echo "[pre-commit] scope-topology.json changed — regenerating P1AZ snapshot..."
-  node snapshots/gen-authorize-snapshot.js
-  git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
-  echo "[pre-commit] Snapshot updated and staged."
+# ─── scope-topology.json "no drift" gate ───────────────────────────────────────
+# When the scope SSOT — or anything that must stay in lock-step with it — is
+# staged, regenerate the P1AZ snapshot (kept in sync automatically) and then
+# BLOCK the commit unless the full OFFLINE verification passes: running-code
+# consumers, P1AZ snapshot, PingGateway config, and the mock authz rule store.
+# The live PingOne diff stays opt-in (npm run topology:verify:live).
+TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/\.env\.example|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
+if [ -n "$TOPO_TOUCHED" ]; then
+  echo "[pre-commit] scope-topology surface changed — regenerating P1AZ snapshot + verifying no drift..."
+  # snapshots/ is gitignored (local-only artifact); only regenerate where present.
+  if [ -f snapshots/gen-authorize-snapshot.js ]; then
+    node snapshots/gen-authorize-snapshot.js
+    git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json 2>/dev/null || true
+  fi
+  if ! npm run --silent topology:verify; then
+    echo "[pre-commit] ❌ topology:verify failed — scope-topology.json drifts from PingGateway / P1AZ / running code / mock authz (see above)."
+    echo "[pre-commit]    Fix the drift, or regenerate the derived artifacts (npm run scopes:doc / npm --prefix demo_api_server run scopes:gen), then re-commit."
+    echo "[pre-commit]    Bypass (NOT recommended): git commit --no-verify"
+    exit 1
+  fi
+  echo "[pre-commit] ✅ Snapshot updated + topology:verify passed."
 fi
 
 # ─── Secret & backup-artifact guard (added to prevent leak/stale-data recurrence) ───

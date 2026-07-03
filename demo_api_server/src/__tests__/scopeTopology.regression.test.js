@@ -26,16 +26,46 @@ describe('scope-topology manifest', () => {
     expect(ok).toBe(true);
   });
 
+  // Full referential integrity (hardened): EVERY scope referenced anywhere in the
+  // manifest — tool requiredScopes, app grantedScopes, resource native scopes AND
+  // mirroredScopes — must be declared in scopes{} after alias normalization. The
+  // only exemption is the OIDC standard scopes. (Previously this only checked
+  // banking:/ai_agent-prefixed refs, so a mistyped non-banking scope slipped
+  // through.) mirroredScopes are included per ARCHITECTURE-TRUTHS T-10: a scope
+  // mirrored onto an exchange-hop audience must exist as a real declared scope.
   test('every scope referenced by a tool/app/resource is declared in scopes', () => {
     const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const declared = new Set(Object.keys(m.scopes));
-    const refs = new Set();
-    Object.values(m.tools).forEach(t => (t.requiredScopes || []).forEach(s => refs.add(s)));
-    Object.values(m.apps).forEach(a => (a.grantedScopes || []).forEach(s => refs.add(s)));
-    Object.values(m.resources).forEach(r => (r.scopes || []).forEach(s => refs.add(s)));
+    const aliases = m.aliases || {};
+    const norm = (s) => aliases[s] || s;
     const OIDC = new Set(['openid', 'profile', 'email', 'offline_access']);
-    const missing = [...refs].filter(s => !declared.has(s) && !OIDC.has(s) && (s.startsWith('banking:') || s === 'ai_agent'));
+    const refs = new Set();
+    const addRef = (s) => { if (!OIDC.has(s)) refs.add(norm(s)); };
+    Object.values(m.tools).forEach(t => (t.requiredScopes || []).forEach(addRef));
+    Object.values(m.apps).forEach(a => (a.grantedScopes || []).forEach(addRef));
+    Object.values(m.resources).forEach(r => {
+      (r.scopes || []).forEach(addRef);
+      (r.mirroredScopes || []).forEach(addRef);
+    });
+    const missing = [...refs].filter(s => !declared.has(s));
     expect(missing).toEqual([]);
+  });
+
+  test('every alias target is a declared scope', () => {
+    const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const declared = new Set(Object.keys(m.scopes));
+    const badTargets = Object.entries(m.aliases || {})
+      .filter(([, v]) => !declared.has(v))
+      .map(([k, v]) => `${k} -> ${v}`);
+    expect(badTargets).toEqual([]);
+  });
+
+  test('every resource server declares a non-empty uri', () => {
+    const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const missingUri = Object.entries(m.resources)
+      .filter(([, r]) => !r.uri || typeof r.uri !== 'string')
+      .map(([name]) => name);
+    expect(missingUri).toEqual([]);
   });
 });
 
@@ -238,13 +268,12 @@ describe('generated scope doc is in sync', () => {
 describe('GUARD: OAuth /authorize requested scopes match topology app grants', () => {
   const topo = require('../../services/scopeTopology');
 
-  // The single known, intentional spelling alias: the topology models the
-  // agent scope as `ai:agent:read`; the OAuth layer historically
-  // requests `ai:agent` (the working agent flow depends on this
-  // spelling). Normalise both sides so the guard compares semantics, not
-  // spelling. If a SECOND alias ever appears, add it here CONSCIOUSLY.
-  const ALIAS = { 'ai:agent:read': 'ai:agent' };
-  const norm = (s) => ALIAS[s] || s;
+  // Spelling aliases are modelled ONCE in scope-topology.json (aliases{}) and
+  // consumed here via topo.normalizeScope so the guard compares semantics, not
+  // spelling (e.g. OAuth `ai:agent` <-> topology `ai:agent:read`). Both the
+  // granted and requested sides are normalised, so equal scopes stay equal
+  // regardless of alias direction. Add new aliases to the manifest, not here.
+  const norm = (s) => topo.normalizeScope(s);
   const bankingFamily = (s) => s.startsWith('banking:') || s === 'ai_agent';
 
   function assertAuthorizeCoversGrant(appName, requestedScopes) {
@@ -270,5 +299,34 @@ describe('GUARD: OAuth /authorize requested scopes match topology app grants', (
       else process.env.ENDUSER_AUDIENCE = prevEnv;
       jest.resetModules();
     }
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// P1AZ decision-path constants derive from the manifest.
+//
+// The PingOne Authorize decision path (mock demo_authz_server + the PingGateway
+// Groovy filter + the Node PingOneAuthorizeClient) gates on the MCP Gateway
+// audience. The mock authz server exposes it via gatewayAudience(); if that ever
+// stops reading scope-topology.json (e.g. a future refactor hardcodes it) the
+// gateway audience check would silently diverge from the SSOT. This guard pins
+// it to the manifest. The Groovy/Node paths take the same value from env
+// (PG_GATEWAY_RESOURCE_URI / MCP_GW_RESOURCE_URI), verified by
+// scripts/verify-pinggateway-parity.js.
+// ───────────────────────────────────────────────────────────────────────────
+describe('P1AZ decision-path gateway audience matches the manifest', () => {
+  const topo = require('../../services/scopeTopology');
+  const authzTopo = require('../../../demo_authz_server/scopeTopology');
+
+  test('mock authz gatewayAudience() == manifest Super Banking MCP Gateway uri', () => {
+    expect(authzTopo.gatewayAudience()).toBe(topo.resourceUri('Super Banking MCP Gateway'));
+  });
+
+  test('mock authz gatewayToolNames() == manifest surface:gateway tools', () => {
+    const manifestGatewayTools = topo
+      .allTools()
+      .filter((name) => topo.toolSurface(name) === 'gateway')
+      .sort();
+    expect(authzTopo.gatewayToolNames().slice().sort()).toEqual(manifestGatewayTools);
   });
 });
