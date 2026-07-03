@@ -85,7 +85,11 @@ function collectIssues() {
   for (const [key, role] of Object.entries(RESOURCE_URI_KEYS)) {
     const val = effective(key);
     if (!val) continue;
-    if (aud[role] && val !== aud[role]) {
+    // MCP_SERVER_RESOURCE_URI (and its aliases) may now be a comma-separated accepted-
+    // audience list for the RFC 8693 exchange rollout — e.g.
+    // "mcpserver.ping.demo,mcpgateway.ping.demo" — so require containment, not equality.
+    const valList = val.split(',').map((s) => s.trim()).filter(Boolean);
+    if (aud[role] && !valList.includes(aud[role])) {
       issues.push(`${key}="${val}" but scope-topology.json audience for ${role} is "${aud[role]}" (token validation would 401)`);
     }
   }

@@ -200,10 +200,12 @@ services:
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
-      # PingOne token exchange cannot issue multi-resource aud when the exchanger has grants on
-      # multiple resources (returns invalid_scope). Gateway forwards token unchanged; MCP server
-      # validates the gateway aud. Both services use mcpgateway.ping.demo.
-      MCP_SERVER_RESOURCE_URI: "mcpgateway.ping.demo"
+      # RFC 8693 rollout: the gateway now exchanges the inbound token for one scoped to
+      # this backend's own resource URI (RFC 8707 `resource` param) before forwarding, so
+      # MCP server tokens carry aud=mcpserver.ping.demo. MCP_SERVER_RESOURCE_URI accepts a
+      # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
+      # so tokens from callers still on the old forward-unchanged contract keep validating.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides
@@ -366,6 +368,11 @@ services:
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8081"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
+      # RFC 8693 rollout: gateway exchanges to this backend's own resource URI before
+      # forwarding (aud=mcp-invest.ping.demo). mcpgateway.ping.demo kept as a transitional
+      # second entry for callers still on the old forward-unchanged contract. Compose env
+      # wins over demo_mcp_invest/.env.
+      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcpgateway.ping.demo"
     env_file:
       - path: ./demo_mcp_invest/.env
         required: false
