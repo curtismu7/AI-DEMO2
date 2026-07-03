@@ -243,6 +243,8 @@ services:
       CHAT_WS_HOST: "0.0.0.0"
       # CodeGraph Explorer LLM — auto-detects: llama.cpp (host) → Helix → lmstudio
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
+      # Code Explorer is code work → StarCoder2 class (per-agent routing).
+      LLAMACPP_MODEL: "starcoder2-15b-instruct"
       # Code Explorer "Refresh index" reads live source + writes the rebuilt DB
       # under the bind-mounted repo (see volumes below). Pointing both at the live
       # tree means grep/read_file always see current source and a re-index only
@@ -320,7 +322,9 @@ services:
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_GATEWAY_URL: "http://mcp-gateway:3005"
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
-      LLAMACPP_MODEL: "gemma-3-4b-it"
+      # Agent reasoning + native tool calls → strongest tier. The proxy treats
+      # this as a minimum capability class (per-agent routing, swap mode).
+      LLAMACPP_MODEL: "gpt-oss-20b"
     env_file:
       - path: ./demo_agent_service/.env
         required: false

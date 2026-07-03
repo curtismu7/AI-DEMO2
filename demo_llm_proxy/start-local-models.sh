@@ -143,6 +143,26 @@ case "$ACTION" in
       stop_model "$model"
     done
     ;;
+  ensure)
+    # ensure <port> — swap-mode primitive: stop every tier EXCEPT <port>, then
+    # start <port> if it isn't already running. Used by tier-manager.js so only
+    # one model is loaded at a time ("smallest that does the job").
+    TARGET_PORT="${2:?usage: $0 ensure <port>}"
+    found=""
+    for model in "${MODELS[@]}"; do
+      IFS=':' read -r port _ _ _ _ <<< "$model"
+      if [ "$port" = "$TARGET_PORT" ]; then
+        found="$model"
+      else
+        stop_model "$model"
+      fi
+    done
+    if [ -z "$found" ]; then
+      echo "❌ ensure: no tier configured on port $TARGET_PORT"
+      exit 1
+    fi
+    start_model "$found"
+    ;;
   status)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔷 LLM Proxy Backend Status"
@@ -155,7 +175,7 @@ case "$ACTION" in
     echo "Logs: $LOG_DIR/llama-*.log"
     ;;
   *)
-    echo "Usage: $0 [start|stop|status]"
+    echo "Usage: $0 [start|stop|status|ensure <port>]"
     exit 1
     ;;
 esac

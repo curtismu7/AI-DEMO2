@@ -448,9 +448,13 @@ ensure_llamacpp_running() {
   fi
 
   if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
-    info "Starting LLM proxy stack (tier servers :8091-8096 + router :8090)..."
-    bash demo_llm_proxy/start-local-models.sh start \
-      || { info "model tiers failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
+    info "Starting LLM proxy stack in swap mode (tier-manager :8097 + smallest tier + router :8090)..."
+    if ! curl -sf --max-time 2 http://localhost:8097/health >/dev/null 2>&1; then
+      nohup node demo_llm_proxy/tier-manager.js > /tmp/demo-tier-manager.log 2>&1 &
+      echo $! > /tmp/demo-tier-manager.pid
+    fi
+    bash demo_llm_proxy/start-local-models.sh ensure 8091 \
+      || { info "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
     LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
     echo $! > /tmp/demo-llm-proxy.pid
     local waited=0
