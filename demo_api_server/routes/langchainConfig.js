@@ -396,6 +396,10 @@ router.post('/llamacpp/prewarm', async (req, res) => {
     const r = await fetch(`${tierManagerOrigin()}/ensure?port=${port}`, { signal: AbortSignal.timeout(180000) });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(502).json({ error: 'tier-manager swap failed', detail: data });
+    // The swap happened behind the router's back — poke it to re-probe tier
+    // health immediately, otherwise its cache routes to the unloaded tier for
+    // up to 30s.
+    await fetch(`${llamacppOrigin()}/refresh`, { method: 'POST', signal: AbortSignal.timeout(15000) }).catch(() => {});
     console.log(`[langchainConfig] pre-warmed llamacpp tier ${model} (:${port})`);
     res.json({ ok: true, model, port });
   } catch (error) {
