@@ -596,6 +596,16 @@ services:
       # so Weaviate needs no vectorizer module of its own.
       DEFAULT_VECTORIZER_MODULE: none
       ENABLE_MODULES: ""
+      # ── Single-node Raft identity ─────────────────────────────────────────
+      # Without a stable node identity, v1.25+ Raft never converges and logs
+      # "attempting to join" once per second. These three pin a one-node cluster.
+      CLUSTER_HOSTNAME: node1
+      RAFT_JOIN: node1
+      RAFT_BOOTSTRAP_EXPECT: 1
+      # ── Configurable cadence / verbosity ──────────────────────────────────
+      # LOG_LEVEL is the primary "how often do I see it" knob: `info` (default)
+      # shows join/gossip chatter; `warning` keeps only warnings + errors.
+      LOG_LEVEL: ${WEAVIATE_LOG_LEVEL:-warning}
     volumes:
       - weaviate-data:/var/lib/weaviate
     networks:
