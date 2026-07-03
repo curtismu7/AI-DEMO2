@@ -674,6 +674,36 @@ services:
       retries: 5
     restart: unless-stopped
 
+  llamaindex-agent:
+    build:
+      context: ./llamaindex_agent
+      dockerfile: Dockerfile
+    container_name: ai-demo-llamaindex-agent
+    ports:
+      - "8894:8894"
+    environment:
+      WEAVIATE_URL: http://weaviate:8080
+      WEAVIATE_GRPC_PORT: "50051"
+      EMBEDDING_URL: http://embeddings:8080
+      EMBEDDING_MODEL: nomic-embed-text-v1.5
+      LLAMACPP_BASE_URL: http://llm-proxy:8090
+      AGENT_MAX_TOOL_CALLS: "4"
+    networks:
+      - ai-demo
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      embeddings:
+        condition: service_started
+      llm-proxy:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8894/health')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────
   # Serves the :8090 endpoint that BFF + agent-service already target via
   # LLAMACPP_BASE_URL. Classifies each request and routes to the smallest
