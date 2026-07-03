@@ -158,22 +158,23 @@ describe('tokenChainService — Token Chain correctness regression', () => {
     auditStore.clearToolCalls();
   });
 
-  test('M2: getMCPToolCalls mints an agent CC token to authenticate /audit when req is provided', async () => {
+  test('M2: getMCPToolCalls mints an agent CC token once and reuses the session-cached token across polls', async () => {
     delete process.env.MCP_AGENT_TOKEN;
     jest.resetModules();
-    jest.doMock('../../services/agentCCTokenService', () => ({
-      getAgentCCToken: jest.fn(async () => ({ access_token: 'minted-agent-tok' })),
-    }));
+    const mintFn = jest.fn(async () => ({ access_token: 'minted-agent-tok', expires_in: 3600 }));
+    jest.doMock('../../services/agentCCTokenService', () => ({ getAgentCCToken: mintFn }));
     const localSvc = require('../../services/tokenChainService');
     const auditStore = require('../../services/mcpToolAuditStore');
     auditStore.clearToolCalls();
     let captured;
     global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
 
-    await localSvc.getMCPToolCalls('u1', { id: 'req-1' });
+    const req = { id: 'req-1', session: {} }; // shared session across polls
+    await localSvc.getMCPToolCalls('u1', req);
+    await localSvc.getMCPToolCalls('u1', req); // second poll should hit the cache
 
-    expect(captured).toBeDefined();
     expect(captured.headers.Authorization).toBe('Bearer minted-agent-tok');
+    expect(mintFn).toHaveBeenCalledTimes(1); // minted once, reused from session cache
     auditStore.clearToolCalls();
     jest.dontMock('../../services/agentCCTokenService');
   });

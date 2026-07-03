@@ -292,14 +292,21 @@ async function getMCPToolCalls(userId, req = null) {
     const mcpHttpBase = mcpWsUrl.replace(/^ws(s?):/, 'http$1:');
     // The MCP /audit endpoint requires a live agent bearer (validateAgentToken).
     // A static MCP_AGENT_TOKEN would expire, so when it is unset and we have a
-    // request, mint (cache-backed) an agent client-credentials token — the same
-    // token the BFF already uses for MCP calls. Falls through to no-auth (→ the
-    // graceful non-200 merge below) if minting is unavailable or fails.
+    // request, reuse a session-cached agent client-credentials token (the same
+    // token the BFF uses for MCP calls), minting one only on a cache miss —
+    // /api/token-chain is polled, so an uncached mint here would hit the token
+    // endpoint every poll. Falls through to no-auth (→ the graceful non-200
+    // merge below) if minting is unavailable or fails.
     let agentToken = process.env.MCP_AGENT_TOKEN || '';
     if (!agentToken && req) {
       try {
-        const agentCCTokenService = require('./agentCCTokenService');
-        const cc = await agentCCTokenService.getAgentCCToken(req);
+        const agentTokenCache = require('./agentTokenCache');
+        const scopes = ['mcp:invoke'];
+        let cc = agentTokenCache.get(req.session, undefined, scopes);
+        if (!cc) {
+          cc = await require('./agentCCTokenService').getAgentCCToken(req);
+          agentTokenCache.set(req.session, undefined, scopes, cc);
+        }
         agentToken = cc?.access_token || '';
       } catch (e) {
         console.warn('[tokenChainService] getMCPToolCalls: agent CC token mint failed', e.message);
