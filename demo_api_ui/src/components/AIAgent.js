@@ -25,6 +25,7 @@ import {
 } from "../services/agentAccessConsent";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { appendTokenEvents } from "../services/apiTrafficStore";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { fetchNlStatus } from "../services/demoAgentNlService";
 import {
   callMcpTool,
@@ -5393,6 +5394,7 @@ export default function BankingAgent({
     prepNlCompliance(text);
     setNlLoading(true);
     addMessage("user", text);
+    tokenChainTraceStore.beginTrace({ prompt: text });
     setNlInput("");
     tokenChain?.clearEvents();
     try {

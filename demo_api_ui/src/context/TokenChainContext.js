@@ -15,6 +15,7 @@ import React, {
   useRef,
 } from "react";
 import { isTokenChainRoute } from "../utils/embeddedAgentFabVisibility";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 
 const TokenChainContext = createContext(null);
 
@@ -139,6 +140,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
    */
   const setTokenEvents = useCallback(
     (tool, newEvents) => {
+      tokenChainTraceStore.ingestTokenEvents(Array.isArray(newEvents) ? newEvents : []);
       if (!Array.isArray(newEvents) || newEvents.length === 0) {
         // A real tool call that produced no events (e.g. failed before any
         // step). Do NOT keep the previous call's chain on screen with the

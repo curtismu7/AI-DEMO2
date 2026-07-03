@@ -21,6 +21,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { applyJsonPatch } from './useAgentRun';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 const INITIAL_STATE = {
   // Observability slices (driven by STATE_DELTA)
@@ -137,6 +138,7 @@ export function useAgentState() {
             ...streamingMessageRef.current,
             streaming: false,
           };
+          tokenChainTraceStore.ingestLlmReply(streamingMessageRef.current.content);
           setState((prev) => {
             const msgs = [...prev.messages];
             const idx = msgs.findIndex((m) => m && m.id === event.messageId);
@@ -238,6 +240,9 @@ export function useAgentState() {
               outputTokens: event.value.outputTokens ?? 0,
             },
           }));
+        }
+        if (event.name === 'llm_detail' && event.value) {
+          tokenChainTraceStore.ingestLlmDetail(event.value);
         }
         break;
 
