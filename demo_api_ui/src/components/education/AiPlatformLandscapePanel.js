@@ -67,7 +67,7 @@ function MicrosoftContent() {
     <div>
       <VendorHeader emoji="🔷" name="Microsoft Azure AI" tagline="AI everywhere, from infrastructure to copilots" color={c} />
       <ToolCard name="Azure OpenAI Service" category="Foundation Model API" color={c}
-        description="Microsoft-hosted GPT-4o, o1, DALL-E, Whisper. Same models as OpenAI.com with enterprise SLAs, data residency, private networking (VNet), and Azure AD auth. Fine-tuning available." />
+        description="Microsoft-hosted GPT-5.5, DALL-E, Whisper. Same models as OpenAI.com with enterprise SLAs, data residency, private networking (VNet), and Azure AD auth. Fine-tuning available." />
       <ToolCard name="Azure AI Foundry" category="AI Development Platform" color={c}
         description="Unified portal (formerly Azure AI Studio) for model catalog, prompt flow, evaluations, and agent deployment. Model catalog includes Llama, Mistral, Cohere, Phi, and more." />
       <ToolCard name="Microsoft Copilot Studio" category="Agent Builder" color={c}
@@ -142,14 +142,14 @@ function AnthropicContent() {
   return (
     <div>
       <VendorHeader emoji="🟣" name="Anthropic" tagline="AI safety focused — powerful, steerable, and honest" color={c} />
-      <ToolCard name="Claude 3.5 Sonnet / Haiku / Opus 3" category="Foundation Models" color={c}
-        description="Claude is Anthropic's frontier model family. Sonnet 3.5: best price/performance balance; Haiku 3.5: fastest/cheapest; Opus 3: most capable for complex reasoning. 200K token context window." />
+      <ToolCard name="Claude 5 — Opus 4.8 / Sonnet 5 / Haiku 4.5" category="Foundation Models" color={c}
+        description="Claude is Anthropic's frontier model family. Claude 5 family (2026): Opus 4.8 is most capable for complex reasoning; Sonnet 5 is the best price/performance balance; Haiku 4.5 is fastest/cheapest. The frontier line also ships Claude Fable 5 and Claude Mythos 5. 200K token context window. Claude 4.x and Claude 3.5/Opus 3 are prior generations." />
       <ToolCard name="Claude API (api.anthropic.com)" category="Direct API" color={c}
         description="REST API with Messages endpoint. Tool use (function calling), vision (image inputs), streaming. Claude.ai for direct consumer access." />
       <ToolCard name="Claude on Amazon Bedrock" category="Hosted API via AWS" color={c}
-        description="Claude 3 family available via AWS Bedrock. Enterprise customers access Claude with AWS IAM, VPC, and data residency controls." />
+        description="Claude 5 family available via AWS Bedrock. Enterprise customers access Claude with AWS IAM, VPC, and data residency controls." />
       <ToolCard name="Claude on Google Vertex AI" category="Hosted API via GCP" color={c}
-        description="Claude 3 family available via Vertex AI Model Garden. GCP-native auth, compliance, and private networking." />
+        description="Claude 5 family available via Vertex AI Model Garden. GCP-native auth, compliance, and private networking." />
       <ToolCard name="Constitutional AI (CAI)" category="Safety Technique" color={c}
         description="Anthropic's training methodology: models are trained to follow a 'constitution' of principles (harmlessness, helpfulness, honesty). RLHF guided by AI feedback rather than purely human labels — more scalable." />
       <ToolCard name="Model Card & Eval Transparency" category="Safety & Research" color={c}
@@ -166,8 +166,8 @@ function OpenAiContent() {
   return (
     <div>
       <VendorHeader emoji="🟩" name="OpenAI" tagline="From research lab to the AI infrastructure of the internet" color={c} />
-      <ToolCard name="GPT-4o / GPT-4o mini / o1 / o3" category="Foundation Models" color={c}
-        description="GPT-4o: multimodal (text/image/audio), fast, strong coding. o1/o3: reasoning models with extended chain-of-thought. GPT-4o mini: cost-optimised for high-volume pipelines." />
+      <ToolCard name="GPT-5.5 / GPT-5" category="Foundation Models" color={c}
+        description="GPT-5.5 is OpenAI's current flagship — multimodal (text/image/audio) with built-in reasoning modes, replacing the separate o-series. GPT-4o and o1/o3 are now previous-generation models." />
       <ToolCard name="OpenAI API — Chat Completions" category="Direct API" color={c}
         description="Chat Completions, Files, Embeddings, Fine-tuning, Moderation, TTS, Whisper (STT), DALL-E (image gen). Batch API for async processing at 50% discount." />
       <ToolCard name="Assistants API" category="Agent Platform" color={c}
@@ -177,11 +177,11 @@ function OpenAiContent() {
       <ToolCard name="DALL-E 3 / Sora" category="Generative Media" color={c}
         description="DALL-E 3: text-to-image, available via API and ChatGPT. Sora: text-to-video (limited access); sets state-of-the-art for video generation quality." />
       <ToolCard name="ChatGPT Enterprise / Team" category="Enterprise SaaS" color={c}
-        description="Data not used for training, SSO/SCIM, higher rate limits, custom GPTs, GPT-4o and o1 access for all employees." />
+        description="Data not used for training, SSO/SCIM, higher rate limits, custom GPTs, GPT-5.5 access for all employees." />
       <ToolCard name="OpenAI Embeddings (text-embedding-3-large)" category="RAG Backbone" color={c}
         description="State-of-the-art text embeddings for semantic search. 3072 dimensions; supports Matryoshka compression to 256 dimensions with minimal quality loss." />
       <ToolCard name="Fine-tuning" category="Customisation" color={c}
-        description="Fine-tune GPT-4o, GPT-4o mini, GPT-3.5 Turbo on custom datasets. Supports function calling and vision fine-tuning." />
+        description="Fine-tune GPT-5.5, GPT-5 mini, and legacy GPT-4o on custom datasets. Supports function calling and vision fine-tuning." />
       <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#065f46' }}>
         <strong>Ecosystem note:</strong> ChatGPT has 200M+ weekly active users. The OpenAI platform is the most widely adopted developer AI API. Microsoft Azure OpenAI Service mirrors the API with enterprise controls and data residency.
       </div>
@@ -195,14 +195,14 @@ function ComparisonContent() {
   const trAlt = { background: '#f8fafc' };
   const headers = ['Feature', 'AWS', 'Microsoft', 'Google', 'IBM', 'Anthropic', 'OpenAI'];
   const rows = [
-    ['Primary models', 'Titan + Bedrock hosted', 'GPT-4o / Phi', 'Gemini', 'Granite', 'Claude', 'GPT-4o / o1'],
+    ['Primary models', 'Titan + Bedrock hosted', 'GPT-5.5 / Phi', 'Gemini', 'Granite', 'Claude 5', 'GPT-5.5'],
     ['Model hosting', 'Bedrock (30+ models)', 'Azure OpenAI / AI Foundry', 'Vertex AI Model Garden', 'watsonx.ai', 'API + Bedrock/Vertex', 'API + Azure'],
     ['Agent framework', 'Bedrock Agents', 'Copilot Studio / Semantic Kernel', 'Vertex AI Agent Builder', 'Watson Assistant', 'None native', 'Assistants API'],
     ['RAG / enterprise search', 'Bedrock KB + Kendra', 'Azure AI Search', 'Vertex AI RAG / Agent Builder', 'Watson Discovery + watsonx.data', 'None native', 'File Search (Assistants)'],
     ['Fine-tuning', 'Bedrock + SageMaker', 'Azure OpenAI fine-tuning', 'Vertex AI supervised tuning', 'watsonx.ai fine-tuning', 'Not public', 'GPT-4o fine-tuning'],
     ['Open-source models', 'Llama/Mistral via Bedrock', 'Phi-3/4, Llama via Foundry', 'Gemma, Llama via Vertex', 'Granite (Apache 2.0) ⭐', 'None', 'None (proprietary)'],
     ['AI governance / safety', 'SageMaker Clarify (bias)', 'Azure AI Content Safety', 'Vertex Model Monitoring', 'watsonx.governance ⭐', 'Constitutional AI', 'Moderation API'],
-    ['Multimodal', 'Bedrock + Rekognition', 'GPT-4o via Azure OpenAI', 'Gemini natively', 'Limited', 'Claude 3 (image)', 'GPT-4o natively'],
+    ['Multimodal', 'Bedrock + Rekognition', 'GPT-5.5 via Azure OpenAI', 'Gemini natively', 'Limited', 'Claude 5 (image)', 'GPT-5.5 natively'],
     ['On-premises / air-gapped', 'AWS Outposts', 'Azure Stack', 'Distributed Cloud', 'watsonx on-prem ⭐', 'None', 'None'],
     ['Pricing model', 'Per-token + compute', 'Per-token + compute', 'Per-token + compute', 'Per-token + platform', 'Per-token', 'Per-token'],
   ];
@@ -247,7 +247,7 @@ function ComparisonContent() {
       ))}
 
       <p style={{ fontSize: '0.78rem', color: '#374151', marginTop: '1.2rem', fontStyle: 'italic' }}>
-        ⭐ = significant differentiator. Table reflects public information as of early 2026. Check each vendor's docs for current pricing and feature availability.
+        ⭐ = significant differentiator. Table reflects public information as of mid-2026. Check each vendor's docs for current pricing and feature availability.
       </p>
     </div>
   );

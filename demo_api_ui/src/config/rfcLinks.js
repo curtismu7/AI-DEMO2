@@ -24,6 +24,11 @@ export const RFC_LINKS = {
     url: 'https://www.rfc-editor.org/rfc/rfc7521',
     title: 'Assertion Framework for OAuth 2.0',
   },
+  RFC_7523: {
+    label: 'RFC 7523',
+    url: 'https://www.rfc-editor.org/rfc/rfc7523',
+    title: 'JWT Profile for OAuth 2.0 Client Authentication and Authorization Grants',
+  },
   RFC_7591: {
     label: 'RFC 7591',
     url: 'https://www.rfc-editor.org/rfc/rfc7591',

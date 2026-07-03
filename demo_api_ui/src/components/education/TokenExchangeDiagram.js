@@ -273,7 +273,7 @@ export default function TokenExchangeDiagram() {
               {label}
             </span>
           ))}
-          <span style={{ marginLeft: 'auto', color: '#334155' }}>RFC 8693 §3 sub · §4.2 act · §4.3 may_act</span>
+          <span style={{ marginLeft: 'auto', color: '#334155' }}>RFC 8693 §3 sub · §4.1 act · §4.4 may_act</span>
         </div>
 
       </div>

@@ -290,7 +290,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
           <h3 style={{ marginTop: 0 }}>RFC7523bis — JWT Client Auth Update</h3>
           <StandardCard
             title="RFC7523bis"
-            whatItDefines="JWT Bearer Token Profiles for OAuth 2.0 (updated to RFC 7523bis, which adds private_key_jwt improvements and CIBA support)"
+            whatItDefines="JWT Bearer Token Profiles for OAuth 2.0 (updated to RFC 7523bis, which fixes an aud-claim audience-confusion security vulnerability across RFC 7521/7522/7523/9126)"
             wg="OAuth WG"
             maturity="High"
             maturityColor="#2563eb"
@@ -367,14 +367,14 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
           <StandardCard
             title="JAG-IR"
             whatItDefines="A token grant extension that enables human-in-the-loop (HITL) approval flows for agent operations. Agents wait for human consent before proceeding with sensitive actions."
-            wg="OAuth WG"
+            wg="Individual submission (not WG-adopted)"
             maturity="Early"
             maturityColor="#ca8a04"
             pingRole="Co-author"
             status="✅ Full"
             statusIcon="✅"
             gap="None — CIBA HITL flow is fully implemented"
-            ietfLink="https://datatracker.ietf.org/doc/draft-ietf-oauth-jag-ir/"
+            ietfLink="https://datatracker.ietf.org/doc/draft-parecki-oauth-jwt-grant-interaction-response/"
           />
           <p
             style={{
@@ -405,14 +405,14 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
           <StandardCard
             title="AI Agent Auth (AIMS)"
             whatItDefines="A comprehensive agent authentication and authorization framework combining WIMSE workload identity with OAuth 2.0 token flows, scopes, and delegated access patterns."
-            wg="Network WG"
+            wg="Individual submission (not WG-adopted)"
             maturity="Early"
             maturityColor="#ca8a04"
             pingRole="Co-author"
             status="⚠️ Partial"
             statusIcon="⚠️"
             gap="Agent identity via OAuth is implemented; WIMSE workload identity binding is not"
-            ietfLink="https://datatracker.ietf.org/doc/draft-ietf-wimse-ai-agent-auth/"
+            ietfLink="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/"
           />
           <p
             style={{

@@ -263,7 +263,7 @@ function OfficialFiltersTab() {
     <div>
       <h3 style={{ marginTop: 0 }}>Official PingGateway MCP filters</h3>
       <p>
-        PingGateway ships three dedicated MCP filters (as of 2025.11). They run as a chain
+        PingGateway ships three dedicated MCP filters (as of 2026). They run as a chain
         before the <code>ReverseProxyHandler</code> that forwards traffic to the MCP server.
       </p>
 
@@ -336,8 +336,8 @@ function OfficialFiltersTab() {
 
       <p style={{ fontSize: '0.82rem', color: '#374151', marginTop: '1rem' }}>
         Reference:{' '}
-        <a href="https://docs.pingidentity.com/pinggateway/2025.11/mcp/index.html" target="_blank" rel="noopener noreferrer">
-          MCP security gateway | PingGateway 2025.11
+        <a href="https://docs.pingidentity.com/pinggateway/2026/mcp/index.html" target="_blank" rel="noopener noreferrer">
+          MCP security gateway | PingGateway 2026
         </a>
       </p>
     </div>

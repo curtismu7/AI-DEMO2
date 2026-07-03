@@ -1099,8 +1099,8 @@ In this demo:
       </ul>
       <p>
         All other tokens in the chain (agent CC token, exchanged MCP token — and, when the optional
-        two-exchange path is enabled, intermediate actor tokens) use <strong>RFC 7515 JWKS</strong>{' '}
-        cryptographic signature verification instead — faster because no network round-trip is needed,
+        two-exchange path is enabled, intermediate actor tokens) use <strong>RFC 7515 (JWS) signature verification via RFC 7517 (JWKS)</strong>{' '}
+        instead — faster because no network round-trip is needed,
         and appropriate because these tokens were just issued by PingOne moments ago and cannot have
         been revoked in that window.
       </p>

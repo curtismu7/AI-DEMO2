@@ -132,38 +132,38 @@ function CommercialContent() {
       </p>
 
       <ModelCard
-        name="GPT-4o / GPT-4o mini"
+        name="GPT-5.5 / GPT-5"
         maker="OpenAI"
-        context="128K tokens"
+        context="128K–400K"
         color="#059669"
-        strengths="Multimodal (text, image, audio natively), fast, strong coding, function calling, best Assistants API integration."
-        note="GPT-4o mini: 2-3× cheaper with ~80% of quality — ideal for high-volume pipelines. Available via OpenAI API, Azure OpenAI Service, GitHub Models."
+        strengths="OpenAI's current flagship series — unified multimodal (text, image, audio) with built-in reasoning modes, replacing the separate o-series. GPT-5.5 is the latest refinement; GPT-5 remains available for cost-sensitive workloads."
+        note="GPT-4o and o1/o3 are now the previous generation. Available via OpenAI API, Azure OpenAI Service, GitHub Models."
       />
 
       <ModelCard
-        name="o1 / o3 / o4-mini"
+        name="GPT-4o / o1 / o3 (previous gen)"
         maker="OpenAI"
         context="128K–200K"
         color="#059669"
-        strengths='Extended chain-of-thought reasoning ("thinking" models) — excel at math, science, coding, multi-step logic. o4-mini is the cost-efficient reasoning option.'
-        note="Higher latency (thinking tokens) — match the model to the task. Best for complex analysis, agentic planning, multi-step reasoning."
+        strengths="Prior-generation models: GPT-4o (multimodal) and o1/o3 (extended chain-of-thought reasoning models). Superseded by the GPT-5 series' unified reasoning."
+        note="Still available for existing integrations, but GPT-5.5 is the recommended default for new work."
       />
 
       <ModelCard
-        name="Claude 4 — Opus 4.7 / Sonnet 4.6 / Haiku 4.5"
+        name="Claude 5 — Opus 4.8 / Sonnet 5 / Haiku 4.5"
         maker="Anthropic"
         context="200K tokens"
         color="#7c3aed"
-        strengths="Claude 4 family (2025): Opus 4.7 is Anthropic's most capable model; Sonnet 4.6 is the best price/performance sweet-spot; Haiku 4.5 is fastest/cheapest for high-volume tasks. All support extended thinking mode."
-        note="Exceptional instruction-following, 200K context, Constitutional AI safety, strong agentic tool use. Available via Anthropic API, AWS Bedrock, Google Vertex AI."
+        strengths="Claude 5 family (2026): Opus 4.8 is Anthropic's most capable general model; Sonnet 5 is the best price/performance sweet-spot; Haiku 4.5 is fastest/cheapest for high-volume tasks. The frontier line also ships specialized flagships, Claude Fable 5 and Claude Mythos 5. All support extended thinking mode."
+        note="Claude 4.x (Opus 4.7, Sonnet 4.6) is now the previous generation. Exceptional instruction-following, 200K context, Constitutional AI safety, strong agentic tool use. Available via Anthropic API, AWS Bedrock, Google Vertex AI."
       />
 
       <ModelCard
-        name="Gemini 2.5 Pro / 2.0 Flash"
+        name="Gemini 3 Pro / 3.1 Pro"
         maker="Google DeepMind"
         context="1M+ tokens"
         color="var(--brand-navy)"
-        strengths="Gemini 2.5 Pro: state-of-the-art reasoning, coding, and math (2025 benchmarks); extended thinking mode. 2.0 Flash: fastest Gemini, best for high-volume multimodal pipelines."
+        strengths="Gemini 3 Pro (refined as 3.1 Pro): Google's current flagship — state-of-the-art reasoning, coding, and math; extended thinking mode built in. Gemini 3.5 is rolling out mid-2026. 2.5 Pro / 2.0 Flash are the previous generation."
         note="Native multimodal (text/image/audio/video), Google Search grounding, industry-leading 1M+ context. Available via Google AI Studio, Vertex AI, Gemini API."
       />
 
@@ -374,8 +374,8 @@ learned from data          responses                   more aligned`}</Code>
       >
         <li>
           <strong>Context window:</strong> The maximum tokens the model can
-          "see" at once. GPT-4o: 128K. Gemini 1.5 Pro: 1M. Everything outside
-          the window is forgotten.
+          "see" at once. GPT-5.5: up to 400K. Gemini 3 Pro: 1M+. Everything
+          outside the window is forgotten.
         </li>
         <li>
           <strong>Temperature:</strong> Controls randomness. 0 = deterministic.
@@ -486,9 +486,9 @@ learned from data          responses                   more aligned`}</Code>
         }}
       >
         <li>
-          <strong>Examples:</strong> OpenAI o3/o4-mini, Claude Sonnet 4.6
-          (thinking mode), Gemini 2.5 Pro, Qwen 3 (hybrid think/fast), DeepSeek
-          R1.
+          <strong>Examples:</strong> OpenAI GPT-5.5 (reasoning mode), Claude
+          Sonnet 5 (thinking mode), Gemini 3 Pro, Qwen 3 (hybrid think/fast),
+          DeepSeek R1.
         </li>
         <li>
           <strong>When to use:</strong> Complex multi-step math, scientific
@@ -557,23 +557,23 @@ function ComparisonContent() {
           <tbody>
             {[
               [
-                "GPT-4o / 4o mini",
+                "GPT-5.5",
                 "OpenAI",
-                "128K",
+                "128K–400K",
                 "Text/Image/Audio",
-                "General purpose, function calling",
+                "General purpose, unified reasoning",
                 "API, Azure",
               ],
               [
-                "o3 / o4-mini",
+                "GPT-4o / o1 / o3 (prev. gen)",
                 "OpenAI",
                 "128K–200K",
                 "Text/Image",
-                "Reasoning, math, coding",
+                "Legacy multimodal / reasoning",
                 "API, Azure",
               ],
               [
-                "Claude Opus 4.7",
+                "Claude Opus 4.8",
                 "Anthropic",
                 "200K",
                 "Text/Image",
@@ -581,7 +581,7 @@ function ComparisonContent() {
                 "API, Bedrock, Vertex",
               ],
               [
-                "Claude Sonnet 4.6",
+                "Claude Sonnet 5",
                 "Anthropic",
                 "200K",
                 "Text/Image",
@@ -597,7 +597,7 @@ function ComparisonContent() {
                 "API, Bedrock, Vertex",
               ],
               [
-                "Gemini 2.5 Pro",
+                "Gemini 3 Pro",
                 "Google",
                 "1M+",
                 "Text/Image/Audio/Video",
@@ -605,11 +605,11 @@ function ComparisonContent() {
                 "AI Studio, Vertex",
               ],
               [
-                "Gemini 2.0 Flash",
+                "Gemini 3.1 Pro",
                 "Google",
-                "1M",
+                "1M+",
                 "Text/Image/Audio/Video",
-                "Fast multimodal, high volume",
+                "Refined flagship, high volume",
                 "AI Studio, Vertex",
               ],
               [
@@ -767,18 +767,18 @@ function ComparisonContent() {
         style={{ fontSize: "0.84rem", color: "#334155", paddingLeft: "1.2rem" }}
       >
         <li>
-          <strong>Best overall quality (commercial):</strong> Claude Sonnet 4.6
-          or GPT-4o — Claude wins on instruction-following and long docs; GPT-4o
-          wins on multimodal.
+          <strong>Best overall quality (commercial):</strong> Claude Sonnet 5
+          or GPT-5.5 — Claude wins on instruction-following and long docs;
+          GPT-5.5 wins on multimodal.
         </li>
         <li>
-          <strong>Reasoning / extended thinking:</strong> o3/o4-mini, Claude
-          Opus 4.7 (thinking mode), Gemini 2.5 Pro, or DeepSeek R1 — use when
-          step-by-step reasoning matters.
+          <strong>Reasoning / extended thinking:</strong> GPT-5.5 (reasoning
+          mode), Claude Opus 4.8 (thinking mode), Gemini 3 Pro, or DeepSeek R1
+          — use when step-by-step reasoning matters.
         </li>
         <li>
           <strong>Largest context window:</strong> Llama 4 Scout (10M tokens) or
-          Gemini 2.5 Pro (1M+) — process entire codebases or multi-hour
+          Gemini 3 Pro (1M+) — process entire codebases or multi-hour
           transcripts.
         </li>
         <li>
@@ -790,8 +790,8 @@ function ComparisonContent() {
           state-of-the-art open-source code models.
         </li>
         <li>
-          <strong>Cheapest capable model:</strong> Claude Haiku 4.5, GPT-4o
-          mini, or Gemini 2.0 Flash — strong for high-volume pipelines.
+          <strong>Cheapest capable model:</strong> Claude Haiku 4.5, GPT-5
+          mini, or Gemini 3.1 Pro — strong for high-volume pipelines.
         </li>
         <li>
           <strong>Local inference / privacy:</strong> llama.cpp + Llama 3.3 70B

@@ -45,7 +45,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
           <ol>
             <li>
               <strong>You sign in</strong> — PingOne issues a security pass that may include a pre-approval note
-              (RFC 8693 §4.1 uses <code>sub</code>, not <code>client_id</code>):
+              (RFC 8693 §4.4 uses <code>sub</code>, not <code>client_id</code>):
               <pre className="edu-code">{`"may_act": { "sub": "<agent-client-id>" }
   ↑ "this specific AI app is allowed to act on your behalf"`}</pre>
             </li>

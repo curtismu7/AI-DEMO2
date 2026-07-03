@@ -215,15 +215,11 @@ export default function HumanInLoopPanel({ isOpen, onClose, initialTabId }) {
         <>
           <h3 style={{ marginTop: 0 }}>IDC AI Governance Compliance</h3>
           <p>
-            CIBA in this demo implements the <strong>JAG-IR pattern</strong> (JWT Grant Interaction Response) for human-in-the-loop agent authorization, which fulfills:
+            CIBA in this demo implements the <strong>JAG-IR pattern</strong> (JWT Grant Interaction Response) for human-in-the-loop agent authorization, fulfilling <strong>Guardrail 01</strong> — verifiable credentials for repeatable, portable identity proofing.
           </p>
-          <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
-            <li>
-              <strong>Guardrail 01:</strong> Verifiable credentials for repeatable, portable identity proofing
-              <br/>
-              <em>Standards: SD-JWT VC + OID4VCI + OID4VP</em>
-            </li>
-          </ul>
+          <p style={{ paddingLeft: 20 }}>
+            <em>Standards: SD-JWT VC + OID4VCI + OID4VP</em>
+          </p>
           <p style={{ marginTop: 16 }}>
             Out-of-band approval via CIBA ensures that high-value operations (transfers, sensitive account changes) require human consent before the agent proceeds. The approval event is logged with full audit trail.
           </p>
