@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import ActivityLogPanel from './ActivityLogPanel';
 import DraggableModal from './DraggableModal';
-import TokenChainDisplay from './TokenChainDisplay';
+import TokenChainTraceRail from './TokenChainTraceRail';
 
 /**
  * Token Chain panel — draggable, resizable, pop-out. Rendered without a
@@ -79,7 +79,7 @@ export default function TokenChainModal({ isOpen, onClose }) {
 
       {/* Keep both mounted so SSE doesn't restart on tab switch */}
       <div style={{ display: activeTab === TAB_TOKEN_CHAIN ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
-        <TokenChainDisplay hideHeader />
+        <TokenChainTraceRail />
       </div>
       <div style={{ display: activeTab === TAB_ACTIVITY_LOG ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
         <ActivityLogPanel enabled={isOpen} />

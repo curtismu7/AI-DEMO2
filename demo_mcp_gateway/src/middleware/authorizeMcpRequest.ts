@@ -47,6 +47,7 @@ import { validateMethodAndShape, validateToolArgs } from '../validation/mcpReque
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
 import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from '../gatewayAudit';
 import { verifyDpopProof } from '../dpopVerify';
+import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
 import type { TratClaims } from '../auth/PingOneAuthorizeClient';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
@@ -202,6 +203,7 @@ export function buildAuthorizeMcpRequest(
     const _audCtx: {
       operation: string; userId?: string; agentId?: string;
       dpopBound?: boolean; dpopVerified?: boolean; rar?: string;
+      wbaVerified?: boolean; wbaReason?: string; wbaAgent?: string;
     } = { operation: 'unknown' };
     let _audDone = false;
     const _origEnd = res.end.bind(res);
@@ -226,6 +228,14 @@ export function buildAuthorizeMcpRequest(
               dpop_bound: _audCtx.dpopBound ?? false,
               dpop_verified: _audCtx.dpopVerified ?? false,
               ...(_audCtx.rar ? { rar: _audCtx.rar } : {}),
+              // Web Bot Auth (RFC 9421) posture — recorded for every outcome
+              // whenever the feature is on (monitor or enforce).
+              ...(config.wbaMode && config.wbaMode !== 'off' ? {
+                wba_mode: config.wbaMode,
+                wba_verified: _audCtx.wbaVerified ?? false,
+                ...(_audCtx.wbaReason ? { wba_reason: _audCtx.wbaReason } : {}),
+                ...(_audCtx.wbaAgent ? { wba_agent: _audCtx.wbaAgent } : {}),
+              } : {}),
               // Scenario 4 — flag an insufficient-scope 403 as an unauthorized-tool alert.
               ...(httpScopeAlertDetails(res.statusCode, bodyText) || {}),
             },
@@ -537,6 +547,42 @@ export function buildAuthorizeMcpRequest(
     (_req as unknown as { _dpopVerified?: boolean; _dpopJkt?: string })._dpopJkt = _cnfJkt;
     _audCtx.dpopBound = !!_cnfJkt;
     _audCtx.dpopVerified = _dpopVerified;
+
+    // ── Step 2d': Web Bot Auth (RFC 9421 HTTP Message Signatures) ────────────────
+    // draft-meunier-web-bot-auth profile: the calling agent signs @authority +
+    // signature-agent with Ed25519; its public JWKS is published at the
+    // Signature-Agent origin's /.well-known/http-message-signatures-directory.
+    // Mode (config.wbaMode / MCP_GW_WBA_MODE): 'off' skip, 'monitor' verify+audit
+    // only (default), 'enforce' 401 on missing/invalid signature. Every outcome
+    // is recorded via the gatewayAudit res.end wrapper (wba_* details).
+    if (config.wbaMode !== 'off') {
+      const _wba = await verifyWebBotAuth({
+        headers: (_req?.headers ?? {}) as Record<string, string | string[] | undefined>,
+        method: (_req?.method as string) || 'POST',
+        path: (((_req?.url as string) || '/mcp').split('?')[0]) || '/mcp',
+      });
+      _audCtx.wbaVerified = _wba.ok;
+      _audCtx.wbaReason = _wba.reason;
+      _audCtx.wbaAgent = _wba.signatureAgent;
+      if (_wba.ok) {
+        teachLog.info('[GW] Web Bot Auth signature verified', { keyid: _wba.keyid, agent: _wba.signatureAgent });
+      } else {
+        teachLog.warn(`[GW] Web Bot Auth ${config.wbaMode === 'enforce' ? 'DENY' : 'monitor'}: ${_wba.reason} (tool: ${toolName})`);
+        if (config.wbaMode === 'enforce') {
+          setAuditHeader(res);
+          res.writeHead(401, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': 'HTTP-Message-Signatures realm="PingOne", error="invalid_signature"',
+          });
+          res.end(JSON.stringify({
+            error: 'invalid_web_bot_auth',
+            message: _wba.reason || 'a valid Web Bot Auth signature (RFC 9421, tag=web-bot-auth) is required',
+            login_required: false,
+          }));
+          return;
+        }
+      }
+    }
 
     // ── Step 2e: RAR intent-subset enforcement (RFC 9396) ────────────────────────
     // Enforce that the actual tool-call params are a subset of the granted

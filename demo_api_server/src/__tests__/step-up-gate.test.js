@@ -180,6 +180,10 @@ jest.mock('../../services/transactionAuthorizationService', () => {
 
 const app = require('../../server');
 const runtimeSettings = require('../../config/runtimeSettings');
+// Capture the transactionAuthorizationService mock at module load time — before
+// jest.resetModules() (called in setup.js afterEach) can create a separate
+// instance that the route handler wouldn't see.
+const transactionAuthorizationServiceMock = require('../../services/transactionAuthorizationService');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const customerUser = (overrides = {}) =>
@@ -255,6 +259,7 @@ afterEach(() => {
     stepUpAcrValue: originalSettings.stepUpAcrValue,
     stepUpTransactionTypes: originalSettings.stepUpTransactionTypes,
     stepUpWithdrawalsAlways: false,
+    stepUpMaxAge: 0,
     authorizeEnabled: false,
   }, 'test-cleanup');
 });
@@ -533,6 +538,94 @@ describe('Step-Up MFA Gate — POST /api/transactions', () => {
       expect(res.status).toBe(428);
       expect(res.body.error).toBe('step_up_required');
       expect(res.body.isHITL).toBe(true);
+    });
+  });
+
+  // ── RFC 9470 challenge pass-through (ff_rfc9470_challenge) ───────────────────
+  describe('RFC 9470 challenge pass-through', () => {
+    it('applies block.headers and status from the authorization service', async () => {
+      const txAuthz = transactionAuthorizationServiceMock;
+      const header =
+        'Bearer error="insufficient_user_authentication", acr_values="Multi_Factor", max_age="0"';
+      txAuthz.evaluateTransactionPolicy.mockResolvedValueOnce({
+        ran: true,
+        block: {
+          status: 401,
+          headers: { 'WWW-Authenticate': header },
+          body: {
+            error: 'step_up_required',
+            hitl: { type: 'step_up' },
+            step_up_url: '/api/auth/oauth/user/stepup',
+            step_up_acr: 'Multi_Factor',
+            step_up_method: 'ciba',
+          },
+        },
+      });
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send(highValueWithdrawal(500));
+
+      expect(res.status).toBe(401);
+      expect(res.headers['www-authenticate']).toBe(header);
+      expect(res.body.error).toBe('step_up_required'); // body kept in RFC mode
+    });
+  });
+
+  // ── auth_time freshness (stepUpMaxAge, RFC 9470 §5) ─────────────────────────
+  describe('auth_time freshness (stepUpMaxAge)', () => {
+    it('downgrades a stale strong ACR so the gate fires', async () => {
+      runtimeSettings.update(
+        { stepUpEnabled: true, stepUpAmountThreshold: 250, stepUpAcrValue: 'Multi_factor', stepUpMaxAge: 300 },
+        'test'
+      );
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set(
+          'x-test-user',
+          customerUser({ acr: 'Multi_factor', authTime: Math.floor(Date.now() / 1000) - 3600 })
+        )
+        .send(highValueWithdrawal(500));
+
+      // Route downgraded acr to null (stale auth) → the gate fires.
+      expect(res.status).toBe(428);
+      expect(res.body.error).toBe('step_up_required');
+    });
+
+    it('passes when auth_time is fresh', async () => {
+      runtimeSettings.update(
+        { stepUpEnabled: true, stepUpAmountThreshold: 250, stepUpAcrValue: 'Multi_factor', stepUpMaxAge: 300 },
+        'test'
+      );
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set(
+          'x-test-user',
+          customerUser({ acr: 'Multi_factor', authTime: Math.floor(Date.now() / 1000) - 10 })
+        )
+        .send(highValueWithdrawal(500));
+
+      expect(res.status).not.toBe(428);
+    });
+
+    it('is disabled by default (stepUpMaxAge=0): stale auth_time is ignored', async () => {
+      runtimeSettings.update(
+        { stepUpEnabled: true, stepUpAmountThreshold: 250, stepUpAcrValue: 'Multi_factor', stepUpMaxAge: 0 },
+        'test'
+      );
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set(
+          'x-test-user',
+          customerUser({ acr: 'Multi_factor', authTime: Math.floor(Date.now() / 1000) - 999999 })
+        )
+        .send(highValueWithdrawal(500));
+
+      expect(res.status).not.toBe(428);
     });
   });
 });

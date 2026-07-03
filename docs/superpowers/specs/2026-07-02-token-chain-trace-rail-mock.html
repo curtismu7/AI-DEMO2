@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Token Chain Rail — Full Pipeline Mock v3</title>
+<style>
+  :root {
+    --brand-navy: #1d4ed8;
+    --brand-navy-deep: #16325c;
+    --brand-light-gray: #f8fafc;
+    --brand-medium-gray: #bfdbfe;
+    --tok-user-bg: #fce7f3; --tok-user-bd: #f472b6; --tok-user-tx: #be185d;
+    --tok-agent-bg: #e9d5ff; --tok-agent-bd: #c084fc; --tok-agent-tx: #7e22ce;
+    --tok-mcp-bg: #d1fae5; --tok-mcp-bd: #34d399; --tok-mcp-tx: #047857;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #e2e8f0; padding: 24px; color: #0f172a;
+    display: flex; gap: 32px; align-items: flex-start; justify-content: center;
+  }
+  .page-hint { flex: 0 1 480px; background: #fff; border-radius: 8px; min-height: 780px;
+    display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px;
+    border: 1px solid var(--brand-medium-gray); position: sticky; top: 24px; }
+  .caption { text-align: center; font-size: 12px; color: #475569; margin-bottom: 8px; }
+
+  .rail-wrap { flex: 0 0 380px; }
+  .rail {
+    width: 380px; background: #fff; border: 1px solid var(--brand-medium-gray);
+    border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,23,42,.08);
+  }
+
+  .xmode {
+    background: var(--brand-navy-deep); color: #fff; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .xmode .lbl { font-size: 12.5px; font-weight: 600; }
+  .xmode .seg { display: flex; background: rgba(255,255,255,.12); border-radius: 6px; padding: 2px; }
+  .xmode .seg button { border: 0; background: transparent; color: #cbd5e1; font-size: 11.5px; font-weight: 600;
+    padding: 4px 10px; border-radius: 5px; cursor: pointer; }
+  .xmode .seg button.on { background: #fff; color: var(--brand-navy-deep); }
+
+  .tc-head {
+    background: var(--brand-navy-deep); color: #fff; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,.15);
+  }
+  .tc-head .t { font-size: 13px; font-weight: 700; }
+  .tc-head .legend-btn { background: none; border: 1px solid rgba(255,255,255,.35); color: #e2e8f0;
+    font-size: 11px; border-radius: 5px; padding: 3px 8px; cursor: pointer; }
+
+  .chain-line {
+    display: flex; align-items: center; gap: 6px; padding: 10px 12px;
+    border-bottom: 1px solid #e8eef7; font-size: 12.5px; font-weight: 600; flex-wrap: wrap;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot.u { background: var(--tok-user-bd); } .dot.a { background: var(--tok-agent-bd); } .dot.m { background: var(--tok-mcp-bd); }
+  .arrow { color: #94a3b8; font-weight: 400; }
+  .badge { margin-left: auto; background: var(--brand-navy); color: #fff; font-size: 10.5px;
+    padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+
+  .sec-label { font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;
+    letter-spacing: .06em; padding: 8px 12px 2px; }
+
+  /* Actor lane chip on each step */
+  .lane { font-size: 9px; font-weight: 800; letter-spacing: .04em; border-radius: 4px; padding: 1px 5px; flex-shrink: 0; }
+  .lane.chat    { background: #fce7f3; color: #9d174d; }
+  .lane.agent   { background: var(--tok-agent-bg); color: var(--tok-agent-tx); }
+  .lane.llm     { background: #ede9fe; color: #5b21b6; }
+  .lane.pingone { background: #dbeafe; color: #1e40af; }
+  .lane.bff     { background: #f1f5f9; color: #334155; }
+  .lane.authz   { background: #fef3c7; color: #92400e; }
+  .lane.gw      { background: #cffafe; color: #0e7490; }
+  .lane.mcp     { background: var(--tok-mcp-bg); color: var(--tok-mcp-tx); }
+  .lane.api     { background: #fee2e2; color: #b91c1c; }
+
+  details.step { border-bottom: 1px dashed #eef2f9; }
+  details.step summary {
+    list-style: none; display: flex; align-items: center; gap: 7px;
+    padding: 7px 12px; cursor: pointer; font-size: 12px;
+  }
+  details.step summary::-webkit-details-marker { display: none; }
+  .st-ic { width: 15px; text-align: center; font-size: 12px; flex-shrink: 0; }
+  .ok { color: #16a34a; } .run { color: var(--brand-navy); } .todo { color: #cbd5e1; } .deny { color: #dc2626; }
+  .st-title { flex: 1; min-width: 0; }
+  .st-time { font-size: 10px; color: #94a3b8; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .step-body { padding: 10px 12px 12px 24px; font-size: 12px; color: #334155; background: var(--brand-light-gray);
+    border-top: 1px solid #eef2f9; }
+  .step-body h4 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #64748b;
+    margin: 10px 0 4px; font-weight: 700; }
+  .step-body h4:first-child { margin-top: 0; }
+  .step-body code.block {
+    display: block; background: #0f172a; color: #bae6fd; font-size: 10.5px; padding: 8px;
+    border-radius: 6px; margin: 4px 0; overflow-x: auto; font-family: ui-monospace, Menlo, monospace;
+    white-space: pre; line-height: 1.5;
+  }
+  .step-body code.block .hl { color: #fde047; } .step-body code.block .grn { color: #86efac; } .step-body code.block .red { color: #fca5a5; }
+  .kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 11px; margin: 4px 0; }
+  .kv .k { color: #64748b; font-weight: 600; } .kv .v { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; word-break: break-all; }
+  .decision { border-radius: 6px; padding: 6px 9px; font-size: 11.5px; font-weight: 700; margin: 4px 0; }
+  .decision.permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .scope-diff { display: flex; gap: 6px; align-items: center; font-family: ui-monospace, Menlo, monospace; font-size: 11px; flex-wrap: wrap; margin: 4px 0; }
+  .sc { border-radius: 4px; padding: 1px 6px; background: #e2e8f0; }
+  .sc.gone { text-decoration: line-through; color: #94a3b8; }
+  .sc.kept { background: #dcfce7; color: #166534; font-weight: 700; }
+  .insp { color: var(--brand-navy); font-weight: 600; font-size: 11px; cursor: pointer; background: none; border: none; padding: 0; }
+  .rfc { display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px;
+    font-size: 9.5px; font-weight: 700; padding: 1px 5px; margin-left: 3px; }
+
+  details.acc { border-bottom: 1px solid #e8eef7; }
+  details.acc > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--brand-navy-deep); }
+  details.acc > summary::-webkit-details-marker { display: none; }
+  details.acc > summary .chev { transition: transform .15s; font-size: 10px; color: #64748b; }
+  details.acc[open] > summary .chev { transform: rotate(90deg); }
+  details.acc > summary .count { margin-left: auto; font-size: 10.5px; font-weight: 600;
+    color: #64748b; background: #eef2f9; border-radius: 999px; padding: 1px 7px; }
+  .acc-body { padding: 2px 12px 12px; }
+
+  .tok-card { border: 1px solid; border-left-width: 4px; border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; font-size: 12px; }
+  .tok-card.u { background: var(--tok-user-bg); border-color: var(--tok-user-bd); }
+  .tok-card.a { background: var(--tok-agent-bg); border-color: var(--tok-agent-bd); }
+  .tok-card.m { background: var(--tok-mcp-bg); border-color: var(--tok-mcp-bd); }
+  .tok-card .row1 { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .tok-card .name { font-weight: 700; }
+  .tok-card.u .name { color: var(--tok-user-tx); } .tok-card.a .name { color: var(--tok-agent-tx); } .tok-card.m .name { color: var(--tok-mcp-tx); }
+  .tok-card .role { font-size: 10px; color: #475569; background: rgba(255,255,255,.6); padding: 1px 6px; border-radius: 4px; }
+  .tok-card .claims { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; color: #334155; line-height: 1.5; }
+  .tok-card .inspect { float: right; background: #fff; border: 1px solid #cbd5e1; border-radius: 5px;
+    font-size: 10.5px; font-weight: 600; padding: 2px 8px; cursor: pointer; color: var(--brand-navy); }
+
+  .overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 10px; width: min(520px, 92vw); max-height: 80vh; overflow-y: auto; }
+  .modal .mh { background: var(--brand-navy-deep); color: #fff; padding: 12px 16px; font-size: 13.5px; font-weight: 700;
+    display: flex; justify-content: space-between; border-radius: 10px 10px 0 0; }
+  .modal .mh button { background: none; border: 0; color: #fff; font-size: 16px; cursor: pointer; }
+  .modal .mb { padding: 14px 16px; font-size: 12.5px; }
+  .claim { display: grid; grid-template-columns: 90px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f1f5f9; }
+  .claim .k { font-family: ui-monospace, Menlo, monospace; color: var(--brand-navy); font-weight: 700; font-size: 11.5px; }
+  .claim .v { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: #334155; word-break: break-all; }
+  .claim .d { grid-column: 2; font-size: 11px; color: #64748b; }
+</style>
+</head>
+<body>
+
+<div class="rail-wrap">
+  <div class="caption">v3 — full pipeline from chat prompt to reply · steps 4, 6 &amp; 7 expanded</div>
+  <div class="rail">
+
+    <div class="xmode">
+      <span class="lbl">Token Exchange Mode</span>
+      <span class="seg"><button class="on">Chained</button><button>Single</button></span>
+    </div>
+
+    <div class="tc-head">
+      <span class="t">🔗 Token Chain</span>
+      <button class="legend-btn" onclick="document.getElementById('legend').classList.add('show')">Legend</button>
+    </div>
+
+    <div class="chain-line">
+      <span class="dot u"></span> User <span class="arrow">→</span>
+      <span class="dot a"></span> Agent <span class="arrow">→</span>
+      <span class="dot m"></span> MCP
+      <span class="badge">CHAINED</span>
+    </div>
+
+    <div class="sec-label">Pipeline — "transfer $250 to savings"</div>
+
+    <!-- 1 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">1. Sign-in — User Token acquired</span><span class="lane pingone">PINGONE</span><span class="st-time">14:02:07</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        User authenticated via OIDC Authorization Code + PKCE. BFF holds the User Token server-side — it never reaches the browser. <span class="rfc">RFC 6749</span> <span class="rfc">PKCE 7636</span>
+        <h4>Token request (actual)</h4>
+        <code class="block">POST https://auth.pingone.com/{env}/as/token
+grant_type=authorization_code
+code=xK3f…&code_verifier=dBjf…
+client_id=banking-app</code>
+        <h4>Response</h4>
+        <code class="block">200 OK
+{ "access_token": "eyJhbGci…",
+  "scope": "<span class="grn">read write</span>", "expires_in": 3600 }</code>
+        <button class="insp" onclick="showClaims('user')">→ Inspect User Token claims</button>
+      </div>
+    </details>
+
+    <!-- 2 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">2. Chatbot — prompt sent</span><span class="lane chat">CHAT</span><span class="st-time">14:02:38</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        The user types in the chat. The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.
+        <h4>Request (actual)</h4>
+        <code class="block">POST /api/agent/run
+Cookie: session=s%3Aabc123…
+{ "message": "<span class="hl">transfer $250 to savings</span>",
+  "vertical": "banking",
+  "stream": true }</code>
+      </div>
+    </details>
+
+    <!-- 3 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">3. Agent service receives request</span><span class="lane agent">AGENT</span><span class="st-time">+0.1s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        BFF forwards to the LangChain agent. The agent loads conversation history, the tool catalog from the MCP gateway (with each tool's required scopes), and prepares the LLM call.
+        <div class="kv">
+          <span class="k">agent</span><span class="v">langchain-mcp-agent</span>
+          <span class="k">history</span><span class="v">last 30 messages (LMDB)</span>
+          <span class="k">tools</span><span class="v">12 from gateway scope map</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- 4: LLM expanded -->
+    <details class="step" open>
+      <summary><span class="st-ic ok">✓</span><span class="st-title">4. LLM — reasoning &amp; tool choice</span><span class="lane llm">LLM</span><span class="st-time">+0.7s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        The agent sends the conversation to the LLM. The model reasons over the request and returns a <b>tool call</b> — it never sees or holds any token.
+        <h4>LLM request (actual)</h4>
+        <code class="block">POST http://llm-proxy:8090/v1/chat/completions
+{ "model": "qwen2.5-14b-instruct",
+  "messages": [
+    { "role": "system",
+      "content": "You are a banking assistant.
+       Available tools: transfer_funds
+       (requires scope: write), …" },
+    { "role": "user",
+      "content": "transfer $250 to savings" } ],
+  "tools": [ …12 tool schemas… ] }</code>
+        <h4>LLM response — tool call</h4>
+        <code class="block">{ "tool_calls": [ {
+    "name": "<span class="hl">transfer_funds</span>",
+    "arguments": { "amount": <span class="hl">250</span>,
+      "to_account": "savings" } } ] }</code>
+        <div class="kv">
+          <span class="k">needs scope</span><span class="v">write</span>
+          <span class="k">tokens used</span><span class="v">prompt 1,842 · completion 61</span>
+          <span class="k">audit</span><span class="v">routing decision logged</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- 5 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">5. Agent identity token</span><span class="lane bff">BFF</span><span class="st-time">+0.8s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        BFF obtains a client-credentials token — the agent's own identity, separate from the user's.
+        <h4>Request (actual)</h4>
+        <code class="block">POST /as/token
+grant_type=client_credentials
+client_id=agent-001</code>
+        <button class="insp" onclick="showClaims('agent')">→ Inspect Agent Token claims</button>
+      </div>
+    </details>
+
+    <!-- 6: exchange expanded -->
+    <details class="step" open>
+      <summary><span class="st-ic ok">✓</span><span class="st-title">6. Token exchange — delegation</span><span class="lane bff">BFF</span><span class="st-time">+1.0s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        BFF exchanges <b>subject</b> (user) + <b>actor</b> (agent) for one delegated token: proof the agent acts <i>for</i> this user. Scope narrows to what the tool needs; audience binds to the gateway. <span class="rfc">RFC 8693 §4</span> <span class="rfc">RFC 8707</span>
+        <h4>Exchange request (actual)</h4>
+        <code class="block">POST /as/token
+grant_type=urn:ietf:params:oauth:
+  grant-type:token-exchange
+subject_token=eyJ…   (User)
+actor_token=eyJ…     (Agent)
+scope=<span class="hl">write</span>
+resource=<span class="hl">https://mcp-gw.ping.demo</span></code>
+        <h4>Response — delegated token</h4>
+        <code class="block">200 OK
+{ "access_token": "eyJ…",
+  "issued_token_type": "…access_token",
+  "scope": "<span class="grn">write</span>" }</code>
+        <h4>Scope change</h4>
+        <div class="scope-diff"><span class="sc gone">read</span><span class="sc kept">write</span><span style="color:#64748b;font-size:10.5px">← narrowed: only what transfer_funds needs</span></div>
+        <h4>Delegation proof</h4>
+        <code class="block">"act": { "sub": "<span class="hl">agent-001</span>" },
+"sub": "user-123"   ← nested act chain</code>
+        <button class="insp" onclick="showClaims('mcp')">→ Inspect delegated token claims</button>
+      </div>
+    </details>
+
+    <!-- 7: authorize expanded -->
+    <details class="step" open>
+      <summary><span class="st-ic ok">✓</span><span class="st-title">7. PingOne Authorize — policy decision</span><span class="lane authz">AUTHZ</span><span class="st-time">+1.2s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may do THIS action at THIS amount.
+        <h4>Decision request (actual)</h4>
+        <code class="block">POST /environments/{env}/decisionEndpoints/{id}
+{ "parameters": {
+    "user.id": "user-123",
+    "agent.id": "agent-001",
+    "action": "<span class="hl">transfer_funds</span>",
+    "amount": <span class="hl">250</span>,
+    "acr": "Multi_Factor",
+    "tokenActive": true } }</code>
+        <h4>Decision</h4>
+        <div class="decision permit">✓ PERMIT — policy "Banking transfers &lt; $500"</div>
+        <div class="kv">
+          <span class="k">matched rule</span><span class="v">amount &lt; 500 AND tokenActive</span>
+          <span class="k">step-up</span><span class="v">not required (below threshold → no CIBA/MFA)</span>
+          <span class="k">decision id</span><span class="v">dec_8f31…</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- 8 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">8. Agent Gateway — token validated</span><span class="lane gw">GATEWAY</span><span class="st-time">+1.4s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        Ping Agent Gateway (MCP gateway) checks the delegated token before anything reaches the MCP server: signature, <code style="display:inline">iss</code>/<code style="display:inline">aud</code>/<code style="display:inline">exp</code>, required scope for the tool, and the <code style="display:inline">act</code> delegation chain.
+        <h4>Validation checks</h4>
+        <div class="kv">
+          <span class="k">signature</span><span class="v">✓ JWKS kid=rsa-1</span>
+          <span class="k">aud</span><span class="v">✓ mcp-gw.ping.demo (RFC 8707 bound)</span>
+          <span class="k">scope</span><span class="v">✓ write ⊇ tool requirement</span>
+          <span class="k">act chain</span><span class="v">✓ agent-001 for user-123</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- 9 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">9. MCP server — tool executes</span><span class="lane mcp">MCP</span><span class="st-time">+1.6s</span></summary>
+      <div class="step-body">
+        <h4>JSON-RPC call (actual)</h4>
+        <code class="block">{ "method": "tools/call",
+  "params": { "name": "transfer_funds",
+    "arguments": { "amount": 250,
+      "to_account": "savings" } } }</code>
+        <h4>What the MCP server did</h4>
+        Re-validated the token, resolved the user from <code style="display:inline">sub</code>, and invoked the banking API with the delegated identity.
+      </div>
+    </details>
+
+    <!-- 10 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">10. Resource server — API call</span><span class="lane api">API</span><span class="st-time">+1.8s</span></summary>
+      <div class="step-body">
+        <h4>Actual API call</h4>
+        <code class="block">POST https://api.ping.demo/api/transactions
+Authorization: Bearer eyJ… (delegated)
+{ "type": "transfer", "amount": 250,
+  "from": "checking", "to": "savings" }</code>
+        <h4>Response</h4>
+        <code class="block">201 Created
+{ "transactionId": "txn_9d2e…",
+  "balance": 4750.00, "status": "posted" }</code>
+      </div>
+    </details>
+
+    <!-- 11 -->
+    <details class="step">
+      <summary><span class="st-ic ok">✓</span><span class="st-title">11. LLM composes reply → chat</span><span class="lane llm">LLM</span><span class="st-time">+2.2s</span></summary>
+      <div class="step-body">
+        <h4>What happened</h4>
+        The tool result goes back to the LLM, which writes the reply; it streams through BFF → chat bubble. Full trace stored in the audit log.
+        <h4>LLM request (tool result appended)</h4>
+        <code class="block">{ "role": "tool", "name": "transfer_funds",
+  "content": { "transactionId": "txn_9d2e…",
+    "status": "posted", "balance": 4750 } }</code>
+        <h4>Streamed reply (what the user sees)</h4>
+        <code class="block">"Done! I transferred <span class="grn">$250</span> to savings.
+ New checking balance: <span class="grn">$4,750</span>."</code>
+      </div>
+    </details>
+
+    <!-- Accordions -->
+    <details class="acc">
+      <summary><span class="chev">▶</span> Tokens <span class="count">3</span></summary>
+      <div class="acc-body">
+        <div class="tok-card u">
+          <button class="inspect" onclick="showClaims('user')">Inspect</button>
+          <div class="row1"><span class="name">User Token</span><span class="role">subject_token</span></div>
+          <div class="claims">sub: user-123 · scope: read write · aud: banking-api</div>
+        </div>
+        <div class="tok-card a">
+          <button class="inspect" onclick="showClaims('agent')">Inspect</button>
+          <div class="row1"><span class="name">Agent Token</span><span class="role">actor_token</span></div>
+          <div class="claims">sub: agent-001 · client_credentials</div>
+        </div>
+        <div class="tok-card m">
+          <button class="inspect" onclick="showClaims('mcp')">Inspect</button>
+          <div class="row1"><span class="name">Delegated Token</span><span class="role">act chain</span></div>
+          <div class="claims">sub: user-123 · act.sub: agent-001<br>scope: write <b style="color:#b45309">narrowed</b> · aud: mcp-gw <b style="color:#047857">bound</b></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="chev">▶</span> Exchange Mode Details</summary>
+      <div class="acc-body">
+        <div class="kv" style="grid-template-columns:70px 1fr">
+          <span class="k" style="color:var(--tok-user-tx)">User</span><span class="v">PingOne OIDC login → subject_token</span>
+          <span class="k" style="color:var(--tok-agent-tx)">Agent</span><span class="v">client credentials → actor_token</span>
+          <span class="k" style="color:var(--tok-mcp-tx)">MCP</span><span class="v">RFC 8693 exchange → nested act claim</span>
+        </div>
+      </div>
+    </details>
+
+  </div>
+</div>
+
+<div class="page-hint">rest of dashboard (agent / banking columns)</div>
+
+<div class="overlay" id="legend" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <div class="mh">📋 Token Legend <button onclick="document.getElementById('legend').classList.remove('show')">×</button></div>
+    <div class="mb">
+      <div class="claim"><span class="k" style="color:var(--tok-user-tx)">■ User</span><span class="v">subject_token — the authenticated user (pink)</span></div>
+      <div class="claim"><span class="k" style="color:var(--tok-agent-tx)">■ Agent</span><span class="v">actor_token — the AI agent (purple)</span></div>
+      <div class="claim"><span class="k" style="color:var(--tok-mcp-tx)">■ Delegated</span><span class="v">narrowed scope, aud-bound, nested act (green)</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="claims" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <div class="mh"><span id="claims-title">Claims</span> <button onclick="document.getElementById('claims').classList.remove('show')">×</button></div>
+    <div class="mb" id="claims-body"></div>
+  </div>
+</div>
+
+<script>
+const CLAIMS = {
+  user: ['User Token — Claims', [
+    ['sub','user-123','Subject (RFC 7519) — the authenticated user.'],
+    ['scope','read write','Full grant from login — before any narrowing.'],
+    ['aud','banking-api','Audience — where this token may be used.'],
+    ['acr','Multi_Factor','MFA was used at sign-in (RFC 9470).'],
+    ['may_act','{client_id: bff}','Pre-authorizes the BFF to exchange this token (RFC 8693 §4.2).']]],
+  agent: ['Agent Token — Claims', [
+    ['sub','agent-001','The agent\'s own machine identity.'],
+    ['client_id','agent-001','Issued via client_credentials grant.'],
+    ['iss','https://auth.pingone.com/{env}','PingOne AS that signed the token.']]],
+  mcp: ['Delegated Token — Claims', [
+    ['sub','user-123','Still the USER — the agent never becomes the user.'],
+    ['act','{sub: agent-001}','Actor (RFC 8693 §4.1) — nested proof the agent acts for the user.'],
+    ['scope','write','Narrowed from "read write" — exchange can only reduce scope.'],
+    ['aud','mcp-gw.ping.demo','RFC 8707 — useless against any other API.'],
+    ['exp','+5 min','Short-lived to limit blast radius.']]],
+};
+function showClaims(which){
+  const [title, rows] = CLAIMS[which];
+  document.getElementById('claims-title').textContent = '🔍 ' + title;
+  document.getElementById('claims-body').innerHTML = rows.map(([k,v,d]) =>
+    `<div class="claim"><span class="k">${k}</span><span class="v">${v}</span><span class="d">${d}</span></div>`).join('');
+  document.getElementById('claims').classList.add('show');
+}
+</script>
+
+</body>
+</html>

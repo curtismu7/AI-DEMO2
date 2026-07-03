@@ -43,6 +43,8 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  /* Force high-contrast white so no inherited/injected rule can tint header text (e.g. red). */
+  color: #fff !important;
 }
 
 .oas-demo-subtitle {
@@ -51,6 +53,7 @@
   opacity: 0.88;
   line-height: 1.5;
   max-width: 540px;
+  color: #fff !important;
 }
 
 .oas-demo-subtitle code {
@@ -59,6 +62,7 @@
   padding: 1px 5px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.85em;
+  color: #fff !important;
 }
 
 .oas-demo-launch-btn {

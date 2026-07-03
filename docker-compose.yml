@@ -66,10 +66,12 @@ services:
       # exchange (no skipping). Mirrors service-topology.json — run
       # `node scripts/gen-service-topology.js check` to verify no drift.
       MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
-      # PingGateway (IG) alternative gateway — used when ff_mcp_gateway_pinggateway is ON.
+      # PingGateway (IG) gateway — the DEFAULT MCP enforcement point (real PingOne
+      # token end-to-end). Env is synced into the store at every boot (FF_ENV_MAP),
+      # so this value wins over persisted toggles; flip here to change the default.
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
-      FF_MCP_GATEWAY_PINGGATEWAY: "false"
+      FF_MCP_GATEWAY_PINGGATEWAY: "true"
       # Authz defaults for the demo. configStore seeds these into LMDB only when
       # no value is persisted yet, and persisted /config overrides still win — so
       # these just make a FRESH bff-data volume come up with this engine. See
@@ -595,10 +597,10 @@ services:
       PG_OLB_BACKEND_URL: "http://mcp-server:8080"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
-      # Non-empty worker/policy id so the decision path segment is valid for the mock
-      # (the mock uses it only as a path param + log field). Real P1AZ uses P1AZ_REAL_BASE
-      # + P1AZ_WORKER_ID + worker creds from ./ping-gateway/.env.
-      P1AZ_WORKER_ID: "mcp-policy"
+      # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
+      # Do NOT pin it here — the env block wins over env_file, and a placeholder
+      # pin silently overrides the real id (the mock only uses it as a path param,
+      # so the real value works for both backends).
     env_file:
       # Secrets + PingOne endpoints + resource ids (gitignored; .env.example is SoT).
       - path: ./ping-gateway/.env

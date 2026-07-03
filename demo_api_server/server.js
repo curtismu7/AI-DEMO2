@@ -1317,9 +1317,26 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 // Mounted after session/auth middleware but before static files.
 app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
 
+// Public CIMD agent metadata documents — no authentication required (an AS
+// must be able to fetch them). Derived from scope-topology.json at request
+// time. Consumed by the mocked register-by-URL path (PingOne has no CIMD).
+app.use('/api/cimd', require('./routes/cimdAgentMetadata'));
+
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
+
+// Web Bot Auth key directory (draft-meunier-web-bot-auth-architecture) —
+// public JWKS of the agent's Ed25519 signing key(s). The MCP gateway resolves
+// the Signature-Agent header to this endpoint to verify RFC 9421 signatures
+// on outbound BFF→gateway MCP requests (see services/dpopKeyService.js).
+app.get('/.well-known/http-message-signatures-directory', (req, res) => {
+    const { getWebBotAuthKey } = require('./services/dpopKeyService');
+    const key = getWebBotAuthKey();
+    res.set('Content-Type', 'application/http-message-signatures-directory+json');
+    res.set('Cache-Control', 'max-age=300');
+    res.json({ keys: [{ ...key.publicJwk, kid: key.keyid }] });
+});
 
 // OAS fragment — public, no authentication required
 app.use('/api/oas', require('./routes/oas'));

@@ -153,6 +153,7 @@ vi.mock("../AgentUiModeToggle", () => ({ default: () => null }));
 vi.mock("../BrandLogo", () => ({ default: () => null }));
 vi.mock("../shared/LoadingOverlay", () => ({ default: () => null }));
 vi.mock("../TokenChainDisplay", () => ({ default: () => null }));
+vi.mock("../TokenChainTraceRail", () => ({ default: () => null }));
 vi.mock("../AdminSubPageShell", () => ({ default: ({ children, lead }) => (
 	<div>
 		{lead}
