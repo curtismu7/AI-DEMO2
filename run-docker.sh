@@ -104,6 +104,55 @@ ensure_bind_mounts() {
   fi
 }
 
+# ── Vault preflight ───────────────────────────────────────────────────────────
+# docker-compose.yml bind-mounts the committed encrypted secrets.vault into the
+# BFF, which loads it into configStore at startup and FAILS FAST (exit 1) if the
+# vault file is present but VAULT_PASSWORD is unset OR wrong — otherwise the
+# ai-demo-api-server container just crash-loops with an opaque "open failed".
+# VAULT_PASSWORD reaches the container via the env_file (demo_api_server/.env);
+# we read it from the same file here to verify it actually DECRYPTS before `up`.
+# When no vault file exists this is a transparent no-op (env-only dev machines).
+# Mirrors run.sh's preflight. VAULT_PASSWORD is only ever passed via the subshell
+# environment, never as a CLI arg, and is never echoed.
+vault_preflight() {
+  local vault_file="${VAULT_PATH:-$BASEDIR/secrets.vault}"
+  [[ -f "$vault_file" ]] || { ok "No secrets.vault — BFF uses .env / process.env values."; return 0; }
+
+  # Auto-load VAULT_PASSWORD from demo_api_server/.env (the BFF's env_file) when
+  # not already set in the shell. Only VAULT_PASSWORD is extracted; the file is
+  # never sourced. Strips surrounding single/double quotes.
+  local vp="${VAULT_PASSWORD:-}"
+  if [[ -z "$vp" && -f "$BASEDIR/demo_api_server/.env" ]]; then
+    vp=$(grep -E '^VAULT_PASSWORD=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | head -1 | sed 's/^VAULT_PASSWORD=//; s/^"//; s/"$//' | tr -d "'" || true)
+  fi
+
+  if [[ -z "$vp" ]]; then
+    err "secrets.vault present at ${vault_file} but VAULT_PASSWORD is not set."
+    err "The BFF will refuse to start (exit 1)."
+    err "Fix: add VAULT_PASSWORD=... to demo_api_server/.env (or export it) before ./run-docker.sh."
+    exit 1
+  fi
+
+  # A wrong/rotated password passes the presence check above, then crash-loops
+  # the BFF. Verify it actually DECRYPTS here, once, up front. Only a confirmed
+  # decrypt failure (exit 3) is fatal; if the check itself can't run (no node /
+  # missing deps → any other exit) we fall back to letting the BFF validate at
+  # boot, so this never introduces a spurious abort.
+  local rc=0
+  VAULT_FILE="$vault_file" VAULT_PASSWORD="$vp" VAULT_LIB="$BASEDIR/demo_api_server/lib/vault" \
+    node -e 'const {openVault}=require(process.env.VAULT_LIB);openVault(process.env.VAULT_FILE,process.env.VAULT_PASSWORD).then(()=>process.exit(0)).catch(()=>process.exit(3));' \
+    >/dev/null 2>&1 || rc=$?
+  if [[ "$rc" -eq 3 ]]; then
+    err "VAULT_PASSWORD is set but does NOT decrypt ${vault_file} (wrong or rotated password)."
+    err "The BFF would crash with an opaque 'open failed'. Fix the password in demo_api_server/.env before ./run-docker.sh."
+    exit 1
+  elif [[ "$rc" -ne 0 ]]; then
+    warn "Could not run vault decrypt preflight (node/deps unavailable) — the BFF will validate at boot."
+  else
+    ok "secrets.vault verified — VAULT_PASSWORD decrypts it."
+  fi
+}
+
 # ── Git sync preflight ────────────────────────────────────────────────────────
 # run-docker builds from the WORKING TREE, not from git — so a build can quietly
 # ship uncommitted edits or a branch that's behind origin. This is advisory: dev
@@ -417,7 +466,7 @@ cmd_restart_one() {
   echo -e "${CYAN}${BOLD}   [DOCKER]  Restarting ${*} (others untouched)${RESET}"
   echo ""
   git_sync_check; echo ""
-  _includes_bff "$@" && { ensure_bind_mounts; echo ""; }
+  _includes_bff "$@" && { ensure_bind_mounts; vault_preflight; echo ""; }
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   echo ""
@@ -440,7 +489,7 @@ cmd_build_one() {
   echo -e "${CYAN}${BOLD}   [DOCKER]  Rebuilding + restarting ${services[@]} (others untouched)${RESET}"
   echo ""
   git_sync_check; echo ""
-  _includes_bff "${services[@]}" && { ensure_bind_mounts; echo ""; }
+  _includes_bff "${services[@]}" && { ensure_bind_mounts; vault_preflight; echo ""; }
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   echo ""
@@ -505,6 +554,11 @@ cmd_start() {
   # Guarantee the gitignored bind-mount sources exist as the right type before
   # `up` — otherwise Docker creates empty dirs and the BFF comes up unhealthy.
   ensure_bind_mounts
+  echo ""
+
+  # Verify the encrypted secrets.vault decrypts before `up` — the BFF fails fast
+  # (exit 1) if the vault is present but VAULT_PASSWORD is unset/wrong.
+  vault_preflight
   echo ""
 
   # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't

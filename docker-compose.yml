@@ -139,6 +139,12 @@ services:
       # the path configStore expects (/scope-topology.json) fixes its load in Docker.
       - ./ping-gateway/config:/app/gateway-config
       - ./scope-topology.json:/scope-topology.json
+      # Encrypted secrets vault (Phase 269). vaultLoader's default path is
+      # REPO_ROOT/secrets.vault, which resolves to /secrets.vault inside /app —
+      # mount the committed encrypted file there. VAULT_PASSWORD arrives via the
+      # env_file (demo_api_server/.env); without it the BFF fails fast (exit 1),
+      # so run-docker.sh's vault preflight verifies the password decrypts first.
+      - ./secrets.vault:/secrets.vault:ro
       # One-click "Restart gateway" button hits the Docker Engine API over this socket
       # (no docker CLI/dep in the image). Admin-gated; only restarts the two allowlisted
       # containers. This grants host container control — keep the endpoint locked down.
