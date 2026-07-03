@@ -53,8 +53,12 @@ jest.mock('../services/nlIntentParser', () => {
 jest.mock('../services/agentReasoningClient', () => ({
   runReasonLoop: jest.fn(async () => ({ ok: true, answer: 'LLM_OK' })),
 }));
+// Delegate to the REAL resolver (it is pure) so the bff-path provider-selection
+// seam can be asserted — a fixed llamacpp stub would mask the Helix-default bug.
 jest.mock('../services/llmProviderResolver', () => ({
-  resolveLlmProvider: jest.fn(() => ({ provider: 'llamacpp', model: 'test' })),
+  resolveLlmProvider: jest.fn(
+    jest.requireActual('../services/llmProviderResolver').resolveLlmProvider
+  ),
 }));
 
 // Silence the admin events feed (no IO assertions on it).
@@ -149,5 +153,44 @@ describe('processAgentMessage — mode seams', () => {
     expect(performTokenExchange).not.toHaveBeenCalled();
     expect(result.reply).not.toBe(nlIntentParser.buildCatalogMessage());
     expect(result).toBeDefined();
+  });
+
+  test('4. bff LLM path: unseeded session defaults to the agent_mode provider (not Helix)', async () => {
+    // OAuth Academy repro: a public-page session never ran the mode picker, so
+    // langchain_config is {} — yet AGENT_MODE=llamacpp is the SSOT. Pre-fix the
+    // reason loop resolved provider from the empty config → 'helix' (partially
+    // configured → "Missing input"). It must honor the resolved agent_mode.
+    resetCfg({ agent_mode: 'llamacpp' });
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+
+    const result = await processAgentMessage({
+      message: 'what is oauth',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      langchainConfig: {}, // no explicit provider
+      req: { body: {} },
+    });
+
+    expect(runReasonLoop).toHaveBeenCalledTimes(1);
+    expect(runReasonLoop.mock.calls[0][0].provider).toBe('llamacpp');
+    expect(result.success).toBe(true);
+  });
+
+  test('5. bff LLM path: an explicit session provider still wins over agent_mode', async () => {
+    // The LLM Config picker seeds langchain_config.provider per session; that
+    // explicit choice must not be clobbered by the env-first agent_mode default.
+    resetCfg({ agent_mode: 'llamacpp' });
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+
+    await processAgentMessage({
+      message: 'what is oauth',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      langchainConfig: { provider: 'anthropic' },
+      req: { body: {} },
+    });
+
+    expect(runReasonLoop).toHaveBeenCalledTimes(1);
+    expect(runReasonLoop.mock.calls[0][0].provider).toBe('anthropic');
   });
 });
