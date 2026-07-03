@@ -726,6 +726,67 @@ describe('Scope-based Authorization Integration Tests', () => {
         expect(response.status).toBe(200);
       });
 
+      // The all-users activity aggregate is inherently cross-user → admin-only.
+      it('should deny non-admin access to /activity/users/summary', async () => {
+        const token = createOAuthToken([], { username: 'no-scope-user', roles: ['user'] });
+        const response = await request(app)
+          .get('/api/admin/activity/users/summary')
+          .set('Authorization', `Bearer ${token}`);
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('insufficient_scope');
+        expect(response.body.required_access).toBe('admin role or admin:read scope');
+      });
+
+      it('should allow admin access to /activity/users/summary', async () => {
+        const token = createOAuthToken(['admin:read'], { username: 'admin-user', roles: ['admin'] });
+        const response = await request(app)
+          .get('/api/admin/activity/users/summary')
+          .set('Authorization', `Bearer ${token}`);
+        expect(response.status).toBe(200);
+      });
+
+      // Open activity reads are scoped to the caller for non-admins (issue #122):
+      // a non-admin must see only their OWN activity, never another user's.
+      describe('non-admin activity reads are scoped to the caller', () => {
+        const dataStore = require('../../data/store');
+        const sampleLogs = [
+          { username: 'alice', action: 'login', timestamp: new Date().toISOString() },
+          { username: 'bob', action: 'transfer', timestamp: new Date().toISOString() },
+        ];
+        let spy;
+        beforeEach(() => {
+          spy = jest.spyOn(dataStore, 'getAllActivityLogs').mockReturnValue(sampleLogs);
+        });
+        afterEach(() => spy.mockRestore());
+
+        it('non-admin GET /activity returns only the caller\'s own logs', async () => {
+          const token = createOAuthToken([], { username: 'alice', roles: ['user'] });
+          const response = await request(app)
+            .get('/api/admin/activity')
+            .set('Authorization', `Bearer ${token}`);
+          expect(response.status).toBe(200);
+          expect([...new Set(response.body.logs.map(l => l.username))]).toEqual(['alice']);
+        });
+
+        it('non-admin cannot read another user\'s logs via ?username filter', async () => {
+          const token = createOAuthToken([], { username: 'alice', roles: ['user'] });
+          const response = await request(app)
+            .get('/api/admin/activity?username=bob')
+            .set('Authorization', `Bearer ${token}`);
+          expect(response.status).toBe(200);
+          expect(response.body.logs).toHaveLength(0);
+        });
+
+        it('admin GET /activity sees all users\' logs', async () => {
+          const token = createOAuthToken(['admin:read'], { username: 'admin-user', roles: ['admin'] });
+          const response = await request(app)
+            .get('/api/admin/activity')
+            .set('Authorization', `Bearer ${token}`);
+          expect(response.status).toBe(200);
+          expect([...new Set(response.body.logs.map(l => l.username))].sort()).toEqual(['alice', 'bob']);
+        });
+      });
+
       it('should allow access to all admin endpoints with admin:read scope', async () => {
         const token = createOAuthToken(['admin:read'], { 
           username: 'admin-user',
