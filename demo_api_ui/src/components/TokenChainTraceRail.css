@@ -39,11 +39,12 @@
   letter-spacing: 0.06em; padding: 8px 12px 2px;
 }
 
-/* Step cards */
-.tctr-step { border-bottom: 1px dashed #eef2f9; }
+/* Step cards — solid divider for clear separation between rows */
+.tctr-step { border-bottom: 1px solid #d4ddea; }
+.tctr-step:last-of-type { border-bottom: none; }
 .tctr-step > summary {
   list-style: none; display: flex; align-items: center; gap: 7px;
-  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  padding: 9px 12px; cursor: pointer; font-size: 12px;
 }
 .tctr-step > summary::-webkit-details-marker { display: none; }
 .tctr-step > summary:hover { background: #f1f5f9; }
