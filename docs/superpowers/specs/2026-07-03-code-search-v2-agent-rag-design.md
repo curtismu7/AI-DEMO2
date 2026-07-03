@@ -40,11 +40,18 @@ an index existing.
 
 ## Reused infrastructure
 
-- `demo_api_server/services/llamacppLlmService.js` — already calls
-  `${LLAMACPP_BASE_URL}/v1/chat/completions` (the `:8090` llm-proxy). Agent chat
-  (C) reuses it; no new LLM client.
+- **Existing agent-service pattern** (`pydantic_agent/`, `openai_agent/`,
+  `mastra_agent/`) — the new `llamaindex_agent/` service (C) mirrors their compose
+  shape (own dir, own port, `ai-demo` network, `:8090` for the LLM). No new
+  pattern to invent.
 - `demo_api_server/routes/codeSearch.js` `POST /index` already accepts **multiple
-  files** (multer `upload.array('file')`). Folder ingest (B) reuses it.
+  files** (multer `upload.array('file')`). Folder ingest (B) reuses it. The BFF
+  `/ask` route (C) is a thin proxy to the LlamaIndex service, same as how the BFF
+  fronts the other agents.
+- `demo_mcp_code_search` — the `/search` HTTP path already applies the correct
+  `nomic-embed` embedder + `CodeChunk` class + `codebase_id` filter; the
+  LlamaIndex `search_code` tool (C) delegates to it, guaranteeing retrieval
+  matches what A/B indexed.
 - `demo_api_server/src/services/mcpCodeSearchClient.js` — `index()` / `search()`.
   No "list/count" method exists; the page tracks codebases in `localStorage`.
 
@@ -114,32 +121,82 @@ an index existing.
   uploads; if a batch exceeds limits, the client splits it (client-driven
   batching keeps the server unchanged).
 
-## Feature C — Agent chat over the index (RAG)
+## Feature C — Agent chat over the index (LlamaIndex agent)
 
-### Backend — new route `POST /api/code-search/ask`
-- Request `{ question, codebase_id, limit? }`.
-- Steps:
-  1. `getClient().search({ query: question, codebase_id, limit: limit || 8 })`.
-  2. Build messages:
-     - **system:** "You are a code-search assistant. Answer **only** from the
-       provided snippets. Cite sources as `path:line_start-line_end`. If the
-       answer isn't in the snippets, say you couldn't find it — do not invent
-       code."
-     - **user:** the question + the retrieved snippets formatted with their
-       `file` and line range.
-  3. Call `llamacppLlmService` chat/completions (`:8090` llm-proxy).
-  4. Respond `{ answer, sources: [{ file, line_start, line_end, snippet }] }`
-     (sources = the retrieved chunks actually passed to the model).
-- Errors: embedder/LLM unreachable → `503` with a clear message (page shows
-  "assistant unavailable"); empty retrieval → answer "no relevant code found".
+**Shape:** a **true tool-calling agent built on LlamaIndex** — an OSS,
+RAG-native framework (chosen over a hand-rolled loop and over the banking
+`langchain_agent`). It runs as a **new standalone Python service**
+`llamaindex_agent/` (mirrors the existing `pydantic_agent` / `openai_agent`
+service pattern), reasons with the `:8090` llm-proxy, and retrieves from the
+Weaviate `CodeChunk` collection. It does **not** touch the banking agent.
+
+### New service — `llamaindex-agent` (compose)
+- New dir `llamaindex_agent/` (Python, FastAPI or similar), new compose service on
+  a free port (e.g. `:8894`), on the `ai-demo` network.
+- Env: `WEAVIATE_URL=http://weaviate:8080`,
+  `EMBEDDING_URL=http://embeddings:8080`,
+  `EMBEDDING_MODEL=nomic-embed-text-v1.5`,
+  `LLAMACPP_BASE_URL=http://llm-proxy:8090`, `AGENT_MAX_TOOL_CALLS` (default 4).
+- Exposes `POST /ask` `{ question, codebase_id, limit? }`.
+
+### Retrieval — must match what A/B wrote (critical correctness constraint)
+Code-search stores every chunk in a single Weaviate class **`CodeChunk`**
+(`vectorizer: none`, props `codebase_id / codebase_name / file / line_start /
+line_end / snippet`) with **768-dim `nomic-embed-text-v1.5`** vectors, filtered
+by `codebase_id`. The agent's retrieval **must** use the *same embedding model
+and the same class*, or query vectors land in a different space and results are
+garbage. Two ways to satisfy this:
+
+- **(Default — chosen) `search_code` tool over the code-search `/search`
+  endpoint.** LlamaIndex owns the *agent/tool-calling loop*; retrieval delegates
+  to the proven code-search HTTP path, which already applies the correct embedder,
+  `CodeChunk` class, and `codebase_id` filter. Zero embedding/schema-drift risk,
+  and it stays unified with A/B. This is a real LlamaIndex `FunctionAgent` /
+  `ReActAgent` with a tool — just not using LlamaIndex's own vector store.
+- **(Alternative — native `WeaviateVectorStore`)** point LlamaIndex directly at
+  the `CodeChunk` class with a custom text key (`snippet`) + metadata mapping and
+  the nomic embedder pinned via the OpenAI-compatible `/v1/embeddings`. More
+  "RAG-native", but LlamaIndex's Weaviate reader expects its own schema
+  conventions, so reading a foreign class needs custom config and carries
+  embedding-dimension/schema-match risk.
+
+> **Sub-decision defaulted, flag in review:** ship the `search_code`-tool
+> approach for correctness/reuse; revisit native `WeaviateVectorStore` later if
+> we want LlamaIndex to own retrieval. Confirm doc details for the current
+> LlamaIndex agent + Weaviate APIs via context7 before implementing.
+
+### Agent behavior
+- System prompt: "You are a code-search agent. Use the `search_code` tool to find
+  relevant code before answering. You may call it multiple times to refine.
+  Answer **only** from tool results; cite `path:line_start-line_end`; if the code
+  isn't found, say so — never invent code."
+- Tool `search_code({ query, limit? })` → code-search `/search` with
+  `codebase_id` **bound server-side** from the request (the model cannot search
+  other codebases). Returns the chunks.
+- **Bounded:** `AGENT_MAX_TOOL_CALLS` (default 4) caps tool iterations → caps
+  embedder load and prevents runaway loops.
+- If the `:8090` model can't tool-call reliably, LlamaIndex's agent still
+  degrades to a single retrieval + answer; expose that as `mode` in the response.
+
+### BFF wiring — `POST /api/code-search/ask`
+- Thin proxy: BFF route forwards `{ question, codebase_id, limit }` to
+  `llamaindex-agent:8894/ask` and returns its JSON (keeps the browser same-origin
+  through the BFF, like the other agent services).
+- **Response** `{ answer, sources: [{ file, line_start, line_end, snippet }],
+  toolCalls: number, mode: 'agent' | 'single-shot' }` — `sources` = chunks the
+  agent actually retrieved; `mode`/`toolCalls` make the agentic behavior visible.
+- Errors: agent/embedder/LLM unreachable → `503` "assistant unavailable"; empty
+  retrieval → "no relevant code found".
 
 ### Frontend (`CodeSearchPage.jsx`)
-- Add a **two-tab layout** on the right pane: **Ask** (agent chat) and
-  **Search** (the existing raw box, unchanged).
-- **Ask** tab: question input, answer area, and a **Sources** list rendering each
-  cited chunk (file, line range, snippet) — reuse/extend `SearchResults` styling.
-- Single-turn v1 (each question is independent). Note for later: multi-turn
-  memory and a tool-calling agent loop are future enhancements, out of scope.
+- Add a **two-tab layout** on the right pane: **Ask** (the agent) and **Search**
+  (the existing raw box, unchanged).
+- **Ask** tab: question input, answer area, a **Sources** list (file, line range,
+  snippet — reuse/extend `SearchResults` styling), and a small indicator of how
+  many `search_code` calls the agent made and whether it ran in `agent` or
+  `single-shot` mode (so the agentic behavior is visible in the demo).
+- Single-turn requests in v1 (no cross-question memory). Note for later:
+  multi-turn conversation memory is a future enhancement, out of scope.
 
 ---
 
@@ -153,9 +210,13 @@ an index existing.
   by inspecting indexed file paths and the skip log).
 - **B:** Selecting a local folder indexes it into a new codebase named after the
   folder; skipped-file counts are shown; searching it returns relevant chunks.
-- **C:** Asking a question on the **Ask** tab returns a grounded answer with a
-  Sources list whose citations match retrieved chunks; an out-of-scope question
-  yields "couldn't find it," not a hallucination. The **Search** tab still works.
+- **C:** Asking a question on the **Ask** tab drives the agent to call
+  `search_code` (visible in the response `toolCalls`/`mode`) and returns a
+  grounded answer whose citations match retrieved chunks; an out-of-scope
+  question yields "couldn't find it," not a hallucination; if the model can't
+  tool-call, it transparently runs `single-shot` mode and still answers. Tool
+  iterations are capped. The **Search** tab still works. The `llamaindex-agent`
+  service comes up healthy and the BFF `/ask` proxy reaches it.
 - **Bounded load:** the default index job embeds only the curated roots within
   caps; the log reports total chunks and skipped files. No sustained embedder
   traffic after `ready`.
@@ -174,3 +235,16 @@ an index existing.
   volume). Call this out when landing.
 - **Grounding:** the agent must answer only from retrieved snippets; the system
   prompt enforces this and the UI shows sources so answers are auditable.
+- **New LlamaIndex service = new dependency + new container.** Adds a Python
+  service, image build, and a port to the compose stack (heavier than the earlier
+  in-BFF loop). Pin LlamaIndex versions; verify current agent + Weaviate API
+  shapes via context7 before coding (the APIs move fast).
+- **Local-model tool-calling reliability.** The `:8090` proxy fronts local
+  llama.cpp models whose function-calling is less reliable than hosted models.
+  The `single-shot` degrade path is the mitigation — the feature must still answer
+  even when the model emits no tool call.
+- **Embedding-space match is a correctness gate, not a nicety.** The agent's
+  retrieval must use `nomic-embed-text-v1.5` against the `CodeChunk` class. The
+  default `search_code`-tool approach guarantees this by delegating to
+  code-search; only revisit native `WeaviateVectorStore` with this constraint
+  explicitly re-verified.

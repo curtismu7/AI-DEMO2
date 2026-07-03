@@ -121,16 +121,38 @@ trying to join *itself* on the Raft port and never converging.
 v1.38's embedded Raft layer cannot complete single-node bootstrap and retries
 continuously.
 
-**Fix (config-only, `docker-compose.yml` `weaviate.environment`):** pin a stable
-single-node Raft identity. Candidate vars (v1.38):
+**Fix (config-only, `docker-compose.yml` `weaviate.environment`):** two parts —
+(1) resolve the root cause by pinning a stable single-node Raft identity, and
+(2) **make the cadence and verbosity configurable** rather than hard-silenced, so
+the user controls "how often" it retries/logs. All knobs are env-driven with
+sensible defaults, sourced from an `.env` (or compose `environment`) so they can
+be tuned without editing service internals.
+
+Part 1 — stable single-node identity (candidate vars, v1.38):
 - `CLUSTER_HOSTNAME: node1`
 - `RAFT_BOOTSTRAP_EXPECT: 1`
 - `RAFT_JOIN: node1`
 
+Part 2 — configurable cadence / verbosity (defaults chosen to quiet the spam
+without hiding real errors). Expose these as compose vars with documented
+defaults, e.g.:
+- `LOG_LEVEL` — Weaviate log verbosity (default `info`; set `warning` to drop the
+  info-level join chatter while keeping warnings/errors). **This is the primary
+  "how often do I see it" knob.**
+- Raft timing knobs that govern retry/heartbeat frequency (exact names to be
+  doc-verified), e.g. `RAFT_HEARTBEAT_TIMEOUT`, `RAFT_ELECTION_TIMEOUT` — surface
+  them with defaults so the retry cadence is tunable, not fixed.
+
+Document each knob (name, meaning, default, effect) inline in `docker-compose.yml`
+and in `.env.example` if the project keeps one, so the cadence is discoverable and
+adjustable.
+
 > **Must verify exact var names/values against the Weaviate v1.38 docs before
 > committing** (via context7 `resolve-library-id`/`query-docs` for "weaviate", or
-> the official docs). Do not guess. Success = container reaches a healthy Raft
-> leader state and stops the per-second join logs.
+> the official docs). Do not guess — several Raft env names changed across
+> versions. Success = with defaults, the container reaches a healthy Raft leader
+> state and the per-second join spam is gone; changing `LOG_LEVEL`/timing vars
+> visibly changes how often the messages appear.
 
 **Persistence caution:** if the running container already has a Raft state dir in
 the `weaviate-data` volume under a different node name, changing
