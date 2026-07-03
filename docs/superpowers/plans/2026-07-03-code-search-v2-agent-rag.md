@@ -10,7 +10,12 @@
 
 ## Global Constraints
 
-- Work in the git worktree on branch `worktree-weaviate-rag-education`. Stage files explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
+- Work in the git worktree on branch `code-search-v2`. Stage files explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
+- **Test runners differ per package — this is verified, not assumed:**
+  - `demo_api_server` (BFF) uses **jest**. Backend test files MUST live under `demo_api_server/tests/` (jest `testMatch` is `**/tests/**/*.test.js` and `**/src/__tests__/**`; colocated `services/*.test.js` / `routes/*.test.js` are NOT picked up). From a test in `tests/`, import siblings as `../services/…`, `../routes/…`, `../src/services/…`.
+  - **jest ignores `.claude/worktrees/`** (`testPathIgnorePatterns`), so inside this worktree jest finds 0 tests by default. Run backend tests as: `cd demo_api_server && npx jest tests/<file>.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/` (positional file FIRST, then the two `=`-form overrides — this drops only the worktree-ignore and runs exactly that file). `supertest` is available.
+  - `demo_api_ui` (frontend) uses **vitest** (not jest): `cd demo_api_ui && CI=true npx vitest run <path>`; use `vi.*` not `jest.*` (`vi`/`test`/`expect` are globals). Colocated `*.test.js`/`*.test.jsx` are fine.
+  - `llamaindex_agent` (new) uses **pytest**: `cd llamaindex_agent && python -m pytest <path> -q`.
 - **Embedding-space match is a correctness gate.** Everything that queries Weaviate MUST embed with `nomic-embed-text-v1.5` (768-dim) against the class **`CodeChunk`** (props: `codebase_id`, `codebase_name`, `file`, `line_start`, `line_end`, `snippet`; `vectorizer: none`). A mismatched embedder returns plausible-but-wrong results — every retrieval task ends with a *known-query-returns-expected-file* test, not just "non-empty".
 - **Bounded embedder load.** The default indexer (A) and the agent (C) must cap work: curated source roots, per-file + total-file caps, batched embeds, one-time idempotent index, and a max-tool-iteration cap. No sustained embedder traffic at idle.
 - **Never index secrets or vendored/generated trees.** The A walker and B filter must exclude `.claude`, `node_modules`, `.git`, `dist`, `build`, `coverage`, `data`, `logs`, `.next`, `.env*`, `certs/`, `*.pem`, `*.key`, `*.p12`, lockfiles, and non-text/binary extensions.
@@ -24,7 +29,7 @@
 **Feature A (default index):**
 - `docker-compose.yml` — add `- .:/repo:ro` to `demo-api-server` volumes; add `CODE_SEARCH_DEFAULT_INDEX` env (modify).
 - `demo_api_server/services/defaultCodebaseIndexer.js` — walker + ignore rules + caps + batching + idempotency + status (create).
-- `demo_api_server/services/defaultCodebaseIndexer.test.js` — unit tests for filter/caps (create).
+- `demo_api_server/tests/defaultCodebaseIndexer.test.js` — unit tests for filter/caps (create; MUST be under `tests/` for jest to find it).
 - `demo_api_server/routes/codeSearch.js` — add `GET /default-status`; kick off the indexer (modify).
 - `demo_api_ui/src/pages/CodeSearchPage.jsx` — seed the default codebase + poll status (modify).
 
@@ -94,7 +99,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `demo_api_server/services/defaultCodebaseIndexer.js`
-- Test: `demo_api_server/services/defaultCodebaseIndexer.test.js`
+- Test: `demo_api_server/tests/defaultCodebaseIndexer.test.js`
 
 **Interfaces:**
 - Consumes: `mcpCodeSearchClient` (`getClient().index(...)`, `.search(...)`) at `demo_api_server/src/services/mcpCodeSearchClient.js`.
@@ -106,13 +111,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write failing unit tests for the file collector**
 
-Create `demo_api_server/services/defaultCodebaseIndexer.test.js`:
+Create `demo_api_server/tests/defaultCodebaseIndexer.test.js`:
 
 ```js
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { collectFiles } = require('./defaultCodebaseIndexer');
+const { collectFiles } = require('../services/defaultCodebaseIndexer');
 
 function tmpRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-'));
@@ -156,7 +161,7 @@ test('collectFiles enforces a per-file size cap', () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd demo_api_server && npx jest services/defaultCodebaseIndexer.test.js`
+Run: `cd demo_api_server && npx jest tests/defaultCodebaseIndexer.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: FAIL — cannot find module `./defaultCodebaseIndexer`.
 
 - [ ] **Step 3: Implement the indexer**
@@ -284,13 +289,13 @@ module.exports = {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd demo_api_server && npx jest services/defaultCodebaseIndexer.test.js`
+Run: `cd demo_api_server && npx jest tests/defaultCodebaseIndexer.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: PASS (both tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_api_server/services/defaultCodebaseIndexer.js demo_api_server/services/defaultCodebaseIndexer.test.js
+git add demo_api_server/services/defaultCodebaseIndexer.js demo_api_server/tests/defaultCodebaseIndexer.test.js
 git commit -m "feat(code-search): bounded idempotent default-codebase indexer
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -309,7 +314,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing route test**
 
-Create `demo_api_server/routes/codeSearch.defaultStatus.test.js`:
+Create `demo_api_server/tests/codeSearch.defaultStatus.test.js`:
 
 ```js
 const express = require('express');
@@ -318,7 +323,7 @@ const request = require('supertest');
 jest.mock('../src/services/mcpCodeSearchClient');
 
 test('GET /default-status returns the indexer status shape', async () => {
-  const router = require('./codeSearch');
+  const router = require('../routes/codeSearch');
   const app = express();
   app.use('/api/code-search', router);
   const res = await request(app).get('/api/code-search/default-status');
@@ -332,7 +337,7 @@ test('GET /default-status returns the indexer status shape', async () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd demo_api_server && npx jest routes/codeSearch.defaultStatus.test.js`
+Run: `cd demo_api_server && npx jest tests/codeSearch.defaultStatus.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: FAIL — route 404 / not defined.
 
 - [ ] **Step 3: Add the route + startup trigger**
@@ -382,13 +387,13 @@ if (process.env.CODE_SEARCH_DEFAULT_INDEX !== 'false' && !global.__defaultIndexS
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd demo_api_server && npx jest routes/codeSearch.defaultStatus.test.js`
+Run: `cd demo_api_server && npx jest tests/codeSearch.defaultStatus.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_api_server/routes/codeSearch.js demo_api_server/routes/codeSearch.defaultStatus.test.js
+git add demo_api_server/routes/codeSearch.js demo_api_server/tests/codeSearch.defaultStatus.test.js
 git commit -m "feat(code-search): default-status route + gated background index kickoff
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -538,7 +543,7 @@ test('filterFolderFiles keeps code, drops vendored/binary/oversize', () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd demo_api_ui && CI=true npx jest src/services/codeSearchAPI.folder.test.js`
+Run: `cd demo_api_ui && CI=true npx vitest run src/services/codeSearchAPI.folder.test.js`
 Expected: FAIL — `filterFolderFiles` not exported.
 
 - [ ] **Step 3: Implement filter + upload helper**
@@ -590,7 +595,7 @@ export async function indexFolderFiles(files, codebaseName) {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd demo_api_ui && CI=true npx jest src/services/codeSearchAPI.folder.test.js`
+Run: `cd demo_api_ui && CI=true npx vitest run src/services/codeSearchAPI.folder.test.js`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1209,14 +1214,14 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `demo_api_server/routes/codeSearch.js`
-- Test: `demo_api_server/routes/codeSearch.ask.test.js`
+- Test: `demo_api_server/tests/codeSearch.ask.test.js`
 
 **Interfaces:**
 - Produces: `POST /api/code-search/ask` → forwards to `${LLAMAINDEX_AGENT_URL}/ask`, returns its JSON.
 
 - [ ] **Step 1: Write the failing proxy test**
 
-Create `demo_api_server/routes/codeSearch.ask.test.js`:
+Create `demo_api_server/tests/codeSearch.ask.test.js`:
 
 ```js
 const express = require('express');
@@ -1244,7 +1249,7 @@ test('POST /ask proxies to the llamaindex agent', async () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd demo_api_server && npx jest routes/codeSearch.ask.test.js`
+Run: `cd demo_api_server && npx jest tests/codeSearch.ask.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: FAIL — route not defined.
 
 - [ ] **Step 3: Add the proxy route**
@@ -1278,13 +1283,13 @@ Add `LLAMAINDEX_AGENT_URL: http://llamaindex-agent:8894` to the `demo-api-server
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd demo_api_server && npx jest routes/codeSearch.ask.test.js`
+Run: `cd demo_api_server && npx jest tests/codeSearch.ask.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_api_server/routes/codeSearch.js demo_api_server/routes/codeSearch.ask.test.js docker-compose.yml
+git add demo_api_server/routes/codeSearch.js demo_api_server/tests/codeSearch.ask.test.js docker-compose.yml
 git commit -m "feat(code-search): BFF /ask proxy to the LlamaIndex agent
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -1460,8 +1465,8 @@ Expected: `state` returns to `ready` WITHOUT re-indexing (the probe short-circui
 
 Run:
 ```bash
-cd demo_api_server && npx jest services/defaultCodebaseIndexer.test.js routes/codeSearch.defaultStatus.test.js routes/codeSearch.ask.test.js
-cd ../demo_api_ui && CI=true npx jest src/services/codeSearchAPI.folder.test.js
+cd demo_api_server && npx jest tests/defaultCodebaseIndexer.test.js tests/codeSearch.defaultStatus.test.js tests/codeSearch.ask.test.js --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=/tests/real/
+cd ../demo_api_ui && CI=true npx vitest run src/services/codeSearchAPI.folder.test.js
 cd ../llamaindex_agent && python -m pytest tests/test_app.py -q
 ```
 Expected: all PASS.
