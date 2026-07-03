@@ -3,9 +3,10 @@
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
-import TraceMcpPanel, { MCP_STEP_IDS } from "./TraceMcpPanel";
+import TraceMcpPanel from "./TraceMcpPanel";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import "./TokenChainTraceRail.css";

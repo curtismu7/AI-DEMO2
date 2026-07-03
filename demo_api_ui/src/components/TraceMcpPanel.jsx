@@ -5,10 +5,7 @@
 import React from "react";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
-
-export const MCP_STEP_IDS = ["exchange", "gateway", "mcp", "api"];
-
-const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
+import { MCP_STEP_IDS, asJson } from "../services/tokenChainTrace/buildTraceSteps";
 
 export default function TraceMcpPanel({ steps, trace, onInspect }) {
   const mcpSteps = MCP_STEP_IDS
@@ -16,10 +13,20 @@ export default function TraceMcpPanel({ steps, trace, onInspect }) {
     .filter(Boolean);
   const mcp = trace && trace.mcpResult;
 
+  // trace.mcpResult carries either the live SSE shape (toolName/duration/resultJson)
+  // or the normalized shape (tool/durationMs/result) — accept both.
   const toolName = mcp && (mcp.toolName || mcp.tool);
   const durationMs = mcp && (mcp.durationMs != null ? mcp.durationMs : mcp.duration);
   const response = mcp && (mcp.resultJson != null ? mcp.resultJson
     : mcp.result != null ? mcp.result : mcp.resultSummary);
+
+  const meta = mcp ? [
+    ["tool", toolName],
+    ["status", mcp.status != null ? String(mcp.status) : null],
+    ["duration", durationMs != null ? `${durationMs} ms` : null],
+    ["delegated", mcp.isDelegated != null ? String(mcp.isDelegated) : null],
+    ["scopes", Array.isArray(mcp.scopes) ? mcp.scopes.join(" ") : null],
+  ].filter(([, v]) => v != null) : [];
 
   return (
     <div className="tctr-mcp">
@@ -30,11 +37,12 @@ export default function TraceMcpPanel({ steps, trace, onInspect }) {
       {mcp ? (
         <div className="tctr-step-body">
           <div className="tctr-kv">
-            {toolName != null && (<><span className="tctr-kv-k">tool</span><span className="tctr-kv-v">{toolName}</span></>)}
-            {mcp.status != null && (<><span className="tctr-kv-k">status</span><span className="tctr-kv-v">{String(mcp.status)}</span></>)}
-            {durationMs != null && (<><span className="tctr-kv-k">duration</span><span className="tctr-kv-v">{durationMs} ms</span></>)}
-            {mcp.isDelegated != null && (<><span className="tctr-kv-k">delegated</span><span className="tctr-kv-v">{String(mcp.isDelegated)}</span></>)}
-            {Array.isArray(mcp.scopes) && (<><span className="tctr-kv-k">scopes</span><span className="tctr-kv-v">{mcp.scopes.join(" ")}</span></>)}
+            {meta.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <span className="tctr-kv-k">{k}</span>
+                <span className="tctr-kv-v">{v}</span>
+              </React.Fragment>
+            ))}
           </div>
           <h4>Request</h4>
           <pre className="tctr-code">{asJson(mcp.requestJson || { name: toolName })}</pre>
