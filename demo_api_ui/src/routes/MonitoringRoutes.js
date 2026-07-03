@@ -9,7 +9,6 @@ import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainDisplay from "../components/TokenChainDisplay";
-import TokenDiffPanel from "../components/TokenDiffPanel";
 import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
 import WebMcpPanel from "../components/WebMcpPanel";
 
@@ -18,13 +17,12 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
   return (
     <AppShell user={user} logout={logout}>
       <Routes>
-        {/* Note: token-chain/token-diff/flow-inspector/api-explorer match the
+        {/* Note: token-chain/flow-inspector/api-explorer match the
             pre-refactor behavior — ungated at the /monitoring/* level so deep
             links work for guests. The wildcard catch-all path for the same
             slugs in App.js was historically gated; only the top-level path
             (this one) ever rendered them in practice. */}
         <Route path="token-chain" element={<TokenChainDisplay />} />
-        <Route path="token-diff" element={<TokenDiffPanel />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<ApiExplorerPanel />} />
         <Route path="agent-flow" element={
