@@ -4,14 +4,17 @@ const {
   USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases,
 } = require('../../config/useCases');
 
-const TRACKS = ['foundations', 'controls', 'attacks', 'hitl'];
+const TRACKS = ['foundations', 'controls', 'attacks', 'hitl', 'tools', 'learn'];
 const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
+// 'tools' and 'learn' are utility/link-type cards (no scenario run), so they
+// carry no OWASP threat mapping or product-role narrative.
+const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 22 use cases with unique ids UC1..UC22', () => {
-    expect(USE_CASES).toHaveLength(22);
+  test('contains all 32 use cases including UC1..UC22', () => {
+    expect(USE_CASES).toHaveLength(32);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(22);
+    expect(new Set(ids).size).toBe(32);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
   });
 
@@ -23,16 +26,17 @@ describe('useCases catalog SoT', () => {
       expect(typeof u.title).toBe('string');
       expect(typeof u.buyerStory).toBe('string');
       expect(typeof u.pingOneSolution).toBe('string');
-      expect(['chip', 'attack']).toContain(u.trigger.type);
+      expect(['chip', 'attack', 'link']).toContain(u.trigger.type);
       if (u.trigger.type === 'chip') expect(typeof u.trigger.text).toBe('string');
-      else expect(typeof u.trigger.sim).toBe('string');
+      else if (u.trigger.type === 'attack') expect(typeof u.trigger.sim).toBe('string');
+      else expect(typeof u.trigger.path).toBe('string');
       expect(typeof u.expectedOutcome).toBe('string');
       expect(Array.isArray(u.evidence.tokenChain)).toBe(true);
       expect(Array.isArray(u.evidence.activity)).toBe(true);
       expect(Array.isArray(u.codeRefs)).toBe(true);
       expect(u.maturity).toMatch(MATURITY);
       expect(Array.isArray(u.owasp.threats)).toBe(true);
-      expect(u.owasp.threats.length).toBeGreaterThan(0);
+      if (!UTILITY_TRACKS.includes(u.track)) expect(u.owasp.threats.length).toBeGreaterThan(0);
       expect(Array.isArray(u.owasp.sections)).toBe(true);
       expect(typeof u.whatToSay).toBe('string');
       expect(typeof u.advanced).toBe('boolean');
@@ -43,7 +47,7 @@ describe('useCases catalog SoT', () => {
       expect(u.businessValue.length).toBeGreaterThan(20);
       expect(u.productRoles).toBeDefined();
       expect(typeof u.productRoles).toBe('object');
-      expect(Object.keys(u.productRoles).length).toBeGreaterThan(0);
+      if (!UTILITY_TRACKS.includes(u.track)) expect(Object.keys(u.productRoles).length).toBeGreaterThan(0);
       expect(u.primaryTool === null || typeof u.primaryTool === 'string').toBe(true);
     }
   });
@@ -78,9 +82,9 @@ describe('useCases catalog SoT', () => {
     expect(resolveUseCase('NOPE', 'healthcare')).toBeUndefined();
   });
 
-  test('listUseCases returns all 22 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(22);
-    expect(listUseCases()).toHaveLength(22);
+  test('listUseCases returns all 32 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(32);
+    expect(listUseCases()).toHaveLength(32);
   });
 
   test('only UC14 and UC15 are advanced', () => {
@@ -98,7 +102,7 @@ describe('useCases catalog SoT', () => {
   });
 
   test('productRoles keys are valid product ids', () => {
-    const VALID = new Set(['idp', 'mfa', 'gw', 'authz']);
+    const VALID = new Set(['idp', 'mfa', 'gw', 'authz', 'llm']);
     for (const u of USE_CASES) {
       for (const key of Object.keys(u.productRoles)) {
         expect(VALID.has(key)).toBe(true);
