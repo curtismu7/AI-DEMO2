@@ -6,11 +6,17 @@
  * Composes GatewayTokenPolicy + PingOneAuthorizeClient into the McpRequestMiddleware
  * hook that GatewayServer accepts.
  *
+ * This module builds the HTTP-transport pipeline only. GatewayServer's HTTP
+ * upstream is fixed to the OLB server, so this pipeline always exchanges for
+ * the olb audience — it does not route by tool. The WS transport (index.ts)
+ * serves both olb and invest and does its own per-tool exchangeForBackend
+ * call; it does not use this middleware's Step 4.
+ *
  * Pipeline per request:
  *   1. GatewayTokenPolicy.validate(decoded)             — claim invariants (sub, act, anti-bypass)
  *   2. PingOneAuthorizeClient.evaluate(...)             — PingOne Authorize policy decision (D-06)
- *   3. McpTokenExchangeClient.exchange(...)             — RFC 8693 exchange to the upstream audience (D-03/D-05)
- *   4. forward(upstreamToken, body)                     — proxy to upstream MCP server with the exchanged token
+ *   3. McpTokenExchangeClient.exchangeForBackend(..., 'olb') — RFC 8693 exchange to the olb audience (D-03/D-05)
+ *   4. forward(upstreamToken, body)                     — proxy to the OLB MCP server with the exchanged token
  *
  * Failure modes:
  *   - Policy violation (claim validation)  → 401 via sendUnauthorized (handled upstream)
@@ -19,8 +25,8 @@
  *
  * The inbound TX token (aud: gateway) is never forwarded upstream. After PingOne
  * Authorize permits the request, the gateway performs an RFC 8693 token exchange
- * to mint a next-hop token scoped to the correct upstream MCP-server audience
- * (olb or invest, per D-05), and forwards that exchanged token instead.
+ * to mint a next-hop token scoped to the olb MCP-server audience, and forwards
+ * that exchanged token instead.
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -90,7 +96,7 @@ export interface AuthorizeMcpRequestDeps {
       engine?: 'real' | 'mock' | 'mock-failover';
       sentParameters?: Record<string, string>;
     }>;
-  exchange?: (subjectToken: string, toolName?: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
+  exchange?: (subjectToken: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -128,7 +134,7 @@ export function buildAuthorizeMcpRequest(
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
   const exchangeClient = new McpTokenExchangeClient(config);
-  const doExchange = deps?.exchange ?? ((t: string, n?: string) => exchangeClient.exchange(t, n));
+  const doExchange = deps?.exchange ?? ((t: string) => exchangeClient.exchangeForBackend(t, 'olb'));
 
   return async (
     bearerToken: string,
@@ -682,9 +688,12 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────
-    // The HTTP upstream is the OLB server (GatewayServer.upstreamMcpUrl), so the
-    // exchange targets the olb audience via routeTool. Fail closed: on exchange
-    // failure nothing is forwarded.
+    // The HTTP upstream is FIXED to the OLB server (GatewayServer.upstreamMcpUrl) —
+    // there is no per-tool routing on this transport, unlike the WS path (index.ts),
+    // which proxies to olb or invest per routeTool(toolName). So every Step-4
+    // exchange here targets the olb audience regardless of toolName; invest tools
+    // are not reachable over this HTTP path. Fail closed: on exchange failure
+    // nothing is forwarded.
     // WR-03: outBody has `_hitl_challenge_id` stripped (or === body if absent).
     auditTrail.mtls = config.mtlsEnabled
       ? { enabled: true, subject: 'banking-mcp-gateway' }
@@ -693,7 +702,7 @@ export function buildAuthorizeMcpRequest(
     teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
     let upstreamToken: string;
     try {
-      const ex = await doExchange(bearerToken, toolName);
+      const ex = await doExchange(bearerToken);
       upstreamToken = ex.token;
     } catch (err) {
       teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
