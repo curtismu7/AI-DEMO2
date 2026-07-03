@@ -9,15 +9,18 @@
  * Pipeline per request:
  *   1. GatewayTokenPolicy.validate(decoded)             — claim invariants (sub, act, anti-bypass)
  *   2. PingOneAuthorizeClient.evaluate(...)             — PingOne Authorize policy decision (D-06)
- *   3. forward(bearerToken, body)                       — proxy to upstream MCP server (TX token forwarded unchanged)
+ *   3. McpTokenExchangeClient.exchange(...)             — RFC 8693 exchange to the upstream audience (D-03/D-05)
+ *   4. forward(upstreamToken, body)                     — proxy to upstream MCP server with the exchanged token
  *
  * Failure modes:
  *   - Policy violation (claim validation)  → 401 via sendUnauthorized (handled upstream)
  *   - Authorize DENY or unavailable        → 403 Forbidden
+ *   - Token exchange failure               → 502 fail-closed (nothing forwarded)
  *
- * The TX token issued by the BFF (aud: ping.demo) is valid at both the gateway
- * and downstream MCP servers — no re-exchange is needed. The original bearer
- * token is forwarded unchanged to the upstream MCP server.
+ * The inbound TX token (aud: gateway) is never forwarded upstream. After PingOne
+ * Authorize permits the request, the gateway performs an RFC 8693 token exchange
+ * to mint a next-hop token scoped to the correct upstream MCP-server audience
+ * (olb or invest, per D-05), and forwards that exchanged token instead.
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -25,6 +28,7 @@ import { PingOneAuthorizeClient } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
+import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret } from '../config';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
@@ -86,6 +90,7 @@ export interface AuthorizeMcpRequestDeps {
       engine?: 'real' | 'mock' | 'mock-failover';
       sentParameters?: Record<string, string>;
     }>;
+  exchange?: (subjectToken: string, toolName?: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -122,6 +127,8 @@ export function buildAuthorizeMcpRequest(
 ): McpRequestMiddleware {
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
+  const exchangeClient = new McpTokenExchangeClient(config);
+  const doExchange = deps?.exchange ?? ((t: string, n?: string) => exchangeClient.exchange(t, n));
 
   return async (
     bearerToken: string,
@@ -674,16 +681,29 @@ export function buildAuthorizeMcpRequest(
       return;
     }
 
-    // ── Step 4: Forward with original TX token (unchanged) ───────────────────────────
-    // The TX token (aud: ping.demo) is valid at both the gateway and the downstream
-    // MCP server — no RFC 8693 re-exchange is needed. The original bearer token is
-    // forwarded unchanged.
+    // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────
+    // The HTTP upstream is the OLB server (GatewayServer.upstreamMcpUrl), so the
+    // exchange targets the olb audience via routeTool. Fail closed: on exchange
+    // failure nothing is forwarded.
     // WR-03: outBody has `_hitl_challenge_id` stripped (or === body if absent).
     auditTrail.mtls = config.mtlsEnabled
       ? { enabled: true, subject: 'banking-mcp-gateway' }
       : { enabled: false };
     setAuditHeader(res);
     teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
-    await forward(bearerToken, outBody);
+    let upstreamToken: string;
+    try {
+      const ex = await doExchange(bearerToken, toolName);
+      upstreamToken = ex.token;
+    } catch (err) {
+      teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
+      sendRpcError(502, parsedBody.id, {
+        code: -32500,
+        message: 'Token exchange failed',
+        data: { error: 'token_exchange_failed' },
+      });
+      return;
+    }
+    await forward(upstreamToken, outBody);
   };
 }

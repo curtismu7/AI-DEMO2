@@ -15,6 +15,9 @@ const stubConfig = {
 const deps = {
   introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
   authorize: async () => ({ decision: 'PERMIT' as const }),
+  // Step 4 now performs an RFC 8693 exchange before forwarding — stub it so
+  // the forward path is reachable without a real token endpoint.
+  exchange: async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }),
 };
 
 function makeRes() {
@@ -64,6 +67,7 @@ describe('authorizeMcpRequest — request validation', () => {
       jsonrpc: '2.0', id: 4, method: 'tools/call',
       params: { name: 'get_my_accounts', arguments: {} },
     });
-    expect(forwarded).toHaveLength(1);
+    // Forwarded with the exchanged token (RFC 8693), not the inbound bearer.
+    expect(forwarded).toEqual(['exchanged-tok']);
   });
 });
