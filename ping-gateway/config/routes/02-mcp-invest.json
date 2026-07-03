@@ -23,6 +23,14 @@
           }
         },
         {
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
           "name": "P1AZDecision",
           "type": "ScriptableFilter",
           "config": {

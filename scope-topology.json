@@ -21,9 +21,10 @@
   },
   "provisioning": {
     "appPrefix": "Demo AI App",
-    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate" },
+    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate" },
     "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent" }
   },
+  "aliases": { "banking:mcp:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
   "scopes": {
     "read": { "description": "Read accounts, balances, transactions", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
     "write": { "description": "Write operations (deposit/withdrawal/transfer)", "riskLevel": "high", "resource": "Super Banking API", "category": "data" },
@@ -59,6 +60,11 @@
       "uri": "mcpserver.ping.demo",
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+    },
+    "Super Banking MCP Invest": {
+      "uri": "mcp-invest.ping.demo",
+      "scopes": ["mcp:invoke"],
+      "mirroredScopes": ["invest:read", "read"]
     },
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",

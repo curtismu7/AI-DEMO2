@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseball Stats Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .stats-table th, .stats-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .stats-table th {
+            background-color: #3498db;
+            color: white;
+        }
+        .stats-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .filter {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .filter input {
+            padding: 8px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .filter button {
+            padding: 8px 12px;
+            border: none;
+            background-color: #27ae60;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter button:hover {
+            background-color: #219150;
+        }
+    </style>
+</head>
+<body>
+    <h1>Baseball Stats Tracker</h1>
+
+    <div class="filter">
+        <input type="text" id="searchInput" placeholder="Search by player name..." />
+        <button onclick="filterTable()">Search</button>
+    </div>
+
+    <table class="stats-table" id="statsTable">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Team</th>
+                <th>Hits</th>
+                <th>Home Runs</th>
+                <th>RBIs</th>
+                <th>Batting Avg.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Mike Trout</td>
+                <td>Los Angeles Angels</td>
+                <td>150</td>
+                <td>35</td>
+                <td>100</td>
+                <td>.310</td>
+            </tr>
+            <tr>
+                <td>Ronald Acuña Jr.</td>
+                <td>Atlanta Braves</td>
+                <td>140</td>
+                <td>30</td>
+                <td>95</td>
+                <td>.300</td>
+            </tr>
+            <tr>
+                <td>Fernando Tatis Jr.</td>
+                <td>San Diego Padres</td>
+                <td>135</td>
+                <td>25</td>
+                <td>90</td>
+                <td>.280</td>
+            </tr>
+            <!-- Add more rows as needed -->
+        </tbody>
+    </table>
+
+    <script>
+        function filterTable() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const table = document.getElementById('statsTable');
+            const rows = table.getElementsByTagName('tr');
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                const playerName = cells[0].textContent.toLowerCase();
+                if (playerName.includes(input)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

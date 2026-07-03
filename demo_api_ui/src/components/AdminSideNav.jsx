@@ -413,7 +413,9 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/api-explorer",
           icon: "api",
         },
-        { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
+        // Hidden from nav: Token Chain (reachable at /monitoring/token-chain) and
+        // Token Diff — token chain now lives in the portal rails / agent panel.
+        // { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
           label: "Error Audit Log",

@@ -46,6 +46,8 @@ import { runWithCorrelation } from './correlationContext';
 import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
+import { GATEWAY_TOOLS } from './gatewayTools';
+import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -83,6 +85,10 @@ try {
 
 // BL-03: refuse the committed dev fallback secret in production.
 assertProductionSecrets(config);
+
+// Spec §4 (WR-02): shared RFC 8693 exchange client for the WS proxy path
+// (olb/invest tools/call + tools/list) — replaces raw token passthrough.
+const mcpExchangeClient = new McpTokenExchangeClient(config);
 
 let gatewayCerts: GatewayCerts | null = null;
 if (config.mtlsEnabled) {
@@ -372,6 +378,13 @@ async function handleMessage(
 
   const { method, id } = msg;
 
+  // Spec §2 — formal method allow-list + tools/call shape check (both transports).
+  const shapeFailure = validateMethodAndShape(method, msg.params);
+  if (shapeFailure) {
+    send(jsonRpcError(id, shapeFailure.code, shapeFailure.message, shapeFailure.data));
+    return;
+  }
+
   // tools/list — validate agent can discover tools, then aggregate from all backends
   if (method === 'tools/list') {
     let decoded;
@@ -435,64 +448,7 @@ async function handleMessage(
     // on their presence. Strategy 1: inject descriptors directly into the merged list.
     // Phase 267+: per-vertical api_key-path feature tools are also gateway-owned —
     // they must appear here so their chips are not hidden by the tool-permission check.
-    const gatewayTools = [
-      {
-        name: 'special_offers',
-        description: 'Demo: API-key credential path — gateway swaps OAuth bearer for a service API key. No backend call. Renders info page.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'user_profile_card',
-        description: 'Demo: Access + ID-Token credential path — gateway forwards both tokens to banking_resource_server /identity, returns decoded claims.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'dual_token',
-      },
-      // Per-vertical API-key feature tools. Each is routed by APIKEY_TOOLS in router.ts;
-      // injected here so they appear in tools/list and their featurePage chips are not hidden.
-      {
-        name: 'show_health_record',
-        description: 'Demo: API-key path — fetch the patient health record from the CareConnect backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_gear_order',
-        description: 'Demo: API-key path — fetch the most recent gear order from the Super Sports backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_enrollment',
-        description: 'Demo: API-key path — fetch the student enrollment record from the Super University backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_large_purchase',
-        description: 'Demo: API-key path — fetch a large purchase record from the Great Buy retail backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_expense_report',
-        description: 'Demo: API-key path — fetch the expense report from the WX Workforce backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_permit',
-        description: 'Demo: API-key path — fetch a permit record from the CivicPermit backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-      {
-        name: 'show_work_order',
-        description: 'Demo: API-key path — fetch a work order from the Precision Works manufacturing backend via service API key.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        credentialPath: 'api_key',
-      },
-    ];
+    const gatewayTools = GATEWAY_TOOLS;
     allTools.push(...gatewayTools);
 
     // Authorize per-tool decision: pass the merged tool names so the policy can
@@ -656,6 +612,15 @@ async function handleMessage(
     delete toolArgs._hitl_challenge_id;
     if (msgParams) {
       msgParams.arguments = toolArgs;
+    }
+
+    // Spec §2 — per-tool argument schema validation. Runs after the auth
+    // pipeline (identity known, audit hook set) and before HITL/PingOne
+    // Authorize so malformed calls never create challenges or burn a PDP call.
+    const argsFailure = validateToolArgs(toolName, toolArgs);
+    if (argsFailure) {
+      send(jsonRpcError(id, argsFailure.code, argsFailure.message, argsFailure.data));
+      return;
     }
 
     // If agent is retrying with a HITL receipt, verify the challenge is
@@ -960,8 +925,21 @@ async function handleMessage(
     // ----- Existing olb/invest path — WebSocket proxy -----
     const wsUrl = backendWsUrl(target, config);
 
-    // Gateway forwards the original TX token unchanged — no RFC 8693 re-exchange.
-    const backendToken: string = token;
+    // Spec §4 (closes WR-02): RFC 8693 exchange to the backend audience.
+    // Fail closed — the inbound gateway-audience token is never forwarded.
+    let backendToken: string;
+    let exchangeCached = false;
+    let exchangeTargetAud = '';
+    try {
+      const ex = await mcpExchangeClient.exchange(token, toolName);
+      backendToken = ex.token;
+      exchangeCached = ex.cached;
+      exchangeTargetAud = ex.targetAud;
+    } catch (err) {
+      console.error(`[GW] Token exchange failed for ${toolName}:`, err instanceof Error ? err.message : err);
+      send(jsonRpcError(id, -32500, 'Token exchange failed', { error: 'token_exchange_failed' }));
+      return;
+    }
 
     const tlsOpts: MtlsOptions | undefined = gatewayCerts
       ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
@@ -978,14 +956,15 @@ async function handleMessage(
     }
 
     // C3 + H1: synthesize tokenEvents for the Token Chain UI showing that the
-    // gateway forwarded the TX token unchanged to the backend MCP server.
+    // gateway exchanged the TX token (RFC 8693) for a backend-audience token
+    // before forwarding to the backend MCP server.
     const gwExchangeEvent = {
-      id: 'gw-passthrough',
-      label: `Gateway passthrough: inbound TX token forwarded unchanged to backend (${target}) — no re-exchange.`,
+      id: 'gw-exchange',
+      label: `Gateway RFC 8693 exchange: TX token (aud=${config.gatewayResourceUri}) → backend token (aud=${exchangeTargetAud})${exchangeCached ? ' [cache hit]' : ''}.`,
       tokenType: 'access_token',
       credentialPath: 'oauth_bearer',
       status: 'ok',
-      specRef: 'RFC 8693 — exchange skipped by design (passthrough mode)',
+      specRef: 'RFC 8693 §2.1 + RFC 8707 resource parameter',
     };
 
     const gwTokenEvents = [
@@ -1018,7 +997,7 @@ async function handleMessage(
         ...existingMeta,
         credentialPath: 'oauth_bearer',
         backendTransport: 'websocket',
-        tokenExchangeCached: null,
+        tokenExchangeCached: exchangeCached,
         tokenEvents: gwTokenEvents,
       };
     }
@@ -1053,7 +1032,13 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
   const tlsOpts: MtlsOptions | undefined = gatewayCerts
     ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
     : undefined;
-  return proxyJsonRpc(wsUrl, inboundToken, {
+  // Spec §4: tools/list also crosses the trust boundary with a backend-audience token.
+  // Caveat: a subject token lacking invest:read will be silently retargeted by
+  // PingOne to the olb audience when exchanging for invest; the invest backend
+  // then rejects it and the existing failedBackends/_meta partial-results path
+  // (Promise.allSettled below) reports it — acceptable by design.
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target);
+  return proxyJsonRpc(wsUrl, backendToken, {
     jsonrpc: '2.0',
     id: `gw-list-${target}`,
     method: 'tools/list',

@@ -1,0 +1,1 @@
+{"transactions":[{"id":"txn_1","type":"deposit","amount":500,"description":"Payroll","createdAt":"2026-03-01T10:00:00.000Z","accountInfo":"Checking","clientType":"enduser","performedBy":"Test User"},{"id":"txn_2","type":"withdrawal","amount":100,"description":"ATM","createdAt":"2026-03-05T14:30:00.000Z","accountInfo":"Checking","clientType":"enduser","performedBy":"Test User"}]}

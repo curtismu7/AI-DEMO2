@@ -15,7 +15,6 @@ import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
-import EventStreamPanel from "./EventStreamPanel";
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
@@ -25,7 +24,6 @@ import {
 } from "../services/agentAccessConsent";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { appendTokenEvents } from "../services/apiTrafficStore";
-import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { fetchNlStatus } from "../services/demoAgentNlService";
 import {
   callMcpTool,
@@ -412,8 +410,6 @@ export default function BankingAgent({
   // MCP tools list modal state
   const [showMcpToolsModal, setShowMcpToolsModal] = useState(false);
   const [mcpToolsList, setMcpToolsList] = useState([]);
-  // Event stream panel state
-  const [showEventStream, setShowEventStream] = useState(false);
   // Demo guide modal state
   const [showDemoGuide, setShowDemoGuide] = useState(false);
   // Account details panel state
@@ -557,16 +553,8 @@ export default function BankingAgent({
     );
   };
 
-  /** Token chain visibility and width — persisted to localStorage. */
-  const [showTokenChain, setShowTokenChain] = useState(() => {
-    // Always start hidden in popup windows so the token chain doesn't appear as a side menu
-    if (typeof window !== "undefined" && window.opener) return false;
-    try {
-      const saved = localStorage.getItem("ba_token_chain_show");
-      if (saved !== null) return saved === "true";
-    } catch {}
-    return false; // Default: hidden
-  });
+  /** Token chain visibility — always starts hidden on page load (not persisted). */
+  const [showTokenChain, setShowTokenChain] = useState(false);
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -576,15 +564,6 @@ export default function BankingAgent({
     } catch {}
     return 280; // Default: 280px
   });
-
-  /** Persist token chain visibility to localStorage. */
-  useEffect(() => {
-    try {
-      localStorage.setItem("ba_token_chain_show", String(showTokenChain));
-    } catch (e) {
-      console.warn("Failed to save ba_token_chain_show to localStorage:", e);
-    }
-  }, [showTokenChain]);
 
   /** Persist token chain width to localStorage. */
   useEffect(() => {
@@ -1725,16 +1704,19 @@ export default function BankingAgent({
     if (!aguiEnabled) return;
     const lastMsg = aguiState.messages[aguiState.messages.length - 1];
     if (!lastMsg || lastMsg.role !== 'assistant') return;
-    // Update or add the final assistant message in the BA chat thread
+    // Update or add the final assistant message in the BA chat thread.
+    // Shape must match the chat renderer: { role, content } — it filters on
+    // msg.role and renders msg.content, so a { sender, text } message is
+    // silently invisible.
     setMessages((prev) => {
       const existing = prev.findIndex((m) => m.id === lastMsg.id);
       if (existing !== -1) {
         const next = [...prev];
-        next[existing] = { ...next[existing], text: lastMsg.content, streaming: lastMsg.streaming };
+        next[existing] = { ...next[existing], content: lastMsg.content, streaming: lastMsg.streaming };
         return next;
       }
       // New message: append
-      return [...prev, { id: lastMsg.id, sender: 'assistant', text: lastMsg.content, streaming: lastMsg.streaming }];
+      return [...prev, { id: lastMsg.id, role: 'assistant', content: lastMsg.content, streaming: lastMsg.streaming }];
     });
   }, [aguiEnabled, aguiState.messages]);
 
@@ -1746,7 +1728,12 @@ export default function BankingAgent({
     }
     const rfcMsg = buildTokenEventMsg(aguiState.tokenEvents);
     if (rfcMsg) addMessage('token-event', rfcMsg, null);
-  }, [aguiEnabled, aguiState.tokenEvents, tokenChain]); // eslint-disable-line react-hooks/exhaustive-deps
+    // `tokenChain` is deliberately NOT a dependency: setTokenEvents always
+    // prepends a history entry, which rebuilds the context value — listing it
+    // here re-fired this effect on its own write, an infinite render loop
+    // ("Maximum update depth exceeded" ~4/s). setTokenEvents has stable
+    // identity (useCallback []), so the captured reference stays valid.
+  }, [aguiEnabled, aguiState.tokenEvents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AG-UI token usage — accumulate into Token Teller when agent reports counts.
   useEffect(() => {
@@ -5477,7 +5464,6 @@ export default function BankingAgent({
     prepNlCompliance(text);
     setNlLoading(true);
     addMessage("user", text);
-    tokenChainTraceStore.beginTrace({ prompt: text });
     setNlInput("");
     tokenChain?.clearEvents();
     try {
@@ -5567,8 +5553,8 @@ export default function BankingAgent({
       }
       // AG-UI path: when streaming is enabled, route the typed query through the
       // same POST /api/agent/run stream the action chips use (sendAsNlInner), so the
-      // live panels — Token Chain, MCP Traffic, Authorize, and the "What's happening"
-      // narration — populate from genuine events. The user message, input clear, and
+      // live panels — Token Chain, MCP Traffic, and Authorize — populate from
+      // genuine events. The user message, input clear, and
       // loading state were already applied above; all special typed commands
       // (capabilities, think/reason, log queries, clarifications) returned earlier, so
       // they are unaffected. When aguiEnabled is false this branch is skipped and the
@@ -6218,16 +6204,6 @@ export default function BankingAgent({
                 >
                   RFC info
                 </Check>
-                {/* What's Happening event stream toggle */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showEventStream}
-                  onChange={(e) => setShowEventStream(e.target.checked)}
-                  title="Show or hide real-time event stream"
-                >
-                  What's Happening
-                </Check>
                 {modelAdvisory && (
                   <span
                     className="ams-degraded-chip ba-model-advisory-chip"
@@ -6303,13 +6279,13 @@ export default function BankingAgent({
                     Side panel
                   </Check>
                 )}
-                {/* Token Chain modal toggle */}
+                {/* Token Chain floating panel toggle — non-blocking, agent stays usable */}
                 <Check
                   variant="switch"
                   className="ba-header-toggle-label"
                   checked={showTokenChain}
                   onChange={(e) => setShowTokenChain(e.target.checked)}
-                  title="View Token Chain — RFC 8693 token exchange and authorization decisions"
+                  title="View Token Chain — RFC 8693 token exchange and authorization decisions (floating panel, agent stays usable)"
                 >
                   Token Chain
                 </Check>
@@ -8861,11 +8837,6 @@ export default function BankingAgent({
           onSubmit={submitElicitation}
           onCancel={cancelElicitation}
         />
-      )}
-      {showEventStream && (
-        <div style={{ position: "fixed", bottom: "2rem", right: "2rem", zIndex: 999 }}>
-          <EventStreamPanel onClose={() => setShowEventStream(false)} />
-        </div>
       )}
     </div>
   );

@@ -183,6 +183,29 @@ function scopeMeta(scope) {
   return load().scopes[scope] || null;
 }
 
+/** All scope names declared in scopes{}. */
+function allScopes() {
+  return Object.keys(load().scopes);
+}
+
+/**
+ * External-spelling -> canonical-manifest-scope map (aliases{} in the manifest).
+ * Reconciles spellings used outside the manifest (PingGateway env, OAuth
+ * /authorize) with the canonical scope declared in scopes{}. {} if none.
+ */
+function aliases() {
+  return { ...(load().aliases || {}) };
+}
+
+/**
+ * Normalize an external scope spelling to its canonical manifest scope via
+ * aliases{}. Canonical / unknown scopes pass through unchanged (idempotent).
+ */
+function normalizeScope(scope) {
+  const a = load().aliases || {};
+  return a[scope] || scope;
+}
+
 module.exports = {
   toolScopes,
   toolSurface,
@@ -203,5 +226,8 @@ module.exports = {
   allApps,
   allTools,
   scopeMeta,
+  allScopes,
+  aliases,
+  normalizeScope,
   _manifest: load,
 };

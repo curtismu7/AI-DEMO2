@@ -2,7 +2,7 @@
  * @file AgentDemoGuide.jsx
  *
  * Interactive demo guide for Banking Agent compliance flows.
- * Maps real agent request scenarios to the 12 compliance verification steps:
+ * Maps real agent request scenarios to the 13 compliance verification steps:
  *
  * 1. agent-llm-reasoning — Natural language intent parsing
  * 2. agent-token-init — User OAuth token acquisition
@@ -16,8 +16,9 @@
  * 10. ui-auto-refire — Operation re-fired after consent
  * 11. agent-error-propagation — Error handling
  * 12. claim-diagnostics — Token claim analysis
+ * 13. bff-intent-token — Intent Token binding (HMAC-bound prompt intent)
  *
- * Usage: Click " Agent Demo Guide" to open this window.
+ * Usage: Click "Guide" in the agent header to open this window.
  * Reference: See /architecture/flow for live compliance flow diagram.
  */
 
@@ -310,7 +311,7 @@ const DEMO_SCENARIOS = [
       {
         action: "Test: Withdraw below threshold",
         prompt:
-          '" Test Withdraw $100" (if available, or manually request $100 withdrawal)',
+          '"Withdraw $100 from checking" (type in chat, or use the "Withdraw" chip in the Banking group)',
         explanation:
           "With threshold set to $9999, a $100 withdrawal does NOT trigger HITL. Agent completes the operation without consent modal.",
         watch: [
@@ -328,7 +329,7 @@ const DEMO_SCENARIOS = [
       },
       {
         action: "Test: Withdraw above new threshold",
-        prompt: '" Test Withdraw $100" (or similar amount > $50)',
+        prompt: '"Withdraw $100 from checking" (or any amount > $50)',
         explanation:
           "Now $100 withdrawal triggers HITL because it exceeds the $50 threshold.",
         watch: [
@@ -1124,13 +1125,14 @@ export default function AgentDemoGuide({
       storageKey="agent-demo-guide"
       minWidth={600}
       minHeight={500}
+      noBackdrop
     >
       {/* Header */}
       <div className="adg-header">
         <p className="adg-tagline">
           {viewMode === "presenter"
             ? "Presenter mode — audience-ready flows, no compliance badges."
-            : "Real request scenarios mapped to 12 compliance steps. See /architecture/flow for live diagram."}
+            : "Real request scenarios mapped to 13 compliance steps. See /architecture/flow for live diagram."}
         </p>
         <div className="adg-header-controls">
           <div className="adg-view-toggle">
@@ -1396,8 +1398,9 @@ export default function AgentDemoGuide({
                   <div className="adg-tips">
                     <strong>Pro Tips:</strong>
                     <ul>
-                      <li>Open Token Chain panel (right sidebar) to watch token events live</li>
-                      <li>Compliance panel (below messages) shows which steps are active</li>
+                      <li>Toggle "Token Chain" in the agent header to open the floating panel — it doesn't block the agent, so you can keep chatting while token events stream in</li>
+                      <li>Toggle "Compliance" in the agent header to see which steps are active (enable "Side panel" for the slide-out view)</li>
+                      <li>The Simple Stepper bar above the messages is a compact per-step audit trail — click "Show" to pop it out as a draggable table</li>
                       <li>Follow scenarios top-to-bottom to understand the story</li>
                       <li>
                         Reference:{" "}
@@ -1409,7 +1412,7 @@ export default function AgentDemoGuide({
                       <li>Each step lights up as it executes in real-time</li>
                       <li>Thresholds: HITL $250, MFA $500 (configurable via Controls)</li>
                       <li>Feature Flags: HITL, step-up, authorize, and token exchange are all independently toggleable</li>
-                      <li>Scenarios 4–9: HITL consent gates; 10: MFA step-up; 11–16: AI attacks (injection, exfil, DoS, output sanitization, token custody, defence layers)</li>
+                      <li>Scenarios 4–9: HITL consent gates; 10: MFA step-up; 11–16: AI attacks (injection, exfil, DoS, output sanitization, token custody, defence layers); 17–18: Intent Token binding &amp; bypass</li>
                     </ul>
                   </div>
                   <div className="adg-nav-buttons">

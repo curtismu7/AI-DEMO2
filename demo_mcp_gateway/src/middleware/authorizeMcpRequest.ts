@@ -6,18 +6,27 @@
  * Composes GatewayTokenPolicy + PingOneAuthorizeClient into the McpRequestMiddleware
  * hook that GatewayServer accepts.
  *
+ * This module builds the HTTP-transport pipeline only. GatewayServer's HTTP
+ * upstream is fixed to the OLB server, so this pipeline always exchanges for
+ * the olb audience — it does not route by tool. The WS transport (index.ts)
+ * serves both olb and invest and does its own per-tool exchangeForBackend
+ * call; it does not use this middleware's Step 4.
+ *
  * Pipeline per request:
  *   1. GatewayTokenPolicy.validate(decoded)             — claim invariants (sub, act, anti-bypass)
  *   2. PingOneAuthorizeClient.evaluate(...)             — PingOne Authorize policy decision (D-06)
- *   3. forward(bearerToken, body)                       — proxy to upstream MCP server (TX token forwarded unchanged)
+ *   3. McpTokenExchangeClient.exchangeForBackend(..., 'olb') — RFC 8693 exchange to the olb audience (D-03/D-05)
+ *   4. forward(upstreamToken, body)                     — proxy to the OLB MCP server with the exchanged token
  *
  * Failure modes:
  *   - Policy violation (claim validation)  → 401 via sendUnauthorized (handled upstream)
  *   - Authorize DENY or unavailable        → 403 Forbidden
+ *   - Token exchange failure               → 502 fail-closed (nothing forwarded)
  *
- * The TX token issued by the BFF (aud: ping.demo) is valid at both the gateway
- * and downstream MCP servers — no re-exchange is needed. The original bearer
- * token is forwarded unchanged to the upstream MCP server.
+ * The inbound TX token (aud: gateway) is never forwarded upstream. After PingOne
+ * Authorize permits the request, the gateway performs an RFC 8693 token exchange
+ * to mint a next-hop token scoped to the olb MCP-server audience, and forwards
+ * that exchanged token instead.
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -25,6 +34,7 @@ import { PingOneAuthorizeClient } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
+import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret } from '../config';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
@@ -33,6 +43,7 @@ import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
 import { validateIntentToken } from '../intentTokenValidator';
+import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
 import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from '../gatewayAudit';
 import { verifyDpopProof } from '../dpopVerify';
@@ -86,6 +97,7 @@ export interface AuthorizeMcpRequestDeps {
       engine?: 'real' | 'mock' | 'mock-failover';
       sentParameters?: Record<string, string>;
     }>;
+  exchange?: (subjectToken: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -122,6 +134,8 @@ export function buildAuthorizeMcpRequest(
 ): McpRequestMiddleware {
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
+  const exchangeClient = new McpTokenExchangeClient(config);
+  const doExchange = deps?.exchange ?? ((t: string) => exchangeClient.exchangeForBackend(t, 'olb'));
 
   return async (
     bearerToken: string,
@@ -351,6 +365,24 @@ export function buildAuthorizeMcpRequest(
       _audCtx.operation = toolName;
       _audCtx.userId = decoded?.sub;
       _audCtx.agentId = decoded?.act?.sub;
+    }
+
+    // Spec §2 — method allow-list + shape + per-tool schema validation, after
+    // token introspection but before any PingOne Authorize cost. HTTP transport
+    // returns 400 with a JSON-RPC error body (-32601 / -32602 + data).
+    const sendRpcError = (status: number, id: unknown, f: { code: number; message: string; data?: Record<string, unknown> }) => {
+      setAuditHeader(res);
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, error: { code: f.code, message: f.message, data: f.data } }));
+    };
+    const shapeFailure = validateMethodAndShape(parsedBody.method, parsedBody.params);
+    if (shapeFailure) { sendRpcError(400, parsedBody.id, shapeFailure); return; }
+    if (parsedBody.method === 'tools/call') {
+      const rawArgs = { ...(parsedBody.params?.arguments || {}) };
+      delete (rawArgs as Record<string, unknown>)._hitl_challenge_id;
+      // Shape check above guarantees params.name is a non-empty string here.
+      const argsFailure = validateToolArgs(toolName ?? '', rawArgs as Record<string, unknown>);
+      if (argsFailure) { sendRpcError(400, parsedBody.id, argsFailure); return; }
     }
 
     // WR-03: `_hitl_challenge_id` is a gateway-internal control field. The WS
@@ -701,16 +733,32 @@ export function buildAuthorizeMcpRequest(
       return;
     }
 
-    // ── Step 4: Forward with original TX token (unchanged) ───────────────────────────
-    // The TX token (aud: ping.demo) is valid at both the gateway and the downstream
-    // MCP server — no RFC 8693 re-exchange is needed. The original bearer token is
-    // forwarded unchanged.
+    // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────
+    // The HTTP upstream is FIXED to the OLB server (GatewayServer.upstreamMcpUrl) —
+    // there is no per-tool routing on this transport, unlike the WS path (index.ts),
+    // which proxies to olb or invest per routeTool(toolName). So every Step-4
+    // exchange here targets the olb audience regardless of toolName; invest tools
+    // are not reachable over this HTTP path. Fail closed: on exchange failure
+    // nothing is forwarded.
     // WR-03: outBody has `_hitl_challenge_id` stripped (or === body if absent).
     auditTrail.mtls = config.mtlsEnabled
       ? { enabled: true, subject: 'banking-mcp-gateway' }
       : { enabled: false };
     setAuditHeader(res);
     teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
-    await forward(bearerToken, outBody);
+    let upstreamToken: string;
+    try {
+      const ex = await doExchange(bearerToken);
+      upstreamToken = ex.token;
+    } catch (err) {
+      teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
+      sendRpcError(502, parsedBody.id, {
+        code: -32500,
+        message: 'Token exchange failed',
+        data: { error: 'token_exchange_failed' },
+      });
+      return;
+    }
+    await forward(upstreamToken, outBody);
   };
 }
