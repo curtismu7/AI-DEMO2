@@ -56,10 +56,15 @@ Embed points (identical rails/cards; `ExchangeModeToggle` mode-switcher buttons
 stay above, its explanatory table moves into an accordion inside this component):
 
 | Portal | File | Sites |
-|---|---|---|
+| --- | --- | --- |
 | Customer | `demo_api_ui/src/components/UserDashboard.js` | 3 (middle / split / float layouts) |
 | Customer 2026 | `demo_api_ui/src/components/UserDashboardPing2026.js` | 3 |
 | Admin | `demo_api_ui/src/components/Dashboard.js` | 1 |
+| Agent chat / floating agent | `demo_api_ui/src/components/TokenChainModal.js` (body swap; draggable shell kept) | 1 — used by the "Token Chain" toggle in `AIAgent.js`, incl. the floating-agent FAB |
+
+The floating-agent case reuses the exact same component: `TokenChainModal`
+keeps its `DraggableModal` shell and renders `<TokenChainTraceRail />` instead
+of `TokenChainDisplay hideHeader`. One component, identical everywhere.
 
 Rail structure top-to-bottom (see mock v3):
 
@@ -83,7 +88,7 @@ Steps stream in as the action progresses (status: pending `·`, running `⏳`,
 done `✓`, denied `✗`). Happy path (11 steps):
 
 | # | Step | Lane | Key content when expanded |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Sign-in — User Token acquired | PINGONE | OIDC code+PKCE token request/response; inline **User Token card** |
 | 2 | Chatbot — prompt sent | CHAT | Actual `POST /api/agent/run` body; note: cookie only, no tokens in browser |
 | 3 | Agent service receives | AGENT | History load, tool catalog + scope map from gateway |
@@ -138,7 +143,7 @@ Data (all already present in the BFF — `transactionAuthorizationService.js`,
 with its **unique name** and full key claims — and **how it changed** across
 the flow:
 
-```
+```text
 User Token        sub: user-123 · scope: read write · aud: banking-api · acr: MFA
 Agent Token       sub: agent-001 · client_credentials · aud: banking-api
 Delegated Token   sub: user-123 · act.sub: agent-001
@@ -158,7 +163,7 @@ against its parent in the chain.
 already exist, keyed by a per-action trace id:
 
 | Source | Steps fed | Exists today? |
-|---|---|---|
+| --- | --- | --- |
 | AG-UI event stream (agent service) | 2, 3, 4, 11 | Partially — needs LLM request/response detail payload |
 | BFF `tokenEvents` phases (SSE on `/api/mcp/tool` / `/api/agent/run`) | 1, 5, 6, 7, 7a, 8, denials | Phases yes; **detail payloads need enriching** |
 | MCP traffic feed (`McpTrafficPage` source) | 9, 10 | Yes |
@@ -185,10 +190,12 @@ subcomponents as needed.
 
 ## 7. Replacement Plan
 
-The 7 embed sites currently render
+The 7 dashboard embed sites currently render
 `<UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />`
-(commit `0e3a9bf89`); they switch to `<TokenChainTraceRail />`. The `embedded`
-prop/CSS on `UnifiedTokenFlowInspector` is reverted (no remaining consumer).
+(commit `0e3a9bf89`); they switch to `<TokenChainTraceRail />`. The 8th site,
+`TokenChainModal`, swaps its body from `TokenChainDisplay hideHeader` to
+`<TokenChainTraceRail />`. The `embedded` prop/CSS on
+`UnifiedTokenFlowInspector` is reverted (no remaining consumer).
 Test mocks added for the inspector in the four dashboard test files switch to
 mocking `TokenChainTraceRail`; the UserDashboard.js sha256 canary is
 re-baselined once.
@@ -203,7 +210,8 @@ re-baselined once.
 - Step-up and denial paths render their conditional steps.
 - Token Summary lists every token with unique name, full claims, and
   change rows (scope/aud/act/exp diffs vs parent token).
-- No horizontal overflow at 320px; identical behavior at all 7 embed points.
+- No horizontal overflow at 320px; identical behavior at all 8 embed points
+  (7 dashboard rails/cards + the agent-chat/floating-agent `TokenChainModal`).
 - No raw JWT strings in any browser-visible payload.
 - Existing test suites pass; new unit tests cover trace-merge and claim-diff
   logic.
