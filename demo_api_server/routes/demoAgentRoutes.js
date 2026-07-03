@@ -143,9 +143,13 @@ router.post('/tools', express.json(), async (req, res) => {
   } catch (error) {
     console.error('[demo-agent/tools] error:', error.code || 'unknown', error.message);
     // Downstream gateway/MCP unreachable — surface so the UI can show a clear state.
+    // Forward any token events recorded before the failure (e.g. the RFC 8693
+    // discovery exchange that failed `invalid_scope`) so the Token Chain rail
+    // renders the failed step instead of a silently truncated chain.
     return res.status(error.httpStatus || 502).json({
       error: error.code || 'tools_fetch_failed',
       message: error.message,
+      tokenEvents: error.tokenEvents || (req.tokenEvents || []),
     });
   }
 });

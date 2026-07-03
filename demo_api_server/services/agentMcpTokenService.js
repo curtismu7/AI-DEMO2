@@ -2396,7 +2396,7 @@ async function _performTwoExchangeDelegation(
       message: `[2-Exchange#2] Failed — error_code=${ex2Code} — ${err.message}`,
       error_code: ex2Code, oauth_error: ex2Details.oauth_error, http_status: ex2Details.http_status,
       category: ex2Details.category, pingoneError: err.pingoneError });
-    throw createTokenExchangeError('delegation_chain_broken', {
+    const chainErr = createTokenExchangeError('delegation_chain_broken', {
       exchangeType: 'double',
       exchangeStep: '2-exchange',
       actorPresent: true,
@@ -2404,6 +2404,12 @@ async function _performTwoExchangeDelegation(
       scopes: effectiveToolScopes,
       originalError: err
     }, err);
+    // Attach the accumulated events (incl. the failed-exchange step pushed above)
+    // so callers (e.g. POST /demo-agent/tools) can render the failure in the Token
+    // Chain rail instead of a silently truncated chain. Mirrors the
+    // `err.tokenEvents = tokenEvents` pattern used at the other throw sites here.
+    chainErr.tokenEvents = tokenEvents;
+    throw chainErr;
   }
 }
 
