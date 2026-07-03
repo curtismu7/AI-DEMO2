@@ -68,6 +68,7 @@ router.get('/resources', async (_req, res) => {
           id: s.id,
           name: s.name,
           description: s.description || '',
+          resource: r.name,
         }));
       } catch (e) {
         // Some built-in resources don't support scope listing

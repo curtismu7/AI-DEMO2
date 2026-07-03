@@ -299,6 +299,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
             <thead>
               <tr>
                 <th>Scope</th>
+                <th>Resource</th>
                 <th>Required</th>
                 <th>Status</th>
                 <th>Action</th>
@@ -308,6 +309,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
               {scopeRows.map(row => (
                 <tr key={row.name}>
                   <td className="scope-table__name">{row.name}</td>
+                  <td className="scope-table__resource">{name}</td>
                   <td>{row.extra ? 'extra' : row.required ? 'yes' : 'optional'}</td>
                   <td>
                     {row.present ? (
@@ -339,7 +341,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
               ))}
               {scopeRows.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', color: '#374151', padding: '1rem' }}>
+                  <td colSpan="5" style={{ textAlign: 'center', color: '#374151', padding: '1rem' }}>
                     No scopes configured
                   </td>
                 </tr>
