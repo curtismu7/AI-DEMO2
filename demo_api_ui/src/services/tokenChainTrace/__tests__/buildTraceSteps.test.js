@@ -91,6 +91,20 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.kv).toContainEqual(["decision id", "dec_8f31"]);
   });
 
+  test("simulated-engine authorize evaluation renders request parameters (no .body wrapper)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorize: {
+        engine: "simulated", decision: "PERMIT", decisionId: "sim_1",
+        decisionContext: "McpFirstTool",
+        request: { parameters: { UserId: "user-123", ToolName: "transfer_funds", Amount: 250 } },
+        response: { decision: "PERMIT" },
+      },
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.request.text).toContain("transfer_funds");
+  });
+
   test("authorize_denied phase renders authorize step as error", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

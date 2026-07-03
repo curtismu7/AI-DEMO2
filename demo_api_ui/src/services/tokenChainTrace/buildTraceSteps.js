@@ -112,7 +112,7 @@ export function buildTraceSteps(trace) {
     authorize ? {
       narrative: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
       request: authorize.request ? { title: "Decision request (actual)",
-        text: `${authorize.request.method || "POST"} ${authorize.request.url || ""}\n${asJson((authorize.request.body || {}).parameters || authorize.request.body || {})}` } : undefined,
+        text: `${authorize.request.method || "POST"} ${authorize.request.url || ""}\n${asJson((authorize.request.body && authorize.request.body.parameters) || authorize.request.parameters || authorize.request.body || {})}` } : undefined,
       response: authorize.response
         ? { title: "Decision response (raw)", text: asJson(authorize.response) } : undefined,
       decision: { outcome: authorize.decision || "INDETERMINATE",
@@ -131,7 +131,7 @@ export function buildTraceSteps(trace) {
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
         narrative: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
-        kv: phases.filter((p) => p.phase.startsWith("mfa_challenge"))
+        kv: phases.filter((p) => p.phase && p.phase.startsWith("mfa_challenge"))
           .map((p) => [p.phase, p.label || ""]),
       }));
   }
