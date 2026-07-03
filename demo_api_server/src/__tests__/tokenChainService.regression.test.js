@@ -158,6 +158,40 @@ describe('tokenChainService — Token Chain correctness regression', () => {
     auditStore.clearToolCalls();
   });
 
+  test('M2: getMCPToolCalls mints an agent CC token to authenticate /audit when req is provided', async () => {
+    delete process.env.MCP_AGENT_TOKEN;
+    jest.resetModules();
+    jest.doMock('../../services/agentCCTokenService', () => ({
+      getAgentCCToken: jest.fn(async () => ({ access_token: 'minted-agent-tok' })),
+    }));
+    const localSvc = require('../../services/tokenChainService');
+    const auditStore = require('../../services/mcpToolAuditStore');
+    auditStore.clearToolCalls();
+    let captured;
+    global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
+
+    await localSvc.getMCPToolCalls('u1', { id: 'req-1' });
+
+    expect(captured).toBeDefined();
+    expect(captured.headers.Authorization).toBe('Bearer minted-agent-tok');
+    auditStore.clearToolCalls();
+    jest.dontMock('../../services/agentCCTokenService');
+  });
+
+  test('M2: getMCPToolCalls does NOT mint (no auth header) when req is absent', async () => {
+    delete process.env.MCP_AGENT_TOKEN;
+    const auditStore = require('../../services/mcpToolAuditStore');
+    auditStore.clearToolCalls();
+    let captured;
+    global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
+
+    await svc.getMCPToolCalls('u1'); // no req
+
+    expect(captured).toBeDefined();
+    expect(captured.headers.Authorization).toBeUndefined();
+    auditStore.clearToolCalls();
+  });
+
   afterEach(() => {
     delete global.fetch;
   });
