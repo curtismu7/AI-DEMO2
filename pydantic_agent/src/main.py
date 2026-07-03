@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .run_handler import handle_run
 from . import config as cfg
@@ -20,23 +20,33 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_methods=["POST"],
     allow_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "x-internal-gateway-secret"],
 )
 
 
-# Auth middleware: validate BFF_INTERNAL_SECRET in Authorization header for /run endpoint
+# Auth middleware: validate the internal gateway secret on /run. The BFF calls
+# agents with `x-internal-gateway-secret: <BFF_INTERNAL_SECRET>` (see the BFF's
+# routes/agentRun.js getInternalSecret()) — the same header the sibling agent
+# frameworks expect. All services share BFF_INTERNAL_SECRET, so this
+# authenticates the BFF→agent hop. (The old code checked `Authorization: Bearer`,
+# which nothing sends, so every real /run — including the BFF's — was rejected.)
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path == "/run":
-            auth_header = request.headers.get("Authorization", "")
-            if not auth_header.startswith("Bearer "):
-                raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-            token = auth_header[7:]
-            if token != cfg.BFF_INTERNAL_SECRET:
-                raise HTTPException(status_code=403, detail="Invalid credentials")
+            # Return a Response directly rather than raising HTTPException:
+            # exceptions raised inside a BaseHTTPMiddleware bypass FastAPI's
+            # handlers and surface as a bare 500 instead of the intended 401/403.
+            secret = request.headers.get("x-internal-gateway-secret", "")
+            if not secret:
+                return JSONResponse(
+                    {"detail": "Missing x-internal-gateway-secret header"}, status_code=401
+                )
+            if secret != cfg.BFF_INTERNAL_SECRET:
+                return JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
         return await call_next(request)
 
 

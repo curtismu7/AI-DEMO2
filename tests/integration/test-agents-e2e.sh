@@ -25,7 +25,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-GW_SECRET="${BFF_INTERNAL_SECRET:-dev-shared-secret-change-me}"
+# The gateway secret the BFF presents to agents (x-internal-gateway-secret).
+# Agents that validate it (e.g. pydantic_ai) compare against the SAME
+# BFF_INTERNAL_SECRET the whole stack shares — so the test must send the stack's
+# actual value, not a default. Prefer the env; else read it from the running BFF
+# container (Docker stack); else fall back to the dev default.
+GW_SECRET="${BFF_INTERNAL_SECRET:-$(docker exec ai-demo-api-server printenv BFF_INTERNAL_SECRET 2>/dev/null || echo dev-shared-secret-change-me)}"
 # The local LLM the agents use: the llama.cpp multi-model proxy (:8090), which
 # is OpenAI-compatible and swap-mode (one tier loaded at a time). Override with
 # AGENT_LLM_BASE_URL to repoint the agents and this preflight together.
