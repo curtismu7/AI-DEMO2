@@ -160,13 +160,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
 }
+/* The head doubles as a <details> summary — make it a clickable disclosure. */
+summary.p1mcp-chip-group__head {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+summary.p1mcp-chip-group__head::-webkit-details-marker { display: none; }
+/* Rotating chevron: points right when collapsed, down when open. */
+summary.p1mcp-chip-group__head::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.p1mcp-chip-group[open] > summary.p1mcp-chip-group__head::before { transform: rotate(45deg); }
+/* Only reserve the gap below the head when the group is expanded. */
+.p1mcp-chip-group[open] > .p1mcp-chip-group__head { margin-bottom: 8px; }
 .p1mcp-chip-group__count {
   font-size: 11px;
   font-weight: 600;
