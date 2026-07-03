@@ -66,6 +66,17 @@ The floating-agent case reuses the exact same component: `TokenChainModal`
 keeps its `DraggableModal` shell and renders `<TokenChainTraceRail />` instead
 of `TokenChainDisplay hideHeader`. One component, identical everywhere.
 
+### Customer Dashboard 2026 — rail moves to the right
+
+Approved layout change (mock: `2026-07-03-dashboard-2026-layout-mock.html`,
+approved 2026-07-03): on `UserDashboardPing2026` the token rail moves from the left
+grid column to the **right** column. Left-to-right order becomes
+**Side Menu | Agent | Token Chain** — the agent is the main event, the trace
+is the evidence panel beside it. This is a grid/order change only (the
+`ud-token-rail` aside moves to the last column; agent column shifts left);
+no component API changes. The classic `UserDashboard` and admin `Dashboard`
+keep their existing column positions.
+
 Rail structure top-to-bottom (see mock v3):
 
 1. **Exchange-mode bar** (existing dark switcher, compact segmented control —
@@ -212,6 +223,8 @@ re-baselined once.
   change rows (scope/aud/act/exp diffs vs parent token).
 - No horizontal overflow at 320px; identical behavior at all 8 embed points
   (7 dashboard rails/cards + the agent-chat/floating-agent `TokenChainModal`).
+- Customer Dashboard 2026 renders Side Menu | Agent | Token Chain, with the
+  rail in the right column.
 - No raw JWT strings in any browser-visible payload.
 - Existing test suites pass; new unit tests cover trace-merge and claim-diff
   logic.
