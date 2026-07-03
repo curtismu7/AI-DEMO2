@@ -690,6 +690,42 @@ describe('Scope-based Authorization Integration Tests', () => {
         expect(response.body.required_access).toBe('admin role or admin:read scope');
       });
 
+      // Cross-user activity reads are admin-gated (re-gated in issue #122): a
+      // non-admin must not read another user's activity trail by name or id.
+      it.each([
+        '/api/admin/activity/user/some-other-user',
+        '/api/admin/activity/userid/other-user-id',
+      ])('should deny non-admin cross-user activity read: %s', async (endpoint) => {
+        const token = createOAuthToken([], {
+          username: 'no-scope-user',
+          roles: ['user']
+        });
+
+        const response = await request(app)
+          .get(endpoint)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('insufficient_scope');
+        expect(response.body.required_access).toBe('admin role or admin:read scope');
+      });
+
+      it.each([
+        '/api/admin/activity/user/some-other-user',
+        '/api/admin/activity/userid/other-user-id',
+      ])('should allow admin cross-user activity read: %s', async (endpoint) => {
+        const token = createOAuthToken(['admin:read'], {
+          username: 'admin-user',
+          roles: ['admin']
+        });
+
+        const response = await request(app)
+          .get(endpoint)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(200);
+      });
+
       it('should allow access to all admin endpoints with admin:read scope', async () => {
         const token = createOAuthToken(['admin:read'], { 
           username: 'admin-user',

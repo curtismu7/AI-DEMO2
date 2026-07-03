@@ -258,8 +258,10 @@ router.get('/activity', authenticateToken, (req, res) => {
   }
 });
 
-// Get activity logs by username
-router.get('/activity/user/:username', authenticateToken, (req, res) => {
+// Get activity logs by username — admin-only: reading another user's activity
+// trail is cross-user access, so it stays gated (unlike the general read
+// endpoints relaxed in 9bc18996b). See issue #122.
+router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const { username } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -294,8 +296,9 @@ router.get('/activity/user/:username', authenticateToken, (req, res) => {
   }
 });
 
-// Get activity logs by user ID
-router.get('/activity/userid/:userId', authenticateToken, (req, res) => {
+// Get activity logs by user ID — admin-only for the same reason as
+// /activity/user/:username above (cross-user access). See issue #122.
+router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 50 } = req.query;
