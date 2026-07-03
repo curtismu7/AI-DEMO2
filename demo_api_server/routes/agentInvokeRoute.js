@@ -325,6 +325,14 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
     }
 
     // ── PHASE 4: PERSIST RUN RECORD ──
+    // Persist only genuine token-chain events. Operational trace events recorded
+    // via req.recordTokenEvent have the shape { type, timestamp, ...data } with no
+    // id/label/status/eventType, so they render as blank "Event / unknown" rows in
+    // the report's OAuth Token Chain section. Drop them from the persisted run (the
+    // live agentResponse.tokenEvents returned to the client is left untouched).
+    const reportTokenEvents = (agentResponse.tokenEvents || []).filter(
+      (e) => e && (e.eventType || e.id || e.label || e.status)
+    );
     try {
       reportStore.saveRun({
         runId,
@@ -334,8 +342,8 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         startedAt: runStartedAt,
         completedAt: new Date().toISOString(),
         toolsCalled: agentResponse.toolsCalled || [],
-        tokenEvents: agentResponse.tokenEvents || [],
-        tokenCount: (agentResponse.tokenEvents || []).length,
+        tokenEvents: reportTokenEvents,
+        tokenCount: reportTokenEvents.length,
         agentPath: agentResponse.agentPath,
         confidence: agentResponse.confidence,
         intent: postIntent,
