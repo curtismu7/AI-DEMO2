@@ -380,6 +380,17 @@ async function reconcileTwoExchangeGrants() {
   //   - all other olb tool scopes (read/write/… + mcp:invoke) → the MCP Server grant.
   // The router sends invest tools to the invest backend and olb tools to olb, so a
   // token's surviving scope never needs the same name on both grants.
+  //
+  // Cross-reference: demo_mcp_gateway/src/auth/scopeTopology.ts
+  // resourceScopesForBackend() is broader than this partition — it returns ALL
+  // scopes+mirroredScopes from scope-topology.json for a backend (e.g.
+  // `invest:read` is requested on OLB exchanges too, since it's mirrored
+  // there), which the gateway's McpTokenExchangeClient uses to build the RFC
+  // 8693 `scope=` request. That request can therefore ask for a scope name
+  // this partition did NOT grant on that resource (e.g. `invest:read` on the
+  // olb grant) — PingOne silently drops the ungranted name from the issued
+  // token instead of erroring the exchange. If PingOne ever starts erroring
+  // on ungranted requested scopes, both sites need to be revisited together.
   const INVEST_RESERVED_SCOPE = 'invest:read';
   const serverExclude = new Set([INVEST_RESERVED_SCOPE]);
   // On the invest grant, drop any scope name already granted on the MCP Server

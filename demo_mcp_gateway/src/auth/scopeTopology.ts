@@ -50,7 +50,22 @@ const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest', string> = {
   invest: 'Super Banking MCP Invest',
 };
 
-/** All scopes (native + mirrored) registered on a backend's resource server. */
+/**
+ * All scopes (native + mirrored) registered on a backend's resource server.
+ * Used by McpTokenExchangeClient to build the RFC 8693 `scope=` request —
+ * i.e. this is what gets REQUESTED on an exchange (e.g. `invest:read` is
+ * requested on olb exchanges too, since it's a mirrored scope there).
+ *
+ * NOTE: this is intentionally broader than what the gateway app is actually
+ * GRANTED. demo_api_server/services/twoExchangeReconciler.js partitions the
+ * MCP Gateway app's grants per-backend to avoid a PingOne scope-name
+ * collision (a scope name can't be granted on two resources for the same
+ * app) — e.g. `invest:read` is granted ONLY on the invest resource, not olb.
+ * The request-vs-grant mismatch this creates is silently resolved by PingOne
+ * dropping any requested scope name the app isn't granted on that resource,
+ * rather than erroring. If that silent-drop behavior ever changes, both
+ * sites need to be revisited together.
+ */
 export function resourceScopesForBackend(backend: 'olb' | 'invest'): string[] {
   const r = (manifest as unknown as ManifestWithResources).resources[BACKEND_RESOURCE_NAME[backend]];
   return r ? [...(r.scopes || []), ...(r.mirroredScopes || [])] : [];
