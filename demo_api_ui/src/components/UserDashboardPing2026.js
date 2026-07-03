@@ -29,7 +29,7 @@ import { toastCustomerError } from "../utils/dashboardToast";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
-import TokenChainDisplay from "./TokenChainDisplay";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
 import TransactionConsentModal from "./TransactionConsentModal";
@@ -3209,13 +3209,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
         >
-          <aside className="ud-token-rail" aria-label="Token chain">
-            <div className="section ud-token-rail__inner">
-              <ExchangeModeToggle />
-              <TokenChainDisplay />
-            </div>
-          </aside>
-
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
@@ -3289,6 +3282,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               </div>
             </aside>
           )}
+
+          <aside className="ud-token-rail" aria-label="Token chain">
+            <div className="section ud-token-rail__inner">
+              <ExchangeModeToggle hideTable />
+              <TokenChainTraceRail />
+            </div>
+          </aside>
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
@@ -3310,8 +3310,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <aside className="rd2-right-rail" aria-label="Agent and token chain">
                 <AgentIdentityCard />
                 <div className="rd2-token-card">
-                  <ExchangeModeToggle />
-                  <TokenChainDisplay />
+                  <ExchangeModeToggle hideTable />
+                  <TokenChainTraceRail />
                 </div>
               </aside>
             </div>
@@ -3325,13 +3325,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // fixed overlay from App.js
           <div className="ud-body-outer">
             <div className="dashboard-content ud-body ud-body--2026 ud-body--floating ud-body--float-mode">
-              <aside className="ud-token-rail" aria-label="Token chain">
-                <div className="section ud-token-rail__inner">
-                  <ExchangeModeToggle />
-                  <TokenChainDisplay />
-                </div>
-              </aside>
-
               <main
                 className="ud-center"
                 id="main-dashboard-content"
@@ -3343,6 +3336,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                   renderBankingMain()
                 )}
               </main>
+
+              <aside className="ud-token-rail" aria-label="Token chain">
+                <div className="section ud-token-rail__inner">
+                  <ExchangeModeToggle hideTable />
+                  <TokenChainTraceRail />
+                </div>
+              </aside>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
