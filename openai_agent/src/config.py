@@ -18,19 +18,20 @@ class Config:
 
 
 def get_config() -> Config:
-    # LM Studio is the default provider (OpenAI-compatible, local, $0). Override
-    # via AGENT_LLM_BASE_URL / AGENT_LLM_API_KEY / AGENT_LLM_MODEL to point at
-    # OpenAI, Groq, Together, or any other OpenAI-compatible endpoint.
+    # The local llama.cpp multi-model proxy (:8090, OpenAI-compatible, local, $0)
+    # is the default provider. Override via AGENT_LLM_BASE_URL /
+    # AGENT_LLM_API_KEY / AGENT_LLM_MODEL to point at OpenAI, Groq, Together, or
+    # any other OpenAI-compatible endpoint.
     return Config(
         llm_api_key=os.environ.get("AGENT_LLM_API_KEY")
             or os.environ.get("OPENAI_API_KEY")
-            or "lm-studio",
-        llm_base_url=os.environ.get("AGENT_LLM_BASE_URL", "http://localhost:1234/v1"),
-        # Default matches run.sh's LM Studio auto-load model. Override via
-        # AGENT_LLM_MODEL once you've loaded a different model in LM Studio.
+            or "llama-cpp",
+        llm_base_url=os.environ.get("AGENT_LLM_BASE_URL", "http://localhost:8090/v1"),
+        # Default is a proxy tier id (the router recognizes it and serves it from
+        # the smallest loaded tier). Override via AGENT_LLM_MODEL.
         model=os.environ.get("AGENT_LLM_MODEL")
             or os.environ.get("OPENAI_MODEL")
-            or "google/gemma-4-e2b",
+            or "gemma-3-4b-it",
         bff_internal_secret=os.environ.get("BFF_INTERNAL_SECRET", "dev-shared-secret-change-me"),
         bff_tool_url=os.environ.get("BFF_INTERNAL_TOOL_URL", "http://127.0.0.1:3001/internal/agent-tool"),
         host=os.environ.get("AGENT_HTTP_HOST", "127.0.0.1"),
