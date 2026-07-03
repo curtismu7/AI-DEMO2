@@ -262,6 +262,13 @@ proxy.on('proxyRes', (proxyRes, req) => {
 
 proxy.on('error', (err, req, res) => {
   console.error(`[proxy] Error: ${err.message}`);
+  // The target is likely gone (e.g. swapped out behind our back by a UI
+  // pre-warm) — mark it unhealthy NOW so the next request re-selects instead
+  // of riding the stale health cache for up to HEALTH_TTL_MS.
+  if (req.proxyTarget) {
+    req.proxyTarget.healthy = false;
+    req.proxyTarget.lastCheck = 0;
+  }
   releaseTier(req);
   // Guard against writing headers after a partial/streamed response has begun,
   // which would throw ERR_HTTP_HEADERS_SENT and crash the proxy uncaught.
@@ -285,6 +292,18 @@ const server = http.createServer((req, res) => {
     const anyHealthy = TIERS.some((t) => t.healthy);
     res.writeHead(anyHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: anyHealthy ? 'healthy' : 'degraded', mode: 'swap', models: TIERS.map(modelSummary) }));
+    return;
+  }
+
+  // POST /refresh — force an immediate re-probe of every tier, bypassing the
+  // health-cache TTL. Called by the BFF right after a UI-triggered pre-warm
+  // (the tier-manager swapped models behind our back, so the cache is stale).
+  if (req.url === '/refresh' && req.method === 'POST') {
+    for (const t of TIERS) t.lastCheck = 0;
+    checkHealth().then(() => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, models: TIERS.map(modelSummary) }));
+    });
     return;
   }
 

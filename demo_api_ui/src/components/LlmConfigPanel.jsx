@@ -24,12 +24,15 @@ export default function LlmConfigPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [draggedItem, setDraggedItem] = useState(null);
+  const [tiers, setTiers] = useState(null);
+  const [prewarming, setPrewarming] = useState(null);
 
   const PROVIDERS = ['groq', 'openai', 'anthropic', 'google'];
 
   // Load config on mount
   useEffect(() => {
     loadConfig();
+    loadTiers();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load config from API
@@ -74,6 +77,49 @@ export default function LlmConfigPanel() {
       }
     }
     setProviderStatus(statuses);
+  };
+
+  // Load local llama.cpp tier state (swap mode: one model loaded at a time).
+  // Section stays hidden when the local proxy isn't running.
+  const loadTiers = async () => {
+    try {
+      const response = await fetch('/api/langchain/llamacpp/tiers');
+      if (response.ok) setTiers(await response.json());
+    } catch {
+      /* local LLM proxy not running — tier section hidden */
+    }
+  };
+
+  // A tier counts as loaded for a pick-list model if a healthy tier's name
+  // shares the model's family prefix (e.g. gemma-4-12b-it ↔ gemma-4-12b-qat).
+  const isTierLoaded = (model) => {
+    if (!tiers?.models) return false;
+    const family = model.replace(/-it$/, '');
+    return tiers.models.some(m => m.healthy && (m.name.startsWith(family) || family.startsWith(m.name)));
+  };
+
+  // Pre-warm: swap the requested model in NOW so the next demo request
+  // doesn't pay the model-load pause. Idle decay still drops back to the
+  // smallest tier after ~5 quiet minutes.
+  const handlePrewarm = async (model) => {
+    try {
+      setPrewarming(model);
+      setMessage(`Loading ${model}… (can take up to ~30s cold)`);
+      const response = await fetch('/api/langchain/llamacpp/prewarm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      if (!response.ok) throw new Error('Pre-warm failed');
+      setMessage(`✓ ${model} loaded and serving`);
+      setTimeout(() => setMessage(''), 4000);
+    } catch (error) {
+      console.error('[LlmConfigPanel] Pre-warm failed:', error);
+      setMessage(`Error pre-warming ${model}`);
+    } finally {
+      setPrewarming(null);
+      loadTiers();
+    }
   };
 
   // Save provider selection
@@ -368,6 +414,45 @@ export default function LlmConfigPanel() {
               {keySet[currentProvider] ? '✓ Key configured' : '⚠️ No key configured'}
             </small>
           </div>
+        </div>
+      )}
+
+      {/* Local model tiers (llama.cpp swap mode) */}
+      {tiers?.models && (
+        <div className="config-section">
+          <h3>Local Model Tiers (llama.cpp)</h3>
+          <p style={{ fontSize: '0.9em', color: '#666' }}>
+            Swap mode: one model loaded at a time. Pre-warm a bigger model before a
+            demo so the first request doesn't wait for it to load — after ~5 idle
+            minutes it decays back to the smallest tier.
+          </p>
+          <div className="fallback-chain">
+            {(tiers.prewarmable || []).map(model => {
+              const loaded = isTierLoaded(model);
+              return (
+                <div key={model} className="fallback-item">
+                  <span
+                    className="status-dot"
+                    style={{ backgroundColor: loaded ? '#28a745' : '#ccc' }}
+                    title={loaded ? 'Loaded' : 'Not loaded'}
+                  />
+                  <span className="provider-name">{model}</span>
+                  <button
+                    type="button"
+                    className="btn-small btn-primary"
+                    onClick={() => handlePrewarm(model)}
+                    disabled={loaded || prewarming !== null}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    {prewarming === model ? 'Loading…' : loaded ? 'Loaded' : 'Pre-warm'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {tiers.swapping && (
+            <small>Currently swapping to: {tiers.swapping}</small>
+          )}
         </div>
       )}
 

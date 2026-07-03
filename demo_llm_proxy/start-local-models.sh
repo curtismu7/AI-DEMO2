@@ -64,10 +64,13 @@ start_model() {
   local new_pid=$!
   echo "$new_pid" > "$pid_file"
 
-  # Wait for server to be ready
-  local timeout=30
+  # Wait for the model to actually be LOADED: -f makes curl fail on the 503
+  # llama-server returns while still loading, so "Ready" means HTTP 200.
+  # (Without -f, ensure returned early and swap-mode callers saw an unhealthy
+  # tier, re-triggering swaps.) 150s covers a cold load of the 11GB gpt-oss.
+  local timeout=150
   while [ $timeout -gt 0 ]; do
-    if curl -s "http://localhost:$port/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:$port/health" >/dev/null 2>&1; then
       echo "✅ $tier (port $port): Ready"
       return 0
     fi

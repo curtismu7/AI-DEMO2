@@ -351,3 +351,58 @@ router.get('/provider/:providerName/status', async (req, res) => {
     });
   }
 });
+
+// ── llama.cpp swap-mode tier control ────────────────────────────────────────
+// The multi-model proxy loads ONE tier at a time (swap mode). These routes let
+// the UI see which tier is loaded and pre-warm a bigger one before a demo, so
+// the first real request doesn't pay the model-load pause. The actual swap is
+// done by the host tier-manager daemon (:8097) — same one the router uses.
+const LLAMACPP_TIER_PORTS = {
+  'gemma-3-4b-it': 8091,
+  'gemma-4-12b-it': 8092,
+  'starcoder2-15b-instruct': 8093,
+  'gpt-oss-20b': 8096,
+};
+
+function llamacppOrigin() {
+  return (process.env.LLAMACPP_BASE_URL || 'http://host.docker.internal:8090').replace(/\/+$/, '');
+}
+
+function tierManagerOrigin() {
+  if (process.env.TIER_MANAGER_URL) return process.env.TIER_MANAGER_URL.replace(/\/+$/, '');
+  return `http://${new URL(llamacppOrigin()).hostname}:8097`;
+}
+
+// GET /api/langchain/llamacpp/tiers — which tier is loaded / swapping
+router.get('/llamacpp/tiers', async (req, res) => {
+  try {
+    const r = await fetch(`${llamacppOrigin()}/status`, { signal: AbortSignal.timeout(5000) });
+    const data = await r.json();
+    res.json({ ...data, prewarmable: Object.keys(LLAMACPP_TIER_PORTS) });
+  } catch (error) {
+    res.status(502).json({ error: 'llm-proxy unreachable', message: error.message });
+  }
+});
+
+// POST /api/langchain/llamacpp/prewarm { model } — swap the requested tier in
+// now. Idle decay still drops back to the smallest tier after ~5 quiet minutes.
+router.post('/llamacpp/prewarm', async (req, res) => {
+  const model = (req.body && req.body.model) || '';
+  const port = LLAMACPP_TIER_PORTS[model];
+  if (!port) {
+    return res.status(400).json({ error: `Unknown tier model: ${model}`, allowed: Object.keys(LLAMACPP_TIER_PORTS) });
+  }
+  try {
+    const r = await fetch(`${tierManagerOrigin()}/ensure?port=${port}`, { signal: AbortSignal.timeout(180000) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(502).json({ error: 'tier-manager swap failed', detail: data });
+    // The swap happened behind the router's back — poke it to re-probe tier
+    // health immediately, otherwise its cache routes to the unloaded tier for
+    // up to 30s.
+    await fetch(`${llamacppOrigin()}/refresh`, { method: 'POST', signal: AbortSignal.timeout(15000) }).catch(() => {});
+    console.log(`[langchainConfig] pre-warmed llamacpp tier ${model} (:${port})`);
+    res.json({ ok: true, model, port });
+  } catch (error) {
+    res.status(502).json({ error: 'tier-manager unreachable', message: error.message });
+  }
+});
