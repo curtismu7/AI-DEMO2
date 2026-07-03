@@ -628,6 +628,11 @@ export default function AdminSideNav({ user }) {
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },
         { label: "Vault", path: "/admin/vault" },
+        {
+          label: "PingOne Agent Builder",
+          path: "/agent-builder",
+          icon: "tool",
+        },
       ],
     },
     {
@@ -658,7 +663,6 @@ export default function AdminSideNav({ user }) {
     // group referenced by the expandedSections adminIdx/customerIdx map so the
     // auto-expand offsets stay valid. (Run Reports also lives under Monitoring.)
     { label: "Run Reports", path: "/reports", icon: "rpt" },
-    { label: "PingOne Agent Builder", path: "/agent-builder", icon: "tool" },
     // Visible to ALL logged-in users (no adminOnly) — the AI Control Plane is
     // not admin-gated. Appended after the index-coupled groups so the auto-expand
     // adminIdx/customerIdx offsets above stay valid.
