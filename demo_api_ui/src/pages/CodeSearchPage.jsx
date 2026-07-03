@@ -4,6 +4,13 @@ import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
 
+const DEFAULT_CODEBASE = {
+  id: 'ai-demo2-default',
+  name: 'This demo (AI-DEMO2)',
+  isDefault: true,
+  uploadedAt: new Date(0).toISOString(),
+};
+
 export function CodeSearchPage() {
   const [codebases, setCodebases] = useState([]);
   const [selectedCodebaseId, setSelectedCodebaseId] = useState('');
@@ -13,27 +20,58 @@ export function CodeSearchPage() {
   const [isIndexing, setIsIndexing] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
+  const [defaultStatus, setDefaultStatus] = useState('idle');
 
-  // Load codebases from localStorage on mount
+  // Load codebases from localStorage on mount, always seeding the default codebase
   useEffect(() => {
-    const stored = localStorage.getItem('codeSearchCodebases');
-    if (stored) {
+    let stored = [];
+    const raw = localStorage.getItem('codeSearchCodebases');
+    if (raw) {
       try {
-        const parsed = JSON.parse(stored);
-        setCodebases(parsed);
-        if (parsed.length > 0 && !selectedCodebaseId) {
-          setSelectedCodebaseId(parsed[0].id);
-        }
+        stored = JSON.parse(raw);
       } catch (err) {
         console.error('Failed to load codebases:', err);
       }
     }
+    const withDefault = [
+      DEFAULT_CODEBASE,
+      ...stored.filter((c) => c.id !== DEFAULT_CODEBASE.id),
+    ];
+    setCodebases(withDefault);
+    setSelectedCodebaseId((prev) => prev || DEFAULT_CODEBASE.id);
   }, []);
 
-  // Persist codebases to localStorage
+  // Persist codebases to localStorage, excluding the default (non-persistable) entry
   useEffect(() => {
-    localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
+    const persistable = codebases.filter((c) => !c.isDefault);
+    localStorage.setItem('codeSearchCodebases', JSON.stringify(persistable));
   }, [codebases]);
+
+  // Poll the default codebase's index status
+  useEffect(() => {
+    let alive = true;
+    let timeoutId;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/code-search/default-status');
+        if (!alive) return;
+        const s = await r.json();
+        setDefaultStatus(s.state);
+        if (s.state === 'indexing') {
+          timeoutId = setTimeout(poll, 4000);
+        }
+      } catch {
+        if (alive) {
+          timeoutId = setTimeout(poll, 8000);
+        }
+      }
+    };
+    poll();
+    return () => {
+      alive = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   const handleUpload = useCallback(
     async (file, codebaseName) => {
@@ -134,6 +172,12 @@ export function CodeSearchPage() {
                     <div className="codebase-name">{codebase.name}</div>
                     <div className="codebase-meta">
                       {new Date(codebase.uploadedAt).toLocaleDateString()}
+                      {codebase.isDefault && defaultStatus === 'indexing' && (
+                        <span className="codebase-chip"> indexing…</span>
+                      )}
+                      {codebase.isDefault && defaultStatus === 'error' && (
+                        <span className="codebase-chip codebase-chip--error"> index failed</span>
+                      )}
                     </div>
                   </div>
                 ))}
