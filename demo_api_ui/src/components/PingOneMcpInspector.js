@@ -69,6 +69,77 @@ const PLATFORM_GROUPS = [
 // The trailing 'other' group always matches, so find() never returns undefined.
 const platformGroupId = (name) => PLATFORM_GROUPS.find((g) => g.match(name)).id;
 
+// Within a tab (or sub-tab) the chips are further split into collapsible groups
+// so the wall of tools becomes scannable. Applications is the worst offender
+// (~30 tools) so it fans out into its assignment/mapping/credential facets;
+// DaVinci fans out by object type. Matching stays case-sensitive on PascalCase
+// resource tokens, and order matters — an Application sub-facet must be tested
+// before the plain 'Application' fallback so e.g. createApplicationGrant lands
+// under Grants, not the core Applications group.
+const chipGroupKey = (name) => {
+  if (isDavinciTool(name)) {
+    if (name.includes('Connector')) return 'dv-connectors';
+    if (name.includes('Form')) return 'dv-forms';
+    if (name.includes('Variable')) return 'dv-variables';
+    if (name.includes('Application')) return 'dv-apps';
+    if (name.includes('Flow')) return 'dv-flows';
+    return 'dv-other';
+  }
+  if (name.includes('Environment')) return 'environments';
+  if (name.includes('Population')) return 'populations';
+  if (name.includes('User')) return 'users';
+  if (name.includes('Application')) {
+    if (name.includes('AttributeMapping')) return 'app-attrmap';
+    if (name.includes('Grant')) return 'app-grants';
+    if (name.includes('RoleAssignment')) return 'app-roles';
+    if (name.includes('SignOnPolicyAssignment')) return 'app-signon';
+    if (name.includes('FlowPolicyAssignment')) return 'app-flowpolicy';
+    if (name.includes('PushCredential')) return 'app-push';
+    return 'applications';
+  }
+  return 'other';
+};
+
+const CHIP_GROUP_META = {
+  environments:     { label: 'Environments',              icon: '🌐' },
+  applications:     { label: 'Applications',              icon: '📱' },
+  'app-attrmap':    { label: 'App · Attribute mappings',  icon: '🔗' },
+  'app-grants':     { label: 'App · Grants',              icon: '🎫' },
+  'app-roles':      { label: 'App · Role assignments',    icon: '🛡️' },
+  'app-signon':     { label: 'App · Sign-on policy',      icon: '🔐' },
+  'app-flowpolicy': { label: 'App · Flow policy',         icon: '🪧' },
+  'app-push':       { label: 'App · Push credentials',    icon: '📨' },
+  users:            { label: 'Users',                     icon: '👤' },
+  populations:      { label: 'Populations',               icon: '👥' },
+  'dv-flows':       { label: 'DaVinci · Flows',           icon: '🌊' },
+  'dv-apps':        { label: 'DaVinci · Applications',    icon: '📱' },
+  'dv-connectors':  { label: 'DaVinci · Connectors',      icon: '🔌' },
+  'dv-forms':       { label: 'DaVinci · Forms',           icon: '📝' },
+  'dv-variables':   { label: 'DaVinci · Variables',       icon: '🔢' },
+  'dv-other':       { label: 'DaVinci · Other',           icon: '🧩' },
+  other:            { label: 'Other',                     icon: '🔧' },
+};
+const CHIP_GROUP_ORDER = [
+  'environments', 'applications', 'app-attrmap', 'app-grants', 'app-roles',
+  'app-signon', 'app-flowpolicy', 'app-push', 'users', 'populations',
+  'dv-flows', 'dv-apps', 'dv-connectors', 'dv-forms', 'dv-variables', 'dv-other', 'other',
+];
+// Primary/top-level groups stay open; the noisier per-app-facet and secondary
+// groups start collapsed so a broadly-scoped catalog doesn't reopen the wall.
+const CHIP_GROUP_OPEN = new Set([
+  'environments', 'applications', 'users', 'populations', 'dv-flows', 'dv-apps',
+]);
+// Ordered [groupKey, tools[]] pairs for a tool list (empty groups dropped).
+const groupChips = (toolList) => {
+  const buckets = {};
+  for (const t of toolList) {
+    const key = chipGroupKey(t.name);
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(t);
+  }
+  return CHIP_GROUP_ORDER.filter((k) => buckets[k]?.length).map((k) => [k, buckets[k]]);
+};
+
 // Management operations the hosted PingOne MCP server does NOT expose, so the app
 // and tests fall back to the PingOne Management API (or DaVinci API) directly.
 // Verified against the live tools/list — keep in sync if PingOne adds tools.
@@ -511,25 +582,38 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
               <div className="p1mcp-chips-callbar">{callButton}</div>
             )}
 
-            <div className="p1mcp-chips">
-              {visibleTools.map((t) => (
-                <button
-                  key={t.name}
-                  type="button"
-                  className={`p1mcp-chip ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
-                  title={t.description || t.name}
-                  onClick={() => selectTool(t)}
-                >
-                  {t.name}
-                </button>
-              ))}
-              {visibleTools.length === 0 && (
-                <p className="mcp-inspector__muted">
-                  No {activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.
-                  {activeTab === 'davinci' && ' DaVinci Admin role required.'}
-                </p>
-              )}
-            </div>
+            {visibleTools.length === 0 ? (
+              <p className="mcp-inspector__muted">
+                No {activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.
+                {activeTab === 'davinci' && ' DaVinci Admin role required.'}
+              </p>
+            ) : (
+              groupChips(visibleTools).map(([key, groupTools]) => {
+                const meta = CHIP_GROUP_META[key];
+                return (
+                  <details className="p1mcp-chip-group" key={key} open={CHIP_GROUP_OPEN.has(key)}>
+                    <summary className="p1mcp-chip-group__head">
+                      <span aria-hidden="true">{meta.icon}</span>
+                      {meta.label}
+                      <span className="p1mcp-chip-group__count">{groupTools.length}</span>
+                    </summary>
+                    <div className="p1mcp-chips">
+                      {groupTools.map((t) => (
+                        <button
+                          key={t.name}
+                          type="button"
+                          className={`p1mcp-chip ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
+                          title={t.description || t.name}
+                          onClick={() => selectTool(t)}
+                        >
+                          {t.name}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                );
+              })
+            )}
 
             {selectedTool && (
               <div className="p1mcp-tool-card">
