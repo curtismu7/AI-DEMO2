@@ -66,10 +66,12 @@ services:
       # exchange (no skipping). Mirrors service-topology.json — run
       # `node scripts/gen-service-topology.js check` to verify no drift.
       MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
-      # PingGateway (IG) alternative gateway — used when ff_mcp_gateway_pinggateway is ON.
+      # PingGateway (IG) gateway — the DEFAULT MCP enforcement point (real PingOne
+      # token end-to-end). Env is synced into the store at every boot (FF_ENV_MAP),
+      # so this value wins over persisted toggles; flip here to change the default.
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
-      FF_MCP_GATEWAY_PINGGATEWAY: "false"
+      FF_MCP_GATEWAY_PINGGATEWAY: "true"
       # Authz defaults for the demo. configStore seeds these into LMDB only when
       # no value is persisted yet, and persisted /config overrides still win — so
       # these just make a FRESH bff-data volume come up with this engine. See

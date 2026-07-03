@@ -308,8 +308,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
-  ff_mcp_gateway_pinggateway:      { public: true, default: 'false' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
-  ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
+  ff_mcp_gateway_pinggateway:      { public: true, default: 'true'  }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway (default ON — real PingOne token end-to-end)
+  ff_mcp_gateway_jwks:             { public: true, default: 'true'  }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting (default ON)
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
