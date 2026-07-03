@@ -86,6 +86,10 @@ try {
 // BL-03: refuse the committed dev fallback secret in production.
 assertProductionSecrets(config);
 
+// Spec §4 (WR-02): shared RFC 8693 exchange client for the WS proxy path
+// (olb/invest tools/call + tools/list) — replaces raw token passthrough.
+const mcpExchangeClient = new McpTokenExchangeClient(config);
+
 let gatewayCerts: GatewayCerts | null = null;
 if (config.mtlsEnabled) {
   gatewayCerts = await generateGatewayCerts({ writeCertTo: config.mtlsCertPath });
@@ -921,8 +925,21 @@ async function handleMessage(
     // ----- Existing olb/invest path — WebSocket proxy -----
     const wsUrl = backendWsUrl(target, config);
 
-    // Gateway forwards the original TX token unchanged — no RFC 8693 re-exchange.
-    const backendToken: string = token;
+    // Spec §4 (closes WR-02): RFC 8693 exchange to the backend audience.
+    // Fail closed — the inbound gateway-audience token is never forwarded.
+    let backendToken: string;
+    let exchangeCached = false;
+    let exchangeTargetAud = '';
+    try {
+      const ex = await mcpExchangeClient.exchange(token, toolName);
+      backendToken = ex.token;
+      exchangeCached = ex.cached;
+      exchangeTargetAud = ex.targetAud;
+    } catch (err) {
+      console.error(`[GW] Token exchange failed for ${toolName}:`, err instanceof Error ? err.message : err);
+      send(jsonRpcError(id, -32500, 'Token exchange failed', { error: 'token_exchange_failed' }));
+      return;
+    }
 
     const tlsOpts: MtlsOptions | undefined = gatewayCerts
       ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
@@ -939,14 +956,15 @@ async function handleMessage(
     }
 
     // C3 + H1: synthesize tokenEvents for the Token Chain UI showing that the
-    // gateway forwarded the TX token unchanged to the backend MCP server.
+    // gateway exchanged the TX token (RFC 8693) for a backend-audience token
+    // before forwarding to the backend MCP server.
     const gwExchangeEvent = {
-      id: 'gw-passthrough',
-      label: `Gateway passthrough: inbound TX token forwarded unchanged to backend (${target}) — no re-exchange.`,
+      id: 'gw-exchange',
+      label: `Gateway RFC 8693 exchange: TX token (aud=${config.gatewayResourceUri}) → backend token (aud=${exchangeTargetAud})${exchangeCached ? ' [cache hit]' : ''}.`,
       tokenType: 'access_token',
       credentialPath: 'oauth_bearer',
       status: 'ok',
-      specRef: 'RFC 8693 — exchange skipped by design (passthrough mode)',
+      specRef: 'RFC 8693 §2.1 + RFC 8707 resource parameter',
     };
 
     const gwTokenEvents = [
@@ -979,7 +997,7 @@ async function handleMessage(
         ...existingMeta,
         credentialPath: 'oauth_bearer',
         backendTransport: 'websocket',
-        tokenExchangeCached: null,
+        tokenExchangeCached: exchangeCached,
         tokenEvents: gwTokenEvents,
       };
     }
@@ -1014,7 +1032,13 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
   const tlsOpts: MtlsOptions | undefined = gatewayCerts
     ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
     : undefined;
-  return proxyJsonRpc(wsUrl, inboundToken, {
+  // Spec §4: tools/list also crosses the trust boundary with a backend-audience token.
+  // Caveat: a subject token lacking invest:read will be silently retargeted by
+  // PingOne to the olb audience when exchanging for invest; the invest backend
+  // then rejects it and the existing failedBackends/_meta partial-results path
+  // (Promise.allSettled below) reports it — acceptable by design.
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target);
+  return proxyJsonRpc(wsUrl, backendToken, {
     jsonrpc: '2.0',
     id: `gw-list-${target}`,
     method: 'tools/list',
