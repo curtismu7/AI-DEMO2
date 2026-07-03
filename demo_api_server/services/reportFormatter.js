@@ -312,15 +312,23 @@ function formatHtml(run) {
     .report-footer { background: #f4f8fb; border-top: 1px solid #d6eaf8; padding: 1rem 2.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #888; }
     .download-btn { background: #277ba5; color: white; padding: 0.55rem 1.2rem; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
     .download-btn:hover { background: #1a5276; }
+    .report-nav { padding: 0.85rem 2.5rem 0; }
+    .back-btn { display: inline-block; background: #eaf2fb; color: #1a5276; text-decoration: none; padding: 0.45rem 1rem; border-radius: 5px; font-size: 0.85rem; font-weight: 600; border: 1px solid #d6eaf8; }
+    .back-btn:hover { background: #d6eaf8; }
     @media print {
       body { background: white; padding: 0; }
       .container { box-shadow: none; border-radius: 0; }
       .report-footer { display: none; }
+      .report-nav { display: none; }
     }
   </style>
 </head>
 <body>
   <div class="container">
+
+    <div class="report-nav">
+      <a class="back-btn" href="/reports">&larr; Back to Reports</a>
+    </div>
 
     <div class="report-banner">
       <h1>Agent Run Report</h1>
