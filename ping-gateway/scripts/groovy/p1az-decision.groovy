@@ -9,8 +9,8 @@
  * LIVE-SWITCHABLE backend (mock demo_authz_server vs real PingOne Authorize):
  * the BFF stamps the X-Authz-Simulated header (value = effective ff_authorize_simulated)
  * on every PingGateway-bound request. This filter reads it PER REQUEST:
- *     true  (or header absent) -> P1AZ_MOCK_BASE  (demo_authz_server, no worker token)
- *     false                    -> P1AZ_REAL_BASE  (real PingOne Authorize, client_credentials worker token)
+ *     true                     -> P1AZ_MOCK_BASE  (demo_authz_server, no worker token)
+ *     false (or header absent) -> P1AZ_REAL_BASE  (real PingOne Authorize, client_credentials worker token)
  *
  * SECURITY (demo): X-Authz-Simulated is trusted because the BFF is the sole intended
  * caller. The gateway's host port (3036) is for curl/testing only — a request reaching
@@ -59,10 +59,11 @@ def workerClientSecret  = System.getenv('P1AZ_WORKER_CLIENT_SECRET') ?: ''
 def gatewayResourceUri  = System.getenv('PG_GATEWAY_RESOURCE_URI') ?: ''
 
 // ── Live backend selection from the BFF-stamped header ────────────────────────
-// Default to simulated (mock) when the header is absent — matches ff_authorize_simulated
-// defaulting to true.
+// Default to REAL PingOne Authorize when the header is absent — matches
+// ff_authorize_simulated defaulting to false (all-real-servers default; the mock
+// demo_authz_server is opt-in via X-Authz-Simulated: true only).
 def simulatedHeader = request.headers.getFirst('X-Authz-Simulated')
-def simulated       = (simulatedHeader == null) ? true : (simulatedHeader.trim() == 'true')
+def simulated       = (simulatedHeader == null) ? false : (simulatedHeader.trim() == 'true')
 def decisionBase    = simulated ? mockBase : realBase
 
 // Fail closed when the selected backend is not configured (mirrors the Node

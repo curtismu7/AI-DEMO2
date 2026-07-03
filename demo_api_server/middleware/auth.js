@@ -713,6 +713,7 @@ const authenticateToken = async (req, res, next) => {
             userType: userType,
             tokenType: 'oauth',
             acr: decoded.acr || null,
+            authTime: Number.isFinite(Number(decoded.auth_time)) ? Number(decoded.auth_time) : null, // OIDC auth_time — when the user actually authenticated (RFC 9470 freshness)
             scopes: scopes,
             isDelegated: !!decoded.act,
             actor: decoded.act || null
@@ -834,6 +835,7 @@ const authenticateToken = async (req, res, next) => {
         userType: userType,
         tokenType: 'oauth',
         acr: decoded.acr || null,      // PingOne sets this when acr_values was requested
+        authTime: Number.isFinite(Number(decoded.auth_time)) ? Number(decoded.auth_time) : null, // OIDC auth_time — when the user actually authenticated (RFC 9470 freshness)
         scopes: scopes,
         // RFC 8693 delegation: enrich req.user when token carries an act claim
         isDelegated: !!decoded.act,

@@ -10,7 +10,7 @@ This document provides comprehensive visual assets and presentation materials fo
 
 #### Slide 1: Title Slide
 **Title**: "The Future of Banking is Conversational"
-**Subtitle**: "Super Banking AI Agent Showcase"
+**Subtitle**: "The AI Demo AI Agent Showcase"
 **Visual**: Modern banking interface with AI chat interface overlay
 **Speaker Notes**: "Welcome to the future of banking, where artificial intelligence transforms financial services from complex tasks into natural conversations."
 

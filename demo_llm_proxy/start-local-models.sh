@@ -1,7 +1,7 @@
 #!/bin/bash
-# start-local-models.sh — start 4 local llama-server instances for the LLM proxy
+# start-local-models.sh — start 5 local llama-server instances for the LLM proxy
 #
-# Runs 4 separate llama-server processes in background on ports 8091-8094.
+# Runs 5 separate llama-server processes in background on ports 8091-8096.
 # Call this BEFORE starting the docker-compose stack.
 #
 # Usage: bash demo_llm_proxy/start-local-models.sh [start|stop|status]
@@ -12,18 +12,23 @@ MODELS_DIR="/Users/cmuir/models"
 LOG_DIR="/tmp/llama-models"
 mkdir -p "$LOG_DIR"
 
-# Model configuration: (port, name, model_file, threads)
+# Model configuration: (port, name, model_file, threads, extra llama-server args)
+# gpt-oss needs --jinja (harmony chat template, enables tool calls); the default
+# reasoning-format (auto) parses reasoning into reasoning_content so plain chat
+# clients get only the final answer in content.
+# NOTE: :8095 is skipped — the mcp-code-search container publishes it.
 declare -a MODELS=(
-  "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4"
-  "8092:Tier2:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf:4"
-  "8093:Tier3:Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf:6"
-  "8094:Tier4:gemma-4-12b-it-UD-Q4_K_XL.gguf:8"
+  "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4:"
+  "8092:Tier2:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf:4:"
+  "8093:Tier3:starcoder2-15b-instruct-v0.1-Q4_K_M.gguf:6:"
+  "8094:Tier4:gemma-4-12b-it-UD-Q4_K_XL.gguf:8:"
+  "8096:Tier5:gpt-oss-20b-mxfp4.gguf:6:--jinja"
 )
 
 # Helper functions
 start_model() {
   local config="$1"
-  IFS=':' read -r port tier model threads <<< "$config"
+  IFS=':' read -r port tier model threads extra <<< "$config"
 
   local model_path="$MODELS_DIR/$model"
   if [ ! -f "$model_path" ]; then
@@ -45,21 +50,27 @@ start_model() {
 
   echo "🚀 $tier (port $port): Starting $model on port $port..."
 
+  # $extra is intentionally unquoted — it holds optional extra llama-server
+  # flags (word-split on spaces; empty for most tiers).
   llama-server \
     -m "$model_path" \
     --port "$port" \
     --threads "$threads" \
     --n-gpu-layers 33 \
     --ctx-size 4096 \
+    $extra \
     >"$log_file" 2>&1 &
 
   local new_pid=$!
   echo "$new_pid" > "$pid_file"
 
-  # Wait for server to be ready
-  local timeout=30
+  # Wait for the model to actually be LOADED: -f makes curl fail on the 503
+  # llama-server returns while still loading, so "Ready" means HTTP 200.
+  # (Without -f, ensure returned early and swap-mode callers saw an unhealthy
+  # tier, re-triggering swaps.) 150s covers a cold load of the 11GB gpt-oss.
+  local timeout=150
   while [ $timeout -gt 0 ]; do
-    if curl -s "http://localhost:$port/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:$port/health" >/dev/null 2>&1; then
       echo "✅ $tier (port $port): Ready"
       return 0
     fi
@@ -111,7 +122,7 @@ ACTION="${1:-start}"
 case "$ACTION" in
   start)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔷 Starting 4-tier LLM proxy backend (local llama-server instances)"
+    echo "🔷 Starting 5-tier LLM proxy backend (local llama-server instances)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     failed=0
@@ -120,8 +131,8 @@ case "$ACTION" in
     done
     echo ""
     if [ $failed -eq 0 ]; then
-      echo "✅ All 4 models started successfully!"
-      echo "   Proxy will route to these instances on ports 8091-8094"
+      echo "✅ All ${#MODELS[@]} models started successfully!"
+      echo "   Proxy will route to these instances on ports 8091-8096"
       echo "   Start proxy with: docker compose up llm-proxy"
     else
       echo "❌ $failed model(s) failed to start"
@@ -135,6 +146,26 @@ case "$ACTION" in
       stop_model "$model"
     done
     ;;
+  ensure)
+    # ensure <port> — swap-mode primitive: stop every tier EXCEPT <port>, then
+    # start <port> if it isn't already running. Used by tier-manager.js so only
+    # one model is loaded at a time ("smallest that does the job").
+    TARGET_PORT="${2:?usage: $0 ensure <port>}"
+    found=""
+    for model in "${MODELS[@]}"; do
+      IFS=':' read -r port _ _ _ _ <<< "$model"
+      if [ "$port" = "$TARGET_PORT" ]; then
+        found="$model"
+      else
+        stop_model "$model"
+      fi
+    done
+    if [ -z "$found" ]; then
+      echo "❌ ensure: no tier configured on port $TARGET_PORT"
+      exit 1
+    fi
+    start_model "$found"
+    ;;
   status)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔷 LLM Proxy Backend Status"
@@ -147,7 +178,7 @@ case "$ACTION" in
     echo "Logs: $LOG_DIR/llama-*.log"
     ;;
   *)
-    echo "Usage: $0 [start|stop|status]"
+    echo "Usage: $0 [start|stop|status|ensure <port>]"
     exit 1
     ;;
 esac

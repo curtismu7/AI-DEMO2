@@ -10,12 +10,10 @@ import FloatingPanel from './FloatingPanel';
 import TokenChainDisplay from './TokenChainDisplay';
 import UnifiedTokenFlowInspector from './UnifiedTokenFlowInspector';
 import McpTrafficPage from './McpTrafficPage';
-import TokenDiffPanel from './TokenDiffPanel';
 import ApiExplorerPanel from './ApiExplorerPanel';
 
 const TABS = [
   { id: 'chain',     icon: '🔗', label: 'Token Chain' },
-  { id: 'diff',      icon: '📊', label: 'Token Diff' },
   { id: 'inspector', icon: '🔬', label: 'Flow Inspector' },
   { id: 'traffic',   icon: '🔌', label: 'MCP Traffic' },
   { id: 'api',       icon: '📡', label: 'API Explorer' },
@@ -112,9 +110,6 @@ export default function DevToolsDashboard({
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         <div style={{ display: activeTab === 'chain' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
           <TokenChainDisplay hideHeader />
-        </div>
-        <div style={{ display: activeTab === 'diff' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
-          <TokenDiffPanel />
         </div>
         <div style={{ display: activeTab === 'inspector' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'auto' }}>
           <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} />

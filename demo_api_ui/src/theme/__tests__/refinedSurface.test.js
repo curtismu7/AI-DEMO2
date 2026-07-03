@@ -95,6 +95,7 @@ vi.mock("../../services/cachedStatusService", () => ({
 
 // ── Heavy child components stubbed to keep the render in jsdom ────────────────
 vi.mock("../../components/TokenChainDisplay", () => ({ default: () => null }));
+vi.mock("../../components/TokenChainTraceRail", () => ({ default: () => null }));
 vi.mock("../../components/ExchangeModeToggle", () => ({ default: () => null }));
 vi.mock("../../components/Fido2Challenge", () => ({ default: () => null }));
 vi.mock("../../components/ConfirmModal", () => ({ default: () => null }));

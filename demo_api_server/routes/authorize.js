@@ -866,6 +866,52 @@ router.post('/test-evaluate-mcp', async (req, res) => {
 });
 
 /**
+ * POST /api/authorize/test-mcp-live
+ * Force-live evaluation of the MCP Delegation Authorization policy against the
+ * configured PingOne Authorize decision endpoint. No auth — read-only decision call.
+ * Body: { parameters: { DecisionContext, UserId, ToolName, TokenAudience, McpResourceUri,
+ *   ActClientId, NestedActClientId, UserTier, RequiredGroup, InRequiredGroup, Acr, HitlApproved, Amount } }
+ */
+router.post('/test-mcp-live', async (req, res) => {
+  const parameters = req.body?.parameters;
+  if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) {
+    return res.status(400).json({ ok: false, error: 'parameters object is required' });
+  }
+  if (!isConfigured()) {
+    return res.status(409).json({
+      ok: false,
+      error: 'pingone_not_configured',
+      message: 'PingOne Authorize worker credentials and a decision endpoint must be configured to run a live MCP test.',
+    });
+  }
+  const endpointId =
+    configStore.getEffective('authorize_decision_endpoint_id') ||
+    process.env.PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID;
+  try {
+    const result = await evaluateDecisionEndpoint(endpointId, parameters);
+    const statements = (result.raw?.statements || []).map((s) => s.code || s.id).filter(Boolean);
+    logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
+      `Authorize [pingone/mcp-live] ${result.decision} — ${parameters.ToolName || ''}`,
+      { tag: 'authorize/mcp-live', metadata: { decision: result.decision, toolName: parameters.ToolName, statements } });
+    return res.json({
+      ok: true,
+      engine: 'pingone',
+      decision: result.decision,
+      stepUpRequired: result.stepUpRequired || false,
+      consentRequired: result.consentRequired || result.hitlRequired || false,
+      statements,
+      decisionId: result.decisionId,
+      raw: result.raw,
+      pingoneRequest: result._debug?.request,
+      pingoneResponse: result._debug?.response,
+    });
+  } catch (err) {
+    console.error('[authorize/test-mcp-live] Error:', err.message);
+    return res.status(502).json({ ok: false, error: 'pingone_evaluation_failed', message: err.message, engine: 'pingone' });
+  }
+});
+
+/**
  * GET /api/authorize/test-introspect
  * Introspect the current session's access token via the mock authz server (RFC 7662).
  * Requires authentication — reads the session access token.

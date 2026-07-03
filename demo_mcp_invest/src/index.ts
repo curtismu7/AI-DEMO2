@@ -34,7 +34,13 @@ if (process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true' && process.env.NODE_E
 
 const PORT = parseInt(process.env.PORT || '8081', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-const RESOURCE_URI = process.env.MCP_SERVER_RESOURCE_URI || 'https://mcp-invest.ping.demo';
+// MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
+// rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
+// metadata, health, logs); the full list feeds aud validation.
+const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'https://mcp-invest.ping.demo')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+const RESOURCE_URI = RESOURCE_URI_LIST[0];
+const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
 const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-invest)';
 
 // Startup env validation
@@ -132,7 +138,7 @@ async function handleMessage(
 
   if (method === 'tools/list') {
     let decoded;
-    try { decoded = await decodeAndValidate(token, RESOURCE_URI); } catch (e) {
+    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;
@@ -154,7 +160,7 @@ async function handleMessage(
     const args: Record<string, unknown> = msg.params?.arguments || {};
 
     let decoded;
-    try { decoded = await decodeAndValidate(token, RESOURCE_URI); } catch (e) {
+    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
       const te = e as TokenError;
       send(rpcError(id, -32001, te.message));
       return;

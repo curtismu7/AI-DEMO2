@@ -107,6 +107,24 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             });
         } catch (_) { /* best-effort */ }
     }
+    // Web Bot Auth (RFC 9421, draft-meunier profile): sign @authority +
+    // signature-agent with the BFF's stable Ed25519 agent key. The gateway
+    // resolves the public key from Signature-Agent's
+    // /.well-known/http-message-signatures-directory (served by this BFF).
+    // Signature-Agent must be an origin the GATEWAY can reach — override via
+    // WBA_SIGNATURE_AGENT_URL in docker/k8s. Best-effort: never block the call.
+    try {
+        const { signWebBotAuthHeaders } = require('./dpopKeyService');
+        const agentOrigin = new URL(
+            process.env.WBA_SIGNATURE_AGENT_URL
+            || process.env.BFF_BASE_URL
+            || 'http://localhost:3001'
+        ).origin;
+        Object.assign(headers, signWebBotAuthHeaders({
+            authority: new URL(url).host,
+            signatureAgent: agentOrigin,
+        }));
+    } catch (_) { /* best-effort */ }
     // Bridge the actor delegation (X-Act-Client-Id / X-May-Act-Sub) so the gateway's
     // Authorize decision can enforce the actor chain on the HTTP transport (PingOne
     // can't emit `act` on exchanged tokens). Shared with the WS client.
@@ -130,6 +148,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
         const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
+        // Per-request token-validation mode for the gateway: 'jwks' selects route
+        // 00-mcp-olb-jwks.json (local JWT validation, no introspection round-trip);
+        // 'introspect' (default) falls through to route 01-mcp-olb.json unchanged.
+        const jwksMode = configStore.getEffective('ff_mcp_gateway_jwks') === 'true';
+        headers['X-Token-Validation'] = jwksMode ? 'jwks' : 'introspect';
     }
 
     const rawTimeout = parseInt(

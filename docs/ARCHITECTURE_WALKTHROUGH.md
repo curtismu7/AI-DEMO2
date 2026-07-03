@@ -1,4 +1,4 @@
-# Super Banking — Architecture Walkthrough
+# The AI Demo — Architecture Walkthrough
 
 > **Who this is for:** Engineers and architects who want to understand the Super Banking 3-layer stack end-to-end — what token exists where at each step of each auth flow, and which RFCs govern each hop.
 >

@@ -361,8 +361,8 @@ describe('Token Exchange Service', () => {
 ### 2. Integration Tests with Postman
 
 Use the existing Postman collections:
-- `Super Banking — 1-Exchange Delegated Chain — pi.flow.postman_collection.json`
-- `Super Banking — 2-Exchange Delegated Chain — pi.flow.postman_collection.json`
+- `The AI Demo — 1-Exchange Delegated Chain — pi.flow.postman_collection.json`
+- `The AI Demo — 2-Exchange Delegated Chain — pi.flow.postman_collection.json`
 
 ### 3. End-to-End Tests
 

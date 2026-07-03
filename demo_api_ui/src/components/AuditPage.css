@@ -88,6 +88,49 @@
   color: #fff;
 }
 
+/* ── Auto-refresh cadence control + last-refreshed stamp ── */
+.audit-refresh-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary, #374151);
+  cursor: pointer;
+}
+
+.audit-refresh-control__icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.audit-refresh-select {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 5px;
+  color: var(--color-text-secondary, #374151);
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.audit-last-updated {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+  margin-right: 2px;
+}
+
+body.admin-skin-p1 .audit-refresh-control,
+body.admin-skin-p1 .audit-last-updated {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+body.admin-skin-p1 .audit-refresh-select {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
 /* ── Scrollable content ── */
 .audit-float-content {
   flex: 1;

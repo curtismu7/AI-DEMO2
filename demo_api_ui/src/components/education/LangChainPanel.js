@@ -24,17 +24,20 @@ const PROVIDER_TABLE = `| Provider   | Package                  | Default model 
 | OpenAI     | langchain-openai         | gpt-4o-mini                |
 | Anthropic  | langchain-anthropic      | claude-haiku-4-5-20251001  |
 | Google AI  | langchain-google-genai   | gemini-2.0-flash           |
-| LM Studio  | langchain-anthropic      | auto (local)               |`;
+| LM Studio  | langchain-openai         | auto (local)               |`;
 
 function OverviewContent() {
   return (
     <div>
       <h3 style={{ marginTop: 0 }}>What is LangChain?</h3>
       <p>
-        LangChain is an open-source framework for building LLM applications. Version 0.3.x
-        introduced <strong>LCEL (LangChain Expression Language)</strong> — a declarative
+        LangChain is an open-source framework for building LLM applications.{" "}
+        <strong>LCEL (LangChain Expression Language)</strong> — a declarative
         pipe-syntax for composing prompts, models, tools and output parsers into
-        streaming-first chains.
+        streaming-first chains — was introduced in 2023, before the 0.1 release.
+        This demo pins <strong>0.3.x</strong>; the current stable release is{" "}
+        <strong>LangChain 1.x</strong> (GA Oct 2025), which recommends{" "}
+        <code>create_agent</code> / LangGraph as the default agent pattern.
       </p>
 
       <h3>LCEL in one line</h3>
@@ -73,7 +76,10 @@ function LcelContent() {
       <h3 style={{ marginTop: 0 }}>LCEL — the new way to chain</h3>
       <p>
         Before 0.2.x, LangChain used <code>AgentExecutor + create_openai_functions_agent</code>.
-        These are deprecated. The 0.3.x way creates an LCEL runnable agent:
+        These are deprecated. The 0.3.x way (pinned in this demo) creates an LCEL
+        runnable agent — though the current stable release, <strong>LangChain 1.x</strong>{" "}
+        (GA Oct 2025), recommends <code>create_agent</code> / LangGraph as the default
+        going forward:
       </p>
       <pre className="edu-code">{LCEL_SNIPPET}</pre>
       <h3>Why LCEL?</h3>

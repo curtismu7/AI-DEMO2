@@ -17,7 +17,7 @@ function inferTokenMode(tokenEvents) {
   return 'rfc_8693';
 }
 
-export default function ExchangeModeToggle() {
+export default function ExchangeModeToggle({ hideTable = false }) {
   const [tokenMode, setTokenMode] = useState(null);
   const [txnMeta, setTxnMeta] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -81,81 +81,85 @@ export default function ExchangeModeToggle() {
           </p>
 
           {/* Token Types Table */}
-          <div className="emt-tokens-table">
-            <div className="emt-tokens-header">
-              <span className="emt-tokens-col-name">Token Type</span>
-              <span className="emt-tokens-col-noun">Full Name</span>
-              <span className="emt-tokens-col-source">Issued By</span>
-              <span className="emt-tokens-col-use">
-                {isTransaction ? 'Role in Transaction' : 'RFC 8693 Role'}
-              </span>
+          {!hideTable && (
+            <div className="emt-tokens-table">
+              <div className="emt-tokens-header">
+                <span className="emt-tokens-col-name">Token Type</span>
+                <span className="emt-tokens-col-noun">Full Name</span>
+                <span className="emt-tokens-col-source">Issued By</span>
+                <span className="emt-tokens-col-use">
+                  {isTransaction ? 'Role in Transaction' : 'RFC 8693 Role'}
+                </span>
+              </div>
+
+              <div className="emt-token-row emt-token-row--user">
+                <span className="emt-tokens-col-name"><strong>User Token</strong></span>
+                <span className="emt-tokens-col-noun">User access token</span>
+                <span className="emt-tokens-col-source">PingOne OIDC login</span>
+                <span className="emt-tokens-col-use">
+                  {isTransaction ? 'Subject in exchange' : <><code>subject_token</code> (Exchange #1)</>}
+                </span>
+              </div>
+
+              <div className="emt-token-row emt-token-row--agent">
+                <span className="emt-tokens-col-name"><strong>Agent Token</strong></span>
+                <span className="emt-tokens-col-noun">Agent access token</span>
+                <span className="emt-tokens-col-source">Client credentials grant</span>
+                <span className="emt-tokens-col-use">
+                  {isTransaction ? 'Actor in exchange' : <><code>actor_token</code> (Exchange #1 &amp; #2)</>}
+                </span>
+              </div>
+
+              <div className="emt-token-row emt-token-row--mcp">
+                <span className="emt-tokens-col-name"><strong>{isTransaction ? 'Transaction Token' : 'MCP Token'}</strong></span>
+                <span className="emt-tokens-col-noun">{isTransaction ? 'Transaction access token' : 'Delegated access token'}</span>
+                <span className="emt-tokens-col-source">{isTransaction ? 'Transaction token exchange' : 'RFC 8693 exchange'}</span>
+                <span className="emt-tokens-col-use">
+                  {isTransaction
+                    ? <><code>txn_id</code> + agent context</>
+                    : <>Result with nested <code>act</code> claim (to MCP Server)</>}
+                </span>
+              </div>
+
+              {isTransaction && (
+                <>
+                  <div className="emt-token-row emt-token-row--transaction">
+                    <span className="emt-tokens-col-name"><strong>Transaction ID</strong></span>
+                    <span className="emt-tokens-col-noun">Unique exchange identifier</span>
+                    <span className="emt-tokens-col-source">
+                      {txnMeta?.txn_id ? <code className="emt-txn-id">{txnMeta.txn_id}</code> : 'Generated per exchange'}
+                    </span>
+                    <span className="emt-tokens-col-use">Audit trail / replay prevention</span>
+                  </div>
+                  <div className="emt-token-row emt-token-row--transaction">
+                    <span className="emt-tokens-col-name"><strong>Txn Scope</strong></span>
+                    <span className="emt-tokens-col-noun">Operation intent</span>
+                    <span className="emt-tokens-col-source">
+                      {txnMeta?.txn_scope ? <code>{txnMeta.txn_scope}</code> : 'Exchange metadata'}
+                    </span>
+                    <span className="emt-tokens-col-use">Fine-grained operation authorization</span>
+                  </div>
+                </>
+              )}
             </div>
+          )}
 
-            <div className="emt-token-row emt-token-row--user">
-              <span className="emt-tokens-col-name"><strong>User Token</strong></span>
-              <span className="emt-tokens-col-noun">User access token</span>
-              <span className="emt-tokens-col-source">PingOne OIDC login</span>
-              <span className="emt-tokens-col-use">
-                {isTransaction ? 'Subject in exchange' : <><code>subject_token</code> (Exchange #1)</>}
-              </span>
-            </div>
-
-            <div className="emt-token-row emt-token-row--agent">
-              <span className="emt-tokens-col-name"><strong>Agent Token</strong></span>
-              <span className="emt-tokens-col-noun">Agent access token</span>
-              <span className="emt-tokens-col-source">Client credentials grant</span>
-              <span className="emt-tokens-col-use">
-                {isTransaction ? 'Actor in exchange' : <><code>actor_token</code> (Exchange #1 &amp; #2)</>}
-              </span>
-            </div>
-
-            <div className="emt-token-row emt-token-row--mcp">
-              <span className="emt-tokens-col-name"><strong>{isTransaction ? 'Transaction Token' : 'MCP Token'}</strong></span>
-              <span className="emt-tokens-col-noun">{isTransaction ? 'Transaction access token' : 'Delegated access token'}</span>
-              <span className="emt-tokens-col-source">{isTransaction ? 'Transaction token exchange' : 'RFC 8693 exchange'}</span>
-              <span className="emt-tokens-col-use">
-                {isTransaction
-                  ? <><code>txn_id</code> + agent context</>
-                  : <>Result with nested <code>act</code> claim (to MCP Server)</>}
-              </span>
-            </div>
-
-            {isTransaction && (
-              <>
-                <div className="emt-token-row emt-token-row--transaction">
-                  <span className="emt-tokens-col-name"><strong>Transaction ID</strong></span>
-                  <span className="emt-tokens-col-noun">Unique exchange identifier</span>
-                  <span className="emt-tokens-col-source">
-                    {txnMeta?.txn_id ? <code className="emt-txn-id">{txnMeta.txn_id}</code> : 'Generated per exchange'}
-                  </span>
-                  <span className="emt-tokens-col-use">Audit trail / replay prevention</span>
-                </div>
-                <div className="emt-token-row emt-token-row--transaction">
-                  <span className="emt-tokens-col-name"><strong>Txn Scope</strong></span>
-                  <span className="emt-tokens-col-noun">Operation intent</span>
-                  <span className="emt-tokens-col-source">
-                    {txnMeta?.txn_scope ? <code>{txnMeta.txn_scope}</code> : 'Exchange metadata'}
-                  </span>
-                  <span className="emt-tokens-col-use">Fine-grained operation authorization</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <p className="emt-note">
-            {isTransaction ? (
-              <>
-                🔬 <strong>Draft mode active:</strong> Transaction Tokens add per-operation context (
-                <code>txn_id</code>, <code>txn_scope</code>) to each delegation.
-                {' '}Set <code>TOKEN_EXCHANGE_MODE=rfc_8693</code> in BFF <code>.env</code> to switch back.
-              </>
-            ) : (
-              <>
-                ℹ️ <strong>Security guarantee:</strong> User Token and Agent Token are secrets — stored only on the Backend-for-Frontend (BFF).
-                Only the Delegated Access Token (limited scope + nested delegation proof) reaches the MCP Server.
-              </>
-            )}
-          </p>
+          {!hideTable && (
+            <p className="emt-note">
+              {isTransaction ? (
+                <>
+                  🔬 <strong>Draft mode active:</strong> Transaction Tokens add per-operation context (
+                  <code>txn_id</code>, <code>txn_scope</code>) to each delegation.
+                  {' '}Set <code>TOKEN_EXCHANGE_MODE=rfc_8693</code> in BFF <code>.env</code> to switch back.
+                </>
+              ) : (
+                <>
+                  ℹ️ <strong>Security guarantee:</strong> User Token and Agent Token are secrets — stored only on the Backend-for-Frontend (BFF).
+                  Only the Delegated Access Token (limited scope + nested delegation proof) reaches the MCP Server.
+                </>
+              )}
+            </p>
+          )}
         </>
       )}
     </div>

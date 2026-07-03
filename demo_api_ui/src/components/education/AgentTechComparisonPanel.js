@@ -63,7 +63,7 @@ function Warn({ children }) {
 const COLS = ["", "LangChain", "Mastra", "OpenAI Agents", "Pydantic AI"];
 const ROWS = [
   ["Language",         "Python 3.10",     "Node 20 / TS",   "Python 3.11",     "Python 3.11"],
-  ["Framework ver.",   "0.0.353 + LangGraph", "1.37",        "0.17 (official)", "0.0.54 pre-release"],
+  ["Framework ver.",   "demo pins 0.0.353 + LangGraph · current stable 1.x (GA Oct 2025)", "1.37", "0.17 (official)", "demo pins 0.0.54 · current stable 1.x (GA Sept 2025)"],
   ["Agent loop",       "ReAct",           "Tool-calling",   "Tool-calling",    "Tool-calling"],
   ["LLM providers",    "Helix, LM Studio, Anthropic", "OpenAI-compat, Anthropic", "OpenAI / compat", "OpenAI-compat, Anthropic"],
   ["MCP support",      "Full MCP host",   "None",           "None",            "None"],
@@ -146,7 +146,7 @@ function LangChainTab() {
           <Pill color="#2563eb">Own OAuth</Pill>
           <Pill color="#2563eb">Stateful</Pill>
         </div>
-        <Row label="Framework">LangChain 0.0.353 + LangGraph <code>create_react_agent</code></Row>
+        <Row label="Framework">LangChain — demo pins 0.0.353 + LangGraph · current stable 1.x (GA Oct 2025) — <code>create_react_agent</code></Row>
         <Row label="Ports">WebSocket 8889 · HTTP 8888 · Health 8890</Row>
       </Card>
 
@@ -313,7 +313,7 @@ function OpenAITab() {
       <ul style={{ paddingLeft: 18, fontSize: "0.83rem", color: "#374151", lineHeight: 1.7 }}>
         <li>Official OpenAI SDK preferred (well-documented, official support)</li>
         <li>Python-native team</li>
-        <li>Deploying to OpenAI models (GPT-4o, GPT-4o-mini) in production</li>
+        <li>Deploying to OpenAI models (GPT-5.5, GPT-5 mini) in production</li>
         <li>Want cleaner structured stream events for tool lifecycle</li>
       </ul>
 
@@ -333,9 +333,9 @@ function PydanticTab() {
           <Pill color="#dc2626">Pydantic-native</Pill>
           <Pill color="#dc2626">Tool-calling</Pill>
           <Pill color="#dc2626">No MCP</Pill>
-          <Pill color="#dc2626">Pre-release</Pill>
+          <Pill color="#dc2626">Demo pin 0.0.54</Pill>
         </div>
-        <Row label="Framework">pydantic-ai 0.0.54 (pre-release)</Row>
+        <Row label="Framework">pydantic-ai — demo pins 0.0.54 · current stable 1.x (GA Sept 2025)</Row>
         <Row label="Port">8893 (POST /run → SSE)</Row>
       </Card>
 
@@ -371,7 +371,7 @@ function PydanticTab() {
         <li>Clean per-request dependency injection pattern preferred</li>
       </ul>
 
-      <Warn>Pre-release (0.0.54) — API may change. Tool call lifecycle is least visible of all four agents. Stateless like all BFF-backed agents.</Warn>
+      <Warn>Demo pins 0.0.54; current stable is Pydantic AI 1.x (GA Sept 2025). Tool call lifecycle is least visible of all four agents. Stateless like all BFF-backed agents.</Warn>
     </>
   );
 }
@@ -385,11 +385,11 @@ function DecisionTab() {
     { q: "Local LLM via Helix or LM Studio?", a: "LangChain (Helix + LM Studio) or Mastra / Pydantic AI (LM Studio via OpenAI-compat)." },
     { q: "TypeScript / Node.js preferred?", a: "Mastra — the only Node.js agent in the project." },
     { q: "Simplest stateless compute node?", a: "Mastra (TS) or OpenAI Agents / Pydantic AI (Python) — all three are pure request-response." },
-    { q: "OpenAI models in production?", a: "OpenAI Agents — official SDK, cleanest stream events, best for GPT-4o deployments." },
+    { q: "OpenAI models in production?", a: "OpenAI Agents — official SDK, cleanest stream events, best for GPT-5.5 deployments." },
     { q: "Anthropic without LangChain overhead?", a: "Pydantic AI or Mastra — both support Anthropic natively and are simpler to operate." },
     { q: "Need horizontal scaling?", a: "Mastra, OpenAI Agents, or Pydantic AI — all stateless. LangChain's session memory complicates this." },
     { q: "Need full execution tracing?", a: "LangChain — built-in trace server with step-by-step reasoning reconstruction." },
-    { q: "Comfortable with pre-release?", a: "Pydantic AI (0.0.54) — clean design but API may change." },
+    { q: "Comfortable with the demo's pinned version?", a: "Pydantic AI — demo pins 0.0.54; current stable is 1.x (GA Sept 2025)." },
   ];
 
   return (

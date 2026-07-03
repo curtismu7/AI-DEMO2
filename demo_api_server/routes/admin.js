@@ -588,50 +588,9 @@ router.post('/bootstrap/export', requireAdmin, requireScopes(['admin']), async (
   }
 });
 
-/**
- * GET /banking/lookup?q= — find accounts whose number/id matches (substring + digit-only match).
- * Returns accounts and recent transactions touching those accounts (newest first).
- */
-router.get('/banking/lookup', (req, res) => {
-  try {
-    const raw = String(req.query.q || '').trim();
-    if (!raw) {
-      return res.status(400).json({ error: 'invalid_query', message: 'Query parameter q is required.' });
-    }
-    const qLower = raw.toLowerCase();
-    const qDigits = raw.replace(/\D/g, '');
-    const allAccounts = dataStore.getAllAccounts();
-    const accounts = allAccounts.filter((a) => {
-      if (String(a.accountNumber).toLowerCase().includes(qLower)) return true;
-      if (String(a.id).toLowerCase().includes(qLower)) return true;
-      if (qDigits.length > 0) {
-        const acctDigits = String(a.accountNumber).replace(/\D/g, '');
-        if (acctDigits.includes(qDigits)) return true;
-      }
-      return false;
-    });
-
-    const txns = [];
-    for (const acct of accounts) {
-      for (const t of dataStore.getTransactionsByAccountId(acct.id)) {
-        txns.push({
-          ...t,
-          _accountId: acct.id,
-          _accountNumber: acct.accountNumber,
-        });
-      }
-    }
-    txns.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    res.json({
-      accounts,
-      transactions: txns.slice(0, 200),
-    });
-  } catch (error) {
-    console.error('banking lookup error:', error);
-    res.status(500).json({ error: 'lookup_failed', message: error.message });
-  }
-});
+// GET /banking/lookup moved to routes/adminVerticals.js — banking now shares the
+// same resolveUser path as the other verticals (find by holder name/username/
+// email/id), with account-number/id search kept as a fallback.
 
 /**
  * POST /banking/accounts/:accountId/seed-charges — add synthetic withdrawal rows (demo / QA).

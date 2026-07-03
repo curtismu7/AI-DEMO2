@@ -1,0 +1,770 @@
+/* Security Guarantee Banner */
+.utfi-security-guarantee {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.utfi-security-text {
+  flex: 1;
+}
+
+.utfi-security-dismiss {
+  background: none;
+  border: none;
+  color: #92400e;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.utfi-security-dismiss:hover {
+  color: #78350f;
+}
+
+/* ============================================================================
+ * TokenExchangeModeSummary Component
+ * ============================================================================ */
+
+.tems-container {
+  margin: 16px 0;
+}
+
+/* Summary line */
+.tems-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.tems-summary-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tems-summary-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.tems-summary-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  background: #dbeafe;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #004687;
+  flex-shrink: 0;
+}
+
+.tems-toggle-btn {
+  padding: 6px 12px;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tems-toggle-btn:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.tems-toggle-btn:active {
+  background: #1e40af;
+}
+
+/* Expanded table */
+.tems-table-container {
+  margin-top: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.tems-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.tems-table thead {
+  background: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tems-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+}
+
+.tems-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tems-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tems-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Token type badges */
+.tems-token-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tems-token-badge--user {
+  background: #fce7f3;
+  color: #be123c;
+  border: 1px solid #f472b6;
+}
+
+.tems-token-badge--agent {
+  background: #e9d5ff;
+  color: #7e22ce;
+  border: 1px solid #c084fc;
+}
+
+.tems-token-badge--mcp {
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #34d399;
+}
+
+.tems-token-badge--default {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tems-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tems-toggle-btn {
+    width: 100%;
+    order: 3;
+  }
+
+  .tems-table {
+    font-size: 12px;
+  }
+
+  .tems-table th,
+  .tems-table td {
+    padding: 10px 12px;
+  }
+}
+
+/* ============================================================================
+ * TokenLegendModal Component
+ * ============================================================================ */
+
+.tlm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tlm-modal-content {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.tlm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #dbeafe;
+}
+
+.tlm-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tlm-close-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.tlm-close-btn:hover {
+  transform: scale(1.2);
+}
+
+.tlm-modal-body {
+  padding: 24px;
+}
+
+/* Legend grid */
+.tlm-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.tlm-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.tlm-swatch {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Token type gradient swatches */
+.tlm-swatch--user {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  border: 2px solid #f472b6;
+}
+
+.tlm-swatch--agent {
+  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+  border: 2px solid #c084fc;
+}
+
+.tlm-swatch--mcp {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #34d399;
+}
+
+.tlm-item-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tlm-item-description {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 768px) {
+  .tlm-legend-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .tlm-modal-header {
+    padding: 16px 20px;
+  }
+
+  .tlm-modal-body {
+    padding: 16px 20px;
+  }
+
+  .tlm-modal-title {
+    font-size: 16px;
+  }
+
+  .tlm-close-btn {
+    font-size: 24px;
+  }
+}
+
+/* ============================================================================
+ * TokenFlowDiagram Component
+ * ============================================================================ */
+
+.utfi-flow-diagram-container {
+  margin: 16px 0;
+}
+
+.utfi-flow-diagram {
+  background: #fafafa;
+  border-left: 3px solid #2563eb;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1e293b;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.utfi-flow-title {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.utfi-flow-line {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 12px 0;
+}
+
+.utfi-flow-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  font-weight: 500;
+}
+
+.utfi-flow-sep {
+  color: #64748b;
+  margin: 0 2px;
+}
+
+.utfi-rfc-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin: 0 4px;
+}
+
+.utfi-flow-arrow {
+  color: #4b5563;
+  margin: 0 4px;
+}
+
+.utfi-flow-claims {
+  display: flex;
+  gap: 0;
+  margin: 8px 0;
+  justify-content: space-between;
+}
+
+.utfi-claim-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.utfi-claim-num {
+  font-weight: 600;
+  color: #2563eb;
+  margin-right: 6px;
+}
+
+.utfi-claim-spacer {
+  width: 8px;
+}
+
+.utfi-highlighted {
+  color: #d97706;
+  font-weight: 600;
+}
+
+/* ============================================================================
+ * ClaimDetailsModal Component
+ * ============================================================================ */
+
+/* Modal backdrop */
+.utfi-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+/* Modal container */
+.utfi-modal-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal header */
+.utfi-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.utfi-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.utfi-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.utfi-modal-close:hover {
+  color: #334155;
+}
+
+/* Modal body */
+.utfi-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Claims list */
+.utfi-claims-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Single claim item */
+.utfi-claim-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #2563eb;
+}
+
+.utfi-claim-key {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.utfi-claim-value {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  color: #64748b;
+  word-break: break-all;
+  padding: 4px 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.utfi-claim-description {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* Modal footer */
+.utfi-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Modal button */
+.utfi-modal-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.utfi-modal-button--primary {
+  background: #2563eb;
+  color: white;
+}
+
+.utfi-modal-button--primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.utfi-modal-button--primary:active {
+  background: #1e40af;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .utfi-modal-container {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .utfi-modal-header {
+    padding: 16px;
+  }
+
+  .utfi-modal-body {
+    padding: 16px;
+  }
+
+  .utfi-claim-item {
+    gap: 4px;
+    padding: 10px;
+  }
+
+  .utfi-claim-key {
+    font-size: 12px;
+  }
+
+  .utfi-claim-value {
+    font-size: 12px;
+  }
+
+  .utfi-claim-description {
+    font-size: 11px;
+  }
+}
+
+/* ============================================================================
+ * TokenLegendModal Component
+ * ============================================================================ */
+
+/* Modal overlay - semi-transparent backdrop */
+.tlm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+/* Modal container */
+.tlm-modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+/* Modal header */
+.tlm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tlm-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Close button */
+.tlm-close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.tlm-close-btn:hover {
+  color: #334155;
+}
+
+/* Modal body */
+.tlm-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Legend grid - 3 columns */
+.tlm-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Single legend item */
+.tlm-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+/* Color swatch */
+.tlm-swatch {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tlm-swatch--user {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  border: 2px solid #f472b6;
+}
+
+.tlm-swatch--agent {
+  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+  border: 2px solid #c084fc;
+}
+
+.tlm-swatch--mcp {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #34d399;
+}
+
+/* Legend item text */
+.tlm-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.tlm-item-description {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Responsive - stack on mobile */
+@media (max-width: 768px) {
+  .tlm-modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .tlm-legend-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tlm-modal-header {
+    padding: 16px;
+  }
+
+  .tlm-modal-body {
+    padding: 16px;
+  }
+
+  .tlm-legend-item {
+    padding: 12px;
+  }
+
+  .tlm-swatch {
+    width: 50px;
+    height: 50px;
+  }
+
+  .tlm-item-title {
+    font-size: 13px;
+  }
+
+  .tlm-item-description {
+    font-size: 11px;
+  }
+}

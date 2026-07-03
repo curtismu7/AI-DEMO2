@@ -1,0 +1,260 @@
+{
+  "info": {
+    "_postman_id": "a3ca444a-d78b-47c5-b3e0-803c2642ba16",
+    "name": "The AI Demo \u2014 Advanced Utilities",
+    "description": "Advanced utility requests for The AI Demo delegated token flows.\n\nRequires: The-AI-Demo-Shared.postman_environment.json imported and active in Postman.\n\nPAZ Policy Decision: Tests the PingOne Authorize (PAZ) policy engine against an MCP token. Set PAZ_DECISION_ENDPOINT_ID in the shared env (PingOne Admin \u2192 Authorize \u2192 Decision Endpoints \u2192 copy the UUID). Requires an MCP token in {{mcp_exchanged_token}} \u2014 run the 2-Exchange pi.flow collection first (Step 6b saves the token).\n\nToken Revocation: Revokes an MCP token using the MCP service client credentials. Set the token to revoke in {{token_to_revoke}} collection variable before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "PAZ_DECISION_ENDPOINT_ID",
+      "value": "",
+      "type": "default",
+      "description": "PingOne Authorize (PAZ) decision endpoint UUID \u2014 from PingOne Admin \u2192 Authorize \u2192 Decision Endpoints. Also set in The-AI-Demo-Shared.postman_environment.json."
+    },
+    {
+      "key": "mcp_exchanged_token",
+      "value": "",
+      "type": "default",
+      "description": "Runtime: the MCP exchanged token. Populated by Step 6b test script in the 2-Exchange pi.flow collection."
+    },
+    {
+      "key": "token_to_revoke",
+      "value": "",
+      "type": "default",
+      "description": "Runtime: paste the token you want to revoke here before running the Token Revocation request."
+    }
+  ],
+  "item": [
+    {
+      "name": "PAZ Policy Decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{mcp_exchanged_token}}",
+            "description": "MCP exchanged token \u2014 run 2-Exchange pi.flow first to populate this variable"
+          }
+        ],
+        "url": {
+          "raw": "{{PINGONE_BASE_URL}}/v1/environments/{{PINGONE_ENVIRONMENT_ID}}/decisionEndpoints/{{PAZ_DECISION_ENDPOINT_ID}}",
+          "host": [
+            "{{PINGONE_BASE_URL}}"
+          ],
+          "path": [
+            "v1",
+            "environments",
+            "{{PINGONE_ENVIRONMENT_ID}}",
+            "decisionEndpoints",
+            "{{PAZ_DECISION_ENDPOINT_ID}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parameters\": {\n    \"inConditionAmountCheck\": \"false\",\n    \"inConditionCheckAgent\": \"false\",\n    \"inConditionAgentCheckAmount\": \"AgentCheckAmount\",\n    \"inAgentAmount\": \"50\",\n    \"inMCPTokenJWT\": \"{{mcp_exchanged_token}}\"\n  },\n  \"resources\": {\n    \"environmentId\": \"{{PINGONE_ENVIRONMENT_ID}}\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Calls the PingOne Authorize (PAZ) decision endpoint to test policy evaluation.\n\nThe MCP token is passed both as the Bearer token (for PAZ authentication) and as inMCPTokenJWT (for policy evaluation against the token claims).\n\nExpected response: 200 with a 'decision' field (PERMIT or DENY).\n\nPrerequisites:\n1. Run the 2-Exchange pi.flow collection first \u2014 Step 6b saves the MCP exchanged token to {{mcp_exchanged_token}}.\n2. Set PAZ_DECISION_ENDPOINT_ID in the shared env (PingOne Admin \u2192 Authorize \u2192 Decision Endpoints \u2192 copy the UUID from the endpoint URL)."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const token = pm.collectionVariables.get('mcp_exchanged_token') || pm.environment.get('mcp_exchanged_token');",
+              "if (!token || token === '') {",
+              "  throw new Error('[PAZ Policy Decision] mcp_exchanged_token is not set \u2014 run the 2-exchange pi.flow collection first (Step 6b saves the token).');",
+              "}",
+              "const pazId = pm.collectionVariables.get('PAZ_DECISION_ENDPOINT_ID') || pm.environment.get('PAZ_DECISION_ENDPOINT_ID');",
+              "if (!pazId || pazId === '') {",
+              "  throw new Error('[PAZ Policy Decision] PAZ_DECISION_ENDPOINT_ID is not set \u2014 find it in PingOne Admin \u2192 Authorize \u2192 Decision Endpoints and set it in the shared environment.');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "console.log('PAZ Response Status:', pm.response.code);",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  console.log('Decision:', body.decision || JSON.stringify(body));",
+              "  pm.test('PAZ decision returned', function() {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "    pm.expect(body).to.have.property('decision');",
+              "  });",
+              "} else {",
+              "  console.log('PAZ Response:', pm.response.text().substring(0, 300));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Token Revocation",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{PINGONE_BASE_URL}}/{{PINGONE_ENVIRONMENT_ID}}/as/revoke",
+          "host": [
+            "{{PINGONE_BASE_URL}}"
+          ],
+          "path": [
+            "{{PINGONE_ENVIRONMENT_ID}}",
+            "as",
+            "revoke"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "token",
+              "value": "{{token_to_revoke}}",
+              "description": "The token to revoke \u2014 paste it into the token_to_revoke collection variable",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{MCP_CLIENT_ID}}",
+              "description": "MCP Service OAuth2 client ID \u2014 from shared environment",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{MCP_CLIENT_SECRET}}",
+              "description": "MCP Service OAuth2 client secret \u2014 from shared environment",
+              "type": "text"
+            }
+          ]
+        },
+        "description": "Revokes an MCP token using the MCP service client credentials.\n\nSet the token you want to revoke in the {{token_to_revoke}} collection variable before running.\n\nExpected response: 200 with empty body (token revoked successfully).\n\nThe token is no longer valid after this call \u2014 subsequent introspection will show 'active: false'.\n\nPrerequisites: MCP_CLIENT_ID and MCP_CLIENT_SECRET must be set in the shared environment."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const token = pm.collectionVariables.get('token_to_revoke');",
+              "if (!token || token === '') {",
+              "  throw new Error('[Token Revocation] token_to_revoke is not set \u2014 paste the token you want to revoke into the token_to_revoke collection variable.');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "console.log('Token Revocation Response Status:', pm.response.code);",
+              "if (pm.response.code === 200) {",
+              "  console.log('Token revoked successfully.');",
+              "  pm.test('Token revoked', function() {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "  });",
+              "} else {",
+              "  console.log('Revocation Response:', pm.response.text().substring(0, 300));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "BFF \u2014 GET /api/mcp/audit (tool-call events)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL}}/api/mcp/audit?limit=20",
+          "host": [
+            "{{BANKING_API_BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "audit"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Returns recent MCP tool-call audit events. The BFF proxies this from the MCP server audit endpoint.\n\nOptional query params:\n- agentId: filter by agent\n- operation: filter by tool name\n- eventType: tool_call | auth_challenge | consent_request | session\n- outcome: success | failure | challenge\n- limit: max 200 (default 50)\n\nReturns empty events array gracefully when MCP server is unreachable. Added Phase 34."
+      },
+      "response": []
+    },
+    {
+      "name": "BFF \u2014 GET /api/mcp/exchange-mode",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL}}/api/mcp/exchange-mode",
+          "host": [
+            "{{BANKING_API_BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "exchange-mode"
+          ]
+        },
+        "description": "Returns the current token exchange mode.\n\nResponse: { mode: '1-exchange' | '2-exchange' }\n\n- 1-exchange: Single RFC 8693 token exchange (user token \u2192 MCP token)\n- 2-exchange: Chained delegation (user token \u2192 agent token \u2192 MCP token)"
+      },
+      "response": []
+    },
+    {
+      "name": "BFF \u2014 POST /api/mcp/exchange-mode (set mode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"mode\": \"1-exchange\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{BANKING_API_BASE_URL}}/api/mcp/exchange-mode",
+          "host": [
+            "{{BANKING_API_BASE_URL}}"
+          ],
+          "path": [
+            "api",
+            "mcp",
+            "exchange-mode"
+          ]
+        },
+        "description": "Sets the token exchange mode.\n\nBody: { mode: '1-exchange' | '2-exchange' }\n\nNo session or authentication required. Change the body value to switch modes:\n- '1-exchange': Use single RFC 8693 token exchange\n- '2-exchange': Use 2-hop chained delegation"
+      },
+      "response": []
+    }
+  ]
+}

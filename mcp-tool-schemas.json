@@ -1,0 +1,2589 @@
+{
+  "version": 1,
+  "tools": {
+    "accept_financial_aid": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "aidId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "aidId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "add_to_wishlist": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wishlistId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "wishlistId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "adjust_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "The account ID to adjust"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to add (positive) or subtract (negative)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the seeded transaction"
+          }
+        },
+        "required": [
+          "accountId",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "apply_scholarship": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scholarshipId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scholarshipId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "approve_inspection": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "approve_purchase_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "poId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "poId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "book_appointment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "clinic": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "when"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "call_pingone_operation": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "description": "OAS operationId (e.g. listUsers, createUser, listApplications, getEnvironment)"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Operation parameters as key-value pairs"
+          }
+        },
+        "required": [
+          "operationId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_appointment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_coaching_session": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_course_registration": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "courseId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_expense": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expenseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expenseId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_permit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_referral": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "referralId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "referralId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_rental": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rentalId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rentalId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cancel_subscription": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "checkout": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "product",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "checkout_library_item": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "close_maintenance_ticket": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "close_support_ticket": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "close_ticket": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "close_violation": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "complete_goal": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "complete_quality_inspection": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "inspectionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "inspectionId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "create_deposit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to_account_id": {
+            "type": "string",
+            "description": "Account ID (UUID format, not account number) to deposit to - use the \"id\" field from get_my_accounts response",
+            "minLength": 1
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to deposit",
+            "minimum": 0.01,
+            "multipleOf": 0.01
+          },
+          "description": {
+            "type": "string",
+            "description": "Transaction description",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "to_account_id",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "create_transfer": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from_account_id": {
+            "type": "string",
+            "description": "Source account ID (UUID format, not account number) - use the \"id\" field from get_my_accounts response",
+            "minLength": 1
+          },
+          "to_account_id": {
+            "type": "string",
+            "description": "Destination account ID (UUID format, not account number) - use the \"id\" field from get_my_accounts response",
+            "minLength": 1
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to transfer (minimum $0.01)",
+            "minimum": 0.01,
+            "multipleOf": 0.01
+          },
+          "description": {
+            "type": "string",
+            "description": "Transfer description",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "from_account_id",
+          "to_account_id",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "create_withdrawal": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from_account_id": {
+            "type": "string",
+            "description": "Account ID (UUID format, not account number) to withdraw from - use the \"id\" field from get_my_accounts response",
+            "minLength": 1
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to withdraw",
+            "minimum": 0.01,
+            "multipleOf": 0.01
+          },
+          "description": {
+            "type": "string",
+            "description": "Transaction description",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "from_account_id",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "delete_customer": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user ID to delete"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Must be true — confirms the destructive action"
+          }
+        },
+        "required": [
+          "userId",
+          "confirm"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "demo_show_accounts": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "demo_show_transactions": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "discover_oas_operations": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "description": "Optional: filter by tag (e.g. \"Users\") or path fragment (e.g. \"applications\")"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "dispute_violation": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "enroll_training": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trainingId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "trainingId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "escalate_maintenance_ticket": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "expedite_shipment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "shipmentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipmentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extend_rental": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rentalId": {
+            "type": "string"
+          },
+          "days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "rentalId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "flag_defect": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "defectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "defectId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "freeze_account": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "The account ID to freeze or unfreeze"
+          },
+          "freeze": {
+            "type": "boolean",
+            "description": "true to freeze, false to unfreeze"
+          }
+        },
+        "required": [
+          "accountId",
+          "freeze"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "gear_order_status": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "get_account_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Account ID (UUID format, not account number) - use the \"id\" field from get_my_accounts response",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "get_customer_accounts": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user ID whose accounts to retrieve"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "get_customer_profile": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user ID to retrieve"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "get_customer_transactions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user ID"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Number of transactions to return (default 5, max 50)"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "get_investment_accounts": {
+      "source": "invest",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    "get_investment_balance": {
+      "source": "invest",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Investment account ID (UUID)"
+          }
+        },
+        "required": [
+          "account_id"
+        ]
+      }
+    },
+    "get_investment_transactions": {
+      "source": "invest",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Investment account ID"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max results (default 20)",
+            "default": 20
+          }
+        },
+        "required": [
+          "account_id"
+        ]
+      }
+    },
+    "get_my_accounts": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_type": {
+            "type": "string",
+            "enum": [
+              "checking",
+              "savings",
+              "loan",
+              "credit",
+              "investment"
+            ],
+            "description": "Optional filter — only return accounts of this type. Omit to return all accounts."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "get_my_transactions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of transactions to return per page (default: all)",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Number of transactions to skip (for pagination). Use nextOffset from prior response.",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "get_portfolio_summary": {
+      "source": "invest",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Investment account ID (UUID)"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "1d",
+              "1w",
+              "1m",
+              "3m",
+              "1y",
+              "ytd"
+            ],
+            "description": "Performance period"
+          }
+        },
+        "required": [
+          "account_id"
+        ]
+      }
+    },
+    "get_sensitive_account_details": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "get_transaction_detail": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "description": "The transaction ID to look up (from get_my_transactions or search_transactions response)"
+          }
+        },
+        "required": [
+          "transaction_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "initiate_return": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "returnId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "returnId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "list_addresses": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_appointments": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_coaching_sessions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_expenses": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_gear": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_invoices": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_messages": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_orders": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_payments": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_promotions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_rentals": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_store_credit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_subscriptions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_support_tickets": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_wishlist": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "lookup_customer": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Name, email, or username fragment to search for"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "loyalty_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "mark_message_read": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "order_status": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "pause_subscription": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pay_bill": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "billId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "billId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pay_fee": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "permitId": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "pay_tuition_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "billId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "billId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pto_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "put_machine_offline": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "machineId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "machineId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "query_user_by_email": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address to search for",
+            "format": "email",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "receive_shipment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "shipmentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "shipmentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "redeem_points": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "loyaltyId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loyaltyId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "redeem_store_credit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rewardId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rewardId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "refill_prescription": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "medicationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "medicationId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "register_course": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "course": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "reject_purchase_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "poId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "poId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "release_hold": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "holdId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "holdId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "release_record": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "permitId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "permitId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "release_records": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recordId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recordId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "release_transcript": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "release_work_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "remove_payment_method": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "remove_price_alert": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "alertId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "alertId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "remove_wishlist_item": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wishlistItemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "wishlistItemId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "renew_parking_permit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "permitId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "permitId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "renew_permit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reopen_defect": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "defectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "defectId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reorder": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "request_document": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "request_fee_waiver": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Account ID to request the fee waiver for"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the waiver request"
+          }
+        },
+        "required": [
+          "account_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "request_housing_assignment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "housingId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "housingId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "request_schedule_change": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scheduleId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheduleId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "request_time_off": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reschedule_appointment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "appointmentId": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "appointmentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reschedule_gov_appointment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reset_customer_password": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user ID to mark for password reset"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "return_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "rewards_balance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "schedule_inspection": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "schedule_run": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workOrder": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "search_transactions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "deposit",
+              "withdrawal",
+              "transfer"
+            ],
+            "description": "Filter by transaction type"
+          },
+          "min_amount": {
+            "type": "number",
+            "description": "Minimum transaction amount (inclusive)",
+            "minimum": 0
+          },
+          "max_amount": {
+            "type": "number",
+            "description": "Maximum transaction amount (inclusive)",
+            "minimum": 0
+          },
+          "from_date": {
+            "type": "string",
+            "description": "Earliest date (ISO 8601, e.g. \"2025-01-01\"). Matches on createdAt string prefix."
+          },
+          "to_date": {
+            "type": "string",
+            "description": "Latest date (ISO 8601, e.g. \"2025-12-31\"). Matches on createdAt string prefix."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_membership_details": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_order_history": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_patient_records": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_payroll_details": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sequential_think": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The question or decision to reason through (e.g. \"Should I transfer $500 from savings to checking?\")",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "context": {
+            "type": "string",
+            "description": "Optional additional context (e.g. account balances, user situation)",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "show_enrollment": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_expense_report": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_gear_order": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_health_record": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_large_purchase": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_mortgage": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "show_permit": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_work_order": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "special_offers": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "submit_expense": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "category",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "submit_filing": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "update_contact_email": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "The account ID whose contact email to update"
+          },
+          "new_email": {
+            "type": "string",
+            "description": "New email address",
+            "format": "email"
+          }
+        },
+        "required": [
+          "account_id",
+          "new_email"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "update_goal_progress": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "user_profile_card": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "view_addresses": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_advisors": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_allergies": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_announcements": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_appointments": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_benefits": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_billing": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_business_licenses": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_care_plan": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_care_team": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_claims": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_colleagues": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_complaints": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_courses": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_coverage": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_defects": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_degree_audit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_dependents": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_dining": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_direct_deposit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_documents": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_enrollment_history": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_exam_schedule": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_fees": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_filings": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_financial_aid": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_gift_cards": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_goals": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_holds": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_housing": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_immunizations": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_inspections": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_inventory": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_lab_results": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_library": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_machine_utilization": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_machines": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_maintenance_tickets": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_medications": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_notifications": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_parking": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_payment_history": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_payment_methods": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_payslip_detail": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_payslips": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_permits": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_policies": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_price_alerts": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_production_history": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_purchase_orders": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_quality_inspections": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_recently_viewed": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_records": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_records_requests": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_referrals": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_returns": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_schedule": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_scholarships": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_scrap_report": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_shipments": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_standing": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_subscriptions": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_supplier_scorecard": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_support_tickets": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_tax_assessments": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_tickets": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_trainings": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_violations": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_vitals": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_wishlist": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_work_orders": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "view_zoning_info": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "void_purchase_order": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "poId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "poId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "waitlist_course": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "courseId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "withdraw_training_enrollment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trainingId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "trainingId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

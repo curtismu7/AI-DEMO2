@@ -15,6 +15,13 @@
  *     3. MCP Gateway resource has all mirroredScopes defined on it
  *     4. MCP Exchanger app is granted all MCP Gateway scopes (mcp:invoke + tool scopes)
  *
+ *   Exchange #3 pre-conditions (Gateway token → backend MCP-server tokens):
+ *     5. MCP Server resource has all mirroredScopes defined on it (usually
+ *        already true — provisioned since Phase 243)
+ *     6. MCP Invest resource EXISTS (create if missing), with scopes +
+ *        mirroredScopes from the topology
+ *     7. MCP Gateway app is granted all scopes on BOTH backend resources
+ *
  * Runs once at startup (non-fatal async). Any drift is healed and logged so the
  * chip flow never silently breaks due to a missed provisioning step.
  */
@@ -94,8 +101,14 @@ async function _reconcileResourceScopes(client, resourceId, resourceTopologyName
  * and adds only what's missing.
  * Returns { added: string[], unchanged: string[] }.
  */
-async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyName, label) {
-  const expected = scopeTopology.resourceScopes(resourceTopologyName);
+async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyName, label, excludeNames = new Set()) {
+  // PingOne enforces scope-NAME uniqueness across an app's grants: the same
+  // scope name cannot be granted to one application on two different resources
+  // (documented in scopeTopology.js and a2aDelegationService.js). `excludeNames`
+  // lets a caller reserve a shared scope name for a sibling resource's grant
+  // (e.g. keep `invest:read` on the MCP Invest grant, off the MCP Server grant).
+  const expected = scopeTopology.resourceScopes(resourceTopologyName)
+    .filter(n => !excludeNames.has(n));
 
   // Resolve current scope name→id map on resource
   const scopeData = await client.get(`/resources/${resourceId}/scopes?limit=200`);
@@ -129,9 +142,12 @@ async function _reconcileAppGrants(client, appId, resourceId, resourceTopologyNa
   const allDesiredIds = [...grantedIds, ...toAdd.map(s => s.id)];
 
   if (resourceGrant) {
-    await axios.patch(
+    // PingOne's grant-update verb is PUT (full replace), NOT PATCH — a PATCH is
+    // rejected at the API edge (403, "Invalid key=value pair … in Authorization
+    // header"). Send the full desired scope set for this resource's grant.
+    await axios.put(
       `${client.base}/applications/${appId}/grants/${resourceGrant.id}`,
-      { scopes: allDesiredIds.map(id => ({ id })) },
+      { resource: { id: resourceId }, scopes: allDesiredIds.map(id => ({ id })) },
       { headers: { Authorization: `Bearer ${client.token}`, 'Content-Type': 'application/json' }, timeout: 10000 }
     );
   } else {
@@ -164,6 +180,27 @@ async function _resolveAppId(client, clientId, label) {
   return data.id;
 }
 
+/**
+ * Resolve a resource by audience, CREATING it if missing. Mirrors the create
+ * shape proven in pingoneProvisionService.js (type CUSTOM, single-string
+ * audience). Returns { id, created }.
+ */
+async function _resolveOrCreateResourceId(client, audience, displayName, label) {
+  const data = await client.get(`/resources?limit=100`);
+  const resources = data._embedded?.resources || [];
+  const match = resources.find(r => r.audience === audience);
+  if (match) return { id: match.id, created: false };
+
+  const resource = await client.post('/resources', {
+    name: displayName,
+    description: `${label} resource (RFC 8693 backend audience)`,
+    type: 'CUSTOM',
+    audience,
+  });
+  console.log(`${TAG} Created missing ${label} resource: ${displayName} (aud=${audience})`);
+  return { id: resource.id, created: true };
+}
+
 // ── Public entry point ─────────────────────────────────────────────────────
 
 /**
@@ -183,6 +220,9 @@ async function reconcileTwoExchangeGrants() {
   const mcpExchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id')
     || process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
     || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID;
+  const mcpGatewayClientId = configStore.getEffective('pingone_mcp_gateway_client_id')
+    || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID
+    || process.env.MCP_GW_CLIENT_ID;
 
   if (!envId || !workerClientId || !workerSecret) {
     console.log(`${TAG} Skipped — PingOne worker credentials not configured`);
@@ -278,19 +318,135 @@ async function reconcileTwoExchangeGrants() {
     console.log(`${TAG} MCP Exchanger client ID not configured — skipping Exchange #2 grant check`);
   }
 
+  // ── Exchange #3 pre-conditions ─────────────────────────────────────────────
+  // Gateway token → backend MCP-server tokens (olb + invest). The MCP Gateway
+  // app performs the RFC 8693 credential swap to BOTH backend resources, so:
+  //   5. MCP Server resource carries all mirroredScopes.
+  //   6. MCP Invest resource EXISTS (create if missing) with scopes + mirrored.
+  //   7. MCP Gateway app is granted all scopes on BOTH backend resources.
+
+  let ex3ServerScopeResult = { created: [], existing: [] };
+  let ex3InvestScopeResult = { created: [], existing: [] };
+  let ex3ServerGrantResult = { added: [], unchanged: [] };
+  let ex3InvestGrantResult = { added: [], unchanged: [] };
+  let ex3InvestResourceCreated = false;
+
+  const mcpServerAud       = scopeTopology.resourceUri('Super Banking MCP Server');
+  const mcpInvestAud       = scopeTopology.resourceUri('Super Banking MCP Invest');
+  const mcpInvestName      = scopeTopology.provisionedResourceName('Super Banking MCP Invest');
+
+  let mcpServerResourceId = null;
+  let mcpInvestResourceId = null;
+
+  try {
+    mcpServerResourceId = await _resolveResourceId(client, mcpServerAud, 'MCP Server');
+  } catch (err) {
+    console.warn(`${TAG} Could not resolve MCP Server resource: ${err.message}`);
+  }
+
+  try {
+    const investRes = await _resolveOrCreateResourceId(client, mcpInvestAud, mcpInvestName, 'MCP Invest');
+    mcpInvestResourceId = investRes.id;
+    ex3InvestResourceCreated = investRes.created;
+  } catch (err) {
+    console.warn(`${TAG} Could not resolve/create MCP Invest resource: ${err.message}`);
+  }
+
+  // Pre-condition 5: MCP Server resource scopes (native + mirrored).
+  if (mcpServerResourceId) {
+    try {
+      ex3ServerScopeResult = await _reconcileResourceScopes(client, mcpServerResourceId, 'Super Banking MCP Server', 'MCP Server');
+    } catch (err) {
+      console.warn(`${TAG} Exchange #3 MCP Server scope reconcile failed: ${err.message}`);
+    }
+  }
+
+  // Pre-condition 6: MCP Invest resource scopes (native + mirrored).
+  if (mcpInvestResourceId) {
+    try {
+      ex3InvestScopeResult = await _reconcileResourceScopes(client, mcpInvestResourceId, 'Super Banking MCP Invest', 'MCP Invest');
+    } catch (err) {
+      console.warn(`${TAG} Exchange #3 MCP Invest scope reconcile failed: ${err.message}`);
+    }
+  }
+
+  // Pre-condition 7: MCP Gateway app granted the backend scopes on BOTH resources.
+  //
+  // PingOne enforces scope-NAME uniqueness across an app's grants, so the gateway
+  // app cannot hold a given scope name on both backend resources. We therefore
+  // partition the shared names by which backend actually needs them at runtime:
+  //   - `invest:read` is the invest backend's least-privilege scope (a2a specialist
+  //     tokens carry ONLY invest:read) → reserved for the MCP Invest grant.
+  //   - all other olb tool scopes (read/write/… + mcp:invoke) → the MCP Server grant.
+  // The router sends invest tools to the invest backend and olb tools to olb, so a
+  // token's surviving scope never needs the same name on both grants.
+  //
+  // Cross-reference: demo_mcp_gateway/src/auth/scopeTopology.ts
+  // resourceScopesForBackend() is broader than this partition — it returns ALL
+  // scopes+mirroredScopes from scope-topology.json for a backend (e.g.
+  // `invest:read` is requested on OLB exchanges too, since it's mirrored
+  // there), which the gateway's McpTokenExchangeClient uses to build the RFC
+  // 8693 `scope=` request. That request can therefore ask for a scope name
+  // this partition did NOT grant on that resource (e.g. `invest:read` on the
+  // olb grant) — PingOne silently drops the ungranted name from the issued
+  // token instead of erroring the exchange. If PingOne ever starts erroring
+  // on ungranted requested scopes, both sites need to be revisited together.
+  const INVEST_RESERVED_SCOPE = 'invest:read';
+  const serverExclude = new Set([INVEST_RESERVED_SCOPE]);
+  // On the invest grant, drop any scope name already granted on the MCP Server
+  // grant (read, mcp:invoke, …) — leaving invest:read as the invest-only grant.
+  const serverGrantedNames = new Set(
+    scopeTopology.resourceScopes('Super Banking MCP Server').filter(n => !serverExclude.has(n))
+  );
+  const investExclude = new Set(
+    scopeTopology.resourceScopes('Super Banking MCP Invest').filter(n => serverGrantedNames.has(n))
+  );
+
+  if (mcpGatewayClientId) {
+    let mcpGatewayAppId = null;
+    try {
+      mcpGatewayAppId = await _resolveAppId(client, mcpGatewayClientId, 'MCP Gateway');
+    } catch (err) {
+      console.warn(`${TAG} Could not resolve MCP Gateway app (non-fatal): ${err.message}`);
+    }
+    if (mcpGatewayAppId && mcpServerResourceId) {
+      try {
+        ex3ServerGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpServerResourceId, 'Super Banking MCP Server', 'MCP Gateway on MCP Server', serverExclude);
+      } catch (err) {
+        console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Server grant reconcile failed: ${err.message}`);
+      }
+    }
+    if (mcpGatewayAppId && mcpInvestResourceId) {
+      try {
+        ex3InvestGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpInvestResourceId, 'Super Banking MCP Invest', 'MCP Gateway on MCP Invest', investExclude);
+      } catch (err) {
+        console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Invest grant reconcile failed: ${err.message}`);
+      }
+    }
+  } else {
+    console.log(`${TAG} MCP Gateway client ID not configured — skipping Exchange #3 grant check`);
+  }
+
   // ── Summary ────────────────────────────────────────────────────────────────
 
-  const totalCreated = ex1ScopeResult.created.length + ex2ScopeResult.created.length;
-  const totalAdded   = ex1GrantResult.added.length   + ex2GrantResult.added.length;
+  const totalCreated = ex1ScopeResult.created.length + ex2ScopeResult.created.length
+    + ex3ServerScopeResult.created.length + ex3InvestScopeResult.created.length;
+  const totalAdded   = ex1GrantResult.added.length   + ex2GrantResult.added.length
+    + ex3ServerGrantResult.added.length  + ex3InvestGrantResult.added.length;
 
-  if (totalCreated === 0 && totalAdded === 0) {
-    console.log(`${TAG} OK — Exchange #1 and #2 scopes and grants match scope-topology.json`);
+  if (totalCreated === 0 && totalAdded === 0 && !ex3InvestResourceCreated) {
+    console.log(`${TAG} OK — Exchange #1, #2, and #3 scopes and grants match scope-topology.json`);
   } else {
     const parts = [];
     if (ex1ScopeResult.created.length) parts.push(`Agent Gateway scopes created: [${ex1ScopeResult.created.join(', ')}]`);
     if (ex1GrantResult.added.length)   parts.push(`AI Agent→AgentGw grants added: [${ex1GrantResult.added.join(', ')}]`);
     if (ex2ScopeResult.created.length) parts.push(`MCP Gateway scopes created: [${ex2ScopeResult.created.join(', ')}]`);
     if (ex2GrantResult.added.length)   parts.push(`MCP Exchanger→McpGw grants added: [${ex2GrantResult.added.join(', ')}]`);
+    if (ex3InvestResourceCreated)          parts.push('MCP Invest resource created');
+    if (ex3ServerScopeResult.created.length) parts.push(`MCP Server scopes created: [${ex3ServerScopeResult.created.join(', ')}]`);
+    if (ex3InvestScopeResult.created.length) parts.push(`MCP Invest scopes created: [${ex3InvestScopeResult.created.join(', ')}]`);
+    if (ex3ServerGrantResult.added.length)   parts.push(`MCP Gateway→McpServer grants added: [${ex3ServerGrantResult.added.join(', ')}]`);
+    if (ex3InvestGrantResult.added.length)   parts.push(`MCP Gateway→McpInvest grants added: [${ex3InvestGrantResult.added.join(', ')}]`);
     console.log(`${TAG} Healed — ${parts.join('; ')}`);
   }
 }

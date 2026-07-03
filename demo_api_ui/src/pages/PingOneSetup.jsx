@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../styles/PingOneSetup.css';
 
 export default function PingOneSetup() {
@@ -10,6 +10,31 @@ export default function PingOneSetup() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Pre-fill the form with the worker credentials configured on the server.
+  // These remain fully editable; the fetch just seeds them for convenience.
+  useEffect(() => {
+    const token = sessionStorage.getItem('id_token') || localStorage.getItem('id_token');
+    fetch('/api/pingone/setup/defaults', {
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setCredentials({
+          environmentId: data.environmentId || '',
+          clientId: data.clientId || '',
+          clientSecret: data.clientSecret || '',
+        });
+        if (data.environmentId || data.clientId || data.clientSecret) {
+          setPrefilled(true);
+        }
+      })
+      .catch(() => {
+        // No defaults available (e.g. not signed in) — leave fields blank.
+      });
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -59,6 +84,11 @@ export default function PingOneSetup() {
           {/* Form Section */}
           <div className="setup-form-section">
             <h2>Enter Credentials</h2>
+            {prefilled && (
+              <p className="prefill-note">
+                ✓ Pre-filled from server configuration — edit any field if needed.
+              </p>
+            )}
             <form onSubmit={handleSubmit} className="setup-form">
               <div className="form-group">
                 <label htmlFor="environmentId">Environment ID</label>

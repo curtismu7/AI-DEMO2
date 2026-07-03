@@ -21,7 +21,7 @@ export default function JwtClientAuthPanel({ isOpen, onClose, initialTabId }) {
       content: (
         <>
           <p>
-            <strong>JWT-based client authentication</strong> — <RfcLink rfc="RFC_7521" section="§4.2" /> — lets
+            <strong>JWT-based client authentication</strong> — <RfcLink rfc="RFC_7523" section="§3" /> — lets
             an OAuth client prove its identity to the authorization server using a <em>signed JWT</em> instead of
             a shared secret (<code>client_secret</code>). This is also called
             <strong>private_key_jwt</strong> (for asymmetric keys) or
@@ -48,7 +48,7 @@ grant_type=authorization_code
       label: 'JWT assertion structure',
       content: (
         <>
-          <h4 style={{ marginTop: 0 }}>Required claims in the client assertion JWT (<RfcLink rfc="RFC_7521" section="§4.2" />)</h4>
+          <h4 style={{ marginTop: 0 }}>Required claims in the client assertion JWT (<RfcLink rfc="RFC_7523" section="§3" />)</h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e5e7eb', textAlign: 'left' }}>

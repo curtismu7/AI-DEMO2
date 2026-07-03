@@ -108,6 +108,143 @@ const MCP_GAPS = [
   },
 ];
 
+/**
+ * CIMD (draft-ietf-oauth-client-id-metadata-document) demo section. The
+ * client_id IS an https URL; the AS fetches the client's metadata document
+ * from it instead of requiring pre-registration. PingOne does not support
+ * CIMD, so the BFF mocks the AS side (engine:'mock') — badged as such.
+ */
+const CIMD_STEP_LABELS = {
+  fetch: 'Fetch client metadata document',
+  validate: 'Validate document (client_id = URL, grant types, scopes)',
+  register: 'Register client in the mock AS',
+};
+
+const CimdRegistrationSection = () => {
+  const [agents, setAgents] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [registering, setRegistering] = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get('/api/cimd/agents')
+      .then((res) => { if (!cancelled) setAgents(res.data?.agents || []); })
+      .catch((e) => notifyError(formatAxiosError(e, 'Failed to load CIMD agent metadata list')));
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectAgent = (agent) => {
+    setSelected(agent);
+    setResult(null);
+  };
+
+  const registerViaCimd = useCallback(async () => {
+    if (!selected) return;
+    setRegistering(true);
+    try {
+      const res = await apiClient.post('/api/oauth/clients/register-cimd', {
+        client_id: selected.client_id,
+      });
+      setResult(res.data);
+    } catch (e) {
+      // Validation rejections (400) still carry the step breakdown — show them.
+      if (e.response?.data?.steps) {
+        setResult(e.response.data);
+      } else {
+        notifyError(formatAxiosError(e, 'CIMD registration failed'));
+        setResult(null);
+      }
+    } finally {
+      setRegistering(false);
+    }
+  }, [selected]);
+
+  return (
+    <Section
+      title="CIMD registration — client_id as a URL"
+      hint="draft-ietf-oauth-client-id-metadata-document"
+      defaultOpen={false}
+    >
+      <div className="p1mcp-cimd-badge" title="The AS side of CIMD runs in the demo BFF (engine: mock), not in PingOne">
+        Mocked — PingOne does not yet support CIMD
+      </div>
+      <p className="mcp-inspector__muted">
+        With <strong>Client ID Metadata Documents</strong> the client&apos;s <code>client_id</code>{' '}
+        IS an HTTPS URL: at first use the authorization server fetches the client&apos;s metadata
+        JSON from that URL instead of requiring pre-registration. Each agent&apos;s document is
+        derived live from <code>scope-topology.json</code>. Pick an agent, then run the mocked
+        fetch → validate → register flow.
+      </p>
+
+      <div className="p1mcp-chips">
+        {agents.map((a) => (
+          <button
+            key={a.slug}
+            type="button"
+            className={`p1mcp-chip ${selected?.slug === a.slug ? 'p1mcp-chip--active' : ''}`}
+            title={a.client_name}
+            onClick={() => selectAgent(a)}
+          >
+            {a.app}
+          </button>
+        ))}
+        {agents.length === 0 && <p className="mcp-inspector__muted">No agents published yet.</p>}
+      </div>
+
+      {selected && (
+        <div className="p1mcp-tool-card">
+          <div className="p1mcp-tool-card__name">{selected.client_name}</div>
+          <p className="p1mcp-tool-card__desc">
+            <code>client_id</code> (also the metadata document URL):{' '}
+            <a href={selected.metadata_path} target="_blank" rel="noopener noreferrer">
+              <code>{selected.client_id}</code>
+            </a>
+            <br />
+            Requested scopes: <code>{selected.granted_scopes.join(' ') || '(none)'}</code>
+          </p>
+          <button
+            type="button"
+            className="mcp-inspector__btn"
+            onClick={registerViaCimd}
+            disabled={registering}
+            title="Runs the mocked CIMD registration in the demo BFF"
+          >
+            {registering ? 'Registering…' : 'Register via CIMD (mocked)'}
+          </button>
+
+          {result && (
+            <>
+              <div className={`p1mcp-call-status ${result.client ? '' : 'p1mcp-call-status--error'}`}>
+                {result.client
+                  ? `Registered — client_id is the document URL (engine: ${result.engine})`
+                  : `Rejected by the mock AS: ${(result.errors || []).join('; ')}`}
+              </div>
+              {(result.steps || []).map((step) => (
+                <Section
+                  key={step.step}
+                  title={CIMD_STEP_LABELS[step.step] || step.step}
+                  status={step.status === 'success' ? 'ok' : 'error'}
+                  hint={`engine: ${step.engine}`}
+                  defaultOpen={step.status !== 'success'}
+                >
+                  <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={step.detail} deep /></pre>
+                </Section>
+              ))}
+              {result.client && (
+                <Section title="Registered client" status="ok" defaultOpen={false}>
+                  <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={result.client} deep /></pre>
+                </Section>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+};
+
 const PingOneMcpInspector = ({ user, onLogout }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -303,6 +440,16 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
             <button type="button" className="mcp-inspector__btn" onClick={refresh} disabled={loading}>
               {loading ? 'Querying…' : 'Refresh tools/list'}
             </button>
+            <a
+              className="mcp-inspector__btn"
+              style={{ textDecoration: 'none' }}
+              href="/pingone-mcp-tools.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Full catalog of the 67 PingOne MCP tools, including recent renames"
+            >
+              Tools reference
+            </a>
           </div>
         </div>
       </header>
@@ -443,6 +590,8 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
           </>
         )}
       </Section>
+
+      <CimdRegistrationSection />
 
       <Section
         title="Not in the MCP server — use direct API"

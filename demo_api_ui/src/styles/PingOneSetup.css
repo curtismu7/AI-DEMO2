@@ -6,7 +6,7 @@
 }
 
 .setup-container {
-  max-width: 900px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
@@ -22,17 +22,17 @@
   margin-bottom: 40px;
 }
 
-.setup-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
-  align-items: start;
+.prefill-note {
+  font-size: 0.9em;
+  color: #28a745;
+  margin: -8px 0 16px;
 }
 
-@media (max-width: 900px) {
-  .setup-content {
-    grid-template-columns: 1fr;
-  }
+.setup-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+  align-items: start;
 }
 
 /* Form Section */

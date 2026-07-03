@@ -110,6 +110,23 @@ const FLAG_REGISTRY = [
     defaultValue: true,
     runtimeKey:   'stepUpEnabled', // maps to runtimeSettings for live toggle
   },
+  {
+    id:           'ff_rfc9470_challenge',
+    name:         'Step-Up — RFC 9470 Challenge (401 + WWW-Authenticate)',
+    category:     'Step-Up Auth',
+    description:
+      'Emit the step-up challenge in the standard **RFC 9470** wire format: `401 Unauthorized` with ' +
+      '`WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…, max_age=…`. ' +
+      'OFF switches back to the legacy demo format: `428 Precondition Required` with a JSON body. ' +
+      'Same gate, same policy — only the signaling changes. The JSON body is included in both modes; ' +
+      'in RFC mode the header is the normative signal the client parses.',
+    impact:
+      'ON (default) = 401 + WWW-Authenticate header per RFC 9470 — the UI parses the header and runs the same MFA flow. ' +
+      'OFF = 428 + JSON body (pre-standard demo format).',
+    type:         'boolean',
+    defaultValue: true,
+    docsUrl:      'https://datatracker.ietf.org/doc/rfc9470/',
+  },
 
   // ── HITL / Agent Consent ───────────────────────────────────────────────────
   {
@@ -625,6 +642,45 @@ const FLAG_REGISTRY = [
     impact:
       'OFF = Demo Agent Gateway path unchanged. ' +
       'ON (default) = the PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
+    id:           'ff_mcp_gateway_jwks',
+    name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'When **ON** and MCP traffic routes through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway), ' +
+      'the gateway validates inbound MCP access tokens **locally**: RS256 tokens against the PingOne **JWKS** ' +
+      '(signature, exp/nbf, iss, aud, scope) and mock demo_authz_server HS256 tokens against the shared demo ' +
+      'secret — no introspection round-trip to the authorization server. When **OFF**, the gateway ' +
+      'uses **remote token introspection** (RFC 7662) instead. Carried per request via the ' +
+      'X-Token-Validation header; switching requires no gateway restart.',
+    impact:
+      'OFF = introspection: every request round-trips to the authorization server, so revoked tokens ' +
+      'are caught immediately. ON (default) = local JWKS validation: faster and works offline, but **cannot detect ' +
+      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates. ' +
+      'Prerequisite for the Simulated-Authorize (HS256 mock token) combination: AUTHZ_JWT_SECRET must be set ' +
+      'in ping-gateway/.env (same value as the authz-server) — without it that combo fails closed with 401 ' +
+      'hs256_secret_not_configured. The default real-PingOne (RS256) path needs no extra gateway env.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
+    id:           'ff_mcp_gateway_jwks',
+    name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'When **ON** and MCP traffic routes through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway), ' +
+      'the gateway validates inbound MCP access tokens **locally**: RS256 tokens against the PingOne **JWKS** ' +
+      '(signature, exp/nbf, iss, aud, scope) and mock demo_authz_server HS256 tokens against the shared demo ' +
+      'secret — no introspection round-trip to the authorization server. When **OFF** (default), the gateway ' +
+      'uses **remote token introspection** (RFC 7662) as today. Carried per request via the ' +
+      'X-Token-Validation header; switching requires no gateway restart.',
+    impact:
+      'OFF (default) = introspection: every request round-trips to the authorization server, so revoked tokens ' +
+      'are caught immediately. ON = local JWKS validation: faster and works offline, but **cannot detect ' +
+      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates.',
     type:         'boolean',
     defaultValue: false,
   },

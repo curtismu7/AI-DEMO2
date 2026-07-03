@@ -330,6 +330,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "🛡️",
         action: () => {},
       },
+      {
+        label: "Gartner Machine IAM Survey",
+        description: "Top 5 findings and how this demo answers them",
+        icon: "📊",
+        action: () => {},
+      },
     ],
   },
 ];
@@ -418,6 +424,8 @@ export default function LearningHub() {
       AuthZEN: () => openEdu(EDU.AUTHZEN, "overview"),
       "Agentic Trust": () => (window.location.href = "/agentic-trust"),
       "OWASP Agentic": () => (window.location.href = "/owasp"),
+      "Gartner Machine IAM Survey": () =>
+        openEdu(EDU.MACHINE_IAM_SURVEY, "findings"),
     },
     }),
     [openEdu, tour],

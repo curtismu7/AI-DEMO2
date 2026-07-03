@@ -4,7 +4,7 @@
     <mxCell id="1" parent="0" />
 
     <!-- Title -->
-    <mxCell id="title" value="Super Banking — RFC 8693 Token Anatomy" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+    <mxCell id="title" value="The AI Demo — RFC 8693 Token Anatomy" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
       <mxGeometry x="250" y="15" width="1000" height="40" as="geometry" />
     </mxCell>
     <mxCell id="subtitle" value="JWT claims at each stage of the delegated token exchange chain" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#64748b;" vertex="1" parent="1">

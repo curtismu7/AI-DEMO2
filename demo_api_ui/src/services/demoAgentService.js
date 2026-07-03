@@ -13,6 +13,7 @@
 import { appendTokenEvents, setCurrentTurn, clearCurrentTurn } from "./apiTrafficStore";
 import { appendMcpCall } from "./mcpCallStore";
 import { agentFlowDiagram } from "./agentFlowDiagramService";
+import { tokenChainTraceStore } from "./tokenChainTrace/tokenChainTraceStore";
 import { openMcpFlowSse } from "./mcpFlowSseClient";
 import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
@@ -184,6 +185,13 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
   } catch (err) {
     throwIfNetworkError(err, "agentFlowDiagram.startMcpToolCall");
     log.warn("Flow diagram initialization failed:", err);
+  }
+  // Start a fresh trace for chip-fired tool calls, but don't clobber a trace
+  // already begun by the typed-message send path (AIAgent.js) within the
+  // last 60s — that trace's prompt is the user's actual chat message.
+  if (!tokenChainTraceStore.getState().trace.startedAt ||
+      Date.now() - tokenChainTraceStore.getState().trace.startedAt > 60_000) {
+    tokenChainTraceStore.beginTrace({ prompt: tool });
   }
 
   const flowTraceId =
@@ -559,6 +567,7 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
         authorizeResponse: ae.response || null,
         explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
       });
+      tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
     }
 
     // Phase 266 — credentialPath stamping and gateway-synthesized event merge.

@@ -125,9 +125,10 @@ export default function TransactionTokensPanel({ isOpen, onClose, initialTabId }
       content: (
         <>
           <h3>IETF Draft Status</h3>
-          <p><strong>Spec:</strong> <code>draft-oauth-transaction-tokens-for-agents-00</code></p>
+          <p><strong>Spec:</strong> <code>draft-araut-oauth-transaction-tokens-for-agents</code> (agent-specific extension)</p>
+          <p><strong>Base spec:</strong> <code>draft-ietf-oauth-transaction-tokens</code> (WG-adopted)</p>
           <p><strong>Working Group:</strong> OAUTH</p>
-          <p><strong>Maturity:</strong> Individual draft (00) — pre-WG adoption as of May 2026</p>
+          <p><strong>Maturity:</strong> Individual draft — agent extension is pre-WG adoption as of May 2026</p>
           <p>
             PingOne native TraT support is pending. This demo simulates TraT using{' '}
             <code>X-TraT-Context</code> headers and <code>trat_sim: true</code>.

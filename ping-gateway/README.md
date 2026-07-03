@@ -88,12 +88,33 @@ the MCP-server-side reconciliation vars.
 | Decision backend not configured | `403` (Groovy fails closed) |
 | Token exchange failure (e.g. `invalid_target`) | `401 {"error":"token_exchange_failed"}` |
 
+### Local JWKS validation route (`00-mcp-olb-jwks.json`)
+
+When the BFF flag `ff_mcp_gateway_jwks` is ON it stamps `X-Token-Validation: jwks`
+on each request; this route (file name sorts before `01-mcp-olb.json`, so it is
+matched first) then validates the inbound token **locally** in
+`jwks-token-validation.groovy` — RS256 via `PINGONE_JWKS_URI`, mock HS256 via
+`AUTHZ_JWT_SECRET` — with `exp`/`nbf`, `iss`, `aud`, and scope checks, instead of
+introspecting. Success stamps `X-Token-Validation-Mode: jwks` on the response;
+failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}`.
+Any other header value (or none) falls through to the unchanged introspection
+route. Tradeoff (educational, by design): no revocation detection until expiry.
+The secondary `/mcp/invest` path has the same switch: `00-mcp-invest-jwks.json`
+is route `02-mcp-invest.json` with the shared `rsFilter` stage replaced by the
+same Groovy validator, selected by the same header.
+
 ## Files
 
 - `config/admin.json` — IG admin (PRODUCTION mode, streaming on).
 - `config/routes/01-mcp-olb.json` — primary route (`/mcp`).
 - `config/routes/02-mcp-invest.json` — secondary route (`/mcp/invest`, strips prefix).
+- `config/routes/00-mcp-olb-jwks.json` — local (no-introspection) JWKS validation route, selected
+  per request via the `X-Token-Validation: jwks` header (effective `ff_mcp_gateway_jwks`).
+- `config/routes/00-mcp-invest-jwks.json` — same JWKS switch for the `/mcp/invest` path
+  (route 02 with the `rsFilter` stage replaced by the Groovy validator).
 - `scripts/groovy/p1az-decision.groovy` — the authorize decision filter.
+- `scripts/groovy/jwks-token-validation.groovy` — local inbound token validation for the JWKS
+  route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.
 - `scripts/validate-config.sh` — route JSON validity + placeholder<->env cross-check.
 - `scripts/check-groovy-params.sh` — static 18-key parity + decision-path check.
 - `scripts/e2e-pinggateway.sh` — live e2e (401 enforcement + live authz decision; full

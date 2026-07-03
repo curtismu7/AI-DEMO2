@@ -31,3 +31,14 @@ certs/
 package-lock.json
 **/package-lock.json
 .codegraph/
+
+# --- Secret/backup hygiene (stop stale-data + secret leaks) ---
+# Local env files with real secrets (never commit; use *.example templates)
+.env
+.env.local
+.env.*.local
+# App-generated config/import backups (were committed by accident)
+*.bak
+demo_api_server/.env.pre-import-*
+demo_api_server/data/backups/
+demo_api_server/data/runtimeData.json.bak

@@ -8,6 +8,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import TokenCard from './TokenCard';
+import TokenCardGrid from './TokenCardGrid';
 import bffAxios from '../services/bffAxios';
 import { fetchEnrichedUserInfo } from '../services/userInfoService';
 import { createPortal } from 'react-dom';
@@ -16,6 +17,15 @@ import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
+import TokenFlowDiagram from './TokenFlowDiagram';
+import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
+import TokenExchangeModeSummary from './TokenExchangeModeSummary';
+import TokenLegendModal from './TokenLegendModal';
+import ScopeChangesCallout from './ScopeChangesCallout';
+import StepDetailsSection from './StepDetailsSection';
+import ClaimDetailsModal from './ClaimDetailsModal';
+import { STEP_DETAILS } from '../data/stepDetails';
+import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
 
 // ============================================================================
@@ -193,6 +203,7 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
 
   return (
     <div className="utfi-agent-flow-section">
+      <SecurityGuaranteeBanner />
       <div className="utfi-section-header">
         <span className="utfi-section-icon">🔀</span>
         <h3>Agent Request Flow</h3>
@@ -242,6 +253,9 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
           </div>
         )}
 
+        {/* RFC 8693 Flow Reference Diagram */}
+        <TokenFlowDiagram />
+
         {/* Token Exchange Flow Diagram */}
         {steps.length > 0 && (
           <div className="utfi-flow-section">
@@ -279,6 +293,21 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
                   </div>
                   <div className="utfi-step-status">{statusBadge(step.status)}</div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Step Breakdown (expandable sections) */}
+        {steps.length > 0 && (
+          <div className="utfi-detailed-steps">
+            <div className="utfi-detailed-steps-header">
+              <span>Step Details</span>
+              <span className="utfi-detail-hint">Click to expand for HTTP requests, token claims, validation</span>
+            </div>
+            <div className="utfi-detailed-steps-list">
+              {STEP_DETAILS.map((step) => (
+                <StepDetailsSection key={step.id} step={step} />
               ))}
             </div>
           </div>
@@ -346,7 +375,7 @@ function AgentFlowSection({ compact = false, onSelectToken, selectedTokenId: sel
 // RIGHT: OAUTH TOKEN INSPECTOR SECTION
 // ============================================================================
 
-function OAuthInspectorSection({ selectedToken }) {
+function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
   const [userStatus, setUserStatus] = useState(null);
   const [tokenClaims, setTokenClaims] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -362,11 +391,22 @@ function OAuthInspectorSection({ selectedToken }) {
     account: true,
     rawJson: false,
     tokenExchange: true,
+    tokenGrid: true,
   });
 
   // Token exchange details state
   const [tokenExchangeEvents, setTokenExchangeEvents] = useState([]);
   const [displayedTokenId, setDisplayedTokenId] = useState(null);
+
+  // Token Card Grid state
+  const [gridInspectedTokenType, setGridInspectedTokenType] = useState(null);
+  const [gridInspectedTokenData, setGridInspectedTokenData] = useState(null);
+
+  const handleGridInspect = useCallback((type, tokenData) => {
+    setGridInspectedTokenType(type);
+    setGridInspectedTokenData(tokenData);
+    onOpenClaimsModal?.(type);
+  }, [onOpenClaimsModal]);
 
   // Refetch token data whenever auth state changes or agent actions complete
   const fetchTokenData = useCallback(async (skipLoading = false) => {
@@ -635,6 +675,16 @@ function OAuthInspectorSection({ selectedToken }) {
       </div>
 
       <div className="utfi-sections">
+        {/* Token Card Grid — 3-column overview of User/Agent/MCP tokens */}
+        {renderSection('tokenGrid', 'Token Overview', '📊', (
+          <TokenCardGrid
+            userToken={tokenExchangeEvents.find((e) => e.id === 'user-token' || e.label?.toLowerCase().includes('user'))?.decoded || null}
+            agentToken={tokenExchangeEvents.find((e) => e.label?.toLowerCase().includes('agent') || e.id?.toLowerCase().includes('agent'))?.decoded || null}
+            mcpToken={tokenExchangeEvents.find((e) => e.label?.toLowerCase().includes('mcp') || e.id?.toLowerCase().includes('mcp') || e.label?.toLowerCase().includes('resource'))?.decoded || null}
+            onInspectToken={handleGridInspect}
+          />
+        ))}
+
         <TokenCard
           decoded={tokenClaims}
           title="OAuth Token"
@@ -691,7 +741,31 @@ function OAuthInspectorSection({ selectedToken }) {
         ))}
 
         {renderSection('tokenExchange', 'Token Exchange & Scopes', '🔄', (
-          <div className="utfi-token-exchange-events">
+          <>
+            <TokenExchangeModeSummary
+              tokens={[
+                {
+                  type: 'User',
+                  name: 'customer access token',
+                  issuedBy: 'PingOne AS',
+                  rfc8693Role: 'subject token',
+                },
+                {
+                  type: 'Agent',
+                  name: 'BFF-delegated MCP token',
+                  issuedBy: 'PingOne AS (via RFC 8693)',
+                  rfc8693Role: 'delegated token',
+                },
+                {
+                  type: 'MCP',
+                  name: 'resource-scoped access token',
+                  issuedBy: 'PingOne AS (RFC 8693 + 8707)',
+                  rfc8693Role: 'narrowed resource token',
+                },
+              ]}
+            />
+            <ScopeChangesCallout />
+            <div className="utfi-token-exchange-events">
             {tokenExchangeEvents.length === 0 ? (
               <div className="utfi-exchange-empty">
                 <p className="utfi-exchange-desc">Perform a banking action (transfer, deposit, etc.) to see token exchanges and scopes in real-time</p>
@@ -775,7 +849,8 @@ function OAuthInspectorSection({ selectedToken }) {
                 </div>
               </>
             )}
-          </div>
+            </div>
+          </>
         ))}
 
         {(enrichedLoading || enrichedInfo?.error || hasAnyField(enrichedInfo?.data)) && renderSection('account', 'Account Information', '📋', (
@@ -808,6 +883,9 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [visible, setVisible] = useState(true);
   const [selectedToken, setSelectedToken] = useState(null);
+  const [showLegendModal, setShowLegendModal] = useState(false);
+  const [showClaimsModal, setShowClaimsModal] = useState(false);
+  const [selectedTokenType, setSelectedTokenType] = useState(null);
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -856,6 +934,16 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
     }
   }, [handleClose, effectiveShowClose]);
 
+  const openClaimsModal = useCallback((tokenType) => {
+    setSelectedTokenType(tokenType);
+    setShowClaimsModal(true);
+  }, []);
+
+  const closeClaimsModal = useCallback(() => {
+    setShowClaimsModal(false);
+    setSelectedTokenType(null);
+  }, []);
+
   useEffect(() => {
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
@@ -871,6 +959,15 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
           <p className="utfi-subtitle">Real-time visibility into agent execution and OAuth token lifecycle</p>
         </div>
         <div className="utfi-header-actions">
+          <button
+            type="button"
+            className="utfi-btn utfi-btn-primary"
+            onClick={() => setShowLegendModal(true)}
+            title="Show token legend"
+            aria-label="Token Legend"
+          >
+            📋 Token Legend
+          </button>
           {showToggle && (
             <button
               className="utfi-btn utfi-btn-primary"
@@ -900,32 +997,38 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         </div>
         <div className="utfi-divider"></div>
         <div className="utfi-right">
-          <OAuthInspectorSection selectedToken={selectedToken} />
+          <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
         </div>
       </div>
+      <ClaimDetailsModal isOpen={showClaimsModal} tokenType={selectedTokenType} onClose={closeClaimsModal} />
+      <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
     </div>
   );
 
   if (isFloating) {
-    return snap.visible ? createPortal(
-      <div
-        className="utfi-floating-wrapper"
-        style={{
-          position: 'fixed',
-          left: pos.x,
-          top: pos.y,
-          width: size.w,
-          height: size.h,
-          zIndex: 10000,
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="utfi-title"
-      >
-        {content}
-      </div>,
-      document.body
-    ) : null;
+    return (
+      <>
+        {snap.visible ? createPortal(
+          <div
+            className="utfi-floating-wrapper"
+            style={{
+              position: 'fixed',
+              left: pos.x,
+              top: pos.y,
+              width: size.w,
+              height: size.h,
+              zIndex: 10000,
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="utfi-title"
+          >
+            {content}
+          </div>,
+          document.body
+        ) : null}
+      </>
+    );
   }
 
   return content;

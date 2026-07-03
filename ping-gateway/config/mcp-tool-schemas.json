@@ -1,0 +1,5 @@
+{
+  "version": 0,
+  "tools": {},
+  "_comment": "Placeholder mountpoint only. The real artifact is bind-mounted over this file from the repo root (see docker-compose volumes). version 0 + empty tools = fail-closed if the mount is missing."
+}

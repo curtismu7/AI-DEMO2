@@ -490,24 +490,21 @@ ensure_llamacpp() {
     return 0
   fi
 
-  # The default model used by the demo. llama-server's -hf flag downloads and
-  # caches the GGUF on first start (replaces 'ollama pull'), so there is no
-  # separate pull step. Optionally pre-warm by starting the server once.
-  local model="qwen2.5-3b-instruct"
-  local hf_spec="Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
+  # Local models are served through the multi-model LLM proxy on :8090
+  # (demo_llm_proxy/router.js) in swap mode — one tier loaded at a time,
+  # swapped by the tier-manager (:8097). Never a raw llama-server on :8090.
   if command -v llama-server >/dev/null 2>&1; then
-    info "Default model (${model}) downloads automatically on first 'llama-server -hf' start."
-    info "  Start it with: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
+    info "Local models are served via the multi-model LLM proxy on :8090 (swap mode)."
+    info "  Verify tier GGUFs:   bash demo_llm_proxy/download-models.sh"
+    info "  Load smallest tier:  bash demo_llm_proxy/start-local-models.sh ensure 8091"
   fi
 }
 
-# Ensure llama.cpp is installed and a tool-capable model server is running.
-# Uses Qwen/Qwen3-1.7B-GGUF:Q4_K_M — tool-calling capable, small, runs on 32 GB machines.
+# Ensure llama.cpp is installed and the multi-model LLM proxy is serving :8090.
+# :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier llama-servers on
+# :8091-8096) — never a raw llama-server pointing straight at one model.
 # Called for all run modes where the host needs a local LLM (local, docker, se).
 ensure_codegraph_llamacpp() {
-  local model="${LLAMACPP_MODEL:-qwen3-1.7b}"
-  local hf_spec="Qwen/Qwen3-1.7B-GGUF:Q4_K_M"
-
   # Install if missing
   if ! command -v llama-server >/dev/null 2>&1; then
     info "Installing llama.cpp (required for Code Explorer)..."
@@ -522,23 +519,34 @@ ensure_codegraph_llamacpp() {
     ok "llama.cpp already installed."
   fi
 
-  # Start the server if not already responding on /health. The -hf flag
-  # downloads and caches the GGUF on first start (replaces 'ollama pull').
-  if ! curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-    info "Starting llama-server (${model}) — downloads the GGUF on first start, this may take a few minutes..."
-    llama-server --host 0.0.0.0 --port 8090 -hf "${hf_spec}" >/dev/null 2>&1 &
-    # Wait for the model to load and /health to return 200.
+  # Reuse whatever healthy proxy already serves :8090 (llm-proxy container in
+  # docker mode, or a host router started earlier).
+  if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
+    ok "LLM proxy already serving :8090."
+    return 0
+  fi
+
+  if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
+    info "Starting LLM proxy stack in swap mode (tier-manager :8097 + smallest tier + router :8090)..."
+    if ! curl -sf --max-time 2 http://localhost:8097/health >/dev/null 2>&1; then
+      nohup node demo_llm_proxy/tier-manager.js > /tmp/demo-tier-manager.log 2>&1 &
+      echo $! > /tmp/demo-tier-manager.pid
+    fi
+    bash demo_llm_proxy/start-local-models.sh ensure 8091 \
+      || { warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
+    LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
+    echo $! > /tmp/demo-llm-proxy.pid
     local waited=0
-    while [[ $waited -lt 120 ]]; do
+    while [[ $waited -lt 60 ]]; do
       if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-        ok "llama-server ready (model ${model})."
+        ok "LLM proxy ready on :8090 (routing tiers 8091-8096)."
         return 0
       fi
       sleep 3; (( waited += 3 ))
     done
-    warn "llama-server started but /health not ready yet — give it a moment, or start manually: llama-server --host 0.0.0.0 --port 8090 -hf ${hf_spec}"
+    warn "LLM proxy not ready yet — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
   else
-    ok "llama-server already running (model ${model})."
+    warn "demo_llm_proxy/ not found (run from the repo root) — :8090 left unserved; no raw llama-server fallback."
   fi
 }
 

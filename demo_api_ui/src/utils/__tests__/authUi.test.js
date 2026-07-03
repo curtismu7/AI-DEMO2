@@ -36,6 +36,16 @@ describe('authUi', () => {
       expect(isSessionExpiredApiError({ requiresLogin: true })).toBe(true);
       expect(isSessionExpiredApiError({ error: 'not_found' })).toBe(false);
     });
+
+    it('does not treat an RFC 9470 step-up 401 body as session expiry', () => {
+      expect(
+        isSessionExpiredApiError({
+          error: 'step_up_required',
+          error_description:
+            'This transaction requires additional authentication (MFA) as required by the authorization policy.',
+        })
+      ).toBe(false);
+    });
   });
 
   describe('isAuthenticatedAppSurface', () => {

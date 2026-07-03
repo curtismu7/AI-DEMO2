@@ -34,10 +34,23 @@ describe('verticalOpsConfig', () => {
     expect(getVerticalConfig('healthcare').actions['Cancel'].body({ id: 'x' }, { id: 'u1' })).toEqual({ userId: 'u1' });
   });
 
-  it('banking adaptLookup synthesizes a customer from account-centric response', () => {
+  it('banking adaptLookup maps the resolved holder + accounts into customer + categories', () => {
     const c = getVerticalConfig('banking');
-    const out = c.adaptLookup({ accounts: [{ id: 'ac1', accountNumber: '****4821', accountType: 'Checking', balance: 4210.55, name: 'Primary Checking' }], transactions: [] });
+    const out = c.adaptLookup({
+      user: { id: '1', username: 'john.doe', name: 'John Doe', email: 'john@bank.com' },
+      data: { accounts: [{ id: 'ac1', accountNumber: '****4821', accountType: 'Checking', balance: 4210.55 }], transactions: [] },
+    });
     expect(out.categories.find((x) => x.id === 'accounts').rows[0].id).toBe('ac1');
-    expect(out.customer).toBeTruthy();
+    expect(out.customer.name).toBe('John Doe');
+  });
+
+  it('banking adaptLookup falls back to a generic holder for an account-number-only lookup', () => {
+    const c = getVerticalConfig('banking');
+    const out = c.adaptLookup({
+      user: null,
+      data: { accounts: [{ id: 'ac1', accountNumber: '****4821', accountType: 'Checking', balance: 4210.55 }], transactions: [] },
+    });
+    expect(out.categories.find((x) => x.id === 'accounts').rows[0].id).toBe('ac1');
+    expect(out.customer.name).toBe('Account holder');
   });
 });

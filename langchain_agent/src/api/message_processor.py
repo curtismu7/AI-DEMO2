@@ -794,7 +794,7 @@ class MessageProcessor:
                         max_tokens=lc.max_tokens,
                         streaming=bool(getattr(lc, "stream_llm_tokens", True)),
                         llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8090"),
-                        llamacpp_model=getattr(lc, "llamacpp_model", "qwen3-8b"),
+                        llamacpp_model=getattr(lc, "llamacpp_model", "gemma-3-4b-it"),
                     )
                 elif run_provider in _LMSTUDIO_PROVIDERS:
                     run_llm = get_llm(
@@ -949,6 +949,28 @@ class MessageProcessor:
                 if output and (usage := getattr(output, "usage_metadata", None)):
                     total_input_tokens += getattr(usage, "input_tokens", 0)
                     total_output_tokens += getattr(usage, "output_tokens", 0)
+
+                try:
+                    _msgs = event_data.get("input", {}).get("messages") or []
+                    _flat = []
+                    for _group in _msgs:
+                        for _m in (_group if isinstance(_group, list) else [_group]):
+                            _flat.append({
+                                "role": getattr(_m, "type", None) or getattr(_m, "role", "?"),
+                                "content": str(getattr(_m, "content", ""))[:600],
+                            })
+                    _tool_calls = list(getattr(output, "tool_calls", None) or [])
+                    await emitter.on_llm_detail(
+                        model=event.get("metadata", {}).get("ls_model_name", "unknown"),
+                        messages=_flat,
+                        tool_calls=_tool_calls,
+                        usage={
+                            "inputTokens": total_input_tokens,
+                            "outputTokens": total_output_tokens,
+                        },
+                    )
+                except Exception:
+                    logger.exception("llm_detail emission failed (non-fatal)")
 
             elif event_name == "on_tool_start":
                 if llm_streaming:
