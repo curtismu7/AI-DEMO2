@@ -1,11 +1,12 @@
-# Build context: repo root (scope-topology.json needed at compile time;
-# sibling openapi files needed at runtime via ../../demo_mcp_*/openapi/).
+# Build context: repo root (scope-topology.json + mcp-tool-schemas.json needed
+# at compile time; sibling openapi files needed at runtime via ../../demo_mcp_*/openapi/).
 FROM node:20-alpine AS builder
 
 # Place repo root at /repo so relative paths match local dev layout
 WORKDIR /repo
 
 COPY scope-topology.json ./
+COPY mcp-tool-schemas.json ./
 
 # Install deps before copying source (layer cache)
 COPY demo_mcp_gateway/package*.json demo_mcp_gateway/tsconfig.json ./demo_mcp_gateway/
@@ -30,8 +31,10 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /repo/demo_mcp_gateway/dist ./dist
 
-# scope-topology.json is required at runtime (tsc emits a require(), not an embed)
+# scope-topology.json and mcp-tool-schemas.json are required at runtime
+# (tsc emits a require(), not an embed)
 COPY scope-topology.json /repo/scope-topology.json
+COPY mcp-tool-schemas.json /repo/mcp-tool-schemas.json
 
 # Sibling openapi specs (served via GET /openapi/mcp-olb and /openapi/mcp-invest)
 COPY demo_mcp_server/openapi/ /repo/demo_mcp_server/openapi/
