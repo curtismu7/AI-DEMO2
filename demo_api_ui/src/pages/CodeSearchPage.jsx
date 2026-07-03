@@ -109,6 +109,16 @@ export function CodeSearchPage() {
     []
   );
 
+  const handleFolderIndexed = useCallback((cb) => {
+    const newCodebase = {
+      id: `codebase-${Date.now()}`,
+      name: cb.name,
+      uploadedAt: new Date().toISOString(),
+    };
+    setCodebases((prev) => [newCodebase, ...prev]);
+    setSelectedCodebaseId(newCodebase.id);
+  }, []);
+
   const handleSearch = useCallback(async () => {
     if (!query.trim()) {
       setSearchError('Please enter a search query');
@@ -146,7 +156,11 @@ export function CodeSearchPage() {
     <div className="code-search-page">
       <div className="search-container">
         <div className="search-panel-left">
-          <CodebaseUploader onUpload={handleUpload} isLoading={isIndexing} />
+          <CodebaseUploader
+            onUpload={handleUpload}
+            isLoading={isIndexing}
+            onFolderIndexed={handleFolderIndexed}
+          />
 
           {indexError && <div className="panel-error">{indexError}</div>}
 
