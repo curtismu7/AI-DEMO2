@@ -82,14 +82,20 @@ function collectIssues() {
   }
 
   const aud = scopeTopology.audiences(); // { enduser, agentGateway, mcpServer, mcpGateway }
+  // Only MCP_SERVER_RESOURCE_URI legitimately carries a comma-separated accepted-audience
+  // list (RFC 8693 exchange rollout — e.g. "mcpserver.ping.demo,mcpgateway.ping.demo"); every
+  // other key (including its aliases and PINGONE_RESOURCE_TWO_EXCHANGE_URI, which per its own
+  // comment MUST equal the gateway audience) keeps strict equality.
+  const LIST_VALUED_KEYS = new Set(['MCP_SERVER_RESOURCE_URI']);
   for (const [key, role] of Object.entries(RESOURCE_URI_KEYS)) {
     const val = effective(key);
     if (!val) continue;
-    // MCP_SERVER_RESOURCE_URI (and its aliases) may now be a comma-separated accepted-
-    // audience list for the RFC 8693 exchange rollout — e.g.
-    // "mcpserver.ping.demo,mcpgateway.ping.demo" — so require containment, not equality.
-    const valList = val.split(',').map((s) => s.trim()).filter(Boolean);
-    if (aud[role] && !valList.includes(aud[role])) {
+    if (LIST_VALUED_KEYS.has(key)) {
+      const valList = val.split(',').map((s) => s.trim()).filter(Boolean);
+      if (aud[role] && !valList.includes(aud[role])) {
+        issues.push(`${key}="${val}" but scope-topology.json audience for ${role} is "${aud[role]}" (token validation would 401)`);
+      }
+    } else if (aud[role] && val !== aud[role]) {
       issues.push(`${key}="${val}" but scope-topology.json audience for ${role} is "${aud[role]}" (token validation would 401)`);
     }
   }

@@ -163,14 +163,14 @@ export class TokenIntrospector {
     const resourceUri = process.env.MCP_SERVER_RESOURCE_URI;
     if (resourceUri) {
       if (!tokenInfo.aud) {
-        teachLog.error('aud validation failed — token has no aud claim', undefined, { operation: 'aud_validation', expected: resourceUri });
+        teachLog.error('aud validation failed — token has no aud claim', undefined, { operation: 'aud_validation', expected: resourceUri.split(',').map((s) => s.trim()).filter(Boolean) });
         throw new AuthenticationError(
           'Token is missing the aud claim required for this MCP server',
           AuthErrorCodes.INVALID_AGENT_TOKEN
         );
       }
       if (!audienceAccepted(tokenInfo.aud, resourceUri)) {
-        teachLog.error('aud validation failed', undefined, { operation: 'aud_validation', token_aud: tokenInfo.aud, expected: resourceUri });
+        teachLog.error('aud validation failed', undefined, { operation: 'aud_validation', token_aud: tokenInfo.aud, expected: resourceUri.split(',').map((s) => s.trim()).filter(Boolean) });
         throw new AuthenticationError(
           'Token audience does not match MCP server resource URI',
           AuthErrorCodes.INVALID_AGENT_TOKEN
