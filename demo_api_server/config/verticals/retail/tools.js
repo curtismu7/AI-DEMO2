@@ -154,7 +154,10 @@ function buildRetailTools(store) {
         return { result: order, render: 'order_status' };
       }
       case 'rewards_balance':
-        return { result: store.get(userId).rewards, render: 'rewards_balance' };
+        // rewards is array-shaped (see redeem_store_credit above); the
+        // rewards_balance render descriptor is a flat fieldList, so return the
+        // current reward record, not the raw array.
+        return { result: (store.get(userId).rewards || [])[0] || {}, render: 'rewards_balance' };
       case 'checkout':
         return { result: store.checkout(userId, params || {}), render: 'checkout' };
       case 'sensitive_order_history':

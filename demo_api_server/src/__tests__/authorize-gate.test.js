@@ -440,7 +440,11 @@ describe('PingOne Authorize Gate — HITL consent path', () => {
     expect(res.body.error).toBe('consent_already_used');
   });
 
-  it('returns 428 step_up_required when PingOne signals stepUpRequired', async () => {
+  it('returns 401 step_up_required (RFC 9470 challenge) when PingOne signals stepUpRequired', async () => {
+    // ff_rfc9470_challenge defaults ON (see transactionAuthorizationService.js
+    // buildStepUpBlock / commit cae8f0c55 "ship ff_rfc9470_challenge default ON").
+    // The step-up block is now transported as 401 + WWW-Authenticate rather than
+    // the legacy 428 JSON-only response; the JSON body shape is unchanged.
     evaluateTransaction.mockResolvedValueOnce({ decision: 'PERMIT', stepUpRequired: true, raw: {} });
 
     const res = await request(app)
@@ -448,7 +452,8 @@ describe('PingOne Authorize Gate — HITL consent path', () => {
       .set('x-test-user', customerUser())
       .send(withdrawalBody);
 
-    expect(res.status).toBe(428);
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toContain('insufficient_user_authentication');
     expect(res.body.error).toBe('step_up_required');
     expect(res.body.hitl.type).toBe('step_up');
   });
@@ -466,7 +471,8 @@ describe('PingOne Authorize Gate — HITL consent path', () => {
       .set('x-test-user', customerUser())
       .send(withdrawalBody);
 
-    expect(res.status).toBe(428);
+    expect(res.status).toBe(401);
+    expect(res.headers['www-authenticate']).toContain('insufficient_user_authentication');
     expect(res.body.error).toBe('step_up_required');
     expect(res.body.hitl.type).toBe('step_up');
   });

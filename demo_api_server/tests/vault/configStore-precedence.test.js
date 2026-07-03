@@ -117,7 +117,7 @@ describe('configStore secret encrypt/decrypt round-trips regardless of key casin
   }
 });
 
-describe('getEffective precedence — Vault > LMDB > .env with bootstrap allowlist', () => {
+describe('getEffective precedence — .env > Vault/LMDB, with a bootstrap allowlist', () => {
   const SAVED = {};
   const ENVV = ['HELIX_MODEL', 'HELIX_BASE_URL', 'PINGONE_REGION', 'PINGONE_ENVIRONMENT_ID'];
   beforeEach(() => { for (const k of ENVV) SAVED[k] = process.env[k]; });
@@ -145,12 +145,17 @@ describe('getEffective precedence — Vault > LMDB > .env with bootstrap allowli
     expect(c.getEffective('helix_model')).toBe('vault-model');
   });
 
-  test('non-bootstrap key: LMDB (persist:true) beats a conflicting .env value', async () => {
+  // Precedence for non-bootstrap keys was flipped in commit cce195077
+  // ("fix: harden RFC 8693 two-exchange delegation chain (#9)") from
+  // Vault/LMDB > .env to .env > Vault/LMDB: a deploy-time env var must always
+  // override a stored value, so a stale LMDB entry from a past UI toggle
+  // can't silently shadow a deployment-level setting.
+  test('non-bootstrap key: .env beats a conflicting LMDB (persist:true) value', async () => {
     const c = freshConfigStore();
     await c.ensureInitialized();
     process.env.HELIX_BASE_URL = 'http://env-helix.example.com';
     await c.setRaw({ helix_base_url: 'http://lmdb-helix.example.com' }, { persist: true });
-    expect(c.getEffective('helix_base_url')).toBe('http://lmdb-helix.example.com');
+    expect(c.getEffective('helix_base_url')).toBe('http://env-helix.example.com');
   });
 
   test('non-bootstrap key: .env used when neither vault nor LMDB set it', async () => {

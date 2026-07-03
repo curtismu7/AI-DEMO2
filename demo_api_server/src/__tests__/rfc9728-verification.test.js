@@ -266,16 +266,26 @@ describe('RFC 9728 Verification Tests', () => {
 
   describe('RFC9728-01: Additional edge cases', () => {
     test('should handle concurrent requests', async () => {
-      const promises = Array(10).fill(null).map(() =>
-        request(app).get('/.well-known/oauth-protected-resource')
-      );
+      // Bind one real listening server and share it across all 10 concurrent
+      // requests. request(app) (an unbound Express app) makes supertest spin
+      // up a brand-new ephemeral HTTP server per call — under 10-way
+      // concurrency that intermittently raced (ECONNRESET / spurious 404).
+      // A single shared server removes the race.
+      const server = app.listen(0);
+      try {
+        const promises = Array(10).fill(null).map(() =>
+          request(server).get('/.well-known/oauth-protected-resource')
+        );
 
-      const responses = await Promise.all(promises);
-      
-      responses.forEach(response => {
-        expect(response.status).toBe(200);
-        expect(response.body).toHaveProperty('resource');
-      });
+        const responses = await Promise.all(promises);
+
+        responses.forEach(response => {
+          expect(response.status).toBe(200);
+          expect(response.body).toHaveProperty('resource');
+        });
+      } finally {
+        server.close();
+      }
     });
 
     test('should maintain consistency across requests', async () => {

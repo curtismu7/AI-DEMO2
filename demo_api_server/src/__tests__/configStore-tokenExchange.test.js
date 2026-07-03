@@ -361,15 +361,25 @@ describe('buildAllowedScopesByAudience()', () => {
   });
 
   it('respects configStore overrides for audience URIs', () => {
-    const cs = loadConfigStore();
-    cs._cache['ENDUSER_AUDIENCE'] = 'https://custom-banking.example.com';
-    const mapping = cs.buildAllowedScopesByAudience();
+    // getEffective() reads env before cache (deploy-time env vars must win over
+    // a stale stored value), so the beforeEach's seedAudienceEnvForScopeTests()
+    // env var has to be cleared for this cache-only override to take effect —
+    // same pattern as the "unions scopes..." test above.
+    const prevEnduser = process.env.ENDUSER_AUDIENCE;
+    delete process.env.ENDUSER_AUDIENCE;
+    try {
+      const cs = loadConfigStore();
+      cs._cache['ENDUSER_AUDIENCE'] = 'https://custom-banking.example.com';
+      const mapping = cs.buildAllowedScopesByAudience();
 
-    expect(mapping['https://custom-banking.example.com']).toBeDefined();
-    expect(mapping['https://custom-banking.example.com']).toEqual(
-      expect.arrayContaining(['read'])
-    );
-    delete cs._cache['ENDUSER_AUDIENCE'];
+      expect(mapping['https://custom-banking.example.com']).toBeDefined();
+      expect(mapping['https://custom-banking.example.com']).toEqual(
+        expect.arrayContaining(['read'])
+      );
+      delete cs._cache['ENDUSER_AUDIENCE'];
+    } finally {
+      process.env.ENDUSER_AUDIENCE = prevEnduser;
+    }
   });
 });
 

@@ -65,42 +65,14 @@ function makeCtx(over = {}) {
 }
 
 describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior change)', () => {
-  test('PingOne admin tool early-exit emits a worker-token card (no RFC 8693 exchange)', async () => {
-    const deps = makeDeps({ config: { ...makeDeps().config, pingoneAdminEnabled: true } });
-    const ctx = makeCtx({ tool: 'listApplications', deps });
-
-    const outcome = await runMcpToolPipeline(ctx);
-
-    expect(outcome.kind).toBe('result');
-    expect(outcome.httpStatus).toBe(200);
-    expect(outcome.body.result).toEqual({ content: [{ text: 'p1-ok' }] });
-    // Single-actor worker-token card replaces the old empty tokenEvents.
-    expect(outcome.body.tokenEvents).toHaveLength(1);
-    expect(outcome.body.tokenEvents[0].id).toBe('pingone-worker-token');
-    expect(outcome.tokenEvents).toBe(outcome.body.tokenEvents);
-    expect(deps.pingoneAdapter.getWorkerTokenDecoded).toHaveBeenCalled();
-    expect(deps.buildTokenEvent).toHaveBeenCalledWith(
-      'pingone-worker-token', expect.any(String), 'active', { claims: { client_id: 'w1' } },
-      expect.any(String), expect.objectContaining({ tokenType: 'actor' }),
-    );
-    expect(deps.publishTokenEventsToSse).toHaveBeenCalled();
-    expect(deps.publishMcpResultToSse).toHaveBeenCalled();
-    expect(deps.recordMcpToolCall).toHaveBeenCalledWith(expect.objectContaining({ toolName: 'listApplications', success: true }));
-    expect(deps.pingoneAdapter.callTool).toHaveBeenCalledWith('listApplications', {}, '', 'u1', 'c1');
-    expect(deps.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled(); // bypasses exchange
-  });
-
-  test('PingOne admin worker-token card degrades to warning when decode returns null (call still runs)', async () => {
-    const deps = makeDeps({ config: { ...makeDeps().config, pingoneAdminEnabled: true } });
-    deps.pingoneAdapter.getWorkerTokenDecoded = jest.fn(async () => null);
-    const outcome = await runMcpToolPipeline(makeCtx({ tool: 'listApplications', deps }));
-    expect(outcome.kind).toBe('result');
-    expect(outcome.body.tokenEvents).toHaveLength(1);
-    expect(deps.buildTokenEvent).toHaveBeenCalledWith(
-      'pingone-worker-token', expect.any(String), 'warning', null, expect.any(String), expect.any(Object),
-    );
-    expect(deps.pingoneAdapter.callTool).toHaveBeenCalled();
-  });
+  // NOTE: The "PingOne admin tool early-exit" block that used to live here was
+  // intentionally removed from mcpToolPipeline.js in commit 992aa6875
+  // ("feat(admin-agent): isolate admin agent into separate stack") — the admin
+  // agent now calls the hosted PingOne MCP server directly via
+  // services/adminAgentService.js and never flows through this pipeline. The
+  // two characterization tests that pinned that block's behavior were removed
+  // along with it; `listApplications` now just falls through the ordinary
+  // remote-tool path like any other tool name.
 
   test('token resolve success → proceeds (no early Outcome from this phase)', async () => {
     const deps = makeDeps();
@@ -345,16 +317,6 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   // ── Coverage gaps closed (final-review follow-up) ──────────────────────────
-
-  test('PingOne admin tool HTTP throws → error 502 pingone_mcp_error', async () => {
-    const deps = makeDeps({ config: { ...makeDeps().config, pingoneAdminEnabled: true } });
-    deps.pingoneAdapter = { callTool: jest.fn(async () => { throw new Error('http boom'); }) };
-    const outcome = await runMcpToolPipeline(makeCtx({ tool: 'listApplications', deps }));
-    expect(outcome).toMatchObject({
-      kind: 'error', httpStatus: 502,
-      body: { error: 'pingone_mcp_error', message: 'http boom' },
-    });
-  });
 
   test('introspection configured but session token is _cookie_session → block from mcpNoBearerResponse', async () => {
     const deps = makeDeps({ config: { ...makeDeps().config, introspectionConfigured: true } });

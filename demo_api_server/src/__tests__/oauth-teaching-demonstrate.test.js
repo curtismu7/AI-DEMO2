@@ -7,8 +7,11 @@ const plugin = require('../../config/verticals/oauth-teaching');
 beforeEach(() => executeBffTool.mockReset());
 
 describe('oauth-teaching P4 — registration', () => {
-  it('marks the three demonstrate tools (and the demonstrate alias) as local', () => {
-    ['demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl', 'demonstrate']
+  it('marks the three demonstrate tools as local', () => {
+    // There is no bare 'demonstrate' tool name in LOCAL_TOOLS/TOOLS —
+    // free-text "demonstrate ..." phrases are routed to a specific
+    // demonstrate_* tool via getHeuristics() (see the routing test below).
+    ['demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl']
       .forEach((n) => expect(plugin.isLocalTool(n)).toBe(true));
   });
 
