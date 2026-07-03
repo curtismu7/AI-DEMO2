@@ -199,6 +199,11 @@
   font-weight: 500;
 }
 
+.scope-table__resource {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
 .scope-table__status {
   display: inline-flex;
   align-items: center;
