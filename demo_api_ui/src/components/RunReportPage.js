@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import bffAxios from '../services/bffAxios';
+import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import './RunReportPage.css';
 
@@ -96,6 +97,15 @@ export default function RunReportPage({ user }) {
     } finally {
       setDemoRunning(false);
     }
+  }
+
+  // HTML and PDF render in the browser, so open them in a new tab instead of
+  // downloading. The backend serves these formats with `Content-Disposition: inline`,
+  // and the BFF session cookie rides along on the top-level navigation, so no
+  // Authorization header is needed.
+  function openReport(runId, format) {
+    const url = `${resolveApiBaseUrl()}/api/reports/${runId}/download?format=${format}`;
+    window.open(url, '_blank', 'noopener');
   }
 
   async function downloadReport(runId, format) {
@@ -270,15 +280,15 @@ export default function RunReportPage({ user }) {
                       </button>
                       <button
                         className="action-btn download"
-                        title="Download HTML"
-                        onClick={() => downloadReport(run.runId, 'html')}
+                        title="Open HTML in browser"
+                        onClick={() => openReport(run.runId, 'html')}
                       >
                         HTML
                       </button>
                       <button
                         className="action-btn download"
-                        title="Download PDF"
-                        onClick={() => downloadReport(run.runId, 'pdf')}
+                        title="Open PDF in browser"
+                        onClick={() => openReport(run.runId, 'pdf')}
                       >
                         PDF
                       </button>
