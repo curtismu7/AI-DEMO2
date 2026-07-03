@@ -46,6 +46,7 @@
   padding: 7px 12px; cursor: pointer; font-size: 12px;
 }
 .tctr-step > summary::-webkit-details-marker { display: none; }
+.tctr-step > summary:hover { background: #f1f5f9; }
 .tctr-ic { width: 15px; text-align: center; flex-shrink: 0; }
 .tctr-ic--done { color: #16a34a; }
 .tctr-ic--active { color: var(--brand-navy, #1d4ed8); }
@@ -53,6 +54,16 @@
 .tctr-ic--error { color: #dc2626; }
 .tctr-step-title { flex: 1; min-width: 0; }
 .tctr-step[data-status="error"] > summary { color: #b91c1c; }
+/* Light shading on completed steps to show progress at a glance */
+.tctr-step[data-status="done"] > summary { background: #f4fbf6; }
+.tctr-step[data-status="done"] > summary:hover { background: #e8f7ee; }
+/* Disclosure caret — signals each step is expandable */
+.tctr-step-chev {
+  flex: 0 0 auto; font-size: 9px; color: #94a3b8; margin-left: 2px;
+  transition: transform 0.15s;
+}
+.tctr-step[open] > summary .tctr-step-chev { transform: rotate(90deg); color: #64748b; }
+.tctr-step > summary:hover .tctr-step-chev { color: #475569; }
 
 .tctr-lane {
   font-size: 9px; font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
