@@ -1,0 +1,1 @@
+{"error":"authentication_required","error_description":"Access token is required","timestamp":"2026-07-03T12:22:34.442Z","path":"/api/verticals/list","method":"GET","hint":"Include a valid Bearer token in the Authorization header"}

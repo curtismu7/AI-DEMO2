@@ -1,0 +1,81 @@
+{
+  "siteDir": "learning",
+  "exclude": ["machine-iam-survey"],
+  "pages": [
+    { "file": "best-practices.html", "title": "Best Practices", "card": "Best Practices" },
+    { "file": "agentic-maturity-model.html", "title": "Agentic Maturity Model", "card": "Agentic Maturity Model" },
+
+    { "file": "auth-code-pkce.html", "title": "Auth Code + PKCE", "card": "Auth Code + PKCE" },
+    {
+      "file": "pkce-deep-dive.html",
+      "title": "PKCE Deep Dive",
+      "card": "PKCE Deep Dive",
+      "tabs": ["One-time code protection", "In this repo"],
+      "intro": "<p style=\"color: rgb(55, 65, 81); font-size: 0.85rem; margin: 0 0 1rem;\">This deep dive focuses on the PKCE mechanism itself — the verifier/challenge pair and code-interception defense. For the full Authorization Code + PKCE login walkthrough (including CIBA comparison, issued token contents, and general session security), see <a href=\"auth-code-pkce.html\">Auth Code + PKCE</a>.</p>"
+    },
+    {
+      "file": "ciba-oob.html",
+      "title": "CIBA (OOB)",
+      "card": "CIBA (OOB)",
+      "drawer": ".ciba-drawer",
+      "skipTabs": ["▶ Try It"]
+    },
+    { "file": "token-exchange-rfc-8693.html", "title": "Token Exchange (RFC 8693)", "card": "Token Exchange (RFC 8693)" },
+    { "file": "may-act-act-claims.html", "title": "may_act / act claims", "card": "may_act / act claims" },
+    { "file": "actor-token-agent.html", "title": "Actor Token (Agent)", "card": "Actor Token (Agent)" },
+    { "file": "step-up-mfa.html", "title": "Step-up MFA", "card": "Step-up MFA" },
+    { "file": "introspection-rfc-7662.html", "title": "Introspection (RFC 7662)", "card": "Introspection (RFC 7662)" },
+    { "file": "pingone-authorize.html", "title": "PingOne Authorize", "card": "PingOne Authorize" },
+    { "file": "par-rfc-9126.html", "title": "PAR (RFC 9126)", "card": "PAR (RFC 9126)" },
+    { "file": "rar-rfc-9396.html", "title": "RAR (RFC 9396)", "card": "RAR (RFC 9396)" },
+    { "file": "jwt-client-auth-rfc-7523.html", "title": "JWT Client Auth (RFC 7523)", "card": "JWT Client Auth (RFC 7523)" },
+    {
+      "file": "oauth-cimd.html",
+      "title": "OAuth: CIMD",
+      "card": "OAuth: CIMD",
+      "drawer": ".cimd-drawer",
+      "skipTabs": ["▶ Simulate"]
+    },
+
+    { "file": "mcp-protocol.html", "title": "MCP Protocol", "card": "MCP Protocol" },
+    {
+      "file": "mcp-server-discovery.html",
+      "title": "MCP Server Discovery",
+      "card": "MCP Server Discovery",
+      "tabs": ["Available tools", "Server discovery", "Live inspector"],
+      "intro": "<p style=\"font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;\">This page focuses on how MCP servers advertise themselves and their tools. For the full handshake, message format, and transport details, see <a href=\"mcp-protocol.html\">MCP Protocol</a>.</p>"
+    },
+    {
+      "file": "mcp-mfa-gate-on-tools.html",
+      "title": "MCP: MFA Gate on Tools",
+      "card": "MCP: MFA Gate on Tools",
+      "tabs": ["Auth challenge", "MFA gate on tools"],
+      "intro": "<p style=\"font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;\">This page focuses on how MFA/step-up gates protect tool discovery and tool calls. For the full handshake, message format, and transport details, see <a href=\"mcp-protocol.html\">MCP Protocol</a>.</p>"
+    },
+    { "file": "mcp-elicitation.html", "title": "MCP Elicitation", "card": "MCP Elicitation" },
+    { "file": "agent-gateway.html", "title": "Agent Gateway", "card": "Agent Gateway" },
+    { "file": "computer-use-agent-cua.html", "title": "Computer Use Agent (CUA)", "card": "Computer Use Agent (CUA)" },
+    { "file": "human-in-the-loop.html", "title": "Human-in-the-loop", "card": "Human-in-the-loop" },
+    { "file": "ping-agent-gateway-security.html", "title": "Ping Agent Gateway Security", "card": "Ping Agent Gateway Security" },
+
+    { "file": "rfc-spec-index.html", "title": "RFC & Spec Index", "card": "RFC & Spec Index" },
+    { "file": "intent-auth-standards.html", "title": "Intent Auth Standards", "card": "Intent Auth Standards" },
+    { "file": "ietf-standards-agentic.html", "title": "IETF Standards: Agentic", "card": "IETF Standards: Agentic" },
+    { "file": "id-jag-cross-app-access.html", "title": "ID-JAG / Cross-App Access", "card": "ID-JAG / Cross-App Access" },
+    { "file": "architecture-diagram.html", "title": "Architecture Diagram", "card": "Architecture Diagram" },
+    { "file": "token-chain-edu.html", "title": "Token Chain (edu)", "card": "Token Chain (edu)" },
+    { "file": "sensitive-data-disclosure.html", "title": "Sensitive Data & Disclosure", "card": "Sensitive Data & Disclosure" },
+
+    { "file": "server-capabilities.html", "title": "Server Capabilities", "card": "Server Capabilities" },
+    { "file": "agent-tech-comparison.html", "title": "Agent Tech Comparison", "card": "Agent Tech Comparison" },
+
+    { "file": "langchain-lcel-langgraph.html", "title": "LangChain (LCEL + LangGraph)", "card": "LangChain (LCEL + LangGraph)" },
+    { "file": "agent-builder-landscape.html", "title": "Agent Builder Landscape", "card": "Agent Builder Landscape" },
+    { "file": "llm-landscape.html", "title": "LLM Landscape", "card": "LLM Landscape" },
+    { "file": "ai-platform-landscape.html", "title": "AI Platform Landscape", "card": "AI Platform Landscape" },
+    { "file": "ai-primer.html", "title": "AI Primer", "card": "AI Primer" },
+
+    { "file": "glean-pingone.html", "title": "Glean + PingOne", "card": "Glean + PingOne" },
+    { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN" }
+  ]
+}

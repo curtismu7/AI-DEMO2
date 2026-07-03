@@ -27,6 +27,14 @@ function isJwksUnavailableError(err: unknown): boolean {
   return /JSON Web Key Set HTTP response|Timeout reached when fetching|fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|getaddrinfo|socket hang up/i.test(m);
 }
 
+/** MCP_SERVER_RESOURCE_URI may be a comma-separated list of accepted audiences
+ *  (rollout: own backend URI + gateway URI while both token shapes are live). */
+export function audienceAccepted(tokenAud: string | string[], resourceUriEnv: string): boolean {
+  const accepted = resourceUriEnv.split(',').map((s) => s.trim()).filter(Boolean);
+  const audList = Array.isArray(tokenAud) ? tokenAud : [String(tokenAud)];
+  return audList.some((a) => accepted.includes(a));
+}
+
 export class TokenIntrospector {
   private httpClient: AxiosInstance;
   private config: PingOneConfig;
@@ -155,15 +163,14 @@ export class TokenIntrospector {
     const resourceUri = process.env.MCP_SERVER_RESOURCE_URI;
     if (resourceUri) {
       if (!tokenInfo.aud) {
-        teachLog.error('aud validation failed — token has no aud claim', undefined, { operation: 'aud_validation', expected: resourceUri });
+        teachLog.error('aud validation failed — token has no aud claim', undefined, { operation: 'aud_validation', expected: resourceUri.split(',').map((s) => s.trim()).filter(Boolean) });
         throw new AuthenticationError(
           'Token is missing the aud claim required for this MCP server',
           AuthErrorCodes.INVALID_AGENT_TOKEN
         );
       }
-      const audList = Array.isArray(tokenInfo.aud) ? tokenInfo.aud : [String(tokenInfo.aud)];
-      if (!audList.includes(resourceUri)) {
-        teachLog.error('aud validation failed', undefined, { operation: 'aud_validation', token_aud: tokenInfo.aud, expected: resourceUri });
+      if (!audienceAccepted(tokenInfo.aud, resourceUri)) {
+        teachLog.error('aud validation failed', undefined, { operation: 'aud_validation', token_aud: tokenInfo.aud, expected: resourceUri.split(',').map((s) => s.trim()).filter(Boolean) });
         throw new AuthenticationError(
           'Token audience does not match MCP server resource URI',
           AuthErrorCodes.INVALID_AGENT_TOKEN

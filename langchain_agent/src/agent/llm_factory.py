@@ -38,7 +38,7 @@ def get_llm(
     lmstudio_base_url: str = "http://localhost:1234/v1",
     anthropic_base_url: str = "",
     llamacpp_base_url: str = "http://127.0.0.1:8090",
-    llamacpp_model: str = "qwen3-8b",
+    llamacpp_model: str = "gemma-3-4b-it",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",
@@ -130,7 +130,7 @@ def get_llm(
 
     if resolved == "llamacpp":
         # Local small LLM via llama.cpp's llama-server (OpenAI-compatible /v1 API with
-        # native tool-calling — e.g. Qwen3). llamacpp_base_url is the origin only; we
+        # native tool-calling — e.g. Gemma 3). llamacpp_base_url is the origin only; we
         # append /v1. llama-server ignores the API key but the client requires one.
         resolved_model = model or llamacpp_model
         base = llamacpp_base_url.rstrip("/")

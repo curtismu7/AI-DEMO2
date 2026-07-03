@@ -5,7 +5,8 @@ import DraggableModal from './DraggableModal';
 import TokenChainDisplay from './TokenChainDisplay';
 
 /**
- * Token Chain modal — draggable, resizable, pop-out.
+ * Token Chain panel — draggable, resizable, pop-out. Rendered without a
+ * backdrop (noBackdrop) so the agent stays fully interactive while it is open.
  *
  * Two tabs:
  *   Token Chain  — RFC 8693 token inspection (unchanged)
@@ -55,6 +56,7 @@ export default function TokenChainModal({ isOpen, onClose }) {
       storageKey="ba-token-chain-modal"
       footer={null}
       closeOnPopout
+      noBackdrop
       zIndex={10000}
     >
       {/* Tab bar */}

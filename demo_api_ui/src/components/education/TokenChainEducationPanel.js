@@ -1,8 +1,6 @@
 // banking_api_ui/src/components/education/TokenChainEducationPanel.js
-import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
-import { agentFlowDiagram } from '../../services/agentFlowDiagramService';
 
 function OverviewTab() {
   return (
@@ -32,18 +30,18 @@ function OverviewTab() {
 
 2. Agent Actor Token (client_credentials) — when 2-exchange is active
    → actor_token (sub=agent-client-id, aud=agent-gateway)
-   ✓ RFC 7515 JWKS — cryptographic signature verified against PingOne public key
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — verified against PingOne public key
 
 3. Token Exchange — RFC 8693
    subject_token=user_token  (actor_token optional — see Exchange Paths tab)
    → exchanged_token (sub=user, act={client_id:bff}, aud=mcp_server)
    → Scopes narrowed to what MCP server needs
-   ✓ RFC 7515 JWKS — signature of every exchanged token verified on arrival
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — every exchanged token checked on arrival
 
 4. MCP Tool Call
    → MCP server validates scopes for requested tool
    → Executes tool on behalf of user
-   ✓ RFC 7515 JWKS — MCP server re-verifies the token it received`}</pre>
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — MCP server re-verifies the token it received`}</pre>
 
       <h4>Key components tracked</h4>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -289,7 +287,7 @@ Step 5: Transfer executed
         <li><span style={{ color: '#0891b2', fontWeight: 600 }}>●</span> <strong>user_token_introspection</strong> — RFC 7662: PingOne confirms session is active</li>
         <li><span style={{ color: '#7c3aed', fontWeight: 600 }}>●</span> <strong>agent_token</strong> — agent's client_credentials token (2-exchange only)</li>
         <li><span style={{ color: '#059669', fontWeight: 600 }}>●</span> <strong>exchanged_token</strong> — delegated token after RFC 8693 exchange</li>
-        <li><span style={{ color: '#15803d', fontWeight: 600 }}>●</span> <strong>*_verified</strong> — RFC 7515 JWKS: cryptographic signature check on each token</li>
+        <li><span style={{ color: '#15803d', fontWeight: 600 }}>●</span> <strong>*_verified</strong> — RFC 7515 (JWS) signature verified via RFC 7517 (JWKS): cryptographic signature check on each token</li>
         <li><span style={{ color: '#dc2626', fontWeight: 600 }}>●</span> <strong>error</strong> — exchange failure (invalid scope, expired token, etc.)</li>
       </ul>
     </div>
@@ -300,7 +298,7 @@ Step 5: Transfer executed
 function TransactionTokensTab() {
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>Transaction Tokens (draft-oauth-transaction-tokens-for-agents-06)</h3>
+      <h3 style={{ marginTop: 0 }}>Transaction Tokens (draft-araut-oauth-transaction-tokens-for-agents / draft-ietf-oauth-transaction-tokens)</h3>
 
       <p>
         Transaction Tokens are a draft OAuth extension designed for <strong>agent-to-resource delegation</strong>.
@@ -385,127 +383,13 @@ function TransactionTokensTab() {
       <h4 style={{ marginTop: '1rem' }}>References</h4>
       <ul style={{ fontSize: '0.85rem' }}>
         <li><a href="https://tools.ietf.org/html/rfc8693" target="_blank" rel="noopener noreferrer">RFC 8693 — OAuth 2.0 Token Exchange</a> (IETF, Stable)</li>
-        <li><a href="https://datatracker.ietf.org/doc/html/draft-oauth-transaction-tokens-for-agents-06" target="_blank" rel="noopener noreferrer">draft-oauth-transaction-tokens-for-agents-06</a> (IETF Internet Draft)</li>
+        <li><a href="https://datatracker.ietf.org/doc/draft-araut-oauth-transaction-tokens-for-agents/" target="_blank" rel="noopener noreferrer">draft-araut-oauth-transaction-tokens-for-agents</a> (individual Internet-Draft, agent-specific extension)</li>
+        <li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/" target="_blank" rel="noopener noreferrer">draft-ietf-oauth-transaction-tokens</a> (WG-adopted base spec)</li>
       </ul>
     </div>
   );
 }
 
-
-function ComplianceTab() {
-  const [flowState, setFlowState] = React.useState({ complianceSteps: [], complianceStep: null });
-  const [claimDiagResult, setClaimDiagResult] = React.useState(null);
-  const [claimDiagLoading, setClaimDiagLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    return agentFlowDiagram.subscribe(state => {
-      setFlowState({
-        complianceSteps: state.complianceSteps || [],
-        complianceStep: state.complianceStep || null,
-      });
-    });
-  }, []);
-
-  const fetchClaimDiagnostics = async () => {
-    setClaimDiagLoading(true);
-    try {
-      const res = await fetch('/api/demo/claim-diagnostics');
-      const data = await res.json();
-      setClaimDiagResult(data);
-      if (res.ok && data.overallPass) {
-        // Mark step 12 as done in the diagram service
-        const current = agentFlowDiagram.getState ? agentFlowDiagram.getState() : {};
-        const steps = (current.complianceSteps || []).map(s =>
-          s.id === 'claim-diagnostics' ? { ...s, status: 'done' } : s
-        );
-        if (steps.length) agentFlowDiagram.setState({ complianceSteps: steps });
-      }
-    } catch (err) {
-      setClaimDiagResult({ error: 'fetch_failed', message: err.message });
-    } finally {
-      setClaimDiagLoading(false);
-    }
-  };
-
-  const { complianceSteps, complianceStep } = flowState;
-
-  const statusIcon  = { pending: '○', active: '⟳', done: '✅', error: '❌' };
-  const statusColor = { pending: '#6b7280', active: '#2563eb', done: '#16a34a', error: '#dc2626' };
-
-  return (
-    <div>
-      <h3 style={{ marginTop: 0, color: '#1e293b' }}>Phase 260 Compliance — 12-Step Flow</h3>
-      <p style={{ color: '#374151', fontSize: '0.85rem', marginTop: 0 }}>
-        Real-time status of the agent compliance flow
-      </p>
-      {complianceSteps.length === 0 ? (
-        <p style={{ color: '#374151', fontStyle: 'italic', fontSize: '0.85rem' }}>
-          Loading compliance steps…
-        </p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-          <thead>
-            <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-              <th scope="col" style={{ padding: '7px 10px', width: '2.5rem', color: '#475569', fontWeight: 600 }}>Status</th>
-              <th scope="col" style={{ padding: '7px 10px', width: '3rem', color: '#475569', fontWeight: 600 }}>#</th>
-              <th scope="col" style={{ padding: '7px 10px', color: '#475569', fontWeight: 600 }}>Step</th>
-            </tr>
-          </thead>
-          <tbody>
-            {complianceSteps.map((step, i) => {
-              const isActive = step.id === complianceStep;
-              const isDiag = step.id === 'claim-diagnostics';
-              return (
-                <tr key={step.id} style={{
-                  borderBottom: '1px solid #e2e8f0',
-                  background: isActive ? '#eff6ff' : (step.status === 'done' ? '#f0fdf4' : (i % 2 ? '#f8fafc' : '#fff')),
-                }}>
-                  <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                    <span style={{ color: statusColor[step.status] || '#6b7280', fontSize: '1rem' }} aria-label={step.status}>
-                      {statusIcon[step.status] || '○'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '6px 10px', color: '#374151', fontSize: '0.78rem' }}>{i + 1}</td>
-                  <td style={{ padding: '6px 10px', color: isActive ? '#1d4ed8' : (step.status === 'done' ? '#15803d' : '#334155'), fontWeight: isActive ? 600 : 400 }}>
-                    {step.label}
-                    {isDiag && (
-                      <>
-                        <button
-                          onClick={fetchClaimDiagnostics}
-                          disabled={claimDiagLoading}
-                          style={{ marginLeft: 8, fontSize: '0.72rem', padding: '1px 7px', cursor: 'pointer', borderRadius: 4, border: '1px solid rgba(65,105,225,0.5)', background: 'rgba(65,105,225,0.15)', color: '#c7d7ff' }}
-                        >
-                          {claimDiagLoading ? '⟳' : 'Run'}
-                        </button>
-                        {claimDiagResult && !claimDiagResult.error && (
-                          <div style={{ marginTop: 5, fontSize: '0.76rem', color: '#9db4e8', lineHeight: 1.5 }}>
-                            <div>may_act: {claimDiagResult.checks?.mayAct?.pass ? '✓' : '✗'} {claimDiagResult.checks?.mayAct?.detail || ''}</div>
-                            <div>app mapping: {claimDiagResult.checks?.appMapping?.pass ? '✓' : '✗'} {claimDiagResult.checks?.appMapping?.detail || ''}</div>
-                            <div>session token: {claimDiagResult.checks?.sessionToken?.present
-                              ? `✓ scopes: ${(claimDiagResult.checks.sessionToken.scopes || []).join(', ') || '(none)'}`
-                              : '✗ not found'}</div>
-                            <div style={{ marginTop: 3, color: claimDiagResult.overallPass ? '#4CAF50' : '#fca5a5' }}>
-                              {claimDiagResult.nextStep}
-                            </div>
-                          </div>
-                        )}
-                        {claimDiagResult?.error && (
-                          <div style={{ marginTop: 3, fontSize: '0.76rem', color: '#fca5a5' }}>
-                            {claimDiagResult.message || 'Diagnostic unavailable'}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
 
 export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId }) {
   const tokenChain = useTokenChainOptional();
@@ -517,7 +401,6 @@ export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId
     { id: 'exchange-paths', label: 'Exchange Paths', content: <ExchangePathsTab /> },
     { id: 'examples', label: 'Examples', content: <ExamplesTab /> },
     { id: 'transaction-tokens', label: 'Transaction Tokens', content: <TransactionTokensTab /> },
-    { id: 'compliance', label: 'Compliance', content: <ComplianceTab /> },
   ];
 
   return (

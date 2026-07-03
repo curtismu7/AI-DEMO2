@@ -5,7 +5,7 @@
 #
 # Usage:
 #   ./run-docker.sh                       start all services (stop first)
-#   ./run-docker.sh stop                  stop and remove containers (+ host llama.cpp)
+#   ./run-docker.sh stop                  stop and remove containers (+ host model tiers)
 #   ./run-docker.sh stop <svc>...         stop only the named service(s)
 #   ./run-docker.sh restart               stop then start everything (same as default)
 #   ./run-docker.sh restart <svc>...      recreate only the named service(s) — picks up env/compose changes
@@ -13,7 +13,7 @@
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
-#   ./run-docker.sh llamacpp restart      stop and restart host llama.cpp (containers untouched)
+#   ./run-docker.sh llamacpp restart      stop and restart host model tiers 8091-8096 (containers untouched)
 #   ./run-docker.sh help                  show this message
 #
 # Single-service commands take one OR MORE service names, e.g.
@@ -153,60 +153,72 @@ git_sync_check() {
   fi
 }
 
-# ── llama.cpp (host) lifecycle ────────────────────────────────────────────────
-# The dockerized BFF reaches llama.cpp's llama-server on the HOST via
-# host.docker.internal, which requires the server to bind 0.0.0.0 (not loopback)
-# — otherwise the provider shows "not configured". We start it before the stack,
-# stop it with the stack. llama-server is ONE process serving ONE model (the same
-# model serves both BFF NL intent and agent reasoning); the `-hf` flag downloads
-# and caches the GGUF on first start.
+# ── Local LLM (host) lifecycle — multi-model proxy ───────────────────────────
+# :8090 is the multi-model LLM proxy (the llm-proxy container running
+# demo_llm_proxy/router.js) — NEVER bind a raw llama-server straight onto it.
+# The proxy routes per agent (request model pin) or by keyword class to tier
+# llama-server backends on host ports 8091-8096, managed by
+# demo_llm_proxy/start-local-models.sh (GGUFs verified by download-models.sh).
+# SWAP MODE: only one tier is loaded at a time — the router asks the
+# tier-manager daemon (:8097, host) to swap up when a request needs a bigger
+# model, and decays back to the smallest tier when idle. Dockerized services
+# reach the proxy at http://llm-proxy:8090 (in-network) or
+# host.docker.internal:8090.
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
-LLAMACPP_MODEL="${LLAMACPP_MODEL:-qwen2.5-3b-instruct}"   # single model serving BFF + agent
-_LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-gemma-3-4b-it}"   # model id label reported to services
+_LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
+_TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
 
-_llamacpp_up()        { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1; }
-_llamacpp_bound_all() { lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8090'; }
+_proxy_up() { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1; }
 
-# Launch llama-server as a plain background process bound to all interfaces.
-# `-hf` downloads + caches the GGUF on first run (replaces an explicit pull).
-_llamacpp_spawn() {
-  llama-server --host 0.0.0.0 --port 8090 -hf Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M > /tmp/demo-llamacpp.log 2>&1 &
-  echo $! > "$_LLAMACPP_PIDFILE"
+# Legacy guard: a raw llama-server bound to :8090 shadows the llm-proxy
+# container on IPv4 (both listen; IPv4 clients then hit the wrong backend).
+_clear_8090_squatter() {
+  local pids
+  pids=$(lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | awk '$1 ~ /^llama/ {print $2}' | sort -u)
+  if [[ -n "$pids" ]]; then
+    warn "raw llama-server bound to :8090 shadows the LLM proxy — stopping it (PID ${pids})"
+    kill $pids 2>/dev/null || true
+    rm -f "$_LLAMACPP_PIDFILE"
+  fi
+}
+
+# Swap mode: only ONE tier is loaded at a time ("smallest that does the job").
+# The tier-manager daemon on :8097 performs swaps when the router (in the
+# llm-proxy container) asks for a bigger model; startup loads just the manager
+# and the smallest tier.
+_TIER_MANAGER_PIDFILE="/tmp/demo-tier-manager.pid"
+_manager_up() { curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; }
+
+_start_tier_manager() {
+  _manager_up && return 0
+  nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+  echo $! > "$_TIER_MANAGER_PIDFILE"
+  local i=0; while [[ $i -lt 10 ]]; do _manager_up && return 0; sleep 1; (( i++ )) || true; done
+  return 1
 }
 
 start_llamacpp() {
-  command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — 'llama.cpp only' agent mode disabled (brew install llama.cpp)"; return 0; }
-
-  if _llamacpp_up && _llamacpp_bound_all; then
-    ok "llama.cpp already running (0.0.0.0)"
-  elif _llamacpp_up; then
-    # Up but bound to loopback only — restart so it rebinds on all interfaces;
-    # containers can't reach 127.0.0.1.
-    warn "llama.cpp bound to loopback — restarting to expose 0.0.0.0 for containers"
-    pkill -f "llama-server" 2>/dev/null || true
-    sleep 2
-    _llamacpp_spawn
+  command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
+  _clear_8090_squatter
+  _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
+  # Load only the smallest tier; the router swaps up on demand and decays back.
+  if bash "$_TIERS_SCRIPT" ensure 8091; then
+    ok "tier-manager on :8097, smallest tier loaded (:8091) — llm-proxy container serves :8090 and swaps on demand"
   else
-    echo "  Starting llama-server (model downloads on first run — check /tmp/demo-llamacpp.log)…"
-    _llamacpp_spawn
-  fi
-
-  local i=0; while [[ $i -lt 12 ]]; do _llamacpp_up && break; sleep 1; (( i++ )) || true; done
-  if _llamacpp_up; then
-    _llamacpp_bound_all && ok "llama.cpp ready (0.0.0.0:8090)" \
-      || warn "llama.cpp up but not bound to 0.0.0.0 — containers may not reach it"
-  else
-    warn "llama.cpp did not become ready — check /tmp/demo-llamacpp.log"
+    warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
   fi
 }
 
 stop_llamacpp() {
-  if [[ -f "$_LLAMACPP_PIDFILE" ]]; then
-    kill "$(cat "$_LLAMACPP_PIDFILE")" 2>/dev/null || true
-    rm -f "$_LLAMACPP_PIDFILE"
+  bash "$_TIERS_SCRIPT" stop 2>/dev/null || true
+  if [[ -f "$_TIER_MANAGER_PIDFILE" ]]; then
+    kill "$(cat "$_TIER_MANAGER_PIDFILE")" 2>/dev/null || true
+    rm -f "$_TIER_MANAGER_PIDFILE"
   fi
-  pkill -f "llama-server" 2>/dev/null || true
-  ok "llama.cpp stopped"
+  _clear_8090_squatter
+  rm -f "$_LLAMACPP_PIDFILE"
+  ok "model tiers + tier-manager stopped"
 }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
@@ -444,7 +456,9 @@ cmd_build_one() {
 #
 # Before `up`, clear any NON-Docker listener on a Docker-published port. Docker's
 # own forwarders (OrbStack / com.docker / vpnkit) are left alone, and the
-# intentional host llama.cpp on :8090 is never touched (it is not in SERVICES).
+# intentional host model tiers on :8091-8096 are never touched (not in SERVICES);
+# :8090 IS in SERVICES (llm-proxy container), so a stale host listener there —
+# e.g. a legacy raw llama-server — gets cleared, which is exactly what we want.
 clear_stale_host_listeners() {
   local cleared=0 entry _svc _label port pids pid cmd
   for entry in "${SERVICES[@]}"; do
@@ -553,7 +567,7 @@ cmd_start() {
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET}              pick service to tail"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET} <svc>        tail specific service"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh status${RESET}            show container health"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh llamacpp restart${RESET}  restart host llama.cpp"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh llamacpp restart${RESET}  restart host model tiers"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh help${RESET}              show full help"
   echo -e "${WHITE}${BOLD}  │${RESET}"
   echo -e "${WHITE}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
@@ -588,7 +602,7 @@ cmd_status() {
 cmd_llamacpp_restart() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-  echo -e "${CYAN}${BOLD}   [LLAMA.CPP]  Restarting llama.cpp (containers untouched)${RESET}"
+  echo -e "${CYAN}${BOLD}   [LLAMA.CPP]  Restarting model tiers 8091-8096 (containers untouched)${RESET}"
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
   stop_llamacpp
@@ -617,7 +631,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)             Stop existing containers, then start all services"
-  echo "    stop                  Stop and remove all containers (+ host llama.cpp)"
+  echo "    stop                  Stop and remove all containers (+ host model tiers)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
   echo "    restart               Same as default — stop then start everything"
   echo "    restart <svc>...      Recreate only the named service(s); picks up env/compose"
@@ -627,7 +641,7 @@ cmd_help() {
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
-  echo "    llamacpp restart      Stop and restart host llama.cpp (containers untouched)"
+  echo "    llamacpp restart      Stop and restart host model tiers 8091-8096 (containers untouched)"
   echo "    help                  Show this message"
   echo ""
   echo -e "${WHITE}${BOLD}  Service Names (one or more for stop/restart/build; one for logs):${RESET}"

@@ -255,7 +255,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
       label: 'act Claim Chain',
       content: (
         <>
-          <h3>RFC 8693 § 4.2 — The <code>act</code> Claim Delegation Chain</h3>
+          <h3>RFC 8693 § 4.1 — The <code>act</code> Claim Delegation Chain</h3>
           <p>
             After the single exchange, the Exchanged MCP Token contains a single-level <code>act</code>
             structure that records the AI agent acting on behalf of the user.
@@ -299,13 +299,13 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
             <tbody>
               <tr>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#67e8f9', fontFamily: 'inherit' }}>may_act</td>
-                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>§ 4.3</td>
+                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>§ 4.4</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>Forward-looking</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>User pre-approves who may exchange this token</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#67e8f9', fontFamily: 'inherit' }}>act</td>
-                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>§ 4.2</td>
+                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>§ 4.1</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>Retrospective</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>Records who actually exercised delegation (audit trail)</td>
               </tr>

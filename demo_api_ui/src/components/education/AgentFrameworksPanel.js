@@ -288,7 +288,7 @@ async for event in result.stream_events():
           minimal dependencies.
         </Bullet>
         <Bullet>
-          Exclusively using OpenAI API (GPT-4o, etc.).
+          Exclusively using OpenAI API (GPT-5.5, etc.).
         </Bullet>
         <Bullet>
           Stateless agent is acceptable (conversation history managed by BFF).

@@ -21,6 +21,7 @@ import AgentBuilderPage from "./components/AgentBuilderPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
+import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
 import ApiKeyPathPage from "./components/ApiKeyPathPage";
 import AuditPage from "./components/AuditPage";
@@ -942,6 +943,10 @@ function AppWithAuth() {
                             <Route
                               path="/owasp"
                               element={<OwaspLearnerPage />}
+                            />
+                            <Route
+                              path="/ungoverned-agent"
+                              element={<UngovernedAgentPage />}
                             />
                             <Route
                               path="/actor-token-education"

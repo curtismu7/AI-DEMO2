@@ -292,8 +292,8 @@ At/above threshold (step-up):
         <>
           <h3>MCP JSON-RPC Handshake</h3>
           <p>
-            Every MCP session opens with a fixed four-step handshake over WebSocket.
-            Messages are JSON-RPC 2.0. <RfcLink rfc="MCP_SPEC" />
+            Every MCP session opens with a fixed four-step handshake over stdio (local) or
+            Streamable HTTP (remote). Messages are JSON-RPC 2.0. <RfcLink rfc="MCP_SPEC" />
           </p>
 
           <h4>Step 1 — Client → Server: <code>initialize</code></h4>

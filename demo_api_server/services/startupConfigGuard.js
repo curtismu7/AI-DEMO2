@@ -35,19 +35,28 @@ const INVARIANT_URL_KEYS = {
 
 // PingOne resource-URI env vars -> the scope-topology audience role they must equal.
 const RESOURCE_URI_KEYS = {
-  // Forward-unchanged contract: the gateway forwards the inbound bearer to the
-  // MCP server WITHOUT re-exchange (demo_mcp_gateway authorizeMcpRequest.ts
-  // Step 4; GatewayTokenPolicy D-05 even forbids a downstream MCP-server aud in
-  // the inbound token). So the MCP server validates the SAME audience the
-  // gateway forwards — the *gateway* audience, never a separate mcpServer one.
-  // This was the drift that 401'd every agent tool call with "aud validation
-  // failed" (token_aud=mcpgateway.ping.demo, expected=mcpserver.ping.demo): the
-  // key used to map to 'mcpServer', so the guard validated internal SoT
-  // consistency instead of the cross-service runtime contract and passed the
-  // broken config. If a future design reintroduces a gateway->server
-  // re-exchange (hop #3), flip this back to 'mcpServer' together with that code.
-  MCP_SERVER_RESOURCE_URI: 'mcpGateway',
-  MCP_RESOURCE_URI: 'mcpGateway',
+  // Gateway->backend re-exchange contract: the gateway performs an RFC 8693
+  // exchange (Step 4, demo_mcp_gateway authorizeMcpRequest.ts) to mint a
+  // next-hop token scoped to the backend MCP-server audience (olb or invest)
+  // before forwarding — it does NOT forward the inbound gateway-audience
+  // bearer unchanged. So the MCP server validates the mcpServer audience,
+  // not the gateway one.
+  //
+  // MCP_SERVER_RESOURCE_URI (and its alias MCP_RESOURCE_URI, per configStore's
+  // mcp_resource_uri fallback chain — see configStore.js) is list-valued to
+  // support a rollout window: it MUST contain the mcpServer audience (that's
+  // what the MCP server checks tokens against), and MAY also carry the
+  // mcpGateway audience as an optional/transitional entry for deployments
+  // still mid-migration off the old forward-unchanged contract. Only the
+  // mcpServer entry is required; an absent mcpGateway entry is not flagged.
+  MCP_SERVER_RESOURCE_URI: 'mcpServer',
+  // Alias of MCP_SERVER_RESOURCE_URI (see configStore.js envFallbackMap
+  // 'mcp_resource_uri': ['PINGONE_RESOURCE_MCP_SERVER_URI', 'MCP_SERVER_RESOURCE_URI',
+  // 'MCP_RESOURCE_URI']) — effective() can resolve MCP_RESOURCE_URI to the SAME
+  // comma-list value as MCP_SERVER_RESOURCE_URI. Must use the identical
+  // list-containment rule (role 'mcpServer' + LIST_VALUED_KEYS below) or this
+  // false-positives on every deployment that only sets MCP_SERVER_RESOURCE_URI.
+  MCP_RESOURCE_URI: 'mcpServer',
   MCP_GW_RESOURCE_URI: 'mcpGateway',
   PINGONE_RESOURCE_MCP_GATEWAY_URI: 'mcpGateway',
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: 'agentGateway',
@@ -82,10 +91,23 @@ function collectIssues() {
   }
 
   const aud = scopeTopology.audiences(); // { enduser, agentGateway, mcpServer, mcpGateway }
+  // MCP_SERVER_RESOURCE_URI and its alias MCP_RESOURCE_URI legitimately carry a
+  // comma-separated accepted-audience list (RFC 8693 exchange rollout — e.g.
+  // "mcpserver.ping.demo,mcpgateway.ping.demo"); both resolve to the mcpServer
+  // role and are checked for list-containment rather than strict equality (see
+  // RESOURCE_URI_KEYS comment above). Every other key (including
+  // PINGONE_RESOURCE_TWO_EXCHANGE_URI, which per its own comment MUST equal
+  // the gateway audience) keeps strict equality.
+  const LIST_VALUED_KEYS = new Set(['MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI']);
   for (const [key, role] of Object.entries(RESOURCE_URI_KEYS)) {
     const val = effective(key);
     if (!val) continue;
-    if (aud[role] && val !== aud[role]) {
+    if (LIST_VALUED_KEYS.has(key)) {
+      const valList = val.split(',').map((s) => s.trim()).filter(Boolean);
+      if (aud[role] && !valList.includes(aud[role])) {
+        issues.push(`${key}="${val}" but scope-topology.json audience for ${role} is "${aud[role]}" (token validation would 401)`);
+      }
+    } else if (aud[role] && val !== aud[role]) {
       issues.push(`${key}="${val}" but scope-topology.json audience for ${role} is "${aud[role]}" (token validation would 401)`);
     }
   }

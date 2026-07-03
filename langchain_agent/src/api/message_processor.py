@@ -794,7 +794,7 @@ class MessageProcessor:
                         max_tokens=lc.max_tokens,
                         streaming=bool(getattr(lc, "stream_llm_tokens", True)),
                         llamacpp_base_url=getattr(lc, "llamacpp_base_url", "http://127.0.0.1:8090"),
-                        llamacpp_model=getattr(lc, "llamacpp_model", "qwen3-8b"),
+                        llamacpp_model=getattr(lc, "llamacpp_model", "gemma-3-4b-it"),
                     )
                 elif run_provider in _LMSTUDIO_PROVIDERS:
                     run_llm = get_llm(

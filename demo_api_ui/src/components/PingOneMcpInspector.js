@@ -303,6 +303,16 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
             <button type="button" className="mcp-inspector__btn" onClick={refresh} disabled={loading}>
               {loading ? 'Querying…' : 'Refresh tools/list'}
             </button>
+            <a
+              className="mcp-inspector__btn"
+              style={{ textDecoration: 'none' }}
+              href="/pingone-mcp-tools.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Full catalog of the 67 PingOne MCP tools, including recent renames"
+            >
+              Tools reference
+            </a>
           </div>
         </div>
       </header>

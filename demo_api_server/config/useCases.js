@@ -766,6 +766,26 @@ const RAW_USE_CASES = [
     productRoles: {},
     primaryTool: null,
   },
+  {
+    id: 'UC-LEARN7',
+    useCaseId: 'ungoverned-agent',
+    track: 'learn',
+    title: 'The Ungoverned Agent (OpenCLI)',
+    buyerStory: 'The "before" picture: an AI agent rides the user’s logged-in browser session and moves money through the bank’s own UI — full user power, no identity, no scope, no consent, no audit.',
+    pingOneSolution: 'The contrast that motivates the Agent Gateway: session-riding tools like OpenCLI carry no agent identity or delegated token, so the demo records the transfer as an ordinary user session — indistinguishable from the human. Governed access adds the RFC 8693 act-chain, PingOne Authorize decision, and an agent-attributed audit trail.',
+    trigger: { type: 'link', path: '/ungoverned-agent', label: 'Open Ungoverned Agent' },
+    expectedOutcome: 'GUIDED_LEARNING',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: ['demo_api_ui/src/components/UngovernedAgentPage.js', 'demo_ungoverned_agent/agent.js'],
+    maturity: 'works',
+    owasp: { threats: ['T2', 'T3', 'T8', 'T9'], sections: ['§3.3.3', '§4.1.1', '§8'] },
+    whatToSay: 'Run a transfer via OpenCLI (or the containerized sidecar), then via the governed agent — watch the same action badge "Direct user session" vs "Governed agent".',
+    advanced: false,
+    whatLong: 'A learning surface (not a runnable identity scenario): it shows what agent access looks like with no governance. A session-riding agent such as OpenCLI ("Browser Use on your logged-in Chrome") inherits the user’s cookies and drives the bank UI with full user privileges — no agent identity, no least-privilege scope, no human-in-the-loop consent, and no audit trail that attributes the action to an agent. A live widget badges each transfer by clientType so the ungoverned run appears identical to the human, while the governed agent run shows the full act-chain.',
+    businessValue: 'Makes the risk visceral and concrete: this is how AI tools touch your systems today when nothing governs them — the problem the Agent Gateway exists to solve.',
+    productRoles: {},
+    primaryTool: null,
+  },
 ];
 
 function deepFreeze(o) {

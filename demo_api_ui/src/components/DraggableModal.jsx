@@ -226,7 +226,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
       <div
         className="dm-panel"
         role="dialog"
-        aria-modal="true"
+        aria-modal={noBackdrop ? undefined : "true"}
         style={{
           left: pos.x,
           top: pos.y,

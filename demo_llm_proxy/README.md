@@ -1,15 +1,26 @@
 # Multi-Model LLM Proxy
 
-Smart routing proxy for managing 4 different language models through a single endpoint.
+Smart routing proxy for managing 5 local language models through a single endpoint.
 
 ## Architecture
 
-The proxy implements **smart classification and cascading fallback**:
+The proxy runs in **swap mode** — only ONE tier is loaded at a time ("smallest
+that does the job"). A request is classed by its `model` field (per-agent pin
+via `LLAMACPP_MODEL`: BFF → gemma-3-4b-it, agent-service → gpt-oss-20b, Code
+Explorer → starcoder2-15b-instruct) or, absent a pin, by keyword
+classification. It is served by the smallest *loaded* tier that covers the
+class; if nothing loaded covers it, the router asks the host `tier-manager.js`
+(:8097) to swap — unload everything, load the needed tier — and after 5 idle
+minutes it decays back to Tier 1. The first request after a swap pays the
+model-load pause (a few seconds warm, up to ~30s cold for gpt-oss).
+
+Tier capability order (smallest → largest):
 
 - **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
 - **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
-- **Tier 3**: Qwen2.5-Coder-14B (14B) — complex technical, "demonstrate", token flows
+- **Tier 3**: StarCoder2-15B-Instruct (15B) — code generation/debugging ("implement", "function", "regex")
 - **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
+- **Tier 5**: gpt-oss-20B (20B) — first-class tier for complex technical/reasoning prompts ("demonstrate", token flows) and last-resort cascade target; MoE with ~3.6B active params, so fast despite its size
 
 The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
 filenames in `start-local-models.sh`; keep those two in sync when changing models.
@@ -21,10 +32,11 @@ The proxy analyzes incoming requests and routes to the **smallest model that can
 ```
 "what is OAuth?" → Gemma-3-4B (fastest)
 "how does token exchange work?" → Gemma-4-12B (balanced)
-"demonstrate HITL approval" → Qwen2.5-Coder (accurate)
+"implement a PKCE verifier function" → StarCoder2-15B-Instruct (code)
+"demonstrate HITL approval" → gpt-oss-20B (reasoning)
 ```
 
-If the selected tier is unavailable or overloaded, it cascades to the next larger model automatically.
+A bigger loaded tier serves smaller classes without a swap; swaps happen only upward, and idle decay brings it back down.
 
 ## Setup
 
@@ -39,10 +51,11 @@ bash demo_llm_proxy/download-models.sh
 This script checks for required models and provides download links if missing.
 
 **Model files needed:**
-- `phi-2.gguf` (or similar, ~5.5GB)
-- `phi-3.gguf` (or similar, ~2.3GB)
-- `qwen3-8b.gguf` or `Qwen2.5-Coder-*-Q4_K_M.gguf` (~8B)
+- `gemma-3-4b-it-qat-Q4_0.gguf` (~2.2GB)
+- `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` (~6.3GB)
+- `starcoder2-15b-instruct-v0.1-Q4_K_M.gguf` (~9.1GB)
 - `gemma-4-12b-it-UD-Q4_K_XL.gguf` (~6.9GB)
+- `gpt-oss-20b-mxfp4.gguf` (~11GB)
 
 ### 2. Update docker-compose.yml
 
@@ -78,7 +91,7 @@ Response:
   "models": [
     {"name": "phi-2", "port": 8091, "healthy": true, "load": 0},
     {"name": "phi-3", "port": 8092, "healthy": true, "load": 1},
-    {"name": "qwen3-8b", "port": 8093, "healthy": true, "load": 0},
+    {"name": "starcoder2-15b-instruct", "port": 8093, "healthy": true, "load": 0},
     {"name": "gemma-4-12b", "port": 8094, "healthy": false, "load": 0}
   ]
 }
@@ -152,7 +165,7 @@ If the proxy reports all models unhealthy:
 
 - Check load per model: `curl http://localhost:8090/health | jq .models`
 - Verify model tier selection is appropriate for your prompts
-- Increase context size in `docker-compose.yml` for larger models (qwen, gemma)
+- Increase context size in `docker-compose.yml` for larger models (starcoder2, gemma)
 
 ## Configuration
 
@@ -168,7 +181,7 @@ Example: use CPU only by setting `N_GPU_LAYERS=0` in all llm-* services.
 
 1. **Phi-2 for chat** — fastest, good for simple explanations
 2. **Phi-3 for reasoning** — balanced speed/quality
-3. **Qwen for technical** — complex OAuth/token flows
+3. **StarCoder2 for technical** — complex OAuth/token flows
 4. **Gemma as fallback** — only when others are overloaded
 
 If you're seeing slow responses:

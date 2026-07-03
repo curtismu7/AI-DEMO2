@@ -4,7 +4,7 @@
 # Usage: bash demo_llm_proxy/download-models.sh
 #
 # The exact filenames below MUST match the MODELS list in start-local-models.sh
-# (that script launches these files by name on ports 8091-8094). All are
+# (that script launches these files by name on ports 8091-8096). All are
 # quantized GGUF, optimized for llama.cpp.
 
 set -e
@@ -16,8 +16,9 @@ mkdir -p "$MODELS_DIR"
 MODELS=(
   "1|gemma-3-4b-it-qat-Q4_0.gguf|Gemma-3-4B (4B) — simple, fast|https://huggingface.co/google/gemma-3-4b-it-qat-q4_0-gguf"
   "2|gemma-4-12B-it-qat-UD-Q4_K_XL.gguf|Gemma-4-12B qat (12B) — moderate|https://huggingface.co/unsloth/gemma-3-12b-it-qat-GGUF"
-  "3|Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf|Qwen2.5-Coder-14B (14B) — complex|https://huggingface.co/bartowski/Qwen2.5-Coder-14B-Instruct-GGUF"
+  "3|starcoder2-15b-instruct-v0.1-Q4_K_M.gguf|StarCoder2-15B-Instruct (15B) — complex|https://huggingface.co/bartowski/starcoder2-15b-instruct-v0.1-GGUF"
   "4|gemma-4-12b-it-UD-Q4_K_XL.gguf|Gemma-4-12B (12B) — fallback|https://huggingface.co/unsloth/gemma-3-12b-it-GGUF"
+  "5|gpt-oss-20b-mxfp4.gguf|gpt-oss-20B (20B) — top tier / overflow|https://huggingface.co/ggml-org/gpt-oss-20b-GGUF"
 )
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

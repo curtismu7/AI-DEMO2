@@ -75,7 +75,7 @@ spec:
           - "--port"
           - "8090"
           - "-hf"
-          - "Qwen/Qwen2.5-3B-Instruct-GGUF:Q4_K_M"
+          - "ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
         volumeMounts:
         - name: models
           mountPath: /root/.cache/llama.cpp

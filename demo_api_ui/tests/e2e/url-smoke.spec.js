@@ -269,7 +269,6 @@ const ADMIN_ROUTES = [
   '/resource-server-cc',
   // Monitoring sub-routes
   '/monitoring/token-chain',
-  '/monitoring/token-diff',
   '/monitoring/flow-inspector',
   '/monitoring/mcp-traffic',
   '/monitoring/api-explorer',

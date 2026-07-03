@@ -414,7 +414,7 @@ export default function AdminSideNav({ user }) {
           icon: "api",
         },
         { label: "Token Chain", path: "/monitoring/token-chain", icon: "lnk" },
-        { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
+        // Hidden from nav: { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
           label: "Error Audit Log",
@@ -940,6 +940,11 @@ export default function AdminSideNav({ user }) {
           label: "OWASP Agentic",
           icon: "shld",
           action: () => navigate("/owasp"),
+        },
+        {
+          label: "Ungoverned Agent",
+          icon: "shld",
+          action: () => navigate("/ungoverned-agent"),
         },
       ],
     },

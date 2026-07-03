@@ -44,6 +44,7 @@
     "pingone:recreate": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --recreate-apps",
     "pingone:bootstrap:legacy-manifest": "node scripts/pingone-bootstrap.js",
     "pingone:bootstrap:probe": "node scripts/pingone-bootstrap.js --probe",
+    "export:learning": "node scripts/export-learning-hub.mjs",
     "prepare": "husky"
   },
   "dependencies": {

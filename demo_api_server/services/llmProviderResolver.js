@@ -34,7 +34,7 @@ function resolveLlmProvider(langchainConfig = {}) {
   }
 
   if (requested === 'llamacpp') {
-    // llama.cpp — local small LLM (e.g. Qwen3) with native tool-calling; no API key.
+    // llama.cpp — local small LLM (e.g. Gemma 3) with native tool-calling; no API key.
     // :3006 reasons via @langchain/openai against LLAMACPP_BASE_URL (llama-server /v1).
     return { provider: 'llamacpp', model };
   }

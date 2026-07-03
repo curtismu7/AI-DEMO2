@@ -15,6 +15,7 @@ import AiPrimerPanel from "./AiPrimerPanel";
 import ArchitectureDiagramPanel from "./ArchitectureDiagramPanel";
 import AuthZenPanel from "./AuthZenPanel";
 import BestPracticesPanel from "./BestPracticesPanel";
+import MachineIamSurveyPanel from "./MachineIamSurveyPanel";
 import CimdPanel from "./CimdPanel";
 import ComputerUseAgentPanel from "./ComputerUseAgentPanel";
 import ElicitationPanel from "./ElicitationPanel";
@@ -64,6 +65,7 @@ const PANEL_MAP = {
   [EDU.ARCHITECTURE_DIAGRAM]: ArchitectureDiagramPanel,
   [EDU.AUTHZEN]: AuthZenPanel,
   [EDU.BEST_PRACTICES]: BestPracticesPanel,
+  [EDU.MACHINE_IAM_SURVEY]: MachineIamSurveyPanel,
   [EDU.CIMD]: CimdPanel,
   [EDU.CUA]: ComputerUseAgentPanel,
   [EDU.FLOW_DIAGRAMS]: FlowDiagramsPanel,

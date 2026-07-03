@@ -181,13 +181,13 @@ Host: auth.target-app.example.com
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
-&assertion=<JWT signed by asserting party>
+&assertion=<ID-JAG issued and signed by App A's Authorization Server (AS-A)>
 &scope=read%3Aaccounts
 &client_id=app-b-client
 &client_secret=...`}
         </pre>
         <Note>
-          The <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>assertion</code> is the JWT carrying the user's identity — typically an OIDC ID token or a purpose-built identity assertion JWT. The target AS must be configured to trust the issuer of this JWT.
+          The <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>assertion</code> is the ID-JAG — a JWT carrying the user's identity that App A obtains from its own Authorization Server (AS-A) via a Token Exchange request, then presents to AS-B. The target AS must be configured to trust AS-A as the issuer of this JWT.
         </Note>
       </Section>
 
@@ -229,14 +229,14 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
         <FlowStep num={2} label="App A needs to call App B on the user's behalf">
           An agent, service, or BFF in App A determines that it needs a token for App B. The user is not present — this is a background server-to-server call.
         </FlowStep>
-        <FlowStep num={3} label="App A constructs and signs an identity assertion JWT">
-          The JWT includes the user's <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>sub</code>, sets <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>aud</code> to AS-B's token endpoint, and is signed with App A's private key.
+        <FlowStep num={3} label="App A obtains an ID-JAG from its Authorization Server (AS-A)">
+          App A requests an Identity Assertion JWT Authorization Grant (ID-JAG) from AS-A via a Token Exchange request (RFC 8693), specifying AS-B as the target audience. AS-A — not App A — constructs and signs the resulting JWT, binding the user's <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>sub</code> and setting <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>aud</code> to AS-B's token endpoint.
         </FlowStep>
-        <FlowStep num={4} label="App A sends the assertion to AS-B's token endpoint">
-          Uses the <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>urn:ietf:params:oauth:grant-type:jwt-bearer</code> grant type. AS-B looks up App A in its trust registry.
+        <FlowStep num={4} label="App A sends the ID-JAG to AS-B's token endpoint">
+          Uses the <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>urn:ietf:params:oauth:grant-type:jwt-bearer</code> grant type to present the ID-JAG issued by AS-A. AS-B looks up AS-A in its trust registry.
         </FlowStep>
         <FlowStep num={5} label="AS-B validates the assertion and maps the identity">
-          AS-B verifies the JWT signature against App A's JWKS, checks <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>aud</code>, <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>exp</code>, and <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>jti</code> replay. Then it maps the incoming <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>sub</code> to a local identity using its account-linking configuration.
+          AS-B verifies the JWT signature against AS-A's JWKS (the issuer of the ID-JAG), checks <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>aud</code>, <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>exp</code>, and <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>jti</code> replay. Then it maps the incoming <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>sub</code> to a local identity using its account-linking configuration.
         </FlowStep>
         <FlowStep num={6} label="AS-B issues a scoped access token for its own resources">
           App A can now call App B's APIs with a properly scoped access token. The user's identity is propagated — App B knows <em>who</em> the token is for — but the user was never redirected.
@@ -246,7 +246,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
           {'  '}(logged in once to App A)<br />
           {'      ↓'}<br />
           <span style={{ color: '#93c5fd' }}>App A / BFF</span>
-          {'  '}builds identity assertion JWT, sends to AS-B token endpoint<br />
+          {'  '}obtains ID-JAG from AS-A (Token Exchange), sends it to AS-B token endpoint<br />
           {'      ↓'}<br />
           <span style={{ color: '#fca5a5' }}>AS-B (PingOne)</span>
           {'  '}validates assertion → maps sub → issues App-B access token<br />
@@ -436,7 +436,7 @@ function ComparisonContent() {
               <CompareRow
                 feature="Input credential"
                 rfc8693="An existing OAuth access token or ID token already issued by the same AS"
-                idjag="A JWT assertion formed and signed by the requesting application (cross-AS)"
+                idjag="A JWT assertion (ID-JAG) issued and signed by the requesting application's own AS, obtained via Token Exchange and presented cross-AS"
               />
               <CompareRow
                 feature="Trust model"

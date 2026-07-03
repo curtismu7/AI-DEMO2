@@ -24,8 +24,13 @@ services:
       # Mount config + groovy as DIRECTORIES (not per-file): IG's route watcher
       # mis-detects per-file bind mounts as changes and unloads routes at runtime
       # (/mcp then 404s). A stable directory mount keeps routes loaded.
+      # runc/OCI can't create a new mountpoint node under an already-read-only bind
+      # mount, so the nested mcp-tool-schemas.json bind mount below needs a real file
+      # already present at that path in ./config (a committed placeholder) to bind
+      # over — that lets this directory mount stay :ro.
       - ./config:/var/gateway/config:ro
       - ./scripts/groovy:/var/gateway/scripts/groovy:ro
+      - ../mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro
     env_file:
       - .env
     extra_hosts:

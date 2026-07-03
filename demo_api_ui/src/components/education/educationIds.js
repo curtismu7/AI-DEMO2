@@ -86,4 +86,6 @@ export const EDU = {
   SERVER_CAPABILITIES: "server-capabilities",
   /** Agent Tech Comparison — technical comparison of LangChain, Mastra, OpenAI Agents, Pydantic AI with decision guide */
   AGENT_TECH_COMPARISON: "agent-tech-comparison",
+  /** Gartner Machine IAM Survey — top 5 findings and how this demo answers them */
+  MACHINE_IAM_SURVEY: "machine-iam-survey",
 };

@@ -13,6 +13,8 @@ const settings = {
   // Step-up MFA
   stepUpAmountThreshold: parseFloat(process.env.STEP_UP_AMOUNT_THRESHOLD) || 0,
   stepUpAcrValue: process.env.STEP_UP_ACR_VALUE || 'Multi_Factor',
+  // RFC 9470 freshness: require auth_time within this many seconds (0 = disabled)
+  stepUpMaxAge: parseFloat(process.env.STEP_UP_MAX_AGE) || 0,
   // Default OFF — must match the step_up_enabled configStore default; the
   // boot seed (server.js) only overrides this when a value is persisted.
   stepUpEnabled: false,
@@ -61,6 +63,7 @@ function update(updates, changedBy = 'unknown') {
     // Type-coerce numeric fields
     if (
       key === 'stepUpAmountThreshold' ||
+      key === 'stepUpMaxAge' ||
       key === 'maxTransactionAmount' ||
       key === 'agentTransactionCountLimit' ||
       key === 'agentTransactionValueLimit'
