@@ -12,6 +12,7 @@ export default function TraceStepCard({ step, onInspect }) {
         <span className={`tctr-ic tctr-ic--${step.status}`}>{STATUS_ICON[step.status]}</span>
         <span className="tctr-step-title">{step.num}. {step.title}</span>
         <span className={`tctr-lane tctr-lane--${step.lane.toLowerCase()}`}>{step.lane}</span>
+        <span className="tctr-step-chev" aria-hidden="true">▶</span>
       </summary>
       <div className="tctr-step-body">
         {d.narrative && <p className="tctr-narrative">{d.narrative}</p>}
