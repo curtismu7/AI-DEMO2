@@ -3915,3 +3915,33 @@
 .user-dashboard .ud-cancel-btn {
   box-shadow: none;
 }
+
+/* ── 2026 skin: token rail on the RIGHT (Side Menu | Agent | Token Chain) ──
+ * Scoped to .user-dashboard--2026 so the legacy UserDashboard keeps its
+ * left rail. JSX source order was flipped to match (rail is last child);
+ * these rules put the wide/narrow tracks in the matching order. */
+.user-dashboard--2026 .ud-body.ud-body--dashboard-split3 {
+  grid-template-columns: 1fr minmax(360px, 420px) minmax(240px, 260px);
+}
+.user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
+  grid-template-columns: 2fr minmax(280px, 0.9fr);
+}
+.user-dashboard--2026 .ud-body.ud-body--2026.ud-body--float-mode {
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+.user-dashboard--2026 .ud-token-rail {
+  border-right: none;
+  border-left: 1px solid var(--brand-medium-gray);
+}
+
+/* ── 2026 skin: ud-middle-collapsed variants ──────────────────────────────
+ * These carry one more class than the plain split3 rules above (4/5 vs
+ * 3/4), so they need their own same-specificity, later-in-source override
+ * to keep winning the cascade tie-break. Values are the same rotate-left
+ * transform: rail's track moves from first to last, other tracks shift up. */
+.user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-middle-collapsed {
+  grid-template-columns: 1fr minmax(360px, 420px) minmax(240px, 260px);
+}
+.user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
+  grid-template-columns: 2fr minmax(280px, 0.9fr);
+}
