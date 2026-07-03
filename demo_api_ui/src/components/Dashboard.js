@@ -11,7 +11,7 @@ import {
 } from "../utils/appToast";
 import bffAxios from "../services/bffAxios";
 import { resolveSessionUser } from "../services/sessionResolver";
-import UnifiedTokenFlowInspector from "./UnifiedTokenFlowInspector";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
 import { navigateToAdminOAuthLogin } from "../utils/authUi";
@@ -629,8 +629,8 @@ const Dashboard = ({ user, onLogout }) => {
                 className="dash-shell-card dash-shell-card--token"
                 aria-label="Security and token chain"
               >
-                <ExchangeModeToggle />
-                <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
+                <ExchangeModeToggle hideTable />
+                <TokenChainTraceRail />
               </section>
 
               {/* Col-2 wrapper: all right-column sections scroll together */}

@@ -29,7 +29,7 @@ import { toastCustomerError } from "../utils/dashboardToast";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
-import UnifiedTokenFlowInspector from "./UnifiedTokenFlowInspector";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
 import TransactionConsentModal from "./TransactionConsentModal";
@@ -3285,8 +3285,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
           <aside className="ud-token-rail" aria-label="Token chain">
             <div className="section ud-token-rail__inner">
-              <ExchangeModeToggle />
-              <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
+              <ExchangeModeToggle hideTable />
+              <TokenChainTraceRail />
             </div>
           </aside>
         </div>
@@ -3310,8 +3310,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <aside className="rd2-right-rail" aria-label="Agent and token chain">
                 <AgentIdentityCard />
                 <div className="rd2-token-card">
-                  <ExchangeModeToggle />
-                  <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
+                  <ExchangeModeToggle hideTable />
+                  <TokenChainTraceRail />
                 </div>
               </aside>
             </div>
@@ -3339,8 +3339,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
               <aside className="ud-token-rail" aria-label="Token chain">
                 <div className="section ud-token-rail__inner">
-                  <ExchangeModeToggle />
-                  <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} embedded />
+                  <ExchangeModeToggle hideTable />
+                  <TokenChainTraceRail />
                 </div>
               </aside>
 

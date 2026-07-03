@@ -154,8 +154,8 @@ vi.mock("../agent-clinical/AgentClinicalHost", () => ({
   default: () => <div data-testid="clinical-host-mock">Clinical Host</div>,
 }));
 
-// ── Mock UnifiedTokenFlowInspector — polls /api/token-chain and portals modals ──
-vi.mock("../UnifiedTokenFlowInspector", () => ({ default: () => null }));
+// ── Mock TokenChainTraceRail — polls /api/token-chain and portals modals ──
+vi.mock("../TokenChainTraceRail", () => ({ default: () => null }));
 
 // ── Wrapper with all required providers ────────────────────────────────────
 function Wrapper({ children }) {
@@ -307,12 +307,12 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined after the token-rail swap to UnifiedTokenFlowInspector
-  // (TokenChainDisplay → redesigned inspector on the customer dashboards).
+  // Re-baselined for the TokenChainTraceRail embed swap (UnifiedTokenFlowInspector
+  // → TokenChainTraceRail on the customer dashboards).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "35bc5d526e95d2262991182bf0703d660fd543b2c3a3fdf8329e4481bc898d9a";
+    "cd55ca6a56b29ce29e445d095bd33ad338e209c9239453443ced261e3be6d677";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

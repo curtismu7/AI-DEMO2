@@ -100,7 +100,7 @@ vi.mock("./customerSkinPing2026.css", () => ({}), { virtual: true });
 
 vi.mock("./ExchangeModeToggle", () => ({ default: () => null }));
 vi.mock("./Fido2Challenge", () => ({ default: () => null }));
-vi.mock("./UnifiedTokenFlowInspector", () => ({ default: () => null }));
+vi.mock("./TokenChainTraceRail", () => ({ default: () => null }));
 vi.mock("./ConfirmModal", () => ({ default: () => null }));
 vi.mock("./TransactionConsentModal", () => ({ default: () => null }));
 vi.mock("./EmbeddedAgentDock", () => ({ default: () => null }));
