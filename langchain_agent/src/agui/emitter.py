@@ -106,6 +106,33 @@ class AGUIEventEmitter:
         except Exception:
             logger.exception("AG-UI sink error")
 
+    async def on_llm_detail(
+        self,
+        model: str,
+        messages: list,
+        tool_calls: list,
+        usage: Optional[Dict[str, int]] = None,
+    ) -> None:
+        """Teaching payload for the Token Chain trace rail: what was actually
+        sent to the LLM and what it decided. Content is truncated — this is a
+        classroom exhibit, not a transcript export."""
+        def _trunc(m):
+            content = str(m.get("content", ""))[:600]
+            return {"role": m.get("role", "?"), "content": content}
+        try:
+            await self._sink({
+                "type": "CUSTOM",
+                "name": "llm_detail",
+                "value": {
+                    "model": model,
+                    "request": {"messages": [_trunc(m) for m in (messages or [])]},
+                    "toolCalls": tool_calls or [],
+                    "usage": usage,
+                },
+            })
+        except Exception:
+            logger.exception("AG-UI sink error")
+
     async def on_error(self, error: Exception, **kwargs) -> None:
         # RUN_ERROR is the AG-UI terminal-error event the BFF and React hook
         # (useAgentRun.js) actually handle. RUN_FINISHED is NOT emitted after
