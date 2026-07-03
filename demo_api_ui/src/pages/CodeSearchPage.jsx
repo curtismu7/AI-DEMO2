@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
 import SearchResults from '../components/SearchResults';
+import CodeSearchAsk from '../components/CodeSearchAsk';
 import { indexCodebase, searchCode } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
 
@@ -21,6 +22,7 @@ export function CodeSearchPage() {
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
   const [defaultStatus, setDefaultStatus] = useState('idle');
+  const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
 
   // Load codebases from localStorage on mount, always seeding the default codebase
   useEffect(() => {
@@ -201,34 +203,54 @@ export function CodeSearchPage() {
         </div>
 
         <div className="search-panel-right">
-          <div className="search-form">
-            <h2>Search Code</h2>
-            <div className="search-input-group">
-              <input
-                type="text"
-                placeholder="e.g., find authentication logic..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSearching}
-                className="search-input"
-              />
-              <button
-                onClick={handleSearch}
-                disabled={isSearching || !selectedCodebaseId}
-                className="search-button"
-              >
-                {isSearching ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-            {searchError && <div className="search-error">{searchError}</div>}
+          <div className="cs-tabs">
+            <button
+              className={rightTab === 'ask' ? 'active' : ''}
+              onClick={() => setRightTab('ask')}
+            >
+              Ask
+            </button>
+            <button
+              className={rightTab === 'search' ? 'active' : ''}
+              onClick={() => setRightTab('search')}
+            >
+              Search
+            </button>
           </div>
+          {rightTab === 'ask' ? (
+            <CodeSearchAsk codebaseId={selectedCodebaseId} />
+          ) : (
+            <>
+              <div className="search-form">
+                <h2>Search Code</h2>
+                <div className="search-input-group">
+                  <input
+                    type="text"
+                    placeholder="e.g., find authentication logic..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isSearching}
+                    className="search-input"
+                  />
+                  <button
+                    onClick={handleSearch}
+                    disabled={isSearching || !selectedCodebaseId}
+                    className="search-button"
+                  >
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                {searchError && <div className="search-error">{searchError}</div>}
+              </div>
 
-          <SearchResults
-            results={results}
-            isLoading={isSearching}
-            error={searchError}
-          />
+              <SearchResults
+                results={results}
+                isLoading={isSearching}
+                error={searchError}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
