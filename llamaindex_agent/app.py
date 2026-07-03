@@ -1,6 +1,8 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+
+import agent as agent_mod
 
 app = FastAPI(title="llamaindex-agent")
 
@@ -16,4 +18,11 @@ class AskRequest(BaseModel):
     limit: int | None = None
 
 
-# POST /ask is implemented in Task C3 (needs the agent from C2).
+@app.post("/ask")
+def ask(req: AskRequest):
+    try:
+        return agent_mod.run_agent(
+            req.question, req.codebase_id, limit=req.limit or 8
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"assistant unavailable: {e}")
