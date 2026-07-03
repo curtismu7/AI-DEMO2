@@ -28,6 +28,10 @@ const upload = multer({
 // Get MCP server URL from env or use default
 const mcpServerUrl = process.env.MCP_CODE_SEARCH_URL || 'http://localhost:8095';
 
+// LlamaIndex agent service URL (POST /ask) — proxied by the /ask route below.
+const LLAMAINDEX_AGENT_URL =
+  process.env.LLAMAINDEX_AGENT_URL || 'http://llamaindex-agent:8894';
+
 // Instantiate the client lazily on first use rather than at module load, so
 // requiring this route (e.g. from server.js at startup or in tests) has no
 // network-client construction side effect (axios.create()).
@@ -158,6 +162,31 @@ router.post('/search', express.json(), async (req, res) => {
 /** GET /api/code-search/default-status — background default-index progress. */
 router.get('/default-status', (_req, res) => {
   res.status(200).json(getDefaultIndexStatus());
+});
+
+/**
+ * POST /api/code-search/ask
+ * Proxy to the LlamaIndex agent service's POST /ask.
+ *
+ * Request: { question, codebase_id, limit? }
+ * Response: whatever the agent service returns (e.g. { answer, sources, toolCalls, mode }).
+ */
+router.post('/ask', express.json(), async (req, res) => {
+  const { question, codebase_id, limit } = req.body || {};
+  if (!question) return res.status(400).json({ error: 'missing_question' });
+  if (!codebase_id) return res.status(400).json({ error: 'missing_codebase_id' });
+  try {
+    const r = await fetch(`${LLAMAINDEX_AGENT_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, codebase_id, limit }),
+    });
+    const body = await r.json().catch(() => ({}));
+    const status = typeof r.status === 'number' ? r.status : (r.ok ? 200 : 502);
+    return res.status(status).json(body);
+  } catch (err) {
+    return res.status(503).json({ error: 'agent_unavailable', message: err.message });
+  }
 });
 
 // Kick off the default index once, in the background, gated on the embedder.
