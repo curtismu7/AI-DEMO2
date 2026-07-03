@@ -6,13 +6,14 @@
 
 **Architecture:** Pure additions to the existing React education-panel system (EDU id → panel component registered in a host map → opened via `openEdu()`) plus one new scenario object in the Agent Demo Guide's `DEMO_SCENARIOS` array, plus an env-only change to the `weaviate` service in `docker-compose.yml`. No backend code.
 
-**Tech Stack:** React (CRA/Jest + Testing Library), TypeScript for `LearningHub.tsx`, plain JS for education panels, Docker Compose.
+**Tech Stack:** React + Vite, **vitest** (NOT jest) + Testing Library, TypeScript for `LearningHub.tsx`, plain JS for education panels, Docker Compose.
 
 ## Global Constraints
 
 - Work in the git worktree on branch `worktree-weaviate-rag-education`. Stage files explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
 - Content must be factually consistent with this repo: Weaviate is **bring-your-own-vectors** (`DEFAULT_VECTORIZER_MODULE: none`), does **no** embedding itself; embeddings come from the llama.cpp `nomic-embed-text-v1.5` service; Weaviate is **internal-only** (no host port), reachable at `http://weaviate:8080`. Do **not** imply a hosted/OpenAI vectorizer.
-- Education panels are static content components using the shared `EducationDrawer` (see `demo_api_ui/src/components/education/GleanPanel.js` as the reference pattern).
+- Education panels are static content components using the shared `EducationDrawer` (see `demo_api_ui/src/components/education/GleanPanel.js` as the reference pattern). The real `EducationDrawer` API is `{ isOpen, onClose, title, tabs, initialTabId }` where each tab is `{ id, label, content: <JSX> }`; it returns `null` when `!isOpen` and renders only the active tab.
+- **Frontend tests run under vitest, NOT jest.** Run with `cd demo_api_ui && CI=true npx vitest run <path>`. Use `vi.mock` / `vi.fn` (not `jest.*`); `vi`, `test`, `expect` are globals (no import needed). Any `npx jest` in a step is a typo for `npx vitest run`.
 - Commit messages end with: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ---
@@ -103,7 +104,7 @@ test("renders the Weaviate panel with accurate, repo-specific facts", () => {
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/education/__tests__/WeaviateRagPanel.test.js`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/education/__tests__/WeaviateRagPanel.test.js`
 Expected: FAIL — cannot find module `../WeaviateRagPanel`.
 
 - [ ] **Step 4: Implement the panel**
@@ -232,7 +233,7 @@ export default function WeaviateRagPanel(props) {
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/education/__tests__/WeaviateRagPanel.test.js`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/education/__tests__/WeaviateRagPanel.test.js`
 Expected: PASS. If it fails because `EducationDrawer` only renders the active tab, adjust the test to click through tabs (use the same query the other panel tests use) — keep the four factual assertions.
 
 - [ ] **Step 6: Commit**
@@ -305,11 +306,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import LearningHub from "../LearningHub";
 
-jest.mock("../../context/EducationUIContext", () => ({
-  useEducationUI: () => ({ open: jest.fn() }),
+vi.mock("../../context/EducationUIContext", () => ({
+  useEducationUI: () => ({ open: vi.fn() }),
 }));
-jest.mock("../../context/DemoTourContext", () => ({
-  useDemoTour: () => ({ start: jest.fn() }),
+vi.mock("../../context/DemoTourContext", () => ({
+  useDemoTour: () => ({ start: vi.fn() }),
 }));
 
 test("Learning Hub lists the Weaviate vector-search card", () => {
@@ -322,7 +323,7 @@ test("Learning Hub lists the Weaviate vector-search card", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/__tests__/LearningHub.vectorrag.test.tsx`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/__tests__/LearningHub.vectorrag.test.tsx`
 Expected: FAIL — card text not found.
 
 - [ ] **Step 3: Add the card to the `ai-ecosystem` category**
@@ -348,7 +349,7 @@ In `categoryActionMap`, inside the `"ai-ecosystem": { ... }` object, add:
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/__tests__/LearningHub.vectorrag.test.tsx`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/__tests__/LearningHub.vectorrag.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -397,7 +398,7 @@ If `DEMO_SCENARIOS` is not currently exported, add `export ` to its declaration 
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/__tests__/AgentDemoGuide.codesearch.test.jsx`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/__tests__/AgentDemoGuide.codesearch.test.jsx`
 Expected: FAIL — either `DEMO_SCENARIOS` undefined (not exported) or scenario not found.
 
 - [ ] **Step 4: Export the array (if needed) and add the scenario**
@@ -450,12 +451,12 @@ Add this object as the last element of `DEMO_SCENARIOS` (after the "13." scenari
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/__tests__/AgentDemoGuide.codesearch.test.jsx`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/__tests__/AgentDemoGuide.codesearch.test.jsx`
 Expected: PASS.
 
 - [ ] **Step 6: Sanity-check the guide still renders**
 
-Run: `cd demo_api_ui && CI=true npx jest src/components/__tests__ -t "AgentDemoGuide" 2>/dev/null || echo "no existing AgentDemoGuide render test — skip"`
+Run: `cd demo_api_ui && CI=true npx vitest run src/components/__tests__ -t "AgentDemoGuide" 2>/dev/null || echo "no existing AgentDemoGuide render test — skip"`
 Expected: existing guide tests (if any) still pass; the compliance panel tolerates a single-step `applicableSteps` (scenario 1 already uses a partial subset).
 
 - [ ] **Step 7: Commit**
@@ -564,7 +565,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 Run:
 ```bash
-cd demo_api_ui && CI=true npx jest \
+cd demo_api_ui && CI=true npx vitest run \
   src/components/education/__tests__/WeaviateRagPanel.test.js \
   src/components/__tests__/LearningHub.vectorrag.test.tsx \
   src/components/__tests__/AgentDemoGuide.codesearch.test.jsx
