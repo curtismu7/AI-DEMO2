@@ -838,12 +838,12 @@ export const DEMO_SCENARIOS = [
     steps: [
       {
         action: "Open Code Search and index a codebase",
-        prompt: 'Nav → "Code Search" (/code-search), then upload or pick a folder',
+        prompt: 'Nav → "Code Search" (/code-search), then upload a codebase',
         explanation:
-          "Each file is split into chunks; every chunk is embedded by the llama.cpp nomic-embed-text-v1.5 service and its 768-dim vector is stored in Weaviate's CodeChunk class (bring-your-own-vectors — Weaviate does no embedding itself).",
+          "Each file is split into chunks; every chunk is embedded by the llama.cpp nomic-embed-text-v1.5 service and its vector is stored in Weaviate's CodeChunk class (bring-your-own-vectors — Weaviate does no embedding itself).",
         watch: [
-          "The codebase appears under 'Indexed Codebases'",
-          "This demo's own source is available by default (no upload needed)",
+          "The uploaded codebase appears under 'Indexed Codebases'",
+          "Indexing embeds every chunk once — after that, searches are just vector lookups",
         ],
       },
       {
@@ -860,7 +860,7 @@ export const DEMO_SCENARIOS = [
         action: "Interpret the ranked results",
         prompt: "Read the returned chunks and their file:line ranges",
         explanation:
-          "Ordering is by vector similarity (cosine over the nomic embedding space), which is why conceptually-related code ranks first. The same index also powers the 'Ask' agent, which retrieves these chunks to answer questions with citations.",
+          "Ordering is by vector similarity over the nomic embedding space, which is why conceptually-related code ranks first even when the query words never appear in it.",
         watch: [
           "Each result shows file + line range for context",
           "Relevance ranking, not alphabetical / keyword-count",
