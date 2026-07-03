@@ -28,7 +28,7 @@ function listLookupUsers(vertical) {
   };
 }
 
-for (const vertical of ['healthcare', 'retail', 'sporting-goods', 'workforce']) {
+for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
   router.get(`/${vertical}/users`, listLookupUsers(vertical));
 }
 
@@ -92,10 +92,59 @@ function lookupAction(plugin, vertical, slices) {
   };
 }
 
+// Banking's store is the global flat accounts/transactions store (keyed by
+// account id, linked to a user via userId) rather than a per-user plugin store,
+// so it can't use lookupAction directly. It still shares resolveUser — the piece
+// the old bespoke handler lacked — so an operator can find a holder by
+// name/username/email/id, and it keeps the original account-number/id search as
+// a fallback so no lookup capability is lost. Response uses the same
+// { user, query, vertical, data } envelope as the other verticals.
+function bankingAccountsFor(query) {
+  const user = resolveUser(query);
+  if (user) {
+    const accounts = dataStore.getAllAccounts()
+      .filter((a) => String(a.userId) === String(user.id));
+    return { user, accounts };
+  }
+  const raw = String(query || '').trim();
+  const qLower = raw.toLowerCase();
+  const qDigits = raw.replace(/\D/g, '');
+  const accounts = dataStore.getAllAccounts().filter((a) => {
+    if (String(a.accountNumber).toLowerCase().includes(qLower)) return true;
+    if (String(a.id).toLowerCase().includes(qLower)) return true;
+    if (qDigits.length > 0 && String(a.accountNumber).replace(/\D/g, '').includes(qDigits)) return true;
+    return false;
+  });
+  return { user: null, accounts };
+}
+
+function bankingLookup(req, res) {
+  try {
+    const query = req.query.q || '';
+    if (!String(query).trim()) {
+      return res.json({ user: null, query, vertical: 'banking', data: { accounts: [], transactions: [] } });
+    }
+    const { user, accounts } = bankingAccountsFor(query);
+    const transactions = [];
+    for (const acct of accounts) {
+      for (const t of dataStore.getTransactionsByAccountId(acct.id)) {
+        transactions.push({ ...t, _accountId: acct.id, _accountNumber: acct.accountNumber });
+      }
+    }
+    transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ user, query, vertical: 'banking', data: { accounts, transactions: transactions.slice(0, 200) } });
+  } catch (error) {
+    console.error('banking lookup error:', error);
+    res.status(500).json({ error: 'lookup_failed', message: error.message });
+  }
+}
+
 // Vertical Ops are open to any authenticated user. The /api/admin mount applies
 // authenticateToken upstream, so req.user is populated; no admin role/scope gate
 // is required here. (Spreads to no extra middleware.)
 const ADMIN_WRITE = [];
+
+router.get('/banking/lookup', ...ADMIN_WRITE, bankingLookup);
 
 router.get('/healthcare/lookup', ...ADMIN_WRITE, lookupAction(healthcare, 'healthcare', {
   patientRecords: 'patientRecords', appointments: 'appointments', billingHistory: 'billingHistory',
