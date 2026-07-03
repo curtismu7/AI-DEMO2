@@ -7,10 +7,11 @@ const tabs = [
       content: (
         <>
           <p>
-            <strong>AuthZEN</strong> is an OpenID Foundation working group developing a standardized
-            API for authorization — often described as the "OpenID Connect of authorization." It
-            creates a common, interoperable interface between the two core components of modern
-            fine-grained access control:
+            <strong>AuthZEN</strong> is an OpenID Foundation standard for authorization — often
+            described as the "OpenID Connect of authorization." The AuthZEN Authorization API 1.0
+            was ratified as an OpenID Foundation <strong>Final Specification</strong> on March 11,
+            2026. It creates a common, interoperable interface between the two core components of
+            modern fine-grained access control:
           </p>
           <ul>
             <li>
@@ -48,7 +49,7 @@ const tabs = [
       content: (
         <>
           <p>
-            The AuthZEN working group published the <strong>AuthZEN API 1.0</strong> specification: a
+            The <strong>AuthZEN API 1.0</strong> is a ratified OpenID Foundation Final Specification: a
             JSON-based HTTP API that standardizes how a PEP asks a PDP for an authorization decision.
           </p>
           <h3>Core request structure</h3>
@@ -135,10 +136,11 @@ const tabs = [
         <>
           <h3>OpenID Foundation — AuthZEN Working Group</h3>
           <p>
-            The AuthZEN Working Group focuses on specific areas of authorization interoperability:
+            The AuthZEN Working Group focused on specific areas of authorization interoperability:
             documenting common authorization patterns, defining standard mechanisms and formats for
             communication between authorization components, and recommending best practices for
-            secure applications.
+            secure applications. That work culminated in the AuthZEN Authorization API 1.0 being
+            ratified as an OpenID Foundation Final Specification on March 11, 2026.
           </p>
           <ul>
             <li>
@@ -148,7 +150,7 @@ const tabs = [
             </li>
             <li>
               <a href="https://openid.github.io/authzen/" target="_blank" rel="noopener noreferrer">
-                AuthZEN API 1.0 Specification
+                AuthZEN API 1.0 — Final Specification
               </a>
             </li>
             <li>

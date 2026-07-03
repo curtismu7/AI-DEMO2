@@ -100,7 +100,9 @@ function LangChainContent() {
         composable primitives — chains, agents, tools, memory — that work with
         any LLM provider. The Super Banking demo's <code>langchain_agent/</code>{" "}
         uses LangChain 0.3.x to orchestrate the Banking Agent's tool calls via
-        LCEL.
+        LCEL. The current stable release is <strong>LangChain 1.x</strong> (GA
+        Oct 2025), which recommends <code>create_agent</code> / LangGraph as
+        the default agent pattern.
       </p>
 
       <h4 style={{ color: "#1e3a5f", marginBottom: 6 }}>
@@ -124,7 +126,7 @@ function LangChainContent() {
 from langchain_openai import ChatOpenAI
 
 prompt = ChatPromptTemplate.from_template("Answer: {question}")
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-5.5")
 chain = prompt | llm          # LCEL pipe
 result = chain.invoke({"question": "What is RFC 8693?"})`}</Code>
 
@@ -235,7 +237,8 @@ executor.invoke({"input": "What is my balance?"})`}</Code>
         <code>langchain-community</code> (integrations), and provider packages
         like <code>langchain-openai</code>, <code>langchain-groq</code>,{" "}
         <code>langchain-google-genai</code>. Import paths changed significantly
-        from 0.1.x. This demo uses 0.3.x.
+        from 0.1.x. This demo pins 0.3.x; the current stable release is{" "}
+        <strong>LangChain 1.x</strong> (GA Oct 2025).
       </div>
     </>
   );
@@ -313,6 +316,12 @@ function OpenSourceContent() {
           <Bullet>
             Best for: data analysis pipelines, code generation, research
             workflows with multiple collaborating agents
+          </Bullet>
+          <Bullet>
+            Microsoft is consolidating AutoGen and Semantic Kernel into the
+            unified <strong>Microsoft Agent Framework</strong> (preview Oct
+            2025, 1.0 April 2026) — expect AutoGen's APIs to migrate there
+            over time.
           </Bullet>
         </ul>
       </FrameworkCard>
@@ -482,7 +491,7 @@ function CommercialContent() {
       >
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           <Bullet>
-            Generative AI topics (GPT-4o backbone), Plugin actions (OpenAPI
+            Generative AI topics (GPT-5.5 backbone), Plugin actions (OpenAPI
             connectors), Power Automate flows
           </Bullet>
           <Bullet>
@@ -870,7 +879,7 @@ function ComparisonContent() {
           paddingTop: 10,
         }}
       >
-        Table reflects framework capabilities as of early 2026. Check each
+        Table reflects framework capabilities as of mid-2026. Check each
         project's docs for current status.
       </p>
     </>
