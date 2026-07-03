@@ -31,6 +31,9 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
 
     const { accepted, skipped } = filterFolderFiles(list);
     const topFolder = (accepted[0]?.webkitRelativePath || 'folder').split('/')[0];
+    // One id for the whole folder so all batches land in a single codebase and
+    // the id we hand the page matches what is stored in Weaviate (queryable).
+    const codebaseId = `folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setFolderError('');
     setFolderSkipped(skipped);
     setFolderIndexed(0);
@@ -42,13 +45,13 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
       let indexed = 0;
       for (let i = 0; i < accepted.length; i += BATCH) {
         const batch = accepted.slice(i, i + BATCH);
-        const res = await indexFolderFiles(batch, topFolder);
+        const res = await indexFolderFiles(batch, topFolder, codebaseId);
         indexed += res?.files_indexed || batch.length;
         setFolderIndexed(indexed);
       }
 
       if (typeof onFolderIndexed === 'function') {
-        onFolderIndexed({ name: topFolder });
+        onFolderIndexed({ id: codebaseId, name: topFolder });
       }
     } catch (err) {
       setFolderError(err.message || 'Folder indexing failed');

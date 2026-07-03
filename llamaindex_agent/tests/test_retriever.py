@@ -21,7 +21,12 @@ def test_known_query_returns_expected_file():
     hits = retrieve(index, "nomic embedding model configuration",
                     codebase_id="ai-demo2-default", limit=5)
     assert len(hits) > 0
-    assert all("file" in h and "snippet" in h for h in hits)
+    # Metadata must actually reconstruct from the foreign CodeChunk class — a
+    # non-empty file/line proves the WeaviateVectorStore mapping worked, not just
+    # that the text field came back. (Guards the `_node_content` risk.)
+    assert all(h.get("file") and h.get("line_start") is not None for h in hits), \
+        f"sources missing file/line metadata (foreign-class mapping failed): {hits}"
+    assert all("snippet" in h and h["snippet"] for h in hits)
     # Correctness gate: results are about embeddings, not random files.
     assert any("embed" in h["file"].lower() or "embed" in h["snippet"].lower()
                for h in hits)

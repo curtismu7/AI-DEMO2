@@ -89,9 +89,12 @@ export function filterFolderFiles(fileList) {
 }
 
 /** Upload picked folder files through the existing multi-file /index route. */
-export async function indexFolderFiles(files, codebaseName) {
+export async function indexFolderFiles(files, codebaseName, codebaseId) {
   const formData = new FormData();
   formData.append('codebase_name', codebaseName);
+  // Pin the codebase_id so every batch lands in ONE codebase and the UI can
+  // query exactly what was stored (the /index route honors a supplied id).
+  if (codebaseId) formData.append('codebase_id', codebaseId);
   for (const f of files) formData.append('file', f, f.webkitRelativePath || f.name);
   const response = await fetch(`${API_BASE}/index`, { method: 'POST', body: formData });
   if (!response.ok) {

@@ -11,11 +11,15 @@ export default function CodeSearchAsk({ codebaseId }) {
   const ask = async () => {
     if (!question.trim()) return;
     setLoading(true); setError(''); setAnswer(null); setSources([]); setMeta(null);
+    // Don't let a hung agent leave the UI stuck on "Thinking…" forever.
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 65000);
     try {
       const r = await fetch('/api/code-search/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, codebase_id: codebaseId }),
+        signal: ctrl.signal,
       });
       const body = await r.json();
       if (!r.ok) throw new Error(body.message || body.error || 'assistant unavailable');
@@ -23,8 +27,9 @@ export default function CodeSearchAsk({ codebaseId }) {
       setSources(body.sources || []);
       setMeta({ toolCalls: body.toolCalls, mode: body.mode });
     } catch (e) {
-      setError(e.message);
+      setError(e.name === 'AbortError' ? 'The agent took too long to respond.' : e.message);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };

@@ -175,22 +175,38 @@ router.post('/ask', express.json(), async (req, res) => {
   const { question, codebase_id, limit } = req.body || {};
   if (!question) return res.status(400).json({ error: 'missing_question' });
   if (!codebase_id) return res.status(400).json({ error: 'missing_codebase_id' });
+  // Bound the agent call so a slow/hung LLM doesn't wedge the request forever.
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 60000);
   try {
     const r = await fetch(`${LLAMAINDEX_AGENT_URL}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, codebase_id, limit }),
+      signal: ctrl.signal,
     });
     const body = await r.json().catch(() => ({}));
     const status = typeof r.status === 'number' ? r.status : (r.ok ? 200 : 502);
     return res.status(status).json(body);
   } catch (err) {
-    return res.status(503).json({ error: 'agent_unavailable', message: err.message });
+    const aborted = err.name === 'AbortError';
+    return res.status(aborted ? 504 : 503).json({
+      error: aborted ? 'agent_timeout' : 'agent_unavailable',
+      message: aborted ? 'The agent took too long to respond.' : err.message,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
 // Kick off the default index once, in the background, gated on the embedder.
-if (process.env.CODE_SEARCH_DEFAULT_INDEX !== 'false' && !global.__defaultIndexStarted) {
+// Skipped under NODE_ENV=test so requiring this router in jest doesn't arm a
+// stray timer that fires after the suite finishes.
+if (
+  process.env.CODE_SEARCH_DEFAULT_INDEX !== 'false' &&
+  process.env.NODE_ENV !== 'test' &&
+  !global.__defaultIndexStarted
+) {
   global.__defaultIndexStarted = true;
   const rootDir = process.env.CODE_SEARCH_REPO_ROOT || '/repo';
   const tryStart = async (attempt = 0) => {

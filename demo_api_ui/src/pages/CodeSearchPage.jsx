@@ -112,12 +112,17 @@ export function CodeSearchPage() {
   );
 
   const handleFolderIndexed = useCallback((cb) => {
+    // Use the id the uploader stored under (matches Weaviate) so Search/Ask
+    // actually query the indexed folder — do NOT mint a new unrelated id.
     const newCodebase = {
-      id: `codebase-${Date.now()}`,
+      id: cb.id,
       name: cb.name,
       uploadedAt: new Date().toISOString(),
     };
-    setCodebases((prev) => [newCodebase, ...prev]);
+    setCodebases((prev) => [
+      newCodebase,
+      ...prev.filter((c) => c.id !== cb.id),
+    ]);
     setSelectedCodebaseId(newCodebase.id);
   }, []);
 
