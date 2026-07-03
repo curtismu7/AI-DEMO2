@@ -75,17 +75,28 @@ add an optional `only` prop to `TraceTokenSummary` (e.g. `only="mcp"`) that
 restricts which token cards it renders; default renders all (today's
 behavior). This keeps one source of truth for the card markup.
 
-**b. Tool execution**
-Compact summary from `trace.mcpResult`:
-- tool name, `durationMs` (if present)
-- JSON-RPC request (`requestJson || { name: tool }`)
-- result (`mcpResult.result`)
+**b. Tool execution — full request & response (untruncated)**
+The complete call from `trace.mcpResult`, nothing summarized away:
+- Metadata row: tool name, status, duration, delegated flag, scopes (whichever
+  of `toolName`/`tool`, `status`, `duration`/`durationMs`, `isDelegated`,
+  `scopes` are present).
+- **Request** — full JSON of `requestJson` (fallback `{ name: tool }`).
+- **Response** — full JSON of `resultJson ?? result` (fallback
+  `resultSummary`).
+- **Raw payload** — the entire `mcpResult` object dumped as JSON, so any field
+  the server adds is always visible.
 - Empty state when `mcpResult` is null: "No MCP tool call yet."
+- All JSON blocks render in full (`JSON.stringify(v, null, 2)`), inside the
+  existing `.tctr-code` scroll container — no truncation, no slicing.
 
-**c. MCP pipeline steps**
+**c. MCP pipeline steps — expanded by default**
 The existing `TraceStepCard`s, filtered to ids
-`["exchange", "gateway", "mcp", "api"]`, in that order. Reuses the card
-component verbatim, so expand/chevron/completed-shading/inspect all carry over.
+`["exchange", "gateway", "mcp", "api"]`, in that order, rendered **open by
+default** so the full JSON-RPC request, gateway authorize request/response,
+MCP execution, and the full resource-server API call are all visible without
+clicking. `TraceStepCard` gains an optional `defaultOpen` prop (default
+`false`, so the full-chain tab is unchanged). Chevron/shading/inspect all carry
+over.
 
 ### 3. Styling
 
@@ -119,6 +130,7 @@ style. No new color system.
 - `demo_api_ui/src/components/TraceMcpPanel.jsx` — new.
 - `demo_api_ui/src/components/TokenChainTraceRail.css` — tab + panel styles.
 - `demo_api_ui/src/components/TraceTokenSummary.jsx` — optional `only` prop.
+- `demo_api_ui/src/components/TraceStepCard.jsx` — optional `defaultOpen` prop.
 - `demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx` — extend.
 - `demo_api_ui/src/components/__tests__/TraceMcpPanel.test.jsx` — new.
 
@@ -127,8 +139,10 @@ style. No new color system.
 1. A "Token Chain | MCP" tab strip appears under the rail header everywhere the
    rail renders (both dashboards + `TokenChainModal`).
 2. Default view is byte-for-byte today's behavior.
-3. MCP tab shows: chain line, delegated-token card (with Inspect), tool
-   execution detail (or empty state), and the exchange→gateway→mcp→api steps.
+3. MCP tab shows: chain line, delegated-token card (with Inspect), the FULL
+   tool execution (complete request + response + raw payload, untruncated, or
+   empty state), and the exchange→gateway→mcp→api steps expanded by default so
+   the full API call is visible without clicking.
 4. MCP still appears in the full-chain tab.
 5. All existing tests pass; new tests cover tab switch, step filter, empty
    state, and the `only` prop.
