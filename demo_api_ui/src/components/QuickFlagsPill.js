@@ -35,19 +35,28 @@ export default function QuickFlagsPill({ user }) {
   const [adminDenied, setAdminDenied] = useState(false);
   const btnRef = useRef(null);
   const panelRef = useRef(null);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
 
   const isAdmin = user?.role === 'admin' && !adminDenied;
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/feature-flags', { credentials: 'include' });
+      if (!aliveRef.current) return;
       if (!res.ok) { setLoadFailed(true); return; }
       const data = await res.json();
+      if (!aliveRef.current) return;
       const byId = {};
       for (const f of data.flags || []) byId[f.id] = f;
       setFlagsById(byId);
       setLoadFailed(false);
     } catch (_) {
+      if (!aliveRef.current) return;
       setLoadFailed(true);
     }
   }, []);
@@ -88,6 +97,7 @@ export default function QuickFlagsPill({ user }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: { [id]: value } }),
       });
+      if (!aliveRef.current) return;
       if (res.status === 403) {
         setAdminDenied(true);
         setFlagsById((cur) => ({ ...cur, [id]: prev }));
@@ -95,6 +105,7 @@ export default function QuickFlagsPill({ user }) {
       }
       if (!res.ok) throw new Error(`save failed (${res.status})`);
       const data = await res.json();
+      if (!aliveRef.current) return;
       if (Array.isArray(data.flags) && data.flags.length) {
         setFlagsById((cur) => {
           const next = { ...cur };
@@ -103,10 +114,11 @@ export default function QuickFlagsPill({ user }) {
         });
       }
     } catch (e) {
+      if (!aliveRef.current) return;
       setFlagsById((cur) => ({ ...cur, [id]: prev }));
       setError(e.message || 'save failed');
     } finally {
-      setSavingId(null);
+      if (aliveRef.current) setSavingId(null);
     }
   }, [flagsById]);
 

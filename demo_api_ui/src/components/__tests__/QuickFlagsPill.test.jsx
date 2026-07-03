@@ -137,6 +137,11 @@ describe('QuickFlagsPill', () => {
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('button', { name: /🔎 Introspect/ }));
     await waitFor(() => expect(screen.getByText('Admin session required')).toBeTruthy());
+    await waitFor(() => {
+      const jwksBtns = screen.getAllByRole('button', { name: /🔐 JWKS/ });
+      const seg = jwksBtns.find((b) => b.className.includes('qfp-seg-btn'));
+      expect(seg.className).toContain('qfp-seg-btn--active');
+    });
   });
 
   it('GET failure renders the muted pill', async () => {
