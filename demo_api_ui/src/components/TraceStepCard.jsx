@@ -4,10 +4,10 @@ import React from "react";
 
 const STATUS_ICON = { pending: "·", active: "⏳", done: "✓", error: "✗" };
 
-export default function TraceStepCard({ step, onInspect }) {
+export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
   return (
-    <details className="tctr-step" data-status={step.status}>
+    <details className="tctr-step" data-status={step.status} open={defaultOpen}>
       <summary>
         <span className={`tctr-ic tctr-ic--${step.status}`}>{STATUS_ICON[step.status]}</span>
         <span className="tctr-step-title">{step.num}. {step.title}</span>
