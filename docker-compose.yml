@@ -603,8 +603,9 @@ services:
       RAFT_JOIN: node1
       RAFT_BOOTSTRAP_EXPECT: 1
       # ── Configurable cadence / verbosity ──────────────────────────────────
-      # LOG_LEVEL is the primary "how often do I see it" knob: `info` (default)
-      # shows join/gossip chatter; `warning` keeps only warnings + errors.
+      # The Raft pins above are what actually stop the join spam. LOG_LEVEL is
+      # the extra "how much do I see" knob: default here is `warning` (quiet);
+      # set WEAVIATE_LOG_LEVEL=info to restore Weaviate's normal info-level logs.
       LOG_LEVEL: ${WEAVIATE_LOG_LEVEL:-warning}
     volumes:
       - weaviate-data:/var/lib/weaviate

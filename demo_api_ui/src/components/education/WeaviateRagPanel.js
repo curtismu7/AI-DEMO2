@@ -86,7 +86,7 @@ function TryTab() {
       <h3 style={{ marginTop: 0 }}>Try it</h3>
       <p>
         Open the <strong>Code Search</strong> page to see this in action: upload
-        or pick a codebase, then ask for something by meaning (e.g.{" "}
+        or select a codebase, then ask for something by meaning (e.g.{" "}
         <em>"find authentication logic"</em>) and watch semantically-related code
         come back even when the words differ.
       </p>
