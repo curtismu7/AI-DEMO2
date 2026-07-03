@@ -1,0 +1,9 @@
+fastapi==0.115.*
+uvicorn[standard]==0.30.*
+pydantic==2.*
+llama-index-core==0.11.*
+llama-index-vector-stores-weaviate==1.1.*
+llama-index-llms-openai-like==0.2.*
+llama-index-embeddings-openai-like==0.2.*
+weaviate-client==4.*
+httpx==0.27.*
