@@ -413,7 +413,6 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/api-explorer",
           icon: "api",
         },
-        { label: "Token Chain", path: "/monitoring/token-chain", icon: "lnk" },
         { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
