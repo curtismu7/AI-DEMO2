@@ -726,6 +726,11 @@ function resolveFlag(flag) {
   }
   const raw = configStore.getEffective(flag.id);
   if (raw === null || raw === undefined) return flag.defaultValue;
+  // Enum flags: treat empty-string as unset. configStore lowercases keys, so
+  // camelCase FIELD_DEFS defaults (e.g. introspectionProvider) are unreachable
+  // and getEffective returns '' on a fresh store — fall back to the registry
+  // default instead of reporting a value no option matches.
+  if (flag.type === 'enum' && String(raw).trim() === '') return flag.defaultValue;
   if (flag.type === 'boolean') return raw === true || raw === 'true';
   return raw;
 }

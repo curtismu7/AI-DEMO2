@@ -149,4 +149,16 @@ describe('QuickFlagsPill', () => {
     render(<QuickFlagsPill user={ADMIN} />);
     await waitFor(() => expect(screen.getByRole('button', { name: /Flags/ })).toBeTruthy());
   });
+
+  it('toggle control PATCHes the negated boolean', async () => {
+    render(<QuickFlagsPill user={ADMIN} />);
+    await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
+    fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
+    await waitFor(() => screen.getByText('Token & Gateway'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Skip Token Exchange' }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, o]) => o && o.method === 'PATCH');
+      expect(JSON.parse(patch[1].body)).toEqual({ updates: { ff_skip_token_exchange: true } });
+    });
+  });
 });

@@ -1,7 +1,9 @@
 // QuickFlagsPill — always-visible header pill showing the live token-validation
 // mode (🔐 JWKS / 🔎 Introspect) + a dropdown with the curated demo switches.
-// Read path is open to everyone (GET /api/admin/feature-flags is unauthenticated);
-// writes require an admin session (PATCH 403 downgrades the UI to read-only).
+// Read AND write paths of /api/admin/feature-flags are intentionally
+// unauthenticated at the server (see server.js — demo posture, do not add a
+// gate silently). The admin gating here is client-side UX only; the 403 /
+// adminDenied handling is defensive for a future server-side gate.
 // Env-pinned flags (pinned/pinnedBy from the API) render locked: getEffective()
 // is env-first, so their toggles would be silently inert.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -149,6 +151,7 @@ export default function QuickFlagsPill({ user }) {
               key={String(m.value)}
               type="button"
               className={`qfp-seg-btn${f.value === m.value ? ' qfp-seg-btn--active' : ''}`}
+              aria-pressed={f.value === m.value}
               disabled={disabled}
               title={lockTitle}
               onClick={() => { if (f.value !== m.value) save(def.id, m.value); }}

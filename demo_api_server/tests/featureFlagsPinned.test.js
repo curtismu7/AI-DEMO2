@@ -72,4 +72,11 @@ describe('serializeFlag pinned/pinnedBy', () => {
     expect(out).toHaveProperty('value');
     expect(out).toHaveProperty('defaultValue');
   });
+
+  test('enum flag with empty-string effective value falls back to defaultValue', () => {
+    const configStore = require('../services/configStore');
+    configStore.getEffective.mockReturnValueOnce('');
+    const out = serializeFlag(flagById('introspectionProvider'));
+    expect(out.value).toBe('pinggateway');
+  });
 });
