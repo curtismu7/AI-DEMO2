@@ -14,7 +14,7 @@ beforeEach(() => tokenChainTraceStore.reset());
 
 test("renders header, chain line, and all 11 collapsed steps by default", () => {
   render(<TokenChainTraceRail />);
-  expect(screen.getByText(/Token Chain/)).toBeInTheDocument();
+  expect(document.querySelector(".tctr-title")).toHaveTextContent("Token Chain");
   expect(screen.getByRole("button", { name: /legend/i })).toBeInTheDocument();
   // 11 step titles present, none expanded (no step body text visible)
   expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
@@ -45,6 +45,22 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
   fireEvent.click(signin.querySelector("summary"));
   fireEvent.click(screen.getByRole("button", { name: /inspect claims/i }));
   expect(screen.getByTestId("claims-modal")).toHaveTextContent("user");
+});
+
+test("MCP tab shows the MCP panel and hides the full step list; chain line stays", () => {
+  render(<TokenChainTraceRail />);
+  fireEvent.click(screen.getByRole("tab", { name: /^MCP/ }));
+  expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
+  expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/LLM composes reply/)).not.toBeInTheDocument();
+  expect(screen.getByText("CHAINED")).toBeInTheDocument();
+  expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
+});
+
+test("Token Chain tab remains the default and shows all steps", () => {
+  render(<TokenChainTraceRail />);
+  expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
+  expect(screen.getByText(/Exchange Mode Details/)).toBeInTheDocument();
 });
 
 test("token summary accordion lists tokens with change rows", () => {
