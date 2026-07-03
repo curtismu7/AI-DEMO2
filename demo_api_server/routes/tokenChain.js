@@ -14,8 +14,9 @@ router.get('/', async (req, res) => {
       tokenChain = synthesizeFromSession(req.session.oauthTokens.accessToken);
     }
     
-    // Fetch MCP tool call delegation trail
-    const mcpToolCallsChain = await getMCPToolCalls(req.user.id);
+    // Fetch MCP tool call delegation trail (req threaded so the service can mint
+    // an agent CC token to authenticate the MCP /audit fetch)
+    const mcpToolCallsChain = await getMCPToolCalls(req.user.id, req);
 
     // Surface the cold-start synthetic state so the UI can label the chain as
     // "synthesized — not verified" rather than presenting it as a normal
