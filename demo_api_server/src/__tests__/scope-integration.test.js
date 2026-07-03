@@ -658,16 +658,33 @@ describe('Scope-based Authorization Integration Tests', () => {
         expect(response.body.required_access).toBe('admin role or admin:read scope');
       });
 
-      it('should deny access to admin routes with no scopes', async () => {
-        const token = createOAuthToken([], { 
+      // Activity-log READS are intentionally open to any authenticated user —
+      // commit 9bc18996b "relax activity log read endpoints to authenticateToken"
+      // dropped requireAdmin/requireScopes from GET /activity* (reads only).
+      // Clear/export stay admin-only; those are asserted below. See issue #122.
+      it('allows any authenticated user to read activity logs (reads relaxed, no admin scope needed)', async () => {
+        const token = createOAuthToken([], {
           username: 'no-scope-user',
           roles: ['user']
         });
-        
+
         const response = await request(app)
           .get('/api/admin/activity')
           .set('Authorization', `Bearer ${token}`);
-        
+
+        expect(response.status).toBe(200);
+      });
+
+      it('should deny access to admin-only export without admin:read scope', async () => {
+        const token = createOAuthToken([], {
+          username: 'no-scope-user',
+          roles: ['user']
+        });
+
+        const response = await request(app)
+          .get('/api/admin/activity/export')
+          .set('Authorization', `Bearer ${token}`);
+
         expect(response.status).toBe(403);
         expect(response.body.error).toBe('insufficient_scope');
         expect(response.body.required_access).toBe('admin role or admin:read scope');
