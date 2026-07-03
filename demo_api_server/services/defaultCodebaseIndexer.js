@@ -18,6 +18,7 @@ const SOURCE_ROOTS = [
 const IGNORE_DIR = new Set([
   'node_modules', '.git', '.claude', 'dist', 'build', 'coverage',
   'data', 'logs', '.next', '__pycache__', '.venv', 'venv',
+  'repo-src', 'certs',
 ]);
 const IGNORE_FILE_RE = /(^|\/)(\.env(\..*)?|.*\.min\.(js|css)|package-lock\.json|yarn\.lock|.*\.pem|.*\.key|.*\.p12|.*\.crt)$/i;
 const ALLOW_EXT = new Set([
@@ -33,7 +34,14 @@ function walk(absDir, repoRoot, acc, skipped) {
   try { entries = fs.readdirSync(absDir, { withFileTypes: true }); }
   catch { return; }
   for (const e of entries) {
-    if (acc.length >= MAX_FILES) return;
+    if (acc.length >= MAX_FILES) {
+      skipped.count++;
+      if (!skipped.capWarned) {
+        skipped.capWarned = true;
+        console.warn(`[default-index] file cap (${MAX_FILES}) reached; indexing truncated`);
+      }
+      return;
+    }
     const abs = path.join(absDir, e.name);
     const rel = path.relative(repoRoot, abs).split(path.sep).join('/');
     if (e.isDirectory()) {
@@ -79,6 +87,7 @@ async function startDefaultIndex({ client, rootDir }) {
       });
       if (probe && Array.isArray(probe.results) && probe.results.length > 0) {
         status.state = 'ready';
+        status.error = null;
         return;
       }
     } catch (_) { /* embedder/weaviate not ready yet — fall through to index */ }
@@ -102,6 +111,7 @@ async function startDefaultIndex({ client, rootDir }) {
     status.filesIndexed = files.length;
     status.chunksCreated = chunks;
     status.state = 'ready';
+    status.error = null;
     console.log(`[default-index] ready: ${files.length} files, ${chunks} chunks, ${status.skipped} skipped`);
   } catch (err) {
     status.state = 'error';

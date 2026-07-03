@@ -12,9 +12,11 @@ function tmpRepo() {
   w('demo_api_server/a.js', 'const x = 1;\n');
   w('demo_api_ui/src/b.jsx', 'export const B = 2;\n');
   w('demo_api_server/node_modules/dep/index.js', 'IGNORE ME');
-  w('.claude/worktrees/copy/demo_api_server/c.js', 'IGNORE ME');
+  w('demo_api_server/.claude/x.js', 'IGNORE ME');
   w('demo_api_server/.env', 'SECRET=nope');
   w('demo_api_server/certs/ca.pem', 'PEM');
+  w('demo_api_server/certs/allowed.js', 'IGNORE ME');
+  w('langchain_agent/repo-src/demo_api_server/dup.js', 'IGNORE ME');
   w('demo_api_server/logo.png', 'PNGBYTES');
   return dir;
 }
@@ -30,6 +32,18 @@ test('collectFiles includes first-party source, excludes vendored/secrets/binari
   expect(paths.some((p) => p.endsWith('.env'))).toBe(false);
   expect(paths.some((p) => p.endsWith('.pem'))).toBe(false);
   expect(paths.some((p) => p.endsWith('.png'))).toBe(false);
+});
+
+test('collectFiles excludes a nested repo-src/ vendored copy even for allow-listed extensions', () => {
+  const dir = tmpRepo();
+  const paths = collectFiles(dir).map((f) => f.path);
+  expect(paths.some((p) => p.includes('repo-src'))).toBe(false);
+});
+
+test('collectFiles excludes a nested certs/ dir even for allow-listed extensions', () => {
+  const dir = tmpRepo();
+  const paths = collectFiles(dir).map((f) => f.path);
+  expect(paths.some((p) => p.includes('/certs/'))).toBe(false);
 });
 
 test('collectFiles enforces a per-file size cap', () => {
