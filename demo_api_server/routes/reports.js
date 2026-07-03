@@ -278,6 +278,8 @@ router.get('/:runId/download', authenticateToken, async (req, res) => {
 
     const contentType =
       format === 'md' ? 'text/markdown' : format === 'html' ? 'text/html' : 'application/pdf';
+    // HTML and PDF render in the browser (opened in a tab); Markdown is delivered as a file.
+    const disposition = format === 'md' ? 'attachment' : 'inline';
 
     // Check for a pre-generated file first
     const fileEntry = (run.files || []).find(f => f.filename.endsWith(`.${format}`));
@@ -285,7 +287,7 @@ router.get('/:runId/download', authenticateToken, async (req, res) => {
 
     if (filePath && fs.existsSync(filePath)) {
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${fileEntry.filename}"`);
+      res.setHeader('Content-Disposition', `${disposition}; filename="${fileEntry.filename}"`);
       return res.send(fs.readFileSync(filePath));
     }
 
@@ -319,7 +321,7 @@ router.get('/:runId/download', authenticateToken, async (req, res) => {
     }
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
     res.send(content);
   } catch (error) {
     console.error('[reportsRouter] /download failed:', error.message);
