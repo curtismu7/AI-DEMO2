@@ -12,6 +12,10 @@
 const express = require('express');
 const multer = require('multer');
 const MCPCodeSearchClient = require('../src/services/mcpCodeSearchClient');
+const {
+  getStatus: getDefaultIndexStatus,
+  startDefaultIndex,
+} = require('../services/defaultCodebaseIndexer');
 
 const router = express.Router();
 
@@ -150,5 +154,37 @@ router.post('/search', express.json(), async (req, res) => {
     });
   }
 });
+
+/** GET /api/code-search/default-status — background default-index progress. */
+router.get('/default-status', (_req, res) => {
+  res.status(200).json(getDefaultIndexStatus());
+});
+
+// Kick off the default index once, in the background, gated on the embedder.
+if (process.env.CODE_SEARCH_DEFAULT_INDEX !== 'false' && !global.__defaultIndexStarted) {
+  global.__defaultIndexStarted = true;
+  const rootDir = process.env.CODE_SEARCH_REPO_ROOT || '/repo';
+  const tryStart = async (attempt = 0) => {
+    try {
+      await startDefaultIndex({ client: getClient(), rootDir });
+    } catch {
+      // startDefaultIndex normally swallows its own errors (sets state:'error'),
+      // so this catch is a belt-and-suspenders path only.
+    }
+    // startDefaultIndex reports failure via status, not by throwing, so gate the
+    // embedder-warmup retry on the resulting state — otherwise a cold-start
+    // failure (embedder still warming) would never retry.
+    const st = getDefaultIndexStatus();
+    if (st.state === 'error') {
+      if (attempt < 30) {
+        setTimeout(() => tryStart(attempt + 1), 10000); // retry until embedder is up
+      } else {
+        console.error('[default-index] gave up after retries:', st.error);
+      }
+    }
+  };
+  // Delay first attempt so the server finishes booting first.
+  setTimeout(() => tryStart(), 5000);
+}
 
 module.exports = router;
