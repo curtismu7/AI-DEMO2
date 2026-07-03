@@ -5,6 +5,18 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 
+// GET /api/pingone/setup/defaults - Return the worker credentials from the
+// server .env so the setup form can pre-fill them. No auth required so the
+// form seeds itself for any visitor. Values are still editable client-side;
+// this only seeds the form.
+router.get('/defaults', (req, res) => {
+  res.json({
+    environmentId: process.env.PINGONE_ENVIRONMENT_ID || '',
+    clientId: process.env.PINGONE_WORKER_CLIENT_ID || '',
+    clientSecret: process.env.PINGONE_WORKER_CLIENT_SECRET || '',
+  });
+});
+
 // POST /api/pingone/setup - Provision PingOne MCP worker credentials
 router.post('/', authenticateToken, async (req, res) => {
   try {

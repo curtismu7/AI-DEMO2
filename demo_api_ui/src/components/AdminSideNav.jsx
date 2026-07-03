@@ -442,6 +442,15 @@ export default function AdminSideNav({ user }) {
           path: "/mcp-tools",
           icon: "tool",
         },
+        {
+          label: "PingOne MCP Tools",
+          // Static HTML page (not an SPA route) — force a full navigation so
+          // it loads directly instead of hitting the React Router catch-all.
+          action: () => {
+            window.location.href = "/pingone-mcp-tools.html";
+          },
+          icon: "tool",
+        },
       ],
     },
     {
