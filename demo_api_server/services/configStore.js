@@ -540,6 +540,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // Debug flags
   debug_scopes:                          { public: true,  default: 'false' },
   debug_tokens:                          { public: true,  default: 'false' },
+  // Verbose OAuth logging — read by utils/oauthDebugFlags.isOAuthVerboseDebug()
+  // and toggled on the /oauth-debug-logs page. Env alias DEBUG_OAUTH (see below).
+  debug_oauth:                           { public: true,  default: 'false' },
 
   // Step-up
   step_up_acr_value:                     { public: true,  default: '' },
