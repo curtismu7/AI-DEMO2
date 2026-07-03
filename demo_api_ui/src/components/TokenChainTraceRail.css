@@ -148,3 +148,9 @@
 }
 .tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(15, 23, 42, 0.15); padding-top: 5px; }
 .tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: 10.5px; }
+
+/* MCP tab panel */
+.tctr-mcp .tctr-sec-label { padding-top: 12px; }
+.tctr-mcp-empty {
+  padding: 10px 12px; font-size: 12px; color: #64748b; font-style: italic;
+}
