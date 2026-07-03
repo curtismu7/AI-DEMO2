@@ -730,6 +730,19 @@ function resolveFlag(flag) {
   return raw;
 }
 
+// Env vars that hard-pin a quick-switch flag: configStore.getEffective() is
+// env-FIRST, so while one of these is set (e.g. in docker-compose) the UI
+// toggle is inert. serializeFlag surfaces that as pinned/pinnedBy so the UI
+// can render a lock instead of a dead toggle. Only flags with an env alias
+// in configStore's fallback map belong here.
+const PINNED_ENV_ALIASES = {
+  ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
+  ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+  ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+  ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
+  ciba_enabled:               'CIBA_ENABLED',
+};
+
 /** Serialize a flag + its current value for the API response. */
 function serializeFlag(flag) {
   return {
@@ -745,6 +758,9 @@ function serializeFlag(flag) {
     ...(flag.docsUrl      && { docsUrl:      flag.docsUrl }),
     ...(flag.warnIfDisabled && { warnIfDisabled: flag.warnIfDisabled }),
     ...(flag.warnIfEnabled  && { warnIfEnabled:  flag.warnIfEnabled }),
+    ...(PINNED_ENV_ALIASES[flag.id] && String(process.env[PINNED_ENV_ALIASES[flag.id]] || '').trim()
+      ? { pinned: true, pinnedBy: PINNED_ENV_ALIASES[flag.id] }
+      : {}),
   };
 }
 
@@ -824,4 +840,4 @@ router.patch('/', async (req, res) => {
   }
 });
 
-module.exports = { router, FLAG_REGISTRY };
+module.exports = { router, FLAG_REGISTRY, serializeFlag };
