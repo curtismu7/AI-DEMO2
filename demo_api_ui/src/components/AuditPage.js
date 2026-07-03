@@ -71,6 +71,40 @@ const MIN_H = 300;
 const DEFAULT_W = 1200;
 const DEFAULT_H = 620;
 
+// Auto-refresh cadence options. 0 = off. Default is a quiet 5 minutes so the
+// window doesn't hammer the gateway when left open; dial it down for a live demo.
+const REFRESH_OPTIONS = [
+  { label: 'Off', ms: 0 },
+  { label: '5s', ms: 5000 },
+  { label: '15s', ms: 15000 },
+  { label: '30s', ms: 30000 },
+  { label: '1m', ms: 60000 },
+  { label: '5m', ms: 300000 },
+];
+const DEFAULT_REFRESH_MS = 300000; // 5 minutes
+const REFRESH_STORAGE_KEY = 'auditRefreshMs';
+
+// Restore the persisted cadence; fall back to the default for a missing or
+// unrecognised value (guards against a stale/hand-edited localStorage entry).
+function loadRefreshMs() {
+  try {
+    const raw = window.localStorage.getItem(REFRESH_STORAGE_KEY);
+    const parsed = raw == null ? DEFAULT_REFRESH_MS : Number(raw);
+    return REFRESH_OPTIONS.some((o) => o.ms === parsed) ? parsed : DEFAULT_REFRESH_MS;
+  } catch {
+    return DEFAULT_REFRESH_MS;
+  }
+}
+
+// Union `incoming` (falsy values dropped) into the existing option list, sorted.
+// Used to grow the Agent-ID / operation filter dropdowns from the values that
+// actually appear in the audit events, so the user picks from real data.
+function mergeSorted(prev, incoming) {
+  const set = new Set(prev);
+  for (const v of incoming) if (v) set.add(v);
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 export default function AuditPage({ onClose } = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -87,6 +121,14 @@ export default function AuditPage({ onClose } = {}) {
   const [expandedEventId, setExpandedEventId] = useState(null);
   // Scenario 5 — Events feed vs. formal Compliance Report.
   const [view, setView] = useState('events');
+  // Auto-refresh: polling interval in ms (0 = off). Persisted so a demo's chosen
+  // cadence survives reloads. lastUpdated stamps the most recent successful fetch.
+  const [refreshMs, setRefreshMs] = useState(loadRefreshMs);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  // Distinct Agent IDs / operations seen this session — populate the filter
+  // dropdowns (accumulated so they don't collapse once a filter is applied).
+  const [agentIdOptions, setAgentIdOptions] = useState([]);
+  const [operationOptions, setOperationOptions] = useState([]);
 
   // Floating window position + size — centred on first render (not used in popout mode)
   const [pos, setPos] = useState(() => ({
@@ -154,8 +196,10 @@ export default function AuditPage({ onClose } = {}) {
     setTimeout(() => { if (onClose) onClose(); else navigate(-1); }, 50);
   }, [onClose, navigate]);
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true);
+  // silent=true → background poll: don't flash the table to its "Loading…"
+  // state or disable the manual refresh button; just swap in fresh data.
+  const fetchEvents = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -173,16 +217,33 @@ export default function AuditPage({ onClose } = {}) {
         eventsRes.json(),
         summaryRes.ok ? summaryRes.json() : null,
       ]);
-      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      const rows = Array.isArray(eventsData) ? eventsData : [];
+      setEvents(rows);
       setSummary(summaryData);
+      setLastUpdated(Date.now());
+      setAgentIdOptions((prev) => mergeSorted(prev, rows.map((ev) => ev.agentId)));
+      setOperationOptions((prev) => mergeSorted(prev, rows.map((ev) => ev.operation ?? ev.resourceType)));
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [filterEventType, filterOutcome, filterAgentId, filterOperation]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // Auto-refresh poll. Silent so background refreshes don't disturb the table;
+  // resets whenever the cadence or the active filters (via fetchEvents) change.
+  useEffect(() => {
+    if (refreshMs <= 0) return undefined;
+    const id = setInterval(() => { fetchEvents({ silent: true }); }, refreshMs);
+    return () => clearInterval(id);
+  }, [refreshMs, fetchEvents]);
+
+  const onChangeRefresh = useCallback((ms) => {
+    setRefreshMs(ms);
+    try { window.localStorage.setItem(REFRESH_STORAGE_KEY, String(ms)); } catch { /* ignore */ }
+  }, []);
 
   function formatTime(ts) {
     if (!ts) return '—';
@@ -220,22 +281,26 @@ export default function AuditPage({ onClose } = {}) {
           <option value="">All outcomes</option>
           {OUTCOMES.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        <input
-          type="text"
+        <select
           value={filterAgentId}
           onChange={e => setFilterAgentId(e.target.value)}
           className="audit-filter-select"
-          placeholder="Agent ID…"
           aria-label="Filter by agent ID"
-        />
-        <input
-          type="text"
+          disabled={agentIdOptions.length === 0}
+        >
+          <option value="">{agentIdOptions.length ? 'All agents' : 'No agents yet'}</option>
+          {agentIdOptions.map((id) => <option key={id} value={id}>{id}</option>)}
+        </select>
+        <select
           value={filterOperation}
           onChange={e => setFilterOperation(e.target.value)}
           className="audit-filter-select"
-          placeholder="Tool / operation…"
           aria-label="Filter by tool or operation"
-        />
+          disabled={operationOptions.length === 0}
+        >
+          <option value="">{operationOptions.length ? 'All tools / operations' : 'No tools yet'}</option>
+          {operationOptions.map((op) => <option key={op} value={op}>{op}</option>)}
+        </select>
       </div>
       {error && (
         <div className="audit-page__error">
@@ -453,15 +518,41 @@ export default function AuditPage({ onClose } = {}) {
     </>
   );
 
+  // Shared titlebar controls: auto-refresh cadence picker + last-refreshed stamp.
+  const refreshControl = (
+    <label className="audit-refresh-control" title="Auto-refresh interval — dial down for a live demo">
+      <span className="audit-refresh-control__icon" aria-hidden="true">⟳</span>
+      <select
+        className="audit-refresh-select"
+        value={refreshMs}
+        onChange={(e) => onChangeRefresh(Number(e.target.value))}
+        aria-label="Auto-refresh interval"
+      >
+        {REFRESH_OPTIONS.map((o) => (
+          <option key={o.ms} value={o.ms}>{o.ms === 0 ? 'Off' : `Every ${o.label}`}</option>
+        ))}
+      </select>
+    </label>
+  );
+  const lastUpdatedLabel = lastUpdated ? (
+    <span className="audit-last-updated" title="Last refreshed">
+      {new Date(lastUpdated).toLocaleTimeString()}
+    </span>
+  ) : null;
+
   // ── Popout mode: plain page layout (OS window handles positioning/sizing) ──
   if (isPopout) {
     return (
       <div className="audit-popout-page">
         <div className="audit-popout-titlebar">
           <span className="audit-float-title">🔍 MCP Audit Trail</span>
-          <button type="button" className="audit-float-btn" onClick={fetchEvents} disabled={loading} title="Refresh" aria-label="Refresh">
-            {loading ? '…' : '↻'}
-          </button>
+          <div className="audit-float-titlebar-actions">
+            {lastUpdatedLabel}
+            {refreshControl}
+            <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh now">
+              {loading ? '…' : '↻'}
+            </button>
+          </div>
         </div>
         <div className="audit-popout-content">{auditContent}</div>
       </div>
@@ -483,7 +574,9 @@ export default function AuditPage({ onClose } = {}) {
       <div className="audit-float-titlebar" onMouseDown={onTitleBarMouseDown}>
         <span className="audit-float-title">🔍 MCP Audit Trail</span>
         <div className="audit-float-titlebar-actions">
-          <button type="button" className="audit-float-btn" onClick={fetchEvents} disabled={loading} title="Refresh" aria-label="Refresh audit log">
+          {lastUpdatedLabel}
+          {refreshControl}
+          <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh audit log now">
             {loading ? '…' : '↻'}
           </button>
           <button type="button" className="audit-float-btn" onClick={openPopout} title="Open in new window (move to any screen)" aria-label="Pop out to new window">
