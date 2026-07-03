@@ -13,20 +13,21 @@ export interface Config {
 }
 
 export function getConfig(): Config {
-  // LM Studio is the default provider (OpenAI-compatible, local, $0). Override
-  // via AGENT_LLM_BASE_URL / AGENT_LLM_API_KEY / AGENT_LLM_MODEL to point at
-  // OpenAI or any other OpenAI-compatible endpoint.
+  // The local llama.cpp multi-model proxy (:8090, OpenAI-compatible, local, $0)
+  // is the default provider. Override via AGENT_LLM_BASE_URL /
+  // AGENT_LLM_API_KEY / AGENT_LLM_MODEL to point at OpenAI or any other
+  // OpenAI-compatible endpoint.
   return {
     llmApiKey:
-      process.env.AGENT_LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? 'lm-studio',
-    // Anthropic uses a dedicated key — the OpenAI-compat/LM-Studio key above is
+      process.env.AGENT_LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? 'llama-cpp',
+    // Anthropic uses a dedicated key — the OpenAI-compat/local key above is
     // never valid against api.anthropic.com.
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
-    llmBaseUrl: process.env.AGENT_LLM_BASE_URL ?? 'http://localhost:1234/v1',
-    // Default matches run.sh's LM Studio auto-load model. Override via
-    // AGENT_LLM_MODEL once you've loaded a different model in LM Studio.
+    llmBaseUrl: process.env.AGENT_LLM_BASE_URL ?? 'http://localhost:8090/v1',
+    // Default is a proxy tier id (the router recognizes it and serves it from
+    // the smallest loaded tier). Override via AGENT_LLM_MODEL.
     model:
-      process.env.AGENT_LLM_MODEL ?? process.env.OPENAI_MODEL ?? 'google/gemma-4-e2b',
+      process.env.AGENT_LLM_MODEL ?? process.env.OPENAI_MODEL ?? 'gemma-3-4b-it',
     bffInternalSecret: process.env.BFF_INTERNAL_SECRET ?? 'dev-shared-secret-change-me',
     bffToolUrl: process.env.BFF_INTERNAL_TOOL_URL ?? 'http://127.0.0.1:3001/internal/agent-tool',
     host: process.env.AGENT_HTTP_HOST ?? '127.0.0.1',

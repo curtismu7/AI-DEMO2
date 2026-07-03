@@ -9,7 +9,10 @@
 #   3. Asserts no RUN_ERROR or AGENT_UNREACHABLE
 #
 # Hard requirements (test FAILS, does not skip, per scope decision 2026-05-28):
-#   - LM Studio listening on http://localhost:1234 with at least one model loaded
+#   - The local llama.cpp LLM proxy healthy on http://localhost:8090 (one tier
+#     loaded): bash demo_llm_proxy/start-local-models.sh ensure 8091, plus the
+#     router (docker compose up -d llm-proxy, or node demo_llm_proxy/router.js).
+#     Override the endpoint for all agents + this preflight via AGENT_LLM_BASE_URL.
 #   - All 4 agent services started (./run.sh first)
 #
 # Exit codes:
@@ -23,8 +26,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 GW_SECRET="${BFF_INTERNAL_SECRET:-dev-shared-secret-change-me}"
-LMS_BASE="${LMSTUDIO_BASE_URL:-http://localhost:1234}"
-LMS_BASE="${LMS_BASE%/v1}"
+# The local LLM the agents use: the llama.cpp multi-model proxy (:8090), which
+# is OpenAI-compatible and swap-mode (one tier loaded at a time). Override with
+# AGENT_LLM_BASE_URL to repoint the agents and this preflight together.
+LLM_BASE="${AGENT_LLM_BASE_URL:-http://localhost:8090/v1}"
+PROXY_BASE="${LLM_BASE%/v1}"
+E2E_MODEL="${AGENT_LLM_MODEL:-gemma-3-4b-it}"
 CURL_TIMEOUT=45
 
 # Per-agent: name, AG-UI /run SSE port. langchain_agent runs three listeners
@@ -42,27 +49,26 @@ pass() { printf "  \033[1;32m[PASS]\033[0m %s\n" "$1"; PASSED=$((PASSED+1)); }
 fail() { printf "  \033[1;31m[FAIL]\033[0m %s\n" "$1"; FAILED=$((FAILED+1)); }
 info() { printf "         %s\n" "$1"; }
 
-# ── Preflight: LM Studio ─────────────────────────────────────────────────────
-step "Preflight — LM Studio"
-LMS_MODELS=$(curl -sf --max-time 3 "${LMS_BASE}/api/v1/models" 2>/dev/null || true)
-if [[ -z "${LMS_MODELS}" ]]; then
-  fail "LM Studio not reachable at ${LMS_BASE}/api/v1/models"
-  info "Start LM Studio's local server (Developer tab) and load a small model"
-  info "before running this test. The agent services need a real LLM endpoint."
+# ── Preflight: local LLM proxy ───────────────────────────────────────────────
+step "Preflight — local LLM proxy (${PROXY_BASE})"
+if ! curl -sf --max-time 5 "${PROXY_BASE}/health" >/dev/null 2>&1; then
+  fail "LLM proxy not healthy at ${PROXY_BASE}/health"
+  info "Start a tier:  bash demo_llm_proxy/start-local-models.sh ensure 8091"
+  info "Start router:  docker compose up -d llm-proxy   (or: node demo_llm_proxy/router.js)"
+  info "The agent services need a real LLM endpoint. Override with AGENT_LLM_BASE_URL."
   exit 1
 fi
-LMS_LOADED=$(echo "${LMS_MODELS}" | python3 -c "
+# Report which tier is currently loaded (swap mode loads one at a time).
+PROXY_TIER=$(curl -sf --max-time 5 "${PROXY_BASE}/status" 2>/dev/null | python3 -c "
 import sys, json
-d = json.load(sys.stdin)
-loaded = [m['key'] for m in d.get('models',[]) if m.get('loaded_instances')]
-print(loaded[0] if loaded else '')
-" 2>/dev/null || true)
-if [[ -z "${LMS_LOADED}" ]]; then
-  fail "LM Studio is running but no models are loaded"
-  info "Load a model in LM Studio (e.g. google/gemma-4-e2b) before running this test."
-  exit 1
-fi
-pass "LM Studio reachable; loaded model: ${LMS_LOADED}"
+try:
+    d = json.load(sys.stdin)
+    loaded = [m['name'] for m in d.get('models', []) if m.get('healthy')]
+    print(loaded[0] if loaded else 'unknown')
+except Exception:
+    print('unknown')
+" 2>/dev/null || echo unknown)
+pass "LLM proxy healthy; loaded tier: ${PROXY_TIER}; e2e model: ${E2E_MODEL}"
 
 # ── Preflight: each agent's port is listening ────────────────────────────────
 step "Preflight — agent ports listening"
@@ -82,8 +88,9 @@ if [[ "${FAILED}" -ne 0 ]]; then
 fi
 
 # ── For each agent: POST /run and validate SSE stream ────────────────────────
-# Uses the model LM Studio actually has loaded, via the BFF context.model
-# override, so the test works regardless of each agent's default LLM_MODEL.
+# Uses a proxy tier id via the context.model override, so the test works
+# regardless of each agent's default LLM_MODEL. The proxy routes it to the
+# smallest loaded tier that covers the request's class.
 RUN_PAYLOAD=$(cat <<JSON
 {
   "threadId": "e2e-thread",
@@ -91,7 +98,7 @@ RUN_PAYLOAD=$(cat <<JSON
   "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
   "tools": [],
   "context": {
-    "model": "${LMS_LOADED}",
+    "model": "${E2E_MODEL}",
     "bffToolUrl": "http://127.0.0.1:3001/internal/agent-tool",
     "sessionId": "e2e-session"
   }
