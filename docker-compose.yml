@@ -147,12 +147,15 @@ services:
       - ./ping-gateway/config:/app/gateway-config
       # scope-topology.json (configStore + scopeTopology SSOT) is read via
       # SCOPE_TOPOLOGY_PATH=/repo/scope-topology.json. Mounting the repo root as a
-      # DIRECTORY (read-only) — rather than the single file — is deliberate: a
-      # single-file bind mount goes stale when the host file is replaced (git
-      # merge / topology regen give it a new inode), vanishing in-container and
+      # DIRECTORY — rather than the single file — is deliberate: a single-file
+      # bind mount goes stale when the host file is replaced (git merge /
+      # topology regen give it a new inode), vanishing in-container and
       # crash-looping the BFF at require-time. A directory mount re-resolves the
-      # file on every read. Read-only: nothing in the container writes it.
-      - ./:/repo:ro
+      # file on every read. Must be RW: the /agent-gateway-config admin editor
+      # saves scope-topology.json through this mount (writeAtomic temp+rename,
+      # backups in /repo/.backups — gitignored) and a :ro mount turns every
+      # save into a 500 (EROFS).
+      - ./:/repo
       # Encrypted secrets vault (Phase 269). vaultLoader's default path is
       # REPO_ROOT/secrets.vault, which resolves to /secrets.vault inside /app —
       # mount the committed encrypted file there. VAULT_PASSWORD arrives via the
