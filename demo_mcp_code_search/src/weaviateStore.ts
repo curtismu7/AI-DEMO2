@@ -42,10 +42,17 @@ export interface SearchOptions {
   fileFilter?: string;
 }
 
+export interface Codebase {
+  id: string;
+  name: string;
+  chunks: number;
+}
+
 export interface Store {
   ensureSchema(): Promise<void>;
   insertChunks(chunks: StoredChunk[]): Promise<void>;
   search(vector: number[], opts: SearchOptions): Promise<SearchHit[]>;
+  listCodebases(): Promise<Codebase[]>;
 }
 
 interface RawObject {
@@ -149,6 +156,42 @@ export function createStore(host: string): Store {
 
       const objects: RawObject[] = res?.data?.Get?.[CLASS_NAME] ?? [];
       return mapHits(objects, opts.fileFilter).slice(0, opts.limit);
+    },
+
+    async listCodebases(): Promise<Codebase[]> {
+      // Distinct codebases (with chunk counts) straight from Weaviate, so the UI
+      // can list what is actually indexed instead of relying on per-browser
+      // localStorage.
+      const agg = await client.graphql
+        .aggregate()
+        .withClassName(CLASS_NAME)
+        .withGroupBy(['codebase_id'])
+        .withFields('groupedBy { value } meta { count }')
+        .do();
+
+      const groups: Array<{ groupedBy?: { value?: string }; meta?: { count?: number } }> =
+        agg?.data?.Aggregate?.[CLASS_NAME] ?? [];
+
+      const codebases = await Promise.all(
+        groups.map(async (g) => {
+          const id = g.groupedBy?.value ?? '';
+          // codebase_name isn't part of the groupBy result — fetch one chunk's.
+          const one = await client.graphql
+            .get()
+            .withClassName(CLASS_NAME)
+            .withFields('codebase_name')
+            .withWhere({ path: ['codebase_id'], operator: 'Equal', valueText: id })
+            .withLimit(1)
+            .do();
+          const name =
+            one?.data?.Get?.[CLASS_NAME]?.[0]?.codebase_name ?? id;
+          return { id, name, chunks: g.meta?.count ?? 0 };
+        })
+      );
+
+      return codebases
+        .filter((c) => c.id)
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
   };
 }

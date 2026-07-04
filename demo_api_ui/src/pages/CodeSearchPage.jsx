@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
 import SearchResults from '../components/SearchResults';
-import { indexCodebase, searchCode } from '../services/codeSearchAPI';
+import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
 
 // Read the persisted codebase list once, synchronously, so the very first
@@ -38,6 +38,34 @@ export function CodeSearchPage() {
   useEffect(() => {
     localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
   }, [codebases]);
+
+  // Load the codebases actually indexed on the server and merge them in, so the
+  // list shows what exists regardless of this browser's localStorage. Server
+  // entries win on id collision (authoritative name + chunk count).
+  useEffect(() => {
+    let cancelled = false;
+    listCodebases()
+      .then((serverCodebases) => {
+        if (cancelled || !Array.isArray(serverCodebases) || serverCodebases.length === 0) {
+          return;
+        }
+        setCodebases((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
+          for (const c of serverCodebases) {
+            byId.set(c.id, { ...byId.get(c.id), id: c.id, name: c.name, chunks: c.chunks });
+          }
+          return Array.from(byId.values());
+        });
+        setSelectedCodebaseId((cur) => cur || serverCodebases[0].id);
+      })
+      .catch((err) => {
+        // Non-fatal: fall back to whatever localStorage provided.
+        console.error('Failed to load server codebases:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleUpload = useCallback(
     async (file, codebaseName) => {
@@ -137,7 +165,9 @@ export function CodeSearchPage() {
                   >
                     <div className="codebase-name">{codebase.name}</div>
                     <div className="codebase-meta">
-                      {new Date(codebase.uploadedAt).toLocaleDateString()}
+                      {codebase.chunks != null
+                        ? `${codebase.chunks.toLocaleString()} chunks`
+                        : new Date(codebase.uploadedAt).toLocaleDateString()}
                     </div>
                   </div>
                 ))}

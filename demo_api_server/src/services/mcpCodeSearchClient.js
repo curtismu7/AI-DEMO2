@@ -115,6 +115,23 @@ class MCPCodeSearchClient {
       throw new Error(`Failed to search codebase: ${err.message}`);
     }
   }
+
+  /**
+   * List the codebases currently indexed in the vector store.
+   * @returns {Promise<{codebases: Array<{id: string, name: string, chunks: number}>}>}
+   * @throws {Error} If the request fails or the server is unavailable
+   */
+  async listCodebases() {
+    try {
+      const response = await this.client.get('/codebases');
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 503) {
+        throw new Error('MCP server unavailable (code search service not ready)');
+      }
+      throw new Error(`Failed to list codebases: ${err.message}`);
+    }
+  }
 }
 
 module.exports = MCPCodeSearchClient;
