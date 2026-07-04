@@ -79,15 +79,22 @@ export function SessionTokenProvider({ children }) {
     return () => setOpenTokenModal((cur) => (cur === fn ? null : cur));
   }, []);
 
+  // Single derived "is there a usable access token" flag. Consumers (TopNav
+  // pill, UserMenu, BankingChips sign-in CTA) must use this rather than
+  // re-deriving from the raw fields so they can never disagree.
+  const hasActiveToken =
+    !tokenLoading && tokenSecondsLeft !== null && tokenSecondsLeft > 0;
+
   const value = useMemo(() => ({
     tokenSecondsLeft,
     tokenLoading,
     sessionType,
     staleSession,
+    hasActiveToken,
     openTokenModal,
     registerTokenModalOpener,
     refreshTokenStatus,
-  }), [tokenSecondsLeft, tokenLoading, sessionType, staleSession, openTokenModal, registerTokenModalOpener, refreshTokenStatus]);
+  }), [tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken, openTokenModal, registerTokenModalOpener, refreshTokenStatus]);
 
   return (
     <SessionTokenContext.Provider value={value}>

@@ -59,6 +59,7 @@ vi.mock("../../context/SessionTokenContext", () => ({
     tokenSecondsLeft: 900,
     tokenLoading: false,
     staleSession: false,
+    hasActiveToken: true,
   }),
 }));
 

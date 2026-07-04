@@ -1,6 +1,23 @@
 /* AdminSideNav.css - PingIdentity-style admin sidebar with clean white text entries and submenus */
 
 .admin-side-nav {
+  /* Nav search box theme (dark-sidebar defaults). Skins (e.g.
+     adminSkinPing2026.css) override ONLY these variable values — never
+     re-style the filter selectors state-by-state. */
+  --sidenav-filter-bg: rgba(255, 255, 255, 0.16);
+  --sidenav-filter-border: rgba(255, 255, 255, 0.4);
+  --sidenav-filter-fg: #fff;
+  --sidenav-filter-placeholder: rgba(255, 255, 255, 0.7);
+  --sidenav-filter-bg-hover: rgba(255, 255, 255, 0.2);
+  --sidenav-filter-border-hover: rgba(255, 255, 255, 0.55);
+  --sidenav-filter-bg-focus: rgba(255, 255, 255, 0.24);
+  --sidenav-filter-border-focus: #4aa3e6;
+  --sidenav-filter-focus-ring: rgba(52, 152, 219, 0.35);
+  --sidenav-filter-icon: rgba(255, 255, 255, 0.75);
+  --sidenav-filter-clear: rgba(255, 255, 255, 0.6);
+  --sidenav-filter-clear-hover-bg: rgba(255, 255, 255, 0.12);
+  --sidenav-filter-clear-hover-fg: #fff;
+  --sidenav-filter-empty: rgba(255, 255, 255, 0.55);
   position: fixed;
   left: 0;
   top: 0;
@@ -145,7 +162,8 @@
   box-shadow: 0 2px 6px rgba(41, 128, 185, 0.5);
 }
 
-/* Nav search box */
+/* Nav search box — colors come from the --sidenav-filter-* variables
+   declared on .admin-side-nav above. */
 .admin-side-nav__filter {
   position: relative;
   padding: 8px 0 6px;
@@ -155,7 +173,7 @@
   left: 9px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--sidenav-filter-icon);
   pointer-events: none;
 }
 .admin-side-nav__filter-input {
@@ -164,24 +182,24 @@
   /* room for the search icon (left) and clear button (right) */
   padding: 8px 30px 8px 30px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  border: 1px solid var(--sidenav-filter-border);
+  background: var(--sidenav-filter-bg);
+  color: var(--sidenav-filter-fg);
   font-family: inherit;
   font-size: 13px;
 }
 .admin-side-nav__filter-input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--sidenav-filter-placeholder);
 }
 .admin-side-nav__filter-input:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.55);
+  background: var(--sidenav-filter-bg-hover);
+  border-color: var(--sidenav-filter-border-hover);
 }
 .admin-side-nav__filter-input:focus {
   outline: none;
-  border-color: #4aa3e6;
-  background: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.35);
+  border-color: var(--sidenav-filter-border-focus);
+  background: var(--sidenav-filter-bg-focus);
+  box-shadow: 0 0 0 2px var(--sidenav-filter-focus-ring);
 }
 .admin-side-nav__filter-clear {
   position: absolute;
@@ -196,17 +214,17 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--sidenav-filter-clear);
   font-size: 12px;
   cursor: pointer;
 }
 .admin-side-nav__filter-clear:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--sidenav-filter-clear-hover-bg);
+  color: var(--sidenav-filter-clear-hover-fg);
 }
 .admin-side-nav__filter-empty {
   padding: 12px 16px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--sidenav-filter-empty);
   font-size: 13px;
   font-style: italic;
 }

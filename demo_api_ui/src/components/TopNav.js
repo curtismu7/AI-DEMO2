@@ -27,7 +27,7 @@ export default function TopNav({ user, onLogout }) {
   const location = useLocation();
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
-  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, openTokenModal } = useSessionToken();
+  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
   const BrandIcon = (identity && BRAND_ICONS[identity.icon]) || MdAccountBalance;
@@ -65,7 +65,7 @@ export default function TopNav({ user, onLogout }) {
 
   const tokenExpiring = tokenSecondsLeft !== null && tokenSecondsLeft > 0 && tokenSecondsLeft < 300;
   const tokenExpired = tokenSecondsLeft !== null && tokenSecondsLeft <= 0;
-  const hasActiveToken = !!user && !tokenLoading && tokenSecondsLeft !== null && tokenSecondsLeft > 0;
+  const hasActiveToken = !!user && tokenIsActive;
 
   const displayName =
     (user?.firstName && user?.lastName)

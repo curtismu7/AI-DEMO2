@@ -17,8 +17,16 @@ vi.mock("../../vertical/useVertical", () => ({
   }),
 }));
 
+// BankingChips derives needsSignIn from the session-token context; each test
+// sets mockToken to the token state it needs.
+let mockToken = { hasActiveToken: true, tokenLoading: false, staleSession: false };
+vi.mock("../../context/SessionTokenContext", () => ({
+  useSessionToken: () => mockToken,
+}));
+
 describe("BankingChips grey states", () => {
   it("marks an unverified (Authorize-unreachable) chip with the --unverified class", () => {
+    mockToken = { hasActiveToken: true, tokenLoading: false, staleSession: false };
     render(
       <BankingChips
         user={{ role: "user" }}
@@ -36,12 +44,12 @@ describe("BankingChips grey states", () => {
   });
 
   it("prompts sign-in (not an authorize error) when there's no token", () => {
+    mockToken = { hasActiveToken: false, tokenLoading: false, staleSession: false };
     render(
       <BankingChips
         user={{ role: "user" }}
         toolPermissions={{}}
         toolsError
-        needsSignIn
         onChipClick={() => {}}
       />,
     );
