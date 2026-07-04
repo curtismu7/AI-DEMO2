@@ -14,9 +14,13 @@
  * `featurePage.mcpTool`) + `scope-topology.json`. Mirrors startupConfigGuard.js.
  */
 
-const path = require('path');
+// Load the manifest through the shared scopeTopology service so this guard
+// honors SCOPE_TOPOLOGY_PATH. A repo-root-relative require() resolves to the
+// stale copy baked into the Docker image (/scope-topology.json) instead of
+// the live directory-mounted file — the guard then FATALs the BFF on drift
+// the real manifest doesn't have.
+const { _manifest: loadTopology } = require('./scopeTopology');
 
-const SCOPE_TOPOLOGY = path.join(__dirname, '..', '..', 'scope-topology.json');
 const USER_APP = 'Super Banking User App';
 const API_RES = 'Super Banking API';
 const MCP_SERVER_RES = 'Super Banking MCP Server';
@@ -31,8 +35,8 @@ function resourceAllScopes(topology, resourceName) {
  * Collect consistency issues. Pure — no I/O beyond require(). Returns string[].
  */
 function collectIssues() {
-  // eslint-disable-next-line global-require, import/no-dynamic-require
-  const topology = require(SCOPE_TOPOLOGY);
+  const topology = loadTopology();
+  // eslint-disable-next-line global-require
   const { verticalManifest } = require('./verticalManifest');
 
   // Ensure manifests are loaded — otherwise list() is empty and the guard
