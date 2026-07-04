@@ -135,6 +135,9 @@ const ICON_MAP = {
 const DEFAULT_WIDTH = 310;
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
+// Persists which sidebar sections are expanded so the user's open group
+// survives remounts and full-page reloads (per-tab, cleared when the tab closes).
+const EXPANDED_SECTIONS_KEY = "adminSideNav.expandedSections";
 
 export default function AdminSideNav({ user }) {
   const location = useLocation();
@@ -182,6 +185,19 @@ export default function AdminSideNav({ user }) {
   // Prevents the sidebar collapsing when the layout remounts (e.g. customer navigating /dashboard → /monitoring/*).
   // Index offsets differ by role: customers have "Family Delegation" at idx 2, pushing later items up by 1.
   const [expandedSections, setExpandedSections] = useState(() => {
+    // A group the user opened should stay open until they open a different one,
+    // even across sidebar remounts and the full-page reloads this app performs
+    // (role/vertical switch, reauth). Persisted choice wins; the path-based
+    // auto-expand below is only the first-load default when nothing is saved.
+    try {
+      const saved = sessionStorage.getItem(EXPANDED_SECTIONS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch (_e) {
+      /* ignore malformed/unavailable storage */
+    }
     const initial = {};
     const path = location.pathname;
     const isAdminUser = user?.role === "admin";
@@ -246,6 +262,18 @@ export default function AdminSideNav({ user }) {
     }
     return initial;
   });
+  // Persist expansion state so the open group stays open until the user opens
+  // another (see EXPANDED_SECTIONS_KEY).
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        EXPANDED_SECTIONS_KEY,
+        JSON.stringify(expandedSections),
+      );
+    } catch (_e) {
+      /* ignore storage-unavailable (private mode / quota) */
+    }
+  }, [expandedSections]);
   const [showKillModal, setShowKillModal] = useState(false);
   // Path of the admin-marked link a non-admin clicked; non-null opens the
   // "log in as admin" confirm dialog.
