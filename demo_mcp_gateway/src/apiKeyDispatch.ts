@@ -53,6 +53,7 @@ interface ToolMeta {
 /** Display names for each api_key-disposition tool (for error messages and Token Chain). */
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   show_mortgage:       'Mortgage Account',
+  show_investment:     'Investment Portfolio',
   show_health_record:  'Health Record',
   show_gear_order:     'Gear Order',
   show_expense_report: 'Expense Report',

@@ -184,6 +184,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_investment_transactions` | gateway | `invest:read` | — |
 | `get_portfolio_summary` | gateway | `invest:read` | — |
 | `show_mortgage` | gateway | `mortgage:read` | — |
+| `show_investment` | gateway | `invest:read` | — |
 | `show_large_purchase` | gateway | `largepurchase:read` | — |
 | `show_health_record` | gateway | `records:read` | — |
 | `show_gear_order` | gateway | `gear:read` | — |
