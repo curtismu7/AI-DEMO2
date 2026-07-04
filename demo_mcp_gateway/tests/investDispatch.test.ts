@@ -1,7 +1,12 @@
 'use strict';
 
+import axios from 'axios';
 import { routeTool, backendHttpUrl } from '../src/router';
 import { getScopesForGatewayTool } from '../src/auth/toolScopes';
+import { buildApiKeyToolResult } from '../src/apiKeyDispatch';
+
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const cfg: any = { mortgageServiceBaseUrl: 'http://mortgage-service:8082' };
 
@@ -14,5 +19,24 @@ describe('show_investment api-key disposition', () => {
   });
   test('requires invest:read scope', () => {
     expect(getScopesForGatewayTool('show_investment')).toContain('invest:read');
+  });
+});
+
+// Mirrors tests/mortgageDispatch.test.ts's jest.mock('axios') mechanism —
+// this repo has no nock/msw dependency, so outbound HTTP for the shared
+// api_key dispatch is stubbed via a mocked axios module, not a network mock.
+describe('show_investment _meta', () => {
+  beforeEach(() => mockedAxios.get.mockReset());
+
+  test('result _meta carries apiCall and the injected key last4', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: { invest: { portfolioId: 'INV-8842' } } });
+    const conf: any = {
+      mortgageServiceBaseUrl: 'http://mortgage-service:8082',
+      mortgageServiceApiKey: 'demo-invest-key-9999', // test fixture, not a real secret
+    };
+    const out: any = await buildApiKeyToolResult('show_investment', 'user-sub', undefined, conf);
+    expect(out.ok).toBe(true);
+    expect(out.result._meta.apiCall).toBe('GET /invest');
+    expect(out.result._meta.apiKeyMaskedLast4).toBe('9999');
   });
 });

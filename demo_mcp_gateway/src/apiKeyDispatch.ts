@@ -93,7 +93,8 @@ export async function buildApiKeyToolResult(
   apiKeyMaskedLast4: string | undefined,
   config: GatewayConfig,
 ): Promise<ApiKeyDispatchOutcome> {
-  const last4 = apiKeyMaskedLast4 || 'XXXX';
+  const injected = config.mortgageServiceApiKey || '';
+  const last4 = apiKeyMaskedLast4 || (injected.length >= 4 ? injected.slice(-4) : 'XXXX');
   const backendUrl = backendHttpUrl('apikey', toolName, config);
   const meta = getToolMeta(toolName);
 
@@ -158,6 +159,7 @@ export async function buildApiKeyToolResult(
       _meta: {
         credentialPath: 'api_key',
         apiKeyMaskedLast4: last4,
+        apiCall: `GET /${meta.routeSegment}`,
         maskedApiKey: `xxxx${last4}`,
         backend: meta.serviceLabel,
         infoPageHint: meta.infoPageHint,
