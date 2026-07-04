@@ -39,13 +39,15 @@
   letter-spacing: 0.06em; padding: 8px 12px 2px;
 }
 
-/* Step cards */
-.tctr-step { border-bottom: 1px dashed #eef2f9; }
+/* Step cards — solid divider for clear separation between rows */
+.tctr-step { border-bottom: 1px solid #d4ddea; }
+.tctr-step:last-of-type { border-bottom: none; }
 .tctr-step > summary {
   list-style: none; display: flex; align-items: center; gap: 7px;
-  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  padding: 9px 12px; cursor: pointer; font-size: 12px;
 }
 .tctr-step > summary::-webkit-details-marker { display: none; }
+.tctr-step > summary:hover { background: #f1f5f9; }
 .tctr-ic { width: 15px; text-align: center; flex-shrink: 0; }
 .tctr-ic--done { color: #16a34a; }
 .tctr-ic--active { color: var(--brand-navy, #1d4ed8); }
@@ -53,6 +55,16 @@
 .tctr-ic--error { color: #dc2626; }
 .tctr-step-title { flex: 1; min-width: 0; }
 .tctr-step[data-status="error"] > summary { color: #b91c1c; }
+/* Light shading on completed steps to show progress at a glance */
+.tctr-step[data-status="done"] > summary { background: #f4fbf6; }
+.tctr-step[data-status="done"] > summary:hover { background: #e8f7ee; }
+/* Disclosure caret — signals each step is expandable */
+.tctr-step-chev {
+  flex: 0 0 auto; font-size: 9px; color: #94a3b8; margin-left: 2px;
+  transition: transform 0.15s;
+}
+.tctr-step[open] > summary .tctr-step-chev { transform: rotate(90deg); color: #64748b; }
+.tctr-step > summary:hover .tctr-step-chev { color: #475569; }
 
 .tctr-lane {
   font-size: 9px; font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
@@ -136,3 +148,26 @@
 }
 .tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(15, 23, 42, 0.15); padding-top: 5px; }
 .tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: 10.5px; }
+
+/* MCP tab panel */
+.tctr-mcp .tctr-sec-label { padding-top: 12px; }
+.tctr-mcp-empty {
+  padding: 10px 12px; font-size: 12px; color: #64748b; font-style: italic;
+}
+
+/* Tab strip */
+.tctr-tabs {
+  display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid #e8eef7;
+}
+.tctr-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 6px 10px; font-size: 12px; font-weight: 600; color: #64748b;
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+}
+.tctr-tab:hover { color: #16325c; }
+.tctr-tab--active { color: #16325c; border-bottom-color: #16325c; }
+.tctr-tab-count {
+  font-size: 10.5px; font-weight: 700; color: #64748b;
+  background: #eef2f9; border-radius: 999px; padding: 0 6px;
+}
+.tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: #16325c; }

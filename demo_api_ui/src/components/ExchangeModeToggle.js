@@ -80,6 +80,30 @@ export default function ExchangeModeToggle({ hideTable = false }) {
             )}
           </p>
 
+          <div className="emt-explainer">
+            {isTransaction ? (
+              <p>
+                Each call mints a fresh <strong>Transaction Token</strong> carrying a unique
+                {' '}<code>txn_id</code> and <code>txn_scope</code>, so every operation is
+                individually authorized, auditable, and safe from replay. The agent never
+                holds the user&rsquo;s credentials — only PingOne can issue the token.
+              </p>
+            ) : (
+              <p>
+                PingOne runs an <strong>RFC 8693 token exchange</strong>: the user&rsquo;s
+                token is the <code>subject_token</code> and the agent&rsquo;s token is the
+                {' '}<code>actor_token</code>. The result is a short-lived, narrowly-scoped
+                delegated token whose nested <code>act</code> claim proves &ldquo;agent acting
+                for user.&rdquo; The user and agent tokens stay secret on the BFF — only the
+                delegated token reaches the MCP server.
+              </p>
+            )}
+            <p className="emt-explainer-hint">
+              Each step in the Token Chain below is one hop of this exchange —
+              {' '}<strong>click any step</strong> to inspect its request, policy decision, and resulting scopes.
+            </p>
+          </div>
+
           {/* Token Types Table */}
           {!hideTable && (
             <div className="emt-tokens-table">

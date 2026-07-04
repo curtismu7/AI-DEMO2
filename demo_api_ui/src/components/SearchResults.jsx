@@ -55,10 +55,10 @@ export default function SearchResults({ results, isLoading, error }) {
               }}
             >
               <div className="result-title">
-                <span className="file-path">{result.file_path}</span>
+                <span className="file-path">{result.file}</span>
                 <span className="score">
-                  {result.relevance_score
-                    ? `${(result.relevance_score * 100).toFixed(1)}%`
+                  {result.relevance
+                    ? `${(result.relevance * 100).toFixed(1)}%`
                     : '—'}
                 </span>
               </div>
@@ -71,7 +71,7 @@ export default function SearchResults({ results, isLoading, error }) {
 
             {expandedId === (result.id || idx) && (
               <div className="result-body">
-                <pre className="code-snippet">{result.code_snippet}</pre>
+                <pre className="code-snippet">{result.snippet}</pre>
               </div>
             )}
           </div>

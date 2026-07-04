@@ -4,6 +4,17 @@ const path = require('path');
 const router = express.Router();
 const dataStore = require('../data/store');
 const { requireAdmin, requireScopes, authenticateToken } = require('../middleware/auth');
+
+// Activity-log READS are open to any authenticated user (relaxed in 9bc18996b),
+// but non-admins must only see their OWN activity — otherwise "open reads"
+// leaks every user's trail (issue #122). isActivityAdmin mirrors requireAdmin's
+// check; scopeActivityToCaller narrows the log set to the caller for non-admins.
+// The activity logger records log.username = req.user.username (same value we
+// compare against, see middleware/activityLogger.js), so this matches reliably.
+const isActivityAdmin = (req) =>
+  !!req.user && (req.user.role === 'admin' || (req.user.scopes || []).includes('admin:read'));
+const scopeActivityToCaller = (req, logs) =>
+  isActivityAdmin(req) ? logs : logs.filter((log) => log.username === req.user?.username);
 const { controlPlaneVisible } = require('./appEventsStreamFilter');
 const runtimeSettings = require('../config/runtimeSettings');
 const {
@@ -209,9 +220,11 @@ router.get('/activity', authenticateToken, (req, res) => {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 50);
 
-    let logs = dataStore.getAllActivityLogs();
+    // Non-admins see only their own activity; admins see everyone's.
+    let logs = scopeActivityToCaller(req, dataStore.getAllActivityLogs());
 
-    // Filter by username
+    // Filter by username (further narrows; for non-admins the set is already
+    // scoped to self, so an other-user value simply yields no rows).
     if (username) {
       logs = logs.filter(log => log.username && log.username.toLowerCase().includes(username.toLowerCase()));
     }
@@ -258,8 +271,10 @@ router.get('/activity', authenticateToken, (req, res) => {
   }
 });
 
-// Get activity logs by username
-router.get('/activity/user/:username', authenticateToken, (req, res) => {
+// Get activity logs by username — admin-only: reading another user's activity
+// trail is cross-user access, so it stays gated (unlike the general read
+// endpoints relaxed in 9bc18996b). See issue #122.
+router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const { username } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -294,8 +309,9 @@ router.get('/activity/user/:username', authenticateToken, (req, res) => {
   }
 });
 
-// Get activity logs by user ID
-router.get('/activity/userid/:userId', authenticateToken, (req, res) => {
+// Get activity logs by user ID — admin-only for the same reason as
+// /activity/user/:username above (cross-user access). See issue #122.
+router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 50 } = req.query;
@@ -336,7 +352,7 @@ router.get('/activity/recent', authenticateToken, (req, res) => {
     const { hours = 24 } = req.query;
     const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
     
-    const logs = dataStore.getAllActivityLogs()
+    const logs = scopeActivityToCaller(req, dataStore.getAllActivityLogs())
       .filter(log => new Date(log.timestamp) >= cutoffTime)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
@@ -351,8 +367,8 @@ router.get('/activity/recent', authenticateToken, (req, res) => {
 // Get activity summary by action type
 router.get('/activity/summary', authenticateToken, (req, res) => {
   try {
-    const logs = dataStore.getAllActivityLogs();
-    
+    const logs = scopeActivityToCaller(req, dataStore.getAllActivityLogs());
+
     const summary = logs.reduce((acc, log) => {
       const action = log.action || 'UNKNOWN';
       acc[action] = (acc[action] || 0) + 1;
@@ -372,8 +388,10 @@ router.get('/activity/summary', authenticateToken, (req, res) => {
   }
 });
 
-// Get user activity summary
-router.get('/activity/users/summary', authenticateToken, (req, res) => {
+// Get user activity summary — admin-only: this aggregates EVERY user's action
+// counts (inherently cross-user), so it can't be caller-scoped like the other
+// reads. See issue #122.
+router.get('/activity/users/summary', requireAdmin, requireScopes(['admin']), (req, res) => {
   try {
     const logs = dataStore.getAllActivityLogs();
     

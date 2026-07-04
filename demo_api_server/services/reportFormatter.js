@@ -105,11 +105,11 @@ function formatMarkdown(run) {
     md += `> (RFC 8693), and intent binding (draft-ietf-oauth-intent-token).\n\n`;
     for (let i = 0; i < run.tokenEvents.length; i++) {
       const evt = run.tokenEvents[i];
-      const icon = isEventSuccess(evt) ? '✅' : (evt.status === 'skipped' ? '⚠️' : '❌');
+      const icon = isEventSuccess(evt) ? '✅' : (evt.status === 'skipped' ? '⚠️' : (evt.status ? '❌' : '➖'));
       const time = new Date(evt.timestamp).toLocaleTimeString();
 
       md += `### ${i + 1}. ${evt.label || evt.id || 'Event'}\n\n`;
-      let statusLine = '**Status:** ' + icon + ' `' + evt.status + '`';
+      let statusLine = '**Status:** ' + icon + ' `' + (evt.status || 'unknown') + '`';
       if (evt.eventType) statusLine += '  ·  **Type:** `' + evt.eventType + '`';
       if (evt.alg) statusLine += '  ·  **Alg:** `' + evt.alg + '`';
       if (evt.clientAuthMethod) statusLine += '  ·  **Client Auth:** `' + evt.clientAuthMethod + '`';
@@ -395,10 +395,14 @@ function formatHtml(run) {
     for (let i = 0; i < run.tokenEvents.length; i++) {
       const evt = run.tokenEvents[i];
       const ok = isEventSuccess(evt);
-      const icon = ok ? '&#x2705;' : (evt.status === 'skipped' ? '&#x26A0;&#xFE0F;' : '&#x274C;');
-      const badgeClass = ok ? 'badge-success' : (evt.status === 'skipped' ? 'badge-skipped' : 'badge-failed');
+      // An event with no status is "unknown", not a failure — render it neutrally
+      // instead of a red ❌ / "UNDEFINED" badge.
+      const unknownStatus = !evt.status;
+      const statusLabel = evt.status || 'unknown';
+      const icon = ok ? '&#x2705;' : (evt.status === 'skipped' ? '&#x26A0;&#xFE0F;' : (unknownStatus ? '&#x2013;' : '&#x274C;'));
+      const badgeClass = ok ? 'badge-success' : (evt.status === 'skipped' ? 'badge-skipped' : (unknownStatus ? 'badge-neutral' : 'badge-failed'));
       const timestamp = new Date(evt.timestamp).toLocaleTimeString();
-      const itemClass = ok ? '' : (evt.status === 'skipped' ? ' skipped' : ' failed');
+      const itemClass = ok ? '' : (evt.status === 'skipped' ? ' skipped' : (unknownStatus ? '' : ' failed'));
       const safeLabel = (evt.label || evt.id || 'Event').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
       html += `        <div class="event-item${itemClass}">
@@ -407,7 +411,7 @@ function formatHtml(run) {
             <span class="event-label">${icon} ${safeLabel}</span>
           </div>
           <div class="event-pills">
-            <span class="badge ${badgeClass}">${evt.status}</span>
+            <span class="badge ${badgeClass}">${statusLabel}</span>
             <span class="pill">${timestamp}</span>`;
       if (evt.eventType) html += `\n            <span class="pill type">type: ${evt.eventType}</span>`;
       if (evt.alg) html += `\n            <span class="pill alg">alg: ${evt.alg}</span>`;
@@ -625,9 +629,9 @@ function formatPdf(run) {
         run.tokenEvents.forEach((evt, i) => {
           doc.moveDown(0.3);
           subheading(`${i + 1}. ${evt.label || evt.id || 'Event'}`);
-          const okLabel = isEventSuccess(evt) ? 'OK' : 'FAIL';
+          const okLabel = isEventSuccess(evt) ? 'OK' : (evt.status ? 'FAIL' : 'UNKNOWN');
           const time = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : '';
-          let statusStr = `Status: ${okLabel} (${evt.status})`;
+          let statusStr = `Status: ${okLabel} (${evt.status || 'unknown'})`;
           if (evt.eventType) statusStr += `  |  Type: ${evt.eventType}`;
           if (evt.alg) statusStr += `  |  Alg: ${evt.alg}`;
           if (evt.clientAuthMethod) statusStr += `  |  Client Auth: ${evt.clientAuthMethod}`;

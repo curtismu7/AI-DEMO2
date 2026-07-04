@@ -7,6 +7,12 @@ export const LANES = {
   gateway: "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
 };
 
+// The delegation-to-MCP portion of the pipeline, in order. Not derivable from
+// LANES (exchange shares the BFF lane with agent-token), so declared explicitly
+// here alongside the rest of the step-model vocabulary — the MCP tab and the
+// rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
+export const MCP_STEP_IDS = ["exchange", "gateway", "mcp", "api"];
+
 const TITLES = {
   signin: "Sign-in — User Token acquired",
   prompt: "Chatbot — prompt sent",
@@ -22,7 +28,7 @@ const TITLES = {
   reply: "LLM composes reply → chat",
 };
 
-const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
+export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
 const findEvent = (events, id) => events.find((e) => e && e.id === id) || null;

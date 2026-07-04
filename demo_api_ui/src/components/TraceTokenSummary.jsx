@@ -10,9 +10,12 @@ const TOKEN_META = {
   "exchanged-token": { name: "Delegated Token", cls: "mcp", role: "act chain", parent: "user-token", inspect: "mcp" },
 };
 
-export default function TraceTokenSummary({ tokenEvents, onInspect }) {
+export default function TraceTokenSummary({ tokenEvents, onInspect, only }) {
   const byId = Object.fromEntries((tokenEvents || []).map((e) => [e.id, e]));
-  const tokens = Object.keys(TOKEN_META).map((id) => byId[id] && { id, evt: byId[id] }).filter(Boolean);
+  const tokens = Object.keys(TOKEN_META)
+    .filter((id) => !only || TOKEN_META[id].cls === only)
+    .map((id) => byId[id] && { id, evt: byId[id] })
+    .filter(Boolean);
   if (!tokens.length) return null;
 
   return (
