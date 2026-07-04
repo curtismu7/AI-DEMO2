@@ -1,1 +1,0 @@
-{"enabled":false,"deliveryMode":"poll","bindingMessage":"Banking App Authentication","setupRequired":true,"setupSteps":["Set CIBA_ENABLED=true in your environment","Enable the CIBA grant type on your PingOne application","Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device"]}
