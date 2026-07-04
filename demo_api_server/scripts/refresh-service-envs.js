@@ -400,6 +400,9 @@ async function main() {
     PG_GATEWAY_RESOURCE_ID:         topology.deployment?.environments?.local?.pingGatewayResourceUri
                                       || fb('PINGONE_RESOURCE_PINGGATEWAY_URI')
                                       || 'https://api.ping.demo:3036/mcp',
+    BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
+    BFF_VAULT_KEY_URL:              'https://demo-api-server:3001/internal/vault/service-key',
+    PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
