@@ -59,21 +59,28 @@ export const CONFIGS = {
     id: 'banking', name: 'Banking Ops', short: 'Banking', icon: '🏦',
     theme: { accent: '#2563eb', accent2: '#1e3a8a', tint: '#eef4ff' },
     lookupPath: '/api/admin/banking/lookup',
-    lookupPlaceholder: 'Look up account by number or holder…',
+    lookupPlaceholder: 'Look up by holder name, username, email, or account number…',
     pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Seed charge': { method: 'post', buildUrl: (row) => `/api/admin/banking/accounts/${encodeURIComponent(row.id)}/seed-charges` },
       'Delete': { method: 'delete', buildUrl: (row, _c, catId) => catId === 'transactions' ? `/api/transactions/${encodeURIComponent(row.id)}` : `/api/accounts/${encodeURIComponent(row.id)}` },
     },
     adaptLookup: (resp) => {
-      const accounts = (resp && resp.accounts) || [];
-      const txns = (resp && resp.transactions) || [];
+      // Shares the { user, data } envelope with the other verticals. `user` is
+      // the resolved holder when the query matched a demo user; it's null for a
+      // bare account-number/id lookup, in which case we fall back to a generic
+      // "Account holder" summary.
+      const data = (resp && resp.data) || {};
+      const accounts = data.accounts || [];
+      const txns = data.transactions || [];
+      const u = resp && resp.user;
       const total = accounts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
       return {
-        customer: accounts.length ? {
-          name: 'Account holder',
-          sub: `${accounts.length} account(s)`,
-          avatar: 'AC',
+        customer: (u || accounts.length) ? {
+          id: u ? u.id : undefined,
+          name: u ? (u.name || u.username) : 'Account holder',
+          sub: u ? `ID ${u.id}${u.email ? ' · ' + u.email : ''}` : `${accounts.length} account(s)`,
+          avatar: u ? (u.name || u.username || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() : 'AC',
           stats: [['Total balance', money(total)], ['Accounts', String(accounts.length)], ['Txns', String(txns.length)]],
         } : null,
         categories: [
