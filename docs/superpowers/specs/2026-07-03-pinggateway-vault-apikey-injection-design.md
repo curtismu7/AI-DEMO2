@@ -199,3 +199,63 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 - api_key dispositions for other verticals (healthcare/retail/etc.).
 - Removing the Node gateway's existing api_key path (left intact for the
   flag-false route).
+
+---
+
+## Revision 2 (2026-07-04) — "Reading B": invest is an API-key backend, and re-phasing
+
+**What changed:** exploration of the invest path showed the existing `mcp-invest`
+is a **WebSocket, OAuth-token-exchange** MCP server that the BFF never routes to
+IG's invest route (the BFF posts every tool to `/mcp`, and mcp-invest speaks WS,
+not HTTP). So "IG injects a static X-API-Key into mcp-invest" (Revision 1's
+investment design) is not viable. Confirmed with the user: **"invest" means a
+second API-key-gated app that mirrors mortgage** — a new `/invest` route on the
+same api-key-gated `demo_data_service` (`demo_mortgage_service`, which already
+serves `/mortgage`, `/retail`, `/healthcare`, …), reached through the **same**
+credential-mediation path as mortgage. This supersedes the "augment the invest
+route" design above.
+
+**Auth-evidence requirement (new):** on the mortgage AND invest app surfaces,
+show *how it authenticated* — the partially-masked service key (`••••0000`) and
+the API call that carried it (`GET /invest`, `X-API-Key`, bearer dropped). The UI
+for this already exists: `VerticalFeaturePage.jsx` renders a "Credential swap"
+card with `****{apiKeyMaskedLast4}` + "Auth mechanism", fed from the tool
+result's `_meta` (read in `AIAgent.js` `vertical_feature_demo`). We add an
+`apiCall` field to `_meta` and one line to that card. (Mock approved.)
+
+**Re-phasing (supersedes the 3-phase list above):**
+
+- **Phase 2 (this next unit) — the invest app + auth evidence via the api-key
+  disposition, no live IG.** Deliver a working invest app authenticated by a
+  vault-eligible service key, using the *existing* Node-gateway api-key dispatch
+  (`apiKeyDispatch.ts`) — which already does mortgage. Unit-testable; no
+  shared-stack recreate.
+  1. `demo_data_service`: add an `invest` vertical to `VERTICALS` →
+     auto-registers `GET /invest` returning a portfolio record.
+  2. Node gateway `router.ts`: register `show_investment` in `APIKEY_TOOLS` +
+     `APIKEY_BACKEND_ROUTES` (`show_investment → 'invest'`) + `TOOL_DISPLAY_NAMES`;
+     `invest:read` in `toolScopes`.
+  3. `apiKeyDispatch.ts`: add `_meta.apiCall` (e.g. `GET /invest`) and fix the
+     masked last4 to reflect the actually-injected key (currently WS shows the
+     Phase-266 marker key's last4, HTTP shows `XXXX`).
+  4. Docker fix: give `mcp-gateway` `MORTGAGE_SERVICE_URL=http://mortgage-service:8082`
+     so the api-key dispatch reaches the backend in-container (today it defaults
+     to `localhost:8082`, unreachable → the real mortgage/invest call fails).
+  5. UI: `VerticalFeaturePage.jsx` — render the new `_meta.apiCall` line in the
+     Credential-swap card; add a minimal invest entry point (a `banking`-vertical
+     feature or an `InvestPathPage` mirroring `MortgagePathPage`).
+  6. Trace Rail: surface the `apiCall` / masked key on the gateway/api step in
+     `buildTraceSteps.js`.
+
+- **Phase 3 — move the injection onto the IG path (the "PingGateway does it"
+  part) + live.** The IG scriptable handler (REST→MCP + vault-key fetch via the
+  Phase-1 bridge + `X-API-Key`) fronting `demo_data_service` for BOTH
+  `show_mortgage` and `show_investment`, plus BFF tool→path routing
+  (`mcpGatewayClient.js`) so those tools reach IG on a dedicated path. This is the
+  phase that recreates `ai-demo-ping-gateway` and finally exercises the Phase-1
+  IG→BFF TLS bridge. Requires user authorization for the live recreate.
+
+**Rationale:** Phase 2 delivers a visible, testable invest app + credential
+evidence without the risky Groovy rebuild or a shared-stack recreate, and every
+piece (backend route, tool, `_meta`, UI, trace) is reused unchanged when Phase 3
+moves the injection actor from the Node gateway to IG.
