@@ -1,10 +1,8 @@
 # Regression Plan — Super Banking demo
 
-Canonical do-not-break contract for the Super Banking demo. The
-`regression-guard` skill (`.claude/skills/regression-guard/`) and
-`.cursor/rules/regression-guard.mdc` are the discipline layer that points here;
-this file is the source of truth. When the skill and this file disagree, this
-file wins. Keep all three in sync.
+Canonical do-not-break contract for the Super Banking demo. `CLAUDE.md` points
+here; this file is the source of truth. If any skill or rule disagrees with it,
+this file wins.
 
 ---
 
