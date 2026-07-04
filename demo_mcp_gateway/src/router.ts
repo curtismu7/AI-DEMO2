@@ -50,6 +50,7 @@ const INVEST_TOOLS = new Set([
 //   the split is decided by backendHttpUrl() returning non-empty, not here.
 const APIKEY_TOOLS = new Set([
   'show_mortgage',       // banking — home loan (Phase 267)
+  'show_investment',     // banking — investment portfolio (api-key demo, Phase 2)
   'show_large_purchase', // retail — Great Buy large purchase
   'show_health_record',  // healthcare — CareConnect health record
   'show_gear_order',     // sporting-goods — Super Sports gear order
@@ -104,6 +105,7 @@ export function backendResourceUri(target: BackendTarget, config: GatewayConfig)
 /** Maps api_key-disposition tool names to their route segment on the data service backend. */
 export const APIKEY_BACKEND_ROUTES: Record<string, string> = {
   show_mortgage:       'mortgage',
+  show_investment:     'invest',
   show_large_purchase: 'retail',
   show_health_record:  'healthcare',
   show_gear_order:     'gear',

@@ -168,10 +168,16 @@ export function buildTraceSteps(trace) {
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
     } : {}));
-  steps.push(makeStep("api", mcpDone && mcpResult ? "done" : "pending",
-    mcpResult && mcpResult.result ? {
+  const apiMeta = (mcpResult && mcpResult._meta) || {};
+  const apiKeyCall = apiMeta.credentialPath === "api_key";
+  steps.push(makeStep("api", (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
+    mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: "The actual resource-server call made with the delegated bearer token.",
-      response: { title: "API result", text: asJson(mcpResult.result) },
+      response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
+      kv: [
+        apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
+        apiKeyCall && apiMeta.apiKeyMaskedLast4 ? ["service key", `••••${apiMeta.apiKeyMaskedLast4}`] : null,
+      ].filter(Boolean),
     } : {}));
 
   // 11. reply

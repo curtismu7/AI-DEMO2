@@ -338,6 +338,7 @@ services:
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
@@ -599,7 +600,26 @@ services:
     # OrbStack preserves the container writable layer across daemon restarts, so
     # tmp/ig.pid survives an unclean stop even without a named volume. Delete it
     # before handing off to the real startup script.
-    entrypoint: ["/bin/sh", "-c", "rm -f /var/gateway/tmp/ig.pid && exec /opt/gateway/bin/start.sh /var/gateway"]
+    # keytool -cacerts (the stock approach) fails here: the image runs as a fixed
+    # non-root uid (forgerock) with no privilege drop, and $JAVA_HOME/lib/security/
+    # cacerts is root:root 0644 (not group-writable) — confirmed live via
+    # `docker exec ai-demo-ping-gateway id -u` (11111) and `ls -l cacerts`.
+    # Fallback: copy the JDK cacerts (keeps trust for real auth.pingone.com /
+    # api.pingone.com calls IG also makes) into the writable /var/gateway instance
+    # dir, then import the mkcert root into that copy; JAVA_OPTS below points the
+    # JVM at it. Idempotent via `|| true` (mkcert-root re-import on restart no-ops).
+    # `$$JAVA_HOME` (not `$JAVA_HOME`): Compose interpolates single-`$` vars from
+    # the HOST env at `docker compose config` time (confirmed live — an unset host
+    # JAVA_HOME silently rendered as an empty string). `$$` escapes to a literal
+    # `$`, deferring expansion to the container's own shell/JAVA_HOME at runtime.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        cp "$$JAVA_HOME/lib/security/cacerts" /var/gateway/mkcert-truststore.jks 2>/dev/null || true;
+        keytool -importcert -noprompt -alias mkcert-root -keystore /var/gateway/mkcert-truststore.jks -storepass changeit
+        -file /certs/mkcert-rootCA.pem 2>/dev/null || true;
+        rm -f /var/gateway/tmp/ig.pid && exec /opt/gateway/bin/start.sh /var/gateway
     ports:
       - "3036:8080"
     volumes:
@@ -620,6 +640,7 @@ services:
       - ./ping-gateway/config:/var/gateway/config:ro
       - ./ping-gateway/scripts/groovy:/var/gateway/scripts/groovy:ro
       - ./mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro
+      - ./certs:/certs:ro   # mkcert CA imported into the JVM truststore at start (IG→BFF TLS)
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
@@ -630,6 +651,15 @@ services:
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
       # pin silently overrides the real id (the mock only uses it as a path param,
       # so the real value works for both backends).
+      PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
+      BFF_VAULT_KEY_URL: "https://demo-api-server:3001/internal/vault/service-key"
+      # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
+      # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
+      # it here (environment: would override env_file with a wrong/default value).
+      # Fallback truststore (see entrypoint comment above): -cacerts isn't writable
+      # by the fixed non-root image user, so the mkcert root is imported into a
+      # copy of cacerts under /var/gateway instead, and the JVM is pointed at it.
+      JAVA_OPTS: "-Djavax.net.ssl.trustStore=/var/gateway/mkcert-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit"
     env_file:
       # Secrets + PingOne endpoints + resource ids (gitignored; .env.example is SoT).
       - path: ./ping-gateway/.env

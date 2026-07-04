@@ -1,0 +1,17 @@
+const request = require('supertest');
+process.env.MORTGAGE_SERVICE_API_KEY = 'demo-mortgage-key-0000';
+const app = require('../server');
+
+describe('GET /invest', () => {
+  test('401 without X-API-Key', async () => {
+    const res = await request(app).get('/invest');
+    expect(res.status).toBe(401);
+  });
+  test('200 with valid X-API-Key returns a portfolio record', async () => {
+    const res = await request(app).get('/invest').set('X-API-Key', 'demo-mortgage-key-0000');
+    expect(res.status).toBe(200);
+    expect(res.body.invest).toBeTruthy();
+    expect(res.body.invest.portfolioId).toBe('INV-8842');
+    expect(res.body.authMechanism).toBe('X-API-Key (shared secret)');
+  });
+});

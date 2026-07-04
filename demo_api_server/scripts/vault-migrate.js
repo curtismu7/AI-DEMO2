@@ -78,6 +78,7 @@ const ALLOWED_ENV_VARS = Object.freeze([
   // by MCP Gateway's DEMO_ allowlist prefix. Must be present here so that
   // vault:migrate-from-env copies it from .env on a fresh install.
   'DEMO_MORTGAGE_SERVICE_KEY',
+  'DEMO_INVEST_SERVICE_KEY',
 ]);
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
