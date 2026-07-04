@@ -34,4 +34,21 @@ describe("BankingChips grey states", () => {
       expect.stringContaining("couldn't reach PingOne or the demo authorize server"),
     );
   });
+
+  it("prompts sign-in (not an authorize error) when there's no token", () => {
+    render(
+      <BankingChips
+        user={{ role: "user" }}
+        toolPermissions={{}}
+        toolsError
+        needsSignIn
+        onChipClick={() => {}}
+      />,
+    );
+    // A clickable sign-in CTA appears, and the unverified chip tooltip switches
+    // from the misleading authorize-outage copy to a sign-in prompt.
+    expect(screen.getByRole("button", { name: /sign in to use these actions/i })).toBeInTheDocument();
+    const btn = screen.getByText("My records").closest("button");
+    expect(btn).toHaveAttribute("title", "Sign in to use these actions.");
+  });
 });

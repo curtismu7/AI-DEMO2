@@ -53,6 +53,15 @@ vi.mock("../../context/AgentUiModeContext", () => ({
   }),
 }));
 
+vi.mock("../../context/SessionTokenContext", () => ({
+  // Token present by default → needsSignIn=false, existing chip behavior.
+  useSessionToken: () => ({
+    tokenSecondsLeft: 900,
+    tokenLoading: false,
+    staleSession: false,
+  }),
+}));
+
 vi.mock("../../services/demoAgentNlService", () => ({
   fetchNlStatus: jest
     .fn()
