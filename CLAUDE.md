@@ -1,44 +1,78 @@
-# Autonomous SDLC Framework
+# Banking Demo — PingOne Edition
 
-This project uses the **Autonomous SDLC Framework** for AI-driven development. 40 agents execute the full software development lifecycle autonomously.
+Standalone AI-powered banking demo using PingOne for authentication and RFC 8693
+Token Exchange, so an AI agent can access banking data on behalf of a user. The
+repo is a set of cooperating services (BFF/API, UI, MCP servers, AI agents, an
+authorization gateway) plus provisioning and test tooling.
 
-> **Full instructions are in `.sdlc/framework/agents/orchestrator.md`.** This file is the concise summary Claude Code loads at startup.
+This file is the canonical instruction set for AI agents. `AGENTS.md` redirects
+here.
+
+## Do-not-break contract — read before editing protected areas
+
+**[REGRESSION_PLAN.md](REGRESSION_PLAN.md) is the source of truth for what must
+not break.** Read `§0` (hard UI/style rules) and `§1` (protected areas) before
+changing auth flows, token exchange, the BFF session layer, or UI surfaces. That
+file is the source of truth; if any skill or rule disagrees with it, it wins.
+
+Two rules from `§0` that apply to everything you write here:
+
+- **Emoji rule:** the only emojis allowed in skills, commands, code, and UI text
+  are `⚠️` `✅` `❌` `🔐`. Everything else is plain text or CSS/semantic icons.
+- **Minimal diff:** name the component, name the element, change only that. No
+  "while I'm here" cleanup of adjacent code.
 
 ## Working Practice — Always Work in a Worktree (REQUIRED)
 
-**Every agent/session must do its edit→test→commit cycle in its own isolated git worktree**, never directly in the shared main checkout. Multiple sessions run concurrently against this repo; sharing one checkout/index lets another session's `git add -A`/commit/checkout capture or move your work (collisions have happened — an unrelated commit swept up another session's staged files).
+**Every agent/session must do its edit→test→commit cycle in its own isolated git
+worktree**, never directly in the shared main checkout. Multiple sessions run
+concurrently against this repo; sharing one checkout/index lets another
+session's `git add -A`/commit/checkout capture or move your work (collisions have
+happened — an unrelated commit swept up another session's staged files).
 
-- At the start of any task that edits files or commits, create/enter a worktree (`superpowers:using-git-worktrees`, `EnterWorktree`, or dispatch subagents with `isolation: "worktree"`). One branch per worktree.
-- Stage explicitly (`git add <files>`), never `git add -A`; verify `git branch --show-current` before each commit.
-- A global hard-block hook denies `Write`/`Edit` in any repo's main checkout to enforce this — set up a worktree first.
+- At the start of any task that edits files or commits, create/enter a worktree
+  (`superpowers:using-git-worktrees`, `EnterWorktree`, or dispatch subagents with
+  `isolation: "worktree"`). One branch per worktree.
+- Stage explicitly (`git add <files>`), never `git add -A`; verify
+  `git branch --show-current` before each commit.
+- A global hard-block hook denies `Write`/`Edit` in any repo's main checkout to
+  enforce this — set up a worktree first.
 
-## Priority Reading Order
+## Running the stack
 
-1. `AGENTS.md` — Agent discovery and registry
-2. `.sdlc/CONTINUITY.md` — Current session state (working memory)
-3. `.sdlc/state/orchestrator.json` — Phase progress
+- `./run.sh` — primary local launcher (native Node/Python). API at
+  `https://api.ping.demo:3001`, UI at `:4000`, MCP server at `localhost:8080`,
+  LangChain agent at `8887/8889/8881`. One-time setup: add `api.ping.demo` to
+  `/etc/hosts` and run `mkcert -install`.
+- `./run-docker.sh` — Docker Compose launcher. Hot reload on by default (UI via
+  Vite HMR, BFF via `node --watch`). `./run-docker.sh {stop|restart|build|logs|
+  status} [svc...]`; `PROD_MODE=1` uses the nginx build instead.
+- `./run-k8.sh` — Kubernetes / OrbStack / EKS variants (see `README.md`).
 
-## How to Operate
+## Tests
 
-- Read `.sdlc/framework/agents/orchestrator.md` for full orchestrator instructions
-- Follow the RARV cycle: Reason → Act → Reflect → Verify
-- Read CONTINUITY.md at the start of every turn
-- Update CONTINUITY.md at the end of every turn
-- Execute phases sequentially, dispatch subagents as needed
-- Enforce quality gates before phase transitions
+- `./run-tests.sh [unit|api|e2e|all]` — quick entry point; `unit` is the fastest
+  regression suite.
+- `npm test` — full suite (`scripts/run-all-tests.sh`). Per-service targets exist
+  as `npm run test:<service>` (e.g. `test:api-server`, `test:ui`, `test:agent`,
+  `test:mcp-server`); see `package.json` for the full list.
+- Topology/hygiene gates: `npm run topology:verify`, `npm run hygiene:check`.
 
-## Current State
+## Provisioning (PingOne)
 
-Check `.sdlc/CONTINUITY.md` for the current phase and next steps.
+Bootstrap and lifecycle scripts run via npm: `npm run setup:fresh`,
+`pingone:bootstrap`, `pingone:refresh-envs`, `import`/`export`, `reset`,
+`uninstall`. These mutate a live PingOne environment — read the script before
+running. Prefer the hosted PingOne MCP tools for app/population/user reads and
+env updates during development.
 
-## Available Commands
+## Repo layout (high level)
 
-Use `/sdlc-orchestrator` to start or resume the SDLC workflow.
-
-## Agent Prompts Location
-
-- Orchestrator: `.sdlc/framework/agents/orchestrator.md`
-- Stage agents: `.sdlc/framework/agents/stage/*.md`
-- Subagents: `.sdlc/framework/agents/sub/**/*.md`
-- References: `.sdlc/framework/references/*.md`
-- Skills: `.sdlc/framework/skills/*.md`
+- `demo_api_server/` — BFF / API + provisioning scripts (main test surface)
+- `demo_api_ui/` — React UI (Vite)
+- `demo_mcp_server/`, `demo_mcp_gateway/`, `demo_mcp_proxy/` — MCP servers/gateway
+- `demo_authz_server/`, `demo_hitl_service/`, `ping-gateway/` — authz / HITL / gateway
+- `langchain_agent/`, `openai_agent/`, `pydantic_agent/`, `mastra_agent/` — AI agents
+- `demo_llm_proxy/` — model router (`:8090`, host tiers `8091-8096`)
+- `scripts/` — topology, hygiene, release, provisioning helpers
+- `docs/`, `planning/` — documentation and plans
