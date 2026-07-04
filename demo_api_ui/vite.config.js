@@ -81,9 +81,13 @@ export default defineConfig(({ mode }) => {
 
     server: {
       host: true,
-      port: 4000,
+      // Honor PORT / HTTPS from the environment so the Playwright webServer
+      // (which sets PORT=3000, HTTPS=false to self-host the dev server on plain
+      // HTTP) works after the CRA→Vite migration. Default stays 4000 + HTTPS
+      // (mkcert cert present) for `npm start` and the Docker dev mount.
+      port: process.env.PORT ? Number(process.env.PORT) : 4000,
       allowedHosts: ['api.ping.demo'],
-      ...(existsSync(certFile) && {
+      ...(process.env.HTTPS !== 'false' && existsSync(certFile) && {
         https: {
           key: readFileSync(resolve(__dirname, '../certs/api.ping.demo+2-key.pem')),
           cert: readFileSync(certFile),

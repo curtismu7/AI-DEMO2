@@ -6,6 +6,8 @@ import { notifyError, notifySuccess } from '../utils/appToast';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
 
+const isTruthy = (v) => ['true', '1', 'on'].includes(String(v || '').toLowerCase().trim());
+
 /**
  * Admin-only viewer for OAuth verbose log lines (file / KV / memory on the API server).
  */
@@ -16,6 +18,30 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
   const [hint, setHint] = useState('');
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [verbose, setVerbose] = useState(null); // null = unknown/not yet loaded
+  const [savingFlag, setSavingFlag] = useState(false);
+
+  const fetchFlag = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/api/admin/config');
+      setVerbose(isTruthy(data?.config?.debug_oauth));
+    } catch (_e) {
+      // leave verbose as-is; the log fetch surfaces any auth errors
+    }
+  }, []);
+
+  const toggleVerbose = useCallback(async (next) => {
+    setSavingFlag(true);
+    try {
+      await apiClient.post('/api/admin/config', { debug_oauth: next ? 'true' : 'false' });
+      setVerbose(next);
+      notifySuccess(next ? 'Debug OAuth logging ON.' : 'Debug OAuth logging OFF.');
+    } catch (e) {
+      notifyError(e.response?.data?.message || e.message || 'Failed to update flag');
+    } finally {
+      setSavingFlag(false);
+    }
+  }, []);
 
   const fetchLog = useCallback(async () => {
     try {
@@ -32,7 +58,8 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
 
   useEffect(() => {
     fetchLog();
-  }, [fetchLog]);
+    fetchFlag();
+  }, [fetchLog, fetchFlag]);
 
   useEffect(() => {
     if (!autoRefresh) return undefined;
@@ -56,8 +83,8 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
       title="OAuth debug log"
       lead={(
         <>
-          Lines appear when <strong>Debug OAuth logging</strong> is <strong>On</strong> in{' '}
-          <Link to="/config">Configuration</Link> and the API processes OAuth traffic. Storage:{' '}
+          Lines appear when <strong>Debug OAuth logging</strong> is <strong>On</strong> (toggle it
+          below) and the API processes OAuth traffic. Storage:{' '}
           <code style={{ fontSize: '0.8rem' }}>{backend || '—'}</code>
         </>
       )}
@@ -67,6 +94,15 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
         <Link to={dashboardPath} className="app-page-toolbar-btn app-page-toolbar-btn--accent">
           ← Dashboard
         </Link>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+          <input
+            type="checkbox"
+            checked={verbose === true}
+            disabled={verbose === null || savingFlag}
+            onChange={(e) => toggleVerbose(e.target.checked)}
+          />
+          Debug OAuth logging {verbose === null ? '(…)' : verbose ? 'ON' : 'OFF'}
+        </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: '#475569' }}>
           <input
             type="checkbox"
@@ -104,7 +140,7 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
         >
           {lines.length
             ? lines.join('\n')
-            : '(No lines yet — turn on verbose logging in Config, save, then sign in or call an API so the server emits debug lines.)'}
+            : '(No lines yet — turn on "Debug OAuth logging" above, then sign in or call an API so the server emits debug lines.)'}
         </pre>
       )}
     </AdminSubPageShell>

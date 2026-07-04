@@ -10,6 +10,7 @@ import { useVertical } from "../vertical/useVertical";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import AgentUiModeToggle from "./AgentUiModeToggle";
 import ThresholdControls from "./ThresholdControls";
+import QuickFlagsPill from "./QuickFlagsPill";
 import UserMenu from "./UserMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
 import "./TopNav.css";
@@ -103,6 +104,10 @@ export default function TopNav({ user, onLogout }) {
             demo flow can be tailored before sign-in. The switcher hides
             itself when fewer than 2 verticals exist. */}
         <VerticalSwitcher variant="nav" />
+
+        {/* Quick Flags — live validation-mode pill + curated demo switches.
+            Visible to everyone (read-only without an admin session). */}
+        <QuickFlagsPill user={user} />
 
         {/* 3-tab nav — admin gets all three; customer gets nothing here (chip is enough) */}
         {user?.role === 'admin' && (

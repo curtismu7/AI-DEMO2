@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/OAuthTokenDisplayPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import bffAxios from '../services/bffAxios';
 import { fetchEnrichedUserInfo } from '../services/userInfoService';
 import './OAuthTokenDisplayPage.css';
@@ -32,53 +32,56 @@ export default function OAuthTokenDisplayPage() {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   const [mcpFlowStep, setMcpFlowStep] = useState('idle');
+  const mountedRef = useRef(true);
+
+  // Load token data. Both endpoints always return 200 for a valid request, so a
+  // thrown error here means the request itself failed (timeout, connection reset,
+  // server restart) — a transient condition. Exposed as a callback so the error
+  // screen's "Try Again" button can re-run it without remounting the whole modal.
+  const fetchTokenData = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const statusRes = await bffAxios.get('/api/auth/oauth/user/status');
+      if (!mountedRef.current) return;
+      setUserStatus(statusRes.data);
+
+      if (!statusRes.data.authenticated) {
+        setError('no_session');
+        setLoading(false);
+        return;
+      }
+
+      const previewRes = await bffAxios.get('/api/tokens/session-preview');
+      if (!mountedRef.current) return;
+      const events = previewRes.data?.tokenEvents || [];
+      // Server shape: { id, claims, jwtFullDecode: { header, claims } }
+      // Render code expects: { header, payload: { sub, scope, aud, ... } }
+      // Map the first user-token event to that shape.
+      const userTokenEvent = events.find(
+        (e) => e.id === 'user-token' || e.label?.toLowerCase().includes('user access')
+      );
+      if (userTokenEvent) {
+        // Prefer jwtFullDecode (richer) but fall back to the top-level claims field
+        const src = userTokenEvent.jwtFullDecode || { header: null, claims: userTokenEvent.claims };
+        setTokenClaims({ header: src.header || {}, payload: src.claims || {} });
+      } else {
+        setTokenClaims(null);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('OAuthTokenDisplayPage fetch error:', err.message);
+      if (!mountedRef.current) return;
+      setError('fetch_failed');
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchTokenData() {
-      try {
-        const statusRes = await bffAxios.get('/api/auth/oauth/user/status');
-        if (!cancelled) setUserStatus(statusRes.data);
-
-        if (!statusRes.data.authenticated) {
-          if (!cancelled) {
-            setError('no_session');
-            setLoading(false);
-          }
-          return;
-        }
-
-        const previewRes = await bffAxios.get('/api/tokens/session-preview');
-        const events = previewRes.data?.tokenEvents || [];
-        // Server shape: { id, claims, jwtFullDecode: { header, claims } }
-        // Render code expects: { header, payload: { sub, scope, aud, ... } }
-        // Map the first user-token event to that shape.
-        const userTokenEvent = events.find(
-          (e) => e.id === 'user-token' || e.label?.toLowerCase().includes('user access')
-        );
-        if (!cancelled) {
-          if (userTokenEvent) {
-            // Prefer jwtFullDecode (richer) but fall back to the top-level claims field
-            const src = userTokenEvent.jwtFullDecode || { header: null, claims: userTokenEvent.claims };
-            setTokenClaims({ header: src.header || {}, payload: src.claims || {} });
-          } else {
-            setTokenClaims(null);
-          }
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('OAuthTokenDisplayPage fetch error:', err.message);
-        if (!cancelled) {
-          setError('fetch_failed');
-          setLoading(false);
-        }
-      }
-    }
-
+    mountedRef.current = true;
     fetchTokenData();
-    return () => { cancelled = true; };
-  }, []);
+    return () => { mountedRef.current = false; };
+  }, [fetchTokenData]);
 
   // Fetch enriched user info from PingOne userinfo endpoint (optional)
   useEffect(() => {
@@ -198,7 +201,10 @@ export default function OAuthTokenDisplayPage() {
         <div className="otdp-card otdp-card--error">
           <div className="otdp-error-icon">⚠️</div>
           <h3>Failed to Load Token Data</h3>
-          <p>Could not retrieve token information from the server. Please try again.</p>
+          <p>Could not retrieve token information from the server. This is usually transient.</p>
+          <button type="button" className="otdp-retry-btn" onClick={fetchTokenData}>
+            Try Again
+          </button>
         </div>
       </div>
     );

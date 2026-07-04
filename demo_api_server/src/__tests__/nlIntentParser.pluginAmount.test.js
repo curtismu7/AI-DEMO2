@@ -1,4 +1,4 @@
-jest.mock('../../services/verticalDispatch', () => ({ hasPlugin: jest.fn(() => true), heuristicsFor: jest.fn() }));
+jest.mock('../../services/verticalDispatch', () => ({ hasPlugin: jest.fn(() => true), heuristicsFor: jest.fn(), resolvePlugin: jest.fn(() => null) }));
 const dispatch = require('../../services/verticalDispatch');
 const { parseHeuristic } = require('../../services/nlIntentParser');
 

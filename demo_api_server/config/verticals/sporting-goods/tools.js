@@ -201,7 +201,10 @@ function buildSportingGoodsTools(store) {
         return { result: order, render: 'gear_order_status' };
       }
       case 'loyalty_balance':
-        return { result: store.get(userId).loyalty, render: 'loyalty_balance' };
+        // loyalty is array-shaped (see redeem handler above); the loyalty_balance
+        // render descriptor is a flat fieldList, so return the current loyalty
+        // record, not the raw array.
+        return { result: (store.get(userId).loyalty || [])[0] || {}, render: 'loyalty_balance' };
       case 'extend_rental': {
         const r = store.extendRental(userId, params || {});
         if (!r) return { result: { error: 'rental not found' }, render: 'text' };

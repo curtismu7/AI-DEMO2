@@ -1,5 +1,37 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './PingCliPage.css';
+
+// Commands that execute live server-side. Everything else is env-scoped and is
+// copy-to-run only (pingcli 1.x cannot run those with worker credentials). This
+// is a fallback for when GET /commands hasn't loaded yet; the server response is
+// the source of truth.
+const RUNNABLE = new Set(['pingone_envs_list', 'config_list_keys', 'version']);
+
+// Syntax-highlight a JSON string into an array of React nodes (colored <span>s
+// interleaved with plain text). Returns null if the text is not valid JSON
+// (e.g. mid-stream or plain-text output), so the caller falls back to raw text.
+// React escapes all text content, so no HTML injection is possible.
+function tokenizeJson(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return null; }
+  const pretty = JSON.stringify(parsed, null, 2);
+  const re = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  const nodes = [];
+  let last = 0;
+  let i = 0;
+  for (let match = re.exec(pretty); match !== null; match = re.exec(pretty)) {
+    if (match.index > last) nodes.push(pretty.slice(last, match.index));
+    const tok = match[0];
+    let cls = 'j-num';
+    if (tok[0] === '"') cls = /:$/.test(tok) ? 'j-key' : 'j-str';
+    else if (tok === 'true' || tok === 'false') cls = 'j-bool';
+    else if (tok === 'null') cls = 'j-null';
+    nodes.push(<span key={i++} className={cls}>{tok}</span>);
+    last = match.index + tok.length;
+  }
+  if (last < pretty.length) nodes.push(pretty.slice(last));
+  return nodes;
+}
 
 const CATEGORIES = [
   {
@@ -103,7 +135,28 @@ export default function PingCliPage() {
   const [cmdLabel, setCmdLabel]   = useState('');
   const [output, setOutput]       = useState('');
   const [exitCode, setExitCode]   = useState(null);
+  const [cmdMeta, setCmdMeta]     = useState({});
+  const [copiedKey, setCopiedKey] = useState(null);
   const abortRef = useRef(null);
+
+  // Load the server's command catalog (full copyable command strings + which
+  // commands run live). Falls back to the hardcoded cards if this fails.
+  useEffect(() => {
+    fetch('/api/admin/pingcli/commands', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list) => {
+        const map = {};
+        for (const c of list) map[c.key] = c;
+        setCmdMeta(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  const copyCmd = (key, text) => {
+    copyToClipboard(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
+  };
 
   const run = async (commandKey) => {
     if (running) return;
@@ -180,25 +233,54 @@ export default function PingCliPage() {
       <InstallSection />
 
       <p className="pingcli-run-note">
-        Click a command to run it — output streams live to the terminal below.
+        Environment-wide commands run live below. Environment-scoped commands (a
+        specific environment&apos;s users, apps, groups&hellip;) show a ready-to-run
+        command you can copy into your own terminal.
       </p>
 
       {CATEGORIES.map(({ title, commands }) => (
         <div key={title}>
           <p className="pingcli-section-title">{title}</p>
           <div className="pingcli-command-grid">
-            {commands.map(({ key, label, desc }) => (
-              <button
-                key={key}
-                className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}`}
-                disabled={running !== null}
-                onClick={() => run(key)}
-              >
-                {running === key && <span className="pingcli-spinner" />}
-                <div className="pingcli-cmd-label">{label}</div>
-                <div className="pingcli-cmd-command">{desc}</div>
-              </button>
-            ))}
+            {commands.map(({ key, label, desc }) => {
+              const meta = cmdMeta[key] || {};
+              const runnable = meta.runnable ?? RUNNABLE.has(key);
+              const copyText = meta.label || desc;
+              return (
+                <div
+                  key={key}
+                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}${runnable ? '' : ' copy-only'}`}
+                >
+                  <div className="pingcli-cmd-top">
+                    <span className="pingcli-cmd-label">
+                      {running === key && <span className="pingcli-spinner" />}
+                      {label}
+                    </span>
+                    <button
+                      type="button"
+                      className="pingcli-cmd-copy"
+                      title="Copy command"
+                      onClick={() => copyCmd(key, copyText)}
+                    >
+                      {copiedKey === key ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="pingcli-cmd-command" title={copyText}>{copyText}</div>
+                  {runnable ? (
+                    <button
+                      type="button"
+                      className="pingcli-cmd-run"
+                      disabled={running !== null}
+                      onClick={() => run(key)}
+                    >
+                      {running === key ? 'Running…' : 'Run ▸'}
+                    </button>
+                  ) : (
+                    <span className="pingcli-cmd-hint">Copy &amp; run in your terminal</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -215,9 +297,17 @@ export default function PingCliPage() {
               </span>
             )}
           </div>
-          <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
-            {output || (running ? 'Running…' : '(no output)')}
-          </div>
+          {(() => {
+            const tokens = output ? tokenizeJson(output) : null;
+            if (tokens) {
+              return <div className="pingcli-terminal-body">{tokens}</div>;
+            }
+            return (
+              <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
+                {output || (running ? 'Running…' : '(no output)')}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -819,6 +819,10 @@ export default function BankingAgent({
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const nlInputRef = useRef(null);
+  // Bridge for external (window-event) attack triggers — e.g. the AI Attacks
+  // learning drawer's "Run this attack" buttons. Assigned each render (see the
+  // useEffect below) so window listeners always call the current closure.
+  const runDrawerAttackRef = useRef(null);
   const toolProgressIdRef = useRef(null);
   const panelRef = useRef(null);
   const isDraggingRef = useRef(false);
@@ -935,17 +939,26 @@ export default function BankingAgent({
     return () => window.removeEventListener("banking-agent-open", handler);
   }, [isInline]);
 
-  // Pre-fill NL input from external event (e.g. "Test Revocation" button after kill switch)
+  // Pre-fill NL input from external event (e.g. "Test Revocation" button after kill switch).
+  // When detail.autoSend is set (AI Attacks drawer "Run this attack" prompts), open the
+  // agent and submit the message through the live NL pipeline instead of just prefilling.
   useEffect(() => {
     const handler = (e) => {
       const msg = e.detail?.message;
       if (!msg) return;
+      if (e.detail?.autoSend) {
+        if (isInline) return; // drawer-triggered runs belong to the floating agent
+        setIsOpen(true);
+        // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
+        setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
+        return;
+      }
       setNlInput(msg);
       setTimeout(() => nlInputRef.current?.focus(), 50);
     };
     window.addEventListener("banking-agent-prefill", handler);
     return () => window.removeEventListener("banking-agent-prefill", handler);
-  }, []);
+  }, [isInline]);
 
   // Open demo guide when event dispatched from side menu
   useEffect(() => {
@@ -982,6 +995,76 @@ export default function BankingAgent({
     window.addEventListener('banking-attack-demo', handler);
     return () => window.removeEventListener('banking-attack-demo', handler);
   }, [tokenChain]);
+
+  // Bridge for the AI Attacks learning drawer's "Run this attack" buttons.
+  // Reassigned on every render so the window listeners below always invoke the
+  // current closures (callMcpTool/addMessage/runAction/sendAsNl/tokenChain).
+  //   - { message }  → auto-send a prompt through the live NL pipeline
+  //   - { showcase } → run a Security Showcase attack (scope-escalation runAction,
+  //                    or an injection: seed a poisoned payload + surface it via the
+  //                    agent's read tool, mirroring the in-chat showcase chip).
+  useEffect(() => {
+    runDrawerAttackRef.current = (detail = {}) => {
+      const { message, showcase, label } = detail;
+      if (message) { sendAsNl(message); return; }
+      if (!showcase) return;
+      if (SHOWCASE_RUN_ACTION[showcase]) { runAction(SHOWCASE_RUN_ACTION[showcase]); return; }
+      const inj = SHOWCASE_INJECTION[showcase];
+      if (!inj) return;
+      addMessage("user", `Run attack: ${label || showcase}`);
+      setNlLoading(true);
+      (async () => {
+        try {
+          const apiBase = process.env.REACT_APP_API_URL || "";
+          const seedRes = await fetch(`${apiBase}/api/demo/attacks/${inj.seed}`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const seedData = await seedRes.json().catch(() => ({}));
+          const payload = seedData.description || seedData.notes || "(payload planted)";
+          const readResp = await callMcpTool(inj.readTool, inj.readTool === "get_my_transactions" ? { limit: 25 } : {});
+          const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
+          addMessage(
+            "token-event",
+            [
+              `💉 Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
+              `   "${payload}"`,
+              "",
+              surfaced
+                ? "The poisoned directive is now in the agent's context — but it cannot auto-execute:"
+                : "(payload planted; agent read completed)",
+              "⛔ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
+              "   The policy evaluates the request independently of whatever the LLM 'decided' from the poisoned text.",
+            ].join("\n"),
+            null,
+          );
+          if (tokenChain && Array.isArray(readResp?.tokenEvents)) {
+            tokenChain.setTokenEvents(inj.readTool, readResp.tokenEvents);
+          }
+        } catch (err) {
+          addMessage("token-event", `Injection demo error: ${err.code || err.message || "failed"}`, null);
+        } finally {
+          setNlLoading(false);
+        }
+      })();
+    };
+  });
+
+  // Run a Security Showcase attack from an external trigger (AI Attacks drawer).
+  useEffect(() => {
+    const handler = (e) => {
+      const showcase = e.detail?.showcase;
+      if (!showcase) return;
+      if (isInline) return; // drawer-triggered runs belong to the floating agent
+      setIsOpen(true);
+      // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
+      setTimeout(() => runDrawerAttackRef.current?.({ showcase, label: e.detail?.label }), 80);
+    };
+    window.addEventListener("banking-run-showcase", handler);
+    return () => window.removeEventListener("banking-run-showcase", handler);
+  }, [isInline]);
 
   // Reset conversation when demo is cleared (no full page reload needed)
   useEffect(() => {

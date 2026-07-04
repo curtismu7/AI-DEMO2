@@ -194,11 +194,15 @@ describe('oauthRedirectUris', () => {
     expect(paths).toContain('/api/auth/oauth/user/callback');
   });
 
-  it('getOAuthRedirectDebugInfo includes reference sets for api.ping.demo and a custom host', () => {
+  it('getOAuthRedirectDebugInfo includes reference sets for demo-api-server and a custom host', () => {
+    // id/host renamed from 'api-ping-demo' (api.ping.demo:4000) to
+    // 'demo-api-server' (demo-api-server:3001) — see commit 867c51f7a
+    // "fix: replace all api.ping.demo:4000 with demo-api-server:3001
+    // across codebase".
     const info = getOAuthRedirectDebugInfo(mockReq('localhost:3001'));
     expect(Array.isArray(info.referenceRedirectSets)).toBe(true);
     expect(info.referenceRedirectSets.length).toBeGreaterThanOrEqual(2);
-    const apiPingDemo = info.referenceRedirectSets.find((r) => r.id === 'api-ping-demo');
+    const apiPingDemo = info.referenceRedirectSets.find((r) => r.id === 'demo-api-server');
     const customHost = info.referenceRedirectSets.find((r) => r.id === 'custom-host');
     expect(apiPingDemo.adminRedirectUri).toBe('https://demo-api-server:3001/api/auth/oauth/callback');
     expect(customHost.adminRedirectUri).toBe('https://api.pingdeme.org/api/auth/oauth/callback');

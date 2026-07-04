@@ -17,18 +17,22 @@
 
 // configStore mock — supply worker creds + an MCP decision endpoint so
 // evaluateMcpToolDelegation proceeds to the fetch calls.
+//
+// _getCredentials() reads exclusively via configStore.getEffective() (not
+// .get()) so the env-var alias map is traversed — see
+// services/pingOneAuthorizeService.js commit da9128062 ("harden: MCP Gateway
+// probe, P1AZ endpoint check, always-on scope validator"). Mock both so the
+// service resolves credentials the same way it does at runtime.
+const configStoreMockVals = {
+  pingone_environment_id: 'env-123',
+  pingone_region: 'com',
+  authorize_worker_client_id: 'worker-id',
+  authorize_worker_client_secret: 'worker-secret',
+  authorize_mcp_decision_endpoint_id: 'mcp-ep-1',
+};
 jest.mock('../../services/configStore', () => ({
-  get: jest.fn((key) => {
-    const vals = {
-      pingone_environment_id: 'env-123',
-      pingone_region: 'com',
-      authorize_worker_client_id: 'worker-id',
-      authorize_worker_client_secret: 'worker-secret',
-      authorize_mcp_decision_endpoint_id: 'mcp-ep-1',
-    };
-    return vals[key] || null;
-  }),
-  getEffective: jest.fn(() => null),
+  get: jest.fn((key) => configStoreMockVals[key] || null),
+  getEffective: jest.fn((key) => configStoreMockVals[key] || null),
   isReadOnly: jest.fn(() => true),
 }));
 

@@ -87,6 +87,20 @@ function setupDefaultMocks() {
     };
     return vals[key] ?? null;
   });
+  // pingone.* fields resolve via getEffective (alias-aware lookup) since the
+  // P1AZ credential-lookup-gaps fix (routes/authorizeConfig.js) — see
+  // commit da9128062 "harden: ... routes/authorizeConfig.js:51-54 — four
+  // configStore.get(UPPERCASE) calls bypassed alias resolution entirely;
+  // replaced with getEffective(lowercase)".
+  configStore.getEffective.mockImplementation((key) => {
+    const vals = {
+      authorize_worker_client_id: 'some-uuid',
+      authorize_decision_endpoint_id: 'ep-123',
+      authorize_mcp_decision_endpoint_id: '',
+      authorize_policy_id: '',
+    };
+    return vals[key] ?? null;
+  });
   configStore.setConfig = jest.fn().mockResolvedValue(undefined);
 }
 
@@ -126,8 +140,8 @@ describe('GET /api/admin/authorize/config', () => {
   });
 
   it('shows (not set) for workerClientId when blank', async () => {
-    configStore.get.mockImplementation((key) =>
-      key === 'PINGONE_AUTHORIZE_WORKER_CLIENT_ID' ? '' : null,
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'authorize_worker_client_id' ? '' : null,
     );
     const res = await request(buildApp()).get('/api/admin/authorize/config');
     expect(res.body.pingone.workerClientId).toBe('(not set)');

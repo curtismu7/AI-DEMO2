@@ -33,19 +33,22 @@ const coerceParam = (raw, type) => {
   return raw;
 };
 
-// Group banking tools into tabs (mirrors PingOne's Platform/DaVinci split).
-// Write = state-changing money movement; Reasoning = the think tool; everything
-// else (including unknown future tools) falls into Read.
-const isWriteTool = (name) => {
-  const n = name.toLowerCase();
-  return n.startsWith('create_') || n.includes('deposit') || n.includes('withdraw') || n.includes('transfer');
-};
-const isReasoningTool = (name) => {
-  const n = name.toLowerCase();
+// Group banking tools into tabs by what they DO, derived from their required
+// SCOPES rather than the tool name. Any tool whose scopes carry a write/manage/
+// delete verb is a Write (so freeze_account, adjust_balance, delete_customer,
+// update_contact_email, etc. leave the Read tab); the think tool is Reasoning;
+// everything else is Read. Scope vocabularies differ by catalog source — the
+// live MCP server returns flat scopes (write, admin:write) while the BFF's local
+// catalog returns prefixed ones (transactions:write) — so we substring-match the
+// verb instead of matching exact scope strings.
+const isWriteScope = (s) => (/write|manage|delete/).test(s.toLowerCase());
+const isWriteTool = (tool) => (tool.requiredScopes || []).some(isWriteScope);
+const isReasoningTool = (tool) => {
+  const n = tool.name.toLowerCase();
   return n.includes('think') || n.includes('reason');
 };
-const toolGroup = (name) =>
-  isReasoningTool(name) ? 'reasoning' : isWriteTool(name) ? 'write' : 'read';
+const toolGroup = (tool) =>
+  isReasoningTool(tool) ? 'reasoning' : isWriteTool(tool) ? 'write' : 'read';
 
 // "Flavor" drives the chip's dot colour + badge — independent of the active tab
 // so the read/write/sensitive signal stays visible even inside a single tab.
@@ -54,24 +57,37 @@ const isSensitiveTool = (tool) =>
   (tool.requiredScopes || []).some((s) => s.toLowerCase().includes('sensitive')) ||
   tool.name.toLowerCase().includes('sensitive');
 const toolFlavor = (tool) =>
-  isSensitiveTool(tool) ? 'sensitive' : toolGroup(tool.name);
+  isSensitiveTool(tool) ? 'sensitive' : toolGroup(tool);
 
-// Sub-group tools by the resource they touch, derived from the first required
-// scope's prefix (accounts:read → accounts). No scope → reasoning; unknown → other.
+// Sub-group a tab's tools by the resource they touch. Derivation blends the tool
+// name and its scope prefixes so it works for both catalog vocabularies. Order of
+// the checks is deliberate: customer-administration tools win over the plain
+// account/transaction match so get_customer_accounts files under Admin, not
+// Accounts.
 const RESOURCE_META = {
-  accounts:     { label: 'Accounts',     icon: '🏦' },
-  transactions: { label: 'Transactions', icon: '💸' },
-  reasoning:    { label: 'Reasoning',    icon: '🧠' },
-  other:        { label: 'Other',        icon: '🔧' },
+  accounts:     { label: 'Accounts',                icon: '🏦' },
+  transactions: { label: 'Transactions',            icon: '💸' },
+  admin:        { label: 'Customer administration', icon: '🛡️' },
+  directory:    { label: 'Directory / users',       icon: '👤' },
+  vertical:     { label: 'Vertical demos',          icon: '🧩' },
+  reasoning:    { label: 'Reasoning',               icon: '🧠' },
+  other:        { label: 'Other',                   icon: '🔧' },
 };
-const RESOURCE_ORDER = ['accounts', 'transactions', 'reasoning', 'other'];
+const RESOURCE_ORDER = ['accounts', 'transactions', 'admin', 'directory', 'vertical', 'reasoning', 'other'];
+// Groups rendered collapsed by default. A broadly-scoped (e.g. admin) token
+// surfaces many secondary tools, so only the self-service groups stay open — the
+// rest fold away to keep the tab scannable instead of a wall of chips.
+const COLLAPSED_RESOURCES = new Set(['admin', 'directory', 'vertical', 'other']);
 const toolResource = (tool) => {
-  const scope = (tool.requiredScopes || [])[0];
-  if (scope && scope.includes(':')) {
-    const key = scope.split(':')[0];
-    if (RESOURCE_META[key]) return key;
-  }
-  if (toolGroup(tool.name) === 'reasoning') return 'reasoning';
+  const name = tool.name.toLowerCase();
+  const scopes = (tool.requiredScopes || []).map((s) => s.toLowerCase());
+  const hasPrefix = (p) => scopes.some((s) => s.startsWith(p));
+  if (isReasoningTool(tool)) return 'reasoning';
+  if (hasPrefix('admin:') || hasPrefix('users:') || name.includes('customer')) return 'admin';
+  if (name.includes('transaction') || (/deposit|withdraw|transfer/).test(name) || hasPrefix('transactions')) return 'transactions';
+  if (name.includes('account') || name.includes('balance') || hasPrefix('accounts')) return 'accounts';
+  if (name.startsWith('show_')) return 'vertical';
+  if (name.includes('user') || name.includes('email')) return 'directory';
   return 'other';
 };
 // Ordered [resourceKey, tools[]] pairs for a tab's tool list (empty groups dropped).
@@ -246,7 +262,7 @@ const McpInspector = ({ user, onLogout }) => {
 
   // Group the live catalog into tabs; unknown tools fall into Read.
   const groupedTools = { read: [], write: [], reasoning: [] };
-  for (const t of tools) groupedTools[toolGroup(t.name)].push(t);
+  for (const t of tools) groupedTools[toolGroup(t)].push(t);
   const visibleTools = groupedTools[activeTab] || [];
   const tabCounts = {
     read: groupedTools.read.length,
@@ -490,12 +506,16 @@ const McpInspector = ({ user, onLogout }) => {
                   groupByResource(visibleTools).map(([resKey, resTools]) => {
                     const meta = RESOURCE_META[resKey];
                     return (
-                      <div className="p1mcp-chip-group" key={resKey}>
-                        <div className="p1mcp-chip-group__head">
+                      <details
+                        className="p1mcp-chip-group"
+                        key={resKey}
+                        open={!COLLAPSED_RESOURCES.has(resKey)}
+                      >
+                        <summary className="p1mcp-chip-group__head">
                           <span aria-hidden="true">{meta.icon}</span>
                           {meta.label}
                           <span className="p1mcp-chip-group__count">{resTools.length}</span>
-                        </div>
+                        </summary>
                         <div className="p1mcp-chips">
                           {resTools.map(t => {
                             const flavor = toolFlavor(t);
@@ -515,7 +535,7 @@ const McpInspector = ({ user, onLogout }) => {
                             );
                           })}
                         </div>
-                      </div>
+                      </details>
                     );
                   })
                 )}

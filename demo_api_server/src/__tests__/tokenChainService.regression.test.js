@@ -158,6 +158,41 @@ describe('tokenChainService — Token Chain correctness regression', () => {
     auditStore.clearToolCalls();
   });
 
+  test('M2: getMCPToolCalls mints an agent CC token once and reuses the session-cached token across polls', async () => {
+    delete process.env.MCP_AGENT_TOKEN;
+    jest.resetModules();
+    const mintFn = jest.fn(async () => ({ access_token: 'minted-agent-tok', expires_in: 3600 }));
+    jest.doMock('../../services/agentCCTokenService', () => ({ getAgentCCToken: mintFn }));
+    const localSvc = require('../../services/tokenChainService');
+    const auditStore = require('../../services/mcpToolAuditStore');
+    auditStore.clearToolCalls();
+    let captured;
+    global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
+
+    const req = { id: 'req-1', session: {} }; // shared session across polls
+    await localSvc.getMCPToolCalls('u1', req);
+    await localSvc.getMCPToolCalls('u1', req); // second poll should hit the cache
+
+    expect(captured.headers.Authorization).toBe('Bearer minted-agent-tok');
+    expect(mintFn).toHaveBeenCalledTimes(1); // minted once, reused from session cache
+    auditStore.clearToolCalls();
+    jest.dontMock('../../services/agentCCTokenService');
+  });
+
+  test('M2: getMCPToolCalls does NOT mint (no auth header) when req is absent', async () => {
+    delete process.env.MCP_AGENT_TOKEN;
+    const auditStore = require('../../services/mcpToolAuditStore');
+    auditStore.clearToolCalls();
+    let captured;
+    global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
+
+    await svc.getMCPToolCalls('u1'); // no req
+
+    expect(captured).toBeDefined();
+    expect(captured.headers.Authorization).toBeUndefined();
+    auditStore.clearToolCalls();
+  });
+
   afterEach(() => {
     delete global.fetch;
   });

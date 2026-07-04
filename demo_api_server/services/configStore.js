@@ -301,7 +301,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_use_pingone_server:          { public: true, default: 'false' }, // Route PingOne admin tools to the hosted PingOne MCP server (HTTP); bypass custom gateway
   mcp_inspector_pingone_live:      { public: true, default: 'true'  }, // PingOne MCP Inspector page queries the stdio server live (page-only; does NOT reroute agent calls)
   ff_show_agent_in_middle: { public: true, default: 'false' }, // Show banking column alongside centered agent (legacy dashboard layout)
-  ff_customer_skin_ping2026: { public: true, default: 'true' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent)
+  ff_customer_skin_ping2026: { public: true, default: 'false' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent). OFF by default — must match routes/featureFlags.js FLAG_REGISTRY (defaultValue:false); unfinished component, not for prod-on.
   ff_use_cases_launcher:     { public: true, default: 'true'  }, // Use-Case Launcher page at /use-cases (A5)
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
@@ -540,6 +540,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // Debug flags
   debug_scopes:                          { public: true,  default: 'false' },
   debug_tokens:                          { public: true,  default: 'false' },
+  // Verbose OAuth logging — read by utils/oauthDebugFlags.isOAuthVerboseDebug()
+  // and toggled on the /oauth-debug-logs page. Env alias DEBUG_OAUTH (see below).
+  debug_oauth:                           { public: true,  default: 'false' },
 
   // Step-up
   step_up_acr_value:                     { public: true,  default: '' },

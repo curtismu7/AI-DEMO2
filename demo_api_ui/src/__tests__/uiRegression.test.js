@@ -267,7 +267,17 @@ describe("CSS/JS monospace regression", () => {
         f.includes("ElicitationDialog.css") ||          // elicitation code examples display (intentional)
         f.includes("AdminConfigValidationPanel.css") || // config panel code/value/feature-id display (intentional)
         f.includes("AuthErrorBanner.css") ||            // error banner inline code display (intentional)
-        f.includes("TokenExchangeTesterPage.css")       // token tester input/error/claim display (intentional)
+        f.includes("TokenExchangeTesterPage.css") ||    // token tester input/error/claim display (intentional)
+        f.includes("AgentGatewayConfigEditor.css") ||   // config path/value code display (intentional)
+        f.includes("ArchitectureCanvasPage.css") ||     // architecture step-route/tool code labels (intentional)
+        f.includes("PingCliPage.css") ||                // CLI terminal / command output display (intentional)
+        f.includes("SearchResults.css") ||              // code snippet display in search results (intentional)
+        f.includes("StepDetailsSection.css") ||         // step request/response code + JSON display (intentional)
+        f.includes("TokenCardGrid.css") ||              // JWT token claim/value display (intentional)
+        f.includes("AnnotatedResult.css") ||            // authz annotated-result mono value display (intentional)
+        f.includes("McpDelegationScenarios.css") ||     // policy-statement code chip display (intentional)
+        f.includes("SnapshotImport.css") ||             // raw JSON snapshot display (intentional)
+        f.includes("TokenChainRedesign.css")            // token chain code/claims/JSON display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");

@@ -744,9 +744,27 @@ function resolveFlag(flag) {
   }
   const raw = configStore.getEffective(flag.id);
   if (raw === null || raw === undefined) return flag.defaultValue;
+  // Enum flags: treat empty-string as unset. configStore lowercases keys, so
+  // camelCase FIELD_DEFS defaults (e.g. introspectionProvider) are unreachable
+  // and getEffective returns '' on a fresh store — fall back to the registry
+  // default instead of reporting a value no option matches.
+  if (flag.type === 'enum' && String(raw).trim() === '') return flag.defaultValue;
   if (flag.type === 'boolean') return raw === true || raw === 'true';
   return raw;
 }
+
+// Env vars that hard-pin a quick-switch flag: configStore.getEffective() is
+// env-FIRST, so while one of these is set (e.g. in docker-compose) the UI
+// toggle is inert. serializeFlag surfaces that as pinned/pinnedBy so the UI
+// can render a lock instead of a dead toggle. Only flags with an env alias
+// in configStore's fallback map belong here.
+const PINNED_ENV_ALIASES = {
+  ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
+  ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+  ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+  ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
+  ciba_enabled:               'CIBA_ENABLED',
+};
 
 /** Serialize a flag + its current value for the API response. */
 function serializeFlag(flag) {
@@ -763,6 +781,9 @@ function serializeFlag(flag) {
     ...(flag.docsUrl      && { docsUrl:      flag.docsUrl }),
     ...(flag.warnIfDisabled && { warnIfDisabled: flag.warnIfDisabled }),
     ...(flag.warnIfEnabled  && { warnIfEnabled:  flag.warnIfEnabled }),
+    ...(PINNED_ENV_ALIASES[flag.id] && String(process.env[PINNED_ENV_ALIASES[flag.id]] || '').trim()
+      ? { pinned: true, pinnedBy: PINNED_ENV_ALIASES[flag.id] }
+      : {}),
   };
 }
 
@@ -842,4 +863,4 @@ router.patch('/', async (req, res) => {
   }
 });
 
-module.exports = { router, FLAG_REGISTRY };
+module.exports = { router, FLAG_REGISTRY, serializeFlag };
