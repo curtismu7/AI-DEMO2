@@ -79,6 +79,42 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-04 — Code-review sweep: scope-rename completion, EROFS admin save, side-nav persistence, code-search contracts
+
+**Files changed:**
+- `demo_authz_server/routes/decision.js` — `viaPingGateway` accepts `gateway:mcp:invoke` (new Exchange #2 default) AND legacy `pinggateway:invoke`.
+- `demo_api_server/services/agentMcpTokenService.js` — Exchange #2 scope read falls back to the legacy `pinggateway_invoke_scope` config key.
+- `demo_api_server/services/envReconcile.js` — `gateway_mcp_invoke_scope` added to ENV_AGNOSTIC_KEYS.
+- `demo_api_server/services/scopeTopology.js` — memo now invalidates on file mtime change (hot-reload); boot still fails fast, post-boot reload failures keep the last good manifest.
+- `docker-compose.yml` — `/repo` directory mount is RW again (was `:ro`): the `/agent-gateway-config` editor saves `scope-topology.json` through it (writeAtomic + `.backups/`, now gitignored). Still a DIRECTORY mount — single-file mounts stay banned.
+- `ping-gateway/scripts/groovy/jwks-token-validation.groovy` — unset `PG_INBOUND_SCOPE` now falls back to `gateway:mcp:invoke` (matches BFF default).
+- `ping-gateway/scripts/groovy/p1az-decision.groovy` — `parseActClaim` returns only Maps; JSON scalars/arrays no longer crash the decision.
+- `demo_api_ui/src/context/SessionTokenContext.js` — single derived `hasActiveToken`; consumed by TopNav, UserMenu, BankingChips (`needsSignIn` no longer prop-drilled from AIAgent).
+- `demo_api_ui/src/components/AdminSideNav.jsx` — expansion state reloads when the role/key changes after mount; persist gated on the loaded key (guest→admin no longer clobbers).
+- `demo_api_ui/src/components/AdminSideNav.css` + `adminSkinPing2026.css` — nav search box themed via `--sidenav-filter-*` variables; skins override variables only.
+- `demo_api_server/src/services/mcpCodeSearchClient.js` + `routes/codeSearch.js` — errors carry `err.status` (503 for outages incl. network errors); routes switch on status, not message text.
+- `demo_api_ui/src/pages/CodeSearchPage.jsx` — server codebase list is authoritative (localStorage = offline fallback); uploads use the server-returned `codebase_id`.
+
+**What was broken:** the `pinggateway:invoke → gateway:mcp:invoke` rename never
+reached the mock authz server (every PingGateway tool call denied in demo-authz
+mode), old config-key overrides were silently dropped, and an unset
+`PG_INBOUND_SCOPE` denied everything. The `:ro` repo mount 500'd every admin
+scope-topology save. AdminSideNav wrote guest expansion state into the admin
+bucket on public routes. Code-search outages surfaced as 500s, and a fresh
+upload's invented id never matched the server's, so searching it always failed.
+
+**Do not break:** `viaPingGateway` must accept BOTH scope spellings until the
+legacy name is retired everywhere. Keep the `/repo` mount a RW DIRECTORY mount.
+`hasActiveToken` in SessionTokenContext is the only token-liveness predicate —
+never re-derive it in components. Code-search 503 mapping keys on `err.status`,
+never on message substrings.
+
+**Verify:** `cd demo_authz_server && node --test decision.pinggateway-parity.test.js`
+(7 pass, incl. both scope spellings); `cd demo_api_server && npx jest codeSearch
+mcpCodeSearchClient` (route + client error contracts); `cd demo_api_ui && npx
+vitest run src/components/__tests__/adminSideNav.test.jsx` (6 pass) and
+`npm run build` exit 0.
+
 ### 2026-07-04 — BFF crash-loop from stale single-file bind mount of scope-topology.json
 
 **Files changed:**
