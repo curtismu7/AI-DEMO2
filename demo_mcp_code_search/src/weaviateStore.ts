@@ -172,6 +172,10 @@ export function createStore(host: string): Store {
       const groups: Array<{ groupedBy?: { value?: string }; meta?: { count?: number } }> =
         agg?.data?.Aggregate?.[CLASS_NAME] ?? [];
 
+      // One name lookup per codebase, all in flight concurrently (latency ≈ a
+      // single query). Deliberately NOT a single ContainsAny Get: that can't
+      // guarantee one hit per codebase_id within any limit window (one large
+      // codebase's chunks could starve the others out of the results).
       const codebases = await Promise.all(
         groups.map(async (g) => {
           const id = g.groupedBy?.value ?? '';

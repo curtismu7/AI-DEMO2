@@ -63,7 +63,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     // present before filtering
     expect(screen.getByText("Themes")).toBeTruthy();
     expect(screen.getByText("Monitoring")).toBeTruthy();
-    const input = screen.getByLabelText(/filter navigation/i);
+    const input = screen.getByLabelText(/search navigation/i);
     fireEvent.change(input, { target: { value: "monitor" } });
     // non-matching top-level item is filtered out; matching group remains
     expect(screen.queryByText("Themes")).toBeNull();
@@ -72,7 +72,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("shows an empty state when nothing matches", () => {
     renderNav();
-    const input = screen.getByLabelText(/filter navigation/i);
+    const input = screen.getByLabelText(/search navigation/i);
     fireEvent.change(input, { target: { value: "zzzznope" } });
     expect(screen.getByText(/no matches/i)).toBeTruthy();
   });

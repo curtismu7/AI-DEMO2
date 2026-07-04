@@ -191,8 +191,30 @@ def sub       = tokenInfo['sub'] ?: ''
 // by design — e.g. two-exchange Exchange #2, whose actor is the MCP Exchanger (not the
 // AI Agent), so the resource `act` SpEL returns null. See docs/ACT_CLAIM_VERIFICATION.md.
 // The headers are trusted because they are set server-to-server (BFF → gateway, loopback).
-def nativeActSub    = tokenInfo['act']?.sub ?: ''
-def nativeMayActSub = tokenInfo['may_act']?.sub ?: ''
+// PingOne emits act/may_act as a JSON *string* (not a nested object) when the claim is
+// stamped via a resource attribute — SpEL cannot construct nested objects. Parse the
+// string form so the .sub / chain-depth access works for both shapes (a native object
+// claim passes through unchanged). Without this, `.sub` on a String throws
+// MissingPropertyException and the whole P1AZ decision (and the request) fails.
+def parseActClaim = { v ->
+    if (v == null) return null
+    if (v instanceof String) {
+        if (v.trim().isEmpty()) return null
+        // Only a JSON *object* is a usable act claim. A quoted scalar ('"x"'),
+        // number, or array parses fine but then `.sub` below throws the very
+        // MissingPropertyException this parser exists to prevent — treat those
+        // as no native claim (header bridge takes over).
+        try {
+            def parsed = new groovy.json.JsonSlurper().parseText(v)
+            return parsed instanceof Map ? parsed : null
+        } catch (ignored) { return null }
+    }
+    return v instanceof Map ? v : null
+}
+def actClaim        = parseActClaim(tokenInfo['act'])
+def mayActClaim     = parseActClaim(tokenInfo['may_act'])
+def nativeActSub    = actClaim?.sub ?: ''
+def nativeMayActSub = mayActClaim?.sub ?: ''
 def hdrActClientId  = request.headers.getFirst('X-Act-Client-Id') ?: ''
 def hdrMayActSub    = request.headers.getFirst('X-May-Act-Sub') ?: ''
 def actSub    = nativeActSub ?: hdrActClientId
@@ -228,7 +250,7 @@ def actChainDepth = { act ->
     return depth
 }
 // Native act → real chain depth; header-bridge fallback represents a single actor (depth 1).
-def actDepth = nativeActSub ? String.valueOf(actChainDepth(tokenInfo['act'])) : (actSub ? '1' : '0')
+def actDepth = nativeActSub ? String.valueOf(actChainDepth(actClaim)) : (actSub ? '1' : '0')
 
 // ── Collect introspection data for audit trail ────────────────────────────────
 def introspectionData = [

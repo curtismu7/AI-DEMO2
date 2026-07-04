@@ -42,7 +42,9 @@ def mockSecret         = System.getenv('AUTHZ_JWT_SECRET') ?: ''
 def mockIssuer         = System.getenv('AUTHZ_ISSUER_URI') ?: ''
 def gatewayResourceUri = System.getenv('PG_GATEWAY_RESOURCE_URI') ?: ''
 def gatewayResourceId  = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
-def requiredScope      = System.getenv('PG_INBOUND_SCOPE') ?: 'mcp:invoke'
+// Fallback must match the BFF Exchange #2 default (agentMcpTokenService.js
+// gateway_mcp_invoke_scope) or an unset PG_INBOUND_SCOPE denies every request.
+def requiredScope      = System.getenv('PG_INBOUND_SCOPE') ?: 'gateway:mcp:invoke'
 
 def deny = { String reason ->
     logger.info('[JWKS] validation FAILED: ' + reason)

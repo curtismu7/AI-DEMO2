@@ -74,36 +74,24 @@ body.admin-skin-p1 .admin-side-nav__quick-link--active {
 
 /* ── Search box ─────────────────────────────────────────────────────────────
    The base styles are white-on-translucent for the dark sidebar; on the light
-   skin that renders white-on-white (invisible). Restyle for the light palette. */
-body.admin-skin-p1 .admin-side-nav__filter-input {
-  background: #f6f7f9;
-  border: 1px solid #d6d7dc;
-  color: #30313a;
-}
-body.admin-skin-p1 .admin-side-nav__filter-input::placeholder {
-  color: #8b8c94;
-}
-body.admin-skin-p1 .admin-side-nav__filter-input:hover {
-  background: #eef0f3;
-  border-color: #c3c4cb;
-}
-body.admin-skin-p1 .admin-side-nav__filter-input:focus {
-  background: #ffffff;
-  border-color: #2767d2;
-  box-shadow: 0 0 0 2px rgba(39, 103, 210, 0.25);
-}
-body.admin-skin-p1 .admin-side-nav__filter-icon {
-  color: #5d5e66;
-}
-body.admin-skin-p1 .admin-side-nav__filter-clear {
-  color: #8b8c94;
-}
-body.admin-skin-p1 .admin-side-nav__filter-clear:hover {
-  background: #e9eaee;
-  color: #30313a;
-}
-body.admin-skin-p1 .admin-side-nav__filter-empty {
-  color: #8b8c94;
+   skin that renders white-on-white (invisible). Override only the
+   --sidenav-filter-* theme variables (declared in AdminSideNav.css) with the
+   light palette — the base selectors handle every state. */
+body.admin-skin-p1 .admin-side-nav {
+  --sidenav-filter-bg: #f6f7f9;
+  --sidenav-filter-border: #d6d7dc;
+  --sidenav-filter-fg: #30313a;
+  --sidenav-filter-placeholder: #8b8c94;
+  --sidenav-filter-bg-hover: #eef0f3;
+  --sidenav-filter-border-hover: #c3c4cb;
+  --sidenav-filter-bg-focus: #ffffff;
+  --sidenav-filter-border-focus: #2767d2;
+  --sidenav-filter-focus-ring: rgba(39, 103, 210, 0.25);
+  --sidenav-filter-icon: #5d5e66;
+  --sidenav-filter-clear: #8b8c94;
+  --sidenav-filter-clear-hover-bg: #e9eaee;
+  --sidenav-filter-clear-hover-fg: #30313a;
+  --sidenav-filter-empty: #8b8c94;
 }
 
 /* ── Nav items ──────────────────────────────────────────────────────────── */

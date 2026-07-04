@@ -4,7 +4,7 @@ import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
-import { requestSilentReauth } from "../utils/authUi";
+import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
 import { setDashboardLayout } from "../utils/dashboardLayout";
 import { startRoleSwitch } from "../utils/roleSwitch";
 import { useVertical } from "../vertical/useVertical";
@@ -136,10 +136,42 @@ const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
 // Persists which sidebar sections are expanded so the user's open group
 // survives remounts and full-page reloads (per-tab, cleared when the tab closes).
-// Namespaced by role at use-site because section keys are positional
-// (`nav-${idx}`) and the admin/customer nav lists index the same group
-// differently — a shared key would restore the wrong group after a role switch.
+// Namespaced by role so admin and customer keep independent expansion state
+// (deliberate UX: switching roles restores that role's own open group).
 const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
+
+// Auto-expand table: the group containing the current route opens on first
+// load when nothing is saved. Ids must equal slugify(<group label>) from
+// `allNavItems` below — update both together when renaming a group.
+const AUTO_EXPAND_SECTIONS = [
+  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
+  { id: "mcp", paths: ["/webmcp", "/mcp-inspector", "/pingone-mcp-inspector", "/mcp-tools"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
+  { id: "tests", paths: ["/pingone-test", "/mfa-test", "/resource-server", "/resource-server-cc"] },
+];
+
+// Load a role's saved expansion state, falling back to the path-based
+// auto-expand default. Shared by the mount initializer and the key-change
+// reload below so both read the same shape.
+const loadExpandedSections = (storageKey, pathname) => {
+  try {
+    const saved = sessionStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+  } catch (_e) {
+    /* ignore malformed/unavailable storage */
+  }
+  const initial = {};
+  const matches = (paths) =>
+    paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  for (const s of AUTO_EXPAND_SECTIONS) {
+    if (matches(s.paths)) initial[`nav-${s.id}`] = true;
+  }
+  return initial;
+};
 
 // Stable section id from a label — decouples expansion/persistence keys from
 // array position so reordering nav items can't silently break auto-expand or
@@ -195,48 +227,33 @@ export default function AdminSideNav({ user }) {
     [collapsed, sidebarWidth],
   );
 
-  // Auto-expand the section that contains the current path on mount/remount.
-  // Prevents the sidebar collapsing when the layout remounts (e.g. customer navigating /dashboard → /monitoring/*).
-  // Index offsets differ by role: customers have "Family Delegation" at idx 2, pushing later items up by 1.
-  // Role-scoped so admin and customer keep independent expansion state (see
-  // EXPANDED_SECTIONS_KEY_BASE — positional keys differ per role).
+  // Role-scoped expansion state: a group the user opened should stay open
+  // until they open a different one, even across sidebar remounts and the
+  // full-page reloads this app performs (role/vertical switch, reauth).
+  // Persisted choice wins; path-based auto-expand is the first-load default.
   const expandedSectionsKey = `${EXPANDED_SECTIONS_KEY_BASE}.${user?.role || "guest"}`;
-  const [expandedSections, setExpandedSections] = useState(() => {
-    // A group the user opened should stay open until they open a different one,
-    // even across sidebar remounts and the full-page reloads this app performs
-    // (role/vertical switch, reauth). Persisted choice wins; the path-based
-    // auto-expand below is only the first-load default when nothing is saved.
-    try {
-      const saved = sessionStorage.getItem(expandedSectionsKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") return parsed;
-      }
-    } catch (_e) {
-      /* ignore malformed/unavailable storage */
-    }
-    const initial = {};
-    const path = location.pathname;
-    const matches = (paths) =>
-      paths.some((p) => path === p || path.startsWith(`${p}/`));
-    // Auto-expand the group that contains the current route. Keyed by the
-    // group's stable slug id (slugify(label)) — position-independent, so it
-    // stays correct regardless of nav order or role filtering.
-    const sections = [
-      { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-      { id: "mcp", paths: ["/webmcp", "/mcp-inspector", "/pingone-mcp-inspector", "/mcp-tools"] },
-      { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
-      { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-      { id: "tests", paths: ["/pingone-test", "/mfa-test", "/resource-server", "/resource-server-cc"] },
-    ];
-    for (const s of sections) {
-      if (matches(s.paths)) initial[`nav-${s.id}`] = true;
-    }
-    return initial;
-  });
+  const [expandedSections, setExpandedSections] = useState(() =>
+    loadExpandedSections(expandedSectionsKey, location.pathname),
+  );
+  // The initializer runs once, but on public routes the nav mounts before the
+  // session resolves (user null → "guest" key) and the same instance later
+  // flips to the real role. Reload that role's saved state when the key
+  // changes, and gate persistence on the loaded key so the old role's state
+  // is never written into the new role's bucket.
+  const loadedSectionsKeyRef = useRef(expandedSectionsKey);
+  useEffect(() => {
+    if (loadedSectionsKeyRef.current === expandedSectionsKey) return;
+    setExpandedSections(
+      loadExpandedSections(expandedSectionsKey, location.pathname),
+    );
+    loadedSectionsKeyRef.current = expandedSectionsKey;
+    // The ref guard makes path-change re-runs a no-op: reload happens only
+    // when the role/key actually changes.
+  }, [expandedSectionsKey, location.pathname]);
   // Persist expansion state so the open group stays open until the user opens
   // another (see expandedSectionsKey).
   useEffect(() => {
+    if (loadedSectionsKeyRef.current !== expandedSectionsKey) return;
     try {
       sessionStorage.setItem(
         expandedSectionsKey,
@@ -821,8 +838,7 @@ export default function AdminSideNav({ user }) {
         setShowResetModal(true);
         break;
       case "sign-in":
-        window.location.href =
-          "/api/auth/oauth/user/login?return_to=/dashboard";
+        navigateToCustomerOAuthLogin("/dashboard");
         break;
       default:
         break;

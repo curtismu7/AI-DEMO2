@@ -132,11 +132,15 @@ export function errorMessageSuggestsLogin(message) {
   );
 }
 
-/** Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route. */
-export function navigateToCustomerOAuthLogin() {
+/**
+ * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
+ * @param {string} [returnTo] - app path to land on after login (BFF `return_to`)
+ */
+export function navigateToCustomerOAuthLogin(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  window.location.href = `${apiUrl}/api/auth/oauth/user/login`;
+  const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : '';
+  window.location.href = `${apiUrl}/api/auth/oauth/user/login${suffix}`;
 }
 
 /** Force re-authentication — clears existing session and sends prompt=login to PingOne. */

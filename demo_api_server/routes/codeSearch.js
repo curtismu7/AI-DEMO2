@@ -34,6 +34,26 @@ function getClient() {
 }
 
 /**
+ * Shared error responder for every code-search route: the client marks
+ * outages (HTTP 503 or network-level failure) with err.status === 503, which
+ * maps to 503 mcp_server_unavailable; anything else is a 500 with the
+ * route-specific error code.
+ */
+function sendCodeSearchError(res, err, errorCode, label) {
+  console.error(`[code-search] ${label} error:`, err.message);
+  if (err.status === 503) {
+    return res.status(503).json({
+      error: 'mcp_server_unavailable',
+      message: err.message,
+    });
+  }
+  return res.status(500).json({
+    error: errorCode,
+    message: err.message,
+  });
+}
+
+/**
  * POST /api/code-search/index
  * Index files for a codebase
  *
@@ -83,19 +103,7 @@ router.post('/index', upload.array('file'), async (req, res) => {
 
     return res.status(200).json(result);
   } catch (err) {
-    console.error('[code-search] Index error:', err.message);
-
-    if (err.message.includes('unavailable')) {
-      return res.status(503).json({
-        error: 'mcp_server_unavailable',
-        message: err.message,
-      });
-    }
-
-    return res.status(500).json({
-      error: 'index_failed',
-      message: err.message,
-    });
+    return sendCodeSearchError(res, err, 'index_failed', 'Index');
   }
 });
 
@@ -135,19 +143,7 @@ router.post('/search', express.json(), async (req, res) => {
 
     return res.status(200).json(result);
   } catch (err) {
-    console.error('[code-search] Search error:', err.message);
-
-    if (err.message.includes('unavailable')) {
-      return res.status(503).json({
-        error: 'mcp_server_unavailable',
-        message: err.message,
-      });
-    }
-
-    return res.status(500).json({
-      error: 'search_failed',
-      message: err.message,
-    });
+    return sendCodeSearchError(res, err, 'search_failed', 'Search');
   }
 });
 
@@ -163,19 +159,7 @@ router.get('/codebases', async (_req, res) => {
     const result = await getClient().listCodebases();
     return res.status(200).json(result);
   } catch (err) {
-    console.error('[code-search] List codebases error:', err.message);
-
-    if (err.message.includes('unavailable')) {
-      return res.status(503).json({
-        error: 'mcp_server_unavailable',
-        message: err.message,
-      });
-    }
-
-    return res.status(500).json({
-      error: 'list_failed',
-      message: err.message,
-    });
+    return sendCodeSearchError(res, err, 'list_failed', 'List codebases');
   }
 });
 

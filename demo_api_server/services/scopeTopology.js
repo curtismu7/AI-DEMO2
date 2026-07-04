@@ -18,19 +18,43 @@ const MANIFEST_PATH =
   process.env.SCOPE_TOPOLOGY_PATH || path.join(ROOT, 'scope-topology.json');
 
 let _manifest = null;
+let _manifestMtimeMs = 0;
 
 function load() {
-  if (_manifest) return _manifest;
-  const raw = fs.readFileSync(MANIFEST_PATH, 'utf8');
-  const m = JSON.parse(raw);
-  // v1, v2, and v3 are accepted. v2 adds resources.*.mirroredScopes,
-  // a top-level `servers` block, and apps.*.{type,grantTypes,isResourceServer}.
-  // v3 adds the deployment section for public app URLs. All additions are optional.
-  if (!m || (m.version !== 1 && m.version !== 2 && m.version !== 3) || !m.scopes || !m.tools || !m.apps || !m.resources) {
-    throw new Error('[scopeTopology] scope-topology.json missing required top-level keys or unsupported version');
+  // Memoized, but re-validated against the file's mtime so an edited or
+  // replaced SSOT (git merge/checkout, topology regen, admin editor save) is
+  // picked up on the next read without a process restart. statSync costs
+  // microseconds. Boot keeps fail-fast semantics (first load throws on a bad
+  // manifest); after boot a failed reload keeps serving the last good
+  // manifest instead of taking down in-flight requests.
+  let mtimeMs;
+  try {
+    mtimeMs = fs.statSync(MANIFEST_PATH).mtimeMs;
+  } catch (err) {
+    if (!_manifest) throw err;
+    return _manifest; // transient stat blip — keep the memo
   }
-  _manifest = m;
-  return _manifest;
+  if (_manifest && mtimeMs === _manifestMtimeMs) return _manifest;
+  try {
+    const raw = fs.readFileSync(MANIFEST_PATH, 'utf8');
+    const m = JSON.parse(raw);
+    // v1, v2, and v3 are accepted. v2 adds resources.*.mirroredScopes,
+    // a top-level `servers` block, and apps.*.{type,grantTypes,isResourceServer}.
+    // v3 adds the deployment section for public app URLs. All additions are optional.
+    if (!m || (m.version !== 1 && m.version !== 2 && m.version !== 3) || !m.scopes || !m.tools || !m.apps || !m.resources) {
+      throw new Error('[scopeTopology] scope-topology.json missing required top-level keys or unsupported version');
+    }
+    _manifest = m;
+    _manifestMtimeMs = mtimeMs;
+    return _manifest;
+  } catch (err) {
+    if (_manifest) {
+      console.error('[scopeTopology] reload failed — keeping previous manifest:', err.message);
+      _manifestMtimeMs = mtimeMs; // don't retry the same bad write on every call
+      return _manifest;
+    }
+    throw err;
+  }
 }
 
 /** Required scopes for a tool. Falls back to ['read'] for unknown tools. */

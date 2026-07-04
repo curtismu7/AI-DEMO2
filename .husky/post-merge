@@ -10,17 +10,17 @@ if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/c
   nohup npm run export:learning >> logs/learning-hub-export.log 2>&1 &
 fi
 
-# When a merge changes scope-topology.json, reload the BFF so it picks up the new
-# SSOT: scopeTopology memoizes at first load and MCP_TOOL_SCOPES is frozen, so
-# only a process restart reloads it (node --watch watches /app, not the repo-root
-# topology). The file is directory-mounted (docker-compose.yml ./:/repo), so a
-# restart suffices — no recreate. No-op when Docker or the BFF isn't running.
+# When a merge changes scope-topology.json, restart the BFF in the background.
+# scopeTopology.js hot-reloads the manifest on mtime change, but MCP_TOOL_SCOPES
+# is still frozen at require time, so a restart is needed for that (node --watch
+# watches /app, not the repo-root topology). The file is directory-mounted
+# (docker-compose.yml ./:/repo), so a restart suffices — no recreate. Backgrounded
+# (like the learning-hub export above) so the merge never stalls on Docker's
+# stop timeout. No-op when Docker or the BFF isn't running.
 if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^scope-topology\.json$'; then
   if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^ai-demo-api-server$'; then
-    echo "[post-merge] scope-topology.json changed — restarting BFF to reload the SSOT..."
-    docker restart ai-demo-api-server >/dev/null 2>&1 \
-      && echo "[post-merge] BFF restarted." \
-      || echo "[post-merge] BFF restart failed — run: docker restart ai-demo-api-server"
+    echo "[post-merge] scope-topology.json changed — restarting BFF in background to reload MCP_TOOL_SCOPES..."
+    nohup docker restart ai-demo-api-server >/dev/null 2>&1 &
   fi
 fi
 

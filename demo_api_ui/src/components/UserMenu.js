@@ -7,8 +7,7 @@ import { useSessionToken } from '../context/SessionTokenContext';
 export default function UserMenu({ user, onLogout, isAdminView = false, onSwitchView }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
-  const { tokenSecondsLeft, tokenLoading } = useSessionToken();
-  const hasActiveToken = !tokenLoading && tokenSecondsLeft !== null && tokenSecondsLeft > 0;
+  const { hasActiveToken } = useSessionToken();
 
   useEffect(() => {
     const handleClickOutside = (event) => {

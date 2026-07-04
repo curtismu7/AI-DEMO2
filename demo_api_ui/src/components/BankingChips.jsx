@@ -1,6 +1,8 @@
 import React from "react";
 import "./BankingChips.css";
 import { useVertical } from '../vertical/useVertical';
+import { useSessionToken } from "../context/SessionTokenContext";
+import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import SecurityShowcasePanel from "./SecurityShowcasePanel";
 import { chipPermState } from "../utils/chipPermissions";
 
@@ -66,22 +68,23 @@ export default function BankingChips({
   // True when the tool-list fetch failed. With no permission data we can't verify
   // a tool-backed chip, so we disable it rather than fail open to a doomed click.
   toolsError = false,
-  // True when there's no usable access token (same signal as the TopNav "No
-  // token — please sign in" pill). Distinguishes "not signed in" from a real
-  // authorize outage so the chips prompt sign-in instead of a misleading error.
-  needsSignIn = false,
   onDeniedChip,
 }) {
   const { pageManifest } = useVertical();
   const dashboard = pageManifest?.dashboard;
+  // No usable access token (same derived signal as the TopNav "No token —
+  // please sign in" pill) distinguishes "not signed in" from a real authorize
+  // outage, so the chips prompt sign-in instead of a misleading error.
+  // staleSession is excluded: StaleSessionBanner owns that state with a
+  // force-login remedy.
+  const { hasActiveToken, tokenLoading, staleSession } = useSessionToken();
+  const needsSignIn = !tokenLoading && !staleSession && !hasActiveToken;
   const handleSignIn = () => {
     const returnTo =
       typeof window !== "undefined"
         ? window.location.pathname + window.location.search
         : "/dashboard";
-    window.location.href = `/api/auth/oauth/user/login?return_to=${encodeURIComponent(
-      returnTo,
-    )}`;
+    navigateToCustomerOAuthLogin(returnTo);
   };
   // chipPermState (shared with SecurityShowcasePanel) joins a chip with the live
   // Authorize-filtered tool list — see utils/chipPermissions.js.

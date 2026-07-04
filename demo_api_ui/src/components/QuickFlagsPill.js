@@ -2,8 +2,8 @@
 // mode (🔐 JWKS / 🔎 Introspect) + a dropdown with the curated demo switches.
 // Read AND write paths of /api/admin/feature-flags are intentionally
 // unauthenticated at the server (see server.js — demo posture, do not add a
-// gate silently). The admin gating here is client-side UX only; the 403 /
-// adminDenied handling is defensive for a future server-side gate.
+// gate silently). Any signed-in user (customer or admin) can flip these here —
+// the 403 / adminDenied handling is defensive for a future server-side gate.
 // Env-pinned flags (pinned/pinnedBy from the API) render locked: getEffective()
 // is env-first, so their toggles would be silently inert.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -44,7 +44,9 @@ export default function QuickFlagsPill({ user }) {
     return () => { aliveRef.current = false; };
   }, []);
 
-  const isAdmin = user?.role === 'admin' && !adminDenied;
+  // Any signed-in user may flip the demo flags; a server 403 (adminDenied)
+  // disables the controls as a defensive fallback for a future server gate.
+  const canEdit = !!user && !adminDenied;
 
   const load = useCallback(async () => {
     try {
@@ -139,7 +141,7 @@ export default function QuickFlagsPill({ user }) {
     const f = flagsById?.[def.id];
     if (!f) return <span className="qfp-missing">unavailable</span>;
     const locked = !!f.pinned;
-    const disabled = locked || !isAdmin || savingId === def.id;
+    const disabled = locked || !canEdit || savingId === def.id;
     const lockTitle = locked
       ? `Pinned by ${f.pinnedBy} in docker-compose — change the env to flip`
       : undefined;
@@ -203,7 +205,7 @@ export default function QuickFlagsPill({ user }) {
           role="menu"
           aria-label="Quick feature flags"
         >
-          {!isAdmin && <div className="qfp-hint">Admin session required</div>}
+          {!canEdit && <div className="qfp-hint">Sign in to change flags</div>}
           {error && <div className="qfp-error">{error}</div>}
           {loadFailed && (
             <button type="button" className="qfp-retry" onClick={load}>Reload flags</button>
