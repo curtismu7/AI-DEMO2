@@ -2286,14 +2286,17 @@ async function _performTwoExchangeDelegation(
 
   let finalToken;
   try {
-    // When routing through PingGateway, send the unique pinggateway:invoke scope
-    // so PingOne unambiguously selects the f2669dd9 (https://api.ping.demo:3036/mcp)
-    // grant. Sending effectiveToolScopes (read, transfer, …) caused PingOne to fall
-    // back to fb2d09cb (mcpgateway.ping.demo, which has read). Empty scopes also
-    // fail: PingOne returns "May not request scopes for multiple resources" when the
-    // exchanger has multiple RS grants and no scope narrows the selection.
-    const pingGatewayInvokeScope = configStore.getEffective('pinggateway_invoke_scope') || 'pinggateway:invoke';
-    const ex2Scopes = usePingGatewayForExchange ? [pingGatewayInvokeScope] : effectiveToolScopes;
+    // When routing through PingGateway, request a single coarse scope on the
+    // PingGateway MCP resource (https://api.ping.demo:3036/mcp). PingGateway itself
+    // requires only a valid bearer + RFC 8707 audience match + a configurable coarse
+    // scope — NOT a product-specific scope name. The name here is unique
+    // (gateway:mcp:invoke, the mcp:invoke capability on the gateway hop) only because
+    // PingOne forbids one exchanger app from holding the same scope name on two
+    // resources — an AS grant-model constraint, not a PingGateway requirement.
+    // (Sending effectiveToolScopes made PingOne fall back to the mcpgateway grant;
+    // empty scopes error "May not request scopes for multiple resources".)
+    const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope') || 'gateway:mcp:invoke';
+    const ex2Scopes = usePingGatewayForExchange ? [gatewayInvokeScope] : effectiveToolScopes;
     finalToken = await oauthService.performTokenExchangeAs(
       agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
     );
