@@ -444,6 +444,15 @@ export default function AdminSideNav({ user }) {
           path: "/mcp-tools",
           icon: "tool",
         },
+        {
+          label: "PingOne MCP Tools",
+          // Static HTML page (not an SPA route) — force a full navigation so
+          // it loads directly instead of hitting the React Router catch-all.
+          action: () => {
+            window.location.href = "/pingone-mcp-tools.html";
+          },
+          icon: "tool",
+        },
       ],
     },
     {
@@ -983,12 +992,36 @@ export default function AdminSideNav({ user }) {
       : [{ label: "Sign In", action: "sign-in", icon: "key" }]),
   ];
 
-  const isActive = (path) => {
+  // Base route matcher (no Home fallback) — used to decide whether ANY sidebar
+  // item matches the current route.
+  const pathMatches = (path) => {
+    if (path === "/") return location.pathname === "/";
     if (path === "/admin" || path === "/dashboard")
       return location.pathname === path;
     return (
       location.pathname === path || location.pathname.startsWith(`${path}/`)
     );
+  };
+
+  // Every routable path in the sidebar (top-level + children), so Home can act
+  // as the default highlight when the current route matches none of them.
+  const collectPaths = (items) =>
+    items.flatMap((item) => [
+      ...(item.path ? [item.path] : []),
+      ...(item.children ? collectPaths(item.children) : []),
+    ]);
+  // Quick-link routes live outside navItems but still show their own active
+  // state — fold them in so Home yields instead of double-highlighting.
+  const QUICK_LINK_PATHS = ["/dashboard", "/admin", "/configure"];
+  const anyNavActive =
+    collectPaths(navItems).some((p) => p !== "/" && pathMatches(p)) ||
+    QUICK_LINK_PATHS.some((p) => pathMatches(p));
+
+  const isActive = (path) => {
+    // Home ("/") is the default selection: highlighted on "/" and also as a
+    // fallback when no other sidebar item matches the current route.
+    if (path === "/") return location.pathname === "/" || !anyNavActive;
+    return pathMatches(path);
   };
 
   const isParentActive = (item) => {
