@@ -93,6 +93,10 @@ export default function VerticalFeaturePage() {
           <span className="vfp-swap-label">Service API key (last 4 chars only):</span>
           <code className="vfp-swap-value">****{raw.apiKeyMaskedLast4 || 'XXXX'}</code>
         </div>
+        <div className="vfp-swap-row">
+          <span className="vfp-swap-label">API call:</span>
+          <code className="vfp-swap-value">{raw.apiCall || '—'}</code>
+        </div>
         <ul className="vfp-swap-details">
           <li><strong>Source:</strong> {raw.backend?.source || raw.source}</li>
           <li><strong>Auth mechanism:</strong> {raw.backend?.authMechanism || raw.authMechanism}</li>

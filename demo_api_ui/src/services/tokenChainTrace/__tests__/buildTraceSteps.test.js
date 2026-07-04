@@ -150,4 +150,19 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.reply.status).toBe("done");
     expect(byId.reply.detail.response.text).toContain("Done!");
   });
+
+  test("api step surfaces the api-key call + masked key when the swap ran", () => {
+    const trace = { ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: 'evt-swap', tokenType: 'api_key', maskedValue: '...0000', status: 'ok' },
+        { id: 'evt-backend', tokenType: 'api_key', status: 'ok' },
+      ],
+      mcpResult: { _meta: { credentialPath: 'api_key', apiKeyMaskedLast4: '0000', apiCall: 'GET /invest' } },
+    };
+    const step = buildTraceSteps(trace).find((s) => s.id === 'api');
+    expect(step.status).toBe('done');
+    const flat = JSON.stringify(step.detail);
+    expect(flat).toContain('GET /invest');
+    expect(flat).toContain('0000');
+  });
 });
