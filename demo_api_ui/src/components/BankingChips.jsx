@@ -66,10 +66,23 @@ export default function BankingChips({
   // True when the tool-list fetch failed. With no permission data we can't verify
   // a tool-backed chip, so we disable it rather than fail open to a doomed click.
   toolsError = false,
+  // True when there's no usable access token (same signal as the TopNav "No
+  // token — please sign in" pill). Distinguishes "not signed in" from a real
+  // authorize outage so the chips prompt sign-in instead of a misleading error.
+  needsSignIn = false,
   onDeniedChip,
 }) {
   const { pageManifest } = useVertical();
   const dashboard = pageManifest?.dashboard;
+  const handleSignIn = () => {
+    const returnTo =
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : "/dashboard";
+    window.location.href = `/api/auth/oauth/user/login?return_to=${encodeURIComponent(
+      returnTo,
+    )}`;
+  };
   // chipPermState (shared with SecurityShowcasePanel) joins a chip with the live
   // Authorize-filtered tool list — see utils/chipPermissions.js.
   const permState = (chip) => chipPermState(chip, toolPermissions, toolsError);
@@ -140,6 +153,15 @@ export default function BankingChips({
               ? `${pageManifest.identity.displayName} Actions`
               : 'Suggestions'}
           </div>
+          {needsSignIn && (
+            <button
+              type="button"
+              className="banking-chips-dropdown__signin"
+              onClick={handleSignIn}
+            >
+              🔐 Sign in to use these actions
+            </button>
+          )}
           <div className="banking-chips-dropdown__grid banking-chips-dropdown__grid--heuristic">
             {chips10.map((chip) => {
               const isDirect = chip.mode === "direct";
@@ -171,7 +193,9 @@ export default function BankingChips({
                   disabled={isLoading || llmDisabled || perm.unverified}
                   title={
                     perm.unverified
-                      ? "Authorize unavailable — couldn't reach PingOne or the demo authorize server. Retry shortly."
+                      ? needsSignIn
+                        ? "Sign in to use these actions."
+                        : "Authorize unavailable — couldn't reach PingOne or the demo authorize server. Retry shortly."
                       : perm.denied
                       ? `Denied by Authorize: ${deniedReason}`
                       : isDirect

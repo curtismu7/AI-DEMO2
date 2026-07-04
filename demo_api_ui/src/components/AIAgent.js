@@ -12,6 +12,7 @@ import { useIndustryBranding } from "../context/IndustryBrandingContext";
 import { useVertical } from "../vertical/useVertical";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
+import { useSessionToken } from "../context/SessionTokenContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
@@ -231,6 +232,14 @@ export default function BankingAgent({
   const { chips: customChips, groups: customGroups } = useCustomChips();
   const { mode: agentProviderMode } = useLangchainProvider();
   const { addEvent } = useEventStream();
+  // Same token signal the TopNav pill uses ("No token — please sign in"): no
+  // usable access token means the Authorize check can't verify tool chips, so
+  // BankingChips should prompt sign-in instead of a misleading authorize error.
+  const { tokenSecondsLeft, tokenLoading, staleSession } = useSessionToken();
+  const needsSignIn =
+    !tokenLoading &&
+    !staleSession &&
+    !(tokenSecondsLeft !== null && tokenSecondsLeft > 0);
   const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
   const themeAgent = agentManifest?.agent;
@@ -6443,6 +6452,7 @@ export default function BankingAgent({
                     isHelixMode={agentProviderMode === 'helix_google'}
                     toolPermissions={toolPermissions}
                     toolsError={agentToolsError}
+                    needsSignIn={needsSignIn}
                     onDeniedChip={(chip, reason) => {
                       addMessage("user", chip.label);
                       addMessage(

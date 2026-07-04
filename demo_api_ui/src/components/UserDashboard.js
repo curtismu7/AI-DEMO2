@@ -2619,13 +2619,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
         >
-          <aside className="ud-token-rail" aria-label="Token chain">
-            <div className="section ud-token-rail__inner">
-              <ExchangeModeToggle hideTable />
-              <TokenChainTraceRail />
-            </div>
-          </aside>
-
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
@@ -2699,6 +2692,16 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               </div>
             </aside>
           )}
+
+          {/* Token rail is the LAST child so the 2026 grid (UserDashboard.css
+              "token rail on the RIGHT") places it in the narrow right track,
+              with the agent taking the wide track. Mirrors UserDashboardPing2026. */}
+          <aside className="ud-token-rail" aria-label="Token chain">
+            <div className="section ud-token-rail__inner">
+              <ExchangeModeToggle hideTable />
+              <TokenChainTraceRail />
+            </div>
+          </aside>
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels

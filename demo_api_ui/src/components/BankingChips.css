@@ -25,6 +25,27 @@
   padding: 0 4px;
 }
 
+/* Sign-in CTA shown above the suggestions when there's no usable token — the
+   Authorize check can't run, so the chips are unverified until the user signs in. */
+.banking-chips-dropdown__signin {
+  display: block;
+  width: 100%;
+  margin: 6px 0 8px;
+  padding: 9px 12px;
+  border: 1px solid #2767d2;
+  border-radius: 6px;
+  background-color: #2767d2;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s, box-shadow 0.12s;
+}
+.banking-chips-dropdown__signin:hover {
+  background-color: #1e51ad;
+  box-shadow: 0 2px 6px rgba(39, 103, 210, 0.35);
+}
+
 .banking-chips-dropdown__grid {
   display: grid;
   gap: 6px;

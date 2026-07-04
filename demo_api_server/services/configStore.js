@@ -24,7 +24,11 @@ const fs = require('node:fs');
 let scopeTopology = null;
 function loadScopeTopology() {
   if (scopeTopology) return scopeTopology;
-  const scopePath = path.join(__dirname, '../../scope-topology.json');
+  // SCOPE_TOPOLOGY_PATH lets Docker point at a directory-mounted copy that
+  // survives host-file replacement; defaults to the repo-root SSOT otherwise.
+  const scopePath =
+    process.env.SCOPE_TOPOLOGY_PATH ||
+    path.join(__dirname, '../../scope-topology.json');
   try {
     scopeTopology = JSON.parse(fs.readFileSync(scopePath, 'utf8'));
     return scopeTopology;

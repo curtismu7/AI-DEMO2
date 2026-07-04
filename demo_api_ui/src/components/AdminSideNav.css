@@ -145,28 +145,43 @@
   box-shadow: 0 2px 6px rgba(41, 128, 185, 0.5);
 }
 
-/* Nav filter box */
+/* Nav search box */
 .admin-side-nav__filter {
   position: relative;
-  padding: 8px 0 4px;
+  padding: 8px 0 6px;
+}
+.admin-side-nav__filter-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
 }
 .admin-side-nav__filter-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 7px 28px 7px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+  /* room for the search icon (left) and clear button (right) */
+  padding: 8px 30px 8px 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
   font-family: inherit;
   font-size: 13px;
 }
 .admin-side-nav__filter-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
+}
+.admin-side-nav__filter-input:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 .admin-side-nav__filter-input:focus {
-  border-color: #3498db;
-  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  border-color: #4aa3e6;
+  background: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.35);
 }
 .admin-side-nav__filter-clear {
   position: absolute;
