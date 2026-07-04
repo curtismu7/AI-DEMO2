@@ -20,7 +20,8 @@ of truth; if the skill disagrees with it, the file wins.
 Two rules from `§0` that apply to everything you write here:
 
 - **Emoji rule:** the only emojis allowed in skills, commands, code, and UI text
-  are `⚠️` `✅` `❌` `🔐`. Everything else is plain text or CSS/semantic icons.
+  are `⚠️` `✅` `❌` `🔐` `✕` (close) `✓` (check). Everything else is plain text
+  or CSS/semantic icons.
 - **Minimal diff:** name the component, name the element, change only that. No
   "while I'm here" cleanup of adjacent code.
 
