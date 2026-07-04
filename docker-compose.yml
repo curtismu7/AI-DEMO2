@@ -120,6 +120,10 @@ services:
       # redirect URIs, etc.) are now sourced from demo_api_server/.env (master copy).
       # No hardcoded overrides in this docker-compose.yml — env_file loads them from .env.
       # See scope-topology.json for the definition of these values per environment.
+      # scope-topology.json is bind-mounted via the repo root as a DIRECTORY (see
+      # volumes: ./:/repo below) so it survives host-file replacement; point the
+      # BFF readers (scopeTopology.js, configStore.js) at that stable path.
+      SCOPE_TOPOLOGY_PATH: "/repo/scope-topology.json"
       # llama.cpp — BFF status probe (llmProviderStatus.js) needs the host-reachable
       # URL (origin only; the service appends /v1). Launch llama-server on the host.
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
@@ -139,10 +143,16 @@ services:
       # Agent Gateway JSON config editor (/agent-gateway-config admin page): the BFF
       # reads/writes the gateway's JSON on the host. RW (not :ro) so saves persist;
       # IG picks up routes/*.json via its ~10s directory watcher, config/admin need a
-      # restart. scope-topology.json is also configStore's SoT — mounting it here at
-      # the path configStore expects (/scope-topology.json) fixes its load in Docker.
+      # restart.
       - ./ping-gateway/config:/app/gateway-config
-      - ./scope-topology.json:/scope-topology.json
+      # scope-topology.json (configStore + scopeTopology SSOT) is read via
+      # SCOPE_TOPOLOGY_PATH=/repo/scope-topology.json. Mounting the repo root as a
+      # DIRECTORY (read-only) — rather than the single file — is deliberate: a
+      # single-file bind mount goes stale when the host file is replaced (git
+      # merge / topology regen give it a new inode), vanishing in-container and
+      # crash-looping the BFF at require-time. A directory mount re-resolves the
+      # file on every read. Read-only: nothing in the container writes it.
+      - ./:/repo:ro
       # Encrypted secrets vault (Phase 269). vaultLoader's default path is
       # REPO_ROOT/secrets.vault, which resolves to /secrets.vault inside /app —
       # mount the committed encrypted file there. VAULT_PASSWORD arrives via the

@@ -10,7 +10,12 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../../');
-const MANIFEST_PATH = path.join(ROOT, 'scope-topology.json');
+// Default resolves to the repo-root SSOT (host, tests, image builds). In Docker
+// dev the repo root is bind-mounted as a directory and SCOPE_TOPOLOGY_PATH points
+// here — a directory mount survives the host file being replaced (git merge /
+// regen give it a new inode), which a single-file bind mount does not.
+const MANIFEST_PATH =
+  process.env.SCOPE_TOPOLOGY_PATH || path.join(ROOT, 'scope-topology.json');
 
 let _manifest = null;
 

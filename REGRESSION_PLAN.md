@@ -79,6 +79,37 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-04 — BFF crash-loop from stale single-file bind mount of scope-topology.json
+
+**Files changed:**
+- `docker-compose.yml` — replaced the fragile single-file mount `./scope-topology.json:/scope-topology.json` with a read-only DIRECTORY mount of the repo root (`./:/repo:ro`) and set `SCOPE_TOPOLOGY_PATH=/repo/scope-topology.json`.
+- `demo_api_server/services/scopeTopology.js` — read `process.env.SCOPE_TOPOLOGY_PATH || <repo-root>/scope-topology.json` (default unchanged when unset).
+- `demo_api_server/services/configStore.js` — same `SCOPE_TOPOLOGY_PATH` override for its topology read.
+- `.husky/post-merge` — when a merge changes `scope-topology.json`, restart `ai-demo-api-server` so it reloads the SSOT (no-op if Docker/BFF is down).
+
+**What was broken:** `scope-topology.json` was bind-mounted into the BFF as a
+single file. Single-file bind mounts are pinned to the host file's inode, so when
+a `git merge`/`checkout` (or regen) replaced the file with a new inode, the mount
+went stale and the file vanished inside the container. `services/mcpWebSocketClient.js`
+calls `scopeTopology.allTools()` at require time with no catch, so the next
+`node --watch` restart hit `ENOENT: /scope-topology.json` and crash-looped the
+whole BFF (all APIs 502).
+
+**What was fixed:** the topology is now read from a directory-mounted path via
+`SCOPE_TOPOLOGY_PATH`; directory mounts re-resolve the file on each open, so host
+file replacement no longer breaks the container. A post-merge hook restarts the
+BFF when the SSOT content changes so the frozen `MCP_TOOL_SCOPES` reload.
+
+**Do not break:** keep `SCOPE_TOPOLOGY_PATH` pointing at a **directory**-mounted
+copy (never re-introduce a single-file `:/scope-topology.json` bind mount). The
+env override must default to the repo-root path when unset so host/tests/image
+builds are unaffected. Do not change tool→scope mapping in `scopeTopology.js`.
+
+**Verify:** `cd demo_api_server && npx jest scopeTopology` → 67 pass. In Docker,
+replace the host `scope-topology.json` with a new-inode copy and confirm
+`docker exec ai-demo-api-server node -e 'require("/repo/scope-topology.json")'`
+still parses and login stays 200 (would ENOENT under the old single-file mount).
+
 ### 2026-06-20 — Block admin tokens from the customer dashboard + always-visible Sign Out / Switch
 
 **Files changed:**
