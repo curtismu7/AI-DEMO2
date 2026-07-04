@@ -200,9 +200,16 @@ def parseActClaim = { v ->
     if (v == null) return null
     if (v instanceof String) {
         if (v.trim().isEmpty()) return null
-        try { return new groovy.json.JsonSlurper().parseText(v) } catch (ignored) { return null }
+        // Only a JSON *object* is a usable act claim. A quoted scalar ('"x"'),
+        // number, or array parses fine but then `.sub` below throws the very
+        // MissingPropertyException this parser exists to prevent — treat those
+        // as no native claim (header bridge takes over).
+        try {
+            def parsed = new groovy.json.JsonSlurper().parseText(v)
+            return parsed instanceof Map ? parsed : null
+        } catch (ignored) { return null }
     }
-    return v
+    return v instanceof Map ? v : null
 }
 def actClaim        = parseActClaim(tokenInfo['act'])
 def mayActClaim     = parseActClaim(tokenInfo['may_act'])
