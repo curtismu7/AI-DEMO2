@@ -10,6 +10,10 @@ os.environ.setdefault("BFF_INTERNAL_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
 
+# /run is gated by AuthMiddleware on the shared internal secret; the BFF sends
+# this header on every call, so the tests must too or they only exercise the 401.
+AUTH_HEADERS = {"x-internal-gateway-secret": "test-secret"}
+
 
 RUN_PAYLOAD = {
     "threadId": "t1",
@@ -64,7 +68,7 @@ def test_run_returns_200_with_sse_content_type():
     with patch("src.run_handler.build_agent", return_value=_make_mock_agent()):
         from src.main import app
         client = TestClient(app)
-        resp = client.post("/run", json=RUN_PAYLOAD)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
     assert resp.status_code == 200
     assert "text/event-stream" in resp.headers["content-type"]
 
@@ -73,7 +77,7 @@ def test_run_emits_run_started_first():
     with patch("src.run_handler.build_agent", return_value=_make_mock_agent()):
         from src.main import app
         client = TestClient(app)
-        resp = client.post("/run", json=RUN_PAYLOAD)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
     events = _parse_sse(resp.text)
     assert events[0]["type"] == "RUN_STARTED"
     assert events[0]["runId"] == "r1"
@@ -83,7 +87,7 @@ def test_run_emits_run_finished_last():
     with patch("src.run_handler.build_agent", return_value=_make_mock_agent()):
         from src.main import app
         client = TestClient(app)
-        resp = client.post("/run", json=RUN_PAYLOAD)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
     events = _parse_sse(resp.text)
     assert events[-1]["type"] == "RUN_FINISHED"
 
@@ -92,7 +96,7 @@ def test_run_emits_text_content_events():
     with patch("src.run_handler.build_agent", return_value=_make_mock_agent(["Hello", " world"])):
         from src.main import app
         client = TestClient(app)
-        resp = client.post("/run", json=RUN_PAYLOAD)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
     events = _parse_sse(resp.text)
     content_events = [e for e in events if e["type"] == "TEXT_MESSAGE_CONTENT"]
     assert len(content_events) == 2
@@ -108,7 +112,7 @@ def test_run_emits_run_error_event_on_exception():
     with patch("src.run_handler.build_agent", return_value=mock_agent):
         from src.main import app
         client = TestClient(app)
-        resp = client.post("/run", json=RUN_PAYLOAD)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
     events = _parse_sse(resp.text)
     error_events = [e for e in events if e["type"] == "RUN_ERROR"]
     assert len(error_events) == 1
@@ -122,7 +126,7 @@ def test_run_forwards_llm_provider_config_to_build_agent():
     with patch("src.run_handler.build_agent", return_value=_make_mock_agent()) as mock_build:
         from src.main import app
         client = TestClient(app)
-        client.post("/run", json=RUN_PAYLOAD)
+        client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
         call_kwargs = mock_build.call_args.kwargs
         assert "base_url" in call_kwargs
         assert "api_key" in call_kwargs

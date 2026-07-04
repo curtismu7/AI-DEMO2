@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 from .agent_factory import build_agent
 from .agui_emitter import AGUIEmitter
+from .bff_tool_adapter import resolve_bff_tool_url
 from .models import BffDeps
 from . import config as cfg
 
@@ -27,7 +28,7 @@ async def handle_run(request: Request) -> StreamingResponse:
     # in the active vertical's language (care, retail, sports, workforce, etc.).
     vertical_flavor: str | None = body.get("vertical_flavor") or None
 
-    bff_tool_url: str = ctx_data.get("bffToolUrl") or cfg.BFF_INTERNAL_TOOL_URL
+    bff_tool_url: str = resolve_bff_tool_url(ctx_data.get("bffToolUrl", ""), cfg.BFF_INTERNAL_TOOL_URL)
     # BFF doesn't include its internal secret in the run context (the secret
     # lives on the BFF, not in payloads). Fall back to the same env-resolved
     # value the agent will use for its own /internal/agent-tool callbacks.
@@ -78,20 +79,23 @@ async def handle_run(request: Request) -> StreamingResponse:
 
         emitter = AGUIEmitter(run_id, thread_id, sink)
 
-        agent = build_agent(
-            tool_schemas,
-            model_name=model,
-            base_url=cfg.LLM_BASE_URL,
-            api_key=cfg.LLM_API_KEY,
-            system_prompt=vertical_flavor,
-            provider=run_provider,
-            emit_fn=emitter.emit,
-        )
-
         try:
             await emitter.on_run_start()
             while collected:
                 yield collected.pop(0)
+
+            # Built inside the try so a construction failure (bad provider, bad
+            # tool schema) surfaces as RUN_ERROR after RUN_STARTED instead of
+            # tearing down the SSE stream with no terminal event (empty dock).
+            agent = build_agent(
+                tool_schemas,
+                model_name=model,
+                base_url=cfg.LLM_BASE_URL,
+                api_key=cfg.LLM_API_KEY,
+                system_prompt=vertical_flavor,
+                provider=run_provider,
+                emit_fn=emitter.emit,
+            )
 
             message_id = str(uuid.uuid4())
 

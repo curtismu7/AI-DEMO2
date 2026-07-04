@@ -21,9 +21,15 @@ def build_agent(
 ) -> Agent:
     if provider == "anthropic":
         from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.providers.anthropic import AnthropicProvider
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
         effective_model = model_name if model_name else _ANTHROPIC_DEFAULT_MODEL
-        model = AnthropicModel(effective_model, api_key=anthropic_key or None)
+        # pydantic-ai >=1.x AnthropicModel has no api_key kwarg; the key is passed
+        # via the provider. Passing api_key= directly raises TypeError on every run.
+        model = AnthropicModel(
+            effective_model,
+            provider=AnthropicProvider(api_key=anthropic_key or None),
+        )
     else:
         # Constructing OpenAIModel with an explicit provider keeps pydantic_ai from
         # falling back to the env-driven default (which would 401 on LM Studio).

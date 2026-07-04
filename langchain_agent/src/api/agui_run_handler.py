@@ -7,18 +7,31 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from agui.bff_tool_adapter import resolve_bff_tool_url
 from agui.emitter import AGUIEventEmitter
 from agui.sse_transport import format_sse, KEEPALIVE_PING
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _configured_bff_tool_url() -> str:
+    """Server-side BFF tool URL, used when a request supplies an untrusted host."""
+    explicit = os.environ.get("BFF_INTERNAL_TOOL_URL", "").rstrip("/")
+    if explicit:
+        return explicit if explicit.endswith("/internal/agent-tool") else explicit + "/internal/agent-tool"
+    base = os.environ.get("BFF_BASE_URL", "").rstrip("/")
+    if base:
+        return base + "/internal/agent-tool"
+    return "http://127.0.0.1:3001/internal/agent-tool"
 
 _message_processor: Optional[Any] = None
 
@@ -72,7 +85,7 @@ async def agent_run(request: Request) -> StreamingResponse:
     # BFF wiring: when agent_external_wiring='bff', the BFF sends bffToolUrl and
     # tool schemas so the agent calls back via /internal/agent-tool (RFC 8693
     # token exchange happens there, tokenEvents flow back as STATE_DELTA).
-    bff_tool_url: str = context.get("bffToolUrl", "")
+    bff_tool_url: str = resolve_bff_tool_url(context.get("bffToolUrl", ""), _configured_bff_tool_url())
     tool_schemas: list = body.get("tools") or []
     # Per-run LLM override forwarded from BFF (set by agent_mode selection in the UI).
     # When the user selects LM Studio mode, the BFF derives provider='anthropic-lmstudio'

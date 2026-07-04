@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { buildAgent } from './agentFactory';
 import { AGUIEmitter } from './aguiEmitter';
 import { getConfig } from './config';
+import { resolveBffToolUrl } from './bffToolAdapter';
 import type { EmitFn, RunCtx, ToolSchema } from './bffToolAdapter';
 
 function formatSse(event: Record<string, unknown>): string {
@@ -30,7 +31,7 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
   const sessionId = (ctx.sessionId as string | undefined) ?? '';
   const cfg = getConfig();
   const runCtx: RunCtx = {
-    bffToolUrl: (ctx.bffToolUrl as string | undefined) || cfg.bffToolUrl,
+    bffToolUrl: resolveBffToolUrl(ctx.bffToolUrl as string | undefined, cfg.bffToolUrl),
     bffInternalSecret: cfg.bffInternalSecret,
     sessionId,
   };

@@ -12,6 +12,7 @@ from agents import Runner
 
 from .agent_factory import build_agent
 from .agui_emitter import AGUIEmitter
+from .bff_tool_adapter import resolve_bff_tool_url
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ async def agent_run(request: Request) -> StreamingResponse:
             model = "claude-sonnet-4-6"
 
     run_ctx = {
-        "bff_tool_url": bff_tool_url or cfg.bff_tool_url,
+        "bff_tool_url": resolve_bff_tool_url(bff_tool_url, cfg.bff_tool_url),
         "bff_internal_secret": cfg.bff_internal_secret,
         "session_id": session_id,
         "base_url": llm_base_url,
