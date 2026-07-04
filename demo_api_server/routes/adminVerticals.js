@@ -99,23 +99,33 @@ function lookupAction(plugin, vertical, slices) {
 // name/username/email/id, and it keeps the original account-number/id search as
 // a fallback so no lookup capability is lost. Response uses the same
 // { user, query, vertical, data } envelope as the other verticals.
-function bankingAccountsFor(query) {
-  const user = resolveUser(query);
-  if (user) {
-    const accounts = dataStore.getAllAccounts()
-      .filter((a) => String(a.userId) === String(user.id));
-    return { user, accounts };
-  }
+function accountsByNumberOrId(query) {
   const raw = String(query || '').trim();
   const qLower = raw.toLowerCase();
   const qDigits = raw.replace(/\D/g, '');
-  const accounts = dataStore.getAllAccounts().filter((a) => {
+  return dataStore.getAllAccounts().filter((a) => {
     if (String(a.accountNumber).toLowerCase().includes(qLower)) return true;
     if (String(a.id).toLowerCase().includes(qLower)) return true;
     if (qDigits.length > 0 && String(a.accountNumber).replace(/\D/g, '').includes(qDigits)) return true;
     return false;
   });
-  return { user: null, accounts };
+}
+
+function bankingAccountsFor(query) {
+  const user = resolveUser(query);
+  if (user) {
+    const accounts = dataStore.getAllAccounts()
+      .filter((a) => String(a.userId) === String(user.id));
+    if (accounts.length) return { user, accounts };
+    // The holder resolved but owns no accounts. The query might actually be an
+    // account number that only coincidentally matched a user, so try the
+    // account-number/id search; use its hits if any, otherwise keep showing the
+    // resolved holder with an empty account list.
+    const byNumber = accountsByNumberOrId(query);
+    if (byNumber.length) return { user: null, accounts: byNumber };
+    return { user, accounts: [] };
+  }
+  return { user: null, accounts: accountsByNumberOrId(query) };
 }
 
 function bankingLookup(req, res) {
