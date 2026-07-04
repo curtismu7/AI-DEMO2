@@ -38,29 +38,29 @@ In `demo_api_server/scripts/vault-migrate.js`, find the `ALLOWED_ENV_VARS` array
   'DEMO_INVEST_SERVICE_KEY',
 ```
 
-- [ ] **Step 2: Set the two entries in the vault**
+- [ ] **Step 2: Set the two entries in the WORKTREE's vault**
 
-Run from repo root (VAULT_PASSWORD is auto-read from `demo_api_server/.env` by nothing here — pass it explicitly; the value goes on stdin):
+Mutate the worktree's `secrets.vault` (so the commit in Step 4 captures it) via explicit `VAULT_PATH`. The password lives only in the main checkout's gitignored `demo_api_server/.env`, so read it from there; the value goes on stdin:
 
 ```bash
-cd /Users/cmuir/Development/AI-DEMO2
-VP=$(grep -E '^VAULT_PASSWORD=' demo_api_server/.env | head -1 | sed 's/^VAULT_PASSWORD=//; s/^"//; s/"$//' | tr -d "'")
-printf '%s' 'demo-mortgage-key-0000' | VAULT_PASSWORD="$VP" node demo_api_server/scripts/vault.js set DEMO_MORTGAGE_SERVICE_KEY
-printf '%s' 'demo-invest-key-0000'   | VAULT_PASSWORD="$VP" node demo_api_server/scripts/vault.js set DEMO_INVEST_SERVICE_KEY
+WT=/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pg-vault-apikey
+VP=$(grep -E '^VAULT_PASSWORD=' /Users/cmuir/Development/AI-DEMO2/demo_api_server/.env | head -1 | sed 's/^VAULT_PASSWORD=//; s/^"//; s/"$//' | tr -d "'")
+printf '%s' 'demo-mortgage-key-0000' | VAULT_PASSWORD="$VP" VAULT_PATH="$WT/secrets.vault" node "$WT/demo_api_server/scripts/vault.js" set DEMO_MORTGAGE_SERVICE_KEY
+printf '%s' 'demo-invest-key-0000'   | VAULT_PASSWORD="$VP" VAULT_PATH="$WT/secrets.vault" node "$WT/demo_api_server/scripts/vault.js" set DEMO_INVEST_SERVICE_KEY
 ```
 
-- [ ] **Step 3: Verify both entries exist**
+- [ ] **Step 3: Verify both entries exist in the worktree vault**
 
 Run:
 
 ```bash
-VAULT_PASSWORD="$VP" node demo_api_server/scripts/vault.js list
+VAULT_PASSWORD="$VP" VAULT_PATH="$WT/secrets.vault" node "$WT/demo_api_server/scripts/vault.js" list
 ```
 
 Expected: output includes `DEMO_MORTGAGE_SERVICE_KEY` and `DEMO_INVEST_SERVICE_KEY` (plus the original 12). Then confirm the mortgage value round-trips:
 
 ```bash
-VAULT_PASSWORD="$VP" node demo_api_server/scripts/vault.js get DEMO_MORTGAGE_SERVICE_KEY
+VAULT_PASSWORD="$VP" VAULT_PATH="$WT/secrets.vault" node "$WT/demo_api_server/scripts/vault.js" get DEMO_MORTGAGE_SERVICE_KEY
 ```
 
 Expected: prints `demo-mortgage-key-0000`.
