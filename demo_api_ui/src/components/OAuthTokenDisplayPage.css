@@ -96,6 +96,23 @@
   font-size: 2.5rem;
 }
 
+.otdp-retry-btn {
+  margin-top: 1.25rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.otdp-retry-btn:hover {
+  background: #1d4ed8;
+}
+
 .otdp-card-title {
   font-size: 0.875rem;
   font-weight: 700;
