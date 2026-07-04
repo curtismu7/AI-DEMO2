@@ -145,6 +145,57 @@
   box-shadow: 0 2px 6px rgba(41, 128, 185, 0.5);
 }
 
+/* Nav filter box */
+.admin-side-nav__filter {
+  position: relative;
+  padding: 8px 0 4px;
+}
+.admin-side-nav__filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 28px 7px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+}
+.admin-side-nav__filter-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+.admin-side-nav__filter-input:focus {
+  border-color: #3498db;
+  background: rgba(255, 255, 255, 0.12);
+}
+.admin-side-nav__filter-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+}
+.admin-side-nav__filter-clear:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.admin-side-nav__filter-empty {
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* Navigation Menu Container */
 .admin-side-nav__menu {
   display: flex;
@@ -275,6 +326,68 @@
   color: #fff;
   border-left: 3px solid #3498db;
   padding-left: 25px;
+}
+
+/* Group wrapper — positioning anchor for the collapsed hover flyout */
+.admin-side-nav__group {
+  position: relative;
+}
+
+/* Collapsed mode: the submenu becomes a hover/focus flyout so grouped items
+   stay reachable without expanding the rail. */
+.admin-side-nav--collapsed .admin-side-nav__submenu--flyout {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 220px;
+  margin-left: 0;
+  padding: 4px 0;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: #23303f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1002;
+}
+.admin-side-nav--collapsed
+  .admin-side-nav__group:hover
+  .admin-side-nav__submenu--flyout,
+.admin-side-nav--collapsed
+  .admin-side-nav__group:focus-within
+  .admin-side-nav__submenu--flyout {
+  display: flex;
+}
+/* Flyout header — shows the group name (top-level labels are hidden collapsed) */
+.admin-side-nav__flyout-title {
+  padding: 8px 16px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+/* Flyout children don't need the deep inline indent */
+.admin-side-nav--collapsed
+  .admin-side-nav__submenu--flyout
+  .admin-side-nav__item--child {
+  padding-left: 16px;
+}
+.admin-side-nav--collapsed
+  .admin-side-nav__submenu--flyout
+  .admin-side-nav__item--child:hover {
+  padding-left: 13px;
+}
+
+/* Keyboard focus ring — visible for keyboard users, not on mouse click. */
+.admin-side-nav__item:focus-visible,
+.admin-side-nav__quick-link:focus-visible,
+.admin-side-nav__toggle:focus-visible,
+.admin-side-nav__filter-input:focus-visible {
+  outline: 2px solid #6cb6ff;
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 /* Icons */

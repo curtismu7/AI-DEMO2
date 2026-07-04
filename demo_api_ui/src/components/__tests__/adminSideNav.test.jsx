@@ -1,0 +1,87 @@
+import React from "react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { describe, it, expect, vi } from "vitest";
+
+// AdminSideNav pulls in several contexts/services; mock them to their minimal
+// used shape so we can render the nav in isolation and exercise the new
+// a11y + filter behavior.
+vi.mock("../../context/AgentUiModeContext", () => ({
+  useAgentUiMode: () => ({ placement: "none", fab: false, setAgentUi: vi.fn() }),
+}));
+vi.mock("../../context/EducationUIContext", () => ({
+  useEducationUI: () => ({ open: vi.fn() }),
+}));
+vi.mock("../../vertical/useVertical", () => ({
+  useVertical: () => ({ activeId: "banking" }),
+}));
+vi.mock("../../services/demoScenarioService", () => ({ persistAgentUi: vi.fn() }));
+vi.mock("../../services/logout", () => ({ performLogout: vi.fn() }));
+vi.mock("../../utils/authUi", () => ({ requestSilentReauth: vi.fn() }));
+vi.mock("../../utils/dashboardLayout", () => ({ setDashboardLayout: vi.fn() }));
+vi.mock("../../utils/roleSwitch", () => ({ startRoleSwitch: vi.fn() }));
+vi.mock("../ConfirmModal", () => ({ default: () => null }));
+vi.mock("../ControlPlaneIntroModal", () => ({ default: () => null }));
+vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
+
+import AdminSideNav from "../AdminSideNav";
+
+const adminUser = { id: "4", username: "admin", role: "admin" };
+const renderNav = (path = "/admin") =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <AdminSideNav user={adminUser} />
+    </MemoryRouter>,
+  );
+
+describe("AdminSideNav — best-of-breed pass", () => {
+  it("labels the primary navigation landmark", () => {
+    renderNav();
+    expect(screen.getByRole("navigation", { name: /primary navigation/i })).toBeTruthy();
+  });
+
+  it("exposes aria-expanded + aria-controls on expandable groups", () => {
+    renderNav();
+    const monitoring = screen.getByRole("button", { name: /^Monitoring/ });
+    expect(monitoring.getAttribute("aria-expanded")).toBe("false");
+    const controls = monitoring.getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    fireEvent.click(monitoring);
+    expect(monitoring.getAttribute("aria-expanded")).toBe("true");
+    // the controlled region now exists and is labelled by the group
+    expect(document.getElementById(controls)).toBeTruthy();
+  });
+
+  it("no longer renders the removed Learn/education section", () => {
+    renderNav();
+    expect(screen.queryByText(/Guided Demo Tour/i)).toBeNull();
+    expect(screen.queryByText(/Agentic Maturity Model/i)).toBeNull();
+  });
+
+  it("live-filters nav items by label", () => {
+    renderNav();
+    // present before filtering
+    expect(screen.getByText("Themes")).toBeTruthy();
+    expect(screen.getByText("Monitoring")).toBeTruthy();
+    const input = screen.getByLabelText(/filter navigation/i);
+    fireEvent.change(input, { target: { value: "monitor" } });
+    // non-matching top-level item is filtered out; matching group remains
+    expect(screen.queryByText("Themes")).toBeNull();
+    expect(screen.getByText("Monitoring")).toBeTruthy();
+  });
+
+  it("shows an empty state when nothing matches", () => {
+    renderNav();
+    const input = screen.getByLabelText(/filter navigation/i);
+    fireEvent.change(input, { target: { value: "zzzznope" } });
+    expect(screen.getByText(/no matches/i)).toBeTruthy();
+  });
+
+  it("marks the active quick-link with aria-current", () => {
+    renderNav("/admin");
+    const adminQuick = screen
+      .getAllByRole("button", { name: "Admin" })
+      .find((b) => b.className.includes("quick-link--active"));
+    expect(adminQuick).toBeTruthy();
+  });
+});

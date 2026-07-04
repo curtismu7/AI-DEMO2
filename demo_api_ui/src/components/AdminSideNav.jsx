@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
-import { useDemoTour } from "../context/DemoTourContext";
 import { useEducationUI } from "../context/EducationUIContext";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
@@ -135,12 +134,30 @@ const ICON_MAP = {
 const DEFAULT_WIDTH = 310;
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 520;
+// Persists which sidebar sections are expanded so the user's open group
+// survives remounts and full-page reloads (per-tab, cleared when the tab closes).
+// Namespaced by role at use-site because section keys are positional
+// (`nav-${idx}`) and the admin/customer nav lists index the same group
+// differently — a shared key would restore the wrong group after a role switch.
+const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
+
+// Stable section id from a label — decouples expansion/persistence keys from
+// array position so reordering nav items can't silently break auto-expand or
+// restore the wrong group. Top-level labels are unique, so slugs are unique.
+const slugify = (label) =>
+  String(label || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+const sectionIdOf = (item, index) =>
+  item.id || slugify(item.label) || `i${index}`;
 
 export default function AdminSideNav({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  const [navFilter, setNavFilter] = useState("");
   const isResizing = useRef(false);
 
   // Sync --sidebar-width CSS var on App so main content margin stays correct
@@ -181,71 +198,54 @@ export default function AdminSideNav({ user }) {
   // Auto-expand the section that contains the current path on mount/remount.
   // Prevents the sidebar collapsing when the layout remounts (e.g. customer navigating /dashboard → /monitoring/*).
   // Index offsets differ by role: customers have "Family Delegation" at idx 2, pushing later items up by 1.
+  // Role-scoped so admin and customer keep independent expansion state (see
+  // EXPANDED_SECTIONS_KEY_BASE — positional keys differ per role).
+  const expandedSectionsKey = `${EXPANDED_SECTIONS_KEY_BASE}.${user?.role || "guest"}`;
   const [expandedSections, setExpandedSections] = useState(() => {
+    // A group the user opened should stay open until they open a different one,
+    // even across sidebar remounts and the full-page reloads this app performs
+    // (role/vertical switch, reauth). Persisted choice wins; the path-based
+    // auto-expand below is only the first-load default when nothing is saved.
+    try {
+      const saved = sessionStorage.getItem(expandedSectionsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch (_e) {
+      /* ignore malformed/unavailable storage */
+    }
     const initial = {};
     const path = location.pathname;
-    const isAdminUser = user?.role === "admin";
     const matches = (paths) =>
       paths.some((p) => path === p || path.startsWith(`${p}/`));
-    // Auto-expand the action group that contains the current route. adminIdx /
-    // customerIdx are positions in the role-filtered navItems list — they MUST
-    // stay in sync with the allNavItems order below (admin removes customerOnly
-    // items; adminOnly items are visible to BOTH roles — they badge + prompt
-    // instead of hiding). customerIdx null = group hidden for customers.
+    // Auto-expand the group that contains the current route. Keyed by the
+    // group's stable slug id (slugify(label)) — position-independent, so it
+    // stays correct regardless of nav order or role filtering.
     const sections = [
-      // Monitoring
-      {
-        paths: ["/audit", "/monitoring", "/reports", "/error-audit"],
-        adminIdx: 3,
-        customerIdx: 4,
-      },
-      // MCP
-      {
-        paths: [
-          "/webmcp",
-          "/mcp-inspector",
-          "/pingone-mcp-inspector",
-          "/mcp-tools",
-        ],
-        adminIdx: 4,
-        customerIdx: 5,
-      },
-      // Authorize
-      {
-        paths: [
-          "/pingone-authorize",
-          "/authz-test",
-          "/scope-audit",
-          "/scope-reference",
-        ],
-        adminIdx: 5,
-        customerIdx: 6,
-      },
-      // Users & Accounts
-      {
-        paths: ["/users", "/accounts", "/transactions"],
-        adminIdx: 9,
-        customerIdx: 10,
-      },
-      // Tests
-      {
-        paths: [
-          "/pingone-test",
-          "/mfa-test",
-          "/resource-server",
-          "/resource-server-cc",
-        ],
-        adminIdx: 12,
-        customerIdx: 13,
-      },
+      { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
+      { id: "mcp", paths: ["/webmcp", "/mcp-inspector", "/pingone-mcp-inspector", "/mcp-tools"] },
+      { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
+      { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
+      { id: "tests", paths: ["/pingone-test", "/mfa-test", "/resource-server", "/resource-server-cc"] },
     ];
     for (const s of sections) {
-      if (!matches(s.paths)) continue;
-      const idx = isAdminUser ? s.adminIdx : s.customerIdx;
-      if (idx != null) initial[`nav-${idx}`] = true;
+      if (matches(s.paths)) initial[`nav-${s.id}`] = true;
     }
     return initial;
   });
+  // Persist expansion state so the open group stays open until the user opens
+  // another (see expandedSectionsKey).
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        expandedSectionsKey,
+        JSON.stringify(expandedSections),
+      );
+    } catch (_e) {
+      /* ignore storage-unavailable (private mode / quota) */
+    }
+  }, [expandedSections, expandedSectionsKey]);
   const [showKillModal, setShowKillModal] = useState(false);
   // Path of the admin-marked link a non-admin clicked; non-null opens the
   // "log in as admin" confirm dialog.
@@ -260,7 +260,6 @@ export default function AdminSideNav({ user }) {
   const isAdmin = user?.role === "admin";
   const { placement, fab, setAgentUi } = useAgentUiMode();
   const { open: openEdu } = useEducationUI();
-  const tour = useDemoTour();
   const { activeId: activeVerticalId } = useVertical();
 
   // Listen for agent run completion events to show latest report
@@ -689,280 +688,24 @@ export default function AdminSideNav({ user }) {
   // "admin" badge and non-admin clicks prompt an admin re-login instead.
   const navItems = allNavItems.filter((item) => !item.customerOnly || !isAdmin);
 
-  // Learn & education expandable section — grouped by category so the long
-  // list collapses into a handful of sub-sections. Each group expands inside
-  // the "Learn" submenu; rendering reuses the existing parent/child/submenu
-  // classes (no new CSS or layout primitives).
-  const learnGroups = [
-    {
-      label: "Getting Started",
-      icon: "demo",
-      items: [
-        { label: "Guided Demo Tour", icon: "arc", action: () => tour.start() },
-        {
-          label: "Best Practices",
-          icon: "*",
-          action: () => openEdu(EDU.BEST_PRACTICES, "overview"),
-        },
-        {
-          label: "Agentic Maturity Model",
-          icon: "*",
-          action: () => openEdu(EDU.AGENTIC_MATURITY, "overview"),
-        },
-      ],
-    },
-    {
-      label: "OAuth & Identity",
-      icon: "key",
-      items: [
-        {
-          label: "Auth Code + PKCE",
-          icon: "key",
-          action: () => openEdu(EDU.LOGIN_FLOW, "what"),
-        },
-        {
-          label: "PKCE deep dive",
-          icon: "key",
-          action: () => openEdu(EDU.LOGIN_FLOW, "pkce"),
-        },
-        {
-          label: "CIBA (OOB)",
-          icon: "mbl",
-          action: () =>
-            window.dispatchEvent(
-              new CustomEvent("education-open-ciba", {
-                detail: { tab: "what" },
-              }),
-            ),
-        },
-        {
-          label: "Token Exchange (RFC 8693)",
-          icon: "syn",
-          action: () => openEdu(EDU.TOKEN_EXCHANGE, "why"),
-        },
-        {
-          label: "may_act / act claims",
-          icon: "demo",
-          action: () => openEdu(EDU.MAY_ACT, "what"),
-        },
-        {
-          label: "Actor Token (Agent)",
-          icon: "demo",
-          action: () => openEdu(EDU.TOKEN_FLOW, "diagram"),
-        },
-        {
-          label: "Step-up MFA",
-          icon: "lck",
-          action: () => openEdu(EDU.STEP_UP, "what"),
-        },
-        {
-          label: "Introspection (RFC 7662)",
-          icon: "srch",
-          action: () => openEdu(EDU.INTROSPECTION, "why"),
-        },
-        {
-          label: "PingOne Authorize",
-          icon: "pol",
-          action: () => openEdu(EDU.PINGONE_AUTHORIZE, "what"),
-        },
-        {
-          label: "PAR (RFC 9126)",
-          icon: "log",
-          action: () => openEdu(EDU.PAR, "what"),
-        },
-        {
-          label: "RAR (RFC 9396)",
-          icon: "log",
-          action: () => openEdu(EDU.RAR, "what"),
-        },
-        {
-          label: "JWT client auth (RFC 7523)",
-          icon: "sec",
-          action: () => openEdu(EDU.JWT_CLIENT_AUTH, "what"),
-        },
-        {
-          label: "OAuth: CIMD",
-          icon: "file",
-          action: () =>
-            window.dispatchEvent(
-              new CustomEvent("education-open-cimd", {
-                detail: { tab: "what" },
-              }),
-            ),
-        },
-      ],
-    },
-    {
-      label: "MCP & Agents",
-      icon: "mcp",
-      items: [
-        {
-          label: "MCP Protocol",
-          icon: "dbg",
-          action: () => openEdu(EDU.MCP_PROTOCOL, "what"),
-        },
-        {
-          label: "MCP server discovery",
-          icon: "dbg",
-          action: () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
-        },
-        {
-          label: "MCP: MFA gate on tools",
-          icon: "dbg",
-          action: () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
-        },
-        {
-          label: "MCP Elicitation",
-          icon: "dbg",
-          action: () => openEdu(EDU.MCP_ELICITATION, "what"),
-        },
-        {
-          label: "Agent Gateway",
-          icon: "web",
-          action: () => openEdu(EDU.AGENT_GATEWAY, "overview"),
-        },
-        {
-          label: "Computer Use Agent (CUA)",
-          icon: "clk",
-          action: () => openEdu(EDU.CUA, "what"),
-        },
-        {
-          label: "Human-in-the-loop",
-          icon: "dlg",
-          action: () => openEdu(EDU.HUMAN_IN_LOOP, "what"),
-        },
-        {
-          label: "Ping Agent Gateway Security",
-          icon: "shld",
-          action: () => openEdu(EDU.PINGGATEWAY_MCP, "overview"),
-        },
-      ],
-    },
-    {
-      label: "Standards & Architecture",
-      icon: "doc",
-      items: [
-        {
-          label: "RFC & Spec Index",
-          icon: "doc",
-          action: () => openEdu(EDU.RFC_INDEX, "index"),
-        },
-        {
-          label: "Intent Auth Standards",
-          icon: "shld",
-          action: () => openEdu(EDU.INTENT_AUTH_STANDARDS, "rfc-foundations"),
-        },
-        {
-          label: "IETF Standards: Agentic",
-          icon: "*",
-          action: () => openEdu(EDU.IETF_STANDARDS, "overview"),
-        },
-        {
-          label: "ID-JAG / Cross-App Access",
-          icon: "flw",
-          action: () => openEdu(EDU.ID_JAG, "overview"),
-        },
-        {
-          label: "Architecture Diagram",
-          icon: "bld",
-          action: () => openEdu(EDU.ARCHITECTURE_DIAGRAM, "context"),
-        },
-        {
-          label: "Token Chain (edu)",
-          icon: "lnk",
-          action: () => openEdu(EDU.TOKEN_CHAIN, "overview"),
-        },
-        {
-          label: "Sensitive Data & Disclosure",
-          icon: "lck",
-          action: () => openEdu(EDU.SENSITIVE_DATA, "least-data"),
-        },
-      ],
-    },
-    {
-      label: "Project Reference",
-      icon: "ref",
-      items: [
-        {
-          label: "Server Capabilities",
-          icon: "doc",
-          action: () => openEdu(EDU.SERVER_CAPABILITIES, "map"),
-        },
-        {
-          label: "Agent Tech Comparison",
-          icon: "agt",
-          action: () => openEdu(EDU.AGENT_TECH_COMPARISON, "glance"),
-        },
-      ],
-    },
-    {
-      label: "AI Ecosystem",
-      icon: "ai",
-      items: [
-        {
-          label: "LangChain (LCEL + LangGraph)",
-          icon: "lnk",
-          action: () => openEdu(EDU.LANGCHAIN, "overview"),
-        },
-        {
-          label: "Agent Builder Landscape",
-          icon: "agt",
-          action: () => openEdu(EDU.AGENT_BUILDER_LANDSCAPE, "langchain"),
-        },
-        {
-          label: "LLM Landscape",
-          icon: "ai",
-          action: () => openEdu(EDU.LLM_LANDSCAPE, "commercial"),
-        },
-        {
-          label: "AI Platform Landscape",
-          icon: "web",
-          action: () => openEdu(EDU.AI_PLATFORM_LANDSCAPE, "aws"),
-        },
-        {
-          label: "AI Primer",
-          icon: "ref",
-          action: () => openEdu(EDU.AI_PRIMER, "terminology"),
-        },
-      ],
-    },
-    {
-      label: "Special",
-      icon: "*",
-      items: [
-        {
-          label: "Glean + PingOne",
-          icon: "lnk",
-          action: () => openEdu(EDU.GLEAN, "overview"),
-        },
-        {
-          label: "WebMCP (Google)",
-          icon: "web",
-          action: () => navigate("/webmcp"),
-        },
-        {
-          label: "AuthZEN",
-          icon: "pol",
-          action: () => openEdu(EDU.AUTHZEN, "overview"),
-        },
-        {
-          label: "Agentic Trust",
-          icon: "shld",
-          action: () => navigate("/agentic-trust"),
-        },
-        {
-          label: "OWASP Agentic",
-          icon: "shld",
-          action: () => navigate("/owasp"),
-        },
-        {
-          label: "Ungoverned Agent",
-          icon: "shld",
-          action: () => navigate("/ungoverned-agent"),
-        },
-      ],
-    },
-  ];
+  // Live filter: match by label across top-level items and their children. A
+  // group is kept if its own label matches (all children shown) or if any child
+  // matches (only matching children shown). Empty query = show everything.
+  const navQuery = navFilter.trim().toLowerCase();
+  const labelMatches = (label) =>
+    String(label || "").toLowerCase().includes(navQuery);
+  const filterNavItem = (item) => {
+    if (!navQuery) return item;
+    if (item.children?.length) {
+      if (labelMatches(item.label)) return item;
+      const kids = item.children.filter((c) => labelMatches(c.label));
+      return kids.length ? { ...item, children: kids } : null;
+    }
+    return labelMatches(item.label) ? item : null;
+  };
+  const visibleNavItems = navQuery
+    ? navItems.map(filterNavItem).filter(Boolean)
+    : navItems;
 
   // Agent UI placement options for the expandable dropdown.
   // Phase 4e: Bottom dock removed from the picker (legacy code paths in
@@ -1150,19 +893,26 @@ export default function AdminSideNav({ user }) {
     return null;
   };
 
-  const renderNavItem = (item, sectionKey, index) => {
-    const itemKey = `${sectionKey}-${index}`;
-    const isExpanded = expandedSections[itemKey];
+  const renderNavItem = (item, sectionKey, index, forceOpen = false) => {
+    // Stable slug-based key (not array position) so expansion state survives
+    // reorders/role-filtering. See slugify / sectionIdOf.
+    const itemKey = `${sectionKey}-${sectionIdOf(item, index)}`;
+    const submenuId = `${itemKey}-submenu`;
+    // forceOpen (active filter) expands matching groups transiently without
+    // touching persisted expansion state.
+    const isExpanded = forceOpen || expandedSections[itemKey];
     const hasChildren = item.children && item.children.length > 0;
 
     if (hasChildren) {
       return (
-        <div key={itemKey}>
+        <div key={itemKey} className="admin-side-nav__group">
           <button
             type="button"
             className={`admin-side-nav__item admin-side-nav__item--parent${isParentActive(item) ? " admin-side-nav__item--parent-active" : ""}`}
             onClick={() => toggleSection(itemKey)}
             title={collapsed ? item.label : undefined}
+            aria-expanded={isExpanded ? "true" : "false"}
+            aria-controls={submenuId}
           >
             <NavIcon name={item.icon} />
             {!collapsed && (
@@ -1173,14 +923,25 @@ export default function AdminSideNav({ user }) {
                 )}
                 <span
                   className={`admin-side-nav__chevron ${isExpanded ? "admin-side-nav__chevron--expanded" : ""}`}
+                  aria-hidden="true"
                 >
                   ▶
                 </span>
               </>
             )}
           </button>
-          {isExpanded && !collapsed && (
-            <div className="admin-side-nav__submenu">
+          {/* Inline when expanded; when collapsed, rendered as a hover flyout
+              (CSS positions it and reveals on group hover) so grouped items
+              stay reachable without expanding the rail. */}
+          {(isExpanded || collapsed) && (
+            <section
+              id={submenuId}
+              aria-label={item.label}
+              className={`admin-side-nav__submenu${collapsed ? " admin-side-nav__submenu--flyout" : ""}`}
+            >
+              {collapsed && (
+                <div className="admin-side-nav__flyout-title">{item.label}</div>
+              )}
               {item.children.map((child) => {
                 const isAdminFeature = child.adminOnly || item.adminOnly;
                 const childKey = `${itemKey}-child-${child.path || child.action || child.label}`;
@@ -1201,6 +962,7 @@ export default function AdminSideNav({ user }) {
                     to={child.path}
                     className={`admin-side-nav__item admin-side-nav__item--child ${isActive(child.path) ? "admin-side-nav__item--active" : ""}`}
                     title={child.label}
+                    aria-current={isActive(child.path) ? "page" : undefined}
                     onClick={
                       !isAdmin && isAdminFeature
                         ? (e) => {
@@ -1218,7 +980,7 @@ export default function AdminSideNav({ user }) {
                   </Link>
                 );
               })}
-            </div>
+            </section>
           )}
         </div>
       );
@@ -1255,6 +1017,7 @@ export default function AdminSideNav({ user }) {
         }
         className={`admin-side-nav__item ${item.highlight ? "admin-side-nav__item--highlight-danger" : ""} ${isActive(item.path) ? "admin-side-nav__item--active" : ""}`}
         title={collapsed ? item.label : undefined}
+        aria-current={isActive(item.path) ? "page" : undefined}
       >
         <NavIcon name={item.icon} />
         {!collapsed && (
@@ -1305,7 +1068,7 @@ export default function AdminSideNav({ user }) {
       )}
 
       {/* Navigation Menu */}
-      <nav className="admin-side-nav__menu">
+      <nav className="admin-side-nav__menu" aria-label="Primary navigation">
         {/* Quick-access shortcuts */}
         <div className="admin-side-nav__quick-links">
           <button
@@ -1369,9 +1132,41 @@ export default function AdminSideNav({ user }) {
           </Link>
         </div>
 
+        {/* Filter — live-filters nav items by label (hidden when collapsed) */}
+        {!collapsed && (
+          <div className="admin-side-nav__filter">
+            <input
+              type="text"
+              className="admin-side-nav__filter-input"
+              placeholder="Filter menu…"
+              value={navFilter}
+              onChange={(e) => setNavFilter(e.target.value)}
+              aria-label="Filter navigation"
+            />
+            {navFilter && (
+              <button
+                type="button"
+                className="admin-side-nav__filter-clear"
+                onClick={() => setNavFilter("")}
+                aria-label="Clear filter"
+                title="Clear"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Main Navigation Section */}
         <div className="admin-side-nav__section">
-          {navItems.map((item, idx) => renderNavItem(item, "nav", idx))}
+          {visibleNavItems.map((item, idx) =>
+            renderNavItem(item, "nav", idx, !!navQuery),
+          )}
+          {!collapsed && navQuery && visibleNavItems.length === 0 && (
+            <div className="admin-side-nav__filter-empty">
+              No matches for “{navFilter.trim()}”
+            </div>
+          )}
         </div>
 
         {/* Agent UI Placement — expandable dropdown */}
