@@ -4,9 +4,27 @@ import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
 
+// Read the persisted codebase list once, synchronously, so the very first
+// render already has it. A load-on-mount useEffect instead starts from [] and,
+// under React StrictMode's double-effect invoke, the persist effect below fires
+// with the empty initial value and clobbers localStorage before the load applies
+// — wiping the user's saved codebases on every reload.
+function loadStoredCodebases() {
+  try {
+    const stored = localStorage.getItem('codeSearchCodebases');
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('Failed to load codebases:', err);
+    return [];
+  }
+}
+
 export function CodeSearchPage() {
-  const [codebases, setCodebases] = useState([]);
-  const [selectedCodebaseId, setSelectedCodebaseId] = useState('');
+  const [codebases, setCodebases] = useState(loadStoredCodebases);
+  const [selectedCodebaseId, setSelectedCodebaseId] = useState(
+    () => codebases[0]?.id || ''
+  );
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -14,23 +32,9 @@ export function CodeSearchPage() {
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
 
-  // Load codebases from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('codeSearchCodebases');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setCodebases(parsed);
-        if (parsed.length > 0 && !selectedCodebaseId) {
-          setSelectedCodebaseId(parsed[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to load codebases:', err);
-      }
-    }
-  }, []);
-
-  // Persist codebases to localStorage
+  // Persist codebases to localStorage. Safe now that state is seeded from
+  // localStorage on the first render, so this never writes an empty array over
+  // an existing list.
   useEffect(() => {
     localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
   }, [codebases]);
