@@ -392,7 +392,14 @@ async function main() {
     PINGONE_ISSUER_URI:             `${asBase}`,
     INTROSPECT_CLIENT_ID:           creds.mcpExchangerClientId,
     INTROSPECT_CLIENT_SECRET:       creds.mcpExchangerSecret,
-    PG_GATEWAY_RESOURCE_ID:         fb('PINGONE_RESOURCE_MCP_GATEWAY_URI') || 'mcpgateway.ping.demo',
+    // McpProtectionFilter.resourceId — the aud the inbound MCP token must carry.
+    // Derive from the SoT deployment block (scope-topology.json), NOT the Node-gateway
+    // aud (PINGONE_RESOURCE_MCP_GATEWAY_URI): the two are distinct identifiers, and the
+    // old fallback silently pinned this to mcpgateway.ping.demo. Single-sourcing it here
+    // stops the :3006/:3036 port-typo drift (verify-pinggateway-parity.js gates it).
+    PG_GATEWAY_RESOURCE_ID:         topology.deployment?.environments?.local?.pingGatewayResourceUri
+                                      || fb('PINGONE_RESOURCE_PINGGATEWAY_URI')
+                                      || 'https://api.ping.demo:3036/mcp',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 

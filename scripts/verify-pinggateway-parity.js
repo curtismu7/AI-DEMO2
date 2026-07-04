@@ -12,6 +12,9 @@
  * Verifies, against demo_api_server/services/scopeTopology (the SSOT accessor):
  *   - audience env literals  == the matching resource `uri`   (compared by host,
  *     so a bare audience and an https:// URL form reconcile)
+ *   - PG_GATEWAY_RESOURCE_ID == deployment.pingGatewayResourceUri (EXACT, incl.
+ *     port — guards the :3006/:3036 McpProtectionFilter-resourceId port typo that
+ *     a host-only comparison would miss)
  *   - scope env literals     normalize (via aliases{}) to a DECLARED scope
  *   - the config.json inbound-scope fallback literal is a declared scope
  *
@@ -98,6 +101,30 @@ for (const c of AUDIENCE_CHECKS) {
   }
 }
 
+// ── PG_GATEWAY_RESOURCE_ID exact-match check ─────────────────────────────────
+// PG_GATEWAY_RESOURCE_ID is the McpProtectionFilter.resourceId — the aud the
+// inbound MCP token MUST carry. It is a DISTINCT identifier from
+// PG_GATEWAY_RESOURCE_URI (checked above) and lives in the SoT's deployment block
+// (deployment.environments.local.pingGatewayResourceUri), not provisioning.resources.
+// Compare the FULL URI incl. port: the historical app-breaking drift was a
+// :3006 vs :3036 port typo, which the host-only hostOf() comparison used above
+// would silently treat as equal — so this check is intentionally exact.
+{
+  const env = envFor('ping-gateway/.env.example');
+  if (env) {
+    const rawTopo = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
+    const expected = rawTopo.deployment?.environments?.local?.pingGatewayResourceUri;
+    const val = env.get('PG_GATEWAY_RESOURCE_ID');
+    if (!expected) {
+      problems.push('scope-topology.json: deployment.environments.local.pingGatewayResourceUri missing (cannot verify PG_GATEWAY_RESOURCE_ID)');
+    } else if (val === undefined) {
+      problems.push(`ping-gateway/.env.example: PG_GATEWAY_RESOURCE_ID missing (expected exactly ${expected})`);
+    } else if (val !== expected) {
+      problems.push(`ping-gateway/.env.example: PG_GATEWAY_RESOURCE_ID=${val} != SoT deployment.pingGatewayResourceUri=${expected} (EXACT match required incl. port — a :3006/:3036 typo is the exact drift this guards)`);
+    }
+  }
+}
+
 // ── Scope env checks ─────────────────────────────────────────────────────────
 for (const c of SCOPE_CHECKS) {
   const env = envFor(c.file);
@@ -138,7 +165,7 @@ if (!fs.existsSync(cfgAbs)) {
 
 // ── Report ───────────────────────────────────────────────────────────────────
 if (problems.length === 0) {
-  const n = AUDIENCE_CHECKS.length + SCOPE_CHECKS.length;
+  const n = AUDIENCE_CHECKS.length + SCOPE_CHECKS.length + 1; // +1 = PG_GATEWAY_RESOURCE_ID exact check
   console.log(`[OK] PingGateway config matches scope-topology.json (${n} literal(s) verified).`);
   process.exit(0);
 }
