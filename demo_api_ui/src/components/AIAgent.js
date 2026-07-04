@@ -2468,6 +2468,7 @@ export default function BankingAgent({
           const mortgagePayload = {
             mortgage: mortgageNorm.mortgage,
             apiKeyMaskedLast4: mortgageMeta.apiKeyMaskedLast4,
+            apiCall: mortgageMeta.apiCall,
             message: mortgageNorm.note || mortgageMeta.note,
             backend: {
               source: mortgageNorm.source,
@@ -2530,6 +2531,7 @@ export default function BankingAgent({
           const featurePayload = {
             ...(featureNorm || {}),
             apiKeyMaskedLast4: featureMeta.apiKeyMaskedLast4,
+            apiCall: featureMeta.apiCall,
             message: featureNorm.note || featureMeta.note,
             backend: {
               source: featureNorm.source,
