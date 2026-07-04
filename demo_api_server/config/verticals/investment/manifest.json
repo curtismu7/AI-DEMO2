@@ -1,0 +1,107 @@
+{
+  "id": "investment",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Meridian Wealth",
+    "headerTitle": "Meridian Wealth",
+    "documentTitle": "Meridian Wealth · PingOne AI IAM Core",
+    "logoAlt": "Meridian Wealth logo",
+    "tagline": "AI-Powered Portfolio & Wealth Management Demo"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#047857",
+      "--app-primary-red-hover": "#065f46",
+      "--app-primary-red-mid": "#059669",
+      "--app-primary-red-border": "#065f46",
+      "--brand-dashboard-header-start": "#064e3b",
+      "--brand-dashboard-header-end": "#059669",
+      "--brand-app-shell-hero-start": "#064e3b",
+      "--brand-app-shell-hero-end": "#059669",
+      "--theme-accent": "#ca8a04",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Portfolio",
+    "accounts": "Portfolios",
+    "accountTypes": ["Brokerage", "Retirement", "Trust"],
+    "transaction": "Trade",
+    "transactions": "Trade History",
+    "transactionTypes": ["Buy", "Sell", "Dividend", "Rebalance"],
+    "balance": "Portfolio Value",
+    "agent": "Wealth Assistant",
+    "dashboard": "My Portfolio",
+    "highValueAction": "Large Trade",
+    "highValueLabel": "High-value trade or withdrawal from a managed portfolio"
+  },
+  "agent": {
+    "persona": "Meridian",
+    "greeting": "Hi {name}! I'm Meridian, your wealth assistant. I can show your portfolio value, holdings, and recent trade activity. What would you like to see?",
+    "systemPromptFlavor": "You are Meridian, a wealth-management assistant for Meridian Wealth. Help clients view portfolio value, holdings, and trade history. Use investment language: accounts are portfolios, transactions are trades, balance is portfolio value. Be clear and precise about risk and performance."
+  },
+  "dashboard": {
+    "kind": "investment",
+    "chips": [
+      { "key": "balance", "label": "Portfolio Value" },
+      { "key": "accounts", "label": "My Portfolios" },
+      { "key": "transactions", "label": "Trade History" },
+      { "key": "feature", "label": "Portfolio Status" }
+    ],
+    "chips10": [
+      { "id": "inv-feature", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" }
+    ]
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "invest:read"
+  },
+  "delegation": {
+    "pageTitle": "Authorized Advisor",
+    "pageDescription": "Authorize a financial advisor or representative to manage your portfolios — powered by RFC 8693 token exchange",
+    "granteeLabel": "financial advisor or representative",
+    "scopeLabels": {
+      "view_accounts":     { "label": "View Portfolios",       "description": "See portfolio list and holdings" },
+      "view_balances":     { "label": "View Portfolio Value",  "description": "See total portfolio value and cash sweep" },
+      "create_deposit":    { "label": "Deposit Funds",         "description": "Deposit funds into a managed portfolio" },
+      "create_withdrawal": { "label": "Withdraw Funds",        "description": "Withdraw funds from a managed portfolio" },
+      "create_transfer":   { "label": "Execute Large Trade",   "description": "Authorize a high-value trade or withdrawal from a managed portfolio" }
+    }
+  },
+  "render": {
+    "portfolios": { "type": "table", "columns": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Number", "path": "portfolioNumber" }, { "label": "Value", "path": "value", "format": "money" }, { "label": "Currency", "path": "currency" } ] },
+    "portfolio_value": { "type": "fieldList", "title": "Portfolio Value", "fields": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Value", "path": "value", "format": "money" } ] },
+    "trades": { "type": "table", "columns": [ { "label": "Type", "path": "type" }, { "label": "Symbol", "path": "symbol" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Date", "path": "date", "format": "date" } ] },
+    "buy_security": { "type": "card", "title": "Buy Order Completed", "fields": [ { "label": "Symbol", "path": "symbol" }, { "label": "Shares", "path": "shares", "format": "count" }, { "label": "Price", "path": "price", "format": "money" } ] },
+    "sell_security": { "type": "card", "title": "Sell Order Completed", "fields": [ { "label": "Symbol", "path": "symbol" }, { "label": "Shares", "path": "shares", "format": "count" }, { "label": "Price", "path": "price", "format": "money" } ] },
+    "deposit": { "type": "card", "title": "Deposit Completed", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "withdraw": { "type": "card", "title": "Withdrawal Completed", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "large_trade": { "type": "card", "title": "Large Trade Executed", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Symbol", "path": "symbol" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
+    "rebalance_portfolio": { "type": "card", "title": "Portfolio Rebalanced", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Status", "path": "status" } ] },
+    "dividend_summary": { "type": "fieldList", "title": "Dividend Summary", "fields": [ { "label": "Total Dividends", "path": "totalDividends", "format": "money" }, { "label": "Period", "path": "period" } ] }
+  },
+  "featurePage": {
+    "mcpTool": "show_investment",
+    "pageTitle": "Portfolio Status",
+    "badgeLabel": "API-KEY PATH",
+    "accentColor": "#047857",
+    "dataKey": "invest",
+    "fields": [
+      { "label": "Portfolio ID", "path": "portfolioId" },
+      { "label": "Holder", "path": "holder" },
+      { "label": "Total value", "path": "totalValue", "format": "money", "accent": true },
+      { "label": "Cash sweep", "path": "cashSweep", "format": "money" },
+      { "label": "YTD return", "path": "ytdReturnPct", "format": "percent" },
+      { "label": "Risk profile", "path": "riskProfile" }
+    ],
+    "sectionTitle": "Portfolio details",
+    "emptyPrompt": "show portfolio status",
+    "scopeError": "The agent's access token does not carry the invest:read scope. Sign out and sign back in to consent to investment access, then try \"Portfolio Status\" again."
+  },
+  "demoUsers": {
+    "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
+    "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  }
+}
