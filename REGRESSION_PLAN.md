@@ -1,19 +1,18 @@
 # Regression Plan — Super Banking demo
 
 Canonical do-not-break contract for the Super Banking demo. The
-`regression-guard` skill (`.claude/skills/regression-guard/`) and
-`.cursor/rules/regression-guard.mdc` are the discipline layer that points here;
-this file is the source of truth. When the skill and this file disagree, this
-file wins. Keep all three in sync.
+`regression-guard` skill (`.claude/skills/regression-guard/`) is the discipline
+layer that points here; `CLAUDE.md` also points here. This file is the source of
+truth — if the skill and this file disagree, this file wins.
 
 ---
 
 ## §0 — UI style rules (hard)
 
 - **Emoji rule (project-wide):** the only emojis allowed in skills, commands,
-  code, and UI text are `⚠️` (warning), `✅` (green check), `❌` (red X), and
-  `🔐` (security/lock — HITL trigger chips). Everything else is plain text or
-  CSS icons / semantic HTML.
+  code, and UI text are `⚠️` (warning), `✅` (green check), `❌` (red X),
+  `🔐` (security/lock — HITL trigger chips), `✕` (close / dismiss), and `✓`
+  (check / confirm). Everything else is plain text or CSS icons / semantic HTML.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
 - **Minimal diff:** name the component, name the element, change only that. No
