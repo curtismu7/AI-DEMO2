@@ -1175,6 +1175,9 @@ app.use('/internal', require('./routes/agentTool'));
 // cross-vertical tool-call outcome here to persist in LMDB (read back by the
 // admin MCP Audit Trail page). Secret-guarded; NOT browser-facing.
 app.use('/internal', require('./routes/mcpAuditIngest'));
+// Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
+// from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
+app.use('/internal', require('./routes/vaultServiceKey'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));
