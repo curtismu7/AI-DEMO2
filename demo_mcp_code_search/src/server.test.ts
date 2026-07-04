@@ -34,6 +34,9 @@ function fakeStore(hits: SearchHit[] = []): Store & {
       this.searches.push({ vector, opts });
       return hits;
     },
+    async listCodebases() {
+      return [{ id: 'cb1', name: 'Demo', chunks: 3 }];
+    },
   } as any;
 }
 
@@ -130,5 +133,22 @@ describe('POST /search', () => {
       .post('/search')
       .send({ query: 'q', codebase_id: 'cb1' })
       .expect(503);
+  });
+});
+
+describe('GET /codebases', () => {
+  test('returns the indexed codebases from the store', async () => {
+    const app = createServer({ embedder: fakeEmbedder(), store: fakeStore() });
+    const res = await request(app).get('/codebases').expect(200);
+    expect(res.body.codebases).toEqual([{ id: 'cb1', name: 'Demo', chunks: 3 }]);
+  });
+
+  test('returns 503 when the store is unavailable', async () => {
+    const store = fakeStore();
+    store.listCodebases = async () => {
+      throw new Error('weaviate connect ECONNREFUSED');
+    };
+    const app = createServer({ embedder: fakeEmbedder(), store });
+    await request(app).get('/codebases').expect(503);
   });
 });

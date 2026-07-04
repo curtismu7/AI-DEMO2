@@ -49,6 +49,15 @@ export function createServer(deps: ServerDeps): Express {
     res.status(200).json({ status: 'ok' });
   });
 
+  app.get('/codebases', async (_req: Request, res: Response) => {
+    try {
+      const codebases = await deps.store.listCodebases();
+      return res.status(200).json({ codebases });
+    } catch (err) {
+      return failure(res, err, 'list_failed');
+    }
+  });
+
   app.post('/index', async (req: Request, res: Response) => {
     const { codebase_id, codebase_name, files } = req.body as {
       codebase_id?: string;

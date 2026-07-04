@@ -151,4 +151,32 @@ router.post('/search', express.json(), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/code-search/codebases
+ * List the codebases currently indexed in the vector store, so the UI can show
+ * them regardless of per-browser localStorage.
+ *
+ * Response: { codebases: [{ id, name, chunks }] }
+ */
+router.get('/codebases', async (_req, res) => {
+  try {
+    const result = await getClient().listCodebases();
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('[code-search] List codebases error:', err.message);
+
+    if (err.message.includes('unavailable')) {
+      return res.status(503).json({
+        error: 'mcp_server_unavailable',
+        message: err.message,
+      });
+    }
+
+    return res.status(500).json({
+      error: 'list_failed',
+      message: err.message,
+    });
+  }
+});
+
 module.exports = router;

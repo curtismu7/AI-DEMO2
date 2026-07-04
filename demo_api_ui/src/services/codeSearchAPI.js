@@ -61,3 +61,24 @@ export async function searchCode(query, codebaseId, limit = 10, fileFilter = und
   const data = await response.json();
   return data.results || [];
 }
+
+/**
+ * List the codebases currently indexed on the server (from the vector store),
+ * so the UI can show them regardless of per-browser localStorage.
+ * @returns {Promise<Array<{id: string, name: string, chunks: number}>>}
+ */
+export async function listCodebases() {
+  const response = await fetch(`${API_BASE}/codebases`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || error.message || `Failed to list codebases (status ${response.status})`
+    );
+  }
+
+  const data = await response.json();
+  return data.codebases || [];
+}

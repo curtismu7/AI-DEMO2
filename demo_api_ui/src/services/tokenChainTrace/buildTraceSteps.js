@@ -28,6 +28,31 @@ const TITLES = {
   reply: "LLM composes reply → chat",
 };
 
+// What each hop does — always shown when a step is expanded, even before its
+// live evidence arrives, so no step ever opens to a blank body. The live
+// request / response / claims are layered on top by buildTraceSteps whenever
+// the matching trace evidence exists.
+const NARRATIVES = {
+  signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
+  prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
+  agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
+  llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
+  "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
+  exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
+  authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
+  stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
+  gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+  mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
+  api: "The actual resource-server call made with the delegated bearer token.",
+  reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
+};
+
+// Static RFC references per hop — teaching content, shown regardless of evidence.
+const STEP_RFCS = {
+  signin: ["RFC 6749", "RFC 7636"],
+  exchange: ["RFC 8693", "RFC 8707"],
+};
+
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
@@ -35,7 +60,11 @@ const findEvent = (events, id) => events.find((e) => e && e.id === id) || null;
 const hasPhase = (phases, name) => phases.some((p) => p && p.phase === name);
 
 function makeStep(id, status, detail) {
-  return { id, title: TITLES[id], lane: LANES[id], status, detail: detail || {} };
+  const base = { narrative: NARRATIVES[id] };
+  if (STEP_RFCS[id]) base.rfcs = STEP_RFCS[id];
+  // base first so live evidence in `detail` overrides/extends it; base narrative
+  // guarantees the expanded body is never blank even for not-yet-run steps.
+  return { id, title: TITLES[id], lane: LANES[id], status, detail: { ...base, ...(detail || {}) } };
 }
 
 export function buildTraceSteps(trace) {
@@ -46,29 +75,23 @@ export function buildTraceSteps(trace) {
   const userTok = findEvent(tokenEvents, "user-token") ||
     findEvent(tokenEvents, "session-token-introspection");
   steps.push(makeStep("signin", userTok ? "done" : "pending", userTok ? {
-    narrative: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
     kv: Object.entries(userTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
-    rfcs: ["RFC 6749", "RFC 7636"],
     inspectToken: "user",
     tokenEvent: userTok,
   } : {}));
 
   // 2. prompt
   steps.push(makeStep("prompt", prompt ? "done" : "pending", prompt ? {
-    narrative: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
     request: { title: "Request (actual)",
       text: `POST /api/agent/run\n${asJson({ message: prompt.message })}` },
   } : {}));
 
   // 3. agent — evidence: request_accepted phase or any activity at all
   const agentSeen = hasPhase(phases, "request_accepted") || !!llmDetail;
-  steps.push(makeStep("agent", agentSeen ? "done" : "pending", agentSeen ? {
-    narrative: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
-  } : {}));
+  steps.push(makeStep("agent", agentSeen ? "done" : "pending"));
 
   // 4. llm
   steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
-    narrative: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
     request: { title: "LLM request (actual)",
       text: `model: ${llmDetail.model || "?"}\n${asJson(llmDetail.request || {})}` },
     response: { title: "LLM response — tool call", text: asJson(llmDetail.toolCalls || []) },
@@ -80,7 +103,6 @@ export function buildTraceSteps(trace) {
   // 5. agent-token
   const agentTok = findEvent(tokenEvents, "agent-actor-token");
   steps.push(makeStep("agent-token", agentTok ? "done" : "pending", agentTok ? {
-    narrative: "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
     kv: Object.entries(agentTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
     inspectToken: "agent",
     tokenEvent: agentTok,
@@ -95,7 +117,6 @@ export function buildTraceSteps(trace) {
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : exTok ? "active" : "pending",
     exDone ? {
-      narrative: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
       request: exTok.exchangeRequest
         ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
         : undefined,
@@ -104,7 +125,6 @@ export function buildTraceSteps(trace) {
         ? { before: beforeScopes, after: afterScopes } : undefined,
       kv: exTok.claims && exTok.claims.act
         ? [["act chain", asJson(exTok.claims.act)]] : [],
-      rfcs: ["RFC 8693", "RFC 8707"],
       inspectToken: "mcp",
       tokenEvent: exTok,
     } : {}));
@@ -116,7 +136,6 @@ export function buildTraceSteps(trace) {
   steps.push(makeStep("authorize",
     azDenied ? "error" : azPermitted ? "done" : azBegun ? "active" : "pending",
     authorize ? {
-      narrative: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
       request: authorize.request ? { title: "Decision request (actual)",
         text: `${authorize.request.method || "POST"} ${authorize.request.url || ""}\n${asJson((authorize.request.body && authorize.request.body.parameters) || authorize.request.parameters || authorize.request.body || {})}` } : undefined,
       response: authorize.response
@@ -136,7 +155,6 @@ export function buildTraceSteps(trace) {
   if (stepUpStarted || stepUpDone || stepUpFailed) {
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
-        narrative: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
         kv: phases.filter((p) => p.phase && p.phase.startsWith("mfa_challenge"))
           .map((p) => [p.phase, p.label || ""]),
       }));
@@ -149,7 +167,6 @@ export function buildTraceSteps(trace) {
   steps.push(makeStep("gateway",
     gwDenied ? "error" : (gwAz || gwIntro) ? "done" : "pending",
     (gwAz || gwIntro) ? {
-      narrative: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
@@ -164,19 +181,16 @@ export function buildTraceSteps(trace) {
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp", mcpDone ? "done" : mcpBegun ? "active" : "pending",
     mcpResult ? {
-      narrative: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
     } : {}));
   steps.push(makeStep("api", mcpDone && mcpResult ? "done" : "pending",
     mcpResult && mcpResult.result ? {
-      narrative: "The actual resource-server call made with the delegated bearer token.",
       response: { title: "API result", text: asJson(mcpResult.result) },
     } : {}));
 
   // 11. reply
   steps.push(makeStep("reply", llmReply ? "done" : "pending", llmReply ? {
-    narrative: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
     response: { title: "Streamed reply", text: String(llmReply) },
   } : {}));
 
