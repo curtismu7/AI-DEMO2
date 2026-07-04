@@ -39,4 +39,20 @@ describe('show_investment _meta', () => {
     expect(out.result._meta.apiCall).toBe('GET /invest');
     expect(out.result._meta.apiKeyMaskedLast4).toBe('9999');
   });
+
+  // Regression: the WS transport (index.ts) passes a MARKER-key-derived
+  // last4 as apiKeyMaskedLast4 for ALL apikey tools, real-backend or not.
+  // For a real-backend tool like show_investment, the injected
+  // config.mortgageServiceApiKey (the key actually sent to the backend) must
+  // win over that caller-passed marker last4 in the success _meta.
+  test('WS-style call: injected backend key last4 wins over caller-passed marker last4', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: { invest: { portfolioId: 'INV-7777' } } });
+    const conf: any = {
+      mortgageServiceBaseUrl: 'http://mortgage-service:8082',
+      mortgageServiceApiKey: 'demo-invest-key-7777', // test fixture, not a real secret
+    };
+    const out: any = await buildApiKeyToolResult('show_investment', 'sub', '9999', conf);
+    expect(out.ok).toBe(true);
+    expect(out.result._meta.apiKeyMaskedLast4).toBe('7777');
+  });
 });

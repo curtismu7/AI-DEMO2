@@ -132,6 +132,11 @@ export async function buildApiKeyToolResult(
   }
 
   // Phase 267 — real backend dispatch via X-API-Key (OAuth bearer dropped).
+  // The last4 shown here must reflect the key ACTUALLY sent to the backend
+  // (config.mortgageServiceApiKey), not the caller-passed apiKeyMaskedLast4 —
+  // the WS transport (index.ts) derives that argument from the Phase 266
+  // marker key, which would otherwise mislabel the real credential swap.
+  const backendLast4 = injected.length >= 4 ? injected.slice(-4) : last4;
   let mResp;
   try {
     mResp = await axios.get(backendUrl, {
@@ -158,9 +163,9 @@ export async function buildApiKeyToolResult(
       content: [{ type: 'text', text: JSON.stringify(mResp.data) }],
       _meta: {
         credentialPath: 'api_key',
-        apiKeyMaskedLast4: last4,
+        apiKeyMaskedLast4: backendLast4,
         apiCall: `GET /${meta.routeSegment}`,
-        maskedApiKey: `xxxx${last4}`,
+        maskedApiKey: `xxxx${backendLast4}`,
         backend: meta.serviceLabel,
         infoPageHint: meta.infoPageHint,
         note: `Gateway dropped your OAuth bearer, attached a service API key, and called ${meta.serviceLabel} /${meta.routeSegment} (X-API-Key + X-User-Sub).`,
@@ -184,7 +189,7 @@ export async function buildApiKeyToolResult(
             id: 'evt-swap',
             label: 'Gateway swap: OAuth bearer dropped, service API key attached',
             tokenType: 'api_key',
-            maskedValue: `...${last4}`,
+            maskedValue: `...${backendLast4}`,
             credentialPath: 'api_key',
             status: 'ok',
           },
