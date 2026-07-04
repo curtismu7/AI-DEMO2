@@ -172,6 +172,40 @@ error code. Complements the unit-level decision-payload parity gates
 BFF exchange (needs a logged-in session / live PingOne) — natural companion to
 landing SP-0 live.
 
+## SP-2 — P1AZ policy parity (mock side done; IG-input + real deferred)
+
+Delta mapping (Node gateway vs mock `demo_authz_server` vs IG `p1az-decision.groovy`)
+found the mock **already implements** per-tool `tools/list` filtering
+(`DeniedTools`/`AllowedVertical`), act/UC16 (Rule 2.5 + A2A chain), and RAR
+intent-subset (Rule 3c). The single true mock-side logic gap was **D-05**.
+
+**Done (mock side):**
+- `scopeTopology.upstreamAudiences()` — the D-05 backend/RS blacklist sourced
+  from the SoT manifest + `BANKING_RESOURCE_SERVER_RESOURCE_URI`, gateway URI
+  excluded (mirrors Node `GatewayTokenPolicy` upstreamAuds).
+- `decision.js` **Rule 0b-2**: DENY `bypass_attempt` when `TokenAudActual`
+  targets an upstream — even a multi-aud `[gateway, backend]` token that passes
+  the "aud includes gateway" check. Legacy callers without `TokenAudActual`
+  unaffected.
+- `decision.d05-bypass.test.js` — 5 cases, all PASS (gateway-only PERMIT;
+  `[gw,OLB]` space form, `[gw,invest]` JSON form, `[gw,bankingRS]` all DENY;
+  missing-aud legacy PERMIT). Existing `decision.pinggateway-parity.test.js`
+  still green (no regression).
+
+**Remaining SP-2 (IG PEP-input side — needs a live authenticated run to verify):**
+- `p1az-decision.groovy` must **send `CandidateTools`** on the `McpToolsList`
+  path and **consume `DeniedTools`/`AllowedVertical`** advice to rewrite the
+  tools/list response `_meta.deniedTools` — otherwise per-tool greying never
+  happens through IG (the mock already returns the advice).
+- Send `RarAuthorizationDetails` (from the TraT/`azd` envelope) so mock Rule 3c
+  enforces RAR subset on the IG path.
+- Send `NestedActClientId` so the mock's A2A generalist-identity sub-check is
+  reachable through IG.
+
+**Real PingOne Authorize:** blocked on `pingone` connector auth (interactive
+session) / console access. The mock rules (now incl. D-05) are the translation
+source; `X-Authz-Simulated: false` + a real token via the harness is the gate.
+
 ## Appendix A — Server inventory (parity relevance)
 
 | Server | Container : port | Parity role |
