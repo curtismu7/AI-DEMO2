@@ -10,7 +10,7 @@ RFC 8693 token exchange to the backend, and reverse-proxies to the MCP servers.
 
 1. **Inbound token validation** — `McpProtectionFilter` + `OAuth2ResourceServerFilter`
    introspect the bearer (PingOne, via the MCP exchanger client) and require the
-   `banking:mcp:invoke` scope. No/invalid token -> `401`.
+   `gateway:mcp:invoke` scope (`PG_INBOUND_SCOPE`). No/invalid token -> `401`.
 2. **MCP protocol validation** — `McpValidationFilter` parses the JSON-RPC body.
 3. **Authorize decision** — `scripts/groovy/p1az-decision.groovy` builds the SAME 18-key
    `parameters` payload as the Node gateway's `buildAuthorizeParameters` and POSTs it to

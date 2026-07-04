@@ -1,7 +1,7 @@
 /*
  * olb-token-exchange.groovy
  *
- * Exchange #3: exchanges the inbound PingGateway-scoped token (pinggateway:invoke)
+ * Exchange #3: exchanges the inbound gateway-scoped token (gateway:mcp:invoke)
  * for a backend OLB token (mcpserver.ping.demo / read) using client_secret_post.
  *
  * MCP HTTP session lifecycle (per MCP spec):
