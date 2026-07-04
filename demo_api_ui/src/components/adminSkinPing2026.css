@@ -72,6 +72,40 @@ body.admin-skin-p1 .admin-side-nav__quick-link--active {
   color: #2767d2 !important;
 }
 
+/* ── Search box ─────────────────────────────────────────────────────────────
+   The base styles are white-on-translucent for the dark sidebar; on the light
+   skin that renders white-on-white (invisible). Restyle for the light palette. */
+body.admin-skin-p1 .admin-side-nav__filter-input {
+  background: #f6f7f9;
+  border: 1px solid #d6d7dc;
+  color: #30313a;
+}
+body.admin-skin-p1 .admin-side-nav__filter-input::placeholder {
+  color: #8b8c94;
+}
+body.admin-skin-p1 .admin-side-nav__filter-input:hover {
+  background: #eef0f3;
+  border-color: #c3c4cb;
+}
+body.admin-skin-p1 .admin-side-nav__filter-input:focus {
+  background: #ffffff;
+  border-color: #2767d2;
+  box-shadow: 0 0 0 2px rgba(39, 103, 210, 0.25);
+}
+body.admin-skin-p1 .admin-side-nav__filter-icon {
+  color: #5d5e66;
+}
+body.admin-skin-p1 .admin-side-nav__filter-clear {
+  color: #8b8c94;
+}
+body.admin-skin-p1 .admin-side-nav__filter-clear:hover {
+  background: #e9eaee;
+  color: #30313a;
+}
+body.admin-skin-p1 .admin-side-nav__filter-empty {
+  color: #8b8c94;
+}
+
 /* ── Nav items ──────────────────────────────────────────────────────────── */
 /* The classic skin forces backgrounds with !important and white text on
    item/label/icon; backgrounds below must also use !important to win.

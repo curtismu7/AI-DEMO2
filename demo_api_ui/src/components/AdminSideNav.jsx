@@ -1135,13 +1135,18 @@ export default function AdminSideNav({ user }) {
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
         {!collapsed && (
           <div className="admin-side-nav__filter">
+            <MdSearch
+              className="admin-side-nav__filter-icon"
+              size={16}
+              aria-hidden="true"
+            />
             <input
               type="text"
               className="admin-side-nav__filter-input"
-              placeholder="Filter menu…"
+              placeholder="Search menu…"
               value={navFilter}
               onChange={(e) => setNavFilter(e.target.value)}
-              aria-label="Filter navigation"
+              aria-label="Search navigation"
             />
             {navFilter && (
               <button
