@@ -66,6 +66,10 @@ services:
       # exchange (no skipping). Mirrors service-topology.json — run
       # `node scripts/gen-service-topology.js check` to verify no drift.
       MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
+      # RAG code-search service (Weaviate + embeddings). Must be the compose DNS
+      # name — routes/codeSearch.js defaults to localhost:8095, which inside this
+      # container is the BFF itself, so the /code-search UI page fails without it.
+      MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
       # PingGateway (IG) gateway — the DEFAULT MCP enforcement point (real PingOne
       # token end-to-end). Env is synced into the store at every boot (FF_ENV_MAP),
       # so this value wins over persisted toggles; flip here to change the default.
@@ -475,6 +479,9 @@ services:
       AGENT_HTTP_PORT: "8892"
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
+      # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
+      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
     env_file:
       - path: ./mastra_agent/.env
         required: false
@@ -499,6 +506,9 @@ services:
       ENVIRONMENT: development
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
+      # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
+      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
     env_file:
       - path: ./openai_agent/.env
         required: false
@@ -523,6 +533,9 @@ services:
       ENVIRONMENT: development
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
+      # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
+      AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
     env_file:
       - path: ./pydantic_agent/.env
         required: false
@@ -628,6 +641,15 @@ services:
       # so Weaviate needs no vectorizer module of its own.
       DEFAULT_VECTORIZER_MODULE: none
       ENABLE_MODULES: ""
+      # Stable raft node identity. Without this, Weaviate derives the raft node ID
+      # from the random container hostname; on a container recreate the persisted
+      # weaviate-data volume then references a dead node and no leader is ever
+      # elected — every schema/index op 500s ("leader not found") while the
+      # raft-free /v1/meta healthcheck still passes, so it looks healthy.
+      # NOTE: first applying/changing this needs a one-time `weaviate-data` volume
+      # wipe + reindex to align the persisted node ID with CLUSTER_HOSTNAME.
+      CLUSTER_HOSTNAME: weaviate
+      RAFT_BOOTSTRAP_EXPECT: "1"
     volumes:
       - weaviate-data:/var/lib/weaviate
     networks:
@@ -651,6 +673,7 @@ services:
     command: >
       --host 0.0.0.0 --port 8080
       --embedding --pooling mean
+      -c 32768 -b 8192 -ub 8192 --parallel 4
       -hf nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0
     volumes:
       - embed-models:/root/.cache/llama.cpp
