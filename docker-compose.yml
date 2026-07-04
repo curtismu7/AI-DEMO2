@@ -652,7 +652,9 @@ services:
       # so the real value works for both backends).
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://demo-api-server:3001/internal/vault/service-key"
-      BFF_INTERNAL_SECRET: "${BFF_INTERNAL_SECRET:-dev-shared-secret-change-me}"
+      # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
+      # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
+      # it here (environment: would override env_file with a wrong/default value).
       # Fallback truststore (see entrypoint comment above): -cacerts isn't writable
       # by the fixed non-root image user, so the mkcert root is imported into a
       # copy of cacerts under /var/gateway instead, and the JVM is pointed at it.
