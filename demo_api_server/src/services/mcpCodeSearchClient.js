@@ -8,6 +8,27 @@
 const axios = require('axios');
 
 /**
+ * Map an axios failure to this client's error contract. `err.status` is 503
+ * both for an explicit 503 response AND for network-level failures with no
+ * response at all (ECONNREFUSED / timeout — the server is just as unavailable).
+ * Routes switch on `status`, never on message text.
+ * @param {Error & {isAxiosError?: boolean, response?: {status?: number}}} err
+ * @param {string} opLabel - e.g. 'index codebase'
+ * @returns {Error & {status: number}}
+ */
+function toClientError(err, opLabel) {
+  const unavailable =
+    err.response?.status === 503 || (err.isAxiosError && !err.response);
+  const wrapped = new Error(
+    unavailable
+      ? `MCP server unavailable (code search service not ready): ${err.message}`
+      : `Failed to ${opLabel}: ${err.message}`
+  );
+  wrapped.status = unavailable ? 503 : 500;
+  return wrapped;
+}
+
+/**
  * @typedef {Object} IndexRequest
  * @property {Array<{path: string, content: string}>} files - Array of files to index
  * @property {string} codebase_id - Unique identifier for the codebase
@@ -85,10 +106,7 @@ class MCPCodeSearchClient {
 
       return response.data;
     } catch (err) {
-      if (err.response?.status === 503) {
-        throw new Error('MCP server unavailable (code search service not ready)');
-      }
-      throw new Error(`Failed to index codebase: ${err.message}`);
+      throw toClientError(err, 'index codebase');
     }
   }
 
@@ -109,10 +127,7 @@ class MCPCodeSearchClient {
 
       return response.data;
     } catch (err) {
-      if (err.response?.status === 503) {
-        throw new Error('MCP server unavailable (code search service not ready)');
-      }
-      throw new Error(`Failed to search codebase: ${err.message}`);
+      throw toClientError(err, 'search codebase');
     }
   }
 
@@ -126,10 +141,7 @@ class MCPCodeSearchClient {
       const response = await this.client.get('/codebases');
       return response.data;
     } catch (err) {
-      if (err.response?.status === 503) {
-        throw new Error('MCP server unavailable (code search service not ready)');
-      }
-      throw new Error(`Failed to list codebases: ${err.message}`);
+      throw toClientError(err, 'list codebases');
     }
   }
 }

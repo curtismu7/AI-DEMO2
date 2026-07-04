@@ -11,9 +11,11 @@ const express = require('express');
 // Create mock instance before the router requires it
 const mockIndex = jest.fn();
 const mockSearch = jest.fn();
+const mockListCodebases = jest.fn();
 const mockClientInstance = {
   index: mockIndex,
   search: mockSearch,
+  listCodebases: mockListCodebases,
 };
 
 // Mock the MCP client class before requiring the router
@@ -36,6 +38,7 @@ describe('Code Search Routes', () => {
     jest.clearAllMocks();
     mockIndex.mockReset();
     mockSearch.mockReset();
+    mockListCodebases.mockReset();
   });
 
   describe('POST /index', () => {
@@ -95,8 +98,13 @@ describe('Code Search Routes', () => {
     });
 
     test('returns 503 when MCP server is unavailable', async () => {
+      // The client marks outages with err.status = 503 (explicit 503 response
+      // or network-level failure); the route switches on status, not message.
       mockIndex.mockRejectedValueOnce(
-        new Error('MCP server unavailable (code search service not ready)')
+        Object.assign(
+          new Error('MCP server unavailable (code search service not ready)'),
+          { status: 503 }
+        )
       );
 
       const response = await request(buildApp())
@@ -213,7 +221,10 @@ describe('Code Search Routes', () => {
 
     test('returns 503 when MCP server is unavailable', async () => {
       mockSearch.mockRejectedValueOnce(
-        new Error('MCP server unavailable (code search service not ready)')
+        Object.assign(
+          new Error('MCP server unavailable (code search service not ready)'),
+          { status: 503 }
+        )
       );
 
       const response = await request(buildApp())
@@ -284,6 +295,47 @@ describe('Code Search Routes', () => {
           file_filter: '*.ts',
         })
       );
+    });
+  });
+
+  describe('GET /codebases', () => {
+    test('returns the codebases from the client', async () => {
+      mockListCodebases.mockResolvedValueOnce({
+        codebases: [{ id: 'cb-1', name: 'demo', chunks: 42 }],
+      });
+
+      const response = await request(buildApp())
+        .get('/api/code-search/codebases')
+        .expect(200);
+
+      expect(response.body.codebases).toEqual([
+        { id: 'cb-1', name: 'demo', chunks: 42 },
+      ]);
+    });
+
+    test('returns 503 when MCP server is unavailable (incl. network errors)', async () => {
+      mockListCodebases.mockRejectedValueOnce(
+        Object.assign(
+          new Error('MCP server unavailable (code search service not ready): connect ECONNREFUSED'),
+          { status: 503 }
+        )
+      );
+
+      const response = await request(buildApp())
+        .get('/api/code-search/codebases')
+        .expect(503);
+
+      expect(response.body.error).toBe('mcp_server_unavailable');
+    });
+
+    test('returns 500 on unexpected errors', async () => {
+      mockListCodebases.mockRejectedValueOnce(new Error('boom'));
+
+      const response = await request(buildApp())
+        .get('/api/code-search/codebases')
+        .expect(500);
+
+      expect(response.body.error).toBe('list_failed');
     });
   });
 });

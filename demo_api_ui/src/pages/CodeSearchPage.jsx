@@ -34,29 +34,37 @@ export function CodeSearchPage() {
 
   // Persist codebases to localStorage. Safe now that state is seeded from
   // localStorage on the first render, so this never writes an empty array over
-  // an existing list.
+  // an existing list. localStorage is only the pre-fetch/offline fallback —
+  // the server list below is authoritative once it loads.
   useEffect(() => {
     localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
   }, [codebases]);
 
-  // Load the codebases actually indexed on the server and merge them in, so the
-  // list shows what exists regardless of this browser's localStorage. Server
-  // entries win on id collision (authoritative name + chunk count).
+  // Load the codebases actually indexed on the server. The server response is
+  // the source of truth: entries deleted or re-indexed server-side disappear
+  // here too (an additive merge would keep phantom localStorage entries whose
+  // searches can only fail). Local-only decorations (uploadedAt, fileSize,
+  // fileName) are carried over by id.
   useEffect(() => {
     let cancelled = false;
     listCodebases()
       .then((serverCodebases) => {
-        if (cancelled || !Array.isArray(serverCodebases) || serverCodebases.length === 0) {
-          return;
-        }
+        if (cancelled || !Array.isArray(serverCodebases)) return;
         setCodebases((prev) => {
-          const byId = new Map(prev.map((c) => [c.id, c]));
-          for (const c of serverCodebases) {
-            byId.set(c.id, { ...byId.get(c.id), id: c.id, name: c.name, chunks: c.chunks });
-          }
-          return Array.from(byId.values());
+          const localById = new Map(prev.map((c) => [c.id, c]));
+          return serverCodebases.map((c) => ({
+            ...localById.get(c.id),
+            id: c.id,
+            name: c.name,
+            chunks: c.chunks,
+          }));
         });
-        setSelectedCodebaseId((cur) => cur || serverCodebases[0].id);
+        // Keep the current selection only if the server still has it.
+        setSelectedCodebaseId((cur) =>
+          serverCodebases.some((c) => c.id === cur)
+            ? cur
+            : (serverCodebases[0]?.id || '')
+        );
       })
       .catch((err) => {
         // Non-fatal: fall back to whatever localStorage provided.
@@ -73,16 +81,17 @@ export function CodeSearchPage() {
       setIndexError('');
 
       try {
-        // Generate a simple ID
-        const codebaseId = `codebase-${Date.now()}`;
-
-        // Call the BFF API
-        await indexCodebase(file, codebaseName, 'simple');
+        // Call the BFF API. Use the codebase_id the server generated — a
+        // locally invented id would never match, so searching the fresh
+        // upload would always miss.
+        const result = await indexCodebase(file, codebaseName, 'simple');
+        const codebaseId = result.codebase_id;
 
         // Add to local state
         const newCodebase = {
           id: codebaseId,
           name: codebaseName,
+          chunks: result.chunks_created,
           uploadedAt: new Date().toISOString(),
           fileSize: file.size,
           fileName: file.name,

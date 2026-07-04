@@ -1,6 +1,20 @@
 const API_BASE = '/api/code-search';
 
 /**
+ * Throw a normalized Error when the BFF response is not OK: prefer the JSON
+ * body's error/message fields, fall back to a label + HTTP status.
+ * @param {Response} response
+ * @param {string} label - e.g. 'Upload failed'
+ */
+async function throwIfNotOk(response, label) {
+  if (response.ok) return;
+  const error = await response.json().catch(() => ({}));
+  throw new Error(
+    error.error || error.message || `${label} (status ${response.status})`
+  );
+}
+
+/**
  * @param {File} file - ZIP file to index
  * @param {string} codebaseName - Human-readable name for the codebase
  * @param {string} [chunkStrategy='simple'] - Chunking strategy (simple or ast_aware)
@@ -17,13 +31,7 @@ export async function indexCodebase(file, codebaseName, chunkStrategy = 'simple'
     body: formData,
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.error || error.message || `Upload failed with status ${response.status}`
-    );
-  }
-
+  await throwIfNotOk(response, 'Upload failed');
   return response.json();
 }
 
@@ -51,13 +59,7 @@ export async function searchCode(query, codebaseId, limit = 10, fileFilter = und
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.error || error.message || `Search failed with status ${response.status}`
-    );
-  }
-
+  await throwIfNotOk(response, 'Search failed');
   const data = await response.json();
   return data.results || [];
 }
@@ -68,17 +70,9 @@ export async function searchCode(query, codebaseId, limit = 10, fileFilter = und
  * @returns {Promise<Array<{id: string, name: string, chunks: number}>>}
  */
 export async function listCodebases() {
-  const response = await fetch(`${API_BASE}/codebases`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const response = await fetch(`${API_BASE}/codebases`);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.error || error.message || `Failed to list codebases (status ${response.status})`
-    );
-  }
-
+  await throwIfNotOk(response, 'Failed to list codebases');
   const data = await response.json();
   return data.codebases || [];
 }
