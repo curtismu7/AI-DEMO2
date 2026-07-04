@@ -1,8 +1,9 @@
 # Regression Plan — Super Banking demo
 
-Canonical do-not-break contract for the Super Banking demo. `CLAUDE.md` points
-here; this file is the source of truth. If any skill or rule disagrees with it,
-this file wins.
+Canonical do-not-break contract for the Super Banking demo. The
+`regression-guard` skill (`.claude/skills/regression-guard/`) is the discipline
+layer that points here; `CLAUDE.md` also points here. This file is the source of
+truth — if the skill and this file disagree, this file wins.
 
 ---
 

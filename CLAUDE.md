@@ -12,8 +12,10 @@ here.
 
 **[REGRESSION_PLAN.md](REGRESSION_PLAN.md) is the source of truth for what must
 not break.** Read `§0` (hard UI/style rules) and `§1` (protected areas) before
-changing auth flows, token exchange, the BFF session layer, or UI surfaces. That
-file is the source of truth; if any skill or rule disagrees with it, it wins.
+changing auth flows, token exchange, the BFF session layer, or UI surfaces. The
+`regression-guard` skill (`.claude/skills/regression-guard/`) applies it while
+you edit — invoke it before touching a protected area. That file is the source
+of truth; if the skill disagrees with it, the file wins.
 
 Two rules from `§0` that apply to everything you write here:
 
