@@ -338,6 +338,7 @@ services:
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
