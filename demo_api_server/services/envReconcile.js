@@ -107,7 +107,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'max_transaction_amount',
   // rfc 8707 single-resource scopes (provisioner-aligned scope names, not env identity)
   'agent_gateway_cc_scope', 'mcp_gateway_cc_scope', 'two_exchange_intermediate_scope',
-  'pinggateway_invoke_scope', 'a2a_intermediate_scope', 'a2a_invest_scope',
+  'gateway_mcp_invoke_scope', 'pinggateway_invoke_scope', 'a2a_intermediate_scope', 'a2a_invest_scope',
   'mcp_token_exchange_scopes', 'agent_mcp_allowed_scopes', 'ai_agent_scope',
   'pingone_mcp_token_exchanger_client_scopes',
   // SDK centralized-login demo scope string (not env identity)

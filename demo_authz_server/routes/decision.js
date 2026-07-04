@@ -405,12 +405,16 @@ module.exports = async function decisionHandler(req, res) {
     warn(`[AuthzServer/decision] DENY — unknown tool: "${ToolName}"`);
     return deny(res, `unknown_tool: no policy defined for tool "${ToolName}"`);
   }
-  // When the request comes through PingGateway (scope pinggateway:invoke), the
+  // When the request comes through PingGateway (scope gateway:mcp:invoke —
+  // the BFF's Exchange #2 default since the pinggateway:invoke rename; the
+  // old name is still honored for tokens minted by older deployments), the
   // gateway has already validated the inbound token. The P1AZ policy still
   // enforces delegation (act/may_act) and HITL, but skips banking scope checks:
   // the gateway-level scope proves authorization at the gateway; the banking
   // scopes belong to the MCP server resource, not the PingGateway resource.
-  const viaPingGateway = grantedScopes.has('pinggateway:invoke');
+  const viaPingGateway =
+    grantedScopes.has('gateway:mcp:invoke') ||
+    grantedScopes.has('pinggateway:invoke');
   if (!viaPingGateway && requiredScopes.length > 0) {
     const missing = requiredScopes.filter(s => !grantedScopes.has(s));
     if (missing.length > 0) {

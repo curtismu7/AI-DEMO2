@@ -2295,7 +2295,11 @@ async function _performTwoExchangeDelegation(
     // resources — an AS grant-model constraint, not a PingGateway requirement.
     // (Sending effectiveToolScopes made PingOne fall back to the mcpgateway grant;
     // empty scopes error "May not request scopes for multiple resources".)
-    const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope') || 'gateway:mcp:invoke';
+    // Renamed key (was pinggateway_invoke_scope); honor an operator override
+    // persisted under the old key so upgrades don't silently drop it.
+    const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
+      || configStore.getEffective('pinggateway_invoke_scope')
+      || 'gateway:mcp:invoke';
     const ex2Scopes = usePingGatewayForExchange ? [gatewayInvokeScope] : effectiveToolScopes;
     finalToken = await oauthService.performTokenExchangeAs(
       agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod

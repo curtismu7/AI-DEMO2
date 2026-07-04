@@ -108,6 +108,26 @@ test('DENY — TokenAudience does not match McpResourceUri (HasValidMcpAudience 
   assert.match(res.body.reason, /invalid_aud/);
 });
 
+test('PERMIT — gateway:mcp:invoke (Exchange #2 default) bypasses banking-scope check', async () => {
+  // The PingGateway-path token carries only the gateway-hop scope, no banking
+  // scopes; Rule 3 must treat it as via-gateway or every tool call is denied.
+  const res = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: groovyParams({ TokenScopes: 'gateway:mcp:invoke' }) } },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
+test('PERMIT — legacy pinggateway:invoke scope still recognized', async () => {
+  const res = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: groovyParams({ TokenScopes: 'pinggateway:invoke' }) } },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
 test('DENY — same payload but missing a required scope (insufficient_scope)', async () => {
   const res = makeRes();
   await decisionHandler(
