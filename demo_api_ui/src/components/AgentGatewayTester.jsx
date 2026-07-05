@@ -286,9 +286,10 @@ export default function AgentGatewayTester() {
               )}
               {resp.gateway?.usePingGateway && !resp.gwAuditTrail && (
                 <p className="mgc-field-hint">
-                  PingGateway (IG) does not emit the X-Gw-Audit-Trail header the Demo Agent Gateway
-                  does, so on the PingOne path the decision shows as the gateway's response (e.g. a
-                  403 access_denied) rather than a full audit trail.
+                  No X-Gw-Audit-Trail on this response. PingGateway (IG) emits it on both PERMIT and
+                  DENY from its authorize filter, so an absent trail means the request was rejected
+                  before that filter ran (e.g. a 401 at token introspection). See the Gateway Logs tab
+                  for the raw decision.
                 </p>
               )}
 
