@@ -100,6 +100,47 @@ test('calls next() when agentRestrictions permits', async () => {
   expect(mockNext).toHaveBeenCalled();
 });
 
+test('fails CLOSED when restrictions are undeterminable (no worker creds) — default', async () => {
+  // Real tier logic; no PingOne creds so fetchAgentRestrictions hits failover.
+  const svc = require('../services/agentRestrictionsService');
+  const real = jest.requireActual('../services/agentRestrictionsService');
+  svc.isAgentRestricted.mockImplementation(real.isAgentRestricted);
+  svc.getRequiredTier.mockReturnValue('write');
+  const prevEnv = process.env.PINGONE_ENVIRONMENT_ID;
+  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
+  delete process.env.PINGONE_ENVIRONMENT_ID;
+  delete process.env.AGENT_RESTRICTIONS_FAILOVER;
+  try {
+    await agentRestrictionsGate(makeReq(), mockRes, mockNext);
+    // failover value 'none' → restricted → DENY path (428), never next().
+    expect(mockRes.status).toHaveBeenCalledWith(428);
+    expect(mockNext).not.toHaveBeenCalled();
+  } finally {
+    if (prevEnv === undefined) delete process.env.PINGONE_ENVIRONMENT_ID; else process.env.PINGONE_ENVIRONMENT_ID = prevEnv;
+    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
+  }
+});
+
+test('fails OPEN when AGENT_RESTRICTIONS_FAILOVER=permit and creds missing', async () => {
+  const svc = require('../services/agentRestrictionsService');
+  const real = jest.requireActual('../services/agentRestrictionsService');
+  svc.isAgentRestricted.mockImplementation(real.isAgentRestricted);
+  svc.getRequiredTier.mockReturnValue('write');
+  const prevEnv = process.env.PINGONE_ENVIRONMENT_ID;
+  const prevFo = process.env.AGENT_RESTRICTIONS_FAILOVER;
+  delete process.env.PINGONE_ENVIRONMENT_ID;
+  process.env.AGENT_RESTRICTIONS_FAILOVER = 'permit';
+  try {
+    await agentRestrictionsGate(makeReq(), mockRes, mockNext);
+    // failover value 'write' → not restricted → next(), no 428.
+    expect(mockNext).toHaveBeenCalled();
+    expect(mockRes.status).not.toHaveBeenCalledWith(428);
+  } finally {
+    if (prevEnv === undefined) delete process.env.PINGONE_ENVIRONMENT_ID; else process.env.PINGONE_ENVIRONMENT_ID = prevEnv;
+    if (prevFo === undefined) delete process.env.AGENT_RESTRICTIONS_FAILOVER; else process.env.AGENT_RESTRICTIONS_FAILOVER = prevFo;
+  }
+});
+
 test('resolves userId from Bearer JWT when session has no user', async () => {
   // A minimal JWT payload: base64url-encode { sub: 'bearer-user-id' }
   const payload = Buffer.from(JSON.stringify({ sub: 'bearer-user-id' })).toString('base64url');

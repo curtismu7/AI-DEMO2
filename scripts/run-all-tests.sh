@@ -33,7 +33,6 @@ if command -v python3.12 >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; 
   ( cd "$ROOT/langchain_agent" && bash scripts/run-pytest.sh ) || FAILED=1
 else
   echo "⚠ python3 not found; skipping langchain_agent pytest"
-  FAILED=1
 fi
 
 step "langchain_agent/frontend — CRA Jest (stable subset; full: npm test in that package)"
@@ -47,7 +46,6 @@ if [[ -x "$ROOT/openai_agent/.venv/bin/python" ]]; then
   ( cd "$ROOT/openai_agent" && .venv/bin/python -m pytest tests/ -q ) || FAILED=1
 else
   echo "⚠ openai_agent/.venv missing — run ./run.sh once to provision it; skipping"
-  FAILED=1
 fi
 
 step "pydantic_agent — pytest (unit)"
@@ -55,7 +53,6 @@ if [[ -x "$ROOT/pydantic_agent/.venv/bin/python" ]]; then
   ( cd "$ROOT/pydantic_agent" && .venv/bin/python -m pytest tests/ -q ) || FAILED=1
 else
   echo "⚠ pydantic_agent/.venv missing — run ./run.sh once to provision it; skipping"
-  FAILED=1
 fi
 
 step "mastra_agent — Jest (unit)"

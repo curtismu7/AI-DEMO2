@@ -45,6 +45,13 @@ describe('resolveAuthorizeMode — explicit authorize_mode', () => {
     expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'pingone', ff_authorize_fail_open: 'true' })))
       .toEqual({ mode: 'pingone', useSimulated: false, failoverMode: 'permit' });
   });
+
+  test('ff_authorize_simulated=true overrides authorize_mode=pingone default (no split brain)', () => {
+    // QuickFlagsPill sets ff_authorize_simulated; it must win for the BFF path
+    // too so the transaction engine and the PingGateway header agree.
+    expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'pingone', ff_authorize_simulated: 'true' })))
+      .toEqual({ mode: 'simulated', useSimulated: true, failoverMode: 'fallback_simulated' });
+  });
 });
 
 describe('resolveAuthorizeMode — legacy fallback (authorize_mode unset)', () => {

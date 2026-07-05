@@ -104,6 +104,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // thresholds / step-up
   'confirm_threshold_usd', 'mfa_threshold_usd', 'step_up_amount_threshold',
   'step_up_method', 'step_up_acr_value',
+  // HITL consent challenge UX mode ('onetime' | 'multi') — behaviour, not env identity
+  'hitl_consent_mfa_mode',
   'max_transaction_amount',
   // rfc 8707 single-resource scopes (provisioner-aligned scope names, not env identity)
   'agent_gateway_cc_scope', 'mcp_gateway_cc_scope', 'two_exchange_intermediate_scope',

@@ -76,6 +76,18 @@ function toolChallengeType(toolName) {
 }
 
 /**
+ * True when the tool DECLARES a challengeType in the SoT (i.e. it is a
+ * consent-gated or step-up tool), as opposed to `toolChallengeType`'s 'consent'
+ * default for ungated tools. Mirrors the mock authz server's
+ * ruleStore.hasChallengeType so the BFF simulated engine can gate no-amount
+ * tools by tool name exactly like the mock and the P1AZ snapshot policy.
+ */
+function toolDeclaresChallenge(toolName) {
+  const t = load().tools[toolName];
+  return !!(t && t.challengeType);
+}
+
+/**
  * True when the tool is A2A-delegated — reachable ONLY via specialist delegation.
  * Authorize DENYs it unless the token's act chain shows a specialist delegated by
  * the generalist (depth >= 2). SoT flag: tools.<name>.a2aDelegated === true.
@@ -235,10 +247,26 @@ function normalizeScope(scope) {
   return a[scope] || scope;
 }
 
+/** High-value transaction consent threshold (USD). */
+function highValueConsentThresholdUsd() {
+  return load().policy?.authorization?.highValueConsentThresholdUsd || 250;
+}
+
+/** Step-up MFA threshold (USD). */
+function stepUpThresholdUsd() {
+  return load().policy?.authorization?.stepUpThresholdUsd || 500;
+}
+
+/** Maximum amount limits by account tier (USD). Defaults: standard 2000, privatebanking 50000. */
+function amountLimitsByTier() {
+  return load().policy?.authorization?.amountLimitsByTier || { standard: 2000, privatebanking: 50000 };
+}
+
 module.exports = {
   toolScopes,
   toolSurface,
   toolChallengeType,
+  toolDeclaresChallenge,
   isA2aDelegatedTool,
   isAgentMediatedTool,
   a2aDelegatedScope,
@@ -258,5 +286,8 @@ module.exports = {
   allScopes,
   aliases,
   normalizeScope,
+  highValueConsentThresholdUsd,
+  stepUpThresholdUsd,
+  amountLimitsByTier,
   _manifest: load,
 };

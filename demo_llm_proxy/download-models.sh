@@ -9,7 +9,7 @@
 
 set -e
 
-MODELS_DIR="/Users/cmuir/models"
+MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 mkdir -p "$MODELS_DIR"
 
 # tier|exact filename|human label|Hugging Face reference
