@@ -149,7 +149,16 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
   const jwksEndpoint = process.env.PINGONE_JWKS_ENDPOINT;
 
   if (!jwksEndpoint) {
-    // Degraded mode: no JWKS endpoint configured — skip signature verification.
+    // Production must verify signatures — decode-only accepts forged tokens. This is
+    // also caught at boot by assertProductionSecrets; the runtime guard covers a
+    // config change after start. Dev keeps decode-only so the local demo runs.
+    if (process.env.NODE_ENV === 'production') {
+      throw new TokenValidationError(
+        'PINGONE_JWKS_ENDPOINT not configured — signature verification unavailable',
+        'invalid_token',
+      );
+    }
+    // Degraded (dev) mode: no JWKS endpoint configured — skip signature verification.
     if (!_noJwksWarned) {
       _noJwksWarned = true;
       console.warn(
