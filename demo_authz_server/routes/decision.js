@@ -622,7 +622,7 @@ module.exports = async function decisionHandler(req, res) {
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
-  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey') || s.length > 8;
+  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey');
 }
 
 function permit(res, reason) {

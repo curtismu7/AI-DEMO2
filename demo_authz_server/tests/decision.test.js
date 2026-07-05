@@ -171,6 +171,15 @@ test('NNP-6 A-7c: step-up tool, no amount, HitlApproved=true -> STEP_UP (receipt
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
+test('ACR-drift: weak long ACR ("Single_Factor", 13 chars) does NOT bypass step-up', async () => {
+  // Regression: decision.js previously treated any ACR longer than 8 chars as
+  // strong MFA (`s.length > 8`), which the canonical sim engine never did — a
+  // weak "Single_Factor" ACR would silently skip STEP_UP.
+  const result = await decide(writeParams({ TransactionAmount: '600', Acr: 'Single_Factor' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
+});
+
 test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved=true -> PERMIT', async () => {
   const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
