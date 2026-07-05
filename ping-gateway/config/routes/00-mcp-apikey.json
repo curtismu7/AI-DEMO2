@@ -1,18 +1,16 @@
 {
-  "comment": "Phase 3 api-key credential-mediation route (reconstructed). #165 referenced an undefined 'RsFilterChain' heap object so it never built. This is a valid route mirroring 02-mcp-invest: rsFilter validates the inbound token (introspection), McpValidationFilter validates the MCP protocol AND buffers the request body so the terminal apikey-dispatch handler can re-read it (this buffering is what prevents the Vert.x event-loop deadlock on request.entity.string). The handler pulls the vault service key via the BFF bridge and calls demo_data_service with X-API-Key.",
-  "name": "mcp-apikey-dispatcher",
+  "comment": "Phase 3 api-key credential-mediation route (introspection). rsFilter validates the inbound token (introspection); McpValidationFilter validates MCP protocol AND buffers the body so p1az-decision and the terminal apikey-dispatch handler can re-read it; p1az-decision authorizes the tool call (PERMIT continues, DENY blocks); apikey-dispatch pulls the vault key via the BFF bridge and calls demo_data_service with X-API-Key. Named 'mcp-apikey-primary' so the JWKS variant ('mcp-apikey-jwks', j<p) wins route selection when its X-Token-Validation header is present (IG selects matching routes by the 'name' field, not filename — mirrors the mcp-olb-jwks/mcp-olb-primary pair).",
+  "name": "mcp-apikey-primary",
   "condition": "${find(request.uri.path, '^/mcp/apikey')}",
   "handler": {
     "type": "Chain",
     "config": {
       "filters": [
         "rsFilter",
-        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } }
+        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } },
+        { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
       ],
-      "handler": {
-        "type": "ScriptableHandler",
-        "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" }
-      }
+      "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }
     }
   }
 }
