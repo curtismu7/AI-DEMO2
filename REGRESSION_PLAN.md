@@ -79,6 +79,33 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — Feature: live agent reasoning visibility (Phase 3 UI)
+
+**Files changed:**
+- `demo_api_ui/src/hooks/useAgentState.js` — added a `reasoningState` slice
+  (`{ phase, toolOptions, contextTokens }`) to `INITIAL_STATE`, `onStateSnapshot`,
+  and the `onStateDelta` whitelist (`slicePrev`). The agent service emits
+  `STATE_DELTA` `replace` ops on `/reasoningState/phase|toolOptions|contextTokens`.
+- `demo_api_ui/src/components/ReasoningPanel.jsx` + `.css` (new) — presentational
+  panel reading `aguiState.reasoningState`; renders null until a phase is reported.
+- `demo_api_ui/src/components/AIAgent.js` — one import + one mount after
+  `<SimpleStepperBar />` inside `.ba-right-col`, gated on `aguiEnabled`.
+
+**What was added:** the agent now surfaces what it is thinking (current phase,
+selected tools + confidence, token usage / % of context window) as it runs.
+Anthropic-only for now (other providers report no phase, so the panel stays
+hidden). Backend emission landed in the Phase 1 commit (`8365ab319`).
+
+**Do not break:** `onStateDelta` in `useAgentState.js` applies `STATE_DELTA` only
+to a WHITELISTED set of slices (`slicePrev`) and then strips `messages`/`toolCalls`
+before merging back — a new delta-driven field is INVISIBLE to the UI unless it is
+added to that whitelist. If you add another `/foo/*` STATE_DELTA path, add `foo`
+to `slicePrev` or the ops silently no-op. Keep the panel mount gated on
+`aguiEnabled` so the legacy (non-AG-UI) path is unaffected. Do not add
+`max-width`/`max-height` in `ReasoningPanel.css` inside the float panel (§1).
+
+**Verify:** `cd demo_api_ui && npm run build` exits 0.
+
 ### 2026-07-04 — PingGateway (IG) audit: real P1AZ URL, apikey authz gap, dead route
 
 **Files changed:**
@@ -105,6 +132,7 @@ backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
 `bash ping-gateway/scripts/e2e-pinggateway.sh` (PASS); restart
 `ai-demo-ping-gateway` → 0 route-build errors, unauthenticated `/mcp`,
 `/mcp/apikey`, jwks-variant all 401, `/as/token` 404.
+
 ### 2026-07-04 — Hardening batch 2: outbound timeouts, SSE mid-stream errors, MCP-gateway XSS, crypto fallback, real-.env scope drift
 
 **Files changed:**
