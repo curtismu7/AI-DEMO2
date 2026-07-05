@@ -4,6 +4,7 @@ import { executeQueryUserByEmail } from './identityHandlers';
 import { executeSequentialThink } from './reasoningHandlers';
 import { executeRequestFeeWaiver } from './commitmentHandlers';
 import { executeSearchTransactions, executeGetTransactionDetail } from './searchHandlers';
+import { executeCodeSearch, executeGetCode, executeListCodebases } from './codeSearchHandlers';
 import { verticalHandlerMap } from './verticalHandlers';
 import {
   executeLookupCustomer,
@@ -31,6 +32,9 @@ export const handlerMap: Record<string, HandlerFn> = {
   executeRequestFeeWaiver,
   executeSearchTransactions,
   executeGetTransactionDetail,
+  executeCodeSearch,
+  executeGetCode,
+  executeListCodebases,
   ...verticalHandlerMap,
   executeLookupCustomer,
   executeGetCustomerProfile,
