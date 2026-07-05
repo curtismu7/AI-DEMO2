@@ -168,6 +168,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // per-request; the Node gateway never sees it (header added only on the PG path), so
     // the Node-gateway request shape is unchanged.
     if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+        // Prove this is the trusted BFF caller so PingGateway's decision filter honors
+        // the delegation signals below (X-Authz-Simulated) and the bridged actor
+        // (X-Act-Client-Id / X-May-Act-Sub added above). Without a valid secret the IG
+        // groovy forces the REAL authorize backend and drops the bridged actor, so a
+        // caller reaching the IG host port directly can't forge either. Same shared
+        // secret + header the Node gateway checks (checkInternalSecret).
+        const gwSecret = configStore.getEffective('bff_internal_secret') || process.env.BFF_INTERNAL_SECRET || '';
+        if (gwSecret) headers['x-internal-gateway-secret'] = gwSecret;
         const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
         // Per-request token-validation mode for the gateway: 'jwks' selects route
