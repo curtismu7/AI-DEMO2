@@ -982,6 +982,22 @@ function resolveAuthorizeMode(configStore) {
   // Legacy ff_authorize_fail_open=true maps to failover_mode=permit (back-compat).
   const legacyFailOpen = read('ff_authorize_fail_open') === 'true' || read('ff_authorize_fail_open') === true;
 
+  // ff_authorize_simulated is a DIRECT operator override: the QuickFlagsPill
+  // "Authorize Engine → Simulated" switch writes it, and the PingGateway
+  // X-Authz-Simulated header reads it directly per request. When it is explicitly
+  // true, force the simulated engine for the BFF transaction path too — otherwise
+  // authorize_mode's FIELD_DEFS default ('pingone') always won the explicit branch
+  // below and this flag was dead for the BFF, so flipping the pill left dashboard
+  // transfers on real P1AZ while MCP calls went to the mock (split brain).
+  const simOverride = read('ff_authorize_simulated');
+  if (simOverride === true || simOverride === 'true') {
+    return {
+      mode: 'simulated',
+      useSimulated: true,
+      failoverMode: legacyFailOpen ? 'permit' : 'fallback_simulated',
+    };
+  }
+
   const explicit = String(read('authorize_mode') || '').trim();
   if (AUTHORIZE_MODES.includes(explicit)) {
     let failoverMode;
