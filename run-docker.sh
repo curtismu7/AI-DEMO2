@@ -224,7 +224,10 @@ _proxy_up() { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1
 # container on IPv4 (both listen; IPv4 clients then hit the wrong backend).
 _clear_8090_squatter() {
   local pids
-  pids=$(lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | awk '$1 ~ /^llama/ {print $2}' | sort -u)
+  # `|| true`: with an empty :8090 (the normal cold-start state) lsof exits 1,
+  # and under `set -euo pipefail` this standalone assignment would abort the
+  # whole script before `docker compose up`. Guard it — no squatter is fine.
+  pids=$(lsof -nP -iTCP:8090 -sTCP:LISTEN 2>/dev/null | awk '$1 ~ /^llama/ {print $2}' | sort -u) || true
   if [[ -n "$pids" ]]; then
     warn "raw llama-server bound to :8090 shadows the LLM proxy — stopping it (PID ${pids})"
     kill $pids 2>/dev/null || true

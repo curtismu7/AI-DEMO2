@@ -3,6 +3,8 @@ import "./McpGatewayConfig.css";
 import CopyableValue from "./CopyableValue";
 import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
 import AgentGatewayConfigEditor from "./AgentGatewayConfigEditor";
+import AgentGatewayLogPanel from "./AgentGatewayLogPanel";
+import AgentGatewayTester from "./AgentGatewayTester";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
@@ -265,6 +267,18 @@ function McpGatewayConfigInner() {
 					onClick={() => setActiveTab("json")}
 				>
 					JSON Config
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "tester" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("tester")}
+				>
+					Gateway Tester
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "logs" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("logs")}
+				>
+					Gateway Logs
 				</button>
 			</div>
 
@@ -661,6 +675,16 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 			{activeTab === "json" && (
 				<div className="mgc-panel">
 					<AgentGatewayConfigEditor />
+				</div>
+			)}
+			{activeTab === "tester" && (
+				<div className="mgc-panel">
+					<AgentGatewayTester />
+				</div>
+			)}
+			{activeTab === "logs" && (
+				<div className="mgc-panel">
+					<AgentGatewayLogPanel />
 				</div>
 			)}
 		</div>

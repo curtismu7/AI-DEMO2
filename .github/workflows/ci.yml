@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Hygiene + topology gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: demo_api_server/package.json
+      - name: Fresh-clone hygiene
+        run: npm run hygiene:check
+      - name: REGRESSION_PLAN §1 paths exist
+        run: npm run regression:paths
+      - name: Install demo_api_server deps (topology gate runs its jest suite)
+        run: npm install --prefix demo_api_server --no-audit --no-fund
+      - name: Topology no-drift gate
+        run: npm run topology:verify
+
+  api-server-tests:
+    name: API server tests (Jest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: demo_api_server/package.json
+      - name: Install deps
+        run: npm install --prefix demo_api_server --no-audit --no-fund
+      - name: Run Jest suite
+        run: npm test --prefix demo_api_server

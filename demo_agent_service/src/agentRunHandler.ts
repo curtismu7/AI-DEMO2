@@ -330,6 +330,9 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
 
     emit(res, { type: EventType.RUN_STARTED, threadId, runId });
 
+    // Feature flag for reasoning visibility (Phase 1 — Anthropic-only for now)
+    const emitReasoningEvents = process.env.EMIT_REASONING_EVENTS !== 'false' && process.env.EMIT_REASONING_EVENTS !== '0';
+
     let conversationMessages: ReasonMessage[] = [...messages];
     const MAX_ITERATIONS = 10;
 
@@ -352,6 +355,24 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
         emit(res, { type: EventType.RUN_ERROR, message: 'Reasoning failed: ' + String(err), code: 'REASONING_ERROR' });
         res.end();
         return;
+      }
+
+      // F1: Emit reasoning visibility events (phase, tool options, token usage) via STATE_DELTA
+      if (emitReasoningEvents && reasonResult.reasoning) {
+        const r = reasonResult.reasoning;
+        const ops: Array<{ op: string; path: string; value?: unknown }> = [];
+
+        ops.push({ op: 'replace', path: '/reasoningState/phase', value: r.phase });
+
+        if (r.toolOptions && r.toolOptions.length > 0) {
+          ops.push({ op: 'replace', path: '/reasoningState/toolOptions', value: r.toolOptions });
+        }
+
+        if (r.contextTokens) {
+          ops.push({ op: 'replace', path: '/reasoningState/contextTokens', value: r.contextTokens });
+        }
+
+        emitStateDelta(res, ops);
       }
 
       emit(res, { type: EventType.STEP_FINISHED, stepName: 'reasoning-' + (iter + 1) });

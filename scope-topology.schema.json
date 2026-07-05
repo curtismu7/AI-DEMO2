@@ -141,20 +141,18 @@
     },
     "policy": {
       "type": "object",
-      "description": "Authorization policy constants shared by every engine (simulated, mock authz-server, P1AZ snapshot). Read by scopeTopology.js threshold accessors.",
+      "description": "Demo authorization policy constants (thresholds/tier limits). SoT for the mock authz server, simulated authorize, and the P1AZ snapshot generator; read via scopeTopology.js policy accessors.",
       "additionalProperties": false,
       "properties": {
+        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." },
         "authorization": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "highValueConsentThresholdUsd": { "type": "number", "description": "Amount above which HITL consent is required ($250 default)." },
-            "stepUpThresholdUsd": { "type": "number", "description": "Amount above which MFA step-up is required ($500 default)." },
-            "amountLimitsByTier": {
-              "type": "object",
-              "additionalProperties": { "type": "number" },
-              "description": "Hard per-tier amount ceilings (e.g. standard: 2000, privatebanking: 50000)."
-            }
+            "_comment": { "type": "string" },
+            "highValueConsentThresholdUsd": { "type": "number" },
+            "stepUpThresholdUsd": { "type": "number" },
+            "amountLimitsByTier": { "type": "object", "additionalProperties": { "type": "number" } }
           }
         }
       }

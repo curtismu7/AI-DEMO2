@@ -1,0 +1,17 @@
+{
+  "comment": "Phase 3 api-key route, JWKS-validation variant. Mirrors 00-mcp-apikey.json (mcp-apikey-primary) but validates the inbound token LOCALLY via jwks-token-validation.groovy instead of introspection, selected by the BFF's X-Token-Validation: jwks header (ff_mcp_gateway_jwks). Name 'mcp-apikey-jwks' sorts before 'mcp-apikey-primary' (IG selects by name, not filename) so it wins when the header is present; absent header → its condition fails and mcp-apikey-primary (introspection) matches. McpValidationFilter buffers the body for p1az-decision + the apikey-dispatch handler.",
+  "name": "mcp-apikey-jwks",
+  "condition": "${find(request.uri.path, '^/mcp/apikey') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "heap": [ { "name": "SecretsStore", "type": "SystemAndEnvSecretStore", "config": { "format": "PLAIN" } } ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        { "name": "JwksTokenValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "jwks-token-validation.groovy" } },
+        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } },
+        { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
+      ],
+      "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }
+    }
+  }
+}

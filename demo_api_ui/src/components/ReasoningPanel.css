@@ -1,0 +1,96 @@
+/* ReasoningPanel — live agent reasoning visibility.
+   Reuses the --ba-* agent theme variables so it skins with the dock. */
+
+.reasoning-panel {
+  margin: 6px 8px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--ba-border, #d0d0d0);
+  border-radius: 8px;
+  background: var(--ba-surface, #ffffff);
+  font-size: 12px;
+  color: var(--ba-text, #1a1a1a);
+}
+
+.reasoning-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reasoning-phase {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: var(--ba-accent, #0b6e99);
+}
+
+.reasoning-phase--tool_selection { background: #7c3aed; }
+.reasoning-phase--tool_execution { background: #b45309; }
+.reasoning-phase--synthesis { background: #047857; }
+
+.reasoning-tokens {
+  font-variant-numeric: tabular-nums;
+  color: var(--ba-text, #1a1a1a);
+  opacity: 0.85;
+}
+
+.reasoning-tools {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reasoning-tool {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reasoning-tool-name {
+  font-weight: 600;
+  color: var(--ba-accent, #0b6e99);
+}
+
+.reasoning-tool-confidence {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.reasoning-tool-desc {
+  color: var(--ba-text, #1a1a1a);
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasoning-context-gauge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reasoning-context-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ba-chip-bg, #eeeeee);
+  overflow: hidden;
+}
+
+.reasoning-context-fill {
+  height: 100%;
+  background: var(--ba-accent, #0b6e99);
+  transition: width 200ms ease;
+}
+
+.reasoning-context-label {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

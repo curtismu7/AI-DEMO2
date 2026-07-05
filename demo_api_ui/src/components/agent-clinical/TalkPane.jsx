@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAgentUiMode } from '../../context/AgentUiModeContext';
+import TokenAuditTimeline from './TokenAuditTimeline';
 
 /**
  * TalkPane — the chat-left / narration-right split that lives under the Talk tab.
@@ -10,8 +11,8 @@ import { useAgentUiMode } from '../../context/AgentUiModeContext';
  * instance, no React tree changes elsewhere. While the host is empty (first
  * mount, agent not yet rendered) the column shows a brief placeholder.
  *
- * Phase 3d wires TokenAuditTimeline into the right column (currently shows
- * placeholder cards subscribed to TokenChainContext).
+ * Right column: TokenAuditTimeline (Phase 3d) — live TokenChainContext events
+ * for the most recent agent action. The full inspector is on the Tokens tab.
  */
 export default function TalkPane() {
   const { setSurfaceHostEl, setClinicalSplit } = useAgentUiMode();
@@ -61,38 +62,15 @@ export default function TalkPane() {
             What just <i>happened</i>
           </h2>
           <div className="ac-narrate-meta">
-            Phase 3d wires the real <strong>TokenAuditTimeline</strong> here.
+            Live token chain for the last agent action — full inspector on the{' '}
+            <strong>Tokens</strong> tab.
           </div>
         </header>
 
-        <div className="ac-narrate-tabs" role="tablist" aria-label="Narration view">
-          <button type="button" role="tab" aria-selected="true"  className="ac-narrate-tab ac-narrate-tab--on">Token chain</button>
-          <button type="button" role="tab" aria-selected="false" className="ac-narrate-tab">MCP calls</button>
-          <button type="button" role="tab" aria-selected="false" className="ac-narrate-tab">Rules</button>
-          <button type="button" role="tab" aria-selected="false" className="ac-narrate-tab">Tools</button>
-        </div>
-
         <div className="ac-narrate-body">
-          <TimelinePlaceholderCard tokenRole="Subject token"      rfc="RFC 8693 §2.1" name="User access token"            sub="PingOne OIDC · stays in BFF" />
-          <TimelinePlaceholderCard tokenRole="Actor token"        rfc="RFC 8693 §2.2" name="Agent actor (CC prefetched)"  sub="Client credentials · adds delegation proof" />
-          <TimelinePlaceholderCard tokenRole="Delegated MCP token" rfc="RFC 8693 §3.2" name="Result of exchange"           sub="Nested act claim · sent only to MCP server" />
+          <TokenAuditTimeline />
         </div>
       </aside>
-    </div>
-  );
-}
-
-function TimelinePlaceholderCard({ tokenRole, rfc, name, sub }) {
-  return (
-    <div className="ac-tstep ac-tstep--done">
-      <div className="ac-tstep-card">
-        <div className="ac-tstep-row1">
-          <span className="ac-tstep-role">{tokenRole}</span>
-          <span className="ac-tstep-rfc">{rfc}</span>
-        </div>
-        <div className="ac-tstep-name">{name}</div>
-        <div className="ac-tstep-sub">{sub}</div>
-      </div>
     </div>
   );
 }

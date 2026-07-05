@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+        "pingone": {
+            "type": "remote",
+            "url": "https://api.pingone.com/v1/environments/<PINGONE_ENVIRONMENT_ID>/mcp"
+        },
+        "banking-dev-mcp": {
+            "type": "stdio",
+            "command": "node",
+            "args": ["<ABSOLUTE_REPO_PATH>/dev_mcp/banking-dev/dist/index.js"]
+        },
+        "github": {
+            "type": "stdio",
+            "command": "sh",
+            "args": ["-c", "exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=\"$(gh auth token)\" ghcr.io/github/github-mcp-server"]
+        }
+    }
+}

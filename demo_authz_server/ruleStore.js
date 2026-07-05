@@ -34,7 +34,9 @@ function envDefaults() {
       String(process.env.ENFORCE_MAY_ACT || process.env.AUTHZ_ENFORCE_MAY_ACT || 'true')
         .toLowerCase() !== 'false',
     authorizedActorClientId:
-      process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID || process.env.AGENT_OAUTH_CLIENT_ID || '',
+      process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID
+        || process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
+        || process.env.AGENT_OAUTH_CLIENT_ID || '',
     toolDiscoveryDecision: 'PERMIT',
   };
 }

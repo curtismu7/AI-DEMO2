@@ -37,6 +37,10 @@ function fakeStore(hits: SearchHit[] = []): Store & {
     async listCodebases() {
       return [{ id: 'cb1', name: 'Demo', chunks: 3 }];
     },
+    async getCode(opts: any) {
+      if (opts.file === 'missing.ts') return null;
+      return { file: opts.file, line_start: opts.lineStart, line_end: opts.lineEnd, code: 'line2\nline3' };
+    },
   } as any;
 }
 
@@ -150,5 +154,23 @@ describe('GET /codebases', () => {
     };
     const app = createServer({ embedder: fakeEmbedder(), store });
     await request(app).get('/codebases').expect(503);
+  });
+});
+
+describe('POST /code', () => {
+  test('returns reconstructed code', async () => {
+    const app = createServer({ embedder: fakeEmbedder(), store: fakeStore() });
+    const res = await request(app).post('/code')
+      .send({ codebase_id: 'cb1', file: 'a.ts', line_start: 2, line_end: 3 }).expect(200);
+    expect(res.body).toEqual({ file: 'a.ts', line_start: 2, line_end: 3, code: 'line2\nline3' });
+  });
+  test('404 when file has no chunks', async () => {
+    const app = createServer({ embedder: fakeEmbedder(), store: fakeStore() });
+    await request(app).post('/code')
+      .send({ codebase_id: 'cb1', file: 'missing.ts', line_start: 1, line_end: 5 }).expect(404);
+  });
+  test('400 when args missing', async () => {
+    const app = createServer({ embedder: fakeEmbedder(), store: fakeStore() });
+    await request(app).post('/code').send({ codebase_id: 'cb1' }).expect(400);
   });
 });
