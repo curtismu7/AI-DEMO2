@@ -79,6 +79,23 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — Token Chain trace rail (embedded + floating) showed no step details
+
+**Files changed:**
+- `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — recognizes BOTH token-event vocabularies: 1-exchange (`agent-actor-token`, `exchanged-token`) and 2-exchange (`two-ex-agent-actor`, `two-ex-final-token`, `two-ex-exchange1`). Sign-in / agent-token steps now expose full claims as a response block; exchange step adds exchange-method + audience-binding kv rows; gateway step renders a DENY decision from the `gateway_policy_denied` phase; MCP step goes `error` (not stuck `active`) on a gateway denial.
+- `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js` — `beginTrace` carries session-scoped events (`user-token`, `session-token-introspection`, `user-token-introspection`) into the new trace so the sign-in step doesn't regress to pending on every chip click.
+- `demo_api_ui/src/components/AIAgent.js` — the action catch block pushes `err.tokenEvents` into TokenChainContext (denied calls carry the full minted-token trail; it was dropped). `sendAsNlInner` begins a fresh trace with the typed prompt.
+- `demo_api_ui/src/services/demoAgentService.js` — on `gateway_policy_denied`, records the denial phase into `agentFlowDiagram` locally (SSE can close before the server phase arrives).
+- `demo_api_ui/src/hooks/useAgentRun.js` — AG-UI flow SSE handler dispatches `mcp-tool-result-sse` (parity with the chip path) so typed runs fill the MCP/API steps.
+
+**What was broken:** the Token Chain rail (embedded in dashboards and in the floating agent modal) rendered only static narratives when steps were expanded — no tokens, requests, responses, or decisions. Four stacked causes: event-id vocabulary mismatch (2-exchange ids never matched), error paths dropped tokenEvents, typed sends never began a trace, and `beginTrace` wiped sign-in evidence.
+
+**What was fixed:** both id vocabularies light up the rail; error responses feed the rail; typed prompts start the pipeline header; sign-in evidence survives new turns; gateway denials render as DENY with the error code.
+
+**Do not break:** `buildTraceSteps` must keep accepting BOTH id vocabularies — the BFF's exchange mode is config-driven. The step list/order (`signin … reply`, conditional `stepup`) is consumed by `MCP_STEP_IDS` users. `beginTrace` must keep dropping per-call events (only session-scoped ids survive).
+
+**Verify:** `cd demo_api_ui && npx vitest run src/services/tokenChainTrace` (24 tests); `npm run build` exits 0; in the app: sign in, open agent → Token Chain toggle, run "My accounts" chip and a typed message — each expanded step shows claims/requests/responses, and a gateway denial shows DENY on the gateway step.
+
 ### 2026-07-05 — P1AZ hardening: decision fail-close, sim/real parity, snapshot tracking, opt-in flag auth
 
 **Files changed:**

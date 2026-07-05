@@ -56,8 +56,14 @@ const STEP_RFCS = {
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
-const findEvent = (events, id) => events.find((e) => e && e.id === id) || null;
+// Accepts multiple ids: the BFF emits a different event vocabulary per exchange
+// mode — 1-exchange ("agent-actor-token", "exchanged-token") vs 2-exchange
+// ("two-ex-agent-actor", "two-ex-final-token"). Both must light up the rail.
+const findEvent = (events, ...ids) => events.find((e) => e && ids.includes(e.id)) || null;
 const hasPhase = (phases, name) => phases.some((p) => p && p.phase === name);
+const findPhase = (phases, name) => phases.find((p) => p && p.phase === name) || null;
+const claimsBlock = (title, claims) =>
+  claims && Object.keys(claims).length ? { title, text: asJson(claims) } : undefined;
 
 function makeStep(id, status, detail) {
   const base = { narrative: NARRATIVES[id] };
@@ -76,6 +82,7 @@ export function buildTraceSteps(trace) {
     findEvent(tokenEvents, "session-token-introspection");
   steps.push(makeStep("signin", userTok ? "done" : "pending", userTok ? {
     kv: Object.entries(userTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
+    response: claimsBlock("User token claims (full)", userTok.claims),
     inspectToken: "user",
     tokenEvent: userTok,
   } : {}));
@@ -101,21 +108,24 @@ export function buildTraceSteps(trace) {
   } : {}));
 
   // 5. agent-token
-  const agentTok = findEvent(tokenEvents, "agent-actor-token");
+  const agentTok = findEvent(tokenEvents, "agent-actor-token", "two-ex-agent-actor");
   steps.push(makeStep("agent-token", agentTok ? "done" : "pending", agentTok ? {
     kv: Object.entries(agentTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
+    response: claimsBlock("Agent actor token claims (full)", agentTok.claims),
     inspectToken: "agent",
     tokenEvent: agentTok,
   } : {}));
 
-  // 6. exchange
-  const exTok = findEvent(tokenEvents, "exchanged-token");
+  // 6. exchange — "exchanged-token" (1-exchange) or "two-ex-final-token"
+  // (2-exchange: the final delegated MCP token with the nested act chain).
+  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token");
   const exFailed = findEvent(tokenEvents, "exchange-failed");
   const exDone = exTok && exTok.status !== "waiting";
+  const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
   steps.push(makeStep("exchange",
-    exFailed ? "error" : exDone ? "done" : exTok ? "active" : "pending",
+    exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
     exDone ? {
       request: exTok.exchangeRequest
         ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
@@ -123,8 +133,15 @@ export function buildTraceSteps(trace) {
       response: { title: "Delegated token claims", text: asJson(exTok.claims || {}) },
       scopeDiff: beforeScopes.length || afterScopes.length
         ? { before: beforeScopes, after: afterScopes } : undefined,
-      kv: exTok.claims && exTok.claims.act
-        ? [["act chain", asJson(exTok.claims.act)]] : [],
+      kv: [
+        exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
+        exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
+        exTok.audExpected != null
+          ? ["audience", `expected ${exTok.audExpected} · actual ${exTok.audActual}${exTok.audMatches === false ? " (MISMATCH)" : ""}`]
+          : null,
+        ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
+          ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
+      ].filter(Boolean),
       inspectToken: "mcp",
       tokenEvent: exTok,
     } : {}));
@@ -163,23 +180,32 @@ export function buildTraceSteps(trace) {
   // 8. gateway
   const gwAz = findEvent(tokenEvents, "gw-authorize");
   const gwIntro = findEvent(tokenEvents, "gw-introspection");
-  const gwDenied = hasPhase(phases, "gateway_policy_denied");
+  const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
+  const gwDenied = !!gwDeniedPhase;
   steps.push(makeStep("gateway",
     gwDenied ? "error" : (gwAz || gwIntro) ? "done" : "pending",
-    (gwAz || gwIntro) ? {
+    (gwAz || gwIntro || gwDenied) ? {
+      decision: gwDenied
+        ? { outcome: "DENY",
+            label: `DENY — ${gwDeniedPhase.detail || gwDeniedPhase.label || "gateway policy"}` }
+        : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
       ].filter(Boolean),
       response: gwAz && gwAz.rawResponse
-        ? { title: "Gateway authorize response", text: asJson(gwAz.rawResponse) } : undefined,
+        ? { title: "Gateway authorize response", text: asJson(gwAz.rawResponse) }
+        : gwIntro && gwIntro.rawResponse
+          ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) } : undefined,
     } : {}));
 
-  // 9. mcp + 10. api
+  // 9. mcp + 10. api — a gateway denial means the call never reached the MCP
+  // server; surface that as an error instead of leaving the step stuck "active".
   const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
-  steps.push(makeStep("mcp", mcpDone ? "done" : mcpBegun ? "active" : "pending",
+  steps.push(makeStep("mcp",
+    mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
     mcpResult ? {
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],

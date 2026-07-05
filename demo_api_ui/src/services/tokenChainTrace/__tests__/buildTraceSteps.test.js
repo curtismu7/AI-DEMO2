@@ -151,6 +151,68 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.reply.detail.response.text).toContain("Done!");
   });
 
+  test("two-exchange event ids fill agent-token and exchange steps", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active",
+          claims: { sub: "user-123", scope: "read write transfer" } },
+        { id: "two-ex-agent-actor", status: "active",
+          claims: { client_id: "ai-agent", scope: "agent:invoke" } },
+        { id: "two-ex-final-token", status: "exchanged",
+          scopeNarrowed: true, audienceNarrowed: true,
+          audExpected: "mcp-gw", audActual: "mcp-gw", exchangeMethod: "RFC 8693 x2",
+          claims: { sub: "user-123", scope: "write", aud: "mcp-gw",
+            act: { sub: "agent-001" } } },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["agent-token"].status).toBe("done");
+    expect(byId["agent-token"].detail.inspectToken).toBe("agent");
+    expect(byId["agent-token"].detail.response.text).toContain("agent:invoke");
+    expect(byId.exchange.status).toBe("done");
+    expect(byId.exchange.detail.scopeDiff).toEqual({
+      before: ["read", "write", "transfer"], after: ["write"] });
+    expect(byId.exchange.detail.response.text).toContain("agent-001");
+    expect(byId.exchange.detail.kv).toContainEqual(["act chain", expect.stringContaining("agent-001")]);
+    expect(byId.exchange.detail.inspectToken).toBe("mcp");
+  });
+
+  test("signin and agent-token steps expose full token claims as a response block", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active",
+          claims: { sub: "user-123", scope: "read write", acr: "Multi_Factor",
+            iss: "https://auth.pingone.com/env/as", aud: "enduser", sid: "s1",
+            client_id: "web", exp: 2, iat: 1 } },
+        { id: "agent-actor-token", status: "active",
+          claims: { client_id: "ai-agent", scope: "agent:invoke" } },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    // Full claims must be visible even beyond the 6-row kv preview
+    expect(byId.signin.detail.response.text).toContain("Multi_Factor");
+    expect(byId.signin.detail.response.text).toContain("client_id");
+    expect(byId["agent-token"].detail.response.text).toContain("ai-agent");
+  });
+
+  test("gateway_policy_denied phase marks gateway error with denial detail and fails mcp step", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [
+        { phase: "mcp_remote_begin", label: "MCP call", detail: "" },
+        { phase: "gateway_policy_denied", label: "Gateway policy denied",
+          detail: "code · access_denied" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.gateway.status).toBe("error");
+    expect(byId.gateway.detail.decision.outcome).toBe("DENY");
+    expect(byId.gateway.detail.decision.label).toContain("access_denied");
+    expect(byId.mcp.status).toBe("error");
+  });
+
   test("api step surfaces the api-key call + masked key when the swap ran", () => {
     const trace = { ...EMPTY_TRACE,
       tokenEvents: [

@@ -466,6 +466,16 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
       }
       // Gateway policy denial — surface structured fields for the educational side panel card.
       if (err.error === "gateway_policy_denied") {
+        // Record the denial phase locally too: the SSE stream can close before
+        // the server-published phase arrives, and the trace rail derives the
+        // gateway step's DENY state from this phase.
+        try {
+          agentFlowDiagram.applyServerEvent({
+            phase: "gateway_policy_denied",
+            code: err.gatewayErrorCode || "forbidden",
+            tool: err.tool || tool,
+          });
+        } catch (_) { /* display-only */ }
         throw Object.assign(
           new Error(err.message || "Gateway policy denied the tool call"),
           {

@@ -30,9 +30,15 @@ export const tokenChainTraceStore = {
   subscribe(fn) { listeners.add(fn); fn(getState()); return () => listeners.delete(fn); },
   getState,
   beginTrace({ prompt } = {}) {
+    // Session-scoped evidence (the sign-in token) outlives any single tool
+    // call — carry it into the new trace so the sign-in step doesn't regress
+    // to "pending" on every chip click. Per-call events are dropped.
+    const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
+    const sessionEvents = trace.tokenEvents.filter((e) => e && SESSION_EVENT_IDS.includes(e.id));
     trace = EMPTY_TRACE();
     trace.startedAt = Date.now();
     trace.prompt = prompt ? { message: String(prompt) } : null;
+    trace.tokenEvents = sessionEvents;
     emit();
   },
   ingestPhases(serverEvents) {

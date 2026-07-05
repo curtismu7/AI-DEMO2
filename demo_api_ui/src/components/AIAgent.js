@@ -23,6 +23,7 @@ import {
   setAgentBlockedByConsentDecline,
 } from "../services/agentAccessConsent";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { appendTokenEvents } from "../services/apiTrafficStore";
 import { fetchNlStatus } from "../services/demoAgentNlService";
 import {
@@ -3883,6 +3884,14 @@ export default function BankingAgent({
             }
           : null,
       );
+      // Denied/failed calls still carry the full token-event trail (exchange,
+      // intent token, introspection…) on the thrown error. Push it into the
+      // Token Chain so the rail shows WHAT was minted before the hop failed.
+      if (tokenChain && Array.isArray(err?.tokenEvents) && err.tokenEvents.length > 0) {
+        try {
+          tokenChain.setTokenEvents(err.tool || actionId, err.tokenEvents);
+        } catch (_) { /* display-only — never mask the real error */ }
+      }
       toast.dismiss(toastId);
 
       // Phase 187 D-05: BFF signaled need_auth.
@@ -4596,6 +4605,13 @@ export default function BankingAgent({
   }
 
   function sendAsNlInner(text) {
+    // A typed message is a new turn: start a fresh token-chain trace with the
+    // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
+    // the prompt step lights up (demoAgentService's chip path only begins a
+    // trace when none was started in the last 60s).
+    try {
+      tokenChainTraceStore.beginTrace({ prompt: text });
+    } catch (_) { /* display-only */ }
     // AG-UI path (ff_agui_enabled=true): stream via POST /api/agent/run
     // The old NL pipeline is bypassed entirely when this flag is on.
     if (aguiEnabled) {

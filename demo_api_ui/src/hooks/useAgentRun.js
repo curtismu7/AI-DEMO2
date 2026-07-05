@@ -143,6 +143,13 @@ export function useAgentRun({
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const closeSse = openMcpFlowSse(flowTraceId, (data) => {
+      // MCP tool result — same event demoAgentService dispatches on the chip
+      // path; tokenChainTraceStore listens for it to fill the MCP/API steps.
+      if (data && data.type === 'mcp-result') {
+        try {
+          window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: data }));
+        } catch (_) { /* display-only */ }
+      }
       try {
         agentFlowDiagram.applyServerEvent(data);
       } catch (_) {
