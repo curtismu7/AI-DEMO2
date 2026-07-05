@@ -28,12 +28,26 @@ function _db() {
 }
 
 let _key = null;
+let _warnedFallback = false;
 function _encKey() {
   if (_key) return _key;
-  const raw =
-    process.env.CONFIG_ENCRYPTION_KEY ||
-    process.env.SESSION_SECRET ||
-    'dev-fallback-key-do-not-use-in-production';
+  let raw = process.env.CONFIG_ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  if (!raw) {
+    // No configured key. Encrypting tokens with an in-source constant is
+    // effectively plaintext, so refuse it in production; in dev, fall back but
+    // warn loudly (once) so it can't pass unnoticed.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'sdkDemoTokenStore: CONFIG_ENCRYPTION_KEY or SESSION_SECRET must be set in production ' +
+        '(refusing to encrypt SDK demo tokens with the in-source dev fallback key)'
+      );
+    }
+    if (!_warnedFallback) {
+      _warnedFallback = true;
+      console.warn('[sdkDemoTokenStore] ⚠️  no CONFIG_ENCRYPTION_KEY/SESSION_SECRET set — using the in-source dev fallback key (NOT for production)');
+    }
+    raw = 'dev-fallback-key-do-not-use-in-production';
+  }
   _key = crypto.scryptSync(raw, 'sdk-demo-token-salt-v1', 32);
   return _key;
 }

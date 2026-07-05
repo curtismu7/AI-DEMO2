@@ -122,23 +122,33 @@ function proxyAgentSse(options) {
     },
   };
 
+  // Bound the upstream agent call; a hung agent must not leave the browser SSE
+  // stream open forever with no RUN_FINISHED.
+  const AGENT_TIMEOUT_MS = Number(process.env.AGENT_SSE_TIMEOUT_MS) || 120000;
+
+  // Emit an error terminus to the browser exactly once, from whichever failure
+  // path fires first (connect error, mid-stream agent error, or timeout).
+  let finished = false;
+  const failStream = (err) => {
+    if (finished) return;
+    finished = true;
+    console.error('[aguiSseProxy] Agent request error:', err.message);
+    writeSseEvent(browserRes, { type: 'ERROR', error: err.message });
+    writeSseEvent(browserRes, { type: 'RUN_FINISHED', status: 'error' });
+    browserRes.end();
+  };
+
   const req = http.request(requestOptions, (agentRes) => {
-    // Pipe agent's SSE stream to browser
+    // pipe() does NOT forward a mid-stream source error, so handle it explicitly
+    // — otherwise an agent dying mid-reply hangs the browser stream.
+    agentRes.on('error', failStream);
+    agentRes.on('end', () => { finished = true; });
     agentRes.pipe(browserRes);
   });
 
-  req.on('error', (err) => {
-    console.error('[aguiSseProxy] Agent request error:', err.message);
-    // Emit error event and finish
-    writeSseEvent(browserRes, {
-      type: 'ERROR',
-      error: err.message,
-    });
-    writeSseEvent(browserRes, {
-      type: 'RUN_FINISHED',
-      status: 'error',
-    });
-    browserRes.end();
+  req.on('error', failStream);
+  req.setTimeout(AGENT_TIMEOUT_MS, () => {
+    req.destroy(new Error(`agent request timed out after ${AGENT_TIMEOUT_MS}ms`));
   });
 
   req.write(requestBody);

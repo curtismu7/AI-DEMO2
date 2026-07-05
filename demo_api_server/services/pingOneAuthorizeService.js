@@ -41,6 +41,17 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 
+// Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
+// provider outage yields a controlled failure in the authorization-decision
+// path instead of an indefinite hang (fetch has no default timeout). Callers
+// keep passing their normal options; a caller-supplied signal still wins.
+// Resolved from globalThis at call time (not captured) so a test's fetch mock
+// is still honoured.
+const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 15000;
+function fetchT(url, opts = {}) {
+  return globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
+}
+
 /** Stable names — idempotent GET list + create if missing */
 const DEMO_TX_ENDPOINT_NAME = 'Super Banking Demo — Transactions';
 const DEMO_MCP_ENDPOINT_NAME = 'Super Banking Demo — MCP first tool';
@@ -132,7 +143,7 @@ async function getWorkerToken() {
   const tokenUrl = `${authBase(regionTld)}/${envId}/as/token`;
   const encoded  = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const response = await fetch(tokenUrl, {
+  const response = await fetchT(tokenUrl, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${encoded}`,
@@ -174,7 +185,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await fetch(url, {
+  const response = await fetchT(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -353,7 +364,7 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await fetch(url, {
+  const response = await fetchT(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -490,7 +501,7 @@ async function getRecentDecisions(endpointId, limit = 20) {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${resolvedId}/recentDecisions?limit=${limit}`;
 
-  const response = await fetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -521,7 +532,7 @@ async function getDecisionEndpoints() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints`;
 
-  const response = await fetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -573,7 +584,7 @@ async function getAuthorizationPolicies() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/authorizationPolicies?expand=children`;
 
-  const response = await fetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -684,7 +695,7 @@ async function _createDecisionEndpointResource(opts) {
   }
 
   async function postWithPayload(payload) {
-    return fetch(url, {
+    return fetchT(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${workerToken}`,
@@ -815,7 +826,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   const workerToken = await getWorkerToken();
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
-  const getResponse = await fetch(url, { headers: { Authorization: `Bearer ${workerToken}` } });
+  const getResponse = await fetchT(url, { headers: { Authorization: `Bearer ${workerToken}` } });
   if (!getResponse.ok) {
     const text = await getResponse.text();
     throw new Error(`Decision endpoint fetch failed (${getResponse.status}): ${text}`);
@@ -833,7 +844,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   delete body.updatedAt;
   body.recordRecentRequests = !!enabled;
 
-  const putResponse = await fetch(url, {
+  const putResponse = await fetchT(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
