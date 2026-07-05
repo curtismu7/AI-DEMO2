@@ -81,6 +81,21 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — TopNav: dark-on-blue labels and controls painting over each other
+
+**Files changed:**
+- `demo_api_ui/src/components/TopNav.css` — new rule `.topnav-right-scroll > * { flex-shrink: 0; }`. The right-side row is an `overflow-x: auto` scroll container, but its items were allowed to shrink; a squashed item's nowrap content (search button, Reset Demo, token pill text) painted over its neighbors instead of triggering the scroll.
+- `demo_api_ui/src/components/AgentUiModeToggle.css` — the `--config` variant (only mount: TopNav) had `color: #374151` on the "Choose layout" label and "Always float" checkbox; now `var(--brand-topnav-text, #ffffff)`.
+- `demo_api_ui/src/components/QuickFlagsPill.css` — `.qfp-pill` used `color: inherit`, which picks up the dark app body color on the topnav; now `var(--brand-topnav-text, #ffffff)`.
+
+**What was broken:** on branded (blue) topnavs, "Choose layout", "Always float", and the JWKS/Introspect pill were near-invisible dark gray; below ~1100px viewport width the right-side controls (Reset Demo, token pill, search) overlapped and bled over each other.
+
+**What was fixed:** all three text surfaces follow `--brand-topnav-text`; the scroll row scrolls instead of squashing its items, so nothing overlaps at any width.
+
+**Do not break:** `.topnav-right-scroll` children must keep `flex-shrink: 0` — the overflow design relies on the row scrolling, not shrinking. The `--config` toggle variant and `.qfp-pill` are topnav-only; if either is ever mounted on a light background it needs its own color override.
+
+**Verify:** `cd demo_api_ui && npm run build` exits 0; on /dashboard at 1000–1100px width the topnav shows no overlapping controls (row scrolls) and "Choose layout" / "Always float" / the Introspect pill render in the topnav text color.
+
 ### 2026-07-05 — Token Chain trace rail (embedded + floating) showed no step details
 
 **Files changed:**
