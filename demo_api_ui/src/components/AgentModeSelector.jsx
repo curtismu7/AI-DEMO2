@@ -1,14 +1,14 @@
 // banking_api_ui/src/components/AgentModeSelector.jsx
 import React, { useEffect, useRef, useState } from "react";
 import useLangchainProvider from "../hooks/useLangchainProvider";
+import { CORE_MODE_IDS, MODE_PROVIDER, DEFAULT_MODE } from "../config/agentModes";
 import "./AgentModeSelector.css";
 
 // FOUR single-brain modes (2026-06-11 simplification). Each maps to one
 // provider; heuristics needs none. A mode is greyed out when its provider is
 // unconfigured/unreachable — the honest disabled state that replaced the old
-// silent Helix fallback.
-const CORE_MODE_IDS = ['heuristics', 'llamacpp', 'claude', 'helix_google'];
-const MODE_PROVIDER = { heuristics: null, llamacpp: 'llamacpp', claude: 'anthropic', helix_google: 'helix' };
+// silent Helix fallback. The id/provider table is the shared SSOT in
+// config/agentModes.js (mirrors the server resolver).
 
 // `compact` = condensed variant for the BankingAgent header.
 // `onChange` (optional) is notified { mode, provider } after a committed
@@ -30,13 +30,22 @@ export default function AgentModeSelector({ compact = false, onChange }) {
   // no model loaded); anthropic/helix come from the honest sync keySet.
   // null = not yet probed (treated as available so we never flicker-disable).
   const [llamaCppOk, setLlamaCppOk] = useState(null);
+  // Re-probe on mount, when the tab regains focus, and on a slow interval, so a
+  // recovering (or newly-dead) llama.cpp clears/sets "not configured" without a
+  // full page reload.
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/langchain/provider/llamacpp/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setLlamaCppOk(d ? d.status === "available" : false); })
-      .catch(() => { if (!cancelled) setLlamaCppOk(false); });
-    return () => { cancelled = true; };
+    let alive = true;
+    const probe = () => {
+      fetch("/api/langchain/provider/llamacpp/status", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (alive) setLlamaCppOk(d ? d.status === "available" : false); })
+        .catch(() => { if (alive) setLlamaCppOk(false); });
+    };
+    probe();
+    const onFocus = () => probe();
+    window.addEventListener("focus", onFocus);
+    const iv = setInterval(probe, 20000);
+    return () => { alive = false; window.removeEventListener("focus", onFocus); clearInterval(iv); };
   }, []);
 
   // A mode is available when its provider is configured/reachable. Heuristics is
@@ -47,6 +56,36 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     if (p === 'llamacpp') return llamaCppOk !== false;
     return keySet?.[p] === true;
   };
+
+  // Auto-deselect a dead mode: if the persisted/selected mode's provider is
+  // unavailable (at load, or when it drops while idle), switch to Heuristics —
+  // which needs no provider — so the user is never stuck on a mode that can't
+  // answer. A provider that dies mid-conversation is still handled by the
+  // explicit "want Heuristics?" prompt (AIAgent maybeDeferToHeuristicPrompt).
+  const [autoSwitchNotice, setAutoSwitchNotice] = useState(null);
+  const autoSwitchedRef = useRef(false);
+  useEffect(() => {
+    if (loading || saving) return;
+    const p = MODE_PROVIDER[mode];
+    // Don't act on llama.cpp until it has actually been probed (null = unknown).
+    if (p === "llamacpp" && llamaCppOk === null) return;
+    const available = !p ? true : (p === "llamacpp" ? llamaCppOk !== false : keySet?.[p] === true);
+    if (mode === DEFAULT_MODE || available) {
+      autoSwitchedRef.current = false;
+      return;
+    }
+    if (autoSwitchedRef.current) return; // switch (and notify) once per outage
+    autoSwitchedRef.current = true;
+    const label = modeOptions.find((m) => m.id === mode)?.label || "The selected model";
+    setAutoSwitchNotice(`${label} is unavailable — switched to Heuristics.`);
+    setMode(DEFAULT_MODE, externalWiring);
+  }, [mode, llamaCppOk, keySet, loading, saving, externalWiring, modeOptions, setMode]);
+
+  useEffect(() => {
+    if (!autoSwitchNotice) return undefined;
+    const t = setTimeout(() => setAutoSwitchNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [autoSwitchNotice]);
 
   const settledRef = useRef(null);
   useEffect(() => {
@@ -94,6 +133,12 @@ export default function AgentModeSelector({ compact = false, onChange }) {
           })}
         </select>
       </label>
+
+      {autoSwitchNotice && (
+        <p className="ams-autoswitch" role="status">
+          ⚠️ {autoSwitchNotice}
+        </p>
+      )}
 
       <label className={`ams-label ams-wiring${isExternal ? "" : " ams-wiring--hidden"}`}>
         Wiring
