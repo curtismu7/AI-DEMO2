@@ -3,10 +3,11 @@
 #
 # Proves (without running IG) that the Groovy decision filter:
 #   1. emits every one of the 18 keys buildAuthorizeParameters() sends, and
-#   2. POSTs to the /governance/pap/alpha/policy/<id>/decision path (not the
-#      legacy decisionEndpoints API).
+#   2. POSTs to the mock policy path (/governance/pap/alpha/policy/<id>/decision)
+#      AND builds the real PingOne Authorize Decision Endpoints URL
+#      (.../decisionEndpoints/<id>) for the non-simulated backend.
 #
-# Exit 0 only when both hold.
+# Exit 0 only when all hold.
 
 set -euo pipefail
 
@@ -34,16 +35,19 @@ done
 
 echo ""
 echo "== Decision endpoint path =="
+# Mock backend: demo_authz_server policy path.
 if grep -q "/governance/pap/alpha/policy/" "$GROOVY"; then
-  echo "  ok   posts to /governance/pap/alpha/policy/<id>/decision"
+  echo "  ok   mock backend posts to /governance/pap/alpha/policy/<id>/decision"
 else
   echo "  MISSING governance/pap/alpha/policy path"
   missing=$((missing + 1))
 fi
-# Ignore comment lines: the script documents the legacy decisionEndpoints URL
-# format in a comment; only an actual (non-comment) reference is a violation.
-if grep -vE '^[[:space:]]*(//|\*|/\*)' "$GROOVY" | grep -q "decisionEndpoints"; then
-  echo "  FAIL still references the legacy decisionEndpoints API"
+# Real backend: PingOne Authorize Decision Endpoints API. Ignore comment lines so
+# only an actual URL-construction reference counts.
+if grep -vE '^[[:space:]]*(//|\*|/\*)' "$GROOVY" | grep -q "/decisionEndpoints/"; then
+  echo "  ok   real backend builds /decisionEndpoints/<id> URL"
+else
+  echo "  MISSING real backend decisionEndpoints URL construction"
   missing=$((missing + 1))
 fi
 

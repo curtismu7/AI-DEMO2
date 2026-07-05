@@ -323,12 +323,19 @@ def parameters = [
     Vertical         : vertical,
 ]
 def requestBody = JsonOutput.toJson([parameters: parameters])
-// Mock backend speaks the demo_authz_server path; REAL backend is the PingOne Authorize
-// Decision Endpoints API, where P1AZ_REAL_BASE is the FULL URL
-// (https://api.pingone.{tld}/v1/environments/{envId}/decisionEndpoints/{id}) — used as-is.
+// Mock backend speaks the demo_authz_server policy path. REAL backend is the PingOne
+// Authorize Decision Endpoints API: POST .../v1/environments/{envId}/decisionEndpoints/{id}.
+// P1AZ_REAL_BASE may be either the environment base (.../v1/environments/{envId}) or the
+// full decision-endpoint URL — append the /decisionEndpoints/{workerId} segment when it is
+// absent so a bare environment base cannot silently 403 (→ no `decision` → DENY-all). The
+// decision-endpoint id is P1AZ_WORKER_ID (the same id the mock uses as its policy path param).
+def realDecisionUrl = {
+    def b = decisionBase.replaceAll('/$', '')
+    b.contains('/decisionEndpoints/') ? b : (b + '/decisionEndpoints/' + workerId)
+}
 def decisionUrl = simulated
     ? (decisionBase.replaceAll('/$', '') + '/governance/pap/alpha/policy/' + workerId + '/decision')
-    : decisionBase.replaceAll('/$', '')
+    : realDecisionUrl()
 
 // ── Log full P1AZ request BEFORE calling the endpoint ────────────────────────
 logger.info('[P1AZ] REQUEST → ' + (simulated ? 'MOCK' : 'REAL') + ' | url=' + decisionUrl + ' | body=' + requestBody)

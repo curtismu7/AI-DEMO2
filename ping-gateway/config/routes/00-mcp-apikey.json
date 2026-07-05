@@ -1,0 +1,69 @@
+{
+  "comment": "Phase 3 — api-key credential-mediation route. Sorts BEFORE 01-mcp-olb (whose ^/mcp(?!/invest) would otherwise capture /mcp/apikey) so it wins for the dedicated /mcp/apikey path the BFF now targets for api-key tools. Inbound OAuth token is validated (ApiKeyResourceServerFilter), then p1az-decision.groovy runs the PingOne Authorize decision — parity with the Node gateway, whose HTTP pipeline (runMcpAuthorizationPipeline) authorizes api-key tools before apiKeyDispatch. On PERMIT the terminal apikey-dispatch handler pulls the vault service key via the BFF bridge and calls demo_data_service with X-API-Key. IG's Entity is re-readable, so p1az-decision and the handler both read request.entity.string (same idiom as route 01-mcp-olb). Schema validation (mcp-request-validation) is deliberately NOT added here: show_investment is absent from mcp-tool-schemas.json, so schema validation would -32602 it; p1az-decision parses the body independently and does not reject on unknown-tool.",
+  "name": "mcp-apikey-dispatch",
+  "condition": "${find(request.uri.path, '^/mcp/apikey')}",
+  "heap": [
+    {
+      "name": "SecretsStore",
+      "type": "SystemAndEnvSecretStore",
+      "config": { "format": "PLAIN" }
+    },
+    {
+      "name": "IntrospectionProviderHandler",
+      "type": "Chain",
+      "config": {
+        "filters": [
+          {
+            "name": "IntrospectionClientAuth",
+            "type": "ScriptableFilter",
+            "config": {
+              "type": "application/x-groovy",
+              "source": "import java.net.URLEncoder\ndef body = request.entity.string ?: ''\ndef cid = System.getenv('INTROSPECT_CLIENT_ID') ?: ''\ndef cs  = System.getenv('INTROSPECT_CLIENT_SECRET') ?: ''\nif (cid) { request.entity.setString(body + '&client_id=' + URLEncoder.encode(cid, 'UTF-8') + '&client_secret=' + URLEncoder.encode(cs, 'UTF-8')) }\nreturn next.handle(context, request)"
+            }
+          }
+        ],
+        "handler": { "type": "ClientHandler" }
+      }
+    },
+    {
+      "name": "RsFilterTokenResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${env['PINGONE_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": "IntrospectionProviderHandler"
+      }
+    },
+    {
+      "name": "ApiKeyResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": false,
+        "scopes": [ "${env['PG_INBOUND_SCOPE']}" ],
+        "accessTokenResolver": "RsFilterTokenResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        "ApiKeyResourceServerFilter",
+        {
+          "name": "P1AZDecision",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "p1az-decision.groovy"
+          }
+        }
+      ],
+      "handler": {
+        "type": "ScriptableHandler",
+        "config": {
+          "type": "application/x-groovy",
+          "file": "apikey-dispatch.groovy"
+        }
+      }
+    }
+  }
+}
