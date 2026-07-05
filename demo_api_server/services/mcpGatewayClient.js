@@ -371,6 +371,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         try {
             gwAuditTrail = JSON.parse(auditHeader);
             console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
+            // Feed the admin log-window's recent-decisions panel (best-effort).
+            require('./agentGatewayDecisions').record(gwAuditTrail, {
+                tool,
+                correlationId: body.id ? String(body.id) : '',
+            });
         } catch (err) {
             console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
         }
