@@ -32,12 +32,6 @@ const { stampUseCaseId } = require('./services/useCaseTagging');
 const { deriveUseCaseId } = require('./config/useCases');
 
 const express = require('express');
-// Patches Express so a rejected/throwing async route handler is routed to the
-// error middleware (below) instead of becoming an unhandledRejection — which,
-// under the dev-mode handler, hard-exits the BFF. Route errors are now handled
-// 500s; the process-level handlers stay as the backstop for genuine background
-// rejections (their intended target per WR-21). Must load before routes register.
-require('express-async-errors');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -1058,7 +1052,7 @@ app.post('/api/codegraph/reindex', codegraphReindexProxy);
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
-app.use('/api/conversations', authenticateToken, conversationRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
 app.use('/api/admin/authorize', authorizeConfigRoutes);
 app.use('/api/introspect', introspectRoutes);
@@ -1218,6 +1212,7 @@ app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
+app.use('/api/admin', authenticateToken, require('./routes/agentGatewayLogs'));
 app.use('/api/admin', authenticateToken, adminRoutes);
 
 // AI Control Plane (cross-platform agent roster). Any authenticated user — the

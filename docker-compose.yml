@@ -244,6 +244,9 @@ services:
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # RAG code-search service — the code_search/get_code/list_codebases tool
+      # handlers call this over compose DNS.
+      MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides

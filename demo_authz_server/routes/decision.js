@@ -374,10 +374,26 @@ module.exports = async function decisionHandler(req, res) {
         return deny(res, `may_act_missing: actor present but user authorized no delegate`);
       }
       if (ActClientId !== MayActSub) {
-        warn(`[AuthzServer/decision] DENY — actor "${ActClientId}" != user may_act.sub "${MayActSub}"`);
-        return deny(res, `actor_not_authorized: act.sub "${ActClientId}" is not the user's may_act.sub`);
+        // Two-exchange delegation (docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md): the
+        // final token's act.sub is the MCP Service exchanger, NOT the agent the user
+        // authorized — the chain is user -> AI Agent (may_act) -> MCP Service (act.sub).
+        // PingOne cryptographically validated the middle hop during Exchange #2
+        // (Exchange #2 actor's aud == Exchange #1 token's may_act), so a token whose
+        // act.sub is the registered MCP exchanger AND whose may_act.sub is the
+        // registered AI Agent is a valid 2-hop chain. A single-hop token (act.sub ==
+        // may_act) still passes above; anything else is DENY (fail closed).
+        const mcpExchanger = ruleStore.getAuthorizedActorClientId();
+        const aiAgent = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
+        const validTwoExchange =
+          mcpExchanger && aiAgent && ActClientId === mcpExchanger && MayActSub === aiAgent;
+        if (!validTwoExchange) {
+          warn(`[AuthzServer/decision] DENY — actor "${ActClientId}" != user may_act.sub "${MayActSub}" (and not a registered 2-exchange chain)`);
+          return deny(res, `actor_not_authorized: act.sub "${ActClientId}" is not the user's may_act.sub`);
+        }
+        log(`[AuthzServer/decision] may_act OK — 2-exchange chain: act.sub is the registered MCP exchanger, may_act.sub is the registered AI Agent (${MayActSub})`);
+      } else {
+        log(`[AuthzServer/decision] may_act OK — actor "${ActClientId}" matches user may_act.sub`);
       }
-      log(`[AuthzServer/decision] may_act OK — actor "${ActClientId}" matches user may_act.sub`);
     }
   } else if (ActClientId) {
     // Static mode: actor must match the configured authorized actor.

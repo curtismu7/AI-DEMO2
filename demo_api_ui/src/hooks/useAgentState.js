@@ -42,6 +42,9 @@ const INITIAL_STATE = {
   error: null,
   // Token usage emitted by the active agent runtime (null = not reported)
   lastTokenUsage: null,
+  // Reasoning visibility (driven by STATE_DELTA /reasoningState/*) — what the
+  // agent is thinking: current phase, the tools it selected, and token usage.
+  reasoningState: { phase: null, toolOptions: [], contextTokens: null },
 };
 
 export function useAgentState() {
@@ -67,6 +70,7 @@ export function useAgentState() {
       archTrace: snapshot.archTrace || [],
       auditEvents: snapshot.auditEvents || [],
       activeRun: snapshot.activeRun || null,
+      reasoningState: snapshot.reasoningState || { phase: null, toolOptions: [], contextTokens: null },
     }));
   }, []);
 
@@ -81,6 +85,9 @@ export function useAgentState() {
         archTrace: prev.archTrace,
         auditEvents: prev.auditEvents,
         activeRun: prev.activeRun,
+        // Included so /reasoningState/* delta ops persist across reasoning steps
+        // (applyJsonPatch's nested-object branch merges onto the prior value).
+        reasoningState: prev.reasoningState,
       };
       const sliceNext = applyJsonPatch(slicePrev, operations);
       // Defensively exclude messages/toolCalls to prevent delta from contaminating event-driven state

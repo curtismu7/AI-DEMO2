@@ -81,6 +81,85 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — Conversation summary panel + conversations route hardening
+
+**Files changed:**
+- `demo_api_server/routes/conversations.js` — (1) `GET /admin/queue-stats` is now
+  admin-only (it has no `:userId`, so the ownership guard never fired — any
+  authenticated user could read queue stats); (2) the `router.param('userId')`
+  guard accepts `me` as an alias that always resolves to `req.user.sub` (the UI
+  never sees the token sub). `me` cannot widen access — it maps to the caller.
+- `demo_api_ui/src/components/ConversationSummaryPanel.jsx` + `.css` (new) —
+  collapsible "Earlier in this conversation" panel; fetches
+  `GET /api/conversations/me/:vertical/summaries` with `credentials:'include'`;
+  renders null when no summaries exist; silent on fetch failure.
+- `demo_api_ui/src/components/AIAgent.js` — one import + one mount below the
+  ReasoningPanel, gated on `isLoggedIn`, vertical = `effectiveVerticalId || 'banking'`.
+
+**Do not break:** the conversations `router.param('userId')` ownership guard —
+`me` must resolve to `req.user.sub` and nothing else; non-admin access to another
+user's thread must stay 403; `/admin/queue-stats` must stay admin-only. The
+summary panel must render null (not an error state) when the fetch fails or
+returns zero summaries.
+
+**Verify:** behavioral: `me` → 200 own data, other-user → 403, anon → 401,
+queue-stats non-admin → 403 / admin → 200. `cd demo_api_ui && npm run build`
+exits 0.
+
+### 2026-07-05 — Feature: live agent reasoning visibility (Phase 3 UI)
+
+**Files changed:**
+- `demo_api_ui/src/hooks/useAgentState.js` — added a `reasoningState` slice
+  (`{ phase, toolOptions, contextTokens }`) to `INITIAL_STATE`, `onStateSnapshot`,
+  and the `onStateDelta` whitelist (`slicePrev`). The agent service emits
+  `STATE_DELTA` `replace` ops on `/reasoningState/phase|toolOptions|contextTokens`.
+- `demo_api_ui/src/components/ReasoningPanel.jsx` + `.css` (new) — presentational
+  panel reading `aguiState.reasoningState`; renders null until a phase is reported.
+- `demo_api_ui/src/components/AIAgent.js` — one import + one mount after
+  `<SimpleStepperBar />` inside `.ba-right-col`, gated on `aguiEnabled`.
+
+**What was added:** the agent now surfaces what it is thinking (current phase,
+selected tools + confidence, token usage / % of context window) as it runs.
+Anthropic-only for now (other providers report no phase, so the panel stays
+hidden). Backend emission landed in the Phase 1 commit (`8365ab319`).
+
+**Do not break:** `onStateDelta` in `useAgentState.js` applies `STATE_DELTA` only
+to a WHITELISTED set of slices (`slicePrev`) and then strips `messages`/`toolCalls`
+before merging back — a new delta-driven field is INVISIBLE to the UI unless it is
+added to that whitelist. If you add another `/foo/*` STATE_DELTA path, add `foo`
+to `slicePrev` or the ops silently no-op. Keep the panel mount gated on
+`aguiEnabled` so the legacy (non-AG-UI) path is unaffected. Do not add
+`max-width`/`max-height` in `ReasoningPanel.css` inside the float panel (§1).
+
+**Verify:** `cd demo_api_ui && npm run build` exits 0.
+
+### 2026-07-04 — PingGateway (IG) audit: real P1AZ URL, apikey authz gap, dead route
+
+**Files changed:**
+- `ping-gateway/scripts/groovy/p1az-decision.groovy` — real-backend decision URL now appends `/decisionEndpoints/{P1AZ_WORKER_ID}` when `P1AZ_REAL_BASE` is a bare environment base.
+- `ping-gateway/config/routes/00-mcp-apikey.json` + `00-mcp-apikey-jwks.json` — added the `p1az-decision.groovy` filter so api-key tools get the PingOne Authorize decision (parity with the Node gateway).
+- `ping-gateway/config/routes/03-oauth-passthrough.json` — removed (never built: `ClientHandler` in a Chain `filters` array → ClassCastException; `/as/token` 404s; unused).
+- `ping-gateway/scripts/check-groovy-params.sh` — stopped forbidding `decisionEndpoints` (the stale check that enforced the bug); now requires both mock policy path AND real decisionEndpoints URL.
+
+**What was broken:** with `ff_authorize_simulated=false` (the default), the IG
+gateway POSTed the P1AZ decision to the environment base URL, which 403s → no
+`decision` field → fail-closed DENY on every request (403 doesn't trigger the
+0/5xx mock failover). The default real-P1AZ path denied 100% of calls. Separately,
+`/mcp/apikey` (both introspection and jwks variants) skipped the Authorize
+decision, and the dead `oauth-passthrough` route logged a build error every boot.
+
+**Do not break:** the real decision URL must target
+`.../v1/environments/{envId}/decisionEndpoints/{id}` — a bare env base fails
+closed silently. Keep P1AZ fail-closed on DENY/error/timeout. Do NOT add
+`mcp-request-validation` (schema) to the apikey routes: `show_investment` is
+absent from `mcp-tool-schemas.json` and would be `-32602`'d.
+
+**Verify:** `bash ping-gateway/scripts/check-groovy-params.sh` (PASS, both
+backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
+`bash ping-gateway/scripts/e2e-pinggateway.sh` (PASS); restart
+`ai-demo-ping-gateway` → 0 route-build errors, unauthenticated `/mcp`,
+`/mcp/apikey`, jwks-variant all 401, `/as/token` 404.
+
 ### 2026-07-05 — run-docker.sh aborts on cold start when :8090 is empty
 
 **Files changed:**
