@@ -306,7 +306,13 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_inspector_pingone_live:      { public: true, default: 'true'  }, // PingOne MCP Inspector page queries the stdio server live (page-only; does NOT reroute agent calls)
   ff_show_agent_in_middle: { public: true, default: 'false' }, // Show banking column alongside centered agent (legacy dashboard layout)
   ff_customer_skin_ping2026: { public: true, default: 'false' }, // Customer dashboard new Ping2026 skin (component fork via DashboardContent). OFF by default — must match routes/featureFlags.js FLAG_REGISTRY (defaultValue:false); unfinished component, not for prod-on.
+  ff_admin_skin_ping2026:    { public: true, default: 'true'  }, // Admin dashboard new Ping2026 skin — ON by default
   ff_use_cases_launcher:     { public: true, default: 'true'  }, // Use-Case Launcher page at /use-cases (A5)
+  ff_error_classification_enabled: { public: true, default: 'true' }, // Comprehensive auth error classification + auto-retry transient errors
+  ff_dpop:                   { public: true, default: 'false' }, // DPoP (Demonstration of Proof-of-Possession) for token requests (RFC 9449)
+  ff_private_key_jwt_token_exchange: { public: true, default: 'false' }, // BFF authenticates to token endpoint with signed JWT (RFC 7523) instead of client_secret
+  ff_rfc9470_challenge:      { public: true, default: 'true'  }, // RFC 9470 step-up challenge support in authorization
+  hitl_consent_mfa_mode:     { public: true, default: 'onetime' }, // HITL consent MFA mode: 'onetime' (default) or 'multi' — affects challenge UX
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
