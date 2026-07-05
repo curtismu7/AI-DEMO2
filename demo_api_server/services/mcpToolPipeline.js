@@ -821,6 +821,42 @@ async function runMcpToolPipeline(ctx) {
             } };
         }
 
+        // Any gateway error that carried an X-Gw-Audit-Trail (e.g. 401
+        // token_exchange_failed AFTER a P1AZ PERMIT) still represents real
+        // introspection + decision hops — surface them as token events so the
+        // token chain shows how far the call got before the failing hop.
+        if (err.gwAuditTrail) {
+            const trail = err.gwAuditTrail;
+            if (trail.introspection && !tokenEvents.some((e) => e && e.id === 'gw-introspection')) {
+                const introspRes = trail.introspection;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-introspection',
+                    'PingGateway — Token Introspection (RFC 7662)',
+                    introspRes.skipped ? 'skipped' : (introspRes.active ? 'valid' : 'revoked'),
+                    null,
+                    introspRes.active ? 'Token verified active at gateway' : 'Token is revoked or no longer active',
+                    { rfc: 'RFC 7662', sub: introspRes.sub, exp: introspRes.exp, scope: introspRes.scope,
+                      iss: introspRes.iss, client_id: introspRes.client_id, active: introspRes.active,
+                      skipped: introspRes.skipped, rawResponse: introspRes }
+                ));
+            }
+            if (trail.authorize && !tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
+                const authzRes = trail.authorize;
+                const decision = authzRes.decision;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny'),
+                    null,
+                    `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
+                    { decision: authzRes.decision, backend: authzRes.backend, url: authzRes.url,
+                      tool: authzRes.tool, method: authzRes.method, vertical: authzRes.vertical,
+                      parameters: authzRes.parameters, rawResponse: authzRes.rawResponse,
+                      reason: authzRes.reason, statements: authzRes.statements }
+                ));
+            }
+        }
+
         const isConnErr =
             err.useLocal ||
             err.message.includes('ECONNREFUSED') ||

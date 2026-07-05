@@ -457,4 +457,28 @@ describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REG
     expect(out.kind).toBe('result');
     expect(out.httpStatus).toBe(200);
   });
+
+  test('gateway 401 with audit trail → error body still carries gw-introspection + gw-authorize events', async () => {
+    // token_exchange_failed AFTER a P1AZ PERMIT: the decision + introspection
+    // arrive on the thrown error's gwAuditTrail and must reach the token chain.
+    const err = Object.assign(new Error('gateway rejected the token'), {
+      code: 'GATEWAY_TOKEN_REJECTED', httpStatus: 502,
+      gatewayErrorCode: 'token_exchange_failed',
+      gwAuditTrail: {
+        introspection: { active: true, sub: 'u1', scope: 'gateway:mcp:invoke', client_id: 'f4dd707d' },
+        authorize: { decision: 'PERMIT', backend: 'real', url: 'https://api.pingone.com/…/decision', tool: 'get_my_accounts' },
+      },
+    });
+    const deps = makeDeps({
+      config: { ...makeDeps().config, useGateway: true, gatewayHttpUrl: 'http://gw' },
+      callToolViaGateway: jest.fn(async () => { throw err; }),
+    });
+    const out = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(out.kind).toBe('error');
+    const ids = (out.body.tokenEvents || []).map((e) => e.id);
+    expect(ids).toContain('gw-introspection');
+    expect(ids).toContain('gw-authorize');
+    const gwAz = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-authorize');
+    expect(gwAz[2]).toBe('permit');
+  });
 });

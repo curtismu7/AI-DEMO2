@@ -288,6 +288,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 cause,
                 tokenAud,
                 expectedAud,
+                // The gateway sets X-Gw-Audit-Trail on 401s too (introspection +
+                // P1AZ decision made BEFORE its onward exchange failed) — keep it
+                // so the token chain can show the PERMIT even on this error path.
+                gwAuditTrail: _parseGwAuditTrail(response),
             },
         );
     }
