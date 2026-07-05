@@ -234,19 +234,26 @@ function getThreadSize(userId, vertical) {
 
 /**
  * Save a summary of a conversation range to the summaries table.
- * Phase 1: extraction-based (no LLM).
+ * Phase 2: supports both extraction-based (default) and LLM-based summaries.
  * @param {string} userId - user identifier
  * @param {string} vertical - vertical/context
  * @param {array} messages - messages to summarize
  * @param {number} sourceStartIdx - start index in thread
  * @param {number} sourceEndIdx - end index in thread
+ * @param {string} llmSummary - optional LLM-generated summary (Phase 2)
  * @returns {object} - { summaryId, summary, metadata }
  */
-function saveSummary(userId, vertical, messages, sourceStartIdx, sourceEndIdx) {
+function saveSummary(userId, vertical, messages, sourceStartIdx, sourceEndIdx, llmSummary) {
   const db = _db();
   const summaryId = _generateSummaryId();
   const extracted = _extractSummary(messages);
   const originalLength = messages.reduce((sum, m) => sum + (m.content || '').length, 0);
+
+  // Phase 2: use LLM summary if provided, else extraction-based
+  const summary = llmSummary || extracted.summary;
+  const method = llmSummary ? 'llm' : 'extraction';
+  const summaryLength = summary.length;
+  const lossRatio = originalLength > 0 ? summaryLength / originalLength : 0;
 
   const summaryObj = {
     id: summaryId,
@@ -257,20 +264,21 @@ function saveSummary(userId, vertical, messages, sourceStartIdx, sourceEndIdx) {
     sourceEndIdx,
     originalMessages: messages.length,
     originalLength,
-    summary: extracted.summary,
+    summaryLength,
+    summary,
     keyEntities: {
       accountNumbers: extracted.accountNumbers,
       amounts: extracted.amounts,
       actions: extracted.actions,
     },
-    lossRatio: 0.75, // Placeholder: actual ratio computed later with LLM
-    method: 'extraction', // Phase 1: extraction-based
+    lossRatio: Math.round(lossRatio * 100) / 100,
+    method,
   };
 
   const key = `${userId}:${vertical}:_summary:${summaryId}`;
   db.putSync(key, summaryObj);
 
-  return { summaryId, summary: extracted.summary, metadata: summaryObj };
+  return { summaryId, summary, metadata: summaryObj };
 }
 
 /**
@@ -295,15 +303,65 @@ function getSummaries(userId, vertical) {
 }
 
 /**
- * Check if summarization is needed (Phase 1: placeholder, always returns false).
- * Phase 2 will implement actual token-budget + turn-count triggers.
+ * Check if summarization is needed (Phase 2: auto-triggers).
+ * Implements two triggers:
+ *   1. Token budget: summarize when thread reaches 70% of context window
+ *   2. Turn count: summarize every 20 turns (or custom via env)
  * @param {string} userId - user identifier
  * @param {string} vertical - vertical/context
- * @returns {boolean} - true if summarization should be triggered
+ * @returns {object|null} - { trigger, startIdx, endIdx } or null if no trigger
  */
 function isSummarizationNeeded(userId, vertical) {
-  // Phase 1: disabled by default. Phase 2 will implement real triggers.
-  return process.env.AUTO_SUMMARIZE === 'true';
+  if (process.env.AUTO_SUMMARIZE !== 'true') {
+    return null;
+  }
+
+  const db = _db();
+  const prefix = `${userId}:${vertical}:`;
+  const messages = [];
+
+  // Collect all messages for this thread
+  for (const { key, value } of db.getRange({
+    start: prefix,
+    end: `${prefix}￿`,
+  })) {
+    if (value) messages.push(value);
+  }
+
+  if (messages.length === 0) return null;
+
+  // Trigger 1: Turn count (every 20 turns by default)
+  const turnThreshold = parseInt(process.env.SUMMARIZE_TURN_THRESHOLD || '20', 10);
+  if (messages.length % turnThreshold === 0 && messages.length > turnThreshold) {
+    // Summarize the first 50% of messages
+    const cutoff = Math.floor(messages.length * 0.5);
+    return {
+      trigger: 'turn_count',
+      startIdx: 0,
+      endIdx: cutoff,
+    };
+  }
+
+  // Trigger 2: Token budget (70% of estimated context window)
+  // Rough estimate: 1 token ≈ 4 chars (OpenAI heuristic)
+  const totalChars = messages.reduce((sum, m) => sum + (m.content || '').length, 0);
+  const estimatedTokens = Math.ceil(totalChars / 4);
+  const contextWindow = 200000; // Anthropic/LM Studio typical
+  const tokenThreshold = parseInt(process.env.SUMMARIZE_TOKEN_THRESHOLD || Math.floor(contextWindow * 0.7).toString(), 10);
+
+  if (estimatedTokens >= tokenThreshold && messages.length > 10) {
+    // Summarize messages up to 50% mark
+    const cutoff = Math.floor(messages.length * 0.5);
+    return {
+      trigger: 'token_budget',
+      startIdx: 0,
+      endIdx: cutoff,
+      tokens: estimatedTokens,
+      threshold: tokenThreshold,
+    };
+  }
+
+  return null;
 }
 
 /**

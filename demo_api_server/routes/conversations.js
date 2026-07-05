@@ -18,6 +18,7 @@
 
 const express = require('express');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
+const summarizationQueue = require('../services/summarizationQueue');
 
 const router = express.Router();
 
@@ -90,7 +91,26 @@ router.post('/:userId/:vertical/messages', express.json(), (req, res) => {
       conversationStore.saveMessage(userId, vertical, msg.role, msg.content, msg.metadata || {});
     }
     const threadSize = conversationStore.getThreadSize(userId, vertical);
-    return res.json({ saved: messages.length, threadSize });
+
+    // Phase 2: Check if auto-summarization is needed and trigger background job
+    const summaryTrigger = conversationStore.isSummarizationNeeded(userId, vertical);
+    if (summaryTrigger) {
+      const history = conversationStore.getHistory(userId, vertical, 500);
+      const messagesToSummarize = history.slice(summaryTrigger.startIdx, summaryTrigger.endIdx);
+      const provider = req.body.provider || 'anthropic'; // Optional provider hint from caller
+
+      // Enqueue async summary job (non-blocking, best-effort)
+      summarizationQueue.enqueue(
+        userId,
+        vertical,
+        messagesToSummarize,
+        summaryTrigger.startIdx,
+        summaryTrigger.endIdx,
+        provider,
+      );
+    }
+
+    return res.json({ saved: messages.length, threadSize, summarizationTriggered: !!summaryTrigger });
   } catch (err) {
     console.error('[conversations.POST] Error saving messages:', err.message);
     return res.status(500).json({ error: 'failed to save messages' });
@@ -172,6 +192,21 @@ router.get('/:userId/:vertical/summaries', (req, res) => {
   } catch (err) {
     console.error('[conversations.GET.summaries] Error:', err.message);
     return res.status(500).json({ error: 'failed to retrieve summaries' });
+  }
+});
+
+/**
+ * GET /admin/queue-stats
+ * Check summarization queue status (admin/monitoring endpoint).
+ * Returns queue length, active workers, and capacity.
+ */
+router.get('/admin/queue-stats', (req, res) => {
+  try {
+    const stats = summarizationQueue.getStats();
+    return res.json({ queueStats: stats });
+  } catch (err) {
+    console.error('[conversations.GET.queue-stats] Error:', err.message);
+    return res.status(500).json({ error: 'failed to retrieve queue stats' });
   }
 });
 
