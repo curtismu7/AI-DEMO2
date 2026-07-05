@@ -48,11 +48,19 @@ export interface Codebase {
   chunks: number;
 }
 
+export interface CodeRange {
+  file: string;
+  line_start: number;
+  line_end: number;
+  code: string;
+}
+
 export interface Store {
   ensureSchema(): Promise<void>;
   insertChunks(chunks: StoredChunk[]): Promise<void>;
   search(vector: number[], opts: SearchOptions): Promise<SearchHit[]>;
   listCodebases(): Promise<Codebase[]>;
+  getCode(opts: { codebaseId: string; file: string; lineStart: number; lineEnd: number }): Promise<CodeRange | null>;
 }
 
 interface RawObject {
@@ -61,6 +69,12 @@ interface RawObject {
   line_end: number;
   snippet: string;
   _additional?: { certainty?: number };
+}
+
+interface RawChunk {
+  line_start: number;
+  line_end: number;
+  snippet: string;
 }
 
 /** Map raw Weaviate objects to search hits, applying an optional file glob. */
@@ -75,6 +89,26 @@ export function mapHits(objects: RawObject[], fileFilter?: string): SearchHit[] 
       relevance: o._additional?.certainty ?? 0,
       snippet: o.snippet,
     }));
+}
+
+/** Rebuild lines [from..to] from overlapping 40-line chunks. Null if empty. */
+export function stitchRange(chunks: RawChunk[], from: number, to: number): string | null {
+  if (!chunks.length) return null;
+  const byLine = new Map<number, string>();
+  for (const c of chunks) {
+    const lines = c.snippet.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const ln = c.line_start + i;
+      if (ln <= c.line_end && !byLine.has(ln)) byLine.set(ln, lines[i]);
+    }
+  }
+  const present = [...byLine.keys()];
+  if (!present.length) return null;
+  const lo = Math.max(from, Math.min(...present));
+  const hi = Math.min(to, Math.max(...present));
+  const out: string[] = [];
+  for (let ln = lo; ln <= hi; ln++) if (byLine.has(ln)) out.push(byLine.get(ln)!);
+  return out.length ? out.join('\n') : null;
 }
 
 const SCHEMA = {
@@ -196,6 +230,26 @@ export function createStore(host: string): Store {
       return codebases
         .filter((c) => c.id)
         .sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    async getCode(opts): Promise<CodeRange | null> {
+      const res = await client.graphql
+        .get()
+        .withClassName(CLASS_NAME)
+        .withFields('line_start line_end snippet')
+        .withWhere({
+          operator: 'And',
+          operands: [
+            { path: ['codebase_id'], operator: 'Equal', valueText: opts.codebaseId },
+            { path: ['file'], operator: 'Equal', valueText: opts.file },
+          ],
+        })
+        .withLimit(500)
+        .do();
+      const chunks = (res?.data?.Get?.[CLASS_NAME] ?? []) as RawChunk[];
+      const code = stitchRange(chunks, opts.lineStart, opts.lineEnd);
+      if (code === null) return null;
+      return { file: opts.file, line_start: opts.lineStart, line_end: opts.lineEnd, code };
     },
   };
 }
