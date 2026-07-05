@@ -319,6 +319,30 @@ class LangChainMCPApplication:
         app.include_router(agui_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
+        # Gate /run on the shared internal secret. The BFF proxies to this
+        # endpoint with `x-internal-gateway-secret: <BFF_INTERNAL_SECRET>` (see
+        # the BFF's routes/agentRun.js), and is the only legitimate caller.
+        # Without this gate any host that can reach the published port (Docker
+        # binds 0.0.0.0, not loopback) could POST an arbitrary sessionId and read
+        # another user's checkpointed conversation. Mirrors the sibling agents'
+        # AuthMiddleware. The hardened WebSocket transport is a separate server
+        # and keeps its own token-derived ownership check.
+        import os as _os
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        @app.middleware("http")
+        async def _gate_agui_run(request, call_next):
+            if request.url.path == "/run":
+                secret = request.headers.get("x-internal-gateway-secret", "")
+                expected = _os.environ.get("BFF_INTERNAL_SECRET", "dev-shared-secret-change-me")
+                if not secret:
+                    return _JSONResponse(
+                        {"detail": "Missing x-internal-gateway-secret header"}, status_code=401
+                    )
+                if secret != expected:
+                    return _JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
+            return await call_next(request)
+
         agui_port = self.config.chat.agui_http_port
         agui_host = self.config.chat.agui_http_host
 

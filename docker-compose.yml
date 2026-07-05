@@ -502,9 +502,16 @@ services:
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
       AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      # Trust the BFF's mkcert TLS cert on the internal tool callback (Node honors
+      # NODE_EXTRA_CA_CERTS). Without it, every tool call to https://api.ping.demo
+      # fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE. Same bundle as the langchain agent.
+      NODE_EXTRA_CA_CERTS: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
     env_file:
       - path: ./mastra_agent/.env
         required: false
+    volumes:
+      # CA bundle for NODE_EXTRA_CA_CERTS above (gitignored; generated on the host).
+      - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
     networks:
       - ai-demo
     depends_on:
@@ -529,9 +536,16 @@ services:
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
       AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx honors
+      # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
+      # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
+      SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
     env_file:
       - path: ./openai_agent/.env
         required: false
+    volumes:
+      # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
+      - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
     networks:
       - ai-demo
     depends_on:
@@ -556,9 +570,16 @@ services:
       # Agent LLM → host llama.cpp proxy (:8090, OpenAI-compatible). Containers
       # reach the host proxy via host.docker.internal (same as LLAMACPP_BASE_URL).
       AGENT_LLM_BASE_URL: "http://host.docker.internal:8090/v1"
+      # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx honors
+      # SSL_CERT_FILE). Without it, every tool call to https://api.ping.demo fails
+      # with CERTIFICATE_VERIFY_FAILED. Same bundle as the langchain agent.
+      SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
     env_file:
       - path: ./pydantic_agent/.env
         required: false
+    volumes:
+      # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
+      - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
     networks:
       - ai-demo
     depends_on:

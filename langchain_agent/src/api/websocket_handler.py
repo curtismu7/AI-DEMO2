@@ -83,7 +83,15 @@ class ChatWebSocketHandler:
         # and referrer headers — all of which can leak the token.
         # Tokens must be passed in the first session_init message over the
         # encrypted WebSocket channel instead.
-        raw_path = getattr(websocket, 'path', '') or ''
+        # F13: websockets>=14/15 (new asyncio server) moved the request path to
+        # websocket.request.path; the legacy protocol exposed websocket.path.
+        # Read both so the token-in-URL security check keeps working across
+        # versions instead of silently no-opping on v15.
+        raw_path = getattr(websocket, 'path', None)
+        if raw_path is None:
+            _req = getattr(websocket, 'request', None)
+            raw_path = getattr(_req, 'path', '') if _req is not None else ''
+        raw_path = raw_path or ''
         if '?token=' in raw_path or '&token=' in raw_path:
             logger.warning(
                 f"Connection {connection_id} attempted to pass auth token in URL query string "
@@ -96,7 +104,7 @@ class ChatWebSocketHandler:
             self._connections[connection_id] = websocket
             self._connection_metadata[connection_id] = {
                 "connected_at": datetime.now(timezone.utc),
-                "path": getattr(websocket, 'path', '/'),
+                "path": raw_path or '/',
                 "session_id": None,
                 "user_id": None,
                 "user_token": user_token

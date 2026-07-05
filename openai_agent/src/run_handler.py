@@ -10,8 +10,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from agents import Runner
 
-from .agent_factory import build_agent
+from .agent_factory import build_agent, build_llm_client
 from .agui_emitter import AGUIEmitter
+from .bff_tool_adapter import resolve_bff_tool_url
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,24 @@ router = APIRouter()
 
 def _format_sse(event: dict) -> str:
     return f"data: {json.dumps(event)}\n\n"
+
+
+def _error_response(run_id: str, thread_id: str, message: str) -> StreamingResponse:
+    """Fail fast as a single RUN_ERROR SSE frame (the event the UI hook handles)."""
+    async def _one() -> AsyncGenerator[str, None]:
+        yield _format_sse({
+            "type": "RUN_ERROR",
+            "runId": run_id,
+            "threadId": thread_id,
+            "message": message,
+            "code": "AGENT_CONFIG_ERROR",
+        })
+
+    return StreamingResponse(
+        _one(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/run")
@@ -52,11 +71,16 @@ async def agent_run(request: Request) -> StreamingResponse:
         import os
         llm_base_url = "https://api.anthropic.com/v1"
         llm_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not model or "/" not in model and not model.startswith("claude"):
+        if not llm_api_key:
+            return _error_response(
+                run_id, thread_id,
+                "provider=anthropic but ANTHROPIC_API_KEY is not set",
+            )
+        if not model or ("/" not in model and not model.startswith("claude")):
             model = "claude-sonnet-4-6"
 
     run_ctx = {
-        "bff_tool_url": bff_tool_url or cfg.bff_tool_url,
+        "bff_tool_url": resolve_bff_tool_url(bff_tool_url, cfg.bff_tool_url),
         "bff_internal_secret": cfg.bff_internal_secret,
         "session_id": session_id,
         "base_url": llm_base_url,
@@ -87,8 +111,11 @@ async def _stream(
     emitter = AGUIEmitter(run_id=run_id, thread_id=thread_id, sink=sink)
 
     async def run_agent() -> None:
+        client = None
         try:
             await emitter.on_run_start()
+            # Own the client here so it can be closed reliably below.
+            client = build_llm_client(api_key, run_ctx.get("base_url"))
             agent = build_agent(
                 tool_schemas=tool_schemas,
                 run_ctx=run_ctx,
@@ -96,6 +123,7 @@ async def _stream(
                 api_key=api_key,
                 system_prompt=vertical_flavor,
                 sink=sink,
+                client=client,
             )
             # Pass full conversation history for multi-turn context.
             # Runner accepts str | list[dict]; filter to user/assistant roles only —
@@ -120,6 +148,14 @@ async def _stream(
             logger.exception("[openai-agent] run error run=%s", run_id)
             await emitter.on_error(exc)
         finally:
+            # Close the per-run LLM client so its HTTP connection/socket is
+            # released. Runs after streaming completes (or on cancel), so it
+            # never tears the client down mid-stream.
+            if client is not None:
+                try:
+                    await client.close()
+                except Exception:
+                    logger.exception("[openai-agent] client close error run=%s", run_id)
             await queue.put(None)
 
     agent_task = asyncio.create_task(run_agent())
@@ -132,6 +168,14 @@ async def _stream(
             yield _format_sse(item)
     finally:
         agent_task.cancel()
+        # Await the cancelled task so its finally block (client cleanup) runs to
+        # completion before the request ends; swallow the expected CancelledError.
+        try:
+            await agent_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("[openai-agent] agent task teardown error run=%s", run_id)
 
 
 async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
@@ -139,7 +183,11 @@ async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
     try:
         from agents.stream_events import RawResponsesStreamEvent, RunItemStreamEvent
         from openai.types.responses import ResponseTextDeltaEvent
-    except ImportError:
+    except ImportError as exc:
+        # A missing SDK type here silently drops every event, leaving the UI
+        # stuck. Log loudly and surface a RUN_ERROR so the failure is visible.
+        logger.error("[openai-agent] cannot import SDK stream types: %s", exc)
+        await emitter.on_error(exc)
         return
 
     if isinstance(event, RawResponsesStreamEvent):

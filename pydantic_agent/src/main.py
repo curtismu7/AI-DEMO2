@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hmac
 import os
 import uvicorn
 from fastapi import FastAPI, Request
@@ -45,7 +46,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(
                     {"detail": "Missing x-internal-gateway-secret header"}, status_code=401
                 )
-            if secret != cfg.BFF_INTERNAL_SECRET:
+            # Constant-time compare so a timing side channel can't be used to
+            # recover the shared secret byte-by-byte.
+            if not hmac.compare_digest(secret, cfg.BFF_INTERNAL_SECRET):
                 return JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
         return await call_next(request)
 

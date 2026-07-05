@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { buildAgent } from './agentFactory';
 import { AGUIEmitter } from './aguiEmitter';
 import { getConfig } from './config';
+import { resolveBffToolUrl } from './bffToolAdapter';
 import type { EmitFn, RunCtx, ToolSchema } from './bffToolAdapter';
 
 function formatSse(event: Record<string, unknown>): string {
@@ -29,10 +30,16 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
 
   const sessionId = (ctx.sessionId as string | undefined) ?? '';
   const cfg = getConfig();
+  // Abort the LLM stream and in-flight tool fetches the moment the client goes
+  // away, so a disconnected browser doesn't keep the run (and its BFF calls)
+  // burning.
+  const abortController = new AbortController();
+  req.on('close', () => abortController.abort());
   const runCtx: RunCtx = {
-    bffToolUrl: (ctx.bffToolUrl as string | undefined) || cfg.bffToolUrl,
+    bffToolUrl: resolveBffToolUrl(ctx.bffToolUrl as string | undefined, cfg.bffToolUrl),
     bffInternalSecret: cfg.bffInternalSecret,
     sessionId,
+    abortSignal: abortController.signal,
   };
   // Per-run model override from BFF context wins; falls back to env-resolved
   // default (LM Studio's loaded model).
@@ -47,11 +54,14 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
   res.flushHeaders();
 
   const emitFn: EmitFn = async (event) => {
-    res.write(formatSse(event));
+    // Never write to a socket the client already closed — that throws
+    // ERR_STREAM_WRITE_AFTER_END and crashes the handler.
+    if (!res.writableEnded) res.write(formatSse(event));
   };
 
   const emitter = new AGUIEmitter(runId, threadId, emitFn);
 
+  let streaming = false;
   try {
     await emitter.onRunStart();
     const agent = buildAgent(toolSchemas, runCtx, {
@@ -64,19 +74,25 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
     // Pass full conversation history for multi-turn context.
     // Mastra's Agent.stream() delegates to AI SDK streamText() which accepts CoreMessage[].
     // Cast through Parameters<> so the call stays typed without an explicit `any`.
-    const coreMessages = messages.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
+    // Trust nothing about inbound message shape: drop entries without a string
+    // content, and only ever forward user/assistant roles (anything else maps
+    // to 'user') so agent.stream() can't break on a non-string content.
+    const coreMessages = messages
+      .filter((m) => m && typeof m.content === 'string')
+      .map((m) => ({
+        role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+        content: m.content,
+      }));
     const stream = await agent.stream(
       coreMessages as Parameters<typeof agent.stream>[0],
+      { abortSignal: abortController.signal },
     );
-    let streaming = false;
 
     // Consume fullStream (not textStream) so tool-call lifecycle reaches the UI
     // alongside text. It's a ReadableStream<ChunkType>; Node 18+ async-iterates it.
-    type StreamPart = { type: string; payload?: Record<string, unknown> };
+    type StreamPart = { type: string; payload?: Record<string, unknown>; error?: unknown };
     for await (const part of stream.fullStream as unknown as AsyncIterable<StreamPart>) {
+      if (abortController.signal.aborted) break;
       const payload = part.payload ?? {};
       if (part.type === 'text-delta') {
         if (!streaming) {
@@ -92,12 +108,35 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         );
       } else if (part.type === 'tool-result') {
         await emitter.onToolEnd(payload.toolCallId as string, payload.result);
+      } else if (part.type === 'error') {
+        // A mid-stream provider error must not masquerade as a successful empty
+        // run. Close any open message, surface RUN_ERROR, and stop.
+        if (streaming) {
+          await emitter.onLlmEnd();
+          streaming = false;
+        }
+        const errVal = payload.error ?? part.error;
+        await emitter.onError(
+          errVal instanceof Error
+            ? errVal
+            : new Error(typeof errVal === 'string' ? errVal : JSON.stringify(errVal ?? 'LLM stream error')),
+        );
+        return;
       }
     }
 
     if (streaming) await emitter.onLlmEnd();
     await emitter.onRunEnd();
   } catch (err) {
+    // If we'd already opened a TEXT_MESSAGE_START, balance it with an END so the
+    // UI message renderer isn't left stuck "streaming" behind the RUN_ERROR.
+    if (streaming) {
+      try {
+        await emitter.onLlmEnd();
+      } catch {
+        // best-effort close; the RUN_ERROR below is what matters.
+      }
+    }
     await emitter.onError(err instanceof Error ? err : new Error(String(err)));
   } finally {
     res.end();
