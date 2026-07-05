@@ -1028,6 +1028,7 @@ app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
+app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
@@ -2158,6 +2159,20 @@ async function runBackgroundStartupTasks() {
         await ensureDemoPersonaRoles();
     } catch (err) {
         console.warn('[persona-roles] error (non-fatal):', err.message);
+    }
+
+    // Self-healing for the RFC 8693 two-exchange delegation chain: verifies
+    // (and repairs) mirroredScopes + app grants on the Agent/MCP Gateway
+    // resources against scope-topology.json, so the banking chips never grey
+    // out from a missed provisioning step. Non-blocking; opt out with
+    // TWO_EXCHANGE_RECONCILE_ON_STARTUP=false.
+    if (process.env.TWO_EXCHANGE_RECONCILE_ON_STARTUP !== 'false') {
+        try {
+            const { reconcileTwoExchangeGrants } = require('./services/twoExchangeReconciler');
+            await reconcileTwoExchangeGrants();
+        } catch (err) {
+            console.warn('[two-exchange-reconciler] error (non-fatal):', err.message);
+        }
     }
 
     // Bootstrap: the FIDO2 policy relying-party id must match the app's serving

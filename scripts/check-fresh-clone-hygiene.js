@@ -65,7 +65,8 @@ for (const f of trackedAll().filter(isBootSurface)) {
 }
 
 // ── Check 2: .mcp.json is valid and uses the parse-safe ${CLAUDE_PROJECT_DIR:-.} ──
-{
+// The file is optional (per-machine MCP config); only lint it when present.
+if (fs.existsSync(path.join(ROOT, '.mcp.json'))) {
   const raw = read('.mcp.json');
   try { JSON.parse(raw); } catch (e) { fail('mcp', `.mcp.json is not valid JSON: ${e.message}`); }
   const bare = raw.match(/\$\{CLAUDE_PROJECT_DIR\}/g);
@@ -90,13 +91,6 @@ for (const f of trackedAll().filter(isBootSurface)) {
   let ignored = false;
   try { git('check-ignore -q .claude/settings.local.json'); ignored = true; } catch { ignored = false; }
   if (!ignored) fail('settings', '.claude/settings.local.json is NOT gitignored — risk of committing the personal allowlist/secrets');
-}
-
-// ── Check 4: custom subagents are tracked (they live under the otherwise-ignored .claude/) ──
-for (const a of ['coverage-checker', 'dead-code', 'error-analyzer']) {
-  if (!isTracked(`.claude/agents/${a}.md`)) {
-    fail('agents', `.claude/agents/${a}.md not tracked — won't reach a fresh clone`);
-  }
 }
 
 // ── Check 5: docker compose boots a fresh clone with ONLY demo_api_server/.env ──

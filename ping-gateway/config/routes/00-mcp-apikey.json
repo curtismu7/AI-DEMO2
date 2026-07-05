@@ -47,6 +47,14 @@
         "type": "application/x-groovy",
         "file": "scripts/groovy/apikey-dispatch.groovy"
       }
+    },
+    {
+      "name": "P1AZDecisionGate",
+      "type": "ScriptableFilter",
+      "config": {
+        "type": "application/x-groovy",
+        "file": "scripts/groovy/p1az-decision-apikey.groovy"
+      }
     }
   ]
 }

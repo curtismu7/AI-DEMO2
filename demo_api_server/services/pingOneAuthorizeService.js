@@ -169,6 +169,25 @@ async function getWorkerToken() {
 // POST /v1/environments/{envId}/decisionEndpoints/{endpointId}
 // ---------------------------------------------------------------------------
 
+// C1 fail-closed decision normalisation. The authorization *effect* lives under
+// `decision` / `result.decision` / `details.decision`; `status` is a transport
+// wrapper (`SUCCESS` on every completed evaluation) and must never be read as
+// the effect — the old `raw.decision || raw.status` fallthrough turned a live
+// DENY into a silent PERMIT. Anything not positively PERMIT/DENY collapses to
+// DENY unless an enforceable obligation is present (caller acts on it).
+const _PERMIT_EFFECTS = new Set(['permit', 'allow', 'allowed']);
+const _DENY_EFFECTS = new Set(['deny', 'denied']);
+
+function _normalizeDecision(raw, { hasObligation = false } = {}) {
+  const effect = raw && typeof raw === 'object'
+    ? raw.decision ?? raw.result?.decision ?? raw.details?.decision
+    : undefined;
+  const value = typeof effect === 'string' ? effect.trim().toLowerCase() : '';
+  if (_PERMIT_EFFECTS.has(value)) return 'PERMIT';
+  if (_DENY_EFFECTS.has(value)) return 'DENY';
+  return hasObligation ? 'INDETERMINATE' : 'DENY';
+}
+
 /**
  * POST a Trust Framework parameters object to a decision endpoint (Phase 2).
  * @param {string} endpointId
@@ -201,8 +220,10 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 
   const raw = await response.json();
   console.log('[BFF→P1AZ] RESPONSE: status=%d body=%j', response.status, raw);
-  const decision = raw.decision || raw.status || 'INDETERMINATE';
   const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(raw);
+  const decision = _normalizeDecision(raw, {
+    hasObligation: stepUpRequired || hitlRequired || consentRequired,
+  });
 
   const decisionId = raw.id || raw.decisionId || null;
 
@@ -379,8 +400,8 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
   }
 
   const raw = await response.json();
-  const decision = raw.decision || 'INDETERMINATE';
   const { stepUpRequired } = _classifyRawObligations(raw);
+  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
 
   return { decision, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
 }
@@ -912,6 +933,7 @@ function _classifyRawObligations(raw) {
 }
 
 module.exports = {
+  _normalizeDecision,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,

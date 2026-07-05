@@ -1,62 +1,92 @@
 /**
- * apikey-dispatch.groovy
+ * apikey-dispatch.groovy — Phase 2 Bearer Token Generation
  *
  * PingGateway dispatch filter for API-key-authenticated MCP access (/mcp/apikey).
  *
  * Flow:
  *   1. Extract X-API-Key header from the request
- *   2. Validate the key against the configured API key store (env VALID_API_KEYS)
- *   3. If valid, attach a synthetic bearer token or user context for downstream P1AZ gating
+ *   2. Exchange the API key for a bearer token via BFF /api/mcp/apikey/exchange
+ *   3. Replace X-API-Key with Authorization: Bearer <token> for introspection
  *   4. Forward to the MCP server; PingGateway introspection + P1AZ will enforce per-tool authorization
  *   5. Per-tool scopes are enforced by the mcp-olb route via the RsFilterTokenResolver
  *
  * Security:
- *   - API keys are NOT cached — every request validates against VALID_API_KEYS
+ *   - API keys are validated server-side (BFF service) — not cached locally
+ *   - Bearer tokens are signed JWTs, validated by PingGateway introspection
  *   - The endpoint requires HTTPS in production (enforced by PingGateway config)
- *   - No session or user context — each request is independent
  *   - P1AZ resource server (MCP Gateway) is the authoritative access-control point
  */
 
 import org.forgerock.json.JsonValue
 import org.forgerock.openig.heap.HeapException
-
-// Configuration — read from environment or PingGateway secrets
-def validApiKeys = (System.getenv('VALID_API_KEYS') ?: '')
-  .split(',')
-  .collect { it?.trim() }
-  .findAll { it }
+import javax.net.ssl.HttpsURLConnection
+import java.net.URL
 
 def apiKeyHeader = 'X-API-Key'
 def apiKey = request.headers.get(apiKeyHeader)?.getValues()?.get(0)
+def logger = org.slf4j.LoggerFactory.getLogger('apikey-dispatch')
 
-// 1. Validate API key presence and format
+// 1. Validate API key presence
 if (!apiKey || apiKey.isEmpty()) {
+  logger.warn('[apikey-dispatch] Missing X-API-Key header')
   context.attributes['statusCode'] = 401
-  context.attributes['errorMessage'] = 'Missing or invalid X-API-Key header'
   return Response.status(401).entity(JsonValue.json(
     ['code': 'invalid_apikey', 'message': 'X-API-Key header is required']
   ).asMap()).build()
 }
 
-// 2. Validate API key against allowed list
-if (!validApiKeys || !validApiKeys.contains(apiKey)) {
-  context.attributes['statusCode'] = 403
-  context.attributes['errorMessage'] = "Invalid API key (${apiKey?.substring(0, 5)}...)"
-  return Response.status(403).entity(JsonValue.json(
-    ['code': 'forbidden', 'message': 'Invalid API key']
+// 2. Exchange API key for bearer token via BFF
+def bffExchangeUrl = System.getenv('BFF_APIKEY_EXCHANGE_URL') ?: 'https://api.ping.demo:3001/api/mcp/apikey/exchange'
+try {
+  def url = new URL(bffExchangeUrl)
+  def conn = url.openConnection() as HttpsURLConnection
+
+  // Disable cert validation in dev (set BFF_APIKEY_EXCHANGE_SKIP_CERT_CHECK=true)
+  if (System.getenv('BFF_APIKEY_EXCHANGE_SKIP_CERT_CHECK') == 'true') {
+    def sslContext = javax.net.ssl.SSLContext.getInstance('TLSv1.2')
+    sslContext.init(null, [new org.forgerock.util.trustmanager.TrustAllX509CertificateManager()] as javax.net.ssl.TrustManager[], null)
+    conn.setSSLSocketFactory(sslContext.getSocketFactory())
+    conn.setHostnameVerifier({ hostname, session -> true } as javax.net.ssl.HostnameVerifier)
+  }
+
+  conn.setRequestMethod('POST')
+  conn.setRequestProperty('Content-Type', 'application/json')
+  conn.setRequestProperty('X-API-Key', apiKey)
+  conn.setConnectTimeout(5000)
+  conn.setReadTimeout(5000)
+
+  int statusCode = conn.getResponseCode()
+
+  if (statusCode == 200) {
+    def responseText = conn.getInputStream().getText()
+    def responseJson = JsonValue.json(responseText).asMap()
+    def bearerToken = responseJson.token
+
+    if (!bearerToken) {
+      logger.error('[apikey-dispatch] BFF returned no token')
+      return Response.status(500).entity(JsonValue.json(
+        ['code': 'token_generation_failed', 'message': 'No token in exchange response']
+      ).asMap()).build()
+    }
+
+    logger.info('[apikey-dispatch] Token exchanged successfully', ['userId': responseJson.userId])
+
+    // 3. Replace API key with bearer token
+    request.headers.remove(apiKeyHeader)
+    request.headers.put('Authorization', "Bearer ${bearerToken}")
+
+    // 4. Continue to next handler (introspection + MCP server forwarding)
+    return next.handle(context, request)
+  } else {
+    def errorText = conn.getErrorStream()?.getText() ?: ''
+    logger.warn('[apikey-dispatch] BFF exchange failed', ['status': statusCode, 'error': errorText])
+    return Response.status(statusCode).entity(JsonValue.json(
+      ['code': 'exchange_failed', 'message': "BFF returned ${statusCode}"]
+    ).asMap()).build()
+  }
+} catch (Exception e) {
+  logger.error('[apikey-dispatch] Exchange call failed', ['error': e.getMessage()])
+  return Response.status(503).entity(JsonValue.json(
+    ['code': 'service_unavailable', 'message': 'Bearer token exchange service unavailable']
   ).asMap()).build()
 }
-
-// 3. Log successful API key validation
-def logger = org.slf4j.LoggerFactory.getLogger('apikey-dispatch')
-logger.info("[apikey-dispatch] Valid API key accepted; forwarding to MCP server")
-
-// 4. Attach synthetic user context for P1AZ decision logging
-// (In production, you would map the API key to a user/service identity and
-// set the Authorization header to a signed JWT or bearer token that PingGateway
-// can introspect. For now, we pass through with the API key as-is and rely on
-// downstream MCP gateway + PingGateway introspection to handle authorization.)
-request.headers.put('X-API-Key-Source', 'apikey-dispatch')
-
-// 5. Continue to the next handler (MCP server forwarding)
-return next.handle(context, request)
