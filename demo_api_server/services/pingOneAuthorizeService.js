@@ -41,6 +41,24 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 
+// Outbound timeout for ALL PingOne Authorize HTTP calls. Node's global fetch
+// (undici) has no default request timeout, so a hung/slow PingOne response would
+// block the awaiting request thread — and, on the enforcement path, the pending
+// transaction — indefinitely. Every call in this module goes through p1azFetch.
+const P1AZ_HTTP_TIMEOUT_MS = Number(process.env.PINGONE_AUTHORIZE_HTTP_TIMEOUT_MS) || 8000;
+
+/**
+ * fetch() wrapper that applies P1AZ_HTTP_TIMEOUT_MS via AbortSignal unless the
+ * caller already supplied a signal. A timeout aborts the request, surfacing as a
+ * thrown error the callers already treat as fail-closed (deny/503).
+ */
+function p1azFetch(url, opts = {}) {
+  return fetch(url, {
+    ...opts,
+    signal: opts.signal || AbortSignal.timeout(P1AZ_HTTP_TIMEOUT_MS),
+  });
+}
+
 /** Stable names — idempotent GET list + create if missing */
 const DEMO_TX_ENDPOINT_NAME = 'Super Banking Demo — Transactions';
 const DEMO_MCP_ENDPOINT_NAME = 'Super Banking Demo — MCP first tool';
@@ -132,7 +150,7 @@ async function getWorkerToken() {
   const tokenUrl = `${authBase(regionTld)}/${envId}/as/token`;
   const encoded  = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const response = await fetch(tokenUrl, {
+  const response = await p1azFetch(tokenUrl, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${encoded}`,
@@ -174,7 +192,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await fetch(url, {
+  const response = await p1azFetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -353,7 +371,7 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await fetch(url, {
+  const response = await p1azFetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -490,7 +508,7 @@ async function getRecentDecisions(endpointId, limit = 20) {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${resolvedId}/recentDecisions?limit=${limit}`;
 
-  const response = await fetch(url, {
+  const response = await p1azFetch(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -521,7 +539,7 @@ async function getDecisionEndpoints() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints`;
 
-  const response = await fetch(url, {
+  const response = await p1azFetch(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -573,7 +591,7 @@ async function getAuthorizationPolicies() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/authorizationPolicies?expand=children`;
 
-  const response = await fetch(url, {
+  const response = await p1azFetch(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -684,7 +702,7 @@ async function _createDecisionEndpointResource(opts) {
   }
 
   async function postWithPayload(payload) {
-    return fetch(url, {
+    return p1azFetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${workerToken}`,
@@ -815,7 +833,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   const workerToken = await getWorkerToken();
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
-  const getResponse = await fetch(url, { headers: { Authorization: `Bearer ${workerToken}` } });
+  const getResponse = await p1azFetch(url, { headers: { Authorization: `Bearer ${workerToken}` } });
   if (!getResponse.ok) {
     const text = await getResponse.text();
     throw new Error(`Decision endpoint fetch failed (${getResponse.status}): ${text}`);
@@ -833,7 +851,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   delete body.updatedAt;
   body.recordRecentRequests = !!enabled;
 
-  const putResponse = await fetch(url, {
+  const putResponse = await p1azFetch(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
