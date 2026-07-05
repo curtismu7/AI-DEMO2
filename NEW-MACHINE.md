@@ -17,9 +17,8 @@ For the everyday run details (ports, commands, troubleshooting) see
 | Project agent skills | [.claude/skills/](.claude/skills/) |
 | Slash commands | [.claude/commands/](.claude/commands/) |
 | Workflows | [.claude/workflows/](.claude/workflows/) |
-| Custom subagents | [.claude/agents/](.claude/agents/) (coverage-checker, dead-code, error-analyzer) |
-| Shared Claude settings | [.claude/settings.json](.claude/settings.json) (`tdd-guard` plugin enablement only) |
-| MCP server registry | [.mcp.json](.mcp.json) (paths parameterized with `${CLAUDE_PROJECT_DIR:-.}`) |
+| Shared Claude settings | [.claude/settings.json](.claude/settings.json) (must stay secret-free; personal allowlists go in gitignored `settings.local.json`) |
+| MCP server registry | `.air/mcp.json` (per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)) |
 | Launchers | `run.sh`, `run-docker.sh`, `docker-compose.yml` |
 | Env templates | `.env.example`, `.env.docker.example` |
 

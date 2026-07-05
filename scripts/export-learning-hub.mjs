@@ -86,7 +86,6 @@ const TEST_INJECT_GARTNER = argv.includes("--test-inject-gartner");
 function resolvePlaywrightChromium() {
   const candidates = [
     path.join(REPO_ROOT, "demo_api_ui", "package.json"),
-    "/Users/cmuir/Development/AI-DEMO2/demo_api_ui/package.json",
   ];
   let lastErr;
   for (const candidate of candidates) {
