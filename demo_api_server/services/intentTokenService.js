@@ -95,8 +95,30 @@ const READ_ONLY_TOOLS = [
   'show_mortgage',
 ];
 
-function permittedToolsForIntent(intent) {
-  return INTENT_TO_PERMITTED_TOOLS[intent] || READ_ONLY_TOOLS;
+// Unknown-intent fallback, scoped per vertical and DELIBERATELY excluding the
+// sensitive reads (get_sensitive_account_details, query_user_by_email): an
+// unclassified prompt should not unlock cross-vertical or sensitive tools. A
+// recognized intent (e.g. view_sensitive_account) is required for those.
+const READ_ONLY_TOOLS_BY_VERTICAL = {
+  banking: [
+    'get_my_accounts', 'get_account_balance', 'get_my_transactions',
+    'get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary',
+    'get_investment_transactions', 'sequential_think',
+  ],
+  healthcare: ['view_records', 'view_coverage', 'list_appointments', 'show_health_record', 'sequential_think'],
+  retail: ['list_orders', 'order_status', 'rewards_balance', 'show_large_purchase', 'sequential_think'],
+  'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'sequential_think'],
+  workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
+  mortgage: ['show_mortgage', 'sequential_think'],
+};
+
+function permittedToolsForIntent(intent, vertical) {
+  if (INTENT_TO_PERMITTED_TOOLS[intent]) return INTENT_TO_PERMITTED_TOOLS[intent];
+  // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
+  // reads instead of every read tool across every vertical (which exposed
+  // get_sensitive_account_details / query_user_by_email / other verticals' data to
+  // an unrecognized prompt). Fall back to banking reads when the vertical is unknown.
+  return READ_ONLY_TOOLS_BY_VERTICAL[vertical] || READ_ONLY_TOOLS_BY_VERTICAL.banking;
 }
 
 function mintIntentToken({ userId, sessionId, prompt, intent, confidence, vertical }) {
@@ -112,7 +134,7 @@ function mintIntentToken({ userId, sessionId, prompt, intent, confidence, vertic
     prompt_hash:     promptHash,
     intent:          intent || 'unknown',
     confidence:      typeof confidence === 'number' ? confidence : 0,
-    permitted_tools: permittedToolsForIntent(intent),
+    permitted_tools: permittedToolsForIntent(intent, vertical),
     vertical:        vertical || 'banking',
   };
   return { token: sign(payload), payload };

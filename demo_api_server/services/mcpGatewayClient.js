@@ -146,6 +146,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // per-request; the Node gateway never sees it (header added only on the PG path), so
     // the Node-gateway request shape is unchanged.
     if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+        // Prove this is the trusted BFF caller so PingGateway's decision filter honors
+        // the delegation signals below (X-Authz-Simulated) and the bridged actor
+        // (X-Act-Client-Id / X-May-Act-Sub added above). Without a valid secret the IG
+        // groovy forces the REAL authorize backend and drops the bridged actor, so a
+        // caller reaching the IG host port directly can't forge either. Same shared
+        // secret + header the Node gateway checks (checkInternalSecret).
+        const gwSecret = configStore.getEffective('bff_internal_secret') || process.env.BFF_INTERNAL_SECRET || '';
+        if (gwSecret) headers['x-internal-gateway-secret'] = gwSecret;
         const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
         // Per-request token-validation mode for the gateway: 'jwks' selects route
@@ -165,7 +173,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     console.log('[GW→PingGateway] HEADERS: %j', Object.fromEntries(
         Object.entries(headers).filter(([k]) => k.toLowerCase() !== 'authorization')
     ));
-    console.log('[GW→PingGateway] BODY: %j', body);
+    // Tool-call/response payloads can contain banking records — log them only when
+    // explicitly opted in (MCP_GATEWAY_LOG_BODIES=true), not by default.
+    if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
+        console.log('[GW→PingGateway] BODY: %j', body);
+    }
 
     let response;
     try {
@@ -187,7 +199,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const status = response.status;
     console.log('[GW→PingGateway] RESPONSE: status=%d', status);
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
-    console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
+    if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
+        console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
+    } else {
+        console.log('[GW→PingGateway] RESPONSE BODY: <redacted; set MCP_GATEWAY_LOG_BODIES=true to log payloads>');
+    }
 
     if (status === 401) {
         const body401 = response.data || {};

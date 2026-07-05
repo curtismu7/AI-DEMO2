@@ -12,6 +12,7 @@ const configStore = require('./configStore');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
+const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
@@ -62,6 +63,24 @@ function resolveExpectedMcpResourceUri() {
     return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
   }
   return configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
+}
+
+/**
+ * True in the modes where the outbound MCP call bridges the actor via X-Act-Client-Id
+ * (any gateway or two-exchange mode). On those paths the final hop is Exchange #2 whose
+ * actor (the MCP Exchanger) differs from the user's may_act.sub, so PingOne emits NO
+ * native `act` (the SpEL that mints it needs actor == may_act.sub — see
+ * docs/ACT_CLAIM_VERIFICATION.md), leaving the JWT actor legitimately empty. In pure
+ * single-exchange mode the actor IS the AI Agent (== may_act.sub), so the token DOES
+ * carry a native `act`; an empty actor there means genuinely no delegation, which the
+ * UC16 no-actor guard must still be able to DENY. Mirrors resolveExpectedMcpResourceUri's
+ * non-single-exchange branches so the bridge fallback and audience resolution agree.
+ */
+function isActorBridgedMode() {
+  const useGateway = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.get('mcp_gateway_http_url'));
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
+  return useGateway || usePingGateway || twoExchangeOn;
 }
 
 /**
@@ -157,9 +176,20 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const tokenAudience = claims.aud != null ? (Array.isArray(claims.aud) ? claims.aud.join(' ') : String(claims.aud)) : '';
   // RFC 8693 §4.1: act.sub is the canonical actor identifier.
   // act.client_id is PingOne-specific; fall back to act.sub when absent.
-  const actClientId = claims.act && typeof claims.act === 'object'
+  const actClientIdFromToken = claims.act && typeof claims.act === 'object'
     ? String(claims.act.client_id || claims.act.sub || '')
     : '';
+  // Bridge fallback (actor-bridged modes only — see isActorBridgedMode): on the
+  // gateway / two-exchange paths PingOne emits no native `act` on the final hop
+  // (Exchange #2 actor != may_act.sub — docs/ACT_CLAIM_VERIFICATION.md), so the JWT
+  // actor is legitimately empty. Supply the same server-to-server actor the outbound
+  // MCP call bridges (X-Act-Client-Id, the AI Agent) so this gate presents the
+  // identical ActClientId to P1AZ instead of DENYing with mcp-invalid-actor. Matches
+  // routes/authorize.js /mcp-console-defaults; trusted because it derives from BFF
+  // config/env, never the request. Scoped to bridged modes so that in single-exchange
+  // mode (native `act` present) an empty actor still trips the UC16 no-actor guard.
+  const actClientId = actClientIdFromToken
+    || (isActorBridgedMode() ? (buildActorBridgeHeaders()['X-Act-Client-Id'] || '') : '');
   const nestedActClientId = nestedActIdFromClaim(claims.act);
 
   // ── HITL receipt verification (the ONLY place hitlApproved is derived) ──────
@@ -425,6 +455,14 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       // which enforces resource_owner_mismatch. Without this the live PingOne
       // path cannot deny a caller acting on another user's resource.
       resourceOwnerId,
+      // RAR (NNP-1) parity: the simulated engine enforces rar_amount_exceeded /
+      // rar_payee_not_permitted, but the live call previously omitted these inputs,
+      // so the two engines disagreed. Forward the attested ceiling + permitted
+      // payees + stated destination so the live PingOne policy receives identical
+      // inputs (inert if the deployed policy has no RAR rule; enforced if it does).
+      rarMaxAmount,
+      rarPermittedPayees,
+      toAccountId,
     });
 
     if (r.stepUpRequired) {

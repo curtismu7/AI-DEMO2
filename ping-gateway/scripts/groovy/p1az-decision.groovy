@@ -58,11 +58,35 @@ def workerClientId      = System.getenv('P1AZ_WORKER_CLIENT_ID') ?: ''
 def workerClientSecret  = System.getenv('P1AZ_WORKER_CLIENT_SECRET') ?: ''
 def gatewayResourceUri  = System.getenv('PG_GATEWAY_RESOURCE_URI') ?: ''
 
+// ── Trusted-caller gate ───────────────────────────────────────────────────────
+// X-Authz-Simulated (backend selector) and X-Act-Client-Id / X-May-Act-Sub (the
+// bridged delegation actor, read further below) are server-to-server signals the
+// BFF sets. The IG host port is reachable directly, so a caller holding any valid
+// gateway-audience token could otherwise forge them — X-Authz-Simulated: true to
+// force the permissive mock backend, or X-Act-Client-Id: <a registered actor> to
+// satisfy HasValidActorChain. Require the shared BFF_INTERNAL_SECRET (the same
+// x-internal-gateway-secret gate the Node gateway enforces) before honoring any of
+// them; an untrusted caller gets the REAL backend and an empty bridged actor, so a
+// forged request fails closed at the policy.
+def internalSecret  = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def presentedSecret = request.headers.getFirst('x-internal-gateway-secret') ?: ''
+def trustedCaller   = false
+if (internalSecret && presentedSecret) {
+    trustedCaller = java.security.MessageDigest.isEqual(
+        internalSecret.getBytes('UTF-8'), presentedSecret.getBytes('UTF-8'))
+}
+if (!trustedCaller && (request.headers.getFirst('X-Authz-Simulated') != null
+        || request.headers.getFirst('X-Act-Client-Id') != null)) {
+    logger.warn('[P1AZ] Untrusted caller presented delegation headers without a valid ' +
+        'x-internal-gateway-secret — forcing real backend + dropping bridged actor')
+}
+
 // ── Live backend selection from the BFF-stamped header ────────────────────────
 // Default to REAL PingOne Authorize when the header is absent — matches
 // ff_authorize_simulated defaulting to false (all-real-servers default; the mock
-// demo_authz_server is opt-in via X-Authz-Simulated: true only).
-def simulatedHeader = request.headers.getFirst('X-Authz-Simulated')
+// demo_authz_server is opt-in via X-Authz-Simulated: true only). Only an
+// authenticated internal caller may select the mock backend.
+def simulatedHeader = trustedCaller ? request.headers.getFirst('X-Authz-Simulated') : null
 def simulated       = (simulatedHeader == null) ? false : (simulatedHeader.trim() == 'true')
 def decisionBase    = simulated ? mockBase : realBase
 
@@ -215,8 +239,11 @@ def actClaim        = parseActClaim(tokenInfo['act'])
 def mayActClaim     = parseActClaim(tokenInfo['may_act'])
 def nativeActSub    = actClaim?.sub ?: ''
 def nativeMayActSub = mayActClaim?.sub ?: ''
-def hdrActClientId  = request.headers.getFirst('X-Act-Client-Id') ?: ''
-def hdrMayActSub    = request.headers.getFirst('X-May-Act-Sub') ?: ''
+// Bridged actor headers are honored ONLY for a trusted internal caller (see the
+// trusted-caller gate above); an untrusted direct caller can't inject an actor to
+// satisfy HasValidActorChain. Native `act`/`may_act` from the token still apply.
+def hdrActClientId  = trustedCaller ? (request.headers.getFirst('X-Act-Client-Id') ?: '') : ''
+def hdrMayActSub    = trustedCaller ? (request.headers.getFirst('X-May-Act-Sub') ?: '') : ''
 def actSub    = nativeActSub ?: hdrActClientId
 def mayActSub = nativeMayActSub ?: hdrMayActSub
 def scope     = tokenInfo['scope'] ?: ''
@@ -360,15 +387,25 @@ try {
         bearer = fetchWorkerToken()
         r = callDecision(bearer)
     }
-    // REAL backend connectivity failure (httpPost returns code 0) or 5xx → fail
-    // over to the mock base. A 200 + DENY is a valid decision and is NOT a failure.
-    if (!simulated && (r.code == 0 || r.code >= 500) && mockBase && mockBase != realBase) {
-        logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — failing over to MOCK')
-        def mockUrl = mockBase.replaceAll('/$', '') + '/governance/pap/alpha/policy/' + workerId + '/decision'
-        def fb = httpPost(mockUrl, requestBody, ['Content-Type': 'application/json'])
-        if (fb.code == 200) {
-            failoverUsed = true
-            r = fb
+    // REAL backend connectivity failure (httpPost returns code 0) or 5xx.
+    // Failing over to the always-PERMIT mock is a demo convenience that DISABLES
+    // the policy while it looks healthy — so it is gated: disabled in production
+    // (NODE_ENV=production) or when P1AZ_ALLOW_MOCK_FAILOVER=false. When disabled we
+    // fail CLOSED (r stays non-200/empty → outcome parses to DENY below). A 200 +
+    // DENY is a valid decision and is NOT a failure.
+    def allowMockFailover = (System.getenv('NODE_ENV') != 'production') &&
+        ((System.getenv('P1AZ_ALLOW_MOCK_FAILOVER') ?: 'true').toLowerCase() != 'false')
+    if (!simulated && (r.code == 0 || r.code >= 500)) {
+        if (allowMockFailover && mockBase && mockBase != realBase) {
+            logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — failing over to MOCK (dev only)')
+            def mockUrl = mockBase.replaceAll('/$', '') + '/governance/pap/alpha/policy/' + workerId + '/decision'
+            def fb = httpPost(mockUrl, requestBody, ['Content-Type': 'application/json'])
+            if (fb.code == 200) {
+                failoverUsed = true
+                r = fb
+            }
+        } else {
+            logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — mock failover disabled, failing CLOSED (DENY)')
         }
     }
     rawResponseBody = r.body ?: ''
