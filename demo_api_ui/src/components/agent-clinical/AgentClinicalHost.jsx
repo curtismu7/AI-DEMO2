@@ -2,16 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { useVertical } from '../../vertical/useVertical';
 import AgentTabsRail from './AgentTabsRail';
 import TalkPane from './TalkPane';
+import InspectPane from './InspectPane';
+import ConfigurePane from './ConfigurePane';
 import './clinical.css';
 
 /**
  * AgentClinicalHost — top-level shell for the 2B refined dashboard.
  *
  * Owns the active-tab state and the keyboard shortcuts (1 = Talk, 2 = Inspect,
- * 3 = Configure). Renders the rail + the active pane stack. Phase 3a wires
- * the rail with a placeholder pane body; Phases 3b–3d swap the body for the
- * real TalkPane (chat + token timeline). Phase 4 adds Inspect; Phase 5 adds
- * Configure.
+ * 3 = Configure). Renders the rail + the active pane stack: TalkPane (chat +
+ * token timeline), InspectPane (live activity log) and ConfigurePane
+ * (authorize rules + runtime status). Panes mount only while active so their
+ * data layers (SSE stream, fetches) start on tab enter and stop on tab leave.
  */
 export default function AgentClinicalHost() {
   const [view, setView] = useState('talk');
@@ -59,17 +61,14 @@ export default function AgentClinicalHost() {
       />
 
       <main className="ac-pane" role="tabpanel" aria-label={`${view} pane`}>
-        {view === 'talk' ? <TalkPane /> : <PlaceholderPane view={view} />}
+        {view === 'talk' && <TalkPane />}
+        {view === 'inspect' && <InspectPane />}
+        {view === 'configure' && <ConfigurePane />}
       </main>
     </div>
   );
 }
 
-/**
- * Phase 3a placeholder pane content. Confirms the rail switches state and the
- * design tokens carry through. Phases 3b+ swap this for the real TalkPane,
- * InspectPane, and ConfigurePane bodies.
- */
 /**
  * Split a brand string into a prefix and suffix so the rail can render the
  * second half in italic teal. Handles "CareConnect" → ("Care", "Connect"),
@@ -88,22 +87,3 @@ function splitBrand(brand) {
   return { brandPrefix: '', brandSuffix: brand };
 }
 
-function PlaceholderPane({ view }) {
-  const labels = {
-    talk:      { eyebrow: 'Assistant · vertical care', headline: 'How can I help, Demo?',  copy: 'Phase 3b wires the chat composer + audit timeline here.' },
-    inspect:   { eyebrow: 'Inspect · session',         headline: 'Last exchanges',         copy: 'Phase 4 wraps ActivityLogPanel here.' },
-    configure: { eyebrow: 'Configure · runtime',       headline: 'Runtime knobs',          copy: 'Phase 5 wires configStore-backed settings here.' },
-  };
-  const { eyebrow, headline, copy } = labels[view];
-
-  return (
-    <div className="ac-placeholder">
-      <div className="ac-eyebrow">{eyebrow}</div>
-      <h1 className="ac-headline">{headline}</h1>
-      <p className="ac-copy">{copy}</p>
-      <p className="ac-kbd-hint">
-        Press <kbd>1</kbd> Talk &nbsp;·&nbsp; <kbd>2</kbd> Inspect &nbsp;·&nbsp; <kbd>3</kbd> Configure
-      </p>
-    </div>
-  );
-}
