@@ -93,6 +93,11 @@ async def agent_run(request: Request) -> StreamingResponse:
     # instead of whatever LANGCHAIN_LLM_PROVIDER is configured at startup.
     run_provider: Optional[str] = context.get("provider") or None
     run_model: Optional[str] = context.get("model") or None
+    # Non-sensitive identity injected by the BFF (userId + display email). The
+    # BFF never sends the user's access token here (token exchange stays in the
+    # BFF), so this is the only way the agent knows the caller is already
+    # authenticated and should not ask them to identify by email.
+    user_identity: Optional[Dict[str, Any]] = context.get("userIdentity") or None
 
     logger.info("[AG-UI] /run session=%s run=%s msg_len=%d bff_tools=%d provider=%s",
                 session_id, run_id, len(message), len(tool_schemas), run_provider or "default")
@@ -100,7 +105,8 @@ async def agent_run(request: Request) -> StreamingResponse:
     return StreamingResponse(
         _run_stream(run_id, session_id, message, auth_token, vertical_flavor,
                     bff_tool_url=bff_tool_url, tool_schemas=tool_schemas,
-                    messages_list=messages_list, run_provider=run_provider, run_model=run_model),
+                    messages_list=messages_list, run_provider=run_provider, run_model=run_model,
+                    user_identity=user_identity),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -117,6 +123,7 @@ async def _run_stream(
     messages_list: Optional[list] = None,
     run_provider: Optional[str] = None,
     run_model: Optional[str] = None,
+    user_identity: Optional[Dict[str, Any]] = None,
 ) -> AsyncGenerator[str, None]:
     """Drive the agent and yield SSE frames from an asyncio.Queue."""
     queue: asyncio.Queue = asyncio.Queue()
@@ -139,7 +146,7 @@ async def _run_stream(
         _invoke_agent(emitter, session_id, message, auth_token, finish, vertical_flavor,
                       bff_tool_url=bff_tool_url, tool_schemas=tool_schemas or [],
                       messages_list=messages_list or [], run_provider=run_provider,
-                      run_model=run_model)
+                      run_model=run_model, user_identity=user_identity)
     )
 
     try:
@@ -177,6 +184,7 @@ async def _invoke_agent(
     messages_list: Optional[list] = None,
     run_provider: Optional[str] = None,
     run_model: Optional[str] = None,
+    user_identity: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Invoke the message processor and drive emitter lifecycle."""
     if _message_processor is None:
@@ -209,6 +217,7 @@ async def _invoke_agent(
             messages_list=messages_list or [],
             run_provider=run_provider,
             run_model=run_model,
+            user_identity=user_identity,
         )
         await emitter.on_run_end()
     except Exception as exc:
