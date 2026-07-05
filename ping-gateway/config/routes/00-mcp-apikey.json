@@ -1,60 +1,18 @@
 {
+  "comment": "Phase 3 api-key credential-mediation route (reconstructed). #165 referenced an undefined 'RsFilterChain' heap object so it never built. This is a valid route mirroring 02-mcp-invest: rsFilter validates the inbound token (introspection), McpValidationFilter validates the MCP protocol AND buffers the request body so the terminal apikey-dispatch handler can re-read it (this buffering is what prevents the Vert.x event-loop deadlock on request.entity.string). The handler pulls the vault service key via the BFF bridge and calls demo_data_service with X-API-Key.",
   "name": "mcp-apikey-dispatcher",
   "condition": "${find(request.uri.path, '^/mcp/apikey')}",
-  "heap": [
-    {
-      "name": "SecretsStore",
-      "type": "SystemAndEnvSecretStore",
-      "config": {
-        "format": "PLAIN"
-      }
-    },
-    {
-      "name": "IntrospectionProviderHandler",
-      "type": "Chain",
-      "config": {
-        "filters": [
-          {
-            "name": "IntrospectionClientAuth",
-            "type": "ScriptableFilter",
-            "config": {
-              "type": "application/x-groovy",
-              "source": "import java.net.URLEncoder\ndef body = request.entity.string ?: ''\ndef cid = System.getenv('INTROSPECT_CLIENT_ID') ?: ''\ndef cs  = System.getenv('INTROSPECT_CLIENT_SECRET') ?: ''\nif (cid) { request.entity.setString(body + '&client_id=' + URLEncoder.encode(cid, 'UTF-8') + '&client_secret=' + URLEncoder.encode(cs, 'UTF-8')) }\nreturn next.handle(context, request)"
-            }
-          }
-        ],
-        "handler": {
-          "type": "ClientHandler"
-        }
-      }
-    },
-    {
-      "name": "RsFilterTokenResolver",
-      "type": "TokenIntrospectionAccessTokenResolver",
-      "config": {
-        "endpoint": "${env['PINGONE_INTROSPECTION_ENDPOINT']}",
-        "providerHandler": "IntrospectionProviderHandler"
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        "rsFilter",
+        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } }
+      ],
+      "handler": {
+        "type": "ScriptableHandler",
+        "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" }
       }
     }
-  ],
-  "baseURI": "${env['BANKING_API_URL']}",
-  "handler": "RsFilterChain",
-  "filters": [
-    {
-      "name": "ApiKeyDispatch",
-      "type": "ScriptableFilter",
-      "config": {
-        "type": "application/x-groovy",
-        "file": "scripts/groovy/apikey-dispatch.groovy"
-      }
-    },
-    {
-      "name": "P1AZDecisionGate",
-      "type": "ScriptableFilter",
-      "config": {
-        "type": "application/x-groovy",
-        "file": "scripts/groovy/p1az-decision-apikey.groovy"
-      }
-    }
-  ]
+  }
 }
