@@ -5,9 +5,9 @@
  * Always-float checkbox, Controls, Reset Demo, Customer badge, Token timer,
  * Search, avatar) with a single 44-px rail:
  *
- *   ┌ CareConnect ─────────── [▣ Talk · ◇ Inspect · ⊞ Configure] ─────────── SESSION · 25:54 · ⌕ · DU ┐
+ *   ┌ CareConnect ──── [▣ Talk · ◇ Inspect · ◉ Tokens · ⊞ Configure] ──── SESSION · 25:54 · ⌕ · DU ┐
  *
- * Keyboard 1 / 2 / 3 switch tabs (wired in AgentClinicalHost).
+ * Keyboard 1 / 2 / 3 / 4 switch tabs (wired in AgentClinicalHost).
  */
 export default function AgentTabsRail({
   view,
@@ -24,7 +24,8 @@ export default function AgentTabsRail({
       <div className="ac-tabs" role="tablist" aria-label="Agent view">
         <TabButton id="talk"      label="Talk"      glyph="▣" kbd="1" active={view === 'talk'}      onClick={onChange} />
         <TabButton id="inspect"   label="Inspect"   glyph="◇" kbd="2" active={view === 'inspect'}   onClick={onChange} />
-        <TabButton id="configure" label="Configure" glyph="⊞" kbd="3" active={view === 'configure'} onClick={onChange} />
+        <TabButton id="tokens"    label="Tokens"    glyph="◉" kbd="3" active={view === 'tokens'}    onClick={onChange} />
+        <TabButton id="configure" label="Configure" glyph="⊞" kbd="4" active={view === 'configure'} onClick={onChange} />
       </div>
 
       <div className="ac-rail-right">
