@@ -1,11 +1,13 @@
 #!/bin/bash
-# install-launchd.sh — keep the local llama-server model tiers alive across
-# logins/reboots so the agent's "llama.cpp only" mode never silently dies.
+# install-launchd.sh — keep the local LLM backend alive across logins/reboots so
+# the agent's "llama.cpp only" mode never silently dies — in SWAP MODE (minimal
+# RAM), NOT by loading all 5 tiers.
 #
-# Installs a per-user LaunchAgent that:
-#   - runs `start-local-models.sh start` at login (RunAtLoad), and
-#   - re-runs it every 5 minutes (StartInterval) — `start` is idempotent, so
-#     this only (re)starts tiers that have died; running tiers are left alone.
+# Installs a per-user LaunchAgent that runs `supervise-swap.sh` at login
+# (RunAtLoad) and every 5 minutes (StartInterval). supervise-swap keeps the
+# tier-manager daemon (:8097) up and ensures the SMALLEST tier is loaded only
+# when nothing is loaded — the router swaps up on demand and decays back. At
+# most one model is resident at a time (~2-12GB, not ~30GB).
 #
 # macOS only. Usage:
 #   bash demo_llm_proxy/install-launchd.sh            # install + load now
@@ -22,21 +24,21 @@ if [ "${1:-install}" = "uninstall" ]; then
   exit 0
 fi
 
-# Resolve the start script to an ABSOLUTE path in the MAIN checkout (not a git
+# Resolve the supervisor to an ABSOLUTE path in the MAIN checkout (not a git
 # worktree, which may be deleted) so the agent keeps working after cleanup.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_ROOT="$(cd "$(dirname "$(git -C "$SCRIPT_DIR" rev-parse --git-common-dir)")" && pwd)"
-START_SCRIPT="$MAIN_ROOT/demo_llm_proxy/start-local-models.sh"
-if [ ! -f "$START_SCRIPT" ]; then
-  echo "ERROR: start script not found at $START_SCRIPT" >&2
+SUPERVISE_SCRIPT="$MAIN_ROOT/demo_llm_proxy/supervise-swap.sh"
+if [ ! -f "$SUPERVISE_SCRIPT" ]; then
+  echo "ERROR: supervisor not found at $SUPERVISE_SCRIPT" >&2
   exit 1
 fi
 
-# launchd runs with a minimal PATH; the script calls a bare `llama-server`
-# (Homebrew). Include its real bin dir so it resolves under launchd.
+# launchd runs with a minimal PATH; the scripts call bare `llama-server`
+# (Homebrew) and `node`. Include their real bin dir so they resolve under launchd.
 LLAMA_BIN="$(command -v llama-server || echo /opt/homebrew/bin/llama-server)"
-BIN_DIR="$(dirname "$LLAMA_BIN")"
-PATH_ENV="$BIN_DIR:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+NODE_BIN="$(command -v node || echo /opt/homebrew/bin/node)"
+PATH_ENV="$(dirname "$LLAMA_BIN"):$(dirname "$NODE_BIN"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 mkdir -p "$HOME/Library/LaunchAgents" /tmp/llama-models
 
@@ -49,8 +51,7 @@ cat > "$PLIST" <<PLISTEOF
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>$START_SCRIPT</string>
-    <string>start</string>
+    <string>$SUPERVISE_SCRIPT</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -68,9 +69,10 @@ launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
 
 echo "Installed and loaded $LABEL"
-echo "  start script: $START_SCRIPT"
-echo "  PATH:         $PATH_ENV"
-echo "  plist:        $PLIST"
-echo "  log:          /tmp/llama-models/launchd.log"
-echo "  loads all 5 tiers at login + self-heals every 5 min (idempotent)."
-echo "  Uninstall:    bash demo_llm_proxy/install-launchd.sh uninstall"
+echo "  supervisor: $SUPERVISE_SCRIPT"
+echo "  PATH:       $PATH_ENV"
+echo "  plist:      $PLIST"
+echo "  log:        /tmp/llama-models/launchd.log"
+echo "  SWAP MODE: tier-manager + smallest tier only (at most one model resident);"
+echo "  router swaps up on demand and decays back. Re-checks every 5 min."
+echo "  Uninstall:  bash demo_llm_proxy/install-launchd.sh uninstall"
