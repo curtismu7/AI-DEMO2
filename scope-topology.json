@@ -1074,5 +1074,15 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     }
+  },
+  "policy": {
+    "authorization": {
+      "highValueConsentThresholdUsd": 250,
+      "stepUpThresholdUsd": 500,
+      "amountLimitsByTier": {
+        "standard": 2000,
+        "privatebanking": 50000
+      }
+    }
   }
 }

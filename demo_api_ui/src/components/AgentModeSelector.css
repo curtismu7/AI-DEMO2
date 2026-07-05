@@ -86,3 +86,16 @@
   padding: 1px 6px;
   white-space: nowrap;
 }
+/* Auto-deselect notice: shown when a dead mode is switched to Heuristics.
+   High-contrast amber (matches .ams-degraded), never muted hint text. */
+.ams-autoswitch {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+}

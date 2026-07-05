@@ -170,4 +170,12 @@ describe("resolveStatusVisual — unknown status falls to failed bucket", () => 
   it("'success' → bucket='active'", () => {
     expect(resolveStatusVisual("success").bucket).toBe("active");
   });
+
+  it("'valid' (gateway introspection active) → bucket='active', not failed", () => {
+    expect(resolveStatusVisual("valid").bucket).toBe("active");
+  });
+
+  it("'revoked' (gateway introspection inactive) → bucket='failed'", () => {
+    expect(resolveStatusVisual("revoked").bucket).toBe("failed");
+  });
 });

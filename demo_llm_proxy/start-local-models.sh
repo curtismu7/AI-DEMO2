@@ -8,7 +8,7 @@
 
 set -e
 
-MODELS_DIR="/Users/cmuir/models"
+MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 LOG_DIR="/tmp/llama-models"
 mkdir -p "$LOG_DIR"
 

@@ -382,8 +382,9 @@ async function evaluateMcpFirstTool({
   const _tierFlagOn = configStore.get('ff_authorize_group_policy') === 'true'
     || configStore.get('ff_authorize_group_policy') === true;
   if (_tierFlagOn) {
+    const _tierPolicy = getTierPolicy();
     const _userTier = _resolveUserTierFromGroups(userGroups);
-    const _tierConfig = NNP8_TIER_POLICY[_userTier] || NNP8_TIER_POLICY[NNP8_DEFAULT_TIER];
+    const _tierConfig = _tierPolicy[_userTier] || _tierPolicy[NNP8_DEFAULT_TIER];
     // (a) Tool restriction: privateBankingOnlyTools are denied for non-PrivateBanking tiers.
     if (_tierConfig.privateBankingOnlyTools.length > 0 &&
         toolName && _tierConfig.privateBankingOnlyTools.includes(toolName)) {
@@ -420,8 +421,8 @@ async function evaluateMcpFirstTool({
           deny_reason: 'tier_amount_exceeded',
           reason:
             `UC21 entitlement-tier capability — $${amount} exceeds the "${_userTier}" tier ceiling ` +
-            `of $${_tierConfig.maxAmountUsd}. PrivateBanking members have a $50,000 ceiling; ` +
-            `Standard members are capped at $${NNP8_TIER_POLICY.Standard.maxAmountUsd}.`,
+            `of $${_tierConfig.maxAmountUsd}. PrivateBanking members have a $${_tierPolicy.PrivateBanking.maxAmountUsd} ceiling; ` +
+            `Standard members are capped at $${_tierPolicy.Standard.maxAmountUsd}.`,
         },
       };
       recordSimulatedDecision(tierAmtOut);
@@ -642,6 +643,58 @@ async function evaluateMcpFirstTool({
         };
       }
     }
+  } else if (toolName && scopeTopology.toolDeclaresChallenge(toolName)) {
+    // No-amount tool that DECLARES a challengeType in the SoT (consent or
+    // step-up). Parity fix: the P1AZ snapshot policy gates these by tool NAME
+    // (RequiresMcpStepUp: ToolName IN {step_up} AND NOT HasMFAAuthentication;
+    // RequiresHitlConsent: ToolName IN {consent} AND HitlApproved != true), and
+    // the mock authz server does the same via `declaresChallenge`. Previously
+    // this engine fell through to PERMIT, so a consent/step-up tool carrying no
+    // transaction amount (book_appointment, checkout, release_*, sensitive_*)
+    // was silently permitted here while the real engine challenged it.
+    //
+    // Guards mirror the snapshot exactly: STEP_UP is discharged by a strong ACR
+    // (HasMFAAuthentication) and can NEVER be satisfied by a HITL receipt (IMP-3);
+    // consent is discharged only by a verified receipt (hitlApproved), not by ACR.
+    const challengeType = scopeTopology.toolChallengeType(toolName); // 'step_up' | 'consent'
+    const acrStrong = acrLooksStrong(acr);
+    const nameCandidates = [];
+    if (challengeType === 'step_up' && !acrStrong) {
+      nameCandidates.push({ type: 'STEP_UP', detail: 'MFA required — step-up tool (challengeType=step_up).' });
+    } else if (challengeType !== 'step_up' && !hitlApproved) {
+      nameCandidates.push({ type: 'HITL_CONSENT', detail: 'Confirmation required — consent tool (challengeType=consent).' });
+    }
+    const nameFlags = classifyObligations(nameCandidates);
+    if (nameFlags.stepUpRequired) {
+      out = {
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'INDETERMINATE', obligations: nameCandidates, enforced: 'STEP_UP', reason: `Tool "${toolName}" is a step-up tool (challengeType=step_up).` },
+      };
+    } else if (nameFlags.consentRequired) {
+      out = {
+        decision: 'INDETERMINATE',
+        stepUpRequired: false,
+        hitlRequired: true,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'INDETERMINATE', obligations: nameCandidates, enforced: 'HITL_CONSENT', reason: `Tool "${toolName}" is a consent tool (challengeType=consent).` },
+      };
+    } else {
+      // Gate discharged (step-up tool with strong ACR, or consent tool with an
+      // approved receipt) → PERMIT.
+      out = {
+        decision: 'PERMIT',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'PERMIT', obligations: [], enforced: challengeType === 'step_up' ? 'STEP_UP_SATISFIED' : 'HITL_CONSENT_SATISFIED', reason: `Challenge tool "${toolName}" satisfied (ACR/receipt).` },
+      };
+    }
   } else {
     out = {
       decision: 'PERMIT',
@@ -687,21 +740,24 @@ function acrLooksStrong(acr) {
 }
 
 // ── NNP-8 tier policy (UC21) — entitlement-tiered capability ──────────────────
-// Parity: this constant must be identical in
+// Parity: amount limits must be identical in
 // demo_authz_server/routes/decision.js (Rule 3d).
-const NNP8_TIER_POLICY = {
-  PrivateBanking: {
-    maxAmountUsd: 50000,
-    // No tool restrictions — all write tools permitted at elevated limits.
-    privateBankingOnlyTools: [],
-  },
-  Standard: {
-    maxAmountUsd: 2000,
-    // These tools are only available to PrivateBanking members.
-    privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
-  },
-};
+// Reads tier limits from scope-topology.json policy.authorization.amountLimitsByTier.
 const NNP8_DEFAULT_TIER = 'Standard';
+
+function getTierPolicy() {
+  const limits = scopeTopology.amountLimitsByTier();
+  return {
+    PrivateBanking: {
+      maxAmountUsd: limits.privatebanking || 50000,
+      privateBankingOnlyTools: [],
+    },
+    Standard: {
+      maxAmountUsd: limits.standard || 2000,
+      privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
+    },
+  };
+}
 
 function _resolveUserTierFromGroups(userGroups) {
   if (Array.isArray(userGroups) && userGroups.includes('PrivateBanking')) return 'PrivateBanking';
@@ -929,6 +985,22 @@ function resolveAuthorizeMode(configStore) {
   const read = (k) => (configStore.getEffective ? configStore.getEffective(k) : configStore.get(k));
   // Legacy ff_authorize_fail_open=true maps to failover_mode=permit (back-compat).
   const legacyFailOpen = read('ff_authorize_fail_open') === 'true' || read('ff_authorize_fail_open') === true;
+
+  // ff_authorize_simulated is a DIRECT operator override: the QuickFlagsPill
+  // "Authorize Engine → Simulated" switch writes it, and the PingGateway
+  // X-Authz-Simulated header reads it directly per request. When it is explicitly
+  // true, force the simulated engine for the BFF transaction path too — otherwise
+  // authorize_mode's FIELD_DEFS default ('pingone') always won the explicit branch
+  // below and this flag was dead for the BFF, so flipping the pill left dashboard
+  // transfers on real P1AZ while MCP calls went to the mock (split brain).
+  const simOverride = read('ff_authorize_simulated');
+  if (simOverride === true || simOverride === 'true') {
+    return {
+      mode: 'simulated',
+      useSimulated: true,
+      failoverMode: legacyFailOpen ? 'permit' : 'fallback_simulated',
+    };
+  }
 
   const explicit = String(read('authorize_mode') || '').trim();
   if (AUTHORIZE_MODES.includes(explicit)) {

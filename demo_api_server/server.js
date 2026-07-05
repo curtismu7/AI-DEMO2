@@ -964,13 +964,17 @@ app.use('/api/pingone/setup', pingoneSetupRoutes);
 // Feature flags — registered before the broader /api/admin/* guard so this
 // more-specific path matches first (Express prefix order) and is NOT subjected
 // to the authenticateToken middleware on /api/admin.
-// INTENTIONALLY UNAUTHENTICATED (commit a1047b03): both GET and PATCH are open.
-// This is a deliberate demo-ergonomics choice so flags can be toggled without an
-// admin session. Trade-off: any caller can flip security-relevant flags
+// UNAUTHENTICATED BY DEFAULT (commit a1047b03): both GET and PATCH are open so
+// flags can be toggled without an admin session — a deliberate demo-ergonomics
+// choice. Trade-off: any caller can flip security-relevant flags
 // (ff_hitl_enabled, step_up_enabled, ff_skip_token_exchange, ff_inject_*).
-// See REGRESSION_PLAN.md §1 "configStore / Config UI" — do not silently add an
-// auth gate here without updating that entry and the demo docs.
-app.use('/api/admin/feature-flags', featureFlagsRoutes);
+//
+// OPT-IN HARDENING: set FF_ADMIN_REQUIRE_AUTH=true to require an authenticated
+// session for MUTATIONS (PATCH). Default OFF preserves the any-signed-in-user
+// flow the header pill relies on; reads stay open in both modes so the pill can
+// always display flag state. See REGRESSION_PLAN.md §1 "configStore / Config UI".
+const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate');
+app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
 app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudit'));
 app.use('/api/admin/token-compliance', authenticateToken, require('./routes/tokenCompliance'));
 app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouseRoute'));
@@ -1024,6 +1028,7 @@ app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
+app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
@@ -2155,6 +2160,20 @@ async function runBackgroundStartupTasks() {
         await ensureDemoPersonaRoles();
     } catch (err) {
         console.warn('[persona-roles] error (non-fatal):', err.message);
+    }
+
+    // Self-healing for the RFC 8693 two-exchange delegation chain: verifies
+    // (and repairs) mirroredScopes + app grants on the Agent/MCP Gateway
+    // resources against scope-topology.json, so the banking chips never grey
+    // out from a missed provisioning step. Non-blocking; opt out with
+    // TWO_EXCHANGE_RECONCILE_ON_STARTUP=false.
+    if (process.env.TWO_EXCHANGE_RECONCILE_ON_STARTUP !== 'false') {
+        try {
+            const { reconcileTwoExchangeGrants } = require('./services/twoExchangeReconciler');
+            await reconcileTwoExchangeGrants();
+        } catch (err) {
+            console.warn('[two-exchange-reconciler] error (non-fatal):', err.message);
+        }
     }
 
     // Bootstrap: the FIDO2 policy relying-party id must match the app's serving
