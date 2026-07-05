@@ -189,28 +189,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
     console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
 
-    // Extract the gateway's audit trail (X-Gw-Audit-Trail) up-front, BEFORE the
-    // status branches below throw. The gateway sets this header on PERMIT *and*
-    // DENY (403); parsing it here — rather than after the throws — means the admin
-    // decisions panel captures every outcome, including the denies operators most
-    // want to see. record() is best-effort and tolerates an absent/partial trail.
-    let gwAuditTrail = null;
-    const auditHeader = response.headers['x-gw-audit-trail'];
-    if (auditHeader) {
-        try {
-            gwAuditTrail = JSON.parse(auditHeader);
-            console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
-            require('./agentGatewayDecisions').record(gwAuditTrail, {
-                tool,
-                correlationId: body.id ? String(body.id) : '',
-            });
-        } catch (err) {
-            console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
-        }
-    } else {
-        console.log('[GW→PingGateway] No X-Gw-Audit-Trail header on response');
-    }
-
     if (status === 401) {
         const body401 = response.data || {};
         const gatewayError = body401.error || 'gateway_auth_failed';
@@ -358,6 +336,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 httpStatus: 403,
                 gatewayErrorCode: body403.error || 'forbidden',
                 gatewayMessage: body403.message || '',
+                // Preserve the gateway's P1AZ decision trail (decision=DENY,
+                // decisionId, engine) so callers can render the denial in the
+                // token chain instead of dropping it as an opaque error.
+                gwAuditTrail: _parseGwAuditTrail(response),
             },
         );
     }
@@ -386,6 +368,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         );
     }
 
+    // Extract audit trail header if present (set by gateway on all responses)
+    const gwAuditTrail = _parseGwAuditTrail(response);
+    if (gwAuditTrail) {
+        console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
+    } else {
+        console.log('[GW→PingGateway] No X-Gw-Audit-Trail header on response');
+    }
 
     // JSON-RPC error envelope in a 200 response (e.g. gateway api_key dispatch
     // failed to reach the backend). Surface as a structured error so callers
@@ -430,6 +419,23 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
  * Throws if neither is set — an unconfigured gateway must fail explicitly,
  * not silently use a stale default that produces a confusing connection error.
  */
+/**
+ * Parse the gateway's X-Gw-Audit-Trail header (decision, decisionId, engine,
+ * attributes). Returns null when absent or unparseable. The gateway sets this
+ * header on ALL responses including 403 denials, so it must be read before any
+ * status-based throw if the P1AZ decision is to survive into the token chain.
+ */
+function _parseGwAuditTrail(response) {
+    const h = response && response.headers && response.headers['x-gw-audit-trail'];
+    if (!h) return null;
+    try {
+        return JSON.parse(h);
+    } catch (err) {
+        console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
+        return null;
+    }
+}
+
 function getMcpGatewayHttpUrl() {
     // ff_mcp_gateway_pinggateway: a runtime user choice (via /config) to route MCP
     // traffic through PingGateway (IG) instead of the Node gateway. When ON and a
