@@ -1505,6 +1505,7 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
   // MCP Resource Server — the gateway re-exchanges to this audience downstream.
@@ -1521,6 +1522,7 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
   // WR-19: warn when no resource URIs are configured (pre-bootstrap state)
