@@ -3,6 +3,7 @@ import { useVertical } from '../../vertical/useVertical';
 import AgentTabsRail from './AgentTabsRail';
 import TalkPane from './TalkPane';
 import InspectPane from './InspectPane';
+import TokensPane from './TokensPane';
 import ConfigurePane from './ConfigurePane';
 import './clinical.css';
 
@@ -10,10 +11,11 @@ import './clinical.css';
  * AgentClinicalHost — top-level shell for the 2B refined dashboard.
  *
  * Owns the active-tab state and the keyboard shortcuts (1 = Talk, 2 = Inspect,
- * 3 = Configure). Renders the rail + the active pane stack: TalkPane (chat +
- * token timeline), InspectPane (live activity log) and ConfigurePane
- * (authorize rules + runtime status). Panes mount only while active so their
- * data layers (SSE stream, fetches) start on tab enter and stop on tab leave.
+ * 3 = Tokens, 4 = Configure). Renders the rail + the active pane stack:
+ * TalkPane (chat + token timeline), InspectPane (live activity log),
+ * TokensPane (full token chain inspector) and ConfigurePane (authorize rules
+ * + runtime status). Panes mount only while active so their data layers
+ * (SSE stream, fetches) start on tab enter and stop on tab leave.
  */
 export default function AgentClinicalHost() {
   const [view, setView] = useState('talk');
@@ -33,7 +35,7 @@ export default function AgentClinicalHost() {
     setView(next);
   }, []);
 
-  // Keyboard 1 / 2 / 3 switch tabs. Skipped when focus is in an input so
+  // Keyboard 1 / 2 / 3 / 4 switch tabs. Skipped when focus is in an input so
   // typing "1" into a textarea doesn't snap the view away.
   useEffect(() => {
     const onKey = (e) => {
@@ -43,7 +45,8 @@ export default function AgentClinicalHost() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return;
       if (e.key === '1') setView('talk');
       else if (e.key === '2') setView('inspect');
-      else if (e.key === '3') setView('configure');
+      else if (e.key === '3') setView('tokens');
+      else if (e.key === '4') setView('configure');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -63,6 +66,7 @@ export default function AgentClinicalHost() {
       <main className="ac-pane" role="tabpanel" aria-label={`${view} pane`}>
         {view === 'talk' && <TalkPane />}
         {view === 'inspect' && <InspectPane />}
+        {view === 'tokens' && <TokensPane />}
         {view === 'configure' && <ConfigurePane />}
       </main>
     </div>
