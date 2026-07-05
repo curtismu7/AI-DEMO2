@@ -184,6 +184,13 @@
   display: none;
 }
 
+/* Items in the scroll row must not shrink — a squashed item paints its
+   nowrap content over its neighbors (overflow is visible on them). Keeping
+   them full-size makes the row scroll instead, which is its designed job. */
+.topnav-right-scroll > * {
+  flex-shrink: 0;
+}
+
 /* UserMenu is always visible — sits outside the scrollable area */
 .topnav-right > .user-menu {
   flex-shrink: 0;

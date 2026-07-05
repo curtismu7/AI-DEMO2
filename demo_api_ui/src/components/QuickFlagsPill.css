@@ -8,7 +8,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+  color: var(--brand-topnav-text, #ffffff); /* pill lives on the topnav; inherit picks up dark body text */
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
