@@ -658,5 +658,16 @@ router.get('/inventory', async (_req, res) => {
   return res.status(200).json({ services, timestamp: new Date().toISOString() });
 });
 
+/**
+ * GET /inventory/sizes
+ * Docker image size, live container memory, and codebase size per inventory
+ * entry — separate from /inventory so the 15s status poll never pays for
+ * docker-stats or directory walks. Always 200; unavailable data is null.
+ */
+router.get('/inventory/sizes', async (_req, res) => {
+  const { getServerSizes } = require('../services/serverSizes');
+  return res.status(200).json(await getServerSizes());
+});
+
 module.exports = router;
 

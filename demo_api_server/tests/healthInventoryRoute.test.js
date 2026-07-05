@@ -1,6 +1,12 @@
 'use strict';
 
 jest.mock('axios');
+jest.mock('../services/serverSizes', () => ({
+  getServerSizes: jest.fn().mockResolvedValue({
+    sizes: { 'api-server': { imageBytes: 1, memBytes: 2, memLimitBytes: 3, codeBytes: 4 } },
+    timestamp: '2026-07-04T00:00:00.000Z',
+  }),
+}));
 const axios = require('axios');
 const request = require('supertest');
 const express = require('express');
@@ -49,5 +55,14 @@ describe('GET /api/health/inventory', () => {
     const gw = res.body.services.find((s) => s.key === 'mcp-gateway');
     expect(gw.up).toBe(true);
     expect(gw.url).toContain('localhost:3005');
+  });
+});
+
+describe('GET /api/health/inventory/sizes', () => {
+  test('returns 200 with the serverSizes payload', async () => {
+    const res = await request(buildApp()).get('/api/health/inventory/sizes');
+    expect(res.status).toBe(200);
+    expect(res.body.sizes['api-server']).toEqual({ imageBytes: 1, memBytes: 2, memLimitBytes: 3, codeBytes: 4 });
+    expect(res.body.timestamp).toBeTruthy();
   });
 });
