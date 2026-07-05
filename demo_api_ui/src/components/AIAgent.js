@@ -5399,6 +5399,12 @@ export default function BankingAgent({
       return;
     }
 
+    // New typed turn: start a fresh token-chain trace with the user's prompt
+    // (same as sendAsNlInner — the chat input box routes here, not there).
+    try {
+      tokenChainTraceStore.beginTrace({ prompt: text });
+    } catch (_) { /* display-only */ }
+
     const signal = beginAbortableSend();
 
     // Clarification-follow-up path: if our previous turn asked "Which

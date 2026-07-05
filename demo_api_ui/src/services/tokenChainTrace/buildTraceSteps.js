@@ -187,7 +187,8 @@ export function buildTraceSteps(trace) {
     (gwAz || gwIntro || gwDenied) ? {
       decision: gwDenied
         ? { outcome: "DENY",
-            label: `DENY — ${gwDeniedPhase.detail || gwDeniedPhase.label || "gateway policy"}` }
+            // serverEvents rows use "—" as the empty-detail placeholder
+            label: `DENY — ${(gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label) || "gateway policy"}` }
         : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
