@@ -382,8 +382,9 @@ async function evaluateMcpFirstTool({
   const _tierFlagOn = configStore.get('ff_authorize_group_policy') === 'true'
     || configStore.get('ff_authorize_group_policy') === true;
   if (_tierFlagOn) {
+    const _tierPolicy = getTierPolicy();
     const _userTier = _resolveUserTierFromGroups(userGroups);
-    const _tierConfig = NNP8_TIER_POLICY[_userTier] || NNP8_TIER_POLICY[NNP8_DEFAULT_TIER];
+    const _tierConfig = _tierPolicy[_userTier] || _tierPolicy[NNP8_DEFAULT_TIER];
     // (a) Tool restriction: privateBankingOnlyTools are denied for non-PrivateBanking tiers.
     if (_tierConfig.privateBankingOnlyTools.length > 0 &&
         toolName && _tierConfig.privateBankingOnlyTools.includes(toolName)) {
@@ -420,8 +421,8 @@ async function evaluateMcpFirstTool({
           deny_reason: 'tier_amount_exceeded',
           reason:
             `UC21 entitlement-tier capability — $${amount} exceeds the "${_userTier}" tier ceiling ` +
-            `of $${_tierConfig.maxAmountUsd}. PrivateBanking members have a $50,000 ceiling; ` +
-            `Standard members are capped at $${NNP8_TIER_POLICY.Standard.maxAmountUsd}.`,
+            `of $${_tierConfig.maxAmountUsd}. PrivateBanking members have a $${_tierPolicy.PrivateBanking.maxAmountUsd} ceiling; ` +
+            `Standard members are capped at $${_tierPolicy.Standard.maxAmountUsd}.`,
         },
       };
       recordSimulatedDecision(tierAmtOut);
@@ -739,21 +740,24 @@ function acrLooksStrong(acr) {
 }
 
 // ── NNP-8 tier policy (UC21) — entitlement-tiered capability ──────────────────
-// Parity: this constant must be identical in
+// Parity: amount limits must be identical in
 // demo_authz_server/routes/decision.js (Rule 3d).
-const NNP8_TIER_POLICY = {
-  PrivateBanking: {
-    maxAmountUsd: 50000,
-    // No tool restrictions — all write tools permitted at elevated limits.
-    privateBankingOnlyTools: [],
-  },
-  Standard: {
-    maxAmountUsd: 2000,
-    // These tools are only available to PrivateBanking members.
-    privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
-  },
-};
+// Reads tier limits from scope-topology.json policy.authorization.amountLimitsByTier.
 const NNP8_DEFAULT_TIER = 'Standard';
+
+function getTierPolicy() {
+  const limits = scopeTopology.amountLimitsByTier();
+  return {
+    PrivateBanking: {
+      maxAmountUsd: limits.privatebanking || 50000,
+      privateBankingOnlyTools: [],
+    },
+    Standard: {
+      maxAmountUsd: limits.standard || 2000,
+      privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
+    },
+  };
+}
 
 function _resolveUserTierFromGroups(userGroups) {
   if (Array.isArray(userGroups) && userGroups.includes('PrivateBanking')) return 'PrivateBanking';
