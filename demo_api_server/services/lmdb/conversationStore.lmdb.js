@@ -14,13 +14,68 @@
  */
 
 const { getDb } = require('./openEnv');
+const crypto = require('crypto');
 
 const DB_NAME = 'conversations';
+const SUMMARIES_TABLE = 'conversation_summaries';
 const MAX_MESSAGES_PER_THREAD = 500;
 const DEFAULT_HISTORY_LIMIT = 30;
 
+// Regex patterns for extraction-based summaries (Phase 1)
+const ACCOUNT_PATTERN = /account\s*(?:number|no|#|id)?[\s:]*([A-Za-z0-9]{10,20})/gi;
+const AMOUNT_PATTERN = /(?:amount|transfer|pay)[\s:]*\$?([\d,]+(?:\.\d{2})?)/gi;
+const ACTION_KEYWORDS = /(?:transfer|send|pay|deposit|withdraw|check|balance|open|close|apply|approve|deny)/gi;
+
 function _db() {
   return getDb(DB_NAME);
+}
+
+/**
+ * Generate a unique summary ID.
+ * @returns {string} - e.g., "sum_a1b2c3d4"
+ */
+function _generateSummaryId() {
+  return 'sum_' + crypto.randomBytes(4).toString('hex');
+}
+
+/**
+ * Extract key entities and actions from conversation text (extraction-based summary).
+ * Phase 1: simple regex + keyword extraction (no LLM).
+ * @param {array} messages - conversation messages
+ * @returns {object} - { accountNumbers, actions, keyTopics, summary }
+ */
+function _extractSummary(messages) {
+  const accountNumbers = new Set();
+  const amounts = new Set();
+  const actions = new Set();
+  const fullText = messages.map((m) => m.content || '').join('\n');
+
+  // Extract account numbers
+  let match;
+  while ((match = ACCOUNT_PATTERN.exec(fullText)) !== null) {
+    accountNumbers.add(match[1]);
+  }
+
+  // Extract amounts
+  while ((match = AMOUNT_PATTERN.exec(fullText)) !== null) {
+    amounts.add(match[1]);
+  }
+
+  // Extract action keywords
+  while ((match = ACTION_KEYWORDS.exec(fullText)) !== null) {
+    actions.add(match[0].toLowerCase());
+  }
+
+  // Build a human-readable summary snippet from the last assistant message
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  const summaryText = lastAssistant ? lastAssistant.content.substring(0, 200) : 'User requested banking assistance.';
+
+  return {
+    accountNumbers: Array.from(accountNumbers).slice(0, 5), // Top 5
+    amounts: Array.from(amounts).slice(0, 3),
+    actions: Array.from(actions),
+    summary: summaryText,
+  };
 }
 
 /**
@@ -177,11 +232,102 @@ function getThreadSize(userId, vertical) {
   return count;
 }
 
+/**
+ * Save a summary of a conversation range to the summaries table.
+ * Phase 1: extraction-based (no LLM).
+ * @param {string} userId - user identifier
+ * @param {string} vertical - vertical/context
+ * @param {array} messages - messages to summarize
+ * @param {number} sourceStartIdx - start index in thread
+ * @param {number} sourceEndIdx - end index in thread
+ * @returns {object} - { summaryId, summary, metadata }
+ */
+function saveSummary(userId, vertical, messages, sourceStartIdx, sourceEndIdx) {
+  const db = _db();
+  const summaryId = _generateSummaryId();
+  const extracted = _extractSummary(messages);
+  const originalLength = messages.reduce((sum, m) => sum + (m.content || '').length, 0);
+
+  const summaryObj = {
+    id: summaryId,
+    createdAt: Date.now(),
+    userId,
+    vertical,
+    sourceStartIdx,
+    sourceEndIdx,
+    originalMessages: messages.length,
+    originalLength,
+    summary: extracted.summary,
+    keyEntities: {
+      accountNumbers: extracted.accountNumbers,
+      amounts: extracted.amounts,
+      actions: extracted.actions,
+    },
+    lossRatio: 0.75, // Placeholder: actual ratio computed later with LLM
+    method: 'extraction', // Phase 1: extraction-based
+  };
+
+  const key = `${userId}:${vertical}:_summary:${summaryId}`;
+  db.putSync(key, summaryObj);
+
+  return { summaryId, summary: extracted.summary, metadata: summaryObj };
+}
+
+/**
+ * Get all summaries for a thread.
+ * @param {string} userId - user identifier
+ * @param {string} vertical - vertical/context
+ * @returns {array} - summaries for this thread
+ */
+function getSummaries(userId, vertical) {
+  const db = _db();
+  const prefix = `${userId}:${vertical}:_summary:`;
+  const summaries = [];
+
+  for (const { key, value } of db.getRange({
+    start: prefix,
+    end: `${prefix}￿`,
+  })) {
+    if (value) summaries.push(value);
+  }
+
+  return summaries;
+}
+
+/**
+ * Check if summarization is needed (Phase 1: placeholder, always returns false).
+ * Phase 2 will implement actual token-budget + turn-count triggers.
+ * @param {string} userId - user identifier
+ * @param {string} vertical - vertical/context
+ * @returns {boolean} - true if summarization should be triggered
+ */
+function isSummarizationNeeded(userId, vertical) {
+  // Phase 1: disabled by default. Phase 2 will implement real triggers.
+  return process.env.AUTO_SUMMARIZE === 'true';
+}
+
+/**
+ * Mark messages as included in a summary (adds metadata to original messages).
+ * Phase 1: placeholder (actual marking deferred to Phase 2).
+ * @param {string} userId - user identifier
+ * @param {string} vertical - vertical/context
+ * @param {number} startIdx - start index
+ * @param {number} endIdx - end index
+ * @param {string} summaryId - summary ID
+ */
+function markMessagesInSummary(userId, vertical, startIdx, endIdx, summaryId) {
+  // Phase 1: no-op. Phase 2 will update message metadata with _summary field.
+}
+
 module.exports = {
   saveMessage,
   getHistory,
   clearHistory,
   getThreadSize,
+  saveSummary,
+  getSummaries,
+  isSummarizationNeeded,
+  markMessagesInSummary,
   DEFAULT_HISTORY_LIMIT,
   MAX_MESSAGES_PER_THREAD,
 };

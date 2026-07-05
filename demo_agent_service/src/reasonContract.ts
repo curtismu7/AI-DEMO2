@@ -27,6 +27,12 @@ export interface ReasonRequest {
   anthropicApiKey?: string;
 }
 
+export interface ReasoningState {
+  phase: 'planning' | 'tool_selection' | 'tool_execution' | 'synthesis';
+  toolOptions?: Array<{ toolName: string; description?: string; confidence?: number }>;
+  contextTokens?: { inputTokens: number; outputTokens?: number; estimatedTotal: number; pctWindow: number };
+}
+
 export type ReasonResponse =
-  | { type: 'tool_calls'; calls: Array<{ id: string; name: string; args: Record<string, unknown> }>; messages: ReasonMessage[] }
-  | { type: 'final'; answer: string; messages: ReasonMessage[]; reasoningUnavailable?: boolean; inputTokens?: number; outputTokens?: number };
+  | { type: 'tool_calls'; calls: Array<{ id: string; name: string; args: Record<string, unknown> }>; messages: ReasonMessage[]; reasoning?: ReasoningState }
+  | { type: 'final'; answer: string; messages: ReasonMessage[]; reasoningUnavailable?: boolean; inputTokens?: number; outputTokens?: number; reasoning?: ReasoningState };

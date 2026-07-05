@@ -112,4 +112,67 @@ router.delete('/:userId/:vertical/history', (req, res) => {
   return res.json({ cleared: true });
 });
 
+/**
+ * POST /:userId/:vertical/summarize?range=0-30
+ * Trigger a summary of messages in the given range (for testing Phase 1).
+ * Query params:
+ *   range=startIdx-endIdx (e.g., "0-10" for first 10 messages)
+ */
+router.post('/:userId/:vertical/summarize', express.json(), (req, res) => {
+  const { userId, vertical } = req.params;
+  const range = req.query.range || '';
+
+  if (!userId || !vertical) {
+    return res.status(400).json({ error: 'userId and vertical are required' });
+  }
+
+  if (!range) {
+    return res.status(400).json({ error: 'range query parameter required (e.g., "0-10")' });
+  }
+
+  const [startStr, endStr] = range.split('-');
+  const startIdx = parseInt(startStr, 10);
+  const endIdx = parseInt(endStr, 10);
+
+  if (isNaN(startIdx) || isNaN(endIdx) || startIdx < 0 || endIdx <= startIdx) {
+    return res.status(400).json({ error: 'invalid range (expected startIdx-endIdx with startIdx < endIdx)' });
+  }
+
+  try {
+    const history = conversationStore.getHistory(userId, vertical, 500);
+    const messagesToSummarize = history.slice(startIdx, Math.min(endIdx, history.length));
+
+    if (messagesToSummarize.length === 0) {
+      return res.status(404).json({ error: 'no messages in the specified range' });
+    }
+
+    // Phase 1: extraction-based summary
+    const result = conversationStore.saveSummary(userId, vertical, messagesToSummarize, startIdx, endIdx);
+    return res.json({ summaryId: result.summaryId, summary: result.summary, metadata: result.metadata });
+  } catch (err) {
+    console.error('[conversations.POST.summarize] Error:', err.message);
+    return res.status(500).json({ error: 'failed to create summary' });
+  }
+});
+
+/**
+ * GET /:userId/:vertical/summaries
+ * Retrieve all summaries for a thread.
+ */
+router.get('/:userId/:vertical/summaries', (req, res) => {
+  const { userId, vertical } = req.params;
+
+  if (!userId || !vertical) {
+    return res.status(400).json({ error: 'userId and vertical are required' });
+  }
+
+  try {
+    const summaries = conversationStore.getSummaries(userId, vertical);
+    return res.json({ summaries, count: summaries.length });
+  } catch (err) {
+    console.error('[conversations.GET.summaries] Error:', err.message);
+    return res.status(500).json({ error: 'failed to retrieve summaries' });
+  }
+});
+
 module.exports = router;
