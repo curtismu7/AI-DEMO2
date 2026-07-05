@@ -173,7 +173,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     console.log('[GW→PingGateway] HEADERS: %j', Object.fromEntries(
         Object.entries(headers).filter(([k]) => k.toLowerCase() !== 'authorization')
     ));
-    console.log('[GW→PingGateway] BODY: %j', body);
+    // Tool-call/response payloads can contain banking records — log them only when
+    // explicitly opted in (MCP_GATEWAY_LOG_BODIES=true), not by default.
+    if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
+        console.log('[GW→PingGateway] BODY: %j', body);
+    }
 
     let response;
     try {
@@ -195,7 +199,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const status = response.status;
     console.log('[GW→PingGateway] RESPONSE: status=%d', status);
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
-    console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
+    if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {
+        console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
+    } else {
+        console.log('[GW→PingGateway] RESPONSE BODY: <redacted; set MCP_GATEWAY_LOG_BODIES=true to log payloads>');
+    }
 
     if (status === 401) {
         const body401 = response.data || {};
