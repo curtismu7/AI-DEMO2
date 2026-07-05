@@ -611,5 +611,52 @@ router.get('/mcp-gateway', async (_req, res) => {
   }
 });
 
+/**
+ * GET /inventory
+ * Full server inventory (docs/server-inventory-sot.md) + live probes for the
+ * /servers page. Always 200 — a down service is data, not an error. Probes
+ * try each candidate base URL in order (env override → compose hostname →
+ * localhost) so the endpoint works in docker and native runs alike.
+ */
+router.get('/inventory', async (_req, res) => {
+  const { SERVER_INVENTORY } = require('../data/serverInventory');
+
+  const probeEntry = async (entry) => {
+    const path = entry.healthPath || '/health';
+    let lastError = 'no_candidates';
+    for (const base of entry.candidates || []) {
+      const url = `${base.replace(/\/$/, '')}${path}`;
+      const start = Date.now();
+      try {
+        await axios.get(url, {
+          timeout: 2500,
+          httpsAgent: _devHttpsAgent,
+          ...(entry.acceptAnyStatus ? { validateStatus: () => true } : {}),
+        });
+        return { up: true, latencyMs: Date.now() - start, url };
+      } catch (e) {
+        lastError = e.code || e.message;
+      }
+    }
+    return { up: false, error: lastError };
+  };
+
+  const services = await Promise.all(
+    SERVER_INVENTORY.map(async (entry) => {
+      const meta = {
+        key: entry.key, name: entry.name, container: entry.container,
+        hostPort: entry.hostPort, internalPort: entry.internalPort,
+        lang: entry.lang, purpose: entry.purpose, category: entry.category,
+        probe: entry.probe,
+      };
+      if (entry.probe === 'self') return { ...meta, up: true };
+      if (entry.probe !== true) return { ...meta, up: null };
+      return { ...meta, ...(await probeEntry(entry)) };
+    })
+  );
+
+  return res.status(200).json({ services, timestamp: new Date().toISOString() });
+});
+
 module.exports = router;
 
