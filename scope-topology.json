@@ -4,20 +4,10 @@
   "deployment": {
     "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only.",
     "environments": {
-      "local": {
-        "publicAppUrl": "https://demo-api-server:3001",
-        "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp"
-      },
-      "k8s": {
-        "publicAppUrl": "https://ai-demo.ping-devops.com",
-        "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp"
-      }
+      "local": { "publicAppUrl": "https://demo-api-server:3001", "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp" },
+      "k8s": { "publicAppUrl": "https://ai-demo.ping-devops.com", "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp" }
     },
-    "redirectUris": {
-      "_comment": "Derived from publicAppUrl by configStore at startup. Uncomment and set manually only to override auto-derivation.",
-      "adminCallback": "/api/auth/oauth/callback",
-      "userCallback": "/api/auth/oauth/user/callback"
-    }
+    "redirectUris": { "_comment": "Derived from publicAppUrl by configStore at startup. Uncomment and set manually only to override auto-derivation.", "adminCallback": "/api/auth/oauth/callback", "userCallback": "/api/auth/oauth/user/callback" }
   },
   "provisioning": {
     "appPrefix": "Demo AI App",
@@ -85,7 +75,7 @@
     "Super Banking User App": {
       "type": "WEB_APP",
       "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
-      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read"]
+      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read"]
     },
     "Super Banking Admin App": {
       "type": "WEB_APP",
@@ -1045,6 +1035,43 @@
     },
     "withdraw_training_enrollment": {
       "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "buy_security": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "large_trade": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
+    },
+    "rebalance_portfolio": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "sell_security": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "view_dividends": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_holdings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_portfolio_value": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_portfolios": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "view_trades": {
+      "requiredScopes": ["read"],
       "surface": "gateway"
     }
   }

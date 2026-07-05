@@ -860,6 +860,20 @@ export class BankingToolRegistry {
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
+    show_investment: {
+      name: 'show_investment',
+      title: 'Portfolio Status',
+      description: 'Retrieve the user\'s investment portfolio status including portfolio id, holder, total value, cash sweep, and holdings. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the investment backend with a service API key.',
+      requiresUserAuth: true,
+      requiredScopes: ['invest:read'],
+      handler: 'executeShowInvestment',
+      readOnly: true,
+      icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
+      annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: SHOW_VERTICAL_OUTPUT,
+      inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+    },
+
     show_gear_order: {
       name: 'show_gear_order',
       title: 'Gear Order',
