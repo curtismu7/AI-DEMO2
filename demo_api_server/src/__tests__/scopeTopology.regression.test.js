@@ -274,11 +274,19 @@ describe('GUARD: OAuth /authorize requested scopes match topology app grants', (
   // granted and requested sides are normalised, so equal scopes stay equal
   // regardless of alias direction. Add new aliases to the manifest, not here.
   const norm = (s) => topo.normalizeScope(s);
-  const bankingFamily = (s) => s.startsWith('banking:') || s === 'ai_agent';
+  // Compare the always-on scopes an app requests at login. Per-vertical
+  // `category:'feature'` scopes (invest:read, mortgage:read, …) are granted to
+  // the app in the manifest but injected into /authorize only when their vertical
+  // is active (config/oauthUser.js featureScope), so they are NOT in the base
+  // request and must be excluded here. Everything else the manifest grants —
+  // core data scopes (read/write/transfer) and the agent scope — MUST be in the
+  // base request. Deriving the exclusion from the manifest category (not a
+  // hardcoded scope prefix) keeps this guard live across scope-vocabulary renames.
+  const isBaseRequestScope = (s) => (topo.scopeMeta(norm(s)) || {}).category !== 'feature';
 
   function assertAuthorizeCoversGrant(appName, requestedScopes) {
-    const granted = topo.appGrantedScopes(appName).filter(bankingFamily).map(norm);
-    const requested = new Set(requestedScopes.filter(bankingFamily).map(norm));
+    const granted = topo.appGrantedScopes(appName).filter(isBaseRequestScope).map(norm);
+    const requested = new Set(requestedScopes.filter(isBaseRequestScope).map(norm));
     const missing = granted.filter((s) => !requested.has(s));
     // If this fails: `missing` lists scopes granted in scope-topology.json but
     // NOT requested at /authorize. Either add them to the authorize scope list
