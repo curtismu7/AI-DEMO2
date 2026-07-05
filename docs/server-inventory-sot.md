@@ -1,6 +1,7 @@
 # AI-DEMO2 — Server Inventory (Source of Truth)
 
 > Generated from `docker-compose.yml` + live `docker ps` / `docker images`.
+> Machine-readable copy: `demo_api_server/data/serverInventory.js` (feeds `GET /api/health/inventory` and the `/servers` page) — keep in sync.
 > Compose project prefix: `ai-demo2`. Network: `ai-demo` (bridge). All services `restart: unless-stopped` unless noted.
 > **Image sizes** = built/pulled image on disk. **Writable layer** = per-container delta from `docker ps --size` (small = stateless).
 
