@@ -75,6 +75,10 @@ const INTENT_TO_PERMITTED_TOOLS = {
   request_time_off:         ['request_time_off', 'pto_balance'],
   // Mortgage
   view_mortgage:            ['show_mortgage'],
+  // Code search (cross-vertical, read-only)
+  code_search:              ['code_search', 'get_code', 'list_codebases'],
+  get_code:                 ['get_code', 'code_search'],
+  list_codebases:           ['list_codebases', 'code_search'],
 };
 
 const READ_ONLY_TOOLS = [
@@ -93,6 +97,8 @@ const READ_ONLY_TOOLS = [
   'view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report',
   // Mortgage
   'show_mortgage',
+  // Code search (cross-vertical, read-only)
+  'code_search', 'get_code', 'list_codebases',
 ];
 
 function permittedToolsForIntent(intent) {
