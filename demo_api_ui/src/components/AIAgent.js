@@ -52,6 +52,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
+import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import AgentConsentModal from "./AgentConsentModal";
@@ -172,16 +173,12 @@ import {
 /** Agent modes that invoke a frontier LLM on every query — used for the model advisory. */
 const FRONTIER_MODES = ["claude"];
 
-/** "Pure" LLM modes: the user asked for ONLY this provider, no heuristic blend.
- *  When the provider is unavailable we must NOT silently answer with heuristics —
- *  we tell the user and offer Heuristics as an explicit choice. These are the
- *  three single-brain LLM modes (heuristics-only is the deterministic fourth). */
-const PURE_LLM_MODES = ["llamacpp", "claude", "helix_google"];
-const PURE_LLM_LABELS = {
-  helix_google: "Helix",
-  claude: "Anthropic",
-  llamacpp: "llama.cpp",
-};
+// PURE_LLM_MODES / PURE_LLM_LABELS come from the shared SSOT (config/agentModes.js).
+// They are the pure single-brain LLM modes: when the selected provider is
+// unavailable we must NOT silently answer with heuristics — we tell the user and
+// offer Heuristics as an explicit choice (heuristics-only is the deterministic
+// fourth mode). Keeping them in one place is what prevents the ollama/llamacpp
+// drift that made a down llama.cpp fail silently.
 
 // Shown when the agent endpoint returns success but no reply text — almost always
 // means the LLM/agent runtime (:3006 / :8888) was unreachable or returned nothing.
@@ -314,11 +311,11 @@ export default function BankingAgent({
   const [nlLoading, setNlLoading] = useState(false);
   const [nlMeta, setNlMeta] = useState(null);
   // Map agentProviderMode (updated immediately on mode switch via useLangchainProvider)
-  // to the provider string the BFF expects. nlMeta.activeLlmProvider is fetched once on
-  // mount and goes stale after a mode change, so agentProviderMode wins for explicit modes.
-  const _MODE_PROVIDER_MAP = { llamacpp: 'llamacpp', claude: 'anthropic', helix_google: 'helix', lmstudio: 'lmstudio' };
+  // to the provider string the BFF expects, using the shared SSOT (config/agentModes.js).
+  // nlMeta.activeLlmProvider is fetched once on mount and goes stale after a mode
+  // change, so agentProviderMode wins for explicit modes; unknown modes fall back to it.
   const activeLlmProvider = (agentProviderMode && agentProviderMode !== 'heuristics')
-    ? (_MODE_PROVIDER_MAP[agentProviderMode] ?? nlMeta?.activeLlmProvider ?? null)
+    ? (MODE_PROVIDER[agentProviderMode] ?? nlMeta?.activeLlmProvider ?? null)
     : (nlMeta?.activeLlmProvider ?? null);
   // Degraded-mode banner: true when the user selected an LLM provider (Helix)
   // but routing fell back to the heuristic parser (Helix unreachable / not

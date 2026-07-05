@@ -49,6 +49,7 @@ minimal diff.
 | Demo Controls diagnose | `ThresholdControls.js` — `data.checks?.userAttribute?.pass` shape |
 | BankingAgent FAB | `components/BankingAgent.js`, `App.js` |
 | Float panel resize | `BankingAgent.css` (no max-width/height), `BankingAgent.js` (90% caps) |
+| Agent mode taxonomy SSOT | `demo_api_ui/src/config/agentModes.js` — one client mode→provider table; must equal server `services/agentModeResolver.js` (guarded by `config/__tests__/agentModes.test.js`); don't re-inline in `AIAgent.js`/`AgentModeSelector.jsx` |
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 
 ---
@@ -79,18 +80,23 @@ configured host.
 
 Reverse-chronological, newest first.
 
-### 2026-07-05 — Agent dock silent-failure when "llama.cpp only" selected but provider down
+### 2026-07-05 — Agent dock silent-failure when "llama.cpp only" selected but provider down (+ hardening)
 
 **Files changed:**
-- `demo_api_ui/src/components/AIAgent.js` — aligned three stale provider-mode maps with the four live core modes (`heuristics`/`llamacpp`/`claude`/`helix_google`). `PURE_LLM_MODES` and `PURE_LLM_LABELS` named the retired `ollama` mode instead of `llamacpp`; `_MODE_PROVIDER_MAP` was missing the `llamacpp` key. Also gave the `llamacpp` provider the 60s fetch timeout (was 15s) that the other local providers get, matching cold-start latency.
+- `demo_api_ui/src/config/agentModes.js` (NEW) — single source of truth for the four core agent modes (`heuristics`/`llamacpp`/`claude`/`helix_google`) and their provider mapping. Mirrors the server resolver `demo_api_server/services/agentModeResolver.js`. Everything (`CORE_MODE_IDS`, `MODE_PROVIDER`, `PURE_LLM_MODES`, `PURE_LLM_LABELS`, `DEFAULT_MODE`) is derived from one `AGENT_MODES` table.
+- `demo_api_ui/src/components/AIAgent.js` — deleted the three drifted local maps (`PURE_LLM_MODES`/`PURE_LLM_LABELS`/`_MODE_PROVIDER_MAP`, which still named the retired `ollama` mode instead of `llamacpp`) and now imports them from the SSOT. Gave the `llamacpp` provider the 60s fetch timeout (was 15s) other local providers get.
+- `demo_api_ui/src/components/AgentModeSelector.jsx` — imports `CORE_MODE_IDS`/`MODE_PROVIDER`/`DEFAULT_MODE` from the SSOT; auto-deselects a mode whose provider is unavailable (at load or when it drops) → switches to Heuristics with a `.ams-autoswitch` notice; re-probes llama.cpp health on focus + every 20s (was one-shot on mount).
+- `demo_api_ui/src/config/__tests__/agentModes.test.js` (NEW) — internal-consistency + a drift guard that parses the server resolver and asserts the client id→provider mapping equals it.
+- `demo_api_ui/src/components/__tests__/AgentModeSelector.test.jsx` — tests for auto-deselect (switches on unavailable) and no-switch-when-available.
+- `demo_llm_proxy/install-launchd.sh` (NEW) — installs a per-user LaunchAgent that runs the already-idempotent `start-local-models.sh start` at login + every 5 min (self-heal). Points at the MAIN-checkout script (resolved via `git rev-parse --git-common-dir`) so it survives worktree cleanup.
 
-**What was broken:** with the agent mode set to "llama.cpp only" (id `llamacpp`) and the local llama.cpp backend unreachable, the dock produced NO response. Because `llamacpp` was absent from `PURE_LLM_MODES`, the existing "provider selected but not configured — answer with Heuristics instead?" safety prompt never fired, so the failure was silent instead of offering the heuristics fallback. A single `<AIAgent>` portals into both the admin and customer docks (shared `_sharedMode` singleton), so both surfaces were affected.
+**What was broken:** with the agent mode set to "llama.cpp only" (id `llamacpp`) and the local llama.cpp backend unreachable, the dock produced NO response. Because `llamacpp` was absent from `PURE_LLM_MODES` (the map still named the long-retired `ollama` mode), the existing "provider selected but not configured — answer with Heuristics instead?" safety prompt never fired, so the failure was silent. A single `<AIAgent>` portals into both the admin and customer docks (shared `_sharedMode` singleton), so both surfaces were affected. Root cause was taxonomy duplicated across three client sites with no test.
 
-**What was fixed:** `llamacpp` is now recognised as a pure-LLM mode → an unreachable/misconfigured llama.cpp surfaces the explicit ⚠️ "want Heuristics?" prompt rather than going quiet; the provider string sent to the BFF is now definitively `llamacpp`; and the cold-start timeout is 60s.
+**What was fixed / hardened:** one SSOT for the mode taxonomy + a test that fails on client↔server drift; `llamacpp` is now a recognised pure-LLM mode (unreachable llama.cpp shows the explicit ⚠️ "want Heuristics?" prompt); a stuck/dead selected mode auto-switches to Heuristics with a visible notice; health re-probes live so recovery clears "not configured" without a reload; and a LaunchAgent keeps the local tiers alive across reboots.
 
-**Do not break:** `PURE_LLM_MODES` / `PURE_LLM_LABELS` / `_MODE_PROVIDER_MAP` and `AgentModeSelector.jsx`'s `CORE_MODE_IDS`/`MODE_PROVIDER` must stay in sync — the four core modes are `heuristics`, `llamacpp`, `claude`, `helix_google`. Heuristics stays the always-available deterministic fallback (no provider). This is a pure-taxonomy fix — no change to dock mounting, FAB visibility, `liveAccounts`, or float-panel resize.
+**Do not break:** `config/agentModes.js` is the ONLY place the mode→provider table lives on the client — do not re-inline it in `AIAgent.js` or `AgentModeSelector.jsx`, and keep it equal to the server resolver's `CORE_MODES` (the drift test enforces this). Heuristics stays the always-available deterministic fallback (provider `null`, `DEFAULT_MODE`). Auto-deselect must only fire for a genuinely unavailable provider and must switch to `heuristics` (never loop). No change to dock mounting, FAB visibility, `liveAccounts`, or float-panel resize.
 
-**Verify:** `cd demo_api_ui && npm run build` (exits 0). With llama.cpp down, selecting "llama.cpp only" and sending a prompt shows the ⚠️ Heuristics-fallback prompt instead of silence; with llama.cpp up, the dock answers normally.
+**Verify:** `cd demo_api_ui && npm run build` (exits 0); `npx vitest run src/config/__tests__/agentModes.test.js src/components/__tests__/AgentModeSelector.test.jsx` (green — 16 tests). With llama.cpp down, "llama.cpp only" auto-switches to Heuristics with the notice; sending a prompt in a pure mode whose provider then dies shows the ⚠️ fallback prompt. LaunchAgent: `launchctl list | grep llama-models`.
 
 ### 2026-07-05 — P1AZ hardening: decision fail-close, sim/real parity, snapshot tracking, opt-in flag auth
 
