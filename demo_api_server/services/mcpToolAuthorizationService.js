@@ -455,6 +455,14 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       // which enforces resource_owner_mismatch. Without this the live PingOne
       // path cannot deny a caller acting on another user's resource.
       resourceOwnerId,
+      // RAR (NNP-1) parity: the simulated engine enforces rar_amount_exceeded /
+      // rar_payee_not_permitted, but the live call previously omitted these inputs,
+      // so the two engines disagreed. Forward the attested ceiling + permitted
+      // payees + stated destination so the live PingOne policy receives identical
+      // inputs (inert if the deployed policy has no RAR rule; enforced if it does).
+      rarMaxAmount,
+      rarPermittedPayees,
+      toAccountId,
     });
 
     if (r.stepUpRequired) {

@@ -311,6 +311,14 @@ async function evaluateMcpToolDelegation({
   // the same gate the simulated engine and demo_authz_server already enforce.
   // Emitted only when present (absent → no resource-scoped gate, i.e. PERMIT).
   resourceOwnerId = null,
+  // RAR (NNP-1) attested-authorization parity with the simulated engine. The
+  // ceiling + permitted payees come from the token's azd (never the request body);
+  // ToAccountId is the stated destination checked against them. Emitted only when
+  // present so the deployed policy can enforce rar_amount_exceeded /
+  // rar_payee_not_permitted (inert if the policy defines no RAR rule).
+  rarMaxAmount = null,
+  rarPermittedPayees = null,
+  toAccountId = null,
 }) {
   const creds = _getCredentials();
   const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
@@ -340,6 +348,9 @@ async function evaluateMcpToolDelegation({
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
     ...(amount != null ? { Amount: amount } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
+    ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
+    ...(Array.isArray(rarPermittedPayees) ? { RarPermittedPayees: rarPermittedPayees } : {}),
+    ...(toAccountId ? { ToAccountId: toAccountId } : {}),
     Timestamp: new Date().toISOString(),
   };
 
