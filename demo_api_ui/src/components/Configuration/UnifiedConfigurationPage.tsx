@@ -250,6 +250,16 @@ const CONFIGURATION_TABS: Array<{
     sections: ["pingone-basics", "demo-data-setup", "industry-branding"],
   },
   {
+    id: "feature-flags",
+    label: "Feature Flags",
+    icon: TabIcons.featureFlags,
+    description:
+      "Enable or disable experimental features — changes take effect immediately",
+    requiresAuth: true,
+    requiredRole: "admin",
+    sections: ["feature-flags"],
+  },
+  {
     id: "migration",
     label: "Export / Import",
     icon: TabIcons.migration,
@@ -333,16 +343,6 @@ const CONFIGURATION_TABS: Array<{
     requiresAuth: true,
     requiredRole: "admin",
     sections: ["idp-setup-guide", "idp-overview", "idp-clients"],
-  },
-  {
-    id: "feature-flags",
-    label: "Feature Flags",
-    icon: TabIcons.featureFlags,
-    description:
-      "Enable or disable experimental features — changes take effect immediately",
-    requiresAuth: true,
-    requiredRole: "admin",
-    sections: ["feature-flags"],
   },
   {
     id: "authorize",
