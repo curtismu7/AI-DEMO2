@@ -190,8 +190,8 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 
   const raw = await response.json();
   console.log('[BFF→P1AZ] RESPONSE: status=%d body=%j', response.status, raw);
-  const decision = raw.decision || raw.status || 'INDETERMINATE';
   const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(raw);
+  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired || hitlRequired || consentRequired });
 
   const decisionId = raw.id || raw.decisionId || null;
 
@@ -368,8 +368,8 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
   }
 
   const raw = await response.json();
-  const decision = raw.decision || 'INDETERMINATE';
   const { stepUpRequired } = _classifyRawObligations(raw);
+  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
 
   return { decision, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
 }
@@ -864,6 +864,30 @@ async function setEndpointRecording(endpointId, enabled = true) {
  * @param {object} raw PingOne Authorize response body
  * @returns {{ stepUpRequired: boolean, hitlRequired: boolean, consentRequired: boolean, classified: object }}
  */
+/**
+ * Fail-closed decision normalisation. The authorization *effect* of a PingOne
+ * Authorize decision-endpoint response lives under `decision` (top level) or
+ * `result.decision` / `details.decision` (envelope form) — NEVER under `status`,
+ * which is a transport-level 'SUCCESS' wrapper. Reading `status` as the decision
+ * turns a live DENY (or an unexpected/renamed envelope) into a silent PERMIT.
+ *
+ * Any value we cannot positively recognise as PERMIT collapses to DENY unless an
+ * enforceable obligation (step-up / consent / HITL) is present — in which case
+ * the caller acts on that obligation and we return INDETERMINATE so the response
+ * is not mistaken for a clean permit.
+ * @param {any} raw
+ * @param {{ hasObligation?: boolean }} [opts]
+ * @returns {'PERMIT'|'DENY'|'INDETERMINATE'}
+ */
+function _normalizeDecision(raw, { hasObligation = false } = {}) {
+  const candidate = String(
+    (raw && (raw.decision ?? raw.result?.decision ?? raw.details?.decision)) || '',
+  ).trim().toUpperCase();
+  if (candidate === 'PERMIT' || candidate === 'ALLOW') return 'PERMIT';
+  if (candidate === 'DENY' || candidate === 'DENIED') return 'DENY';
+  return hasObligation ? 'INDETERMINATE' : 'DENY';
+}
+
 function _classifyRawObligations(raw) {
   // XACML-style obligations/advice carry the identifier under type/id; the
   // PingOne Authorize decision endpoint returns applied rule effects under
@@ -915,4 +939,6 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
+  // Exported for unit tests only (fail-closed decision normalisation).
+  _normalizeDecision,
 };
