@@ -32,4 +32,11 @@ describe('code-search handlers', () => {
     expect(r.success).toBe(false);
     expect(r.error).toMatch(/unavailable/i);
   });
+
+  test('list_codebases 503 surfaces an unavailable error', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}), text: async () => '{}' });
+    const r = await executeListCodebases(deps, 'tok', {});
+    expect(r.success).toBe(false);
+    expect(r.error).toMatch(/unavailable/i);
+  });
 });

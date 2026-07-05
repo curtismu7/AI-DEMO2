@@ -41,6 +41,7 @@ export const executeGetCode: HandlerFn = async (_deps, _token, params) => {
 export const executeListCodebases: HandlerFn = async (_deps, _token, _params) => {
   try {
     const res = await fetch(`${BASE()}/codebases`);
+    if (res.status === 503) throw new Error('code-search service unavailable');
     if (!res.ok) throw new Error(`code-search ${res.status}`);
     const data = await res.json() as any;
     const list = data.codebases || [];
