@@ -252,17 +252,71 @@ describe('simulatedAuthorizeService', () => {
       expect(r.raw.parameters.UserGroups).toEqual(['general_users']);
     });
 
-    it('PERMITS when the user is in the required group', async () => {
-      const r = await evaluateMcpFirstTool({
+    it('does NOT group-deny when the user is in the required group', async () => {
+      // get_sensitive_account_details is a SoT consent tool, so after the group
+      // guard passes it correctly falls through to the HITL_CONSENT challenge
+      // (parity with the mock/snapshot tool-name gate). The group guard's job is
+      // only to not DENY — assert that, then confirm a verified receipt
+      // discharges the consent gate to a clean PERMIT.
+      const gated = await evaluateMcpFirstTool({
         ...BASE,
         requiredGroup: 'PrivilegedBanking',
         userGroups: ['PrivilegedBanking'],
       });
-      expect(r.decision).toBe('PERMIT');
+      expect(gated.decision).not.toBe('DENY');
+      expect(gated.raw.deny_reason).toBeUndefined();
+
+      const permitted = await evaluateMcpFirstTool({
+        ...BASE,
+        requiredGroup: 'PrivilegedBanking',
+        userGroups: ['PrivilegedBanking'],
+        hitlApproved: true,
+      });
+      expect(permitted.decision).toBe('PERMIT');
     });
 
     it('is a no-op when requiredGroup/userGroups are absent (flag off)', async () => {
+      // Flag off → no group evaluation. The tool still challenges for consent
+      // (tool-name gate); assert only that no group DENY was applied.
       const r = await evaluateMcpFirstTool({ ...BASE });
+      expect(r.decision).not.toBe('DENY');
+      expect(r.raw.deny_reason).toBeUndefined();
+    });
+  });
+
+  describe('evaluateMcpFirstTool — no-amount tool-name gate (C2 parity)', () => {
+    // The P1AZ snapshot gates MCP tools by tool NAME with no amount clause
+    // (RequiresMcpStepUp / RequiresHitlConsent). These pin the simulated engine
+    // to that behaviour so a no-amount consent/step-up tool is never silently
+    // PERMITted here while the real engine challenges it.
+    const NO_AMOUNT = { userId: 'u-mcp', tokenAudience: 'https://mcp.example', actClientId: 'agent', acr: '' };
+
+    it('consent tool with no amount → HITL_CONSENT (not PERMIT)', async () => {
+      const r = await evaluateMcpFirstTool({ ...NO_AMOUNT, toolName: 'book_appointment' });
+      expect(r.decision).toBe('INDETERMINATE');
+      expect(r.hitlRequired).toBe(true);
+      expect(r.stepUpRequired).toBe(false);
+    });
+
+    it('consent tool with no amount → PERMIT once a verified receipt discharges it', async () => {
+      const r = await evaluateMcpFirstTool({ ...NO_AMOUNT, toolName: 'book_appointment', hitlApproved: true });
+      expect(r.decision).toBe('PERMIT');
+    });
+
+    it('step-up tool with no amount → STEP_UP (not PERMIT), and a receipt does NOT satisfy it', async () => {
+      const r = await evaluateMcpFirstTool({ ...NO_AMOUNT, toolName: 'release_records', hitlApproved: true });
+      expect(r.decision).toBe('INDETERMINATE');
+      expect(r.stepUpRequired).toBe(true);
+      expect(r.hitlRequired).toBe(false);
+    });
+
+    it('step-up tool with no amount is discharged by a strong ACR (HasMFAAuthentication)', async () => {
+      const r = await evaluateMcpFirstTool({ ...NO_AMOUNT, toolName: 'release_records', acr: 'mfa' });
+      expect(r.decision).toBe('PERMIT');
+    });
+
+    it('ungated read tool with no amount still PERMITs', async () => {
+      const r = await evaluateMcpFirstTool({ ...NO_AMOUNT, toolName: 'get_my_accounts' });
       expect(r.decision).toBe('PERMIT');
     });
   });

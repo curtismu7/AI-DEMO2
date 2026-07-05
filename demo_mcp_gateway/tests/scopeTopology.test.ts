@@ -9,8 +9,14 @@ describe('gateway toolScopes derives from manifest', () => {
     expect(getScopesForGatewayTool('no_such_tool')).toEqual(['read']);
   });
 
-  test('create_transfer challenge type is step_up', () => {
-    expect(getChallengeTypeForTool('create_transfer')).toBe('step_up');
+  test('create_transfer challenge type is consent (matches SoT)', () => {
+    // SoT scope-topology.json: create_transfer challengeType = consent. This
+    // guard drifted (expected step_up) and masked real challenge-type drift.
+    expect(getChallengeTypeForTool('create_transfer')).toBe('consent');
+  });
+
+  test('create_withdrawal challenge type is step_up (matches SoT)', () => {
+    expect(getChallengeTypeForTool('create_withdrawal')).toBe('step_up');
   });
 
   test('get_my_accounts challenge type is consent', () => {
