@@ -1390,11 +1390,17 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [middleHostEl, setMiddleHostEl] = useState(null);
   const middleHostRefCb = useCallback((el) => setMiddleHostEl(el), []);
   useEffect(() => {
+    // In clinical-split mode the TalkPane owns the agent surface host (.ac-chat-host).
+    // The middle-host div is not rendered then, so middleHostEl is null and the
+    // unconditional setSurfaceHostEl(middleHostEl) below would set surfaceHostEl=null
+    // AFTER TalkPane registered — clobbering it and leaving the agent unportaled/hidden.
+    // Skip the middle-host registration entirely when clinical split is active.
+    if (clinicalSplitEnabled) return undefined;
     setSurfaceHostEl(middleHostEl);
     return () => {
       setSurfaceHostEl((cur) => (cur === middleHostEl ? null : cur));
     };
-  }, [middleHostEl, setSurfaceHostEl]);
+  }, [middleHostEl, setSurfaceHostEl, clinicalSplitEnabled]);
 
   const handleScrollToAccounts = useCallback(() => {
     accountsAnchorRef.current?.scrollIntoView({
