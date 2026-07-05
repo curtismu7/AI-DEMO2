@@ -96,10 +96,11 @@ export class TokenResolver {
       } else {
         // Backward compat: no resource URI configured — use gateway token directly.
         // For a banking DATA tool (!tool.vertical) this forwards an un-narrowed
-        // gateway-audience token to the Banking API. In production that is a
-        // misconfiguration (Step 9 should narrow scopes + audience), so fail closed;
-        // dev keeps the passthrough so the local demo runs without full resource config.
-        if (process.env.NODE_ENV === 'production' && tokenExchangeService && !tool.vertical) {
+        // gateway-audience token to the Banking API. Under STRICT_AUTH that is a
+        // misconfiguration (Step 9 should narrow scopes + audience), so fail closed.
+        // Gated on STRICT_AUTH (not NODE_ENV) because the local demo runs
+        // NODE_ENV=production without BANKING_API_RESOURCE_URI and relies on passthrough.
+        if (process.env.STRICT_AUTH === 'true' && tokenExchangeService && !tool.vertical) {
           throw new AuthenticationError(
             `Step 9 resource exchange required for banking data tool '${tool.name}' but BANKING_API_RESOURCE_URI is not set`,
             AuthErrorCodes.INVALID_AGENT_TOKEN,

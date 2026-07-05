@@ -389,11 +389,12 @@ try {
     }
     // REAL backend connectivity failure (httpPost returns code 0) or 5xx.
     // Failing over to the always-PERMIT mock is a demo convenience that DISABLES
-    // the policy while it looks healthy — so it is gated: disabled in production
-    // (NODE_ENV=production) or when P1AZ_ALLOW_MOCK_FAILOVER=false. When disabled we
-    // fail CLOSED (r stays non-200/empty → outcome parses to DENY below). A 200 +
-    // DENY is a valid decision and is NOT a failure.
-    def allowMockFailover = (System.getenv('NODE_ENV') != 'production') &&
+    // the policy while it looks healthy — so it is gated: disabled when STRICT_AUTH=true
+    // or P1AZ_ALLOW_MOCK_FAILOVER=false. When disabled we fail CLOSED (r stays
+    // non-200/empty → outcome parses to DENY below). STRICT_AUTH (not NODE_ENV) is the
+    // opt-in signal, matching the BFF/MCP hardening — the demo runs without it and
+    // keeps failover. A 200 + DENY is a valid decision and is NOT a failure.
+    def allowMockFailover = (System.getenv('STRICT_AUTH') != 'true') &&
         ((System.getenv('P1AZ_ALLOW_MOCK_FAILOVER') ?: 'true').toLowerCase() != 'false')
     if (!simulated && (r.code == 0 || r.code >= 500)) {
         if (allowMockFailover && mockBase && mockBase != realBase) {

@@ -303,14 +303,15 @@ export function assertProductionSecrets(cfg: GatewayConfig): void {
     );
     process.exit(1);
   }
-  // Signature verification must be enabled in production. Without PINGONE_JWKS_ENDPOINT
-  // the token validator falls back to jwt.decode (no signature check), so a forged JWT
-  // with the right aud/exp is accepted. Refuse to start signature-blind rather than
-  // silently trust unverified tokens.
-  if (!process.env.PINGONE_JWKS_ENDPOINT) {
+  // Signature verification: without PINGONE_JWKS_ENDPOINT the token validator falls
+  // back to jwt.decode (no signature check), so a forged JWT with the right aud/exp is
+  // accepted. Gated behind the explicit STRICT_AUTH=true opt-in — NOT NODE_ENV — because
+  // the local demo runs NODE_ENV=production yet deliberately validates via introspection
+  // without JWKS. Real deployments set STRICT_AUTH=true to require signature checks.
+  if (process.env.STRICT_AUTH === 'true' && !process.env.PINGONE_JWKS_ENDPOINT) {
     // eslint-disable-next-line no-console
     console.error(
-      '[GW] FATAL: PINGONE_JWKS_ENDPOINT is not set and NODE_ENV=production. ' +
+      '[GW] FATAL: STRICT_AUTH=true but PINGONE_JWKS_ENDPOINT is not set. ' +
       'JWT signatures cannot be verified (decode-only accepts forged tokens). ' +
       'Refusing to start. Set PINGONE_JWKS_ENDPOINT.',
     );

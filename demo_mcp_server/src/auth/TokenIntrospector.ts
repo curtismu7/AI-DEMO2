@@ -314,11 +314,11 @@ export class TokenIntrospector {
     const skip = process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
     const jwks = await this.getJwksKeySet();
     if (!jwks) {
-      // Production must not accept an unverifiable token: no JWKS = no way to detect
-      // a forged signature. Fail closed in prod; keep the dev warn+accept so the
-      // local demo runs without JWKS configured.
-      if (process.env.NODE_ENV === 'production') {
-        teachLog.error('JWKS not configured in production — refusing an unverifiable agent token', undefined, { operation: 'jwks_verify' });
+      // STRICT_AUTH must not accept an unverifiable token: no JWKS = no way to detect
+      // a forged signature. Gated on STRICT_AUTH (not NODE_ENV) because the local demo
+      // runs NODE_ENV=production without JWKS by design — it keeps warn+accept.
+      if (process.env.STRICT_AUTH === 'true') {
+        teachLog.error('STRICT_AUTH set but JWKS not configured — refusing an unverifiable agent token', undefined, { operation: 'jwks_verify' });
         throw new AuthenticationError('Agent token signature cannot be verified (JWKS not configured)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
       teachLog.warn('JWKS not configured (set PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL) — agent token signature NOT verified');
@@ -362,11 +362,11 @@ export class TokenIntrospector {
           throw new AuthenticationError('Agent token signature verification failed', AuthErrorCodes.INVALID_AGENT_TOKEN);
         }
       }
-      // JWKS still unreachable after retry. In dev, accept on the upstream gateway
-      // authorization (an infra blip shouldn't log users out — see above). In
-      // production, fail closed: an unverifiable signature must not pass.
-      if (process.env.NODE_ENV === 'production') {
-        teachLog.error('JWKS endpoint unavailable in production — failing closed', undefined, { operation: 'jwks_verify', detail: msg });
+      // JWKS still unreachable after retry. Without STRICT_AUTH, accept on the upstream
+      // gateway authorization (an infra blip shouldn't log users out — see above). With
+      // STRICT_AUTH, fail closed: an unverifiable signature must not pass.
+      if (process.env.STRICT_AUTH === 'true') {
+        teachLog.error('STRICT_AUTH set but JWKS endpoint unavailable — failing closed', undefined, { operation: 'jwks_verify', detail: msg });
         throw new AuthenticationError('Agent token signature verification unavailable (JWKS unreachable)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
       teachLog.warn(`JWKS endpoint unavailable (${msg}) — agent token signature NOT verified; accepting on gateway authorization (introspection already PERMITted upstream). Fix PINGONE_JWKS_URI to restore signature checks.`);
