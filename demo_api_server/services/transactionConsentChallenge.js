@@ -18,8 +18,8 @@ const { resolveAccountId } = require('../utils/accountUtils');
 const mfaService = require('./mfaService');
 const recognizeService = require('./recognizeService');
 const { roundToCents } = require('../utils/money');
+const scopeTopology = require('./scopeTopology');
 
-const HIGH_VALUE_CONSENT_USD_DEFAULT = 250;
 function getConfirmThreshold(verticalId) {
   const { verticalManifest } = require('./verticalManifest');
   const vid = verticalId || verticalManifest.resolver.activeId();
@@ -29,13 +29,12 @@ function getConfirmThreshold(verticalId) {
   if (vertRaw && !isNaN(vertN) && vertN > 0) return vertN;
   const v = configStore.getEffective('confirm_threshold_usd');
   const n = Number(v);
-  return (v && !isNaN(n) && n > 0) ? n : HIGH_VALUE_CONSENT_USD_DEFAULT;
+  return (v && !isNaN(n) && n > 0) ? n : scopeTopology.highValueConsentThresholdUsd();
 }
-const STEP_UP_THRESHOLD_DEFAULT = 500;
 function getStepUpThreshold() {
   const v = configStore.getEffective('confirm_stepup_threshold_usd');
   const n = Number(v);
-  return (v && !isNaN(n) && n > 0) ? n : STEP_UP_THRESHOLD_DEFAULT;
+  return (v && !isNaN(n) && n > 0) ? n : scopeTopology.stepUpThresholdUsd();
 }
 const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const CONFIRMED_TTL_MS = 5 * 60 * 1000;

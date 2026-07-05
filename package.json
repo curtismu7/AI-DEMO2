@@ -50,9 +50,12 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "jslint": "^0.12.1",
     "nodemailer": "^8.0.4",
-    "tar": "^7.5.15"
+    "tar": "^7.5.15",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

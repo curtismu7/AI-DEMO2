@@ -247,6 +247,21 @@ function normalizeScope(scope) {
   return a[scope] || scope;
 }
 
+/** High-value transaction consent threshold (USD). */
+function highValueConsentThresholdUsd() {
+  return load().policy?.authorization?.highValueConsentThresholdUsd || 250;
+}
+
+/** Step-up MFA threshold (USD). */
+function stepUpThresholdUsd() {
+  return load().policy?.authorization?.stepUpThresholdUsd || 500;
+}
+
+/** Maximum amount limits by account tier (USD). Defaults: standard 2000, privatebanking 50000. */
+function amountLimitsByTier() {
+  return load().policy?.authorization?.amountLimitsByTier || { standard: 2000, privatebanking: 50000 };
+}
+
 module.exports = {
   toolScopes,
   toolSurface,
@@ -271,5 +286,8 @@ module.exports = {
   allScopes,
   aliases,
   normalizeScope,
+  highValueConsentThresholdUsd,
+  stepUpThresholdUsd,
+  amountLimitsByTier,
   _manifest: load,
 };
