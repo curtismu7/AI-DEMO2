@@ -387,15 +387,25 @@ try {
         bearer = fetchWorkerToken()
         r = callDecision(bearer)
     }
-    // REAL backend connectivity failure (httpPost returns code 0) or 5xx → fail
-    // over to the mock base. A 200 + DENY is a valid decision and is NOT a failure.
-    if (!simulated && (r.code == 0 || r.code >= 500) && mockBase && mockBase != realBase) {
-        logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — failing over to MOCK')
-        def mockUrl = mockBase.replaceAll('/$', '') + '/governance/pap/alpha/policy/' + workerId + '/decision'
-        def fb = httpPost(mockUrl, requestBody, ['Content-Type': 'application/json'])
-        if (fb.code == 200) {
-            failoverUsed = true
-            r = fb
+    // REAL backend connectivity failure (httpPost returns code 0) or 5xx.
+    // Failing over to the always-PERMIT mock is a demo convenience that DISABLES
+    // the policy while it looks healthy — so it is gated: disabled in production
+    // (NODE_ENV=production) or when P1AZ_ALLOW_MOCK_FAILOVER=false. When disabled we
+    // fail CLOSED (r stays non-200/empty → outcome parses to DENY below). A 200 +
+    // DENY is a valid decision and is NOT a failure.
+    def allowMockFailover = (System.getenv('NODE_ENV') != 'production') &&
+        ((System.getenv('P1AZ_ALLOW_MOCK_FAILOVER') ?: 'true').toLowerCase() != 'false')
+    if (!simulated && (r.code == 0 || r.code >= 500)) {
+        if (allowMockFailover && mockBase && mockBase != realBase) {
+            logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — failing over to MOCK (dev only)')
+            def mockUrl = mockBase.replaceAll('/$', '') + '/governance/pap/alpha/policy/' + workerId + '/decision'
+            def fb = httpPost(mockUrl, requestBody, ['Content-Type': 'application/json'])
+            if (fb.code == 200) {
+                failoverUsed = true
+                r = fb
+            }
+        } else {
+            logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — mock failover disabled, failing CLOSED (DENY)')
         }
     }
     rawResponseBody = r.body ?: ''
