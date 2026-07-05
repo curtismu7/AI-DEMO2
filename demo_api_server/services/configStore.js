@@ -1505,6 +1505,7 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'invest:read',        // investment — show_investment
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
@@ -1522,6 +1523,7 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'invest:read',        // investment — show_investment
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
