@@ -31,6 +31,7 @@
     "invest:read": { "description": "Read investment accounts, balances, and portfolio summaries (A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
     "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },
+    "code:search": { "description": "Search and read the indexed source code (read-only)", "riskLevel": "low", "resource": "Super Banking MCP Server", "category": "infra" },
     "agent:invoke": { "description": "Invoke the Agent Gateway (Two-Exchange Step 1 audience)", "riskLevel": "medium", "resource": "Super Banking Agent Gateway", "category": "infra" },
     "ai_agent": { "description": "AI agent identity", "riskLevel": "medium", "resource": "Super Banking API", "category": "ai" },
     "admin:read": { "description": "Read access to administrative data", "riskLevel": "medium", "resource": "Super Banking API", "category": "admin" },
@@ -48,7 +49,7 @@
     },
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
-      "scopes": ["mcp:invoke"],
+      "scopes": ["mcp:invoke", "code:search"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
     },
     "Super Banking MCP Invest": {
@@ -59,12 +60,12 @@
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",
       "scopes": ["mcp:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking Agent Gateway": {
       "uri": "agentgateway.ping.demo",
       "scopes": ["agent:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking A2A Intermediate": {
       "uri": "a2a-intermediate.ping.demo",
@@ -75,7 +76,7 @@
     "Super Banking User App": {
       "type": "WEB_APP",
       "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
-      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read"]
+      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read", "code:search"]
     },
     "Super Banking Admin App": {
       "type": "WEB_APP",
@@ -147,6 +148,18 @@
     "demo_agent_service": { "resource": "Super Banking Agent Gateway", "validatesAudience": "agentgateway.ping.demo", "gatesOnToolScopes": false, "description": "Agent Gateway (Two-Exchange Step 1 audience for the AI Agent client-credentials token)." }
   },
   "tools": {
+    "code_search": {
+      "requiredScopes": ["code:search"],
+      "surface": "gateway"
+    },
+    "get_code": {
+      "requiredScopes": ["code:search"],
+      "surface": "gateway"
+    },
+    "list_codebases": {
+      "requiredScopes": ["code:search"],
+      "surface": "gateway"
+    },
     "get_my_accounts": {
       "requiredScopes": ["read"],
       "surface": "gateway"
