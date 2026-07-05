@@ -139,6 +139,26 @@
         }
       }
     },
+    "policy": {
+      "type": "object",
+      "description": "Authorization policy constants shared by every engine (simulated, mock authz-server, P1AZ snapshot). Read by scopeTopology.js threshold accessors.",
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "highValueConsentThresholdUsd": { "type": "number", "description": "Amount above which HITL consent is required ($250 default)." },
+            "stepUpThresholdUsd": { "type": "number", "description": "Amount above which MFA step-up is required ($500 default)." },
+            "amountLimitsByTier": {
+              "type": "object",
+              "additionalProperties": { "type": "number" },
+              "description": "Hard per-tier amount ceilings (e.g. standard: 2000, privatebanking: 50000)."
+            }
+          }
+        }
+      }
+    },
     "tools": {
       "type": "object",
       "additionalProperties": {
