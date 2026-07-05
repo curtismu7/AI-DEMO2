@@ -79,6 +79,31 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — Conversation summary panel + conversations route hardening
+
+**Files changed:**
+- `demo_api_server/routes/conversations.js` — (1) `GET /admin/queue-stats` is now
+  admin-only (it has no `:userId`, so the ownership guard never fired — any
+  authenticated user could read queue stats); (2) the `router.param('userId')`
+  guard accepts `me` as an alias that always resolves to `req.user.sub` (the UI
+  never sees the token sub). `me` cannot widen access — it maps to the caller.
+- `demo_api_ui/src/components/ConversationSummaryPanel.jsx` + `.css` (new) —
+  collapsible "Earlier in this conversation" panel; fetches
+  `GET /api/conversations/me/:vertical/summaries` with `credentials:'include'`;
+  renders null when no summaries exist; silent on fetch failure.
+- `demo_api_ui/src/components/AIAgent.js` — one import + one mount below the
+  ReasoningPanel, gated on `isLoggedIn`, vertical = `effectiveVerticalId || 'banking'`.
+
+**Do not break:** the conversations `router.param('userId')` ownership guard —
+`me` must resolve to `req.user.sub` and nothing else; non-admin access to another
+user's thread must stay 403; `/admin/queue-stats` must stay admin-only. The
+summary panel must render null (not an error state) when the fetch fails or
+returns zero summaries.
+
+**Verify:** behavioral: `me` → 200 own data, other-user → 403, anon → 401,
+queue-stats non-admin → 403 / admin → 200. `cd demo_api_ui && npm run build`
+exits 0.
+
 ### 2026-07-05 — Feature: live agent reasoning visibility (Phase 3 UI)
 
 **Files changed:**

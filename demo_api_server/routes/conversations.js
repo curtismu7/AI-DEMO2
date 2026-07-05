@@ -29,11 +29,17 @@ const MAX_CONTENT_CHARS = 8000;
 
 // Ownership guard: fires for every route that carries :userId. The authenticated
 // subject may only access its own threads; admin tokens may access any.
+// `me` is an alias for the caller's own subject (the UI never sees the token
+// sub) — it always resolves to req.user.sub, so it cannot widen access.
 router.param('userId', (req, res, next, userId) => {
   const sub = req.user && req.user.sub;
   const isAdmin = req.user && req.user.role === 'admin';
   if (!sub) {
     return res.status(401).json({ error: 'authentication required' });
+  }
+  if (userId === 'me') {
+    req.params.userId = sub; // resolve alias for downstream handlers
+    return next();
   }
   if (!isAdmin && userId !== sub) {
     return res.status(403).json({ error: "forbidden: cannot access another user's conversation history" });
@@ -199,8 +205,13 @@ router.get('/:userId/:vertical/summaries', (req, res) => {
  * GET /admin/queue-stats
  * Check summarization queue status (admin/monitoring endpoint).
  * Returns queue length, active workers, and capacity.
+ * Admin-only: this route has no :userId param, so the router.param ownership
+ * guard never fires — gate on role explicitly.
  */
 router.get('/admin/queue-stats', (req, res) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'forbidden: admin only' });
+  }
   try {
     const stats = summarizationQueue.getStats();
     return res.json({ queueStats: stats });

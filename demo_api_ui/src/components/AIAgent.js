@@ -16,6 +16,7 @@ import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
+import ConversationSummaryPanel from './ConversationSummaryPanel';
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
@@ -8343,6 +8344,10 @@ export default function BankingAgent({
               <SimpleStepperBar />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}
+              {/* Earlier-in-this-conversation summaries (renders only when summaries exist) */}
+              {isLoggedIn && (
+                <ConversationSummaryPanel vertical={effectiveVerticalId || 'banking'} />
+              )}
               {/* Messages */}
               <div
                 className="banking-agent-messages"
