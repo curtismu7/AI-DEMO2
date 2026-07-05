@@ -107,12 +107,63 @@ hand-edit the derived maps. Manifest edits:
 
 ### 4. PingOne provisioning (live, additive, reversible)
 
-- Create the `code:search` scope on the **Super Banking MCP Server** resource
-  via the repo's provisioning path (direct API for scopes per repo convention).
-- Grant `code:search` to the agent actor app(s) so the gateway exchange yields a
-  token carrying it. No secret rotation; no new resource server.
-- **Rollback:** remove the scope grant + scope; revert the manifest. The tools
-  then fail the scope check (clean deny) rather than breaking anything else.
+Provisioning is **SSOT-driven**: `demo_api_server/services/twoExchangeReconciler.js`
+runs at BFF startup and, from `scope-topology.json`, creates any missing resource
+scopes and grants them to the exchange-chain apps (idempotent). So the manifest
+edits below propagate automatically; this phase is mostly *verifying* the
+reconciler did its job, plus one app grant that isn't reconciler-driven.
+
+- Reconciler (auto): creates `code:search` on the Agent Gateway, MCP Gateway, and
+  MCP Server resources, and grants it to the AI Agent + MCP Exchanger + MCP
+  Gateway apps (reconciler steps 2/4/7).
+- Manual: grant `code:search` to the **Super Banking User App** (the delegated
+  user token's grants come from the manifest `apps` section at bootstrap, not the
+  reconciler).
+- **Rollback:** remove the grant + scope; revert the manifest. The tools then
+  fail the scope check (clean `insufficient_scope` deny) — nothing else breaks.
+
+## Whole-app integration touch-points (audited)
+
+A new scope/tool must be registered everywhere in the exchange chain or it
+silently greys out (the repo's known failure mode — missing `mirroredScopes` on a
+gateway resource, or a tool present in code but not the manifest). This app is
+**SSOT-driven**: `scope-topology.json` feeds provisioning, app grants, the
+hardening/verify gate, and the gateway's tool→scope map. Audited touch-points:
+
+**A. Edit the SSOT — `scope-topology.json` (drives most of the rest):**
+- `scopes`: add `"code:search": { "description": "Search and read the indexed source code (read-only)", "riskLevel": "low", "resource": "Super Banking MCP Server", "category": "infra" }`.
+- `resources[*]`: add `code:search` to the **Super Banking MCP Server** `scopes`
+  (its home resource) and to the **`mirroredScopes`** of **Super Banking MCP
+  Gateway** and **Super Banking Agent Gateway** — because `resourceScopes()` =
+  `scopes ∪ mirroredScopes`, this is what makes the reconciler provision it on all
+  three chain resources (Ex1 aud, Ex2 aud, final aud).
+- `tools`: add `code_search`, `get_code`, `list_codebases`, each
+  `{ "requiredScopes": ["code:search"], "surface": "gateway" }`. Tool names MUST
+  match the MCP-server registration exactly or `topology:verify` fails (drift).
+- `apps`: add `code:search` to **Super Banking User App** `grantedScopes` (and
+  Admin App if the agent runs as admin).
+
+**B. Auto-derived from the SSOT — no hand-edit, just re-run/verify:**
+- `demo_api_server/scripts/verify-scope-configuration.js` — `EXPECTED_SCOPES` is
+  derived from the manifest; the hardening gate passes once the manifest is right.
+- `demo_api_server/services/twoExchangeReconciler.js` — provisions scope + app
+  grants at startup (idempotent).
+- `demo_api_server/scripts/bootstrapPingOne.js` — fresh-install provisioning,
+  topology-driven.
+- `demo_mcp_gateway/src/auth/{scopeTopology,toolScopes}.ts` — derived `TOOL_SCOPES`;
+  the gateway enforces `code:search` once the tools are in the manifest.
+
+**C. Code edits (not topology):**
+- `demo_mcp_code_search`: new `POST /code` + `getCode` (see §Components).
+- `demo_mcp_server`: `CodeSearchToolProvider` registering the three tools +
+  handlers; add `MCP_CODE_SEARCH_URL` to its compose service env.
+- Regenerate the scope doc (`node demo_api_server/scripts/generate-scope-doc.js`).
+
+**D. Verification gates that must stay green (the completeness check):**
+- `npm run topology:verify` — running gateway tools == manifest tools.
+- `npm run topology:verify:live` (→ `verify-scope-configuration --manifest-diff`)
+  — live PingOne == manifest.
+- Reconciler idempotent on reboot (no drift).
 
 ## Data flow (example)
 
@@ -147,11 +198,22 @@ Agent asks "where is the Weaviate schema created?":
 
 ## Rollout / phases (for the plan)
 
-1. Service: `getCode` + `POST /code` (+ tests).
-2. MCP server: `CodeSearchToolProvider`, env, handlers (+ tests).
-3. Scope wiring: manifest scope + tools; `topology:verify` green.
-4. PingOne: provision + grant `code:search` (isolated, reversible).
-5. Live verification through the token chain (both grant + deny paths).
+1. **Service** — `getCode` + `POST /code` (+ tests). Rebuild the
+   `demo-mcp-code-search` image.
+2. **MCP server** — `CodeSearchToolProvider` (3 tools + handlers),
+   `MCP_CODE_SEARCH_URL` env (+ tests). Tool names match the manifest exactly.
+3. **SSOT wiring** — edit `scope-topology.json` (§Whole-app touch-points A):
+   `scopes.code:search`, `mirroredScopes` on MCP Gateway + Agent Gateway, three
+   `tools` entries, User App grant. Then `npm run topology:verify` must be green.
+4. **Provisioning (live, reversible)** — the startup reconciler auto-creates the
+   scope + agent/exchanger/gateway grants; add the User-App grant; regenerate the
+   scope doc. Confirm with `npm run topology:verify:live`
+   (`verify-scope-configuration --manifest-diff`).
+5. **Live verification** — an agent turn calls `code_search`/`get_code` end-to-end;
+   the hop appears in the token-chain inspector; a revoked grant yields a clean
+   `insufficient_scope` deny.
 
 Phases 1–3 are code-only and safe to land/merge independently; phase 4 is the
-only live-env change.
+only live-env change (additive, reversible). The verify gates in phases 3–4 are
+the guarantee that every dependent layer (bootstrap, reconciler, hardening,
+gateway) agrees — nothing greys out.
