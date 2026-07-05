@@ -5,7 +5,7 @@
  * the mock returns PERMIT with advice describing which tools are permitted/denied
  * for the token's scopes, plus the AllowedVertical. Drives the greyed-chip UI.
  *
- * SoT scopes (scope-topology.json): view_records → records:read, book_appointment → write.
+ * SoT scopes (scope-topology.json): view_records → read, book_appointment → write.
  */
 const test = require('node:test');
 const assert = require('node:assert');
@@ -19,7 +19,7 @@ function baseParams(over = {}) {
     DecisionContext: 'McpToolsList',
     ClientId: 'demoUser',
     TokenAudience: AUD,
-    TokenScopes: 'records:read',
+    TokenScopes: 'read',
     Vertical: 'healthcare',
     CandidateTools: JSON.stringify(['view_records', 'book_appointment']),
     ...over,
@@ -43,7 +43,7 @@ test('McpToolsList returns per-tool advice: read scope permits read tools, denie
 
 test('McpToolsList with read+write permits both', async () => {
   const res = mkRes();
-  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TokenScopes: 'records:read write' }) } }, res);
+  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TokenScopes: 'read write' }) } }, res);
   const advice = res.body.advice || [];
   assert.deepStrictEqual(JSON.parse(advice.find(a => a.name === 'DeniedTools').value), []);
 });

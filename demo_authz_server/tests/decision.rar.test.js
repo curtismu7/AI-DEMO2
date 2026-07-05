@@ -219,17 +219,21 @@ test('RAR-10: ff_rar ON — RarAuthorizationDetails is malformed JSON → rule s
   assert.ok(!result.reason || !result.reason.includes('rar_'), 'Malformed RAR must not produce a RAR deny');
 });
 
-test('RAR-11: ff_rar ON — no ToAccountId, attested payee set → payee rule skipped (nothing to check)', async () => {
+test('RAR-11: ff_rar ON — no ToAccountId, attested payee set → DENY (fail closed, parity with rarEnforce.ts)', async () => {
   process.env.FF_RAR = 'true';
   fresh();
-  // No ToAccountId means there is no payee to validate against; rule must be skipped.
+  // When the grant restricts payee, an absent/empty payee is REJECTED — the
+  // rule fails closed (decision.js Rule 3c, mirroring the gateway's
+  // rarEnforce.ts enforceRarSubset), it is not skipped.
   const result = await decide(rarWriteParams({
     TransactionAmount: '50',
     ToAccountId: '',
     RarAuthorizationDetails: rarJson({ payee: ['acct-001'] }),
   }));
-  assert.ok(!result.reason || !result.reason.includes('rar_payee_not_permitted'),
-    'Absent ToAccountId must not trigger payee deny, got: ' + result.reason);
+  assert.strictEqual(result.decision, 'DENY',
+    'Absent payee with payee-restricted grant must fail closed, got: ' + result.decision + ': ' + result.reason);
+  assert.ok(result.reason && result.reason.includes('rar_payee_not_permitted'),
+    'reason should include rar_payee_not_permitted, got: ' + result.reason);
 });
 
 // ── Critical security: attested source, not request-body ──────────────────

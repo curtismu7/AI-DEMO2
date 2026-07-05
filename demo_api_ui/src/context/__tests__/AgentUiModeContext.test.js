@@ -78,12 +78,15 @@ describe("AgentUiModeProvider", () => {
 		act(() => {
 			const next = JSON.stringify({ placement: "middle", fab: true });
 			localStorage.setItem(STORAGE_KEY_V2, next);
+			// No storageArea member: jsdom 26's StorageEvent brand-checks it and
+			// rejects the setupTests localStorage mock (Node 26's experimental
+			// localStorage shadows jsdom's). The provider's onStorage handler only
+			// reads e.key/e.newValue anyway.
 			window.dispatchEvent(
 				new StorageEvent("storage", {
 					key: STORAGE_KEY_V2,
 					newValue: next,
 					oldValue: null,
-					storageArea: localStorage,
 				}),
 			);
 		});

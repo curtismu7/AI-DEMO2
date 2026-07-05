@@ -115,12 +115,14 @@ describe('QuickFlagsPill', () => {
     expect(fetchMock.mock.calls.find(([, o]) => o && o.method === 'PATCH')).toBeUndefined();
   });
 
-  it('non-admin user sees disabled controls and the admin hint', async () => {
-    render(<QuickFlagsPill user={{ role: 'customer' }} />);
+  // Any signed-in user (customer or admin) can flip flags since the WIP-landing
+  // relaxation (canEdit = !!user && !adminDenied) — the gated state is signed-OUT.
+  it('signed-out user sees disabled controls and the sign-in hint', async () => {
+    render(<QuickFlagsPill user={null} />);
     await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
-    expect(screen.getByText('Admin session required')).toBeTruthy();
+    expect(screen.getByText('Sign in to change flags')).toBeTruthy();
     expect(screen.getByRole('button', { name: /🔎 Introspect/ }).disabled).toBe(true);
   });
 
@@ -136,7 +138,7 @@ describe('QuickFlagsPill', () => {
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     fireEvent.click(screen.getByRole('button', { name: /🔎 Introspect/ }));
-    await waitFor(() => expect(screen.getByText('Admin session required')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Sign in to change flags')).toBeTruthy());
     await waitFor(() => {
       const jwksBtns = screen.getAllByRole('button', { name: /🔐 JWKS/ });
       const seg = jwksBtns.find((b) => b.className.includes('qfp-seg-btn'));
