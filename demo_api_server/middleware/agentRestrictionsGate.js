@@ -11,6 +11,27 @@ const { logger } = require('../utils/logger');
 let _workerToken = null;
 let _workerTokenExpiry = 0;
 
+// Fail-closed by default. This middleware only runs when the operator has turned
+// ff_agent_restrictions ON, so if the restriction level cannot be determined
+// (worker creds missing, PingOne unreachable, API error, evaluation throws) the
+// gate must NOT silently grant full 'write' access — a transient outage would
+// otherwise defeat the whole feature. Set AGENT_RESTRICTIONS_FAILOVER=permit
+// (or the agent_restrictions_failover config key) for the legacy fail-open.
+function failoverPermits() {
+  const mode = String(
+    process.env.AGENT_RESTRICTIONS_FAILOVER ||
+    configStore.get('agent_restrictions_failover') ||
+    'restrict'
+  ).toLowerCase();
+  return mode === 'permit';
+}
+
+// The restriction value to apply when we cannot determine the real one.
+// 'write' = unrestricted (fail open); 'none' = fully restricted (fail closed).
+function failoverRestrictionValue() {
+  return failoverPermits() ? 'write' : 'none';
+}
+
 async function getWorkerToken() {
   if (_workerToken && Date.now() < _workerTokenExpiry) return _workerToken;
 
@@ -51,8 +72,9 @@ async function fetchAgentRestrictions(userId) {
   const workerToken = envId ? await getWorkerToken() : null;
 
   if (!workerToken || !envId) {
-    attrCache.set(userId, 'write');
-    return 'write';
+    // Can't look up restrictions — apply failover WITHOUT caching so a transient
+    // config/outage does not poison the cache for the whole TTL.
+    return failoverRestrictionValue();
   }
 
   try {
@@ -65,13 +87,20 @@ async function fetchAgentRestrictions(userId) {
         validateStatus: () => true
       }
     );
+    // A non-2xx (404/5xx) is NOT an unrestricted user — treat it as
+    // undeterminable and apply failover without caching. Only a successful
+    // lookup is cached; a user object with no agentRestrictions attribute is a
+    // genuinely unrestricted ('write') user.
+    if (response.status < 200 || response.status >= 300) {
+      logger.warn('[agentRestrictionsGate] PingOne lookup non-2xx, applying failover', { userId, status: response.status });
+      return failoverRestrictionValue();
+    }
     const value = response.data?.agentRestrictions || 'write';
     attrCache.set(userId, value);
     return value;
   } catch (err) {
-    logger.warn('[agentRestrictionsGate] PingOne fetch failed, defaulting to write', { userId, err: err.message });
-    attrCache.set(userId, 'write');
-    return 'write';
+    logger.warn('[agentRestrictionsGate] PingOne fetch failed, applying failover', { userId, err: err.message, failover: failoverRestrictionValue() });
+    return failoverRestrictionValue();
   }
 }
 
@@ -162,8 +191,16 @@ async function agentRestrictionsGate(req, res, next) {
       requiredTier,
     });
   } catch (err) {
-    logger.error('[agentRestrictionsGate] Unexpected error, failing open', { err: err.message });
-    return next();
+    if (failoverPermits()) {
+      logger.error('[agentRestrictionsGate] Unexpected error, failing open (AGENT_RESTRICTIONS_FAILOVER=permit)', { err: err.message });
+      return next();
+    }
+    logger.error('[agentRestrictionsGate] Unexpected error, failing closed', { err: err.message });
+    return res.status(503).json({
+      code: 'agent_restrictions_unavailable',
+      message: 'Agent restriction check is temporarily unavailable',
+      tool: toolName,
+    });
   }
 }
 
