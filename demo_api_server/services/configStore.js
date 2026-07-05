@@ -1576,16 +1576,25 @@ function validateScopeAudience(scopes, audience) {
   // Check: audience is known in mapping
   const allowedForAudience = ALLOWED_SCOPES_BY_AUDIENCE[audience];
   if (!allowedForAudience) {
-    // WR-09: log a warning so operators notice unconfigured audiences
+    // WR-09 / hardening: an unknown audience means this RFC 8707 scope-audience
+    // allowlist can't narrow the exchange, so every requested scope would pass
+    // through unnarrowed. Under STRICT_AUTH fail CLOSED (a misconfigured audience
+    // must not silently disable scope narrowing); otherwise keep the permissive
+    // pass-through but warn. Gated on STRICT_AUTH (not NODE_ENV) because the local
+    // demo runs NODE_ENV=production and may hit audiences not in the static map.
+    const note = `Unknown audience — not in scope-audience allowlist: ${audience}`;
+    if (process.env.STRICT_AUTH === 'true') {
+      throw new Error(`SCOPE_AUDIENCE_UNKNOWN: ${note} — refusing to skip scope narrowing`);
+    }
     console.warn(
-      '[configStore] validateScopeAudience: unknown audience "%s" — scopes not validated.',
+      '[configStore] validateScopeAudience: unknown audience "%s" — scopes not validated (dev pass-through).',
       audience
     );
     return {
       valid: true,
       scopes,
       narrowed: false,
-      note: `Unknown audience — scopes not validated: ${audience}`,
+      note,
     };
   }
 

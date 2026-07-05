@@ -16,6 +16,7 @@
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
 import { TokenExchangeService } from '../auth/TokenExchangeService';
 import { Logger } from '../utils/Logger';
+import { createHash } from 'crypto';
 import { tokenCache } from '../services/tokenCacheService';
 import { getScopesForTool } from './toolScopeMap';
 import type { BankingToolDefinition } from './BankingToolRegistry';
@@ -48,7 +49,11 @@ export class TokenResolver {
       // gateway-audience token directly. Step 9 exchange is for banking data APIs only.
       if (tokenExchangeService && process.env.BANKING_API_RESOURCE_URI && !tool.vertical) {
         const toolScopes = getScopesForTool(tool.name);
-        const agentCacheKey = `agent:${session.sessionId}:${[...toolScopes].sort().join(',')}`;
+        // Bind the cache key to a fingerprint of THIS agent token, not just the
+        // sessionId: a re-minted token (different subject/actor) sharing a sessionId
+        // must not read a resource token minted for a different principal.
+        const agentTokenFp = createHash('sha256').update(agentToken).digest('hex').slice(0, 16);
+        const agentCacheKey = `agent:${session.sessionId}:${agentTokenFp}:${[...toolScopes].sort().join(',')}`;
         const cachedResourceToken = tokenCache.get(agentCacheKey, toolScopes);
         if (cachedResourceToken) {
           token = cachedResourceToken;
@@ -64,6 +69,15 @@ export class TokenResolver {
               audience: process.env.BANKING_API_RESOURCE_URI,
             };
             const exchangeResponse = await tokenExchangeService.exchangeToken(exchangeRequest);
+            // Validate the response before caching (parity with the user path): a
+            // missing/zero expires_in yields expiresAt = NaN, which tokenCache treats
+            // as never-expired and would serve the token indefinitely.
+            if (exchangeResponse.token_type !== 'Bearer' || !(exchangeResponse.expires_in > 0)) {
+              throw new Error(
+                `Step 9 token exchange for '${tool.name}' returned unexpected response — ` +
+                `token_type: ${exchangeResponse.token_type}, expires_in: ${exchangeResponse.expires_in}`
+              );
+            }
             token = exchangeResponse.access_token;
             const expiresAt = Date.now() + (exchangeResponse.expires_in * 1000);
             tokenCache.set(agentCacheKey, toolScopes, token, expiresAt);
@@ -80,7 +94,18 @@ export class TokenResolver {
         }
         return { token, source: 'agent-step9-exchange' };
       } else {
-        // Backward compat: no resource URI configured — use gateway token directly
+        // Backward compat: no resource URI configured — use gateway token directly.
+        // For a banking DATA tool (!tool.vertical) this forwards an un-narrowed
+        // gateway-audience token to the Banking API. Under STRICT_AUTH that is a
+        // misconfiguration (Step 9 should narrow scopes + audience), so fail closed.
+        // Gated on STRICT_AUTH (not NODE_ENV) because the local demo runs
+        // NODE_ENV=production without BANKING_API_RESOURCE_URI and relies on passthrough.
+        if (process.env.STRICT_AUTH === 'true' && tokenExchangeService && !tool.vertical) {
+          throw new AuthenticationError(
+            `Step 9 resource exchange required for banking data tool '${tool.name}' but BANKING_API_RESOURCE_URI is not set`,
+            AuthErrorCodes.INVALID_AGENT_TOKEN,
+          );
+        }
         token = agentToken;
         logger.debug(`[BankingToolProvider] Using BFF-exchanged delegated token for ${tool.name} (no Step 9 resource exchange)`);
         return { token, source: 'agent-passthrough' };
