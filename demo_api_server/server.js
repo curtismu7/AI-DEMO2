@@ -2156,6 +2156,20 @@ async function runBackgroundStartupTasks() {
         console.warn('[persona-roles] error (non-fatal):', err.message);
     }
 
+    // Self-healing for the RFC 8693 two-exchange delegation chain: verifies
+    // (and repairs) mirroredScopes + app grants on the Agent/MCP Gateway
+    // resources against scope-topology.json, so the banking chips never grey
+    // out from a missed provisioning step. Non-blocking; opt out with
+    // TWO_EXCHANGE_RECONCILE_ON_STARTUP=false.
+    if (process.env.TWO_EXCHANGE_RECONCILE_ON_STARTUP !== 'false') {
+        try {
+            const { reconcileTwoExchangeGrants } = require('./services/twoExchangeReconciler');
+            await reconcileTwoExchangeGrants();
+        } catch (err) {
+            console.warn('[two-exchange-reconciler] error (non-fatal):', err.message);
+        }
+    }
+
     // Bootstrap: the FIDO2 policy relying-party id must match the app's serving
     // origin or the browser rejects passkey registration ("'rp.id' cannot be
     // used with the current origin"). PingOne defaults rp.id to its own domain,

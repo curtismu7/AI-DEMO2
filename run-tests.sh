@@ -88,10 +88,10 @@ run_e2e_tests() {
     npm run test:e2e
     ok "Playwright E2E tests completed"
   else
-    warn "API server not running on :3001 — skipping E2E tests"
+    warn "API server not running on :3001 — cannot run E2E tests (failing)"
     echo "  Start it with: cd demo_api_server && node server.js"
     echo "  Then re-run:   ./run-tests.sh e2e"
-    return 0
+    return 1
   fi
 }
 

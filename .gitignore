@@ -63,3 +63,6 @@ demo_api_server/logs/
 demo_api_server/data/runtimeData.json
 # LMDB lock file (runtime only; the DB itself is seed data and stays tracked)
 demo_api_server/data/persistent/lmdb/lock.mdb
+# Per-machine MCP client config — holds machine-specific paths and must never
+# hold credentials. Copy .air/mcp.json.example to .air/mcp.json to set up.
+.air/mcp.json
