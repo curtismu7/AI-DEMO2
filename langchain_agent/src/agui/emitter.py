@@ -44,6 +44,11 @@ class AGUIEventEmitter:
         self._sink = sink
         self._current_message_id: Optional[str] = None
         self._last_tool_call_id: Optional[str] = None
+        # Guards the terminal event: exactly one of RUN_FINISHED / RUN_ERROR may
+        # be emitted per run. The MCP graph path emits RUN_ERROR then returns,
+        # after which the /run handler calls on_run_end() — without this flag the
+        # client would receive RUN_FINISHED after a RUN_ERROR.
+        self._terminated: bool = False
         # Test helper: the fixture sets this to the same list that the
         # sink coroutine appends to, so tests can inspect emitted events.
         # _emit itself does not write here; the sink does the appending.
@@ -60,6 +65,9 @@ class AGUIEventEmitter:
         await self._emit(RunStarted(run_id=self._run_id, thread_id=self._thread_id))
 
     async def on_run_end(self) -> None:
+        if self._terminated:
+            return
+        self._terminated = True
         await self._emit(RunFinished(run_id=self._run_id, thread_id=self._thread_id))
 
     async def on_llm_start(self) -> None:
@@ -136,7 +144,11 @@ class AGUIEventEmitter:
     async def on_error(self, error: Exception, **kwargs) -> None:
         # RUN_ERROR is the AG-UI terminal-error event the BFF and React hook
         # (useAgentRun.js) actually handle. RUN_FINISHED is NOT emitted after
-        # RUN_ERROR — the stream is considered terminated by the error.
+        # RUN_ERROR — the stream is considered terminated by the error, so mark
+        # it terminated to suppress a trailing RUN_FINISHED from on_run_end().
+        if self._terminated:
+            return
+        self._terminated = True
         await self._emit(ErrorEvent(
             message=str(error),
             code="AGENT_ERROR",

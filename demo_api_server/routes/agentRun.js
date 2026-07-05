@@ -102,7 +102,7 @@ router.post('/run', async (req, res) => {
     return res.status(404).json({ error: 'AG-UI not enabled. Set ff_agui_enabled=true in config.' });
   }
 
-  const { userId, accessToken, tokenEvents: sessionTokenEvents } = req.agentContext || {};
+  const { userId, email: userEmail, accessToken, tokenEvents: sessionTokenEvents } = req.agentContext || {};
   if (!userId || !accessToken) {
     return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
   }
@@ -334,6 +334,12 @@ router.post('/run', async (req, res) => {
       initialTokenEvents,
       provider,
       model,
+      // Non-sensitive identity so the agent's system prompt reflects the
+      // already-authenticated user instead of asking for their email. The
+      // agent NEVER receives the user's access token — identity/authorization
+      // for tool calls stays in the BFF's RFC 8693 exchange. This only carries
+      // the display email + PingOne subject the BFF already holds.
+      userIdentity: { userId, email: userEmail },
     },
     ...(resume ? { resume } : {}),
   };
