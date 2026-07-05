@@ -10,6 +10,8 @@
 #   3. P1AZ cloud policy snapshot                (snapshot:check)
 #   4. PingGateway env/config parity             (verify-pinggateway-parity.js)
 #   5. mock PingOne Authorize rule store parity  (demo_authz_server/topology.parity)
+#   6. PingGateway tool-schema drift             (demo_mcp_gateway/toolSchemaDrift)
+#   7. tool scope-audience coverage              (allowedScopesByAudience.parity)
 #
 # The LIVE PingOne diff (needs worker creds + network) is intentionally NOT here.
 # Run it deliberately with:  npm run topology:verify:live
@@ -24,10 +26,10 @@ cd "$ROOT"
 fail=0
 step() { printf '\n\033[36m── %s ──\033[0m\n' "$1"; }
 
-step "1/5 vertical manifests -> topology (verticals:check)"
+step "1/7 vertical manifests -> topology (verticals:check)"
 ( cd demo_api_server && npm run --silent verticals:check ) || fail=1
 
-step "2/5 schema + running code + referential integrity + P1AZ constants"
+step "2/7 schema + running code + referential integrity + P1AZ constants"
 # --runTestsByPath runs ONLY this exact file (no directory scan, so it can never
 # collect another checkout's copy), and the ignore override keeps it runnable
 # inside .claude/worktrees — the repo's jest config ignores that path, which would
@@ -35,7 +37,7 @@ step "2/5 schema + running code + referential integrity + P1AZ constants"
 # keeps it fast.
 ( cd demo_api_server && npx --no-install jest --runTestsByPath src/__tests__/scopeTopology.regression.test.js --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
-step "3/5 P1AZ cloud policy snapshot (snapshot:check)"
+step "3/7 P1AZ cloud policy snapshot (snapshot:check)"
 # snapshots/ is gitignored (local-only import artifact). Only verify it where it
 # exists (developer/main checkout); skip gracefully on a fresh clone / CI / worktree.
 if [ -f snapshots/gen-authorize-snapshot.js ]; then
@@ -44,11 +46,25 @@ else
   echo "[skip] snapshots/gen-authorize-snapshot.js not present (gitignored local artifact) — skipping P1AZ snapshot check."
 fi
 
-step "4/5 PingGateway env/config parity"
+step "4/7 PingGateway env/config parity"
 node scripts/verify-pinggateway-parity.js || fail=1
 
-step "5/5 mock PingOne Authorize rule-store parity"
+step "5/7 mock PingOne Authorize rule-store parity"
 ( cd demo_authz_server && node --test topology.parity.test.js ) || fail=1
+
+step "6/7 PingGateway tool-schema drift (mcp-tool-schemas.json)"
+# mcp-tool-schemas.json (what PingGateway reads to know which MCP tools exist) is
+# generated from the tool registry by `gen:tool-schemas`. Fails if a tool was
+# added/renamed/removed without regenerating — PingGateway would then reject it
+# with "Unknown tool". Fix: npm --prefix demo_mcp_gateway run gen:tool-schemas
+( cd demo_mcp_gateway && npx --no-install jest toolSchemaDrift --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
+
+step "7/7 tool scope-audience coverage (configStore allowlist)"
+# Every gateway-surface tool's requiredScopes must be present in the RFC 8707
+# scope-audience allowlist for the MCP Gateway (and MCP Server, minus gateway-only
+# scopes). A missing scope = SCOPE_MISMATCH at token exchange before the gateway.
+# Fix: add the scope to buildAllowedScopesByAudience() in configStore.js.
+( cd demo_api_server && npx --no-install jest --runTestsByPath src/__tests__/allowedScopesByAudience.parity.test.js --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
 printf '\n'
 if [ "$fail" -ne 0 ]; then

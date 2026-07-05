@@ -5,14 +5,23 @@
 # BLOCK the commit unless the full OFFLINE verification passes: running-code
 # consumers, P1AZ snapshot, PingGateway config, and the mock authz rule store.
 # The live PingOne diff stays opt-in (npm run topology:verify:live).
-TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/\.env\.example|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
+TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|demo_mcp_server/src/tools/|demo_mcp_invest/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
 if [ -n "$TOPO_TOUCHED" ]; then
-  echo "[pre-commit] scope-topology surface changed — regenerating P1AZ snapshot + verifying no drift..."
+  echo "[pre-commit] scope-topology / tool surface changed — regenerating P1AZ snapshot + tool schemas + verifying no drift..."
   # snapshots/ is gitignored (local-only artifact); only regenerate where present.
   if [ -f snapshots/gen-authorize-snapshot.js ]; then
     node snapshots/gen-authorize-snapshot.js
     git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json 2>/dev/null || true
   fi
+  # Keep PingGateway's tool schema (mcp-tool-schemas.json) in lock-step with the
+  # tool registry (BankingToolRegistry + invest + gateway tools). Idempotent — a
+  # no-op git add when nothing changed. Abort the commit if generation fails
+  # rather than committing a stale schema.
+  if ! npm --prefix demo_mcp_gateway run --silent gen:tool-schemas; then
+    echo "[pre-commit] ❌ gen:tool-schemas failed — cannot regenerate mcp-tool-schemas.json (fix the tool source, then re-commit)."
+    exit 1
+  fi
+  git add mcp-tool-schemas.json 2>/dev/null || true
   if ! npm run --silent topology:verify; then
     echo "[pre-commit] ❌ topology:verify failed — scope-topology.json drifts from PingGateway / P1AZ / running code / mock authz (see above)."
     echo "[pre-commit]    Fix the drift, or regenerate the derived artifacts (npm run scopes:doc / npm --prefix demo_api_server run scopes:gen), then re-commit."

@@ -37,7 +37,27 @@ extends that same mechanism to the tool-authz chain.
   `scope-topology.json` + the tool registry; they add tests + gate wiring only.
 - Not touching the mock gateway `toolScopes` path (already SSOT-derived + gated).
 
-## The three invariants (each a gated test)
+## Design revision (2026-07-05, from implementation findings)
+
+Measuring against the live tool set changed two of the three invariants:
+
+- **Inv-2 DROPPED.** Only 42 of 204 gateway-surface tools appear in the curated
+  `permitted_tools` map; the other 163 (mostly generated vertical tools + demo
+  tools) are intentionally absent. "Every gateway tool must be permittable" is
+  therefore false — the map is deliberately sparse (per-intent, primary tools
+  only). No workable coverage invariant exists without a new "agent-reachable"
+  signal, which is out of scope. The existing forward parity guard stays.
+- **Inv-3 becomes fix-then-gate.** The audience allowlist is missing SIX scopes
+  that gateway tools already require: `invest:read`, `permits:read`,
+  `transcript:read`, `workorders:read`, `sensitive:read` (all six audiences), and
+  `transfer` (mcpserver only — mcpgateway already has it). These are latent
+  `SCOPE_MISMATCH` bugs for the investment / government / university / workforce /
+  sensitive tools through PingGateway (the same failure `code:search` hit). So
+  Inv-3 first FIXES the allowlist, then gates it.
+
+Net scope: **Inv-1 (schema drift gate) + Inv-3 (fix 6 scopes, then gate coverage).**
+
+## The invariants (each a gated test)
 
 ### Inv-1: PingGateway schema is regenerated
 `mcp-tool-schemas.json` must byte-equal a fresh `gen:tool-schemas` run.

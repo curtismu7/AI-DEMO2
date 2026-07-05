@@ -93,7 +93,7 @@ Native scopes: `agent:invoke`
 
 Type: `WEB_APP`  ·  Grants: `authorization_code`, `refresh_token`, `token_exchange`
 
-Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`, `invest:read`, `code:search`
+Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`, `invest:read`
 
 ### Super Banking Admin App
 

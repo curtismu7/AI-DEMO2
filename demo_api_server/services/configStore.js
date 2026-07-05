@@ -1505,6 +1505,11 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'invest:read',        // investment — investment vertical tools
+    'permits:read',       // government — permit vertical tools
+    'transcript:read',    // university — enrollment/transcript vertical tools
+    'workorders:read',    // field-service — work-order vertical tools
+    'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
@@ -1522,6 +1527,11 @@ function buildAllowedScopesByAudience() {
     'records:read',       // healthcare — show_health_record
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
+    'invest:read',        // investment — investment vertical tools
+    'permits:read',       // government — permit vertical tools
+    'transcript:read',    // university — enrollment/transcript vertical tools
+    'workorders:read',    // field-service — work-order vertical tools
+    'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
   ]);
 
