@@ -1566,11 +1566,12 @@ function validateScopeAudience(scopes, audience) {
   if (!allowedForAudience) {
     // WR-09 / hardening: an unknown audience means this RFC 8707 scope-audience
     // allowlist can't narrow the exchange, so every requested scope would pass
-    // through unnarrowed. In production fail CLOSED (a misconfigured audience must
-    // not silently disable scope narrowing); in dev keep the permissive
-    // pass-through but warn so the demo still runs with partial config.
+    // through unnarrowed. Under STRICT_AUTH fail CLOSED (a misconfigured audience
+    // must not silently disable scope narrowing); otherwise keep the permissive
+    // pass-through but warn. Gated on STRICT_AUTH (not NODE_ENV) because the local
+    // demo runs NODE_ENV=production and may hit audiences not in the static map.
     const note = `Unknown audience — not in scope-audience allowlist: ${audience}`;
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.STRICT_AUTH === 'true') {
       throw new Error(`SCOPE_AUDIENCE_UNKNOWN: ${note} — refusing to skip scope narrowing`);
     }
     console.warn(

@@ -149,10 +149,11 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
   const jwksEndpoint = process.env.PINGONE_JWKS_ENDPOINT;
 
   if (!jwksEndpoint) {
-    // Production must verify signatures — decode-only accepts forged tokens. This is
-    // also caught at boot by assertProductionSecrets; the runtime guard covers a
-    // config change after start. Dev keeps decode-only so the local demo runs.
-    if (process.env.NODE_ENV === 'production') {
+    // STRICT_AUTH must verify signatures — decode-only accepts forged tokens. Also
+    // caught at boot by assertProductionSecrets; this runtime guard covers a config
+    // change after start. Gated on STRICT_AUTH (not NODE_ENV) because the local demo
+    // runs NODE_ENV=production without JWKS by design — it keeps decode-only.
+    if (process.env.STRICT_AUTH === 'true') {
       throw new TokenValidationError(
         'PINGONE_JWKS_ENDPOINT not configured — signature verification unavailable',
         'invalid_token',
