@@ -6,6 +6,7 @@ import "./ServersPage.css";
 // mirrored in demo_api_server/data/serverInventory.js.
 
 const REFRESH_MS = 15000;
+const SIZES_REFRESH_MS = 60000; // image/code sizes change slowly; memory is coarse enough at 60s
 
 const CATEGORY_LABELS = {
   core: "Core",
@@ -27,6 +28,16 @@ function StatusCell({ svc }) {
   );
 }
 
+function formatBytes(bytes) {
+  if (bytes == null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = -1;
+  do { v /= 1024; i += 1; } while (v >= 1024 && i < units.length - 1);
+  return `${v >= 100 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+}
+
 function portLabel(svc) {
   if (svc.hostPort == null && svc.internalPort == null) return "—";
   if (svc.hostPort == null) return `internal :${svc.internalPort}`;
@@ -39,7 +50,9 @@ export default function ServersPage() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sizes, setSizes] = useState({});
   const inFlight = useRef(false);
+  const sizesInFlight = useRef(false);
 
   const load = useCallback(async () => {
     if (inFlight.current) return;
@@ -59,6 +72,23 @@ export default function ServersPage() {
     }
   }, []);
 
+  // Sizes (image / memory / codebase) — slower cadence, and a failure just
+  // leaves the size cells at "—"; the status table stays authoritative.
+  const loadSizes = useCallback(async () => {
+    if (sizesInFlight.current) return;
+    sizesInFlight.current = true;
+    try {
+      const res = await fetch("/api/health/inventory/sizes", { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSizes(data.sizes || {});
+    } catch {
+      /* keep last known sizes */
+    } finally {
+      sizesInFlight.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     load();
     const timer = setInterval(() => {
@@ -66,6 +96,14 @@ export default function ServersPage() {
     }, REFRESH_MS);
     return () => clearInterval(timer);
   }, [load]);
+
+  useEffect(() => {
+    loadSizes();
+    const timer = setInterval(() => {
+      if (!document.hidden) loadSizes();
+    }, SIZES_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [loadSizes]);
 
   const probed = services.filter((s) => s.up !== null);
   const upCount = probed.filter((s) => s.up).length;
@@ -115,6 +153,9 @@ export default function ServersPage() {
                       <th>Container</th>
                       <th>Ports</th>
                       <th>Latency</th>
+                      <th>Image</th>
+                      <th>Memory</th>
+                      <th>Code</th>
                       <th>Runtime</th>
                       <th>Purpose</th>
                     </tr>
@@ -129,6 +170,14 @@ export default function ServersPage() {
                         <td className="col-latency">
                           {svc.up && svc.latencyMs != null ? `${svc.latencyMs} ms` : "—"}
                         </td>
+                        <td className="col-size">{formatBytes(sizes[svc.key]?.imageBytes)}</td>
+                        <td
+                          className="col-size"
+                          title={sizes[svc.key]?.memLimitBytes != null ? `limit ${formatBytes(sizes[svc.key].memLimitBytes)}` : undefined}
+                        >
+                          {formatBytes(sizes[svc.key]?.memBytes)}
+                        </td>
+                        <td className="col-size">{formatBytes(sizes[svc.key]?.codeBytes)}</td>
                         <td className="col-lang">{svc.lang}</td>
                         <td className="col-purpose">{svc.purpose}</td>
                       </tr>

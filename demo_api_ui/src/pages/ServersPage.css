@@ -137,11 +137,16 @@
 
 .col-container,
 .col-ports,
-.col-latency {
+.col-latency,
+.col-size {
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   color: #374151;
+}
+
+.col-size {
+  text-align: right;
 }
 
 .col-purpose {
