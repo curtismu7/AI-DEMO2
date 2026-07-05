@@ -1,92 +1,144 @@
-/**
- * apikey-dispatch.groovy — Phase 2 Bearer Token Generation
+/*
+ * apikey-dispatch.groovy — Phase 3: PingGateway/IG credential mediation.
  *
- * PingGateway dispatch filter for API-key-authenticated MCP access (/mcp/apikey).
+ * Terminal handler for the ^/mcp/apikey route. For an api-key-disposition MCP
+ * tool call (show_mortgage / show_investment / …), IG:
+ *   1. reads the tool name from the JSON-RPC body,
+ *   2. pulls the fake service API key from the vault via the BFF bridge
+ *      (TLS-verified — the mkcert CA is in IG's JVM truststore, Phase 1),
+ *   3. drops the user's OAuth bearer and calls demo_data_service /<route>
+ *      with X-API-Key (service-to-service trust),
+ *   4. wraps the REST record into an MCP JSON-RPC result whose _meta carries the
+ *      masked key + apiCall + tokenEvents, mirroring the Node gateway's
+ *      apiKeyDispatch.ts shape so the UI/Trace Rail are unchanged.
  *
- * Flow:
- *   1. Extract X-API-Key header from the request
- *   2. Exchange the API key for a bearer token via BFF /api/mcp/apikey/exchange
- *   3. Replace X-API-Key with Authorization: Bearer <token> for introspection
- *   4. Forward to the MCP server; PingGateway introspection + P1AZ will enforce per-tool authorization
- *   5. Per-tool scopes are enforced by the mcp-olb route via the RsFilterTokenResolver
+ * Inbound token validation + scope enforcement run in earlier filters on this
+ * route (rsFilter / McpValidation), so by the time we run the caller is already
+ * authorized. We deliberately do NOT forward the bearer to the backend.
  *
- * Security:
- *   - API keys are validated server-side (BFF service) — not cached locally
- *   - Bearer tokens are signed JWTs, validated by PingGateway introspection
- *   - The endpoint requires HTTPS in production (enforced by PingGateway config)
- *   - P1AZ resource server (MCP Gateway) is the authoritative access-control point
+ * Idioms mirror olb-token-exchange.groovy (self-forward via HttpURLConnection —
+ * http.send().get() deadlocks the Vert.x event loop) and p1az-decision.groovy.
  */
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import org.forgerock.http.protocol.Response
+import org.forgerock.http.protocol.Status
+import org.forgerock.util.promise.Promises
 
-import org.forgerock.json.JsonValue
-import org.forgerock.openig.heap.HeapException
-import javax.net.ssl.HttpsURLConnection
-import java.net.URL
+// tool name -> demo_data_service route segment (mirrors demo_mcp_gateway APIKEY_BACKEND_ROUTES)
+def ROUTE_FOR_TOOL = [
+    show_mortgage      : 'mortgage',
+    show_investment    : 'invest',
+    show_large_purchase: 'retail',
+    show_health_record : 'healthcare',
+    show_gear_order    : 'gear',
+    show_expense_report: 'expense',
+    show_permit        : 'permit',
+    show_enrollment    : 'enrollment',
+    show_work_order    : 'workOrder',
+]
+// tool -> vault key name the BFF bridge will return (only these two wired in Phase 2/3)
+def KEY_FOR_TOOL = [
+    show_mortgage  : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_investment: 'DEMO_INVEST_SERVICE_KEY',
+]
 
-def apiKeyHeader = 'X-API-Key'
-def apiKey = request.headers.get(apiKeyHeader)?.getValues()?.get(0)
-def logger = org.slf4j.LoggerFactory.getLogger('apikey-dispatch')
+def bffVaultUrl   = System.getenv('BFF_VAULT_KEY_URL') ?: ''
+def bffSecret     = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def backendBase   = System.getenv('PG_MORTGAGE_BACKEND_URL') ?: 'http://mortgage-service:8082'
 
-// 1. Validate API key presence
-if (!apiKey || apiKey.isEmpty()) {
-  logger.warn('[apikey-dispatch] Missing X-API-Key header')
-  context.attributes['statusCode'] = 401
-  return Response.status(401).entity(JsonValue.json(
-    ['code': 'invalid_apikey', 'message': 'X-API-Key header is required']
-  ).asMap()).build()
+// ── helpers ──────────────────────────────────────────────────────────────────
+def rpcError = { id, code, message ->
+    def body = JsonOutput.toJson([jsonrpc: '2.0', id: id, error: [code: code, message: message]])
+    def r = new Response(Status.OK)          // JSON-RPC errors ride a 200 envelope
+    r.headers.put('Content-Type', ['application/json'])
+    r.entity.setString(body)
+    return Promises.newResultPromise(r)
 }
 
-// 2. Exchange API key for bearer token via BFF
-def bffExchangeUrl = System.getenv('BFF_APIKEY_EXCHANGE_URL') ?: 'https://api.ping.demo:3001/api/mcp/apikey/exchange'
-try {
-  def url = new URL(bffExchangeUrl)
-  def conn = url.openConnection() as HttpsURLConnection
-
-  // Disable cert validation in dev (set BFF_APIKEY_EXCHANGE_SKIP_CERT_CHECK=true)
-  if (System.getenv('BFF_APIKEY_EXCHANGE_SKIP_CERT_CHECK') == 'true') {
-    def sslContext = javax.net.ssl.SSLContext.getInstance('TLSv1.2')
-    sslContext.init(null, [new org.forgerock.util.trustmanager.TrustAllX509CertificateManager()] as javax.net.ssl.TrustManager[], null)
-    conn.setSSLSocketFactory(sslContext.getSocketFactory())
-    conn.setHostnameVerifier({ hostname, session -> true } as javax.net.ssl.HostnameVerifier)
-  }
-
-  conn.setRequestMethod('POST')
-  conn.setRequestProperty('Content-Type', 'application/json')
-  conn.setRequestProperty('X-API-Key', apiKey)
-  conn.setConnectTimeout(5000)
-  conn.setReadTimeout(5000)
-
-  int statusCode = conn.getResponseCode()
-
-  if (statusCode == 200) {
-    def responseText = conn.getInputStream().getText()
-    def responseJson = JsonValue.json(responseText).asMap()
-    def bearerToken = responseJson.token
-
-    if (!bearerToken) {
-      logger.error('[apikey-dispatch] BFF returned no token')
-      return Response.status(500).entity(JsonValue.json(
-        ['code': 'token_generation_failed', 'message': 'No token in exchange response']
-      ).asMap()).build()
+// Blocking GET (URLConnection, not http.send — event-loop safe). Returns [code, body].
+def httpGet = { String url, Map hdrs ->
+    try {
+        def conn = new URL(url).openConnection() as java.net.HttpURLConnection
+        conn.requestMethod = 'GET'
+        conn.connectTimeout = 5000
+        conn.readTimeout = 10000
+        hdrs.each { k, v -> conn.setRequestProperty(k as String, v as String) }
+        def code = conn.responseCode
+        def text = ''
+        try { text = (code < 400 ? conn.inputStream : (conn.errorStream ?: conn.inputStream))?.text ?: '' } catch (Exception ignored) {}
+        return [code: code, body: text]
+    } catch (Exception e) {
+        logger.warn('[apikey-dispatch] GET failed ' + url + ' : ' + e.message)
+        return [code: 0, body: '']
     }
-
-    logger.info('[apikey-dispatch] Token exchanged successfully', ['userId': responseJson.userId])
-
-    // 3. Replace API key with bearer token
-    request.headers.remove(apiKeyHeader)
-    request.headers.put('Authorization', "Bearer ${bearerToken}")
-
-    // 4. Continue to next handler (introspection + MCP server forwarding)
-    return next.handle(context, request)
-  } else {
-    def errorText = conn.getErrorStream()?.getText() ?: ''
-    logger.warn('[apikey-dispatch] BFF exchange failed', ['status': statusCode, 'error': errorText])
-    return Response.status(statusCode).entity(JsonValue.json(
-      ['code': 'exchange_failed', 'message': "BFF returned ${statusCode}"]
-    ).asMap()).build()
-  }
-} catch (Exception e) {
-  logger.error('[apikey-dispatch] Exchange call failed', ['error': e.getMessage()])
-  return Response.status(503).entity(JsonValue.json(
-    ['code': 'service_unavailable', 'message': 'Bearer token exchange service unavailable']
-  ).asMap()).build()
 }
+
+def maskLast4 = { String k -> (k && k.length() >= 4) ? k[-4..-1] : 'XXXX' }
+
+// ── 1. parse the inbound JSON-RPC tool call ─────────────────────────────────
+def bodyStr = ''
+try { bodyStr = request.entity.string ?: '' } catch (Exception ignored) {}
+def rpc
+try { rpc = new JsonSlurper().parseText(bodyStr ?: '{}') } catch (Exception e) { rpc = [:] }
+def rpcId    = rpc?.id
+def toolName = (rpc?.method == 'tools/call') ? (rpc?.params?.name as String) : null
+
+if (!toolName || !ROUTE_FOR_TOOL.containsKey(toolName)) {
+    return rpcError(rpcId, -32601, 'apikey-dispatch: unknown or non-apikey tool: ' + toolName)
+}
+def routeSeg = ROUTE_FOR_TOOL[toolName]
+def keyName  = KEY_FOR_TOOL[toolName]
+
+// ── 2. pull the service key from the vault (via the BFF bridge, TLS-verified) ─
+if (!keyName) {
+    return rpcError(rpcId, -32500, 'apikey-dispatch: no vault key configured for ' + toolName)
+}
+def keyResp = httpGet(bffVaultUrl + '?name=' + keyName, ['x-internal-gateway-secret': bffSecret])
+if (keyResp.code != 200) {
+    logger.warn('[apikey-dispatch] vault bridge returned ' + keyResp.code + ' for ' + keyName)
+    return rpcError(rpcId, -32500, 'apikey-dispatch: could not fetch service key (bridge ' + keyResp.code + ')')
+}
+def apiKey = new JsonSlurper().parseText(keyResp.body ?: '{}')?.value as String
+if (!apiKey) {
+    return rpcError(rpcId, -32500, 'apikey-dispatch: empty service key from bridge')
+}
+def last4 = maskLast4(apiKey)
+
+// ── 3. call the backend with X-API-Key (no bearer) ──────────────────────────
+def backendUrl = backendBase + '/' + routeSeg
+def be = httpGet(backendUrl, ['X-API-Key': apiKey])
+if (be.code == 401) {
+    return rpcError(rpcId, -32401, 'apikey-dispatch: backend rejected the service API key')
+}
+if (be.code < 200 || be.code >= 400) {
+    return rpcError(rpcId, -32500, 'apikey-dispatch: backend returned ' + be.code)
+}
+
+// ── 4. wrap the REST record into an MCP JSON-RPC result (apiKeyDispatch.ts shape) ─
+def result = [
+    jsonrpc: '2.0',
+    id: rpcId,
+    result: [
+        content: [[type: 'text', text: be.body]],
+        _meta: [
+            credentialPath   : 'api_key',
+            apiKeyMaskedLast4: last4,
+            maskedApiKey     : 'xxxx' + last4,
+            apiCall          : 'GET /' + routeSeg,
+            backend          : 'demo_data_service',
+            note             : 'PingGateway pulled the service key from the vault, dropped your OAuth bearer, and called demo_data_service /' + routeSeg + ' (X-API-Key).',
+            tokenEvents      : [
+                [id: 'evt-inbound', label: 'Inbound user bearer received', tokenType: 'access_token', credentialPath: 'api_key', status: 'ok'],
+                [id: 'evt-swap',    label: 'PingGateway swap: OAuth bearer dropped, vault service API key attached', tokenType: 'api_key', maskedValue: '...' + last4, credentialPath: 'api_key', status: 'ok'],
+                [id: 'vault-key-inject', label: 'Vault key injected by PingGateway → ' + routeSeg, tokenType: 'api_key', maskedValue: '...' + last4, credentialPath: 'api_key', status: 'ok'],
+                [id: 'evt-backend', label: 'Outbound GET demo_data_service /' + routeSeg + ' (X-API-Key, no OAuth)', tokenType: 'api_key', credentialPath: 'api_key', status: 'ok'],
+            ],
+        ],
+    ],
+]
+
+def resp = new Response(Status.OK)
+resp.headers.put('Content-Type', ['application/json'])
+resp.entity.setString(JsonOutput.toJson(result))
+return Promises.newResultPromise(resp)
