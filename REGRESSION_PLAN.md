@@ -159,6 +159,7 @@ backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
 `bash ping-gateway/scripts/e2e-pinggateway.sh` (PASS); restart
 `ai-demo-ping-gateway` → 0 route-build errors, unauthenticated `/mcp`,
 `/mcp/apikey`, jwks-variant all 401, `/as/token` 404.
+
 ### 2026-07-05 — run-docker.sh aborts on cold start when :8090 is empty
 
 **Files changed:**
