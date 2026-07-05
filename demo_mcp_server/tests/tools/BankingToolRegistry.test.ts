@@ -54,6 +54,9 @@ describe('BankingToolRegistry', () => {
     'sensitive_membership_details',
     'sensitive_payroll_details',
     'sensitive_patient_records',
+    'code_search',
+    'get_code',
+    'list_codebases',
   ];
 
   describe('getAllTools', () => {

@@ -148,5 +148,21 @@ export function createServer(deps: ServerDeps): Express {
     }
   });
 
+  app.post('/code', async (req: Request, res: Response) => {
+    const { codebase_id, file, line_start, line_end } = req.body as {
+      codebase_id?: string; file?: string; line_start?: number; line_end?: number;
+    };
+    if (!codebase_id || !file || typeof line_start !== 'number' || typeof line_end !== 'number') {
+      return res.status(400).json({ error: 'missing_args', message: 'codebase_id, file, line_start, line_end are required' });
+    }
+    try {
+      const range = await deps.store.getCode({ codebaseId: codebase_id, file, lineStart: line_start, lineEnd: line_end });
+      if (!range) return res.status(404).json({ error: 'not_found', message: `No indexed content for ${file}` });
+      return res.status(200).json(range);
+    } catch (err) {
+      return failure(res, err, 'get_code_failed');
+    }
+  });
+
   return app;
 }
