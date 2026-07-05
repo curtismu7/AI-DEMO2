@@ -1,7 +1,9 @@
 'use strict';
 
-const path = require('path');
-const scopeTopology = require(path.resolve(__dirname, '../../scope-topology.json'));
+// Load the manifest via the shared accessor so SCOPE_TOPOLOGY_PATH is honored
+// (a repo-root-relative require resolves to the stale copy baked into the
+// Docker image instead of the live directory-mounted file).
+const scopeTopology = require('./scopeTopology')._manifest();
 
 // Build a tool → riskLevel map from scope-topology.json at load time.
 // Each tool in the BankingToolRegistry has requiredScopes that match scope names here.

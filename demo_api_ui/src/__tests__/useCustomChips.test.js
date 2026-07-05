@@ -20,13 +20,18 @@ let _store = {};
 
 beforeEach(() => {
   _store = {};
+  // Spy on the localStorage INSTANCE, not Storage.prototype: under
+  // Vitest + jsdom + Node 26, the bare global Storage is Node's builtin (the
+  // jsdom localStorage is not an instanceof it, and exposes getItem/setItem as
+  // own instance properties), so prototype spies intercept nothing and state
+  // leaks between tests through the real jsdom storage.
   jest
-    .spyOn(Storage.prototype, "getItem")
+    .spyOn(localStorage, "getItem")
     .mockImplementation((key) => _store[key] ?? null);
-  jest.spyOn(Storage.prototype, "setItem").mockImplementation((key, val) => {
+  jest.spyOn(localStorage, "setItem").mockImplementation((key, val) => {
     _store[key] = val;
   });
-  jest.spyOn(Storage.prototype, "removeItem").mockImplementation((key) => {
+  jest.spyOn(localStorage, "removeItem").mockImplementation((key) => {
     delete _store[key];
   });
 });

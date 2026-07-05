@@ -17,6 +17,45 @@
       }
     }
   },
+  "invest": {
+    "noun": "portfolio",
+    "record": {
+      "invest": {
+        "portfolioId": "INV-8842",
+        "holder": "Jordan A. Rivera",
+        "totalValue": 184320.55,
+        "cashSweep": 12580.1,
+        "ytdReturnPct": 11.4,
+        "riskProfile": "Growth",
+        "holdings": [
+          {
+            "symbol": "VTI",
+            "name": "Vanguard Total Market ETF",
+            "quantity": 220,
+            "marketValue": 62480
+          },
+          {
+            "symbol": "UST-10Y",
+            "name": "US Treasury Note",
+            "quantity": null,
+            "marketValue": 60010.35
+          },
+          {
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "quantity": 90,
+            "marketValue": 19260
+          },
+          {
+            "symbol": "VNQ",
+            "name": "Vanguard Real Estate ETF",
+            "quantity": 340,
+            "marketValue": 29990.1
+          }
+        ]
+      }
+    }
+  },
   "permit": {
     "noun": "permit record",
     "record": {

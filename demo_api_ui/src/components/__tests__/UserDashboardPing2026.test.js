@@ -307,12 +307,13 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined for the TokenChainTraceRail embed swap (UnifiedTokenFlowInspector
-  // → TokenChainTraceRail on the customer dashboards).
+  // Re-baselined for eeaddd8ac "fix(dashboard): agent center, token chain rail
+  // on the right (2026 skin)" — intentional split3 child-order change, CSS
+  // verified (UserDashboard.css --no-banking override handles the new order).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "cd55ca6a56b29ce29e445d095bd33ad338e209c9239453443ced261e3be6d677";
+    "908b8d393ef588c0c4aa4d989e1f0740190db661a9d1c7c3ca64a0ce2bedd9f8";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

@@ -92,7 +92,7 @@ Native scopes: `agent:invoke`
 
 Type: `WEB_APP`  ·  Grants: `authorization_code`, `refresh_token`, `token_exchange`
 
-Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`
+Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`, `invest:read`
 
 ### Super Banking Admin App
 
@@ -386,3 +386,12 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_tickets` | gateway | `read` | — |
 | `view_trainings` | gateway | `read` | — |
 | `withdraw_training_enrollment` | gateway | `write` | — |
+| `buy_security` | gateway | `write` | — |
+| `large_trade` | gateway | `write` | step_up |
+| `rebalance_portfolio` | gateway | `write` | — |
+| `sell_security` | gateway | `write` | — |
+| `view_dividends` | gateway | `read` | — |
+| `view_holdings` | gateway | `read` | — |
+| `view_portfolio_value` | gateway | `read` | — |
+| `view_portfolios` | gateway | `read` | — |
+| `view_trades` | gateway | `read` | — |

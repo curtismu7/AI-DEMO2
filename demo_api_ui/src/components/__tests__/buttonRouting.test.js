@@ -386,13 +386,15 @@ describe("OAuthDebugLogViewer", () => {
 		);
 	});
 
-	it("Configuration link in description points to /config", () => {
+	// 37766ba6 replaced the /config Configuration link with an on-page
+	// "Debug OAuth logging" toggle (the linked page couldn't set debug_oauth).
+	it("shows the on-page Debug OAuth logging toggle (replaced the /config link)", () => {
 		renderAt(OAuthDebugLogViewer, "/oauth-debug-logs", {
 			user: adminUser,
 			onLogout,
 		});
-		const configLink = screen.getByRole("link", { name: "Configuration" });
-		expect(configLink).toHaveAttribute("href", "/config");
+		expect(screen.queryByRole("link", { name: "Configuration" })).toBeNull();
+		expect(screen.getAllByText(/Debug OAuth logging/i).length).toBeGreaterThan(0);
 	});
 
 	it("PageNav Back button calls navigate(-1)", () => {

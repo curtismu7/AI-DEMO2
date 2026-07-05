@@ -30,17 +30,19 @@ router.get('/tool-scopes', (req, res) => {
  * Returns the scope-topology entry for a single tool.
  * No auth required — topology data is not sensitive.
  */
-const SCOPE_TOPOLOGY_TOOLS = (() => {
-  try { return require('../../scope-topology.json').tools || {}; }
+// Via the shared accessor (not a repo-root-relative require) so
+// SCOPE_TOPOLOGY_PATH is honored and topology edits hot-reload.
+function scopeTopologyTools() {
+  try { return require('../services/scopeTopology')._manifest().tools || {}; }
   catch { return {}; }
-})();
+}
 
 router.get('/tool-topology', (req, res) => {
   const { tool } = req.query;
   if (!tool || typeof tool !== 'string') {
     return res.status(400).json({ error: 'bad_request', message: 'tool query param required' });
   }
-  const entry = SCOPE_TOPOLOGY_TOOLS[tool];
+  const entry = scopeTopologyTools()[tool];
   if (!entry) {
     return res.json({ tool, found: false });
   }
