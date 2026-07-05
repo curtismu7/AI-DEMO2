@@ -136,7 +136,12 @@ module.exports = async function decisionHandler(req, res) {
     ToAccountId = '',
   } = params;
 
-  const grantedScopes = new Set(TokenScopes.split(/\s+/).filter(Boolean));
+  // Callers may send a non-string for a field we treat as a string (a JSON
+  // number/object in `parameters`). Coerce before any .split()/.trim() so a
+  // malformed body yields a normal DENY, not a thrown request. Defaults are ''.
+  const asStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
+  const grantedScopes = new Set(asStr(TokenScopes).split(/\s+/).filter(Boolean));
   const hitlApproved = HitlApproved === 'true';
   const nowSec = Math.floor(Date.now() / 1000);
 
@@ -153,7 +158,7 @@ module.exports = async function decisionHandler(req, res) {
   log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} mayActSub=${MayActSub || '(none)'} enforceMayAct=${ruleStore.getEnforceMayAct()} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
 
   // ── Rule 0a: sub (user identity) must be present ──────────────────────────
-  if (!ClientId || !ClientId.trim()) {
+  if (!ClientId || !asStr(ClientId).trim()) {
     warn(`[AuthzServer/decision] DENY — missing sub`);
     return deny(res, 'missing_sub: token must carry a non-empty sub claim');
   }
@@ -161,7 +166,7 @@ module.exports = async function decisionHandler(req, res) {
   // ── Rule 0b: aud must include the gateway resource URI ────────────────────
   // Parse aud as space-separated string (how the gateway serialises it) or a
   // JSON array string (e.g. '["a","b"]') — handle both to avoid spurious DENYs.
-  const rawAud = TokenAudActual || TokenAudience;
+  const rawAud = asStr(TokenAudActual) || asStr(TokenAudience);
   let audList;
   try {
     const parsed = JSON.parse(rawAud);

@@ -65,5 +65,9 @@ demo_api_ui/test-results/
 /test-results/
 # Server activity log
 demo_api_server/logs/
+# Runtime data store — rewritten on every mutation and holds captured request
+# state (Authorization headers etc.). Seed data lives in the tracked
+# bootstrapData.json; store.js falls back to it when runtimeData.json is absent.
+demo_api_server/data/runtimeData.json
 # LMDB lock file (runtime only; the DB itself is seed data and stays tracked)
 demo_api_server/data/persistent/lmdb/lock.mdb

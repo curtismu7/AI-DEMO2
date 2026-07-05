@@ -699,6 +699,10 @@ export default function AdminSideNav({ user }) {
       highlight: true,
       introGate: true,
     },
+    // Live server inventory — visible to ALL logged-in users. Appended after the
+    // index-coupled groups (same rule as AI Control Plane) so the auto-expand
+    // adminIdx/customerIdx offsets above stay valid.
+    { label: "Servers", path: "/servers", icon: "clk" },
   ];
 
   // Filter by role. adminOnly items are NOT hidden — they render with an

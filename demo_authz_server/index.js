@@ -37,21 +37,27 @@ app.use(require('./correlationId')); // bind the gateway-forwarded correlation i
 const PORT = parseInt(process.env.AUTHZ_PORT || '9001', 10);
 const HOST = process.env.HOST || '127.0.0.1';
 
+// Async-route wrapper: a handler that throws or rejects is routed to the error
+// middleware below instead of surfacing as an unhandledRejection (which, under
+// Node's default, terminates the process). Without this, one malformed request
+// body — e.g. a non-string scope field — could crash the whole authz server.
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-app.post('/as/token', require('./routes/token'));
-app.post('/as/introspect', require('./routes/introspect'));
-app.post('/governance/pap/alpha/policy/:workerId/decision', require('./routes/decision'));
-app.get('/rules', require('./routes/rules'));
+app.post('/as/token', wrap(require('./routes/token')));
+app.post('/as/introspect', wrap(require('./routes/introspect')));
+app.post('/governance/pap/alpha/policy/:workerId/decision', wrap(require('./routes/decision')));
+app.get('/rules', wrap(require('./routes/rules')));
 
 // Editable rule overrides (admin round-trip editor; env-gated X-Authz-Admin-Token guard).
 const { putHandler: rulesPutHandler, resetHandler: rulesResetHandler } = require('./routes/rulesWrite');
-app.put('/rules', rulesPutHandler);
-app.post('/rules/reset', rulesResetHandler);
+app.put('/rules', wrap(rulesPutHandler));
+app.post('/rules/reset', wrap(rulesResetHandler));
 
 // Snapshot import/export for authz-server parity validation
 const upload = multer({ storage: multer.memoryStorage() });
-app.post('/admin/import-snapshot', upload.single('snapshot'), require('./routes/import-snapshot'));
+app.post('/admin/import-snapshot', upload.single('snapshot'), wrap(require('./routes/import-snapshot')));
 const fs = require('fs');
 const CURRENT_SNAPSHOT_PATH = path.join(__dirname, '../snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
 app.get('/admin/current-snapshot', function(_req, res) {
@@ -65,6 +71,31 @@ app.get('/admin/current-snapshot', function(_req, res) {
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'pingone-authz-server-mock', port: PORT });
+});
+
+// ─── Error handling ──────────────────────────────────────────────────────────
+// Single net for sync throws, rejected async handlers (via wrap()), and
+// malformed-JSON body-parser errors. Returns a generic body so internal detail
+// and stack traces never reach the caller. Malformed JSON → 400, everything
+// else → 500. Guards res.headersSent so it can't double-send mid-response.
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  const isBadJson = err && (err.type === 'entity.parse.failed' || err.status === 400);
+  const status = isBadJson ? 400 : 500;
+  console.error('[AuthzServer] request error:', err && err.message ? err.message : err);
+  if (res.headersSent) return;
+  res.status(status).json({ error: isBadJson ? 'invalid_request' : 'internal_error' });
+});
+
+// Process-level backstops: a stray rejection must not silently terminate the
+// mock authz server mid-demo. Log and keep serving; only a truly uncaught
+// exception (corrupt state) warrants exit.
+process.on('unhandledRejection', (reason) => {
+  console.error('[AuthzServer] unhandledRejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[AuthzServer] uncaughtException:', err);
+  process.exit(1);
 });
 
 // ─── Start ───────────────────────────────────────────────────────────────────

@@ -812,12 +812,17 @@ export class BankingMCPServer extends EventEmitter {
 
       if (error) {
         console.error(`[BankingMCPServer] OAuth error: ${error}`);
+        // Escape before interpolating: `error` is an attacker-controllable query
+        // param, so echoing it raw into HTML is a reflected-XSS sink.
+        const safeError = String(error).replace(/[&<>"']/g, (c) => (
+          { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+        ));
         res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(`
           <html>
             <body>
               <h2>Authorization Failed</h2>
-              <p>Error: ${error}</p>
+              <p>Error: ${safeError}</p>
               <p>You can close this window and try again.</p>
             </body>
           </html>

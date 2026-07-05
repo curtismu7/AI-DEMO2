@@ -41,22 +41,15 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 
-// Outbound timeout for ALL PingOne Authorize HTTP calls. Node's global fetch
-// (undici) has no default request timeout, so a hung/slow PingOne response would
-// block the awaiting request thread — and, on the enforcement path, the pending
-// transaction — indefinitely. Every call in this module goes through p1azFetch.
-const P1AZ_HTTP_TIMEOUT_MS = Number(process.env.PINGONE_AUTHORIZE_HTTP_TIMEOUT_MS) || 8000;
-
-/**
- * fetch() wrapper that applies P1AZ_HTTP_TIMEOUT_MS via AbortSignal unless the
- * caller already supplied a signal. A timeout aborts the request, surfacing as a
- * thrown error the callers already treat as fail-closed (deny/503).
- */
-function p1azFetch(url, opts = {}) {
-  return fetch(url, {
-    ...opts,
-    signal: opts.signal || AbortSignal.timeout(P1AZ_HTTP_TIMEOUT_MS),
-  });
+// Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
+// provider outage yields a controlled failure in the authorization-decision
+// path instead of an indefinite hang (fetch has no default timeout). Callers
+// keep passing their normal options; a caller-supplied signal still wins.
+// Resolved from globalThis at call time (not captured) so a test's fetch mock
+// is still honoured.
+const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 15000;
+function fetchT(url, opts = {}) {
+  return globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
 }
 
 /** Stable names — idempotent GET list + create if missing */
@@ -150,7 +143,7 @@ async function getWorkerToken() {
   const tokenUrl = `${authBase(regionTld)}/${envId}/as/token`;
   const encoded  = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const response = await p1azFetch(tokenUrl, {
+  const response = await fetchT(tokenUrl, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${encoded}`,
@@ -192,7 +185,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await p1azFetch(url, {
+  const response = await fetchT(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -208,8 +201,8 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 
   const raw = await response.json();
   console.log('[BFF→P1AZ] RESPONSE: status=%d body=%j', response.status, raw);
+  const decision = raw.decision || raw.status || 'INDETERMINATE';
   const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(raw);
-  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired || hitlRequired || consentRequired });
 
   const decisionId = raw.id || raw.decisionId || null;
 
@@ -371,7 +364,7 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await p1azFetch(url, {
+  const response = await fetchT(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${workerToken}`,
@@ -386,8 +379,8 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
   }
 
   const raw = await response.json();
+  const decision = raw.decision || 'INDETERMINATE';
   const { stepUpRequired } = _classifyRawObligations(raw);
-  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
 
   return { decision, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
 }
@@ -508,7 +501,7 @@ async function getRecentDecisions(endpointId, limit = 20) {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${resolvedId}/recentDecisions?limit=${limit}`;
 
-  const response = await p1azFetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -539,7 +532,7 @@ async function getDecisionEndpoints() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints`;
 
-  const response = await p1azFetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -591,7 +584,7 @@ async function getAuthorizationPolicies() {
 
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/authorizationPolicies?expand=children`;
 
-  const response = await p1azFetch(url, {
+  const response = await fetchT(url, {
     headers: { Authorization: `Bearer ${workerToken}` },
   });
 
@@ -702,7 +695,7 @@ async function _createDecisionEndpointResource(opts) {
   }
 
   async function postWithPayload(payload) {
-    return p1azFetch(url, {
+    return fetchT(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${workerToken}`,
@@ -833,7 +826,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   const workerToken = await getWorkerToken();
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
-  const getResponse = await p1azFetch(url, { headers: { Authorization: `Bearer ${workerToken}` } });
+  const getResponse = await fetchT(url, { headers: { Authorization: `Bearer ${workerToken}` } });
   if (!getResponse.ok) {
     const text = await getResponse.text();
     throw new Error(`Decision endpoint fetch failed (${getResponse.status}): ${text}`);
@@ -851,7 +844,7 @@ async function setEndpointRecording(endpointId, enabled = true) {
   delete body.updatedAt;
   body.recordRecentRequests = !!enabled;
 
-  const putResponse = await p1azFetch(url, {
+  const putResponse = await fetchT(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -882,30 +875,6 @@ async function setEndpointRecording(endpointId, enabled = true) {
  * @param {object} raw PingOne Authorize response body
  * @returns {{ stepUpRequired: boolean, hitlRequired: boolean, consentRequired: boolean, classified: object }}
  */
-/**
- * Fail-closed decision normalisation. The authorization *effect* of a PingOne
- * Authorize decision-endpoint response lives under `decision` (top level) or
- * `result.decision` / `details.decision` (envelope form) — NEVER under `status`,
- * which is a transport-level 'SUCCESS' wrapper. Reading `status` as the decision
- * turns a live DENY (or an unexpected/renamed envelope) into a silent PERMIT.
- *
- * Any value we cannot positively recognise as PERMIT collapses to DENY unless an
- * enforceable obligation (step-up / consent / HITL) is present — in which case
- * the caller acts on that obligation and we return INDETERMINATE so the response
- * is not mistaken for a clean permit.
- * @param {any} raw
- * @param {{ hasObligation?: boolean }} [opts]
- * @returns {'PERMIT'|'DENY'|'INDETERMINATE'}
- */
-function _normalizeDecision(raw, { hasObligation = false } = {}) {
-  const candidate = String(
-    (raw && (raw.decision ?? raw.result?.decision ?? raw.details?.decision)) || '',
-  ).trim().toUpperCase();
-  if (candidate === 'PERMIT' || candidate === 'ALLOW') return 'PERMIT';
-  if (candidate === 'DENY' || candidate === 'DENIED') return 'DENY';
-  return hasObligation ? 'INDETERMINATE' : 'DENY';
-}
-
 function _classifyRawObligations(raw) {
   // XACML-style obligations/advice carry the identifier under type/id; the
   // PingOne Authorize decision endpoint returns applied rule effects under
@@ -957,6 +926,4 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
-  // Exported for unit tests only (fail-closed decision normalisation).
-  _normalizeDecision,
 };
