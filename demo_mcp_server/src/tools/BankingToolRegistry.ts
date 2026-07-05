@@ -956,7 +956,53 @@ export class BankingToolRegistry {
       annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
       outputSchema: SHOW_VERTICAL_OUTPUT,
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
-    }
+    },
+
+    code_search: {
+      name: 'code_search',
+      title: 'Code Search',
+      description: 'Semantic search over the indexed source code. Returns ranked snippets with file path and line range. Use when asked where something is implemented or how the code works.',
+      inputSchema: { type: 'object', properties: {
+        query: { type: 'string', description: 'Natural-language description of the code to find' },
+        limit: { type: 'number', description: 'Max results (1-25, default 10)' },
+      }, required: ['query'], additionalProperties: false },
+      requiresUserAuth: false,
+      requiredScopes: ['code:search'],
+      handler: 'executeCodeSearch',
+      readOnly: true,
+      icons: [],
+      annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+    },
+
+    get_code: {
+      name: 'get_code',
+      title: 'Get Code',
+      description: 'Fetch the source lines for a file and line range (e.g. from a code_search hit).',
+      inputSchema: { type: 'object', properties: {
+        file: { type: 'string', description: 'Repo-relative file path' },
+        line_start: { type: 'number' },
+        line_end: { type: 'number' },
+      }, required: ['file', 'line_start', 'line_end'], additionalProperties: false },
+      requiresUserAuth: false,
+      requiredScopes: ['code:search'],
+      handler: 'executeGetCode',
+      readOnly: true,
+      icons: [],
+      annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+    },
+
+    list_codebases: {
+      name: 'list_codebases',
+      title: 'List Codebases',
+      description: 'List the codebases indexed in the code-search vector store.',
+      inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false },
+      requiresUserAuth: false,
+      requiredScopes: ['code:search'],
+      handler: 'executeListCodebases',
+      readOnly: true,
+      icons: [],
+      annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+    },
   };
 
   /**
