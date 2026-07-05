@@ -578,14 +578,23 @@ module.exports = async function decisionHandler(req, res) {
     // Amount-bearing write tool over confirm threshold but under step-up -> HITL_CONSENT.
     // IMP-1: guarded by !acrStrong (ACR bypass); IMP-3: guarded by !hitlApproved (receipt discharge).
     const overConfirm = isWriteTool && hasAmount && amount >= CONFIRM_AMOUNT && amount < STEP_UP_AMOUNT && !acrStrong && !hitlApproved;
-    // No-amount tool with challengeType -> HITL_CONSENT (only if no receipt and ACR weak).
-    const declaresChallenge = !hasAmount && ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved;
-    if (overStepUp) {
-      log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} >= stepUp=$${STEP_UP_AMOUNT}`);
+    // No-amount tool that DECLARES a challengeType in the SoT. The P1AZ snapshot
+    // distinguishes RequiresMcpStepUp (step_up tools) from RequiresHitlConsent
+    // (consent tools) by tool NAME — so this branch must NOT collapse both into
+    // HITL_CONSENT (was: single `declaresChallenge`).
+    //   - step_up tool: STEP_UP, discharged only by a strong ACR. A HITL receipt
+    //     can NEVER satisfy MFA (IMP-3), so it is NOT guarded by hitlApproved.
+    //   - consent tool: HITL_CONSENT, dischargeable by a verified receipt.
+    const declaresStepUp = !hasAmount && scopeTopology.isStepUpTool(ToolName) && !acrStrong;
+    const declaresConsent =
+      !hasAmount && !scopeTopology.isStepUpTool(ToolName) &&
+      ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved;
+    if (overStepUp || declaresStepUp) {
+      log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
       return indeterminate(res, 'STEP_UP');
     }
-    if (overConfirm || declaresChallenge) {
-      log(`[AuthzServer/decision] INDETERMINATE — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresChallenge=${declaresChallenge}`);
+    if (overConfirm || declaresConsent) {
+      log(`[AuthzServer/decision] INDETERMINATE — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresConsent=${declaresConsent}`);
       return indeterminate(res, 'HITL_CONSENT');
     }
   }
