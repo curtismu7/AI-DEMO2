@@ -20,7 +20,9 @@ function errorResult(err: unknown) {
 
 export const executeCodeSearch: HandlerFn = async (_deps, _token, params) => {
   try {
-    const data = await call('/search', { query: params.query, codebase_id: CODEBASE_ID, limit: params.limit || 10 });
+    // Clamp to the 1-25 the tool description advertises, so an agent can't send an unbounded limit.
+    const limit = Math.min(25, Math.max(1, Number(params.limit) || 10));
+    const data = await call('/search', { query: params.query, codebase_id: CODEBASE_ID, limit });
     const results = data.results || [];
     const text = results.length
       ? results.map((r: any) => `${r.file}:${r.line_start}-${r.line_end} (${Math.round((r.relevance || 0) * 100)}%)\n${r.snippet}`).join('\n\n---\n\n')

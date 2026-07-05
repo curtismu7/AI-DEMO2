@@ -14,6 +14,14 @@ describe('code-search handlers', () => {
     expect(r.text).toContain('a.ts');
   });
 
+  test('code_search clamps limit to 1-25', async () => {
+    const f = okFetch({ results: [] });
+    (global as any).fetch = f;
+    await executeCodeSearch(deps, 'tok', { query: 'q', limit: 100000 });
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.limit).toBe(25);
+  });
+
   test('get_code returns the code range', async () => {
     (global as any).fetch = okFetch({ file: 'a.ts', line_start: 1, line_end: 3, code: 'l1\nl2\nl3' });
     const r = await executeGetCode(deps, 'tok', { file: 'a.ts', line_start: 1, line_end: 3 });
