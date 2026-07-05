@@ -46,8 +46,17 @@ class AGUIEmitter:
             await self._emit({"type": "TOOL_CALL_ARGS", "toolCallId": tool_call_id, "delta": args_json})
 
     async def on_tool_end(self, tool_call_id: str, result: Any) -> None:
-        delta = result if isinstance(result, dict) else {"result": str(result)}
-        await self._emit({"type": "STATE_DELTA", "delta": delta})
+        # STATE_DELTA.delta must be a JSON-Patch op ARRAY (the client runs it
+        # through applyJsonPatch) — a plain dict is silently dropped. Mirror the
+        # shape used by bff_tool_adapter._emit_token_events.
+        value = result if isinstance(result, dict) else {"result": str(result)}
+        await self._emit({
+            "type": "STATE_DELTA",
+            "delta": [
+                {"op": "add", "path": "/toolResults/-",
+                 "value": {"toolCallId": tool_call_id, "result": value}},
+            ],
+        })
         await self._emit({"type": "TOOL_CALL_END", "toolCallId": tool_call_id})
 
     async def on_usage(self, input_tokens: int, output_tokens: int) -> None:

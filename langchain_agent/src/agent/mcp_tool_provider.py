@@ -5,6 +5,7 @@ import asyncio
 import contextvars
 import json
 import logging
+import os
 import traceback
 from typing import Dict, Any, List, Optional, Type
 from datetime import datetime
@@ -615,6 +616,25 @@ Once you provide the authorization code, I'll automatically retrieve your accoun
                 logger.debug(f"Formatted JSON response for better user experience")
                 content = formatted_content
             
+            # F8: cap the tool-result string fed back into the ReAct loop so a
+            # large tool payload cannot blow the model's context window. The WS
+            # preview truncation is separate and left untouched. Env-tunable via
+            # AGENT_TOOL_RESULT_MAX_CHARS (<=0 disables the cap).
+            try:
+                _max_chars = int(os.environ.get("AGENT_TOOL_RESULT_MAX_CHARS", "8000"))
+            except ValueError:
+                _max_chars = 8000
+            if _max_chars > 0 and isinstance(content, str) and len(content) > _max_chars:
+                _omitted = len(content) - _max_chars
+                content = (
+                    content[:_max_chars]
+                    + f"\n\n[... tool result truncated: {_omitted} more characters omitted ...]"
+                )
+                logger.info(
+                    "Truncated tool result for %s to %d chars (%d omitted)",
+                    self.tool_info.full_name, _max_chars, _omitted,
+                )
+
             logger.info(f"Successfully executed MCP tool {self.tool_info.full_name}")
             logger.debug(f"Final content to return: {content}")
             return content

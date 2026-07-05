@@ -210,11 +210,18 @@ class DataStore {
     const cappedLogs = allLogs.length > MAX_ACTIVITY_LOGS
       ? allLogs.slice(-MAX_ACTIVITY_LOGS)
       : allLogs;
+    // Strip the captured Authorization header from the persisted/exported copy so
+    // live bearer tokens never reach runtimeData.json (git-tracked history) or the
+    // admin bootstrap export. The in-memory activityLogs keep the header intact for
+    // the live cURL-generation feature, which reads them via getActivityLogs().
+    const redactedLogs = cappedLogs.map((log) =>
+      log && log.authorization ? { ...log, authorization: '[redacted]' } : log
+    );
     return {
       users: Array.from(this.users.values()),
       accounts: Array.from(this.accounts.values()),
       transactions: Array.from(this.transactions.values()),
-      activityLogs: cappedLogs,
+      activityLogs: redactedLogs,
       subscriptions: Array.from(this.subscriptions.values()),
     };
   }

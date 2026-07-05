@@ -1,6 +1,15 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+// Surface an insecure-default misconfig at startup. The dev fallback below keeps
+// local dev working, but a silent weak shared secret must be visible.
+if (!process.env.BFF_INTERNAL_SECRET) {
+  console.warn(
+    '⚠️  [config] BFF_INTERNAL_SECRET is not set — using the insecure dev fallback. ' +
+      'Set BFF_INTERNAL_SECRET before any non-local deployment.',
+  );
+}
+
 export interface Config {
   llmApiKey: string;
   anthropicApiKey: string;
@@ -31,6 +40,9 @@ export function getConfig(): Config {
     bffInternalSecret: process.env.BFF_INTERNAL_SECRET ?? 'dev-shared-secret-change-me',
     bffToolUrl: process.env.BFF_INTERNAL_TOOL_URL ?? 'http://127.0.0.1:3001/internal/agent-tool',
     host: process.env.AGENT_HTTP_HOST ?? '127.0.0.1',
-    port: parseInt(process.env.AGENT_HTTP_PORT ?? '8892', 10),
+    // Guard against NaN (bad AGENT_HTTP_PORT) so we never hand app.listen(NaN).
+    port: Number.isNaN(parseInt(process.env.AGENT_HTTP_PORT ?? '8892', 10))
+      ? 8892
+      : parseInt(process.env.AGENT_HTTP_PORT ?? '8892', 10),
   };
 }
