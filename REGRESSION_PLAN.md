@@ -81,6 +81,41 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — AG-UI agent: identity, streaming content, usage, and terminal-event fixes
+
+**Files changed:**
+- `demo_api_server/routes/agentRun.js` — the outbound `/run` payload `context` now
+  carries `userIdentity: { userId, email }` (non-sensitive; sourced from
+  `req.agentContext`). The agent still receives NO user access token — RFC 8693
+  token exchange stays entirely in the BFF. This is only a display-identity hint.
+- `langchain_agent/src/api/agui_run_handler.py` — threads `context.userIdentity`
+  through `_run_stream` → `_invoke_agent` → `process_agui_message`.
+- `langchain_agent/src/api/message_processor.py` — (1) on the BFF-tool path, when
+  `auth_token` is absent but `user_identity` is present, marks the session
+  identified via `conversation_memory.set_user_identified` so the system prompt
+  says "USER IDENTIFIED" instead of instructing the LLM to ask for the user's
+  email; (2) flattens streamed `chunk.content` via `_content_to_text` (Anthropic
+  providers stream block lists that otherwise render as `[object Object]`);
+  (3) reads `usage_metadata` as a dict (it is a TypedDict → attribute access
+  always returned 0).
+- `langchain_agent/src/agui/emitter.py` — `on_run_end` and `on_error` are now
+  idempotent via a `_terminated` flag: exactly one terminal event (RUN_FINISHED
+  or RUN_ERROR) is emitted per run. Previously the MCP-graph error path emitted
+  RUN_ERROR then the /run handler appended RUN_FINISHED, which the client narrated
+  as success.
+
+**Do not break:** the agent must NEVER receive the user's access token on the
+`/run` path — `userIdentity` is display-only (userId + email); token exchange
+stays in the BFF. Exactly one terminal AG-UI event per run (RUN_FINISHED XOR
+RUN_ERROR); RUN_FINISHED must not follow RUN_ERROR.
+
+**Verify:** behavioral: `POST /run` with `context.userIdentity` → system prompt
+shows "USER IDENTIFIED" and the agent does not ask for email (verified live);
+emitter idempotency + content-flatten + dict-usage asserted directly against the
+patched module; `langchain_agent` tests `tests/agui/ tests/test_message_processor.py`
+(18 passed); BFF `tests/agentSessionIdentity.regression.test.js` +
+`tests/agentRun.framework-routing.test.js` (10 passed).
+
 ### 2026-07-05 — Conversation summary panel + conversations route hardening
 
 **Files changed:**

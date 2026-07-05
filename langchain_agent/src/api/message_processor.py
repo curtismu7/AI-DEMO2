@@ -9,7 +9,7 @@ import uuid
 
 from models.chat import ChatMessage, ChatSession
 from models.auth import AuthorizationCode
-from agent.langchain_mcp_agent import LangChainMCPAgent
+from agent.langchain_mcp_agent import LangChainMCPAgent, _content_to_text
 from .session_manager import SessionManager
 from .websocket_handler import ChatWebSocketHandler
 from config.settings import get_config
@@ -735,6 +735,7 @@ class MessageProcessor:
         messages_list: list = None,
         run_provider: str = None,
         run_model: str = None,
+        user_identity: dict = None,
     ) -> None:
         """Process one agent turn and emit AG-UI events via the provided emitter.
 
@@ -767,9 +768,20 @@ class MessageProcessor:
         # 1. Establish token-derived identity (mirrors process_session_init_with_token).
         if auth_token:
             await self.agent.initialize_session_with_token(session_id, auth_token)
+        elif user_identity and user_identity.get("userId"):
+            # BFF-tool path: the agent never receives the user's access token
+            # (RFC 8693 exchange stays in the BFF), so identity arrives as a
+            # non-sensitive {userId, email} object. Mark the session identified
+            # so _build_system_message reflects the authenticated user instead
+            # of instructing the LLM to ask the caller for their email.
+            await self.agent.conversation_memory.set_user_identified(
+                session_id,
+                user_identity.get("email") or "unknown",
+                user_identity["userId"],
+            )
         else:
             logger.warning(
-                "[AG-UI] process_agui_message called without auth_token for session %s",
+                "[AG-UI] process_agui_message called without auth_token or user_identity for session %s",
                 session_id,
             )
 
@@ -943,7 +955,11 @@ class MessageProcessor:
 
             if event_name == "on_chat_model_stream":
                 chunk = event_data.get("chunk")
-                token = getattr(chunk, "content", "") if chunk is not None else ""
+                # Flatten provider content: OpenAI-style models stream a str,
+                # Anthropic-style providers stream a list of content blocks.
+                # Without this the delta is a list that JSON-serializes and
+                # renders client-side as "[object Object]".
+                token = _content_to_text(getattr(chunk, "content", "")) if chunk is not None else ""
                 if token:
                     if not llm_streaming:
                         await emitter.on_llm_start()
@@ -953,8 +969,14 @@ class MessageProcessor:
             elif event_name == "on_chat_model_end":
                 output = event_data.get("output")
                 if output and (usage := getattr(output, "usage_metadata", None)):
-                    total_input_tokens += getattr(usage, "input_tokens", 0)
-                    total_output_tokens += getattr(usage, "output_tokens", 0)
+                    # usage_metadata is a TypedDict (plain dict at runtime), so
+                    # attribute access always yields the default 0 — read keys.
+                    if isinstance(usage, dict):
+                        total_input_tokens += usage.get("input_tokens", 0) or 0
+                        total_output_tokens += usage.get("output_tokens", 0) or 0
+                    else:
+                        total_input_tokens += getattr(usage, "input_tokens", 0) or 0
+                        total_output_tokens += getattr(usage, "output_tokens", 0) or 0
 
                 try:
                     _msgs = event_data.get("input", {}).get("messages") or []
