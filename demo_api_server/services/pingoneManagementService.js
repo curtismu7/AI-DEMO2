@@ -7,7 +7,12 @@
 
 'use strict';
 
-const axios = require('axios');
+// Pre-configured axios instance so every management-API call has a bounded
+// timeout. Without it, an unresponsive PingOne endpoint hangs admin/provisioning/
+// delegation flows indefinitely (axios default is no timeout). Every axios.*
+// call in this file inherits this default.
+const HTTP_TIMEOUT_MS = Number(process.env.PINGONE_MGMT_TIMEOUT_MS) || 15000;
+const axios = require('axios').create({ timeout: HTTP_TIMEOUT_MS });
 
 class PingOneManagementService {
   constructor() {
