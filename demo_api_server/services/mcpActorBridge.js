@@ -4,10 +4,13 @@
  * mcpActorBridge.js
  *
  * Builds the trusted, server-to-server actor-delegation headers the MCP Gateway forwards
- * into the PingOne Authorize decision (ActClientId + MayActSub). PingOne cannot emit the
- * `act`/`may_act` claims on token-exchange-issued tokens (resource SpEL can't reference the
- * actor token — see docs/ACT_CLAIM_VERIFICATION.md), so the BFF bridges them on every
- * MCP call it makes to the gateway (HTTP `/mcp` and the WebSocket transport alike).
+ * into the PingOne Authorize decision (ActClientId + MayActSub). PingOne emits a native
+ * `act` claim only on hops where the actor token's client_id == the subject's may_act.sub
+ * (the resource SpEL that mints it — see docs/ACT_CLAIM_VERIFICATION.md); on the
+ * two-exchange final hop the actor is the MCP Exchanger (!= may_act.sub) so no native
+ * `act` is emitted, and there is never a native equivalent of may_act. The BFF therefore
+ * bridges both on every MCP call it makes to the gateway (HTTP `/mcp` and the WebSocket
+ * transport alike).
  *
  * The actor presented is always the user's delegate — the AI Agent — so the gateway/authz
  * decision always receives a consistent actor client id. (Historically an ENFORCE_MAY_ACT
