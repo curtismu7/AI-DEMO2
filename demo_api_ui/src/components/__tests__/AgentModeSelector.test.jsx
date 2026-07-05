@@ -70,6 +70,26 @@ test("greys out llama.cpp when the server is unreachable", async () => {
   await waitFor(() => expect(llamaCppOpt).toBeDisabled());
 });
 
+test("auto-switches an unavailable selected mode to Heuristics with a notice", async () => {
+  // Persisted mode is llama.cpp but the backend is unreachable → the user must
+  // not be stranded on a dead mode. Selector auto-switches to Heuristics.
+  mockHook.mode = "llamacpp";
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "unreachable" }) }),
+  );
+  render(<AgentModeSelector />);
+  await waitFor(() => expect(mockHook.setMode).toHaveBeenCalledWith("heuristics", null));
+  expect(screen.getByRole("status")).toHaveTextContent(/unavailable — switched to Heuristics/i);
+});
+
+test("does NOT auto-switch when the selected mode's provider is available", async () => {
+  mockHook.mode = "claude"; // anthropic configured in the default keySet
+  render(<AgentModeSelector />);
+  // Give effects a tick; setMode must not be called for an available mode.
+  await waitFor(() => expect(screen.getByLabelText(/agent mode/i)).toBeInTheDocument());
+  expect(mockHook.setMode).not.toHaveBeenCalled();
+});
+
 test("no degraded banner for a non-external mode", () => {
   render(<AgentModeSelector />);
   const wiringSelect = screen.queryByLabelText(/external wiring/i);
