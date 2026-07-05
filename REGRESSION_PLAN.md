@@ -79,6 +79,19 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — Agent dock silent-failure when "llama.cpp only" selected but provider down
+
+**Files changed:**
+- `demo_api_ui/src/components/AIAgent.js` — aligned three stale provider-mode maps with the four live core modes (`heuristics`/`llamacpp`/`claude`/`helix_google`). `PURE_LLM_MODES` and `PURE_LLM_LABELS` named the retired `ollama` mode instead of `llamacpp`; `_MODE_PROVIDER_MAP` was missing the `llamacpp` key. Also gave the `llamacpp` provider the 60s fetch timeout (was 15s) that the other local providers get, matching cold-start latency.
+
+**What was broken:** with the agent mode set to "llama.cpp only" (id `llamacpp`) and the local llama.cpp backend unreachable, the dock produced NO response. Because `llamacpp` was absent from `PURE_LLM_MODES`, the existing "provider selected but not configured — answer with Heuristics instead?" safety prompt never fired, so the failure was silent instead of offering the heuristics fallback. A single `<AIAgent>` portals into both the admin and customer docks (shared `_sharedMode` singleton), so both surfaces were affected.
+
+**What was fixed:** `llamacpp` is now recognised as a pure-LLM mode → an unreachable/misconfigured llama.cpp surfaces the explicit ⚠️ "want Heuristics?" prompt rather than going quiet; the provider string sent to the BFF is now definitively `llamacpp`; and the cold-start timeout is 60s.
+
+**Do not break:** `PURE_LLM_MODES` / `PURE_LLM_LABELS` / `_MODE_PROVIDER_MAP` and `AgentModeSelector.jsx`'s `CORE_MODE_IDS`/`MODE_PROVIDER` must stay in sync — the four core modes are `heuristics`, `llamacpp`, `claude`, `helix_google`. Heuristics stays the always-available deterministic fallback (no provider). This is a pure-taxonomy fix — no change to dock mounting, FAB visibility, `liveAccounts`, or float-panel resize.
+
+**Verify:** `cd demo_api_ui && npm run build` (exits 0). With llama.cpp down, selecting "llama.cpp only" and sending a prompt shows the ⚠️ Heuristics-fallback prompt instead of silence; with llama.cpp up, the dock answers normally.
+
 ### 2026-07-05 — P1AZ hardening: decision fail-close, sim/real parity, snapshot tracking, opt-in flag auth
 
 **Files changed:**
