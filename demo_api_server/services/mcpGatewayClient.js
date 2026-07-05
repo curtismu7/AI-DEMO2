@@ -189,6 +189,28 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     console.log('[GW→PingGateway] RESPONSE HEADERS: %j', response.headers);
     console.log('[GW→PingGateway] RESPONSE BODY: %j', response.data);
 
+    // Extract the gateway's audit trail (X-Gw-Audit-Trail) up-front, BEFORE the
+    // status branches below throw. The gateway sets this header on PERMIT *and*
+    // DENY (403); parsing it here — rather than after the throws — means the admin
+    // decisions panel captures every outcome, including the denies operators most
+    // want to see. record() is best-effort and tolerates an absent/partial trail.
+    let gwAuditTrail = null;
+    const auditHeader = response.headers['x-gw-audit-trail'];
+    if (auditHeader) {
+        try {
+            gwAuditTrail = JSON.parse(auditHeader);
+            console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
+            require('./agentGatewayDecisions').record(gwAuditTrail, {
+                tool,
+                correlationId: body.id ? String(body.id) : '',
+            });
+        } catch (err) {
+            console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
+        }
+    } else {
+        console.log('[GW→PingGateway] No X-Gw-Audit-Trail header on response');
+    }
+
     if (status === 401) {
         const body401 = response.data || {};
         const gatewayError = body401.error || 'gateway_auth_failed';
@@ -364,19 +386,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         );
     }
 
-    // Extract audit trail header if present (set by gateway on all responses)
-    let gwAuditTrail = null;
-    const auditHeader = response.headers['x-gw-audit-trail'];
-    if (auditHeader) {
-        try {
-            gwAuditTrail = JSON.parse(auditHeader);
-            console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
-        } catch (err) {
-            console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
-        }
-    } else {
-        console.log('[GW→PingGateway] No X-Gw-Audit-Trail header on response');
-    }
 
     // JSON-RPC error envelope in a 200 response (e.g. gateway api_key dispatch
     // failed to reach the backend). Surface as a structured error so callers

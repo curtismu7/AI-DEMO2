@@ -1213,6 +1213,7 @@ app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
 app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
+app.use('/api/admin', authenticateToken, require('./routes/agentGatewayLogs'));
 app.use('/api/admin', authenticateToken, adminRoutes);
 
 // AI Control Plane (cross-platform agent roster). Any authenticated user — the
