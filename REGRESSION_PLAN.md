@@ -79,6 +79,33 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-04 — PingGateway (IG) audit: real P1AZ URL, apikey authz gap, dead route
+
+**Files changed:**
+- `ping-gateway/scripts/groovy/p1az-decision.groovy` — real-backend decision URL now appends `/decisionEndpoints/{P1AZ_WORKER_ID}` when `P1AZ_REAL_BASE` is a bare environment base.
+- `ping-gateway/config/routes/00-mcp-apikey.json` + `00-mcp-apikey-jwks.json` — added the `p1az-decision.groovy` filter so api-key tools get the PingOne Authorize decision (parity with the Node gateway).
+- `ping-gateway/config/routes/03-oauth-passthrough.json` — removed (never built: `ClientHandler` in a Chain `filters` array → ClassCastException; `/as/token` 404s; unused).
+- `ping-gateway/scripts/check-groovy-params.sh` — stopped forbidding `decisionEndpoints` (the stale check that enforced the bug); now requires both mock policy path AND real decisionEndpoints URL.
+
+**What was broken:** with `ff_authorize_simulated=false` (the default), the IG
+gateway POSTed the P1AZ decision to the environment base URL, which 403s → no
+`decision` field → fail-closed DENY on every request (403 doesn't trigger the
+0/5xx mock failover). The default real-P1AZ path denied 100% of calls. Separately,
+`/mcp/apikey` (both introspection and jwks variants) skipped the Authorize
+decision, and the dead `oauth-passthrough` route logged a build error every boot.
+
+**Do not break:** the real decision URL must target
+`.../v1/environments/{envId}/decisionEndpoints/{id}` — a bare env base fails
+closed silently. Keep P1AZ fail-closed on DENY/error/timeout. Do NOT add
+`mcp-request-validation` (schema) to the apikey routes: `show_investment` is
+absent from `mcp-tool-schemas.json` and would be `-32602`'d.
+
+**Verify:** `bash ping-gateway/scripts/check-groovy-params.sh` (PASS, both
+backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
+`bash ping-gateway/scripts/e2e-pinggateway.sh` (PASS); restart
+`ai-demo-ping-gateway` → 0 route-build errors, unauthenticated `/mcp`,
+`/mcp/apikey`, jwks-variant all 401, `/as/token` 404.
+
 ### 2026-07-04 — Code-review sweep: scope-rename completion, EROFS admin save, side-nav persistence, code-search contracts
 
 **Files changed:**
