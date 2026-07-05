@@ -19,23 +19,38 @@ const FLAG_ID = "ff_customer_skin_ping2026";
  * skin). When OFF (default), renders the frozen classic UserDashboard.
  */
 export function DashboardContent({ user, logout }) {
-  const [ping2026, setPing2026] = useState(false);
+  // null = flag not resolved yet. Do NOT mount either dashboard until we know
+  // which one to render: rendering the classic UserDashboard first and then
+  // swapping to UserDashboardPing2026 when the flag resolves mounts BOTH during
+  // one load. Their agent-surface registrations (setSurfaceHostEl /
+  // setClinicalSplit on the shared AgentUiModeContext) then race, and the losing
+  // instance's unmount cleanup wipes the winner's registration — leaving the
+  // agent unportaled and hidden ("you see it then it gets hidden"). Deferring
+  // until the flag is known guarantees a single mount and also removes the
+  // visible old->new flash.
+  const [ping2026, setPing2026] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/admin/feature-flags", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (cancelled || !data) return;
-        const flag = (data.flags || []).find((f) => f.id === FLAG_ID);
-        if (flag != null) setPing2026(Boolean(flag.value));
+        if (cancelled) return;
+        const flag = data && (data.flags || []).find((f) => f.id === FLAG_ID);
+        setPing2026(flag != null ? Boolean(flag.value) : false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setPing2026(false);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Flag unresolved — render nothing yet so only ONE dashboard ever mounts.
+  if (ping2026 === null) {
+    return null;
+  }
   if (ping2026) {
     return <UserDashboardPing2026 user={user} onLogout={logout} />;
   }
