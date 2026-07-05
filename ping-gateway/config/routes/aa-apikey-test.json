@@ -1,0 +1,1 @@
+{"name":"aa-apikey-test","condition":"${find(request.uri.path, '^/mcp/apikeytest')}","handler":{"type":"Chain","config":{"filters":[{"name":"McpProtocol","type":"McpValidationFilter","config":{"acceptedOrigins":".*"}}],"handler":{"type":"ScriptableHandler","config":{"type":"application/x-groovy","file":"apikey-dispatch.groovy"}}}}}

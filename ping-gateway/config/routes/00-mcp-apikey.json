@@ -1,0 +1,18 @@
+{
+  "comment": "Phase 3 api-key credential-mediation route (reconstructed). #165 referenced an undefined 'RsFilterChain' heap object so it never built. This is a valid route mirroring 02-mcp-invest: rsFilter validates the inbound token (introspection), McpValidationFilter validates the MCP protocol AND buffers the request body so the terminal apikey-dispatch handler can re-read it (this buffering is what prevents the Vert.x event-loop deadlock on request.entity.string). The handler pulls the vault service key via the BFF bridge and calls demo_data_service with X-API-Key.",
+  "name": "mcp-apikey-dispatcher",
+  "condition": "${find(request.uri.path, '^/mcp/apikey')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        "rsFilter",
+        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } }
+      ],
+      "handler": {
+        "type": "ScriptableHandler",
+        "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" }
+      }
+    }
+  }
+}
