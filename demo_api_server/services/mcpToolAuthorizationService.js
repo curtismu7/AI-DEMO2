@@ -12,6 +12,7 @@ const configStore = require('./configStore');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
+const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
@@ -157,9 +158,19 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const tokenAudience = claims.aud != null ? (Array.isArray(claims.aud) ? claims.aud.join(' ') : String(claims.aud)) : '';
   // RFC 8693 §4.1: act.sub is the canonical actor identifier.
   // act.client_id is PingOne-specific; fall back to act.sub when absent.
-  const actClientId = claims.act && typeof claims.act === 'object'
+  // Bridge fallback: PingOne cannot emit `act` on token-exchange-issued tokens
+  // (see docs/ACT_CLAIM_VERIFICATION.md), so the JWT actor is empty on the
+  // gateway/PingGateway paths. Supply the same server-to-server actor the
+  // outbound MCP call bridges (X-Act-Client-Id, the AI Agent = may_act.sub) so
+  // this first-tool gate presents the identical ActClientId to P1AZ instead of
+  // DENYing with mcp-invalid-actor. Matches routes/authorize.js
+  // /mcp-console-defaults; trusted because it derives from BFF config/env, never
+  // the request. Only fills when the JWT carried no actor.
+  const actClientId = (claims.act && typeof claims.act === 'object'
     ? String(claims.act.client_id || claims.act.sub || '')
-    : '';
+    : '')
+    || buildActorBridgeHeaders()['X-Act-Client-Id']
+    || '';
   const nestedActClientId = nestedActIdFromClaim(claims.act);
 
   // ── HITL receipt verification (the ONLY place hitlApproved is derived) ──────
