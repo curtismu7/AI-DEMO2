@@ -319,28 +319,57 @@ class LangChainMCPApplication:
         app.include_router(agui_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
-        # Gate /run on the shared internal secret. The BFF proxies to this
-        # endpoint with `x-internal-gateway-secret: <BFF_INTERNAL_SECRET>` (see
-        # the BFF's routes/agentRun.js), and is the only legitimate caller.
-        # Without this gate any host that can reach the published port (Docker
-        # binds 0.0.0.0, not loopback) could POST an arbitrary sessionId and read
-        # another user's checkpointed conversation. Mirrors the sibling agents'
-        # AuthMiddleware. The hardened WebSocket transport is a separate server
-        # and keeps its own token-derived ownership check.
+        # Gate the ENTIRE app (AG-UI /run AND /codegraph/*) on the shared internal
+        # secret. The BFF proxies here with `x-internal-gateway-secret:
+        # <BFF_INTERNAL_SECRET>` (routes/agentRun.js, routes/codegraphProxy.js)
+        # and is the only legitimate caller. Docker publishes this port on
+        # 0.0.0.0, so every route must require the secret — not just /run:
+        # /codegraph/query drives an LLM (spends the API key + reads the source
+        # tree) and /codegraph/reindex spawns the CPU-heavy indexer. The health
+        # server (port 8890) and the hardened WebSocket transport are separate
+        # servers with their own controls.
         import os as _os
         from fastapi.responses import JSONResponse as _JSONResponse
 
+        _DEFAULT_INTERNAL_SECRET = "dev-shared-secret-change-me"
+        _env_name = str(getattr(self.config, "environment", None)
+                        or _os.environ.get("ENVIRONMENT") or "development").lower()
+        _is_dev = _env_name in {"development", "dev", "test", "local"}
+        _gate_secret = _os.environ.get("BFF_INTERNAL_SECRET", "")
+        _gate_disabled_reason = None
+        if not _gate_secret or _gate_secret == _DEFAULT_INTERNAL_SECRET:
+            if _is_dev:
+                # Dev/test only: allow the well-known default so local runs work.
+                _gate_secret = _gate_secret or _DEFAULT_INTERNAL_SECRET
+                logger.warning(
+                    "[AG-UI] BFF_INTERNAL_SECRET is unset/default in %s — set it "
+                    "before deploying.", _env_name,
+                )
+            else:
+                # Fail closed: never accept the public default outside dev.
+                _gate_disabled_reason = (
+                    "BFF_INTERNAL_SECRET is unset or the well-known default outside "
+                    f"development (environment={_env_name!r})"
+                )
+                logger.error(
+                    "[AG-UI] %s — refusing all /run and /codegraph requests "
+                    "(fail-closed).", _gate_disabled_reason,
+                )
+
         @app.middleware("http")
-        async def _gate_agui_run(request, call_next):
-            if request.url.path == "/run":
-                secret = request.headers.get("x-internal-gateway-secret", "")
-                expected = _os.environ.get("BFF_INTERNAL_SECRET", "dev-shared-secret-change-me")
-                if not secret:
-                    return _JSONResponse(
-                        {"detail": "Missing x-internal-gateway-secret header"}, status_code=401
-                    )
-                if secret != expected:
-                    return _JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
+        async def _gate_internal(request, call_next):
+            if _gate_disabled_reason is not None:
+                return _JSONResponse(
+                    {"detail": "internal endpoint disabled: " + _gate_disabled_reason},
+                    status_code=503,
+                )
+            secret = request.headers.get("x-internal-gateway-secret", "")
+            if not secret:
+                return _JSONResponse(
+                    {"detail": "Missing x-internal-gateway-secret header"}, status_code=401
+                )
+            if secret != _gate_secret:
+                return _JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
             return await call_next(request)
 
         agui_port = self.config.chat.agui_http_port
