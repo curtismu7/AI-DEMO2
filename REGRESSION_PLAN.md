@@ -81,6 +81,41 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-05 — AG-UI agent surface hardening (whole-app gate, trace IDOR, fail-closed secret)
+
+**Files changed:**
+- `langchain_agent/src/main.py` — the port-8888 FastAPI gate now covers the ENTIRE
+  app (AG-UI `/run` AND `/codegraph/*`), not just `/run`. Previously
+  `/codegraph/query` (drives an LLM, reads the source tree) and
+  `/codegraph/reindex` (spawns the indexer) were reachable with no auth on the
+  0.0.0.0-published port. The gate is also fail-closed: outside dev/test it
+  refuses ALL requests (503) when `BFF_INTERNAL_SECRET` is unset or equals the
+  well-known default, instead of silently accepting `dev-shared-secret-change-me`.
+- `demo_api_server/routes/codegraphProxy.js` + `services/aguiSseProxy.js` — both
+  BFF→agent proxies now send `x-internal-gateway-secret`, so the whole-app gate
+  does not break the legitimate codegraph page / legacy SSE path.
+- `demo_api_server/routes/agentRun.js` — the `/runs/:runId/events` trace store now
+  binds each run to the user who started it (`_recordTraceEvents(runId, chunk,
+  userId)`), and the read route returns 404 when a different user requests it.
+  Closes an IDOR that let any authenticated user read another user's conversation
+  and decoded token claims by guessing the runId.
+
+**Do not break:** the agent's port-8888 app must require `x-internal-gateway-secret`
+on every route (both `/run` and `/codegraph/*`); the two BFF proxies must send it
+or the codegraph page 401s. Outside dev, a missing/default secret must fail closed
+(503), never accept the public default. `/runs/:runId/events` must stay
+owner-scoped (other user → 404, not the events). The agent must still never
+receive a user access token.
+
+**Verify:** live against the patched agent container — `/codegraph/query` and
+`/run` return 401 with no secret, 403 with a wrong secret, 200 with the correct
+secret (verified). Trace-ownership guard unit-checked (owner→200, other→404,
+null-owner→200 back-compat). BFF `tests/agentRun.framework-routing.test.js`,
+`tests/agentSessionIdentity.regression.test.js`, `tests/agentRunStore.test.js`
+(15 passed). Note: the LLM proxy (`:8090`) remains unauthenticated and reachable
+via `host.docker.internal` — see the PR notes; a safe fix requires moving it onto
+the Docker network, not a loopback bind (which breaks the agent's LLM path).
+
 ### 2026-07-05 — Conversation summary panel + conversations route hardening
 
 **Files changed:**

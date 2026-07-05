@@ -38,11 +38,13 @@ router.use(agentSessionMiddleware);
 const _traceStore = new Map(); // runId → { events: Array, expiresAt: number }
 const _TRACE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-function _recordTraceEvents(runId, chunk) {
+function _recordTraceEvents(runId, chunk, owner) {
   const text = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
   let entry = _traceStore.get(runId);
   if (!entry) {
-    entry = { events: [], expiresAt: Date.now() + _TRACE_TTL_MS };
+    // Bind the trace to the user who started the run so /runs/:runId/events
+    // cannot be read by another authenticated user who guesses the runId.
+    entry = { events: [], expiresAt: Date.now() + _TRACE_TTL_MS, owner: owner || null };
     _traceStore.set(runId, entry);
   }
   for (const line of text.split('\n')) {
@@ -408,7 +410,7 @@ router.post('/run', async (req, res) => {
     }
     // Pipe SSE stream verbatim to browser and record events for trace retrieval
     agentRes.on('data', (chunk) => {
-      _recordTraceEvents(runId, chunk);
+      _recordTraceEvents(runId, chunk, userId);
       res.write(chunk);
     });
     agentRes.on('end', () => {
@@ -449,6 +451,13 @@ router.post('/run', async (req, res) => {
 router.get('/runs/:runId/events', (req, res) => {
   const trace = _traceStore.get(req.params.runId);
   if (!trace) return res.status(404).json({ error: 'Trace not found or expired' });
+  // Ownership check: a run's trace holds conversation content and decoded token
+  // claims — only the user who started it may read it. Return 404 (not 403) so
+  // the endpoint does not confirm the existence of another user's runId.
+  const requester = req.agentContext?.userId;
+  if (trace.owner && trace.owner !== requester) {
+    return res.status(404).json({ error: 'Trace not found or expired' });
+  }
   res.json({ runId: req.params.runId, events: trace.events, count: trace.events.length });
 });
 

@@ -119,6 +119,9 @@ function proxyAgentSse(options) {
       'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(requestBody),
       'Accept': 'text/event-stream',
+      // The agent's /run gate requires the shared secret; without it every
+      // request 401s and the browser sees a silent empty stream.
+      'x-internal-gateway-secret': process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me',
     },
   };
 
