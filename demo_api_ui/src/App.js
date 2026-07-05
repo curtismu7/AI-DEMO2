@@ -100,6 +100,7 @@ import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
+import ServersPage from "./pages/ServersPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
@@ -483,6 +484,22 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <AiControlPlanePage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                {/* Servers — live server inventory; any logged-in user (not admin-only) */}
+                <Route
+                  path="/servers"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <ServersPage />
                         </main>
                       </>
                     ) : (
