@@ -41,6 +41,24 @@ const DEFAULT_TIMEOUT_MS    = 30_000;
 // Keep in sync with demo_mcp_gateway and demo_mcp_server package.json#mcpVersion.
 const MCP_PROTOCOL_VERSION  = '2025-11-25';
 
+// api-key-disposition tools: PingGateway (IG) singles these out onto a dedicated
+// /mcp/apikey path so its route (00-mcp-apikey.json) hands them to the vault-key
+// credential-mediation handler instead of the OLB token-exchange path. Only
+// applied when the gateway base IS PingGateway (base === pgUrl below). Keep in
+// sync with demo_mcp_gateway/src/router.ts APIKEY_TOOLS and the IG handler's
+// ROUTE_FOR_TOOL map (apikey-dispatch.groovy).
+const APIKEY_TOOLS = new Set([
+    'show_mortgage',
+    'show_large_purchase',
+    'show_health_record',
+    'show_gear_order',
+    'show_expense_report',
+    'show_permit',
+    'show_enrollment',
+    'show_work_order',
+    'show_investment',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -57,7 +75,12 @@ const MCP_PROTOCOL_VERSION  = '2025-11-25';
  */
 async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
     const base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
-    const url  = `${base}/mcp`;
+    // PingGateway (IG) base — when the gateway IS IG, api-key-disposition tools go
+    // to the dedicated /mcp/apikey route (vault-key credential mediation); every
+    // other tool (and the Node gateway) uses /mcp.
+    const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
+    const isIgBase = !!pgUrl && base === pgUrl;
+    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
 
     const body = {
         jsonrpc: '2.0',
@@ -68,8 +91,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     // PingGateway (IG) ships with an older MCP SDK that validates against
     // 2025-06-18; the Node gateway and MCP server use the current 2025-11-25.
-    const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
-    const mcpVersion = pgUrl && base === pgUrl ? '2025-06-18' : MCP_PROTOCOL_VERSION;
+    const mcpVersion = isIgBase ? '2025-06-18' : MCP_PROTOCOL_VERSION;
     const headers = {
         'Authorization':        `Bearer ${bearerToken}`,
         'Content-Type':         'application/json',
