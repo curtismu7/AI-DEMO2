@@ -38,7 +38,7 @@ minimal diff.
 | Token audience check | `middleware/auth.js` — never hardcode `aud` defaults |
 | Status endpoint token expiry | `routes/oauthUser.js`, `routes/oauth.js` — check `expiresAt` |
 | REAUTH_KEY re-auth guard | `UserDashboard.js` — clear key only on success |
-| Agent form account IDs | `BankingAgent.js` `liveAccounts` state |
+| Agent form account IDs | `AIAgent.js` `liveAccounts` state |
 | Transfer HITL enforcement | `services/transactionConsentChallenge.js`, `routes/transactions.js` (428 enforcement) |
 | Demo accounts on cold-start | `accounts.js`, `demoScenario.js` — save/restore snapshot order |
 | Middle layout start state | `UserDashboard.js` `middleAgentOpen` init |
@@ -47,8 +47,8 @@ minimal diff.
 | Customer-only data endpoints | `middleware/auth.js` `requireNotAdmin`, `routes/accounts.js` + `routes/transactions.js` (`/my`) — admin tokens must 403 |
 | configStore / Config UI | `services/configStore.js`, `routes/adminConfig.js` |
 | Demo Controls diagnose | `ThresholdControls.js` — `data.checks?.userAttribute?.pass` shape |
-| BankingAgent FAB | `components/BankingAgent.js`, `App.js` |
-| Float panel resize | `BankingAgent.css` (no max-width/height), `BankingAgent.js` (90% caps) |
+| AI Agent FAB (`banking-agent-fab` classes) | `components/AIAgent.js`, `App.js` |
+| Float panel resize | `AIAgent.js` resize caps (`MAX_W`/`MAX_H` = 95% viewport, `MIN_W`/`MIN_H` = 280/220; drag itself intentionally unclamped for second-monitor use), `AIAgent.css` float-root/panel rules |
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 
 ---
@@ -78,6 +78,20 @@ configured host.
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-05 — §1 anti-rot guard, stale AIAgent rows, pingone-mcp skill + smoke test
+
+**Files changed:**
+- `REGRESSION_PLAN.md` §1 — three rows still protected `BankingAgent.js`/`.css`, renamed to `AIAgent.js`/`.css` months ago, so the FAB/float-panel/account-ID invariants guarded nothing. Rows updated to current reality (resize caps are `MAX_W`/`MAX_H` = 95% viewport, `MIN_W`/`MIN_H` = 280/220; drag intentionally unclamped).
+- `scripts/check-regression-plan-paths.js` — NEW anti-rot guard: every file referenced in a §1 row must exist as a tracked file (shorthand paths resolve by suffix; globs supported; `.env` and code identifiers skipped). `npm run regression:paths`; wired into the CI gates job.
+- `.claude/skills/pingone-mcp/SKILL.md` — NEW repo-local skill making CLAUDE.md's "MCP-first" rule executable: hosted-server URL/auth per consumer, camelCase tool conventions, worker-role gating (~67-tool healthy baseline), direct-API exceptions (createEnvironment, resources/scopes, grants), fallback rule, pointer to the stale SUPERSEDED docs.
+- `scripts/smoke-pingone-mcp.js` — NEW live health check (`npm run smoke:pingone-mcp`): worker token + `tools/list`, JSON-or-SSE tolerant, mirrors `mcpPingOneHttpAdapter.js`. Verified live: 67 tools. Not in CI (needs credentials).
+
+**What was broken:** §1 was hand-maintained prose with zero drift detection — the exact failure mode the rest of the repo gates against — and there was no correct agent-facing guidance for the hosted PingOne MCP server (the only docs describing it are SUPERSEDED and describe the retired stdio binary).
+
+**Do not break:** keep `regression:paths` in the CI gates job. When renaming/moving any file listed in §1, update the row in the same PR (the guard now forces this). The smoke script must stay credential-gated and out of CI.
+
+**Verify:** `npm run regression:paths`; `npm run smoke:pingone-mcp` (needs `demo_api_server/.env`).
 
 ### 2026-07-05 — Security/CI hardening: leaked GitHub PAT, unwired two-exchange reconciler, CI gates, test-runner exit codes
 
