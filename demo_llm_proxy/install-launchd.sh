@@ -26,8 +26,12 @@ fi
 
 # Resolve the supervisor to an ABSOLUTE path in the MAIN checkout (not a git
 # worktree, which may be deleted) so the agent keeps working after cleanup.
+# --path-format=absolute is required: from the main checkout `--git-common-dir`
+# returns a relative `.git`, which would resolve MAIN_ROOT one level too high.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MAIN_ROOT="$(cd "$(dirname "$(git -C "$SCRIPT_DIR" rev-parse --git-common-dir)")" && pwd)"
+COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null \
+  || (cd "$SCRIPT_DIR" && cd "$(git rev-parse --git-common-dir)" && pwd))"
+MAIN_ROOT="$(dirname "$COMMON_DIR")"
 SUPERVISE_SCRIPT="$MAIN_ROOT/demo_llm_proxy/supervise-swap.sh"
 if [ ! -f "$SUPERVISE_SCRIPT" ]; then
   echo "ERROR: supervisor not found at $SUPERVISE_SCRIPT" >&2
