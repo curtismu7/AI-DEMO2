@@ -13,7 +13,9 @@ const path = require('path');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
 const scopeTopology = require('./scopeTopology');
 
-const _rawTopology = require('../../scope-topology.json');
+// Via the shared accessor (not a repo-root-relative require) so
+// SCOPE_TOPOLOGY_PATH is honored — see scopeTopology.js.
+const _rawTopology = scopeTopology._manifest();
 const _PROVISIONING = _rawTopology.provisioning || {};
 
 function _provisioningAppName(internalKey) {
