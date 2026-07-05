@@ -140,6 +140,25 @@ for (const c of SCOPE_CHECKS) {
   }
 }
 
+// ── Real .env scope drift (skip-if-absent) ───────────────────────────────────
+// The checks above read the committed .env.example. The gateway actually loads
+// the sibling real .env, which is per-machine and gitignored — so a value like
+// PG_OLB_SCOPE=server:mcp:invoke can drift there undetected. When a real .env
+// exists next to a checked .env.example, hold its scope keys to the same
+// normalize-to-declared rule. Absent (CI, fresh clone) → skipped, not failed.
+for (const c of SCOPE_CHECKS) {
+  const realFile = c.file.replace(/\.env\.example$/, '.env');
+  if (realFile === c.file) continue;
+  const abs = path.join(ROOT, realFile);
+  if (!fs.existsSync(abs)) continue;
+  const val = parseEnv(abs).get(c.key);
+  if (val === undefined) continue; // key not overridden in the real .env — fine
+  const norm = topo.normalizeScope(val);
+  if (!declared.has(norm)) {
+    problems.push(`${realFile}: ${c.key}=${val} normalizes to "${norm}", which is NOT a declared scope (real .env drifted from ${c.file}; fix the value or add an alias in scope-topology.json)`);
+  }
+}
+
 // ── config.json inbound-scope fallback literal ───────────────────────────────
 const CONFIG_JSON = 'ping-gateway/config/config.json';
 const cfgAbs = path.join(ROOT, CONFIG_JSON);

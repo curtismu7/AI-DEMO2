@@ -98,6 +98,7 @@ const STATUS_VISUAL = {
   success: { bucket: "active", label: "Success" },
   ok: { bucket: "active", label: "OK" },
   permit: { bucket: "active", label: "Permit" },
+  valid: { bucket: "active", label: "Valid" }, // gateway introspection active=true
   // exchange-ish
   exchanged: { bucket: "exchanged", label: "Exchanged" },
   cached: { bucket: "exchanged", label: "Cached (no round-trip)" },
@@ -114,6 +115,8 @@ const STATUS_VISUAL = {
   error: { bucket: "failed", label: "Error" },
   denied: { bucket: "failed", label: "Denied" },
   deny: { bucket: "failed", label: "Denied" },
+  revoked: { bucket: "failed", label: "Revoked" }, // gateway introspection active=false
+
   expired: { bucket: "failed", label: "Expired" },
   timeout: { bucket: "failed", label: "Timed out" },
   unreachable: { bucket: "failed", label: "Unreachable" },

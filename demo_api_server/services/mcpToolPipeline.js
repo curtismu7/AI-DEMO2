@@ -773,6 +773,34 @@ async function runMcpToolPipeline(ctx) {
             logger.warn(_CAT, `[/api/mcp/tool] Gateway denied tool '${tool}': ${err.gatewayErrorCode || err.code} — ${err.message}`);
             deps.emit({ phase: 'gateway_policy_denied', gatewayErrorCode: err.gatewayErrorCode });
 
+            // Surface the gateway's P1AZ decision trail — preserved on the thrown
+            // error (X-Gw-Audit-Trail) — as a gw-authorize card so the DENY shows
+            // in the token chain instead of only as an error message.
+            if (err.gwAuditTrail && err.gwAuditTrail.authorize) {
+                const authzRes = err.gwAuditTrail.authorize;
+                const decision = authzRes.decision;
+                const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    status,
+                    null,
+                    `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
+                    {
+                        decision: authzRes.decision,
+                        backend: authzRes.backend,
+                        url: authzRes.url,
+                        tool: authzRes.tool,
+                        method: authzRes.method,
+                        vertical: authzRes.vertical,
+                        parameters: authzRes.parameters,
+                        rawResponse: authzRes.rawResponse,
+                        reason: authzRes.reason,
+                        statements: authzRes.statements,
+                    }
+                ));
+            }
+
             // HTTP 428 Precondition Required: step-up auth needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
                 deps.emit({ phase: 'gateway_step_up_required' });

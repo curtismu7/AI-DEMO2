@@ -475,6 +475,19 @@ const FLAG_REGISTRY = [
     type:         'boolean',
     defaultValue: true,
   },
+  {
+    id:           'ff_helix_lmstudio_fallback',
+    name:         'Helix → LM Studio Fallback',
+    category:     'LLM Chips',
+    description:
+      'When **ON** (default), if the Helix LLM returns a quota-exhausted reply, the agent automatically retries the turn on a local LM Studio model. ' +
+      'When **OFF**, quota-exhausted errors from Helix are returned to the user without retry.',
+    impact:
+      'ON (default) = seamless failover to local LM Studio on Helix quota limits; agent queries continue uninterrupted. ' +
+      'OFF = Helix quota exhaustion returns an error to the user; no fallback.',
+    type:         'boolean',
+    defaultValue: true,
+  },
 
   // ── UI / Dashboard ─────────────────────────────────────────────────────────
   {
@@ -667,24 +680,6 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
-    id:           'ff_mcp_gateway_jwks',
-    name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
-    category:     'MCP / Agent',
-    description:
-      'When **ON** and MCP traffic routes through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway), ' +
-      'the gateway validates inbound MCP access tokens **locally**: RS256 tokens against the PingOne **JWKS** ' +
-      '(signature, exp/nbf, iss, aud, scope) and mock demo_authz_server HS256 tokens against the shared demo ' +
-      'secret — no introspection round-trip to the authorization server. When **OFF** (default), the gateway ' +
-      'uses **remote token introspection** (RFC 7662) as today. Carried per request via the ' +
-      'X-Token-Validation header; switching requires no gateway restart.',
-    impact:
-      'OFF (default) = introspection: every request round-trips to the authorization server, so revoked tokens ' +
-      'are caught immediately. ON = local JWKS validation: faster and works offline, but **cannot detect ' +
-      'revoked tokens** until they expire — the educational tradeoff this toggle demonstrates.',
-    type:         'boolean',
-    defaultValue: false,
-  },
-  {
     id:           'ff_mcp_rate_limit',
     name:         'UC18 Gateway Rate Limiting',
     category:     'MCP / Agent',
@@ -763,6 +758,7 @@ const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
+  ff_helix_lmstudio_fallback: 'FF_HELIX_LMSTUDIO_FALLBACK',
   ciba_enabled:               'CIBA_ENABLED',
 };
 

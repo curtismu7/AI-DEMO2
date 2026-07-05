@@ -642,6 +642,58 @@ async function evaluateMcpFirstTool({
         };
       }
     }
+  } else if (toolName && scopeTopology.toolDeclaresChallenge(toolName)) {
+    // No-amount tool that DECLARES a challengeType in the SoT (consent or
+    // step-up). Parity fix: the P1AZ snapshot policy gates these by tool NAME
+    // (RequiresMcpStepUp: ToolName IN {step_up} AND NOT HasMFAAuthentication;
+    // RequiresHitlConsent: ToolName IN {consent} AND HitlApproved != true), and
+    // the mock authz server does the same via `declaresChallenge`. Previously
+    // this engine fell through to PERMIT, so a consent/step-up tool carrying no
+    // transaction amount (book_appointment, checkout, release_*, sensitive_*)
+    // was silently permitted here while the real engine challenged it.
+    //
+    // Guards mirror the snapshot exactly: STEP_UP is discharged by a strong ACR
+    // (HasMFAAuthentication) and can NEVER be satisfied by a HITL receipt (IMP-3);
+    // consent is discharged only by a verified receipt (hitlApproved), not by ACR.
+    const challengeType = scopeTopology.toolChallengeType(toolName); // 'step_up' | 'consent'
+    const acrStrong = acrLooksStrong(acr);
+    const nameCandidates = [];
+    if (challengeType === 'step_up' && !acrStrong) {
+      nameCandidates.push({ type: 'STEP_UP', detail: 'MFA required — step-up tool (challengeType=step_up).' });
+    } else if (challengeType !== 'step_up' && !hitlApproved) {
+      nameCandidates.push({ type: 'HITL_CONSENT', detail: 'Confirmation required — consent tool (challengeType=consent).' });
+    }
+    const nameFlags = classifyObligations(nameCandidates);
+    if (nameFlags.stepUpRequired) {
+      out = {
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'INDETERMINATE', obligations: nameCandidates, enforced: 'STEP_UP', reason: `Tool "${toolName}" is a step-up tool (challengeType=step_up).` },
+      };
+    } else if (nameFlags.consentRequired) {
+      out = {
+        decision: 'INDETERMINATE',
+        stepUpRequired: false,
+        hitlRequired: true,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'INDETERMINATE', obligations: nameCandidates, enforced: 'HITL_CONSENT', reason: `Tool "${toolName}" is a consent tool (challengeType=consent).` },
+      };
+    } else {
+      // Gate discharged (step-up tool with strong ACR, or consent tool with an
+      // approved receipt) → PERMIT.
+      out = {
+        decision: 'PERMIT',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: { ...rawBase, decision: 'PERMIT', obligations: [], enforced: challengeType === 'step_up' ? 'STEP_UP_SATISFIED' : 'HITL_CONSENT_SATISFIED', reason: `Challenge tool "${toolName}" satisfied (ACR/receipt).` },
+      };
+    }
   } else {
     out = {
       decision: 'PERMIT',
@@ -929,6 +981,22 @@ function resolveAuthorizeMode(configStore) {
   const read = (k) => (configStore.getEffective ? configStore.getEffective(k) : configStore.get(k));
   // Legacy ff_authorize_fail_open=true maps to failover_mode=permit (back-compat).
   const legacyFailOpen = read('ff_authorize_fail_open') === 'true' || read('ff_authorize_fail_open') === true;
+
+  // ff_authorize_simulated is a DIRECT operator override: the QuickFlagsPill
+  // "Authorize Engine → Simulated" switch writes it, and the PingGateway
+  // X-Authz-Simulated header reads it directly per request. When it is explicitly
+  // true, force the simulated engine for the BFF transaction path too — otherwise
+  // authorize_mode's FIELD_DEFS default ('pingone') always won the explicit branch
+  // below and this flag was dead for the BFF, so flipping the pill left dashboard
+  // transfers on real P1AZ while MCP calls went to the mock (split brain).
+  const simOverride = read('ff_authorize_simulated');
+  if (simOverride === true || simOverride === 'true') {
+    return {
+      mode: 'simulated',
+      useSimulated: true,
+      failoverMode: legacyFailOpen ? 'permit' : 'fallback_simulated',
+    };
+  }
 
   const explicit = String(read('authorize_mode') || '').trim();
   if (AUTHORIZE_MODES.includes(explicit)) {

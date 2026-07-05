@@ -1,0 +1,184 @@
+.servers-page {
+  padding: 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.servers-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.servers-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.servers-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.servers-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.servers-meta {
+  font-size: 13px;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.servers-refresh {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.servers-refresh:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.servers-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.servers-error {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.servers-loading {
+  padding: 40px 0;
+  text-align: center;
+  color: #374151;
+  font-size: 15px;
+}
+
+.servers-group {
+  margin-bottom: 24px;
+}
+
+.servers-group h2 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.servers-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.servers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.servers-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.servers-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+  vertical-align: top;
+}
+
+.servers-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.servers-table .row-down td {
+  background: #fffbeb;
+}
+
+.col-status {
+  width: 60px;
+  text-align: center;
+}
+
+.col-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.col-container,
+.col-ports,
+.col-latency,
+.col-size {
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #374151;
+}
+
+.col-size {
+  text-align: right;
+}
+
+.col-purpose {
+  min-width: 260px;
+  color: #4b5563;
+}
+
+.servers-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.servers-dot.up {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.servers-dot.down {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.servers-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

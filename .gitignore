@@ -26,7 +26,15 @@ AI-Demo_Cloned
 .playwright-mcp/
 *.log
 **/*.log
-snapshots/
+# Ignore snapshot CONTENTS (large ad-hoc exports) but keep descending so the two
+# tracked source files below can be re-included. `snapshots/` (dir form) would
+# stop git descending and defeat the negations.
+snapshots/*
+# Track the P1AZ policy generator AND its reconcile-base/import artifact: the
+# generator reconciles INTO the snapshot (does not rebuild it from scratch), so
+# both are source. Other large ad-hoc exports under snapshots/ stay ignored.
+!snapshots/gen-authorize-snapshot.js
+!snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
 certs/
 package-lock.json
 **/package-lock.json

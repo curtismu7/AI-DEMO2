@@ -157,6 +157,29 @@ test('NNP-6 A-7: consent-only tool (book_appointment), no amount -> INDETERMINAT
   assert.strictEqual(result.reason, 'HITL_CONSENT', 'Expected HITL_CONSENT, got: ' + result.reason);
 });
 
+test('NNP-6 A-7b: step-up tool (release_records), no amount -> INDETERMINATE reason=STEP_UP (not HITL_CONSENT)', async () => {
+  // F3 regression: no-amount step-up tools must map to STEP_UP, not collapse
+  // into HITL_CONSENT — parity with the P1AZ snapshot RequiresMcpStepUp.
+  const result = await decide(consentOnlyParams({ ToolName: 'release_records' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
+});
+
+test('NNP-6 A-7c: step-up tool, no amount, HitlApproved=true -> STEP_UP (receipt cannot satisfy MFA, IMP-3)', async () => {
+  const result = await decide(consentOnlyParams({ ToolName: 'release_records', HitlApproved: 'true' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
+});
+
+test('ACR-drift: weak long ACR ("Single_Factor", 13 chars) does NOT bypass step-up', async () => {
+  // Regression: decision.js previously treated any ACR longer than 8 chars as
+  // strong MFA (`s.length > 8`), which the canonical sim engine never did — a
+  // weak "Single_Factor" ACR would silently skip STEP_UP.
+  const result = await decide(writeParams({ TransactionAmount: '600', Acr: 'Single_Factor' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
+});
+
 test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved=true -> PERMIT', async () => {
   const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
