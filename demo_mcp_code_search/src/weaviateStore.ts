@@ -91,8 +91,8 @@ export function mapHits(objects: RawObject[], fileFilter?: string): SearchHit[] 
     }));
 }
 
-/** Rebuild lines [from..to] from overlapping 40-line chunks. Null if empty. */
-export function stitchRange(chunks: RawChunk[], from: number, to: number): string | null {
+/** Rebuild lines [from..to] from overlapping 40-line chunks. Returns { code, from, to } where from/to are actual bounds. Null if empty. */
+export function stitchRange(chunks: RawChunk[], from: number, to: number): { code: string; from: number; to: number } | null {
   if (!chunks.length) return null;
   const byLine = new Map<number, string>();
   for (const c of chunks) {
@@ -108,7 +108,7 @@ export function stitchRange(chunks: RawChunk[], from: number, to: number): strin
   const hi = Math.min(to, Math.max(...present));
   const out: string[] = [];
   for (let ln = lo; ln <= hi; ln++) if (byLine.has(ln)) out.push(byLine.get(ln)!);
-  return out.length ? out.join('\n') : null;
+  return out.length ? { code: out.join('\n'), from: lo, to: hi } : null;
 }
 
 const SCHEMA = {
@@ -247,9 +247,9 @@ export function createStore(host: string): Store {
         .withLimit(500)
         .do();
       const chunks = (res?.data?.Get?.[CLASS_NAME] ?? []) as RawChunk[];
-      const code = stitchRange(chunks, opts.lineStart, opts.lineEnd);
-      if (code === null) return null;
-      return { file: opts.file, line_start: opts.lineStart, line_end: opts.lineEnd, code };
+      const result = stitchRange(chunks, opts.lineStart, opts.lineEnd);
+      if (result === null) return null;
+      return { file: opts.file, line_start: result.from, line_end: result.to, code: result.code };
     },
   };
 }

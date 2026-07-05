@@ -43,10 +43,12 @@ describe('stitchRange', () => {
     { line_start: 3, line_end: 5, snippet: 'c\nd\ne' }, // overlaps line 3
   ];
   test('reconstructs a range across overlapping chunks', () => {
-    expect(stitchRange(chunks, 2, 4)).toBe('b\nc\nd');
+    expect(stitchRange(chunks, 2, 4)).toEqual({ code: 'b\nc\nd', from: 2, to: 4 });
   });
   test('clamps to available lines', () => {
-    expect(stitchRange(chunks, 4, 99)).toBe('d\ne');
+    const result = stitchRange(chunks, 4, 99);
+    expect(result).toEqual({ code: 'd\ne', from: 4, to: 5 });
+    if (result) expect(result.to).toBe(5); // verify bounds are real, not requested (99)
   });
   test('returns null when no chunk data', () => {
     expect(stitchRange([], 1, 5)).toBeNull();
