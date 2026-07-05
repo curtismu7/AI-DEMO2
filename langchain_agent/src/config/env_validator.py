@@ -5,9 +5,12 @@ Validates that all required OAuth and configuration variables are present,
 providing clear error messages and recovery instructions when missing.
 """
 
+import logging
 import os
 import sys
 from typing import Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class EnvValidationError(Exception):
@@ -24,13 +27,22 @@ class EnvironmentValidator:
         ('AGENT_CLIENT_ID', 'AGENT_CLIENT_SECRET'),
     ]
 
-    # Optional LLM provider credentials (at least one LLM must be configured)
+    # Optional LLM provider credentials (at least one LLM must be configured).
+    # Keys must match what agent/llm_factory.py actually supports — an entry
+    # here that the factory can't build (previously 'ollama') is misleading.
     LLM_PROVIDER_VARS = {
         'helix': ['HELIX_BASE_URL', 'HELIX_API_KEY', 'HELIX_ENVIRONMENT_ID'],
         'anthropic': ['ANTHROPIC_API_KEY'],
+        'anthropic-lmstudio': ['LMSTUDIO_BASE_URL'],
         'lmstudio': ['LMSTUDIO_BASE_URL'],
-        'ollama': ['OLLAMA_BASE_URL'],
+        'llamacpp': ['LLAMACPP_BASE_URL'],
     }
+
+    # Providers agent/llm_factory.get_llm() can actually construct. 'none'
+    # (or empty) means heuristic-only routing with no LLM.
+    SUPPORTED_LLM_PROVIDERS = frozenset({
+        'none', 'helix', 'anthropic', 'anthropic-lmstudio', 'lmstudio', 'llamacpp',
+    })
 
     # Optional MCP configuration
     MCP_VARS = ['MCP_SERVER_URL', 'MCP_TRANSPORT']
@@ -107,6 +119,43 @@ class EnvironmentValidator:
         return True, ''
 
     @classmethod
+    def warn_unsupported_llm_provider(cls) -> None:
+        """
+        F11: warn (do not crash) when LANGCHAIN_LLM_PROVIDER names a provider
+        the LLM factory can't build. An unknown provider silently degrades to
+        no-LLM (heuristic-only) routing, which is easy to miss at boot.
+        """
+        raw = cls.get_env('LANGCHAIN_LLM_PROVIDER').strip()
+        if not raw:
+            return  # unset → factory defaults to 'none' (heuristic routing)
+        if raw.lower() not in cls.SUPPORTED_LLM_PROVIDERS:
+            logger.warning(
+                "⚠️ LANGCHAIN_LLM_PROVIDER=%r is not supported — the agent will "
+                "fall back to no-LLM (heuristic-only) routing. Supported: %s",
+                raw, ", ".join(sorted(cls.SUPPORTED_LLM_PROVIDERS)),
+            )
+
+    @classmethod
+    def warn_missing_agent_audience(cls) -> None:
+        """
+        F12: warn at boot when no token-validation audience is configured.
+        Without PINGONE_RESOURCE_LANGCHAIN_AGENT_URI (or LANGCHAIN_ACCEPTED_
+        AUDIENCES) the agent boots 'healthy' but the token validator raises on
+        the FIRST chat, so every session 500s. Surfacing it at startup makes
+        the misconfiguration visible immediately. Warn (not crash) to avoid
+        breaking dev before the dedicated PingOne resource is provisioned.
+        """
+        if not (cls.get_env('PINGONE_RESOURCE_LANGCHAIN_AGENT_URI')
+                or cls.get_env('LANGCHAIN_ACCEPTED_AUDIENCES')):
+            logger.warning(
+                "⚠️ No token-validation audience configured "
+                "(PINGONE_RESOURCE_LANGCHAIN_AGENT_URI / "
+                "LANGCHAIN_ACCEPTED_AUDIENCES both unset). The agent will boot "
+                "but token validation will fail on the first chat session. "
+                "Set PINGONE_RESOURCE_LANGCHAIN_AGENT_URI to fix."
+            )
+
+    @classmethod
     def validate_all(cls) -> None:
         """
         Validate all required environment variables.
@@ -137,6 +186,10 @@ def validate_environment() -> None:
     """
     try:
         EnvironmentValidator.validate_all()
+        # Non-fatal startup checks (F11/F12): warn loudly rather than crash so
+        # misconfiguration is visible at boot, not at first chat.
+        EnvironmentValidator.warn_unsupported_llm_provider()
+        EnvironmentValidator.warn_missing_agent_audience()
     except EnvValidationError as e:
         print(f'\n❌ Environment Validation Error:\n\n{str(e)}\n', file=sys.stderr)
         sys.exit(1)

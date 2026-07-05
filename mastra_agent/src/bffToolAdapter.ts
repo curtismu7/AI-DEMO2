@@ -11,6 +11,8 @@ export interface RunCtx {
   bffToolUrl: string;
   bffInternalSecret: string;
   sessionId: string;
+  // Optional: aborts an in-flight tool fetch when the client disconnects.
+  abortSignal?: AbortSignal;
 }
 
 export type EmitFn = (event: Record<string, unknown>) => Promise<void>;
@@ -62,10 +64,40 @@ export class BffToolError extends Error {
 
 interface JsonSchemaProperty {
   type?: string;
+  enum?: unknown[];
+  items?: JsonSchemaProperty;
 }
 
 interface JsonSchemaObject {
   properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+}
+
+// Map a JSON-Schema property to its zod equivalent, preserving type fidelity so
+// required banking fields (e.g. transfer_funds amount / to_account_id) are
+// actually validated instead of collapsing to an optional string.
+function jsonSchemaPropToZod(prop: JsonSchemaProperty): z.ZodTypeAny {
+  if (Array.isArray(prop.enum) && prop.enum.length > 0) {
+    const strVals = prop.enum.filter((v): v is string => typeof v === 'string');
+    if (strVals.length === prop.enum.length) {
+      return z.enum(strVals as [string, ...string[]]);
+    }
+  }
+  switch (prop.type) {
+    case 'number':
+    case 'integer':
+      return z.number();
+    case 'boolean':
+      return z.boolean();
+    case 'array':
+      return z.array(prop.items ? jsonSchemaPropToZod(prop.items) : z.unknown());
+    case 'object':
+      return z.record(z.unknown());
+    case 'string':
+      return z.string();
+    default:
+      return z.unknown();
+  }
 }
 
 export function buildBffTools(schemas: ToolSchema[], runCtx: RunCtx, emitFn?: EmitFn) {
@@ -87,22 +119,48 @@ async function emitTokenEvents(emitFn: EmitFn | undefined, tokenEvents: unknown[
 }
 
 function _makeTool(schema: ToolSchema, runCtx: RunCtx, emitFn?: EmitFn) {
-  const props = (schema.inputSchema as JsonSchemaObject).properties ?? {};
+  const schemaObj = schema.inputSchema as JsonSchemaObject;
+  const props = schemaObj.properties ?? {};
+  const required = new Set(schemaObj.required ?? []);
   const zodShape: Record<string, z.ZodTypeAny> = {};
   for (const [key, val] of Object.entries(props)) {
-    zodShape[key] = val.type === 'number' ? z.number().optional() : z.string().optional();
+    const base = jsonSchemaPropToZod(val);
+    zodShape[key] = required.has(key) ? base : base.optional();
   }
 
   const executeImpl = async (args: Record<string, unknown>) => {
-    const resp = await fetch(runCtx.bffToolUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-gateway-secret': runCtx.bffInternalSecret,
-        'x-session-id': runCtx.sessionId,
-      },
-      body: JSON.stringify({ tool: schema.name, args, sessionId: runCtx.sessionId }),
-    });
+    // Bound the BFF round-trip so a hung BFF can't pin the SSE stream open
+    // forever. Abort on timeout (BFF_TOOL_TIMEOUT_MS, default 30s) or when the
+    // client disconnects (runCtx.abortSignal).
+    const timeoutMs = Number(process.env.BFF_TOOL_TIMEOUT_MS) || 30000;
+    const timeoutController = new AbortController();
+    const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
+    const signal = runCtx.abortSignal
+      ? AbortSignal.any([timeoutController.signal, runCtx.abortSignal])
+      : timeoutController.signal;
+    let resp: Awaited<ReturnType<typeof fetch>>;
+    try {
+      resp = await fetch(runCtx.bffToolUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-gateway-secret': runCtx.bffInternalSecret,
+          'x-session-id': runCtx.sessionId,
+        },
+        body: JSON.stringify({ tool: schema.name, args, sessionId: runCtx.sessionId }),
+        signal,
+      });
+    } catch (err) {
+      if (timeoutController.signal.aborted) {
+        throw new BffToolError(`BFF tool call timed out after ${timeoutMs}ms`);
+      }
+      if (runCtx.abortSignal?.aborted) {
+        throw new BffToolError('BFF tool call aborted (client disconnected)');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!resp.ok) {
       const text = await resp.text();
       // Error bodies (e.g. 502 token-exchange-failed) carry tokenEvents showing

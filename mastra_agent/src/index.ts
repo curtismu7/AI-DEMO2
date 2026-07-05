@@ -4,6 +4,9 @@ import { handleRun } from './runHandler';
 
 const app = express();
 app.use(express.json());
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'mastra_agent' });
+});
 app.post('/run', handleRun);
 
 const cfg = getConfig();

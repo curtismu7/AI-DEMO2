@@ -840,7 +840,13 @@ class MessageProcessor:
             bff_tools = build_bff_tools(
                 tool_schemas, bff_tool_url, session_id, emitter._sink
             )
-            active_graph = create_react_agent(run_llm, bff_tools)
+            # F2: bound the BFF-path prompt the same way the startup MCP graph
+            # does. Without this hook the full AG-UI history is replayed every
+            # turn, so a long chat grows unbounded and eventually overflows the
+            # context window. Reuse the agent's existing token-trimming hook.
+            active_graph = create_react_agent(
+                run_llm, bff_tools, pre_model_hook=self.agent._pre_model_hook
+            )
             active_config = RunnableConfig(
                 recursion_limit=getattr(self.agent.config.langchain, "max_iterations", 25),
             )
@@ -1048,6 +1054,18 @@ class MessageProcessor:
         await self._teardown_session_worker(
             session_id, reason="session closed"
         )
+
+        # F6: evict the LangGraph checkpoint + conversation memory for this
+        # ended session. The process-lifetime MemorySaver otherwise retains
+        # every session's state forever. Called only on session close (WS
+        # disconnect / session_close), so an active session is never evicted.
+        # Best-effort: a failure here must not break connection cleanup.
+        try:
+            await self.agent.clear_session_memory(session_id)
+        except Exception as e:
+            logger.warning(
+                f"Failed to clear agent memory for session {session_id}: {e}"
+            )
 
         logger.debug(f"Cleared processor data for session {session_id}")
     

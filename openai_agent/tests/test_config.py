@@ -42,12 +42,12 @@ def test_config_falls_back_to_openai_legacy_env_vars():
         assert c.model == "gpt-4o-mini"
 
 
-def test_config_defaults_to_lm_studio_when_nothing_set():
-    """No env vars at all → LM Studio defaults so the agent boots without
-    needing OPENAI_API_KEY (regression: KeyError at import time)."""
+def test_config_defaults_to_local_proxy_when_nothing_set():
+    """No env vars at all → local llama.cpp proxy defaults so the agent boots
+    without needing OPENAI_API_KEY (regression: KeyError at import time)."""
     with patch.dict(os.environ, {}, clear=True):
         c = _reload_cfg()
-        assert c.llm_api_key == "lm-studio"
-        assert c.llm_base_url == "http://localhost:1234/v1"
-        assert c.model.startswith("google/")  # default LM Studio model
+        assert c.llm_api_key == "llama-cpp"
+        assert c.llm_base_url == "http://localhost:8090/v1"
+        assert c.model == "gemma-3-4b-it"  # default local proxy tier
         assert c.port == 8891

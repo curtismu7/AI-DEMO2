@@ -152,8 +152,17 @@ async def _run_stream(
             else:
                 yield format_sse(item)
     finally:
+        # F5: cancel AND await so in-flight httpx/tool work is torn down
+        # cleanly instead of being abandoned when the client disconnects.
         ka_task.cancel()
         agent_task.cancel()
+        for _t in (ka_task, agent_task):
+            try:
+                await _t
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.debug("[AG-UI] task teardown error", exc_info=True)
 
 
 async def _invoke_agent(

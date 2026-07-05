@@ -53,6 +53,42 @@ describe('buildBffTools', () => {
   });
 });
 
+describe('buildBffTools — zod schema mapping', () => {
+  const TRANSFER_SCHEMA = {
+    name: 'transfer_funds',
+    description: 'Move money between accounts',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        amount: { type: 'number' },
+        to_account_id: { type: 'string' },
+        memo: { type: 'string' },
+        confirm: { type: 'boolean' },
+      },
+      required: ['amount', 'to_account_id'],
+    },
+  };
+
+  it('enforces required banking fields and preserves types', () => {
+    const tools = buildBffTools([TRANSFER_SCHEMA], RUN_CTX);
+    const inputSchema = (tools[0] as unknown as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }).inputSchema;
+
+    // Missing a required field must fail validation.
+    expect(inputSchema.safeParse({ to_account_id: 'acct_2' }).success).toBe(false);
+    // Wrong type for a required numeric field must fail.
+    expect(inputSchema.safeParse({ amount: 'lots', to_account_id: 'acct_2' }).success).toBe(false);
+    // Required fields present (optional ones omitted) passes.
+    expect(inputSchema.safeParse({ amount: 100, to_account_id: 'acct_2' }).success).toBe(true);
+  });
+
+  it('leaves non-required fields optional', () => {
+    const tools = buildBffTools([SCHEMA], RUN_CTX);
+    const inputSchema = (tools[0] as unknown as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } }).inputSchema;
+    // SCHEMA has no `required` array, so userId stays optional.
+    expect(inputSchema.safeParse({}).success).toBe(true);
+  });
+});
+
 describe('buildBffTools — token event forwarding', () => {
   it('emits one batched STATE_DELTA with one add op per tokenEvent', async () => {
     const tokenEvents = [{ type: 'exchanger-token' }, { type: 'mcp-token' }];

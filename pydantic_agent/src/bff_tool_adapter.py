@@ -4,7 +4,7 @@ import os
 from typing import Any, Callable, Coroutine, Optional
 from urllib.parse import urlparse
 import httpx
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.tools import Tool
 from .models import BffDeps
 
@@ -41,6 +41,8 @@ def resolve_bff_tool_url(request_url: str, config_url: str) -> str:
 
 
 class BffToolError(Exception):
+    """Retained for backwards compatibility; recoverable failures now raise
+    pydantic_ai.ModelRetry so the model can recover or report the error."""
     pass
 
 
@@ -73,8 +75,17 @@ def _make_tool(schema: dict, emit_fn: Optional[Callable[[dict], Coroutine]]) -> 
                 timeout=30.0,
             )
         if resp.status_code != 200:
-            raise BffToolError(f"BFF returned HTTP {resp.status_code}: {resp.text[:200]}")
-        data = resp.json()
+            # Recoverable: hand control back to the model instead of tearing down
+            # the whole run — it can retry, adjust arguments, or report the error.
+            raise ModelRetry(
+                f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {resp.text[:200]}"
+            )
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise ModelRetry(
+                f"Tool '{name}' returned a non-JSON response from the BFF."
+            ) from exc
         token_events = data.get("tokenEvents") or []
         if token_events and emit_fn:
             for te in token_events:

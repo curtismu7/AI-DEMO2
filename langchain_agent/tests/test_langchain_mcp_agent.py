@@ -305,11 +305,12 @@ class TestPureHelpers:
     def test_is_authorization_complete_session_success(self, agent):
         assert agent._is_authorization_complete_message("SESSION_SUCCESS:abc123") is True
 
-    def test_is_authorization_complete_phrase(self, agent):
-        assert agent._is_authorization_complete_message("authorization completed") is True
-
-    def test_is_authorization_complete_signed_in(self, agent):
-        assert agent._is_authorization_complete_message("signed in successfully") is True
+    def test_is_authorization_complete_natural_language_ignored(self, agent):
+        # F9: only the structured SESSION_SUCCESS: sentinel counts. Loose
+        # natural-language phrases must NOT hijack control flow into the
+        # pending-tool retry path.
+        assert agent._is_authorization_complete_message("authorization completed") is False
+        assert agent._is_authorization_complete_message("signed in successfully") is False
 
     def test_is_authorization_complete_false(self, agent):
         assert agent._is_authorization_complete_message("what are my accounts?") is False

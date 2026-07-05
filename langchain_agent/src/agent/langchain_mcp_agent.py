@@ -333,21 +333,13 @@ Remember to maintain conversation context and provide helpful, accurate response
         Returns:
             bool: True if this indicates authorization completion
         """
-        # Check for session success messages from frontend
-        if message.startswith('SESSION_SUCCESS:'):
-            return True
-            
-        # Check for common authorization completion phrases
-        auth_completion_phrases = [
-            'authorization completed',
-            'authorized successfully',
-            'auth complete',
-            'login complete',
-            'signed in successfully'
-        ]
-        
-        message_lower = message.lower()
-        return any(phrase in message_lower for phrase in auth_completion_phrases)
+        # F9: only the structured sentinel the frontend emits counts as
+        # authorization completion. The previous loose natural-language
+        # substring match ("signed in successfully", "login complete", ...)
+        # fired on ordinary user text and hijacked control flow into the
+        # pending-tool retry path. Those phrases are produced nowhere else in
+        # the codebase, so requiring the sentinel loses no real signal.
+        return message.startswith('SESSION_SUCCESS:')
 
     def _detect_authorization_code(self, message: str) -> Optional[str]:
         """
@@ -834,7 +826,7 @@ For example: 123 Main St, New York, NY, 10001, USA"""
                     tracer.log_step("initialization_error", "LangChain Agent", {
                         "error": "Agent not properly configured with tools"
                     })
-                    html_file = tracer.save_trace_and_create_visualization()
+                    html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                     logger.info(f"Error trace saved: {html_file}")
                     return "I'm sorry, but I'm not properly configured with tools right now. Please try again later."
             
@@ -876,7 +868,7 @@ For example: 123 Main St, New York, NY, 10001, USA"""
                         await self.conversation_memory.add_message(session_id, assistant_msg)
                         
                         self._log_response_sent(tracer, result, session_id)
-                        html_file = tracer.save_trace_and_create_visualization()
+                        html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                         logger.info(f"OAuth completion trace saved: {html_file}")
                         
                         return result
@@ -888,7 +880,7 @@ For example: 123 Main St, New York, NY, 10001, USA"""
                 except Exception as e:
                     self._log_error(tracer, "MCP Tool Provider", e)
                     logger.error(f"Error retrying tool call after authorization: {e}")
-                    html_file = tracer.save_trace_and_create_visualization()
+                    html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                     logger.info(f"OAuth error trace saved: {html_file}")
                     return f"I encountered an error processing your request after authorization: {str(e)}. Please try your original request again."
             
@@ -907,7 +899,7 @@ For example: 123 Main St, New York, NY, 10001, USA"""
                     await self.conversation_memory.add_message(session_id, user_msg)
                     
                     self._log_response_sent(tracer, registration_response, session_id)
-                    html_file = tracer.save_trace_and_create_visualization()
+                    html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                     logger.info(f"Registration flow trace saved: {html_file}")
                     
                     return registration_response
@@ -946,7 +938,7 @@ What's your email address?"""
                 await self.conversation_memory.add_message(session_id, assistant_msg)
                 
                 self._log_response_sent(tracer, identification_response, session_id)
-                html_file = tracer.save_trace_and_create_visualization()
+                html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                 logger.info(f"Identification request trace saved: {html_file}")
                 
                 return identification_response
@@ -962,7 +954,7 @@ What's your email address?"""
                 response = await self._handle_user_identification(user_message.strip(), session_id, tracer)
                 
                 self._log_response_sent(tracer, response, session_id)
-                html_file = tracer.save_trace_and_create_visualization()
+                html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
                 logger.info(f"User identification trace saved: {html_file}")
                 
                 return response
@@ -1140,7 +1132,7 @@ What's your email address?"""
             self._log_response_sent(tracer, response, session_id)
             
             # Save trace and create visualization
-            html_file = tracer.save_trace_and_create_visualization()
+            html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
             logger.info(f"Complete execution trace saved: {html_file}")
             
             logger.info(f"Successfully processed message for session {session_id}")
@@ -1151,7 +1143,7 @@ What's your email address?"""
             logger.error(f"Error processing message for session {session_id}: {e}")
             
             # Save error trace
-            html_file = tracer.save_trace_and_create_visualization()
+            html_file = await asyncio.to_thread(tracer.save_trace_and_create_visualization)
             logger.info(f"Error trace saved: {html_file}")
             
             # Try to provide a helpful error response

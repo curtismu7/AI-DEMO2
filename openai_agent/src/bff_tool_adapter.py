@@ -85,8 +85,20 @@ def _make_tool(schema: dict, run_ctx: RunCtx, sink: Optional[Callable[[dict], Co
             logger.exception("[BffTool] Failed to emit STATE_DELTA")
 
     async def _invoke(ctx: RunContextWrapper, args_json: str) -> str:
-        args = json.loads(args_json) if args_json else {}
-        logger.info("[BffTool] %s args=%s session=%s", tool_name, args, run_ctx["session_id"])
+        # Small models sometimes emit malformed JSON for tool arguments. Return a
+        # tool-error STRING to the model (so it can retry) instead of raising and
+        # aborting the entire run.
+        try:
+            args = json.loads(args_json) if args_json else {}
+        except json.JSONDecodeError as exc:
+            logger.warning("[BffTool] %s invalid tool-args JSON session=%s: %s",
+                           tool_name, run_ctx["session_id"], exc)
+            return json.dumps({"error": f"Invalid tool arguments (not valid JSON): {exc}"})
+        # Argument values may contain PII; log only names/count at INFO, values at DEBUG.
+        logger.info("[BffTool] %s arg_keys=%s session=%s",
+                    tool_name, sorted(args.keys()) if isinstance(args, dict) else "n/a",
+                    run_ctx["session_id"])
+        logger.debug("[BffTool] %s args=%s session=%s", tool_name, args, run_ctx["session_id"])
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 run_ctx["bff_tool_url"],

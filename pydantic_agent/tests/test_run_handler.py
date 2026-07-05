@@ -105,9 +105,11 @@ def test_run_emits_text_content_events():
 
 def test_run_emits_run_error_event_on_exception():
     """When the agent raises, the stream must emit RUN_ERROR (not ERROR) so
-    the UI dock surfaces the failure instead of rendering an empty pane."""
+    the UI dock surfaces the failure instead of rendering an empty pane. The
+    message is sanitized (raw exception text must not leak to the UI), so we
+    assert on the RUN_ERROR event, not on the internal exception string."""
     mock_agent = MagicMock()
-    mock_agent.run_stream.side_effect = RuntimeError("LLM failed")
+    mock_agent.run_stream.side_effect = RuntimeError("LLM failed at http://internal-host:9000")
 
     with patch("src.run_handler.build_agent", return_value=mock_agent):
         from src.main import app
@@ -116,7 +118,10 @@ def test_run_emits_run_error_event_on_exception():
     events = _parse_sse(resp.text)
     error_events = [e for e in events if e["type"] == "RUN_ERROR"]
     assert len(error_events) == 1
-    assert "LLM failed" in error_events[0]["message"]
+    # Sanitized: the raw exception detail (and any internal host it names) must
+    # not reach the client.
+    assert "LLM failed" not in error_events[0]["message"]
+    assert "internal-host" not in error_events[0]["message"]
 
 
 def test_run_forwards_llm_provider_config_to_build_agent():
