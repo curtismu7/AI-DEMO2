@@ -1,6 +1,6 @@
 'use strict';
 
-const { createBffClient } = require('../helpers/bffClient');
+const { createBffClient, findAccountId } = require('../helpers/bffClient');
 const { resetSuite } = require('../helpers/reset');
 
 const VERTICAL = 'banking';
@@ -18,8 +18,8 @@ describe(`Transfers — ${VERTICAL} vertical (real)`, () => {
     // Use the enduser's own accounts (not fixture accounts owned by test-real-suite)
     const acctRes = await client.get('/api/accounts/my');
     if (acctRes.status === 200 && acctRes.data.accounts) {
-      chkId = acctRes.data.accounts.find(a => a.accountType === 'checking')?.id;
-      savId = acctRes.data.accounts.find(a => a.accountType === 'savings')?.id;
+      chkId = findAccountId(acctRes.data.accounts, 'checking');
+      savId = findAccountId(acctRes.data.accounts, 'savings');
     }
   });
 

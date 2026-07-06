@@ -465,7 +465,7 @@ router.get('/logout', async (req, res) => {
     if (userId) clearTokenChain(userId);
     mcpAudit.clearToolCalls();
     appEventService.clearEvents();
-    if (global.pendingConsents) global.pendingConsents = {};
+    // HITL challenges live in demo_hitl_service (:3009) via hitlServiceClient — no in-process pendingConsents map.
   } catch (_) { /* non-fatal */ }
 
   req.session.destroy((err) => {

@@ -22,6 +22,7 @@
     "test:real:workforce": "RUN_REAL_TESTS=true jest --config=jest.real.config.js --runInBand --testPathPattern=real/workforce",
     "test:real:admin": "RUN_REAL_TESTS=true jest --config=jest.real.config.js --runInBand --testPathPattern=real/admin",
     "test:real:shared": "RUN_REAL_TESTS=true jest --config=jest.real.config.js --runInBand --testPathPattern=real/shared",
+    "test:real:hitl-e2e": "node scripts/run-hitl-transfer-e2e.js",
     "test:real:smoke": "RUN_REAL_TESTS=true jest --config=jest.real.config.js --runInBand --testPathPattern=real/shared/health",
     "test:oauth": "./run-oauth-integration-tests.sh",
     "test:oauth-scope": "jest --testPathPattern=oauth-scope-integration.test.js --verbose --forceExit",

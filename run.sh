@@ -1217,12 +1217,18 @@ echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."
   VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
   VAULT_PATH="${VAULT_PATH:-}" \
   BFF_DEV="${BFF_DEV:-0}" \
-  bash -c 'if [[ "${BFF_DEV:-0}" == "1" ]]; then exec npm run dev; else exec npm start; fi' > "${LOG_API}" 2>&1
+  nohup bash -c 'if [[ "${BFF_DEV:-0}" == "1" ]]; then exec npm run dev; else exec npm start; fi' > "${LOG_API}" 2>&1
 ) &
 echo $! > "$PID_API"
 
 # Gate: Tier 2 blocked until API server is healthy
 wait_for_health "${API_PORT}" "/api/healthz" 30 "Demo API Server" "${LOG_API}" >/dev/null
+# npm/node may not match the subshell PID — store the listener PID for cmd_stop.
+_listener_pid=$(lsof -tiTCP:"${API_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true)
+if [[ -n "$_listener_pid" ]]; then
+  echo "$_listener_pid" > "$PID_API"
+fi
+unset _listener_pid
 
 # ── Tier 2: MCP Server, Gateway, HITL ────────────────────────────────────────
 
