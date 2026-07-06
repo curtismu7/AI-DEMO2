@@ -129,13 +129,10 @@ function startDownload(tierNum) {
 
   const resolved = resolveModelPath(tier);
   if (!resolved.missing) {
-    return { status: 'already_present', tier: tier.tier, file: tier.file };
-  }
-  if (tier.aliasFile) {
-    const aliasPath = path.join(MODELS_DIR, tier.aliasFile);
-    if (fs.existsSync(aliasPath)) {
+    if (resolved.viaAlias) {
       return { status: 'satisfied_by_alias', tier: tier.tier, aliasFile: tier.aliasFile };
     }
+    return { status: 'already_present', tier: tier.tier, file: tier.file };
   }
 
   for (const job of downloadJobs.values()) {
