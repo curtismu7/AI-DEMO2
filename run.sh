@@ -1222,10 +1222,11 @@ ensure_jaeger() {
   fi
   if [[ "$DOCKER_AVAILABLE" != "true" ]]; then
     warn "Jaeger not listening on :${JAEGER_OTLP_PORT} and Docker unavailable — tracing may be empty"
-    return 1
+    return 0
   fi
   if [[ ! -f "${BASEDIR}/docker-compose.yml" ]]; then
-    return 1
+    warn "Jaeger not started — docker-compose.yml not found; tracing may be empty"
+    return 0
   fi
   echo "[TRACE]  Starting Jaeger (OTLP :${JAEGER_OTLP_PORT}, UI :${JAEGER_UI_PORT})..."
   COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ai-demo}" \
