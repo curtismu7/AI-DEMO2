@@ -318,6 +318,121 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     }
   }
 
+  const liveDelegationArgs = {
+    userId: subjectId,
+    toolName: tool,
+    tokenAudience,
+    actClientId,
+    nestedActClientId,
+    mcpResourceUri,
+    acr: userAcr,
+    amount: toolAmount,
+    transactionType,
+    hitlApproved,
+    requiredGroup,
+    userGroups,
+    userTier,
+    inRequiredGroup,
+    resourceOwnerId,
+    rarMaxAmount,
+    rarPermittedPayees,
+    toAccountId,
+  };
+
+  const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {
+    const autoDisabled = autoDisabledGroupPolicy
+      ? { autoDisabledGroupPolicy: true, flagId: 'ff_authorize_group_policy' }
+      : null;
+
+    if (r.stepUpRequired) {
+      return {
+        ran: true,
+        block: {
+          status: 428,
+          body: {
+            error: 'mcp_step_up_required',
+            error_description:
+              'PingOne Authorize requires additional authentication before MCP tools can run.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
+    if (r.hitlRequired && hitlApproved) {
+      return {
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            error: 'mcp_hitl_receipt_rejected',
+            error_description:
+              'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
+    if (r.hitlRequired) {
+      return {
+        ran: true,
+        block: {
+          status: 428,
+          body: {
+            error: 'mcp_hitl_required',
+            error_description:
+              'PingOne Authorize requires human approval before MCP tools can run.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
+    if (r.decision === 'DENY') {
+      return {
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            error: 'mcp_authorization_denied',
+            error_description: 'PingOne Authorize denied MCP tool access for this session.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            deny_reason: r.raw?.reason || null,
+            deny_parameters: r.raw?.parameters || null,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
+    return {
+      ran: true,
+      permit: true,
+      evaluation: {
+        engine: 'pingone',
+        decision: r.decision,
+        path: r.path,
+        decisionId: r.decisionId,
+        decisionContext: 'McpFirstTool',
+        request: r._debug?.request || null,
+        response: r._debug?.response || r.raw || null,
+        ...autoDisabled,
+      },
+    };
+  };
+
   try {
     if (runSimulated) {
       const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
@@ -436,121 +551,32 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    const r = await pingOneAuthorizeService.evaluateMcpToolDelegation({
-      userId: subjectId,
-      toolName: tool,
-      tokenAudience,
-      actClientId,
-      nestedActClientId,
-      mcpResourceUri,
-      acr: userAcr,
-      amount: toolAmount,
-      transactionType,
-      hitlApproved,
-      requiredGroup,
-      userGroups,
-      userTier,
-      inRequiredGroup,
-      // Resource-owner binding — parity with the simulated engine (simParams),
-      // which enforces resource_owner_mismatch. Without this the live PingOne
-      // path cannot deny a caller acting on another user's resource.
-      resourceOwnerId,
-      // RAR (NNP-1) parity: the simulated engine enforces rar_amount_exceeded /
-      // rar_payee_not_permitted, but the live call previously omitted these inputs,
-      // so the two engines disagreed. Forward the attested ceiling + permitted
-      // payees + stated destination so the live PingOne policy receives identical
-      // inputs (inert if the deployed policy has no RAR rule; enforced if it does).
-      rarMaxAmount,
-      rarPermittedPayees,
-      toAccountId,
-    });
-
-    if (r.stepUpRequired) {
-      return {
-        ran: true,
-        block: {
-          status: 428,
-          body: {
-            error: 'mcp_step_up_required',
-            error_description:
-              'PingOne Authorize requires additional authentication before MCP tools can run.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-          },
-        },
-      };
-    }
-
-    if (r.hitlRequired && hitlApproved) {
-      return {
-        ran: true,
-        block: {
-          status: 403,
-          body: {
-            error: 'mcp_hitl_receipt_rejected',
-            error_description:
-              'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-          },
-        },
-      };
-    }
-
-    if (r.hitlRequired) {
-      return {
-        ran: true,
-        block: {
-          status: 428,
-          body: {
-            error: 'mcp_hitl_required',
-            error_description:
-              'PingOne Authorize requires human approval before MCP tools can run.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-          },
-        },
-      };
-    }
-
-    if (r.decision === 'DENY') {
-      return {
-        ran: true,
-        block: {
-          status: 403,
-          body: {
-            error: 'mcp_authorization_denied',
-            error_description: 'PingOne Authorize denied MCP tool access for this session.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-            deny_reason: r.raw?.reason || null,
-            deny_parameters: r.raw?.parameters || null,
-          },
-        },
-      };
-    }
-
-    return {
-      ran: true,
-      permit: true,
-      evaluation: {
-        engine: 'pingone',
-        decision: r.decision,
-        path: r.path,
-        decisionId: r.decisionId,
-        decisionContext: 'McpFirstTool',
-        // _debug.request carries method/url/body only (no worker bearer).
-        request: r._debug?.request || null,
-        response: r._debug?.response || r.raw || null,
-      },
-    };
+    const r = await pingOneAuthorizeService.evaluateMcpToolDelegation(liveDelegationArgs);
+    return mapLivePingOneResult(r);
   } catch (err) {
     if (USE_SIMULATED) {
       return { ran: true, simulatedError: err };
+    }
+
+    // Live PingOne rejects a JS UserGroups array (400 INVALID_VALUE). Self-heal:
+    // turn off ff_authorize_group_policy and retry once without group params.
+    if (groupPolicy.isUserGroupsAttributeError(err) && groupPolicy.isEnabled(configStore)) {
+      const disabled = await groupPolicy.disableGroupPolicy(configStore);
+      if (disabled) {
+        try {
+          const {
+            requiredGroup: _rg,
+            userGroups: _ug,
+            userTier: _ut,
+            inRequiredGroup: _irg,
+            ...retryArgs
+          } = liveDelegationArgs;
+          const retry = await pingOneAuthorizeService.evaluateMcpToolDelegation(retryArgs);
+          return mapLivePingOneResult(retry, { autoDisabledGroupPolicy: true });
+        } catch (retryErr) {
+          err = retryErr;
+        }
+      }
     }
 
     // PingOne engine failure — apply the configured failover policy, same as the

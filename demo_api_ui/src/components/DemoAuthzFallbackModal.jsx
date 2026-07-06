@@ -50,6 +50,16 @@ export default function DemoAuthzFallbackModal({ open, onClose, detail = null })
                 <dd className="demo-authz-fallback__err">{detail.error}</dd>
               </div>
             )}
+            {detail.autoDisabledGroupPolicy && (
+              <div className="demo-authz-fallback__row">
+                <dt>Auto-fix applied</dt>
+                <dd>
+                  Turned off <code>ff_authorize_group_policy</code> because PingOne rejected
+                  the UserGroups parameter. Re-enable it in Admin → Feature Flags only
+                  after your live PingOne policy is updated.
+                </dd>
+              </div>
+            )}
           </dl>
         )}
         <button type="button" className="demo-authz-fallback__ok" onClick={onClose}>

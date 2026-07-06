@@ -292,9 +292,10 @@ async function evaluateMcpToolDelegation({
   // where step-up wins before the consent branch). Emitted only when true,
   // matching the conditional-spread style of Acr (and the simulated engine).
   hitlApproved = false,
-  // Group-membership policy (Scenario 1). Forwarded as RequiredGroup / UserGroups
-  // so the live PingOne policy can DENY a restricted tool when the user is not in
-  // its group — the same rule the simulated engine and demo_authz_server apply.
+  // Group-membership policy (Scenario 1). Live PingOne receives RequiredGroup plus
+  // BFF-pre-resolved InRequiredGroup / UserTier scalars (the snapshot DSL has no
+  // array-contains). userGroups is accepted for caller parity but is NOT forwarded
+  // to PingOne — a JS array triggers INVALID_VALUE on parameters.UserGroups.
   // Supplied by the caller only when ff_authorize_group_policy is on.
   requiredGroup = null,
   userGroups = null,
@@ -343,7 +344,6 @@ async function evaluateMcpToolDelegation({
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
-    ...(Array.isArray(userGroups) ? { UserGroups: userGroups } : {}),
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
     ...(amount != null ? { Amount: amount } : {}),

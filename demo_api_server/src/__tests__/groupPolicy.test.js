@@ -40,4 +40,26 @@ describe('groupPolicy', () => {
       expect(groupPolicy.isEnabled({ getEffective: () => true })).toBe(true);
     });
   });
+
+  describe('isUserGroupsAttributeError', () => {
+    it('detects PingOne INVALID_VALUE on parameters.UserGroups', () => {
+      const err = new Error(
+        'PingOne Authorize decision endpoint evaluation failed (400): ' +
+        '{ "details": [ { "target": "parameters.UserGroups", "code": "INVALID_VALUE" } ] }',
+      );
+      expect(groupPolicy.isUserGroupsAttributeError(err)).toBe(true);
+    });
+
+    it('returns false for unrelated PingOne errors', () => {
+      expect(groupPolicy.isUserGroupsAttributeError(new Error('ECONNREFUSED'))).toBe(false);
+    });
+  });
+
+  describe('disableGroupPolicy', () => {
+    it('persists ff_authorize_group_policy=false via configStore.setRaw', async () => {
+      const setRaw = jest.fn().mockResolvedValue(undefined);
+      await groupPolicy.disableGroupPolicy({ setRaw });
+      expect(setRaw).toHaveBeenCalledWith({ ff_authorize_group_policy: 'false' });
+    });
+  });
 });

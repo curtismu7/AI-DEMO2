@@ -113,6 +113,27 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
       expect(body.HitlApproved).toBeUndefined();
     });
 
+    // Live PingOne policy uses BFF-pre-resolved scalars (InRequiredGroup, UserTier),
+    // not a UserGroups array — forwarding the array causes INVALID_VALUE (400).
+    test('forwards group-policy scalars but not UserGroups array', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1',
+        toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud',
+        mcpResourceUri: 'mcp.aud',
+        requiredGroup: 'PrivilegedBanking',
+        userGroups: ['Standard', 'PrivilegedBanking'],
+        userTier: 'Standard',
+        inRequiredGroup: true,
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.RequiredGroup).toBe('PrivilegedBanking');
+      expect(body.UserTier).toBe('Standard');
+      expect(body.InRequiredGroup).toBe(true);
+      expect(body.UserGroups).toBeUndefined();
+    });
+
     // NOTE: this asserts pass-through MAPPING, not receipt→permit causation.
     // The live engine only forwards HitlApproved; the TF policy (out of repo)
     // is what flips INDETERMINATE→PERMIT. With the decision endpoint mocked to

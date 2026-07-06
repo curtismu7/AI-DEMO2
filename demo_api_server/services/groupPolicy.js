@@ -78,9 +78,36 @@ function _reset() {
   _data = null;
 }
 
+const GROUP_POLICY_FLAG = 'ff_authorize_group_policy';
+
+/**
+ * True when PingOne Authorize rejected parameters.UserGroups (400 INVALID_VALUE).
+ * Happens when the live policy expects scalar InRequiredGroup/UserTier, not a JS array.
+ */
+function isUserGroupsAttributeError(err) {
+  const msg = err && err.message ? err.message : String(err || '');
+  return msg.includes('parameters.UserGroups') &&
+    (msg.includes('INVALID_VALUE') || msg.includes('Invalid value for attribute'));
+}
+
+/**
+ * Persistently disable group-policy enforcement. Used when live PingOne rejects
+ * the UserGroups wire shape so the demo self-heals without operator intervention.
+ */
+async function disableGroupPolicy(configStore) {
+  if (!configStore || typeof configStore.setRaw !== 'function') return false;
+  await configStore.setRaw({ [GROUP_POLICY_FLAG]: 'false' });
+  console.warn(
+    '[groupPolicy] PingOne rejected parameters.UserGroups — auto-disabled ff_authorize_group_policy',
+  );
+  return true;
+}
+
 module.exports = {
   isEnabled,
   requiredGroupForTool,
   groupsForUser,
+  isUserGroupsAttributeError,
+  disableGroupPolicy,
   _reset,
 };

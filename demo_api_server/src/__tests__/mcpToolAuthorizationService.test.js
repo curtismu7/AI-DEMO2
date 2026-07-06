@@ -43,6 +43,7 @@ describe('mcpToolAuthorizationService', () => {
     jest.clearAllMocks();
     configStore.get.mockImplementation(() => null);
     configStore.getEffective = (k) => configStore.get(k);
+    configStore.setRaw = jest.fn().mockResolvedValue(undefined);
     simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
     // PingOne-ONLY default: failover=deny (fail closed when not configured).
     simulatedAuthorizeService.resolveAuthorizeMode.mockReturnValue({
@@ -461,6 +462,42 @@ describe('mcpToolAuthorizationService', () => {
       expect(result.block.status).toBe(403);
       expect(result.block.body.error).toBe('mcp_hitl_receipt_rejected');
       expect(result.block.body.error_description).toContain('HITL receipt accepted but authorization engine still requires approval');
+    });
+
+    it('auto-disables ff_authorize_group_policy and retries when PingOne rejects UserGroups', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_group_policy') return 'true';
+        return null;
+      });
+      configStore.getEffective = (k) => configStore.get(k);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      const userGroupsErr = new Error(
+        'PingOne Authorize decision endpoint evaluation failed (400): ' +
+        '{ "details": [ { "target": "parameters.UserGroups", "code": "INVALID_VALUE" } ] }',
+      );
+      pingOneAuthorizeService.evaluateMcpToolDelegation
+        .mockRejectedValueOnce(userGroupsErr)
+        .mockResolvedValueOnce({
+          decision: 'PERMIT',
+          stepUpRequired: false,
+          hitlRequired: false,
+          path: 'decision-endpoint',
+          decisionId: 'p-retry',
+          raw: {},
+        });
+
+      const result = await evaluateMcpFirstToolGate({
+        req: { session: { user: { username: 'demoUser' } } },
+        tool: 'get_my_accounts',
+        agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+        userSub: 'u1',
+      });
+
+      expect(configStore.setRaw).toHaveBeenCalledWith({ ff_authorize_group_policy: 'false' });
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalledTimes(2);
+      expect(result.permit).toBe(true);
+      expect(result.evaluation.autoDisabledGroupPolicy).toBe(true);
     });
   });
 
