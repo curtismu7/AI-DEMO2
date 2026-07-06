@@ -1224,7 +1224,20 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const { resolveLlmProvider } = require('./llmProviderResolver');
     const { runReasonLoop } = require('./agentReasoningClient');
 
-    const { provider, model } = resolveLlmProvider(langchainConfig);
+    // Provider precedence on the bff reason-loop path: an explicit per-session
+    // langchainConfig.provider (set by the LLM Config / mode picker) wins; when
+    // the session carries none — e.g. a public page like OAuth Academy that
+    // never ran the picker — fall back to the resolved agent_mode provider
+    // (env-first AGENT_MODE, the documented single source of truth) instead of
+    // silently defaulting to Helix. Without this, an unseeded session hit Helix
+    // (partially configured → "Missing input") even though AGENT_MODE=llamacpp.
+    const _providerConfig =
+      langchainConfig && langchainConfig.provider
+        ? langchainConfig
+        : _agentMode && _agentMode.provider
+          ? { ...langchainConfig, provider: _agentMode.provider }
+          : langchainConfig;
+    const { provider, model } = resolveLlmProvider(_providerConfig);
 
     // NOTE: the old "Helix unconfigured → silently return the catalog message"
     // fallback (former ARCHITECTURE-TRUTH T-3b) was RETIRED (2026-06-12). With
