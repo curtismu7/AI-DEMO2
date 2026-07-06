@@ -368,9 +368,24 @@ async function main() {
   console.log('[refresh-envs] Wrote demo_mcp_invest/.env');
 
   // ── demo_hitl_service/.env ────────────────────────────────────────────────
+  const hitlAllowedOrigins = [
+    fb('PUBLIC_APP_URL'),
+    fb('PINGONE_PUBLIC_APP_URL'),
+    fb('REACT_APP_CLIENT_URL'),
+    fb('CORS_ORIGIN'),
+    'https://api.ping.demo:3001',
+    'http://localhost:3001',
+    'http://localhost:4000',
+    'http://api-server:3001',
+  ]
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .join(',');
+
   writeEnvFile(path.join(ROOT, 'demo_hitl_service', '.env'), {
     ...shared,
     PINGONE_TOKEN_ENDPOINT: `${asBase}/token`,
+    HITL_ALLOWED_ORIGINS: hitlAllowedOrigins,
   });
   console.log('[refresh-envs] Wrote demo_hitl_service/.env');
 
