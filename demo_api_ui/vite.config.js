@@ -32,11 +32,20 @@ export default defineConfig(({ mode }) => {
 
   // Shim process.env.REACT_APP_* so existing source files need no changes.
   // Vite replaces these string patterns at build time with the actual values.
+  // Include process.env keys (Docker) and always define NODE_ENV — bare `process`
+  // references crash in the browser when a key is missing from .env.
+  const reactAppKeys = new Set([
+    ...Object.keys(env).filter((k) => k.startsWith('REACT_APP_')),
+    ...Object.keys(process.env).filter((k) => k.startsWith('REACT_APP_')),
+    'REACT_APP_CLIENT_URL',
+    'REACT_APP_API_URL',
+    'REACT_APP_API_PORT',
+    'REACT_APP_API_HOST',
+    'REACT_APP_API_HTTPS',
+  ]);
   const reactAppDefines = Object.fromEntries(
-    Object.entries(env)
-      .filter(([k]) => k.startsWith('REACT_APP_'))
-      .map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
-  )
+    [...reactAppKeys].map((k) => [`process.env.${k}`, JSON.stringify(cfg(k) || '')]),
+  );
 
   return {
     plugins: [
@@ -61,7 +70,10 @@ export default defineConfig(({ mode }) => {
       },
     ],
 
-    define: reactAppDefines,
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(mode),
+      ...reactAppDefines,
+    },
 
     // Preserve function/class names through minification so React's
     // componentStack in the ErrorBoundary names real components (not mangled

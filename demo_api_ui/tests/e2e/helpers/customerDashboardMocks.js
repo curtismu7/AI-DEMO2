@@ -130,12 +130,18 @@ async function mockCustomerDashboard(page, opts = {}) {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) }),
   );
 
-  // UserDashboard only renders the banking column when this flag is true (split3 layout)
+  // UserDashboard shows the banking column when ff_show_agent_in_middle is true.
   await page.route('**/api/admin/feature-flags**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ flags: [{ id: 'ff_show_banking_in_middle_agent', value: true }] }),
+      body: JSON.stringify({
+        flags: [
+          { id: 'ff_show_agent_in_middle', value: true },
+          { id: 'ff_agent_clinical_split', value: false },
+          { id: 'ff_customer_skin_ping2026', value: false },
+        ],
+      }),
     }),
   );
 

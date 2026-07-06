@@ -76,3 +76,44 @@ export async function listCodebases() {
   const data = await response.json();
   return data.codebases || [];
 }
+
+const FOLDER_ALLOW_EXT = new Set([
+  'js', 'jsx', 'ts', 'tsx', 'py', 'json', 'md', 'css', 'scss', 'yml', 'yaml', 'sh',
+  'go', 'java', 'rb', 'rs', 'txt', 'html',
+]);
+const FOLDER_IGNORE_RE = /(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/i;
+const FOLDER_MAX_FILE_BYTES = 256 * 1024;
+const FOLDER_MAX_FILES = 2000;
+
+/** Pure: split a picked folder's FileList into accepted code files + skipped count. */
+export function filterFolderFiles(fileList) {
+  const accepted = [];
+  let skipped = 0;
+  for (const f of Array.from(fileList)) {
+    const rel = f.webkitRelativePath || f.name;
+    const ext = (rel.split('.').pop() || '').toLowerCase();
+    if (
+      accepted.length >= FOLDER_MAX_FILES
+      || FOLDER_IGNORE_RE.test(rel)
+      || !FOLDER_ALLOW_EXT.has(ext)
+      || f.size > FOLDER_MAX_FILE_BYTES
+    ) {
+      skipped++;
+      continue;
+    }
+    accepted.push(f);
+  }
+  return { accepted, skipped };
+}
+
+/** Upload picked folder files through the existing multi-file /index route. */
+export async function indexFolderFiles(files, codebaseName) {
+  const formData = new FormData();
+  formData.append('codebase_name', codebaseName);
+  for (const f of files) {
+    formData.append('file', f, f.webkitRelativePath || f.name);
+  }
+  const response = await fetch(`${API_BASE}/index`, { method: 'POST', body: formData });
+  await throwIfNotOk(response, 'Index failed');
+  return response.json();
+}
