@@ -318,7 +318,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
-  ff_mcp_gateway_pinggateway:      { public: true, default: 'false' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
+  ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
   ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
@@ -450,7 +450,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   demo_account_count:              { public: true, default: '3' },
   transaction_preset:              { public: true, default: '' },
   max_token_chain_history:         { public: true, default: '50' },
-  agent_history_limit:             { public: true, default: '20' },
+  agent_history_limit:             { public: true, default: '10' },
   agent_transaction_count_limit:   { public: true, default: '3' },
   agent_transaction_value_limit:   { public: true, default: '5000' },
   agent_mode:                      { public: true, default: 'heuristics' },
