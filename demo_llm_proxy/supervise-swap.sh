@@ -13,9 +13,11 @@
 set -uo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SMALLEST_PORT="${SMALLEST_TIER_PORT:-8091}"
-# Two tiers only: small (Phi-4-mini :8091) and big (gpt-oss-20b :8096).
-TIERS=(8091 8096)
+# Tier ports come from modelCatalog.js (the SSOT) — never hardcode them here.
+# POSIX-compatible read (macOS /bin/bash is 3.2, no mapfile).
+TIER_PORTS_STR="$(node -e 'console.log(require("'"$DIR"'/modelCatalog").TIERS.map(t=>t.port).join(" "))')"
+read -r -a TIERS <<< "$TIER_PORTS_STR"
+SMALLEST_PORT="${SMALLEST_TIER_PORT:-${TIERS[0]:-8091}}"
 
 # 1. Tier-manager daemon: the swap coordinator the router calls to load/unload
 #    tiers one at a time. Start it if it isn't answering.
