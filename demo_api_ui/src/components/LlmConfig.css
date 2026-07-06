@@ -70,7 +70,25 @@
 .cfg-segment-status--error    { color: #dc2626; }
 .cfg-segment-status--unknown  { color: #94a3b8; }
 
-/* ── Card shell ─────────────────────────────────────────────── */
+/* ── Tier model table ───────────────────────────────────────── */
+.cfg-table {
+  border-collapse: collapse;
+}
+.cfg-table th,
+.cfg-table td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+.cfg-table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .cfg-card {
   background: #fff;
   border: 1px solid #e2e8f0;

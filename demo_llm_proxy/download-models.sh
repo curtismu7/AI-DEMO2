@@ -12,6 +12,18 @@ set -e
 MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 mkdir -p "$MODELS_DIR"
 
+# Tier-4 Gemma-12B reuses the Tier-2 qat file when present (saves ~7GB).
+TIER4_ALIAS="gemma-3-12b-it-qat-UD-Q4_K_XL.gguf"
+
+model_present() {
+  local file="$1"
+  [ -f "$MODELS_DIR/$file" ] && return 0
+  if [ "$file" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
+    return 0
+  fi
+  return 1
+}
+
 # tier|exact filename|human label|hf repo (for `fetch`)
 MODELS=(
   "1|gemma-3-4b-it-qat-Q4_0.gguf|Gemma-3-4B (4B) — simple, fast|unsloth/gemma-3-4b-it-qat-GGUF"
@@ -29,7 +41,7 @@ echo ""
 missing=0
 for entry in "${MODELS[@]}"; do
   IFS='|' read -r tier file label repo <<< "$entry"
-  if [ -f "$MODELS_DIR/$file" ]; then
+  if model_present "$file"; then
     echo "  ✅ Tier $tier: $label"
   else
     missing=$((missing + 1))
@@ -53,6 +65,10 @@ if [ "${1:-}" = "fetch" ]; then
   for entry in "${MODELS[@]}"; do
     IFS='|' read -r tier file label repo <<< "$entry"
     [ -f "$MODELS_DIR/$file" ] && continue
+    if [ "$file" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
+      echo "  ⏭️  Tier $tier: skipping (Tier 2 file satisfies alias)"
+      continue
+    fi
     echo "  ⬇️  Tier $tier: $file"
     hf download "$repo" "$file" --local-dir "$MODELS_DIR" || exit 1
   done

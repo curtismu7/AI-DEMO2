@@ -12,6 +12,28 @@ MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 LOG_DIR="/tmp/llama-models"
 mkdir -p "$LOG_DIR"
 
+# Tier-4 Gemma-12B reuses the Tier-2 qat GGUF when the canonical name is absent.
+TIER4_ALIAS="gemma-3-12b-it-qat-UD-Q4_K_XL.gguf"
+
+resolve_model_path() {
+  local model="$1"
+  local direct="$MODELS_DIR/$model"
+  if [ -f "$direct" ]; then
+    echo "$direct"
+    return 0
+  fi
+  if [ "$model" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
+    echo "$MODELS_DIR/$TIER4_ALIAS"
+    return 0
+  fi
+  echo "$direct"
+  return 1
+}
+
+tier_file_present() {
+  resolve_model_path "$1" >/dev/null 2>&1
+}
+
 # Model configuration: (port, name, model_file, threads, extra llama-server args)
 # gpt-oss needs --jinja (harmony chat template, enables tool calls); the default
 # reasoning-format (auto) parses reasoning into reasoning_content so plain chat
@@ -30,11 +52,11 @@ start_model() {
   local config="$1"
   IFS=':' read -r port tier model threads extra <<< "$config"
 
-  local model_path="$MODELS_DIR/$model"
-  if [ ! -f "$model_path" ]; then
-    echo "❌ $tier: Model not found: $model_path"
+  local model_path
+  model_path="$(resolve_model_path "$model")" || {
+    echo "❌ $tier: Model not found: $MODELS_DIR/$model"
     return 1
-  fi
+  }
 
   local pid_file="$LOG_DIR/llama-$port.pid"
   local log_file="$LOG_DIR/llama-$port.log"
@@ -146,6 +168,31 @@ case "$ACTION" in
       stop_model "$model"
     done
     ;;
+  ensure-available)
+    # Load the smallest tier whose GGUF file exists on disk (partial downloads OK).
+    for model in "${MODELS[@]}"; do
+      IFS=':' read -r port _ mod _ _ <<< "$model"
+      if tier_file_present "$mod"; then
+        echo "🔷 ensure-available: loading tier on :${port} ($mod)"
+        TARGET_PORT="$port"
+        found=""
+        for m in "${MODELS[@]}"; do
+          IFS=':' read -r p _ _ _ _ <<< "$m"
+          if [ "$p" = "$TARGET_PORT" ]; then
+            found="$m"
+          else
+            stop_model "$m"
+          fi
+        done
+        start_model "$found"
+        exit $?
+      fi
+    done
+    echo "❌ ensure-available: no GGUF files found under $MODELS_DIR"
+    echo "   Download from the demo UI (Servers → llama.cpp) or:"
+    echo "   bash demo_llm_proxy/download-models.sh fetch"
+    exit 1
+    ;;
   ensure)
     # ensure <port> — swap-mode primitive: stop every tier EXCEPT <port>, then
     # start <port> if it isn't already running. Used by tier-manager.js so only
@@ -178,7 +225,7 @@ case "$ACTION" in
     echo "Logs: $LOG_DIR/llama-*.log"
     ;;
   *)
-    echo "Usage: $0 [start|stop|status|ensure <port>]"
+    echo "Usage: $0 [start|stop|status|ensure <port>|ensure-available]"
     exit 1
     ;;
 esac
