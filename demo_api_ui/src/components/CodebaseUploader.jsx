@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { filterFolderFiles, indexFolderFiles } from '../services/codeSearchAPI';
 import './CodebaseUploader.css';
 
-export default function CodebaseUploader({ onUpload, isLoading }) {
+export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed }) {
   const [file, setFile] = useState(null);
   const [codebaseName, setCodebaseName] = useState('');
   const [error, setError] = useState('');
+
+  const folderInputRef = useRef(null);
+  const [isFolderIndexing, setIsFolderIndexing] = useState(false);
+  const [folderIndexed, setFolderIndexed] = useState(0);
+  const [folderSkipped, setFolderSkipped] = useState(null);
+  const [folderError, setFolderError] = useState('');
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
@@ -16,6 +23,42 @@ export default function CodebaseUploader({ onUpload, isLoading }) {
 
   const handleNameChange = (e) => {
     setCodebaseName(e.target.value);
+  };
+
+  const handleFolderPicked = async (e) => {
+    const list = e.target.files;
+    if (!list || list.length === 0) return;
+
+    const { accepted, skipped } = filterFolderFiles(list);
+    const topFolder = (accepted[0]?.webkitRelativePath || 'folder').split('/')[0];
+    // One id for the whole folder so all batches land in a single codebase and
+    // the id we hand the page matches what is stored in Weaviate (queryable).
+    const codebaseId = `folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setFolderError('');
+    setFolderSkipped(skipped);
+    setFolderIndexed(0);
+    setIsFolderIndexing(true);
+
+    try {
+      // Client-batched upload to stay under body limits.
+      const BATCH = 300;
+      let indexed = 0;
+      for (let i = 0; i < accepted.length; i += BATCH) {
+        const batch = accepted.slice(i, i + BATCH);
+        const res = await indexFolderFiles(batch, topFolder, codebaseId);
+        indexed += res?.files_indexed || batch.length;
+        setFolderIndexed(indexed);
+      }
+
+      if (typeof onFolderIndexed === 'function') {
+        onFolderIndexed({ id: codebaseId, name: topFolder });
+      }
+    } catch (err) {
+      setFolderError(err.message || 'Folder indexing failed');
+    } finally {
+      setIsFolderIndexing(false);
+      e.target.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -75,6 +118,32 @@ export default function CodebaseUploader({ onUpload, isLoading }) {
           {isLoading ? 'Uploading...' : 'Upload & Index'}
         </button>
       </form>
+
+      <div className="folder-upload">
+        <input
+          type="file"
+          webkitdirectory=""
+          directory=""
+          multiple
+          style={{ display: 'none' }}
+          ref={folderInputRef}
+          onChange={handleFolderPicked}
+        />
+        <button
+          type="button"
+          className="upload-folder-btn"
+          onClick={() => folderInputRef.current?.click()}
+          disabled={isFolderIndexing}
+        >
+          {isFolderIndexing ? 'Indexing folder...' : '📁 Index a folder from your computer'}
+        </button>
+        {folderError && <div className="error-message">{folderError}</div>}
+        {folderSkipped != null && (
+          <div className="folder-skip-note">
+            Indexed {folderIndexed} files, skipped {folderSkipped} (binary / too large / vendored).
+          </div>
+        )}
+      </div>
     </div>
   );
 }

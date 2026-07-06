@@ -293,6 +293,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "📚",
         action: () => {},
       },
+      {
+        label: "Vector Search & RAG (Weaviate)",
+        description: "How semantic code search stores and finds embeddings",
+        icon: "🧬",
+        action: () => {},
+      },
     ],
   },
   {
@@ -417,6 +423,8 @@ export default function LearningHub() {
       "AI Platform Landscape": () =>
         openEdu(EDU.AI_PLATFORM_LANDSCAPE, "aws"),
       "AI Primer": () => openEdu(EDU.AI_PRIMER, "terminology"),
+      "Vector Search & RAG (Weaviate)": () =>
+        openEdu(EDU.VECTOR_RAG, "what"),
     },
     special: {
       "Glean + PingOne": () => openEdu(EDU.GLEAN, "overview"),

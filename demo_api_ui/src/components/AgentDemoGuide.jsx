@@ -59,7 +59,7 @@ const STEP_LABELS = {
   "bff-intent-token": "13. Intent Token Binding",
 };
 
-const DEMO_SCENARIOS = [
+export const DEMO_SCENARIOS = [
   {
     id: "read-only",
     title: "1. Read-Only Scope (Simple Path)",
@@ -826,6 +826,45 @@ const DEMO_SCENARIOS = [
           "Token Chain: Gateway Deny card (red) shows 403 intent_mismatch with Rule 4b explanation",
           "Agent chat: '✅ Attack blocked — Gateway returned 403 intent_mismatch'",
           "Teaching point: The binding is enforced at the authz layer — the agent has no way to forge or expand its permitted_tools after the BFF mints the IT",
+        ],
+      },
+    ],
+  },
+  {
+    id: "code-search-rag",
+    title: "19. Semantic Code Search (RAG over Weaviate)",
+    description:
+      "A retrieval capability, not an authorization flow: the agent recognizes a 'find code' intent and uses semantic code search backed by Weaviate. No token exchange — it is an internal read-only tool.",
+    applicableSteps: ["agent-llm-reasoning"],
+    steps: [
+      {
+        action: "Open Code Search and index a codebase",
+        prompt: 'Nav → "Code Search" (/code-search), then upload a codebase',
+        explanation:
+          "Each file is split into chunks; every chunk is embedded by the llama.cpp nomic-embed-text-v1.5 service and its vector is stored in Weaviate's CodeChunk class (bring-your-own-vectors — Weaviate does no embedding itself).",
+        watch: [
+          "The uploaded codebase appears under 'Indexed Codebases'",
+          "Indexing embeds every chunk once — after that, searches are just vector lookups",
+        ],
+      },
+      {
+        action: "Ask by meaning, not keywords",
+        prompt: 'Select the codebase, enter e.g. "find authentication logic"',
+        explanation:
+          "The query is embedded with the SAME model, then Weaviate returns the nearest vectors (HNSW approximate nearest-neighbor), filtered by codebase_id. No exact keyword match is required.",
+        watch: [
+          "Results come back even when the exact words differ",
+          "Semantic matches: 'auth logic' surfaces login / PKCE / token code",
+        ],
+      },
+      {
+        action: "Interpret the ranked results",
+        prompt: "Read the returned chunks and their file:line ranges",
+        explanation:
+          "Ordering is by vector similarity over the nomic embedding space, which is why conceptually-related code ranks first even when the query words never appear in it.",
+        watch: [
+          "Each result shows file + line range for context",
+          "Relevance ranking, not alphabetical / keyword-count",
         ],
       },
     ],
