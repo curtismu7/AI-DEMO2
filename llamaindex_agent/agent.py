@@ -48,7 +48,6 @@ SYSTEM = (
 
 def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
     from llama_index.core.tools import FunctionTool
-    from llama_index.core.agent import ReActAgent
     from retriever import retrieve
 
     index = _get_index()
@@ -78,10 +77,14 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
         return out
 
     try:
-        agent = ReActAgent.from_tools(
-            [tool], llm=_make_llm(), max_iterations=_MAX_TOOLS, verbose=False,
+        import asyncio
+        from llama_index.core.agent.workflow import ReActAgent
+
+        agent = ReActAgent(
+            tools=[tool], llm=_make_llm(), system_prompt=SYSTEM, verbose=False,
         )
-        resp = agent.chat(f"{SYSTEM}\n\nQuestion: {question}")
+        handler = agent.run(user_msg=f"Question: {question}", max_iterations=_MAX_TOOLS)
+        resp = asyncio.run(handler)
         answer = str(resp)
         if collected:
             return {"answer": answer, "sources": _dedup(collected),
