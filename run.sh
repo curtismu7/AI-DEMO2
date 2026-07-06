@@ -386,8 +386,8 @@ preflight_checks() {
       nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
       echo $! > /tmp/demo-tier-manager.pid
     fi
-    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure 8091 || {
-      warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-available || {
+      warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
       return 1
     }
     if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then

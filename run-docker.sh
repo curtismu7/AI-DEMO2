@@ -258,7 +258,7 @@ start_llamacpp() {
   _clear_8090_squatter
   _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
   # Load only the smallest tier; the router swaps up on demand and decays back.
-  if bash "$_TIERS_SCRIPT" ensure 8091; then
+  if bash "$_TIERS_SCRIPT" ensure-available; then
     ok "tier-manager on :8097, smallest tier loaded (:8091) — llm-proxy container serves :8090 and swaps on demand"
   else
     warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
