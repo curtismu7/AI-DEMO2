@@ -1,0 +1,352 @@
+/* AgentGuardrailsDiagram.css — Lucid-style reference diagram.
+   Scoped tokens under .agd-root so the page ships its own palette without
+   leaking into the rest of demo_api_ui. Dark mode via prefers-color-scheme,
+   matching TokenDisplay.css / UnifiedTokenFlowInspector.css convention. */
+
+.agd-root {
+  --agd-bg: #ffffff;
+  --agd-bg-light: #f6f6f6;
+  --agd-bg-mid: #f0f0f0;
+  --agd-border-light: #e5e5e5;
+  --agd-border-dark: #cccccc;
+  --agd-brand: #343ced;
+  --agd-text-primary: #1b1b1b;
+  --agd-text-secondary: #727272;
+
+  --agd-accent-identity: #dfe3ff;
+  --agd-accent-runtime: #daf181;
+  --agd-accent-risk: #ffdf69;
+  --agd-accent-danger: #ffcfbd;
+  --agd-accent-soft: #f6f3eb;
+  --agd-accent-soft-text: #1b1b1b;
+
+  --agd-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+  --agd-shadow-focus: 0 0 0 3px rgba(52, 60, 237, 0.16);
+  --agd-connector: #cfd4dc;
+  --agd-grid: #eceff3;
+  --agd-chip: #f3f5f8;
+  --agd-chip-active: #343ced;
+  --agd-chip-active-text: #ffffff;
+  --agd-danger-line: #ef601b;
+  --agd-danger-fill: #fff1ec;
+  --agd-success-line: #82951e;
+  --agd-success-fill: #f6fae9;
+
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  background:
+    linear-gradient(var(--agd-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--agd-grid) 1px, transparent 1px),
+    var(--agd-bg);
+  background-size: 24px 24px, 24px 24px, auto;
+  color: var(--agd-text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .agd-root {
+    --agd-bg: #0f1115;
+    --agd-bg-light: #161a21;
+    --agd-bg-mid: #1d222b;
+    --agd-border-light: #2a313c;
+    --agd-border-dark: #3a424f;
+    --agd-text-primary: #e9ecf3;
+    --agd-text-secondary: #8a92a6;
+
+    --agd-accent-identity: #1d244d;
+    --agd-accent-runtime: #304114;
+    --agd-accent-risk: #56430a;
+    --agd-accent-danger: #4a2518;
+    --agd-accent-soft: #2a2a2a;
+    --agd-accent-soft-text: #f3f3f3;
+
+    --agd-shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
+    --agd-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
+    --agd-connector: #46505d;
+    --agd-grid: #1a1e25;
+    --agd-chip: #22252b;
+    --agd-chip-active: #a9e0ff;
+    --agd-chip-active-text: #09131a;
+    --agd-danger-line: #ffb28f;
+    --agd-danger-fill: #3a231a;
+    --agd-success-line: #b8d657;
+    --agd-success-fill: #253117;
+  }
+}
+
+.agd-hero {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.agd-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--agd-accent-soft);
+  color: var(--agd-accent-soft-text);
+  border: 1px solid var(--agd-border-light);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agd-root h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.agd-subhead {
+  max-width: 880px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--agd-text-secondary);
+  margin: 0;
+}
+
+.agd-scenario-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: var(--agd-bg-light);
+  border: 1px solid var(--agd-border-light);
+  border-radius: 20px;
+  box-shadow: var(--agd-shadow-soft);
+  margin-bottom: 18px;
+}
+
+.agd-scenario-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.agd-chip {
+  appearance: none;
+  border: 1px solid var(--agd-border-light);
+  background: var(--agd-chip);
+  color: var(--agd-text-primary);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease,
+    color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.agd-chip:hover { transform: translateY(-1px); }
+.agd-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--agd-shadow-focus);
+}
+.agd-chip.active {
+  background: var(--agd-chip-active);
+  color: var(--agd-chip-active-text);
+  border-color: var(--agd-chip-active);
+}
+
+.agd-scenario-copy {
+  margin: 0;
+  color: var(--agd-text-secondary);
+  line-height: 1.5;
+  min-height: 24px;
+}
+
+.agd-diagram {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  gap: 20px;
+  align-items: start;
+  position: relative;
+  margin-top: 16px;
+}
+
+.agd-lane {
+  display: grid;
+  gap: 14px;
+  position: relative;
+}
+
+.agd-lane-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--agd-text-secondary);
+  padding-left: 4px;
+}
+
+.agd-card {
+  position: relative;
+  background: var(--agd-bg);
+  border: 1px solid var(--agd-border-light);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--agd-shadow-soft);
+  transition: transform 200ms ease, border-color 200ms ease,
+    box-shadow 200ms ease, opacity 200ms ease;
+  overflow: hidden;
+}
+.agd-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--agd-border-light);
+}
+.agd-card.identity::before { background: var(--agd-brand); }
+.agd-card.runtime::before { background: var(--agd-success-line); }
+.agd-card.risk::before { background: var(--agd-danger-line); }
+.agd-card.actor::before { background: var(--agd-border-dark); }
+.agd-card.resource::before { background: var(--agd-text-secondary); }
+
+.agd-card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+.agd-card p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--agd-text-secondary);
+}
+
+.agd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.agd-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--agd-border-light);
+  background: var(--agd-bg-mid);
+  color: var(--agd-text-primary);
+}
+.agd-tag.identity { background: var(--agd-accent-identity); }
+.agd-tag.runtime { background: var(--agd-accent-runtime); }
+.agd-tag.risk { background: var(--agd-accent-risk); }
+.agd-tag.danger { background: var(--agd-accent-danger); }
+
+.agd-active-card {
+  transform: translateY(-2px);
+  border-color: var(--agd-brand);
+  box-shadow: var(--agd-shadow-focus), var(--agd-shadow-soft);
+}
+.agd-muted-card {
+  opacity: 0.58;
+}
+
+.agd-callout-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.agd-callout {
+  background: var(--agd-danger-fill);
+  color: var(--agd-text-primary);
+  border: 1px dashed var(--agd-danger-line);
+  border-radius: 16px;
+  padding: 14px;
+  transition: transform 180ms ease, border-color 180ms ease,
+    background 180ms ease, opacity 180ms ease;
+}
+.agd-callout.good {
+  background: var(--agd-success-fill);
+  border-color: var(--agd-success-line);
+}
+.agd-muted-callout {
+  opacity: 0.5;
+  transform: translateY(0);
+}
+.agd-callout h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.agd-callout p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--agd-text-secondary);
+  line-height: 1.45;
+}
+
+.agd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  margin-top: 16px;
+  color: var(--agd-text-secondary);
+  font-size: 13px;
+}
+.agd-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.agd-swatch {
+  width: 18px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--agd-connector);
+}
+.agd-swatch.good { background: var(--agd-success-line); }
+.agd-swatch.risk { background: var(--agd-danger-line); }
+
+.agd-summary {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--agd-border-light);
+  background: var(--agd-bg-light);
+  color: var(--agd-text-primary);
+  line-height: 1.55;
+}
+.agd-summary strong { color: var(--agd-text-primary); }
+
+.agd-footer-note {
+  margin-top: 14px;
+  color: var(--agd-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media screen and (max-width: 1100px) {
+  .agd-diagram { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .agd-callout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media screen and (max-width: 760px) {
+  .agd-root { padding: 20px 14px 40px; }
+  .agd-diagram { grid-template-columns: 1fr; }
+  .agd-callout-grid { grid-template-columns: 1fr; }
+  .agd-card, .agd-callout, .agd-scenario-panel { border-radius: 16px; }
+}
+
+@media print {
+  .agd-root {
+    max-width: 100%;
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .agd-card, .agd-callout, .agd-scenario-panel, .agd-summary {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  .agd-chip { display: none; }
+}

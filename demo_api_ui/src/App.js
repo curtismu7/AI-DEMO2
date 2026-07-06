@@ -18,6 +18,7 @@ import AdminSideNav from "./components/AdminSideNav";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
+import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
@@ -964,6 +965,10 @@ function AppWithAuth() {
                             <Route
                               path="/ungoverned-agent"
                               element={<UngovernedAgentPage />}
+                            />
+                            <Route
+                              path="/agent-guardrails"
+                              element={<AgentGuardrailsPage />}
                             />
                             <Route
                               path="/actor-token-education"
