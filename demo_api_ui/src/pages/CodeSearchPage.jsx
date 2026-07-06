@@ -1,8 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
 import SearchResults from '../components/SearchResults';
+import CodeSearchAsk from '../components/CodeSearchAsk';
 import { indexCodebase, searchCode } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
+
+const DEFAULT_CODEBASE = {
+  id: 'ai-demo2-default',
+  name: 'This demo (AI-DEMO2)',
+  isDefault: true,
+  uploadedAt: new Date(0).toISOString(),
+};
 
 export function CodeSearchPage() {
   const [codebases, setCodebases] = useState([]);
@@ -13,27 +21,59 @@ export function CodeSearchPage() {
   const [isIndexing, setIsIndexing] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
+  const [defaultStatus, setDefaultStatus] = useState('idle');
+  const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
 
-  // Load codebases from localStorage on mount
+  // Load codebases from localStorage on mount, always seeding the default codebase
   useEffect(() => {
-    const stored = localStorage.getItem('codeSearchCodebases');
-    if (stored) {
+    let stored = [];
+    const raw = localStorage.getItem('codeSearchCodebases');
+    if (raw) {
       try {
-        const parsed = JSON.parse(stored);
-        setCodebases(parsed);
-        if (parsed.length > 0 && !selectedCodebaseId) {
-          setSelectedCodebaseId(parsed[0].id);
-        }
+        stored = JSON.parse(raw);
       } catch (err) {
         console.error('Failed to load codebases:', err);
       }
     }
+    const withDefault = [
+      DEFAULT_CODEBASE,
+      ...stored.filter((c) => c.id !== DEFAULT_CODEBASE.id),
+    ];
+    setCodebases(withDefault);
+    setSelectedCodebaseId((prev) => prev || DEFAULT_CODEBASE.id);
   }, []);
 
-  // Persist codebases to localStorage
+  // Persist codebases to localStorage, excluding the default (non-persistable) entry
   useEffect(() => {
-    localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
+    const persistable = codebases.filter((c) => !c.isDefault);
+    localStorage.setItem('codeSearchCodebases', JSON.stringify(persistable));
   }, [codebases]);
+
+  // Poll the default codebase's index status
+  useEffect(() => {
+    let alive = true;
+    let timeoutId;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/code-search/default-status');
+        if (!alive) return;
+        const s = await r.json();
+        setDefaultStatus(s.state);
+        if (s.state === 'indexing') {
+          timeoutId = setTimeout(poll, 4000);
+        }
+      } catch {
+        if (alive) {
+          timeoutId = setTimeout(poll, 8000);
+        }
+      }
+    };
+    poll();
+    return () => {
+      alive = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   const handleUpload = useCallback(
     async (file, codebaseName) => {
@@ -70,6 +110,21 @@ export function CodeSearchPage() {
     },
     []
   );
+
+  const handleFolderIndexed = useCallback((cb) => {
+    // Use the id the uploader stored under (matches Weaviate) so Search/Ask
+    // actually query the indexed folder — do NOT mint a new unrelated id.
+    const newCodebase = {
+      id: cb.id,
+      name: cb.name,
+      uploadedAt: new Date().toISOString(),
+    };
+    setCodebases((prev) => [
+      newCodebase,
+      ...prev.filter((c) => c.id !== cb.id),
+    ]);
+    setSelectedCodebaseId(newCodebase.id);
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) {
@@ -108,7 +163,11 @@ export function CodeSearchPage() {
     <div className="code-search-page">
       <div className="search-container">
         <div className="search-panel-left">
-          <CodebaseUploader onUpload={handleUpload} isLoading={isIndexing} />
+          <CodebaseUploader
+            onUpload={handleUpload}
+            isLoading={isIndexing}
+            onFolderIndexed={handleFolderIndexed}
+          />
 
           {indexError && <div className="panel-error">{indexError}</div>}
 
@@ -134,6 +193,12 @@ export function CodeSearchPage() {
                     <div className="codebase-name">{codebase.name}</div>
                     <div className="codebase-meta">
                       {new Date(codebase.uploadedAt).toLocaleDateString()}
+                      {codebase.isDefault && defaultStatus === 'indexing' && (
+                        <span className="codebase-chip"> indexing…</span>
+                      )}
+                      {codebase.isDefault && defaultStatus === 'error' && (
+                        <span className="codebase-chip codebase-chip--error"> index failed</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -143,34 +208,54 @@ export function CodeSearchPage() {
         </div>
 
         <div className="search-panel-right">
-          <div className="search-form">
-            <h2>Search Code</h2>
-            <div className="search-input-group">
-              <input
-                type="text"
-                placeholder="e.g., find authentication logic..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSearching}
-                className="search-input"
-              />
-              <button
-                onClick={handleSearch}
-                disabled={isSearching || !selectedCodebaseId}
-                className="search-button"
-              >
-                {isSearching ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-            {searchError && <div className="search-error">{searchError}</div>}
+          <div className="cs-tabs">
+            <button
+              className={rightTab === 'ask' ? 'active' : ''}
+              onClick={() => setRightTab('ask')}
+            >
+              Ask
+            </button>
+            <button
+              className={rightTab === 'search' ? 'active' : ''}
+              onClick={() => setRightTab('search')}
+            >
+              Search
+            </button>
           </div>
+          {rightTab === 'ask' ? (
+            <CodeSearchAsk codebaseId={selectedCodebaseId} />
+          ) : (
+            <>
+              <div className="search-form">
+                <h2>Search Code</h2>
+                <div className="search-input-group">
+                  <input
+                    type="text"
+                    placeholder="e.g., find authentication logic..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isSearching}
+                    className="search-input"
+                  />
+                  <button
+                    onClick={handleSearch}
+                    disabled={isSearching || !selectedCodebaseId}
+                    className="search-button"
+                  >
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                {searchError && <div className="search-error">{searchError}</div>}
+              </div>
 
-          <SearchResults
-            results={results}
-            isLoading={isSearching}
-            error={searchError}
-          />
+              <SearchResults
+                results={results}
+                isLoading={isSearching}
+                error={searchError}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
