@@ -1,6 +1,6 @@
-# Multi-Model LLM Proxy
+# 2-Tier LLM Proxy
 
-Smart routing proxy for managing 5 local language models through a single endpoint.
+Smart routing proxy for managing 2 local language models through a single endpoint.
 
 ## Architecture
 

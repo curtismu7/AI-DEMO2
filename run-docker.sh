@@ -13,7 +13,7 @@
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
-#   ./run-docker.sh llamacpp restart      stop and restart host model tiers 8091-8096 (containers untouched)
+#   ./run-docker.sh llamacpp restart      stop and restart host model tiers 8091 + 8096 (containers untouched)
 #   ./run-docker.sh help                  show this message
 #
 # Single-service commands take one OR MORE service names, e.g.
@@ -205,11 +205,11 @@ git_sync_check() {
   fi
 }
 
-# ── Local LLM (host) lifecycle — multi-model proxy ───────────────────────────
-# :8090 is the multi-model LLM proxy (the llm-proxy container running
+# ── Local LLM (host) lifecycle — 2-tier proxy ───────────────────────────────
+# :8090 is the 2-tier LLM proxy (the llm-proxy container running
 # demo_llm_proxy/router.js) — NEVER bind a raw llama-server straight onto it.
 # The proxy routes per agent (request model pin) or by keyword class to tier
-# llama-server backends on host ports 8091-8096, managed by
+# llama-server backends on host ports 8091 (small) and 8096 (big), managed by
 # demo_llm_proxy/start-local-models.sh (GGUFs verified by download-models.sh).
 # SWAP MODE: only one tier is loaded at a time — the router asks the
 # tier-manager daemon (:8097, host) to swap up when a request needs a bigger
@@ -511,7 +511,7 @@ cmd_build_one() {
 #
 # Before `up`, clear any NON-Docker listener on a Docker-published port. Docker's
 # own forwarders (OrbStack / com.docker / vpnkit) are left alone, and the
-# intentional host model tiers on :8091-8096 are never touched (not in SERVICES);
+# intentional host model tiers on :8091 and :8096 are never touched (not in SERVICES);
 # :8090 IS in SERVICES (llm-proxy container), so a stale host listener there —
 # e.g. a legacy raw llama-server — gets cleared, which is exactly what we want.
 clear_stale_host_listeners() {
@@ -662,7 +662,7 @@ cmd_status() {
 cmd_llamacpp_restart() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-  echo -e "${CYAN}${BOLD}   [LLAMA.CPP]  Restarting model tiers 8091-8096 (containers untouched)${RESET}"
+  echo -e "${CYAN}${BOLD}   [LLAMA.CPP]  Restarting model tiers 8091 + 8096 (containers untouched)${RESET}"
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
   stop_llamacpp
@@ -701,7 +701,7 @@ cmd_help() {
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
-  echo "    llamacpp restart      Stop and restart host model tiers 8091-8096 (containers untouched)"
+  echo "    llamacpp restart      Stop and restart host model tiers 8091 + 8096 (containers untouched)"
   echo "    help                  Show this message"
   echo ""
   echo -e "${WHITE}${BOLD}  Service Names (one or more for stop/restart/build; one for logs):${RESET}"
