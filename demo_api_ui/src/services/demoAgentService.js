@@ -186,13 +186,10 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
     throwIfNetworkError(err, "agentFlowDiagram.startMcpToolCall");
     log.warn("Flow diagram initialization failed:", err);
   }
-  // Start a fresh trace for chip-fired tool calls, but don't clobber a trace
-  // already begun by the typed-message send path (AIAgent.js) within the
-  // last 60s — that trace's prompt is the user's actual chat message.
-  if (!tokenChainTraceStore.getState().trace.startedAt ||
-      Date.now() - tokenChainTraceStore.getState().trace.startedAt > 60_000) {
+  // Start a fresh trace for each chip-fired tool call.
+  try {
     tokenChainTraceStore.beginTrace({ prompt: tool });
-  }
+  } catch { /* display-only */ }
 
   const flowTraceId =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -870,6 +867,11 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   body.flowTraceId = flowTraceId;
 
+  // Fresh trace per agent turn — clears prior run checkmarks/details.
+  try {
+    tokenChainTraceStore.beginTrace({ prompt: message });
+  } catch { /* display-only */ }
+
   // Tag all API traffic entries captured during this agent turn so the panel
   // can group them. turnLabel is the first 80 chars of the prompt for display.
   const turnLabel = typeof message === "string" ? message.slice(0, 80) : String(message).slice(0, 80);
@@ -938,6 +940,23 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
         })
       );
     }
+
+    try {
+      const heuristicRun = forceHeuristic || data.agentPath === "heuristic";
+      if (heuristicRun) {
+        tokenChainTraceStore.ingestRoutingMode("heuristic", {
+          action: data.toolsCalled?.[0] || data.action || null,
+        });
+      }
+      if (data.mcpAuthorizeEvaluation) {
+        tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
+      }
+      if (typeof data.reply === "string" && data.reply) {
+        tokenChainTraceStore.ingestLlmReply(data.reply);
+      }
+      const failed = data.success === false || Boolean(data.error);
+      tokenChainTraceStore.completeTrace(!failed);
+    } catch { /* display-only */ }
 
     // Attach HTTP status for caller to inspect (428 = HITL required)
     return { ...data, _status: res.status };

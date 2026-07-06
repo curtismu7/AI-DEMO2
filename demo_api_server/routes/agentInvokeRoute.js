@@ -23,6 +23,7 @@ const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware
 const configStore = require('../services/configStore');
 const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
+const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { parseVerticalParam } = require('../services/nlIntentParser');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
@@ -234,6 +235,16 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
     // Authorized pre-execution (or gate disabled), now call the agent
     // Pass a fresh array so processAgentMessage accumulates its own events.
     // We merge pre-execution events (intent token, auth) below after the call.
+    if (flowTraceId) {
+      const claim = mcpFlowSseHub.ensurePostTrace(flowTraceId, req.sessionID);
+      if (claim === 'ok') {
+        mcpFlowSseHub.publish(flowTraceId, {
+          phase: 'request_accepted',
+          label: 'Agent invoke accepted',
+          detail: prompt.slice(0, 120),
+        });
+      }
+    }
     const agentTokenEvents = [];
     const agentResponse = await processAgentMessage({
       message: prompt,

@@ -1,7 +1,8 @@
 import { buildTraceSteps } from "../buildTraceSteps";
 
 const EMPTY_TRACE = {
-  startedAt: null, prompt: null, llmDetail: null, llmReply: null,
+  startedAt: null, prompt: null, routingMode: null, routingDetail: null,
+  llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
 };
 
@@ -211,6 +212,21 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.gateway.detail.decision.outcome).toBe("DENY");
     expect(byId.gateway.detail.decision.label).toContain("access_denied");
     expect(byId.mcp.status).toBe("error");
+  });
+
+  test("heuristic routing marks agent + llm done (bypass) and reply from llmReply", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      routingMode: "heuristic",
+      routingDetail: { action: "view_coverage" },
+      llmReply: "Your deductible is $500.",
+      tokenEvents: [{ id: "user-token", status: "active", claims: { sub: "u1" } }],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.agent.status).toBe("done");
+    expect(byId.llm.status).toBe("done");
+    expect(byId.llm.detail.response.text).toContain("view_coverage");
+    expect(byId.reply.status).toBe("done");
   });
 
   test("api step surfaces the api-key call + masked key when the swap ran", () => {
