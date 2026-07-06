@@ -244,8 +244,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             : (Array.isArray(claims.aud) ? claims.aud.map(String)
                 : (claims.aud != null ? [String(claims.aud)] : []));
         const expired = !!(claims && typeof claims.exp === 'number' && claims.exp < nowSec);
-        // The gateway-scoped audience the BFF-minted token must carry.
+        // The gateway-scoped audience the BFF-minted token must carry. Use the
+        // SAME per-mode resolver the token was minted with — otherwise on the
+        // PingGateway (IG) path the token's aud (the pinggateway resource) is
+        // compared against the Node-gateway aud, so every IG rejection is
+        // mislabeled "wrong audience", masking the real cause. Falls back to the
+        // old chain for the Node-gateway path / if resolution is unavailable.
         const expectedAud =
+            require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() ||
             configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
             process.env.MCP_GW_RESOURCE_URI ||
             process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
