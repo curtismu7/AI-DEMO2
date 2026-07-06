@@ -1,13 +1,16 @@
 /**
  * HITL Gateway Middleware
  * Evaluates MCP tool calls for high-value operations
- * Requires explicit user consent for transfers/withdrawals >$500
+ * Requires explicit user consent for transfers/withdrawals above threshold.
+ *
+ * Storage: canonical demo_hitl_service (:3009) via hitlServiceClient — one HITL
+ * solution shared with the MCP gateway and mcpDecisionPolling adapter.
  */
 
 const crypto = require('crypto');
 
-// Configuration
 const configStore = require('../services/configStore');
+const hitlServiceClient = require('../services/hitlServiceClient');
 const { verticalManifest } = require('../services/verticalManifest');
 
 // Returns the effective MFA threshold for the given vertical (falls back to global).
@@ -21,38 +24,38 @@ function getHitlThreshold(verticalId) {
   const n = Number(v);
   return (v && !isNaN(n)) ? n : 500;
 }
-// Keep backward-compat alias used in evaluateToolCall below
-const getThreshold = getHitlThreshold;
+
 const HIGH_VALUE_TOOLS = ['create_transfer', 'create_withdrawal'];
 
 /**
- * Middleware: Check if tool call requires HITL consent
+ * Middleware: attach HITL evaluator bound to the request's active vertical.
  */
 function hitlGatewayMiddleware(req, res, next) {
-  // Attach HITL evaluator to request
-  req.evaluateHitl = evaluateToolCall;
-  req.hitlPending = {}; // Store pending consent requests
+  const verticalId = verticalManifest.resolver.activeIdFor(req);
+  req.evaluateHitl = (toolCall, userId) =>
+    evaluateToolCall(toolCall, userId, { verticalId });
+  req.hitlPending = {};
   next();
 }
 
 /**
- * Evaluate tool call for HITL requirement
+ * Evaluate tool call for HITL requirement.
  * Returns: { requiresConsent: boolean, consentId?: string, reason?: string }
  */
-async function evaluateToolCall(toolCall, userId) {
+async function evaluateToolCall(toolCall, userId, opts = {}) {
   const { tool, params } = toolCall;
 
-  // Check if tool is high-value operation
   if (!HIGH_VALUE_TOOLS.includes(tool)) {
     return { requiresConsent: false };
   }
 
-  // Check amount threshold
   const rawAmount = params.amount;
   const parsedAmount = typeof rawAmount === 'number' ? rawAmount : parseFloat(rawAmount);
   const amount = Number.isFinite(parsedAmount) ? parsedAmount : Infinity;
   const displayAmount = Number.isFinite(amount) ? `${amount.toFixed(2)}` : 'unknown amount';
-  if (amount > getThreshold()) {
+  const threshold = getHitlThreshold(opts.verticalId);
+
+  if (amount > threshold) {
     const consentId = generateConsentId(userId, tool, params);
     return {
       requiresConsent: true,
@@ -74,88 +77,91 @@ async function evaluateToolCall(toolCall, userId) {
   return { requiresConsent: false };
 }
 
-/**
- * Generate a cryptographically random consent request ID.
- *
- * CR-03 fix: the previous implementation hashed deterministic inputs
- * (userId + tool + params + Date.now()) and truncated to 16 hex chars.
- * Three of the four inputs are known or time-bounded, making the ID
- * partially predictable. crypto.randomUUID() gives 122 bits of CSPRNG
- * entropy with no dependency on request inputs.
- *
- * Parameters are kept for backward-compat with any existing callers but
- * are intentionally ignored.
- */
 // eslint-disable-next-line no-unused-vars
 function generateConsentId(_userId, _tool, _params) {
   return crypto.randomUUID();
 }
 
-/**
- * Store consent request (in-memory or Redis)
- */
-async function storeConsentRequest(consentId, consentData) {
-  // For demo: in-memory map
-  // Production: use Redis with 5-min TTL
-  if (!global.pendingConsents) {
-    global.pendingConsents = {};
-  }
-
-  global.pendingConsents[consentId] = {
-    ...consentData,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-    decision: null,
+function _mapActionToTool(action) {
+  const map = {
+    transfer: 'create_transfer',
+    create_transfer: 'create_transfer',
+    withdrawal: 'create_withdrawal',
+    create_withdrawal: 'create_withdrawal',
   };
+  return map[action] || action || 'create_transfer';
 }
 
 /**
- * Retrieve + validate consent decision
+ * Create a pending HITL challenge in the canonical :3009 store.
+ * @returns {Promise<string>} challengeId (used as consentId by demo-agent routes)
  */
-async function getConsentDecision(consentId) {
-  const consent = global.pendingConsents?.[consentId];
-  if (!consent) {
+async function storeConsentRequest(consentData) {
+  const challenge = await hitlServiceClient.createChallenge({
+    tool: _mapActionToTool(consentData.action),
+    userId: consentData.userId || null,
+    userEmail: consentData.userEmail || null,
+    context: {
+      amount: consentData.amount,
+      details: consentData.details,
+      sessionId: consentData.sessionId,
+      action: consentData.action,
+    },
+  });
+  return challenge.challengeId;
+}
+
+/**
+ * Retrieve + validate consent decision from the canonical store.
+ */
+async function getConsentDecision(consentId, expected = {}) {
+  let status;
+  try {
+    status = await hitlServiceClient.getChallengeStatus(consentId);
+  } catch {
     return { valid: false, error: 'Consent request expired or not found' };
   }
 
-  if (consent.expiresAt < Date.now()) {
-    delete global.pendingConsents[consentId];
-    return { valid: false, error: 'Consent request expired' };
-  }
-
-  if (consent.decision === null) {
+  if (status.status === 'pending') {
     return { valid: false, error: 'Consent not yet decided' };
   }
 
-  // Single-use: consume the record so the same consentId cannot be replayed.
-  const { decision, operation } = consent;
-  delete global.pendingConsents[consentId];
+  const verification = hitlServiceClient.verifyHitlReceipt(
+    status,
+    expected.userId,
+    expected.agentId,
+    expected.tool || status.tool,
+  );
+  if (!verification.ok) {
+    return { valid: false, error: verification.message || 'HITL receipt invalid' };
+  }
+
+  const operation = {
+    tool: status.tool,
+    params: status.context?.details || status.context || {},
+  };
+
   return {
     valid: true,
-    approved: decision === 'approve',
+    approved: status.status === 'approved',
     operation,
   };
 }
 
 /**
- * Record consent decision
+ * Record consent decision in the canonical store.
  */
 async function recordConsentDecision(consentId, decision) {
-  const consent = global.pendingConsents?.[consentId];
-  if (!consent) {
-    throw new Error('Consent request not found');
-  }
-
-  consent.decision = decision; // 'approve' or 'reject'
-  consent.decidedAt = Date.now();
-
-  return consent;
+  const mapped = decision === 'approve' ? 'approved' : 'denied';
+  await hitlServiceClient.respondToChallenge(consentId, mapped);
+  return { challengeId: consentId, decision: mapped };
 }
 
 module.exports = {
   hitlGatewayMiddleware,
   evaluateToolCall,
   generateConsentId,
+  getHitlThreshold,
   storeConsentRequest,
   getConsentDecision,
   recordConsentDecision,

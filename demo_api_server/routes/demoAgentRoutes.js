@@ -11,6 +11,7 @@ const {
   storeConsentRequest,
   recordConsentDecision,
 } = require('../middleware/hitlGatewayMiddleware');
+const hitlServiceClient = require('../services/hitlServiceClient');
 const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 const appEventService = require('../services/appEventService');
 const { trackTokenEvent } = require('../services/tokenChainService');
@@ -293,13 +294,13 @@ router.post('/message', async (req, res) => {
       // gives 128 bits of entropy from the platform CSPRNG. Must land in the
       // same commit as CR-02: without CR-02 the weak ID was dead-code; once
       // CR-02 makes the store functional, the ID becomes attack surface.
-      const consentId = crypto.randomUUID();
-      await storeConsentRequest(consentId, {
-        id: consentId,
+      const consentId = await storeConsentRequest({
         sessionId: req.session.id,
+        userId,
+        userEmail: req.session?.user?.email,
         action: response.action,
         amount: response.amount,
-        details: response.details
+        details: response.details,
       });
       console.log('[demo-agent/message] Consent request stored, consentId:', consentId);
       return res.status(428).json({
@@ -541,23 +542,25 @@ router.post('/consent', async (req, res) => {
       return res.status(400).json({ error: 'consentId (UUID) and approved required' });
     }
 
-    // CR-01 fix: enforce session ownership before recording decision.
-    // The consent record was stored with sessionId = req.session.id at creation
-    // time; any other session must not be able to approve or reject it.
-    const pendingRecord = global.pendingConsents?.[consentId];
-    if (!pendingRecord) {
+    const userSub =
+      req.session?.user?.oauthId ||
+      req.session?.user?.id ||
+      req.agentContext?.userId ||
+      null;
+
+    let entry;
+    try {
+      entry = await hitlServiceClient.getChallengeStatus(consentId);
+    } catch {
       return res.status(404).json({ error: 'Consent request not found or expired' });
     }
-    if (pendingRecord.sessionId !== req.session.id) {
-      console.error('[demo-agent/consent] Session mismatch — consentId does not belong to this session');
-      return res.status(403).json({ error: 'Consent request does not belong to this session' });
+    if (entry.userId && userSub && entry.userId !== userSub) {
+      return res.status(403).json({ error: 'Consent request belongs to another user.' });
+    }
+    if (entry.status !== 'pending') {
+      return res.status(409).json({ error: 'already_resolved', status: entry.status });
     }
 
-    // Phase 2 CR-02: recordConsentDecision signature is (consentId, decision).
-    // The previous call passed (req.session.id, consentId, approved) — three
-    // args — which silently dropped `approved` and stored the consentId string
-    // as the decision. Fixed to (consentId, 'approve'|'reject') so the truth
-    // check `consent.decision === 'approve'` actually works.
     await recordConsentDecision(consentId, approved ? 'approve' : 'reject');
     res.json({ recorded: true, approved });
   } catch (error) {

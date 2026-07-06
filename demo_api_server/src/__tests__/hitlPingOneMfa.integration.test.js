@@ -212,6 +212,54 @@ describe('PingOne MFA HITL — full flow (flag on)', () => {
     expect(ch.confirmExpiresAt).toBeDefined();
   });
 
+  // ── Test 3b: FIDO2 assertion path promotes to confirmed ───────────────────
+
+  test('Test 3b: verifyMfa submits FIDO2 assertion to PingOne and promotes challenge to confirmed', async () => {
+    const fidoAssertion = {
+      id: 'cred-id',
+      rawId: 'cred-id',
+      type: 'public-key',
+      response: { clientDataJSON: 'abc', authenticatorData: 'def', signature: 'ghi' },
+    };
+
+    mfaService.initiateDeviceAuth.mockResolvedValue({
+      id: 'da-integ-fido',
+      status: 'DEVICE_SELECTION_REQUIRED',
+      _embedded: { devices: [{ id: 'dev-fido-1', type: 'FIDO2' }] },
+    });
+    mfaService.selectDevice.mockResolvedValue({
+      id: 'da-integ-fido',
+      status: 'ASSERTION_REQUIRED',
+      publicKeyCredentialRequestOptions: { challenge: 'abc', rpId: 'demo-api-server' },
+    });
+    mfaService.submitFido2Assertion.mockResolvedValue({ id: 'da-integ-fido', status: 'COMPLETED' });
+
+    const req = makeReq();
+
+    const created = txConsent.createChallenge(req, {
+      type: 'withdrawal', amount: 600, fromAccountId: 'acc1', description: 'Test',
+    });
+    const { challengeId } = created;
+    await txConsent.confirmChallenge(req, challengeId);
+    await txConsent.selectMfaDevice(req, challengeId, 'dev-fido-1');
+
+    const verified = await txConsent.verifyMfa(
+      req,
+      challengeId,
+      { deviceId: 'dev-fido-1', fido2Assertion: fidoAssertion },
+      'https://demo-api-server:3001',
+    );
+
+    expect(verified.ok).toBe(true);
+    expect(mfaService.submitFido2Assertion).toHaveBeenCalledWith(
+      'da-integ-fido',
+      fidoAssertion,
+      'integ-user-token',
+      'https://demo-api-server:3001',
+    );
+    expect(req.session.txConsentChallenges[challengeId].status).toBe('confirmed');
+  });
+
   // ── Test 4: verifyAndConsumeChallenge succeeds after MFA verified ─────────
 
   test('Test 4: verifyAndConsumeChallenge succeeds and removes challenge from session', async () => {
