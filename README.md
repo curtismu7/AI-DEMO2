@@ -55,7 +55,8 @@ and open **`https://api.ping.demo:4000`**. Full details for each mode are in [Ho
 | `demo_mcp_server` | 8080 | TypeScript MCP tool server for banking tools |
 | `demo_mcp_invest` | 8081 | TypeScript MCP server for investment tools |
 | `demo_mortgage_service` | 8082 | Mortgage REST resource server (Path A — X-API-Key conversion at gateway) |
-| `demo_mcp_gateway` | 3005 | **Ping Agent Gateway** — authorization enforcement proxy; RFC 7662 token introspection + PingOne Authorize policy decision (PERMIT / DENY / HITL) before every tool call; token forwarded unchanged (no re-exchange) |
+| `demo_mcp_gateway` | 3005 | **Demo Agent Gateway** (Node) — optional `demo-auth` profile; real stack uses PingGateway (IG) on :3036 |
+| `ping-gateway` | 3036 | **PingOne Agent Gateway (IG)** — default MCP enforcement point when Quick Flag **Agent Gateway → PingOne GW** is ON |
 | `demo_agent_service` | 3006 | AG-UI runner; streams `STATE_DELTA` events back to the BFF over SSE |
 | `demo_hitl_service` | 3009 | Human-in-the-Loop consent challenge service |
 | `langchain_agent` | 8888 | LangChain (Python) agent runtime — selectable via `configStore.llm_framework` |
@@ -185,35 +186,116 @@ echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts
 cd ~/AI-demo/demo_api_server && npm run pingone:bootstrap
 ```
 
-**Start:**
+**Start (recommended — memory-efficient core stack):**
 
 ```bash
 cd ~/AI-demo
-docker compose up --build    # first run or after code changes
-docker compose up            # subsequent runs (faster — no rebuild)
+./run-docker.sh              # core services only (~750 MB Docker RSS)
+./run-docker.sh start full   # every compose service (all optional profiles)
+./run-docker.sh build        # rebuild images, then start core
 ```
 
 **Access:** `https://api.ping.demo:4000`
 
+#### Memory-efficient Docker stack
+
+By default `./run-docker.sh` starts only the **core** banking demo (~750 MB Docker,
+plus host llama.cpp if you use local LLM). Optional subsystems stay stopped until
+you start them.
+
+| Core (always on) | Optional (on demand) |
+| --- | --- |
+| BFF, UI, MCP server | Code Search / RAG (`rag`) |
+| **PingGateway (IG)** — real Agent Gateway | Alt agent frameworks (`agents`) |
+| LangChain agent, agent-service, HITL | Invest + mortgage verticals (`verticals`) |
+| LLM proxy | MCP proxy (`proxy`), Jaeger (`tracing`) |
+
+**Real Authorize + real IG is the default.** The demo `authz-server` and demo
+`mcp-gateway` are **not** in the core stack — they live in the `demo-auth` profile
+and start only when Quick Flags call for them (see below).
+
+Check what's running:
+
+```bash
+./run-docker.sh status
+./run-docker.sh optional status
+curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container memory
+```
+
+#### Optional services on demand
+
+```bash
+./run-docker.sh optional start rag        # Code Search (Weaviate + embeddings + code-search)
+./run-docker.sh optional start agents     # OpenAI / Mastra / Pydantic agents
+./run-docker.sh optional start verticals  # MCP invest + mortgage services
+./run-docker.sh optional start tracing    # Jaeger OTLP backend
+./run-docker.sh optional stop rag         # free ~600 MB+ when done with Code Search
+./run-docker.sh optional start rag agents # multiple groups in one command
+```
+
+Compose profiles (same groups): `docker compose --profile rag up -d`, etc.
+
+#### Real vs demo Authorize / Agent Gateway
+
+Two Quick Flags in the admin UI control which containers you need (they are **not**
+hard-pinned in `docker-compose.yml`, so toggles persist in config):
+
+| Quick Flag | OFF (default) | ON |
+| --- | --- | --- |
+| **Simulated Authorize** | Real PingOne Authorize | Demo `authz-server` |
+| **Agent Gateway → PingOne GW** | Demo `mcp-gateway` (Node :3005) | **PingGateway (IG)** :3036 |
+
+**Default path:** real PingOne Authorize + PingGateway only — no demo authz or demo
+gateway containers.
+
+After changing either flag, align containers (reads live config from the BFF):
+
+```bash
+./run-docker.sh demo-sync
+# or
+./run-docker.sh restart demo-api-server   # restart BFF runs demo-sync automatically
+```
+
+| Mode | Quick Flags | Containers started |
+| --- | --- | --- |
+| **Real (default)** | Simulated OFF, PingOne GW ON | PingGateway |
+| Demo Authorize + real IG | Simulated ON, PingOne GW ON | PingGateway + authz-server |
+| Full demo path | Simulated ON, Demo GW | authz-server + mcp-gateway |
+
+Force demo containers regardless of flags: `./run-docker.sh optional start demo-auth`
+
 **Common commands:**
 
 ```bash
-docker compose up --build    # build + start all services
-docker compose up            # start (no rebuild)
-docker compose down          # stop and remove containers
-docker compose restart <service>   # restart one service
+./run-docker.sh                    # start core (lean default)
+./run-docker.sh start full         # start every compose service
+./run-docker.sh demo-sync          # apply Quick Flag toggles to demo-auth containers
+./run-docker.sh stop               # stop all containers + host llama tiers
+./run-docker.sh restart <service>  # recreate one or more services
+./run-docker.sh build              # rebuild core images
+./run-docker.sh logs               # interactive log picker
+./run-docker.sh status             # container health table
+./run-docker.sh help               # full command reference
 ```
 
-**Logs — terminal:**
+Legacy raw compose (starts core only — optional profiles need `--profile` flags):
+
+```bash
+docker compose up --build -d
+docker compose down
+```
+
+**Logs — terminal** (prefer `./run-docker.sh logs` or `./run-docker.sh logs <service>`):
 
 ```bash
 docker compose logs -f                               # all services interleaved
-docker compose logs -f banking-api-server            # BFF
+docker compose logs -f demo-api-server               # BFF
 docker compose logs -f langchain-agent               # AI agent
-docker compose logs -f mcp-gateway                   # MCP gateway
+docker compose logs -f mcp-gateway                   # Demo Agent Gateway (demo-auth profile)
+docker compose logs -f ping-gateway                  # PingOne Agent Gateway (IG)
 docker compose logs -f mcp-server                    # MCP tools
-docker compose logs -f frontend                      # UI (nginx)
-docker compose logs -f --tail=100 banking-api-server # last 100 lines + follow
+docker compose logs -f ui                            # UI (nginx / Vite)
+docker compose logs -f --tail=100 demo-api-server    # last 100 lines + follow
 ```
 
 **Logs — Docker Desktop UI:**

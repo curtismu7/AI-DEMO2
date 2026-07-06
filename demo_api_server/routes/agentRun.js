@@ -202,9 +202,9 @@ router.post('/run', async (req, res) => {
   }
 
   // Sliding-window: forward only the most recent N messages to each agent.
-  // Configurable via agent_history_limit (default 20). Prevents unbounded
+  // Configurable via agent_history_limit (default 10). Prevents unbounded
   // context growth for stateless agents while preserving recent conversation.
-  const historyLimit = Math.max(1, parseInt(configStore.getEffective('agent_history_limit') || '20', 10));
+  const historyLimit = Math.max(1, parseInt(configStore.getEffective('agent_history_limit') || '10', 10));
   const slicedMessages = messages.slice(-historyLimit);
 
   // ---------------------------------------------------------------------------

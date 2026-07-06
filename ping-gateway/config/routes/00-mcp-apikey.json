@@ -33,7 +33,7 @@
       "type": "OAuth2ResourceServerFilter",
       "config": {
         "requireHttps": false,
-        "scopes": [ "${env['PG_INBOUND_SCOPE']}" ],
+        "scopes": [ "${empty env['PG_INBOUND_SCOPE'] ? 'gateway:mcp:invoke' : env['PG_INBOUND_SCOPE']}" ],
         "accessTokenResolver": "ApikeyTokenResolver"
       }
     }

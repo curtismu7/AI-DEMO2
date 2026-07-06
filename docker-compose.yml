@@ -34,11 +34,22 @@
 #   4. Click any container name (e.g. ai-demo-api-server) to open its log view
 #   5. Use the search box to filter log lines
 #   6. Click the download icon to save logs to a file
+#
+# Optional compose profiles (lean default — core only; start on demand):
+#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent
+#   agents     openai-agent, mastra-agent, pydantic-agent
+#   verticals  mcp-invest, mortgage-service
+#   proxy      mcp-proxy
+#   tracing    jaeger
+#   demo-auth  demo authz-server + demo mcp-gateway (when FF selects demo path)
+# Core default: real PingOne Authorize + PingGateway (IG). Flip FF in admin, then
+#   ./run-docker.sh demo-sync   (or restart the stack) to start/stop demo-auth.
 
 services:
 
   # ── Jaeger UI + OTLP collector (free local tracing backend) ────────────────
   jaeger:
+    profiles: ["tracing"]
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
     ports:
@@ -90,11 +101,10 @@ services:
       # so this value wins over persisted toggles; flip here to change the default.
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
-      FF_MCP_GATEWAY_PINGGATEWAY: "true"
-      # Authz defaults for the demo. configStore seeds these into LMDB only when
-      # no value is persisted yet, and persisted /config overrides still win — so
-      # these just make a FRESH bff-data volume come up with this engine. See
-      # memory reference_full_rebuild_wipes_authz_config.
+      # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
+      # here) so operators can switch demo vs real without rebuilding. After flipping,
+      # run `./run-docker.sh demo-sync` (or restart the stack) to start/stop the
+      # demo-auth compose profile (authz-server + mcp-gateway).
       #
       # AUTHORIZE ENGINE (default = real PingOne Authorize ONLY, 2026-06-20):
       # ff_authorize_simulated is the SINGLE flip flag. Default "false" + failover
@@ -109,7 +119,6 @@ services:
       # AUTHORIZE_FAILOVER_MODE: "fallback_simulated".
       # Do NOT set AUTHORIZE_MODE here — an explicit authorize_mode wins over the
       # flag in resolveAuthorizeMode() and would make the flip a no-op.
-      FF_AUTHORIZE_SIMULATED: "false"
       AUTHORIZE_FAILOVER_MODE: "deny"
       # Default agent to the local llama.cpp reasoning engine (free, no external
       # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
@@ -117,6 +126,8 @@ services:
       # single source of truth for the default agent mode. The reason loop runs
       # in agent-service (:3006) against LLAMACPP_BASE_URL (the :8090 model proxy).
       AGENT_MODE: "llamacpp"
+      # Cap messages forwarded to stateless agents (env wins over persisted /config).
+      AGENT_HISTORY_LIMIT: "10"
       LANGCHAIN_AGENT_HTTP_URL: "http://langchain-agent:8888"
       AGENT_SERVICE_HOST: "langchain-agent"
       HITL_SERVICE_URL: "http://hitl-service:3009"
@@ -208,6 +219,7 @@ services:
     depends_on:
       jaeger:
         condition: service_started
+        required: false   # tracing profile — BFF starts without Jaeger when profile is off
       mcp-server:
         condition: service_started
     healthcheck:
@@ -354,7 +366,10 @@ services:
     restart: unless-stopped
 
   # ── MCP Gateway (TypeScript proxy — routes to mcp-server and mcp-invest) ──────
+  # Demo Agent Gateway — profile demo-auth. OFF when ff_mcp_gateway_pinggateway uses
+  # real PingGateway (IG). Start via `./run-docker.sh demo-sync` after flipping FF.
   mcp-gateway:
+    profiles: ["demo-auth"]
     build:
       context: .    # repo root — needs scope-topology.json and sibling openapi files
       dockerfile: demo_mcp_gateway/Dockerfile
@@ -385,9 +400,14 @@ services:
     networks:
       - ai-demo
     depends_on:
-      - mcp-server
-      - mcp-invest
-      - authz-server
+      mcp-server:
+        condition: service_started
+      mcp-invest:
+        condition: service_started
+        required: false   # verticals profile — gateway routes invest when it is up
+      authz-server:
+        condition: service_started
+        required: false   # demo-auth profile — co-starts with mcp-gateway via demo-sync
     restart: unless-stopped
 
   # ── Agent Service (TypeScript — LangGraph / Helix routing) ───────────────────
@@ -421,8 +441,11 @@ services:
     networks:
       - ai-demo
     depends_on:
-      - demo-api-server
-      - mcp-gateway
+      demo-api-server:
+        condition: service_started
+      mcp-gateway:
+        condition: service_started
+        required: false   # demo-auth profile — agent-service uses BFF; demo GW optional
     restart: unless-stopped
 
   # ── HITL Service (plain JS — human-in-the-loop consent) ─────────────────────
@@ -453,6 +476,7 @@ services:
 
   # ── MCP Invest Server (TypeScript — investment tools) ───────────────────────
   mcp-invest:
+    profiles: ["verticals"]
     build:
       context: ./demo_mcp_invest
       dockerfile: Dockerfile
@@ -487,6 +511,7 @@ services:
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
   mortgage-service:
+    profiles: ["verticals"]
     build:
       context: ./demo_mortgage_service
       dockerfile: Dockerfile
@@ -510,10 +535,10 @@ services:
     restart: unless-stopped
 
   # ── PingOne Authorization Server (mock) ──────────────────────────────────────
-  # Build-only entry: produces ai-demo-authz-server:latest for the k8s gateway
-  # sidecar (k8s/60-mcp-gateway-deployment.yaml). Local dev runs this via run.sh
-  # on the host (127.0.0.1:9001), not compose, so no host port is published here.
+  # Demo Authorize AS — profile demo-auth. Real stack uses cloud PingOne Authorize;
+  # IG mock failover uses this when ff_authorize_simulated is ON. `./run-docker.sh demo-sync`.
   authz-server:
+    profiles: ["demo-auth"]
     build:
       context: .    # repo root — needs scope-topology.json (single source of truth)
       dockerfile: demo_authz_server/Dockerfile
@@ -542,6 +567,7 @@ services:
 
   # ── Mastra Agent (TypeScript agent runtime) ──────────────────────────────────
   mastra-agent:
+    profiles: ["agents"]
     build:
       context: ./mastra_agent
       dockerfile: Dockerfile
@@ -579,6 +605,7 @@ services:
 
   # ── OpenAI Agent (Python / uvicorn) ─────────────────────────────────────────
   openai-agent:
+    profiles: ["agents"]
     build:
       context: ./openai_agent
       dockerfile: Dockerfile
@@ -613,6 +640,7 @@ services:
 
   # ── Pydantic AI Agent (Python / uvicorn) ────────────────────────────────────
   pydantic-agent:
+    profiles: ["agents"]
     build:
       context: ./pydantic_agent
       dockerfile: Dockerfile
@@ -650,6 +678,7 @@ services:
   # simple HTTP (GET /tools, POST /tools/:name) without implementing MCP protocol.
   # Auth: callers pass Bearer token; proxy forwards it to the MCP gateway unchanged.
   mcp-proxy:
+    profiles: ["proxy"]
     build:
       context: ./demo_mcp_proxy
       dockerfile: Dockerfile
@@ -728,6 +757,7 @@ services:
       # authz server by compose service DNS, not host.docker.internal.
       PG_OLB_BACKEND_URL: "http://mcp-server:8080"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
@@ -749,13 +779,19 @@ services:
     networks:
       - ai-demo
     depends_on:
-      - mcp-server
-      - mcp-invest
-      - authz-server
+      mcp-server:
+        condition: service_started
+      mcp-invest:
+        condition: service_started
+        required: false   # verticals profile — gateway routes invest when it is up
+      authz-server:
+        condition: service_started
+        required: false   # demo-auth profile — mock Authorize when ff_authorize_simulated is ON
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────
   weaviate:
+    profiles: ["rag"]
     image: semitechnologies/weaviate:latest
     container_name: ai-demo-weaviate
     # No host port publish — consumed only container-to-container as
@@ -794,14 +830,16 @@ services:
   # Serves the OpenAI-compatible /v1/embeddings endpoint. The GGUF model
   # (~140MB) downloads once via -hf and is cached in the embed-models volume.
   embeddings:
+    profiles: ["rag"]
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: ai-demo-embeddings
     ports:
       - "8084:8080"
+    # Memory-tuned for Code Search: 8k ctx + single slot (~400–600MB vs ~1.1GB).
     command: >
       --host 0.0.0.0 --port 8080
       --embedding --pooling mean
-      -c 32768 -b 8192 -ub 8192 --parallel 4
+      -c 8192 -b 512 -ub 512 --parallel 1
       -hf nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0
     volumes:
       - embed-models:/root/.cache/llama.cpp
@@ -816,6 +854,7 @@ services:
     restart: unless-stopped
 
   demo-mcp-code-search:
+    profiles: ["rag"]
     build:
       context: ./demo_mcp_code_search
       dockerfile: Dockerfile
@@ -844,6 +883,7 @@ services:
     restart: unless-stopped
 
   llamaindex-agent:
+    profiles: ["rag"]
     build:
       context: ./llamaindex_agent
       dockerfile: Dockerfile

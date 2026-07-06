@@ -4,17 +4,31 @@
 # Always stops any running containers before starting (clean slate).
 #
 # Usage:
-#   ./run-docker.sh                       start all services (stop first)
+#   ./run-docker.sh                       start core services only (stop first) — lean ~750MB Docker
+#   ./run-docker.sh start full            start every compose service (~2.3GB Docker)
+#   ./run-docker.sh all                   same as `start full`
+#   ./run-docker.sh demo-sync             align demo-auth containers with admin FF toggles
+#   ./run-docker.sh optional start <grp>  start optional group(s) on a running stack
+#   ./run-docker.sh optional stop <grp>   stop optional group(s); core keeps running
+#   ./run-docker.sh optional status       show which optional groups are up
 #   ./run-docker.sh stop                  stop and remove containers (+ host model tiers)
 #   ./run-docker.sh stop <svc>...         stop only the named service(s)
-#   ./run-docker.sh restart               stop then start everything (same as default)
+#   ./run-docker.sh restart               stop then start core (same as default)
 #   ./run-docker.sh restart <svc>...      recreate only the named service(s) — picks up env/compose changes
-#   ./run-docker.sh build                 stop, rebuild all images, then start
+#   ./run-docker.sh build                 stop, rebuild all images, then start core
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
 #   ./run-docker.sh llamacpp restart      stop and restart host model tiers 8091 + 8096 (containers untouched)
 #   ./run-docker.sh help                  show this message
+#
+# Optional groups (for `optional start|stop`):
+#   rag        Code Search — weaviate + embeddings + demo-mcp-code-search + llamaindex-agent
+#   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
+#   verticals  Invest + mortgage MCP verticals
+#   proxy      MCP proxy routing path
+#   tracing    Jaeger OTLP backend
+#   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -48,6 +62,92 @@ COMPOSE_FILES=(-f "${COMPOSE_FILE}")
 if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
   COMPOSE_FILES+=(-f "${OVERRIDE_FILE}")
 fi
+
+# Core banking demo — always started by default (~750MB Docker RSS).
+CORE_SERVICES=(
+  ui mcp-server ping-gateway langchain-agent agent-service
+  hitl-service llm-proxy
+)
+
+# Optional groups — start on demand via `./run-docker.sh optional start <group>`.
+OPTIONAL_GROUP_NAMES=(rag agents verticals proxy tracing demo-auth)
+
+# Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile verticals --profile proxy --profile tracing --profile demo-auth)
+
+# Return compose profile name(s) for an optional group (or `all`).
+_optional_group_profiles() {
+  case "$1" in
+    rag)       echo "rag" ;;
+    agents)    echo "agents" ;;
+    verticals) echo "verticals" ;;
+    proxy)     echo "proxy" ;;
+    tracing)   echo "tracing" ;;
+    demo-auth) echo "demo-auth" ;;
+    all)       echo "rag agents verticals proxy tracing demo-auth" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Build deduplicated `--profile` flags for the given group names.
+_optional_profile_args() {
+  local groups=("$@") seen="" args=() g p
+  for g in "${groups[@]}"; do
+    for p in $(_optional_group_profiles "${g}"); do
+      [[ " ${seen} " == *" ${p} "* ]] || { seen+=" ${p}"; args+=(--profile "$p"); }
+    done
+  done
+  echo "${args[@]}"
+}
+
+# Return space-separated compose service names for an optional group (or `all`).
+_optional_group_services() {
+  case "$1" in
+    rag)       echo "weaviate embeddings demo-mcp-code-search llamaindex-agent" ;;
+    agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
+    verticals) echo "mcp-invest mortgage-service" ;;
+    proxy)     echo "mcp-proxy" ;;
+    tracing)   echo "jaeger" ;;
+    demo-auth) echo "authz-server mcp-gateway" ;;
+    all)
+      local g svc out=""
+      for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
+        for svc in $(_optional_group_services "${g}"); do
+          [[ " ${out} " == *" ${svc} "* ]] || out+=" ${svc}"
+        done
+      done
+      echo "${out# }"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+_optional_group_desc() {
+  case "$1" in
+    rag)       echo "Code Search (Weaviate + embeddings + MCP code-search + LlamaIndex /ask)" ;;
+    agents)    echo "Alternate agent frameworks (OpenAI / Mastra / Pydantic)" ;;
+    verticals) echo "Optional banking verticals (invest + mortgage)" ;;
+    proxy)     echo "MCP proxy routing path" ;;
+    tracing)   echo "Jaeger OTLP tracing backend" ;;
+    demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
+    all)       echo "Every optional group" ;;
+    *)         echo "Unknown group" ;;
+  esac
+}
+
+# Expand group names (or `all`) into a deduplicated list of compose service names.
+_optional_resolve_groups() {
+  local groups=("$@") resolved="" g svc
+  [[ ${#groups[@]} -eq 0 ]] && return 1
+  for g in "${groups[@]}"; do
+    local svcs
+    svcs="$(_optional_group_services "${g}")" || return 1
+    for svc in ${svcs}; do
+      [[ " ${resolved} " == *" ${svc} "* ]] || resolved+=" ${svc}"
+    done
+  done
+  echo "${resolved# }"
+}
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 BOLD='\033[1m'
@@ -486,6 +586,9 @@ cmd_restart_one() {
   _includes_bff "$@" && { ensure_bind_mounts; vault_preflight; echo ""; }
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
+  if _includes_bff "$@"; then
+    cmd_demo_sync
+  fi
   echo ""
 }
 
@@ -552,8 +655,183 @@ clear_stale_host_listeners() {
   fi
 }
 
+# Wait until the BFF health probe responds (used before demo-sync reads LMDB flags).
+_wait_bff_healthy() {
+  local i=0
+  while [[ $i -lt 30 ]]; do
+    if curl -sk --max-time 2 https://api.ping.demo:3001/api/healthz >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+    ((i++)) || true
+  done
+  return 1
+}
+
+# Read ff_authorize_simulated + ff_mcp_gateway_pinggateway from the running BFF.
+# Prints "sim pgw" as 0/1 tokens. Falls back to 0 1 (real P1AZ + PingGateway) on failure.
+_read_demo_stack_flags() {
+  if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'ai-demo-api-server'; then
+    echo "0 1"
+    return 0
+  fi
+  docker exec ai-demo-api-server node -e "
+    const cs = require('./services/configStore');
+    const t = (v) => (v === true || v === 'true') ? '1' : '0';
+    const sim = t(cs.getEffective('ff_authorize_simulated'));
+    const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
+    process.stdout.write(sim + ' ' + pgw);
+  " 2>/dev/null || echo "0 1"
+}
+
+# Start/stop demo-auth profile containers to match admin Quick Flag toggles.
+# Real default: PingGateway (IG) + cloud PingOne Authorize — no demo containers.
+# Demo path: authz-server when Simulated Authorize is ON; mcp-gateway when Demo GW is selected.
+cmd_demo_sync() {
+  echo ""
+  echo -e "${CYAN}${BOLD}   [DOCKER]  Demo stack sync (Quick Flags → containers)${RESET}"
+  echo ""
+
+  if ! _wait_bff_healthy; then
+    warn "BFF not healthy yet — skipping demo-sync (core uses real P1AZ + PingGateway by default)."
+    echo ""
+    return 0
+  fi
+
+  local flags sim pgw need_authz=0 need_demo_gw=0
+  flags="$(_read_demo_stack_flags)"
+  sim="${flags%% *}"
+  pgw="${flags##* }"
+
+  [[ "${sim}" == "1" ]] && need_authz=1
+  [[ "${pgw}" == "0" ]] && { need_demo_gw=1; need_authz=1; }
+
+  if [[ ${need_authz} -eq 1 || ${need_demo_gw} -eq 1 ]]; then
+    local up_svcs="authz-server"
+    [[ ${need_demo_gw} -eq 1 ]] && up_svcs+=" mcp-gateway"
+    ok "Demo flags active (simulated=${sim}, pingGateway=${pgw}) — starting: ${up_svcs}"
+    docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d ${up_svcs}
+    if [[ ${need_authz} -eq 1 && ${need_demo_gw} -eq 0 ]]; then
+      docker compose "${COMPOSE_FILES[@]}" --profile demo-auth stop mcp-gateway 2>/dev/null || true
+    fi
+  else
+    ok "Real stack (P1AZ + PingGateway) — stopping demo authz-server and mcp-gateway"
+    docker compose "${COMPOSE_FILES[@]}" --profile demo-auth stop authz-server mcp-gateway 2>/dev/null || true
+  fi
+  echo ""
+}
+
+cmd_optional_start() {
+  local groups=("$@")
+  local profile_args
+  profile_args="$(_optional_profile_args "${groups[@]}")" || {
+    err "Usage: ./run-docker.sh optional start <group>..."
+    echo ""
+    cmd_optional_help
+    exit 1
+  }
+
+  echo ""
+  echo -e "${CYAN}${BOLD}   [DOCKER]  Starting optional: ${groups[*]}${RESET}"
+  echo ""
+
+  # Profile-gated services require `--profile`; `up -d` respects depends_on.
+  # shellcheck disable=SC2206
+  local _profiles=( ${profile_args} )
+  docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" up -d
+  ok "Started profile(s): ${groups[*]}"
+
+  if [[ " ${groups[*]} " == *" rag "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    warn "RAG embeddings warm up on first request — Code Search may 503 for ~30s."
+    warn "Weaviate needs a healthy leader after first start; retry index/search if you see 500."
+  fi
+  echo ""
+  print_status_table
+  echo ""
+}
+
+cmd_optional_stop() {
+  local groups=("$@")
+  local services profile_args
+  services="$(_optional_resolve_groups "${groups[@]}")" || {
+    err "Usage: ./run-docker.sh optional stop <group>..."
+    echo ""
+    cmd_optional_help
+    exit 1
+  }
+  profile_args="$(_optional_profile_args "${groups[@]}")"
+
+  echo ""
+  echo -e "${CYAN}${BOLD}   [DOCKER]  Stopping optional: ${groups[*]}${RESET}"
+  echo ""
+  # shellcheck disable=SC2206
+  local _profiles=( ${profile_args} )
+  docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" stop ${services}
+  ok "Stopped: ${services}"
+  echo ""
+}
+
+cmd_optional_status() {
+  echo ""
+  echo -e "${CYAN}${BOLD}   [DOCKER]  Optional service groups (compose profiles)${RESET}"
+  echo ""
+  local g svc
+  for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
+    local svcs up=0 down=0 profile_args
+    profile_args="$(_optional_profile_args "${g}")"
+    # shellcheck disable=SC2206
+    local _profiles=( ${profile_args} )
+    svcs="$(_optional_group_services "${g}")"
+    echo -e "  ${BOLD}${g}${RESET}  — $(_optional_group_desc "${g}")  ${DIM}(profile: ${g})${RESET}"
+    for svc in ${svcs}; do
+      local state
+      state="$(docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" ps --format '{{.State}}' "${svc}" 2>/dev/null | head -1 || true)"
+      if [[ "${state}" == "running" ]]; then
+        echo -e "    ${GREEN}✓${RESET}  ${svc}"
+        ((up++)) || true
+      else
+        echo -e "    ${DIM}○${RESET}  ${svc}  (${state:-stopped})"
+        ((down++)) || true
+      fi
+    done
+    if [[ ${down} -eq 0 ]]; then
+      echo -e "    ${GREEN}group up${RESET}"
+    elif [[ ${up} -eq 0 ]]; then
+      echo -e "    ${DIM}group stopped${RESET}  — start: ./run-docker.sh optional start ${g}"
+    else
+      echo -e "    ${YELLOW}partially up${RESET}  — start: ./run-docker.sh optional start ${g}"
+    fi
+    echo ""
+  done
+}
+
+cmd_optional_help() {
+  echo "  Optional groups:"
+  local g
+  for g in "${OPTIONAL_GROUP_NAMES[@]}" all; do
+    echo "    ${g}  — $(_optional_group_desc "${g}")"
+  done
+  echo ""
+  echo "  Examples:"
+  echo "    ./run-docker.sh optional start rag"
+  echo "    ./run-docker.sh optional start agents verticals"
+  echo "    ./run-docker.sh optional stop rag"
+  echo "    ./run-docker.sh optional status"
+  echo ""
+}
+
 cmd_start() {
-  local build_flag="${1:-}"
+  local build_flag=""
+  local stack="${DEMO_STACK:-core}"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --build) build_flag="--build"; shift ;;
+      full|all) stack="full"; shift ;;
+      core) stack="core"; shift ;;
+      *) shift ;;
+    esac
+  done
 
   # Always stop first — clean slate
   cmd_stop
@@ -612,15 +890,27 @@ cmd_start() {
   if [[ "${build_flag}" == "--build" ]]; then
     ok "Rebuilding images..."
     echo ""
-    docker compose "${COMPOSE_FILES[@]}" up --build -d
+    if [[ "${stack}" == "full" ]]; then
+      docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
+    else
+      docker compose "${COMPOSE_FILES[@]}" up --build -d demo-api-server "${CORE_SERVICES[@]}"
+    fi
   else
-    # Jaeger tracing is on by default: rebuild the BFF so OTel deps in package.json
-    # land in the container node_modules volume (bind-mount excludes host node_modules).
-    ok "Ensuring demo-api-server + jaeger are up to date..."
+    ok "Ensuring demo-api-server is up to date..."
     echo ""
-    docker compose "${COMPOSE_FILES[@]}" up -d --build demo-api-server jaeger
-    docker compose "${COMPOSE_FILES[@]}" up -d
+    docker compose "${COMPOSE_FILES[@]}" up -d --build demo-api-server
+    if [[ "${stack}" == "full" ]]; then
+      ok "Starting full stack (core + all compose profiles)..."
+      docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
+    else
+      ok "Starting core stack (${#CORE_SERVICES[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+      ok "After toggling Quick Flags: ./run-docker.sh demo-sync"
+      docker compose "${COMPOSE_FILES[@]}" up -d "${CORE_SERVICES[@]}"
+    fi
   fi
+
+  echo ""
+  cmd_demo_sync
 
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -655,8 +945,11 @@ cmd_start() {
   echo ""
   echo -e "${WHITE}${BOLD}  ╭─ AVAILABLE COMMANDS ────────────────────────────────────────╮${RESET}"
   echo -e "${WHITE}${BOLD}  │${RESET}"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start all (default)"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart all containers"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core (default, lean)"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh start full${RESET}        start every compose service"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional start rag${RESET}  start Code Search / RAG on demand"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional status${RESET}     show optional group state"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core stack"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET} <svc>     restart specific service(s)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET}             rebuild all images"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET} <svc>       rebuild specific service(s)"
@@ -730,13 +1023,20 @@ cmd_help() {
   echo -e "${WHITE}${BOLD}  Usage:${RESET}  ./run-docker.sh [command] [options]"
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
-  echo "    (default)             Stop existing containers, then start all services"
+  echo "    (default)             Stop existing containers, then start core services (~750MB)"
+  echo "    start full            Stop existing containers, then start every compose service"
+  echo "    all                   Same as 'start full'"
+  echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
+  echo "    optional stop <grp>   Stop optional group(s); core keeps running"
+  echo "    optional status       Show which optional groups are up"
+  echo "    demo-sync             Start/stop demo-auth containers to match Quick Flag toggles"
   echo "    stop                  Stop and remove all containers (+ host model tiers)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
-  echo "    restart               Same as default — stop then start everything"
+  echo "    restart               Same as default — stop then start core"
   echo "    restart <svc>...      Recreate only the named service(s); picks up env/compose"
   echo "                          changes (use 'build' for code changes); others untouched"
-  echo "    build                 Stop, rebuild all images, then start"
+  echo "    build                 Stop, rebuild all images, then start core"
+  echo "    build full            Stop, rebuild all images, then start everything"
   echo "    build <svc>...        Rebuild + restart only the named service(s); others untouched"
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
@@ -744,6 +1044,7 @@ cmd_help() {
   echo "    llamacpp restart      Stop and restart host model tiers 8091 + 8096 (containers untouched)"
   echo "    help                  Show this message"
   echo ""
+  cmd_optional_help
   echo -e "${WHITE}${BOLD}  Service Names (one or more for stop/restart/build; one for logs):${RESET}"
   print_service_table
   echo ""
@@ -768,8 +1069,15 @@ cmd_help() {
   echo "    4. ./run-docker.sh"
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
-  echo "    ./run-docker.sh                        # start everything"
-  echo "    ./run-docker.sh build                       # rebuild all images first"
+  echo "    ./run-docker.sh                             # start core (lean default)"
+  echo "    ./run-docker.sh start full                  # start every compose service"
+  echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
+  echo "    ./run-docker.sh optional start rag          # Code Search on demand"
+  echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
+  echo "    ./run-docker.sh optional stop rag           # free ~1.2GB when done"
+  echo "    ./run-docker.sh optional status             # see what's running"
+  echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"
+  echo "    ./run-docker.sh build                       # rebuild core images"
   echo "    ./run-docker.sh restart ui                  # recreate just the UI"
   echo "    ./run-docker.sh restart ui demo-api-server  # recreate the UI + BFF together"
   echo "    ./run-docker.sh build demo-api-server       # rebuild + restart just the BFF"
@@ -786,8 +1094,36 @@ COMMAND="${1:-start}"
 shift || true
 
 case "${COMMAND}" in
-  start|all)
-    cmd_start
+  start)
+    cmd_start "$@"
+    ;;
+  all)
+    cmd_start full "$@"
+    ;;
+  optional)
+    sub="${1:-}"
+    shift || true
+    case "${sub}" in
+      start)
+        [[ $# -gt 0 ]] || { err "Usage: ./run-docker.sh optional start <group>..."; cmd_optional_help; exit 1; }
+        cmd_optional_start "$@"
+        ;;
+      stop)
+        [[ $# -gt 0 ]] || { err "Usage: ./run-docker.sh optional stop <group>..."; cmd_optional_help; exit 1; }
+        cmd_optional_stop "$@"
+        ;;
+      status)
+        cmd_optional_status
+        ;;
+      help|--help|-h|"")
+        cmd_optional_help
+        ;;
+      *)
+        err "Unknown optional subcommand: ${sub}"
+        cmd_optional_help
+        exit 1
+        ;;
+    esac
     ;;
   restart)
     if [[ -n "${1:-}" ]]; then cmd_restart_one "$@"; else cmd_start; fi
@@ -808,7 +1144,14 @@ case "${COMMAND}" in
     if [[ "${1:-}" == "restart" ]]; then
       shift || true
     fi
-    if [[ -n "${1:-}" ]]; then cmd_build_one "$@"; else cmd_start --build; fi
+    if [[ "${1:-}" == "full" ]]; then
+      shift || true
+      cmd_start --build full "$@"
+    elif [[ -n "${1:-}" ]]; then
+      cmd_build_one "$@"
+    else
+      cmd_start --build "$@"
+    fi
     ;;
   logs)
     tail_logs "${1:-}"
@@ -826,6 +1169,11 @@ case "${COMMAND}" in
     ;;
   status)
     cmd_status
+    ;;
+  demo-sync)
+    cmd_demo_sync
+    print_status_table
+    echo ""
     ;;
   help|--help|-h)
     cmd_help

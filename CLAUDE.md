@@ -47,9 +47,11 @@ happened — an unrelated commit swept up another session's staged files).
   `https://api.ping.demo:3001`, UI at `:4000`, MCP server at `localhost:8080`,
   LangChain agent at `8887/8889/8881`. One-time setup: add `api.ping.demo` to
   `/etc/hosts` and run `mkcert -install`.
-- `./run-docker.sh` — Docker Compose launcher. Hot reload on by default (UI via
-  Vite HMR, BFF via `node --watch`). `./run-docker.sh {stop|restart|build|logs|
-  status} [svc...]`; `PROD_MODE=1` uses the nginx build instead.
+- `./run-docker.sh` — Docker Compose launcher. **Default: lean core stack** (real
+  PingOne Authorize + PingGateway; demo authz/gateway off). `./run-docker.sh
+  {start full|demo-sync|optional start|stop|restart|build|logs|status} [svc...]`;
+  `PROD_MODE=1` uses the nginx build instead. See README **Option 2** for memory
+  profiles and Quick Flag → container sync.
 - `./run-k8.sh` — Kubernetes / OrbStack / EKS variants (see `README.md`).
 
 ## Tests
