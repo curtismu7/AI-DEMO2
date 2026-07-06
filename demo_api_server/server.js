@@ -770,7 +770,6 @@ app.get('/api/auth/logout', async (req, res) => {
         clearAllTokenChains();
         mcpAudit.clearToolCalls();
         appEvtSvc.clearEvents();
-        if (global.pendingConsents) global.pendingConsents = {};
         // Clear MCP server's own audit log
         const mcpWsUrl = process.env.MCP_SERVER_URL || configStore.getEffective('mcp_server_url');
         const mcpHttpBase = mcpWsUrl.replace(/^ws(s?):/, 'http$1:');

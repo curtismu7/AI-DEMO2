@@ -94,6 +94,7 @@ import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constant
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
 import { useAgentState } from "../hooks/useAgentState";
+import useHitlConsent from "../hooks/useHitlConsent";
 import { useNewItems } from "../hooks/useNewItems";
 // Activity narration — "What's happening" plain-English story panel (ff_activity_narration)
 import { useActivityNarrative } from "../context/ActivityNarrativeContext";
@@ -1835,8 +1836,20 @@ export default function BankingAgent({
   const [aguiHitlPending, setAguiHitlPending] = React.useState(null);
   useEffect(() => {
     if (!aguiEnabled) return;
-    setAguiHitlPending(aguiState.hitlPending);
+    if (aguiState.hitlPending) {
+      setAguiHitlPending({
+        ...aguiState.hitlPending,
+        runId: aguiActiveRunIdRef.current,
+      });
+    } else {
+      setAguiHitlPending(null);
+    }
   }, [aguiEnabled, aguiState.hitlPending]);
+
+  const { submitConsent } = useHitlConsent({
+    hitlPending: aguiHitlPending,
+    runId: aguiHitlPending?.runId ?? null,
+  });
 
   const handleAguiHitlApprove = useCallback(async () => {
     const interrupt = aguiHitlPending;
@@ -1848,8 +1861,13 @@ export default function BankingAgent({
       await initiateStepUpOtp();
     } catch (_) { /* non-fatal */ }
 
-    // Post-OTP callback: resume the AG-UI agent with the approved interrupt
-    pendingStepUpCallbackRef.current = () => {
+    // Post-OTP callback: signal consent via pub/sub, then resume the AG-UI agent
+    pendingStepUpCallbackRef.current = async () => {
+      try {
+        await submitConsent(true);
+      } catch (err) {
+        console.warn("[AIAgent] HITL consent signal failed:", err?.message || err);
+      }
       const threadId = aguiThreadIdRef.current || ('ba-' + Date.now());
       const runId = 'resume-' + Date.now();
       aguiActiveRunIdRef.current = runId;
@@ -1867,12 +1885,17 @@ export default function BankingAgent({
 
     setOtpContextLine("Verify your identity to approve this agent action");
     setShowOtpModal(true);
-  }, [aguiHitlPending, aguiRun, aguiState.messages]);
+  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent]);
 
-  const handleAguiHitlDismiss = useCallback(() => {
+  const handleAguiHitlDismiss = useCallback(async () => {
     const interrupt = aguiHitlPending;
     if (!interrupt) return;
     setAguiHitlPending(null);
+    try {
+      await submitConsent(false);
+    } catch (err) {
+      console.warn("[AIAgent] HITL consent denial signal failed:", err?.message || err);
+    }
     const threadId = aguiThreadIdRef.current || ('ba-' + Date.now());
     const runId = 'cancel-' + Date.now();
     // Pass conversation history even for cancel so the agent can acknowledge gracefully.
@@ -1885,7 +1908,7 @@ export default function BankingAgent({
       messages: conversationHistory,
       resume: [{ interruptId: interrupt.id, status: 'cancelled' }],
     });
-  }, [aguiHitlPending, aguiRun, aguiState.messages]);
+  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent]);
 
     // Cancel any previous in-flight send, create a fresh AbortController, and
   // return the new signal. Called once at the top of every real send path.

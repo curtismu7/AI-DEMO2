@@ -900,7 +900,6 @@ router.get('/logout', async (req, res) => {
     if (userId) clearTokenChain(userId);
     mcpAudit.clearToolCalls();
     appEventService.clearEvents();
-    if (global.pendingConsents) global.pendingConsents = {};
   } catch (_) { /* non-fatal */ }
 
   req.session.destroy((err) => {

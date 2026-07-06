@@ -399,6 +399,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3009"
+      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://api.ping.demo:3001"
     env_file:
       - path: ./demo_hitl_service/.env
         required: false

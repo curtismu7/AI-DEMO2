@@ -982,7 +982,6 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     clearAllTokenChains();
     mcpToolAuditStore.clearToolCalls();
     apiCallTracker.clearApiCalls('default');
-    if (global.pendingConsents) global.pendingConsents = {};
 
     // Clear MCP server's own in-memory audit log (fire-and-forget, non-fatal)
     try {

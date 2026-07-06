@@ -4,6 +4,13 @@ const { getTokenEndpoint } = require("./oauthEndpointResolver");
 const { sanitizeAxiosCause } = require("../utils/sanitizeAxiosCause");
 const oauthService = require("./oauthService");
 
+const MFA_DEBUG = process.env.MFA_DEBUG === "true";
+
+/** Logs verbose MFA diagnostics when MFA_DEBUG=true. */
+function mfaDebug(...args) {
+  if (MFA_DEBUG) console.log(...args);
+}
+
 function _authBaseUrl() {
   // PingOne Device Authentications API lives at https://auth.pingone.{region}/{envId}
   // (NOT at the OIDC AS path /as).
@@ -74,7 +81,7 @@ async function _getDefaultMfaPolicy(workerToken) {
   const policies = data._embedded?.deviceAuthenticationPolicies || [];
   const def = policies.find((p) => p.default === true) || policies[0];
   if (!def) throw new Error("No MFA policies found in PingOne environment");
-  console.log("[MFA] resolved default policy id=%s name=%s", def.id, def.name);
+  mfaDebug("[MFA] resolved default policy id=%s name=%s", def.id, def.name);
   _cachedDefaultPolicyId = def.id;
   return def.id;
 }
@@ -149,7 +156,7 @@ async function _exchangeTokenForDeviceAuth(userAccessToken) {
       return null;
     }
 
-    console.log(
+    mfaDebug(
       "[MFA] ✓ Token exchange successful for Device Authentication resource",
     );
     return deviceAuthToken;
@@ -175,7 +182,7 @@ async function initiateDeviceAuth(userId, _userAccessToken) {
   const workerToken = await _getWorkerToken();
   let policyId = configStore.getEffective("pingone_mfa_policy_id");
   if (!policyId) {
-    console.log(
+    mfaDebug(
       "[MFA] PINGONE_MFA_POLICY_ID not set — resolving default policy from PingOne",
     );
     try {
@@ -217,40 +224,40 @@ async function initiateDeviceAuth(userId, _userAccessToken) {
       };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] INITIATED DEVICE AUTHENTICATION");
-    console.log(
+    mfaDebug("[MFA] INITIATED DEVICE AUTHENTICATION");
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] daId: %s", data.id);
-    console.log(
+    mfaDebug("[MFA] daId: %s", data.id);
+    mfaDebug(
       "[MFA] status: %s (transitions to OTP_REQUIRED or ASSERTION_REQUIRED)",
       data.status,
     );
-    console.log(
+    mfaDebug(
       "[MFA] devices available: %d",
       data._embedded?.devices?.length || 0,
     );
     if (data._embedded?.devices) {
       data._embedded.devices.forEach((d, i) => {
-        console.log("[MFA]   Device %d: type=%s id=%s", i + 1, d.type, d.id);
+        mfaDebug("[MFA]   Device %d: type=%s id=%s", i + 1, d.type, d.id);
         if (d.type === "EMAIL")
-          console.log(
+          mfaDebug(
             "[MFA]        → Email OTP will be sent to registered email",
           );
         if (d.type === "SMS" || d.type === "MOBILE_PHONE")
-          console.log(
+          mfaDebug(
             "[MFA]        → SMS OTP will be sent to registered phone",
           );
         if (d.type === "FIDO2")
-          console.log("[MFA]        → Security key/passkey authentication");
+          mfaDebug("[MFA]        → Security key/passkey authentication");
         if (d.type === "TOTP")
-          console.log("[MFA]        → Time-based OTP (authenticator app)");
+          mfaDebug("[MFA]        → Time-based OTP (authenticator app)");
       });
     }
-    console.log(
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
     return { ...data, _debug: { request: debugRequest, response: data } };
@@ -286,11 +293,11 @@ async function selectDevice(daId, deviceId, _userAccessToken) {
   };
   const contentType = "application/vnd.pingidentity.device.select+json";
 
-  console.log(`[selectDevice] Full URL: ${url}`);
-  console.log(`[selectDevice] Method: POST`);
-  console.log(`[selectDevice] Content-Type: ${contentType}`);
-  console.log(`[selectDevice] Request body: ${JSON.stringify(reqBody)}`);
-  console.log(`[selectDevice] Using token (len=${token?.length || 0})`);
+  mfaDebug(`[selectDevice] Full URL: ${url}`);
+  mfaDebug(`[selectDevice] Method: POST`);
+  mfaDebug(`[selectDevice] Content-Type: ${contentType}`);
+  mfaDebug(`[selectDevice] Request body: ${JSON.stringify(reqBody)}`);
+  mfaDebug(`[selectDevice] Using token (len=${token?.length || 0})`);
 
   const debugRequest = {
     method: "POST",
@@ -303,7 +310,7 @@ async function selectDevice(daId, deviceId, _userAccessToken) {
     let data;
     try {
       const authHeader = `Bearer ${token}`;
-      console.log(
+      mfaDebug(
         `[selectDevice] Authorization header ready (Bearer token present)`,
       );
 
@@ -322,31 +329,31 @@ async function selectDevice(daId, deviceId, _userAccessToken) {
       err._debug = { request: debugRequest, response: respData };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] DEVICE SELECTED FOR AUTHENTICATION");
-    console.log(
+    mfaDebug("[MFA] DEVICE SELECTED FOR AUTHENTICATION");
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] daId: %s", daId);
-    console.log("[MFA] deviceId: %s", deviceId);
-    console.log("[MFA] new status: %s", data.status);
+    mfaDebug("[MFA] daId: %s", daId);
+    mfaDebug("[MFA] deviceId: %s", deviceId);
+    mfaDebug("[MFA] new status: %s", data.status);
     if (data.status === "OTP_REQUIRED") {
-      console.log("[MFA] → Waiting for OTP (check email or SMS for code)");
-      console.log("[MFA] → OTP should arrive within 30 seconds");
+      mfaDebug("[MFA] → Waiting for OTP (check email or SMS for code)");
+      mfaDebug("[MFA] → OTP should arrive within 30 seconds");
     } else if (data.status === "ASSERTION_REQUIRED") {
-      console.log("[MFA] → Waiting for FIDO2/WebAuthn assertion");
-      console.log(
+      mfaDebug("[MFA] → Waiting for FIDO2/WebAuthn assertion");
+      mfaDebug(
         "[MFA] → User should be prompted to use security key or passkey",
       );
     } else if (data.status === "PUSH_CONFIRMATION_REQUIRED") {
-      console.log("[MFA] → Waiting for push confirmation");
-      console.log(
+      mfaDebug("[MFA] → Waiting for push confirmation");
+      mfaDebug(
         "[MFA] → User should receive push notification on registered device",
       );
     }
-    console.log(
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
     return { ...data, _debug: { request: debugRequest, response: data } };
@@ -372,21 +379,21 @@ async function submitOtp(daId, deviceId, otp, _userAccessToken) {
   const reqBody = { otp: String(otp) };
   const contentType = "application/vnd.pingidentity.otp.check+json";
 
-  console.log(
+  mfaDebug(
     "[MFA] ═══════════════════════════════════════════════════════════════",
   );
-  console.log("[MFA] OTP SUBMISSION");
-  console.log(
+  mfaDebug("[MFA] OTP SUBMISSION");
+  mfaDebug(
     "[MFA] ═══════════════════════════════════════════════════════════════",
   );
-  console.log(`[submitOtp] daId: ${daId}`);
-  console.log(`[submitOtp] deviceId: ${deviceId}`);
-  console.log(
+  mfaDebug(`[submitOtp] daId: ${daId}`);
+  mfaDebug(`[submitOtp] deviceId: ${deviceId}`);
+  mfaDebug(
     `[submitOtp] OTP: ${String(otp).charAt(0)}${"*".repeat(Math.max(0, String(otp).length - 2))}${String(otp).charAt(String(otp).length - 1)} (masked for security)`,
   );
-  console.log(`[submitOtp] Full URL: ${url}`);
-  console.log(`[submitOtp] Method: POST`);
-  console.log(`[submitOtp] Using worker token (len=${token?.length || 0})`);
+  mfaDebug(`[submitOtp] Full URL: ${url}`);
+  mfaDebug(`[submitOtp] Method: POST`);
+  mfaDebug(`[submitOtp] Using worker token (len=${token?.length || 0})`);
 
   const debugRequest = {
     method: "POST",
@@ -476,19 +483,19 @@ async function submitFido2Assertion(daId, assertion, userAccessToken, origin) {
         "application/vnd.pingidentity.assertion.check+json",
       ),
     };
-    console.log(
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] FIDO2/SECURITY KEY ASSERTION SUBMISSION");
-    console.log(
+    mfaDebug("[MFA] FIDO2/SECURITY KEY ASSERTION SUBMISSION");
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
-    console.log("[MFA] daId: %s", daId);
-    console.log("[MFA] origin: %s", body.origin || "(none)");
-    console.log("[MFA] POST %s", url);
-    console.log("[MFA] → User touched security key or used biometric");
-    console.log("[MFA] → Assertion received and being verified by PingOne");
-    console.log(
+    mfaDebug("[MFA] daId: %s", daId);
+    mfaDebug("[MFA] origin: %s", body.origin || "(none)");
+    mfaDebug("[MFA] POST %s", url);
+    mfaDebug("[MFA] → User touched security key or used biometric");
+    mfaDebug("[MFA] → Assertion received and being verified by PingOne");
+    mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
     let data;
@@ -587,7 +594,7 @@ async function enrollEmailDevice(userId, email) {
       };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] enrolled email device userId=%s deviceId=%s",
       userId,
       data.id,
@@ -639,7 +646,7 @@ async function enrollSmsDevice(userId, phone, userAccessToken) {
       };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] enrolled SMS device userId=%s deviceId=%s status=%s (token-source=%s)",
       userId,
       data.id,
@@ -713,7 +720,7 @@ async function completeSmsEnrollment(userId, deviceId, otp) {
       };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] completed SMS enrollment userId=%s deviceId=%s status=%s",
       userId,
       data.id,
@@ -764,7 +771,7 @@ async function completeEmailEnrollment(userId, deviceId, otp) {
       };
       throw err;
     }
-    console.log(
+    mfaDebug(
       "[MFA] completed email enrollment userId=%s deviceId=%s status=%s",
       userId,
       data.id,
@@ -799,12 +806,12 @@ async function initFido2Registration(userId, allowCleanupRetry = true) {
         : rawCreationOpts;
     const challengeVal = parsedOpts?.challenge;
     const userIdVal = parsedOpts?.user?.id;
-    console.log(
+    mfaDebug(
       "[MFA] initiated FIDO2 registration userId=%s deviceId=%s",
       userId,
       data.id,
     );
-    console.log(
+    mfaDebug(
       "[FIDO2-INIT-DIAG] challenge type=%s isArray=%s value_start=%s",
       typeof challengeVal,
       Array.isArray(challengeVal),
@@ -812,14 +819,14 @@ async function initFido2Registration(userId, allowCleanupRetry = true) {
         ? JSON.stringify(challengeVal.slice(0, 5))
         : String(challengeVal).slice(0, 40),
     );
-    console.log(
+    mfaDebug(
       "[FIDO2-INIT-DIAG] user.id type=%s value_start=%s",
       typeof userIdVal,
       Array.isArray(userIdVal)
         ? JSON.stringify(userIdVal.slice(0, 5))
         : String(userIdVal).slice(0, 40),
     );
-    console.log(
+    mfaDebug(
       "[FIDO2-INIT-DIAG] attestation=%s authenticatorSelection=%j",
       parsedOpts?.attestation,
       parsedOpts?.authenticatorSelection,
@@ -914,14 +921,14 @@ async function completeFido2Registration(
         const b64 = String(cdjRaw).replace(/-/g, "+").replace(/_/g, "/");
         const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
         const cdj = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
-        console.log(
+        mfaDebug(
           "[FIDO2-DIAG] clientDataJSON decoded: type=%s origin=%s challenge_len=%s",
           cdj.type,
           cdj.origin,
           (cdj.challenge || "").length,
         );
-        console.log("[FIDO2-DIAG] request body origin=%s", origin);
-        console.log(
+        mfaDebug("[FIDO2-DIAG] request body origin=%s", origin);
+        mfaDebug(
           "[FIDO2-DIAG] fido2.id=%s fido2.rawId=%s (same=%s)",
           attestation?.id,
           attestation?.rawId,
@@ -986,7 +993,7 @@ async function completeFido2Registration(
       throw err;
     }
 
-    console.log(
+    mfaDebug(
       "[MFA] completed FIDO2 registration userId=%s deviceId=%s status=%s",
       userId,
       deviceId,
@@ -1045,7 +1052,7 @@ async function initiateOneTimeOtp(
       timeout: 10000,
     });
     _debug.response = { status: resp.status, data: resp.data };
-    console.log(
+    mfaDebug(
       "[MFA] initiateOneTimeOtp daId=%s status=%s",
       resp.data.id,
       resp.data.status,
@@ -1085,7 +1092,7 @@ async function verifyOneTimeOtp(daId, otp) {
       },
     );
     _debug.response = { status: resp.status, data: resp.data };
-    console.log(
+    mfaDebug(
       "[MFA] verifyOneTimeOtp daId=%s status=%s",
       daId,
       resp.data.status,
@@ -1124,7 +1131,7 @@ async function deleteDevice(userId, deviceId) {
       headers: { Authorization: `Bearer ${workerToken}` },
       timeout: 10000,
     });
-    console.log("[MFA] deleted device userId=%s deviceId=%s", userId, deviceId);
+    mfaDebug("[MFA] deleted device userId=%s deviceId=%s", userId, deviceId);
   } catch (err) {
     throw _wrapError("deleteDevice", err);
   }
@@ -1152,7 +1159,7 @@ async function updateDeviceNickname(userId, deviceId, nickname) {
         timeout: 10000,
       },
     );
-    console.log(
+    mfaDebug(
       "[MFA] updated nickname userId=%s deviceId=%s nickname=%s",
       userId,
       deviceId,
@@ -1215,7 +1222,7 @@ async function ensureFido2RelyingParty(rpId, opts = {}) {
         });
         entry.updated = true;
         summary.changed = true;
-        console.log(
+        mfaDebug(
           `[MFA] FIDO2 policy ${p.id} relyingPartyId ${current} → ${rpId}`,
         );
       } catch (err) {
@@ -1228,7 +1235,7 @@ async function ensureFido2RelyingParty(rpId, opts = {}) {
             d.code === "CONSTRAINT_VIOLATION" && d.target === "relyingPartyId",
         );
         if (isInvalidTld) {
-          console.info(
+          mfaDebug(
             `[MFA] FIDO2 policy ${p.id}: rpId "${rpId}" rejected by PingOne (non-ICANN TLD — expected in local dev)`,
           );
         } else {
