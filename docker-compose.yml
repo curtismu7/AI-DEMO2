@@ -203,6 +203,8 @@ services:
         aliases:
           - api.ping.demo
     depends_on:
+      jaeger:
+        condition: service_started
       mcp-server:
         condition: service_started
     healthcheck:

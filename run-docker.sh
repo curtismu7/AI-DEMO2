@@ -304,6 +304,7 @@ fi
 # ── Service / port / log table (matches docker-compose.yml) ──────────────────
 SERVICES=(
   "demo-api-server|BFF (Express)        |3001|https://api.ping.demo:3001"
+  "jaeger|Jaeger (tracing UI)    |16686|http://localhost:16686"
   "ui|UI (React / nginx)   |4000|https://api.ping.demo:4000"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
@@ -613,6 +614,11 @@ cmd_start() {
     echo ""
     docker compose "${COMPOSE_FILES[@]}" up --build -d
   else
+    # Jaeger tracing is on by default: rebuild the BFF so OTel deps in package.json
+    # land in the container node_modules volume (bind-mount excludes host node_modules).
+    ok "Ensuring demo-api-server + jaeger are up to date..."
+    echo ""
+    docker compose "${COMPOSE_FILES[@]}" up -d --build demo-api-server jaeger
     docker compose "${COMPOSE_FILES[@]}" up -d
   fi
 
@@ -628,10 +634,12 @@ cmd_start() {
   echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [USER]   User Login     ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/user/login${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}  ${DIM}(service: demo-api-server)${RESET}"
   echo -e "${GREEN}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
   echo ""
   echo -e "${MAGENTA}${BOLD}  ╭─ PORTS ─────────────────────────────────────────────────────╮${RESET}"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  BFF (Express)          :3001  ${YELLOW}(HTTPS)${RESET}"
+  echo -e "${MAGENTA}${BOLD}  │${RESET}  Jaeger (tracing UI)    :16686"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  UI (React / nginx)     :4000  ${YELLOW}(HTTPS)${RESET}"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  MCP Server             :8080  ${YELLOW}(WebSocket)${RESET}"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  MCP Gateway            :3005"
@@ -684,6 +692,7 @@ cmd_status() {
   echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}"
   echo -e "${GREEN}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
