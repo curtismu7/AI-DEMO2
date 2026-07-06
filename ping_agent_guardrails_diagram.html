@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ping Identity for AI Agent Guardrails</title>
+  <style>
+    :root {
+      --artifact-background: var(--theme-background, #ffffff);
+      --artifact-background-light: var(--theme-background-light, #f6f6f6);
+      --artifact-background-mid: var(--theme-background-mid, #f0f0f0);
+      --artifact-border-light: var(--theme-border-light, #e5e5e5);
+      --artifact-border-dark: var(--theme-border-dark, #cccccc);
+      --artifact-primary-brand: var(--theme-primary-brand, #343ced);
+      --artifact-primary-highlight: var(--theme-primary-highlight, #1b1b1b);
+      --artifact-primary-hover: var(--theme-primary-hover, #404040);
+      --artifact-selected: var(--theme-selected, #e8e8e8);
+      --artifact-text-primary: var(--theme-text-primary, #1b1b1b);
+      --artifact-text-secondary: var(--theme-text-secondary, #727272);
+      --artifact-text-highlight: var(--theme-text-highlight, #fff8e5);
+
+      --artifact-accent-identity: #dfe3ff;
+      --artifact-accent-identity-text: #1b1b1b;
+      --artifact-accent-runtime: #daf181;
+      --artifact-accent-runtime-text: #1b1b1b;
+      --artifact-accent-risk: #ffdf69;
+      --artifact-accent-risk-text: #1b1b1b;
+      --artifact-accent-danger: #ffcfbd;
+      --artifact-accent-danger-text: #1b1b1b;
+      --artifact-accent-soft: #f6f3eb;
+      --artifact-accent-soft-text: #1b1b1b;
+      --artifact-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --artifact-shadow-focus: 0 0 0 3px rgba(52, 60, 237, 0.16);
+      --artifact-connector: #cfd4dc;
+      --artifact-grid: #eceff3;
+      --artifact-chip: #f3f5f8;
+      --artifact-chip-text: #1b1b1b;
+      --artifact-chip-active: #343ced;
+      --artifact-chip-active-text: #ffffff;
+      --artifact-danger-line: #ef601b;
+      --artifact-danger-fill: #fff1ec;
+      --artifact-success-line: #82951e;
+      --artifact-success-fill: #f6fae9;
+    }
+
+    html[data-theme='dark'] {
+      --artifact-accent-identity: #1d244d;
+      --artifact-accent-identity-text: #eef1ff;
+      --artifact-accent-runtime: #304114;
+      --artifact-accent-runtime-text: #edf8d3;
+      --artifact-accent-risk: #56430a;
+      --artifact-accent-risk-text: #fff2bd;
+      --artifact-accent-danger: #4a2518;
+      --artifact-accent-danger-text: #ffdacc;
+      --artifact-accent-soft: #2a2a2a;
+      --artifact-accent-soft-text: #f3f3f3;
+      --artifact-shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
+      --artifact-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
+      --artifact-connector: #46505d;
+      --artifact-grid: #232831;
+      --artifact-chip: #22252b;
+      --artifact-chip-text: #f3f3f3;
+      --artifact-chip-active: #a9e0ff;
+      --artifact-chip-active-text: #09131a;
+      --artifact-danger-line: #ffb28f;
+      --artifact-danger-fill: #3a231a;
+      --artifact-success-line: #b8d657;
+      --artifact-success-fill: #253117;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--artifact-background); color: var(--artifact-text-primary); }
+    body {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      background:
+        linear-gradient(var(--artifact-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--artifact-grid) 1px, transparent 1px),
+        var(--artifact-background);
+      background-size: 24px 24px, 24px 24px, auto;
+    }
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    .hero {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--artifact-accent-soft);
+      color: var(--artifact-accent-soft-text);
+      border: 1px solid var(--artifact-border-light);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+    .subhead {
+      max-width: 880px;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--artifact-text-secondary);
+      margin: 0;
+    }
+    .scenario-panel {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      background: var(--artifact-background-light);
+      border: 1px solid var(--artifact-border-light);
+      border-radius: 20px;
+      box-shadow: var(--artifact-shadow-soft);
+      margin-bottom: 18px;
+    }
+    .scenario-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .chip {
+      appearance: none;
+      border: 1px solid var(--artifact-border-light);
+      background: var(--artifact-chip);
+      color: var(--artifact-chip-text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .chip:hover { transform: translateY(-1px); }
+    .chip:focus-visible {
+      outline: none;
+      box-shadow: var(--artifact-shadow-focus);
+    }
+    .chip.active {
+      background: var(--artifact-chip-active);
+      color: var(--artifact-chip-active-text);
+      border-color: var(--artifact-chip-active);
+    }
+    .scenario-copy {
+      margin: 0;
+      color: var(--artifact-text-secondary);
+      line-height: 1.5;
+      min-height: 24px;
+    }
+    .diagram {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(180px, 1fr));
+      gap: 20px;
+      align-items: start;
+      position: relative;
+      margin-top: 16px;
+    }
+    .lane {
+      display: grid;
+      gap: 14px;
+      position: relative;
+    }
+    .lane-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--artifact-text-secondary);
+      padding-left: 4px;
+    }
+    .card {
+      position: relative;
+      background: var(--artifact-background);
+      border: 1px solid var(--artifact-border-light);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--artifact-shadow-soft);
+      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 6px;
+      background: var(--artifact-border-light);
+    }
+    .card.identity::before { background: var(--artifact-primary-brand); }
+    .card.runtime::before { background: var(--artifact-success-line); }
+    .card.risk::before { background: var(--artifact-danger-line); }
+    .card.actor::before { background: var(--artifact-border-dark); }
+    .card.resource::before { background: var(--artifact-text-secondary); }
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+    .card p {
+      margin: 0 0 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--artifact-text-secondary);
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--artifact-border-light);
+      background: var(--artifact-background-mid);
+      color: var(--artifact-text-primary);
+    }
+    .tag.identity { background: var(--artifact-accent-identity); color: var(--artifact-accent-identity-text); }
+    .tag.runtime { background: var(--artifact-accent-runtime); color: var(--artifact-accent-runtime-text); }
+    .tag.risk { background: var(--artifact-accent-risk); color: var(--artifact-accent-risk-text); }
+    .tag.danger { background: var(--artifact-accent-danger); color: var(--artifact-accent-danger-text); }
+    .connector {
+      position: absolute;
+      top: 58px;
+      right: -16px;
+      width: 16px;
+      height: 2px;
+      background: var(--artifact-connector);
+    }
+    .connector::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: -4px;
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 8px solid var(--artifact-connector);
+    }
+    .callout-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .callout {
+      background: var(--artifact-danger-fill);
+      color: var(--artifact-text-primary);
+      border: 1px dashed var(--artifact-danger-line);
+      border-radius: 16px;
+      padding: 14px;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+    .callout.good {
+      background: var(--artifact-success-fill);
+      border-color: var(--artifact-success-line);
+    }
+    .callout h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+    }
+    .callout p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--artifact-text-secondary);
+      line-height: 1.45;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+      margin-top: 16px;
+      color: var(--artifact-text-secondary);
+      font-size: 13px;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch {
+      width: 18px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--artifact-connector);
+    }
+    .swatch.good { background: var(--artifact-success-line); }
+    .swatch.risk { background: var(--artifact-danger-line); }
+    .summary {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--artifact-border-light);
+      background: var(--artifact-background-light);
+      color: var(--artifact-text-primary);
+      line-height: 1.55;
+    }
+    .summary strong { color: var(--artifact-primary-highlight); }
+    .reference-section {
+      margin-top: 18px;
+      display: grid;
+      gap: 14px;
+    }
+    .reference-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .reference-card {
+      background: var(--artifact-background-light);
+      border: 1px solid var(--artifact-border-light);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--artifact-shadow-soft);
+    }
+    .reference-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+    .reference-card p {
+      margin: 0 0 12px;
+      color: var(--artifact-text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .reference-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      border: 1px solid var(--artifact-border-light);
+      background: var(--artifact-background);
+    }
+    .reference-caption {
+      margin-top: 10px;
+      color: var(--artifact-text-secondary);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .active-card {
+      transform: translateY(-2px);
+      border-color: var(--artifact-primary-brand);
+      box-shadow: var(--artifact-shadow-focus), var(--artifact-shadow-soft);
+    }
+    .muted-card {
+      opacity: 0.58;
+    }
+    .footer-note {
+      margin-top: 14px;
+      color: var(--artifact-text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media screen and (max-width: 1100px) {
+      .diagram { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .callout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lane .connector { display: none; }
+    }
+    @media screen and (max-width: 760px) {
+      .shell { padding: 20px 14px 40px; }
+      .diagram { grid-template-columns: 1fr; }
+      .callout-grid { grid-template-columns: 1fr; }
+      .reference-grid { grid-template-columns: 1fr; }
+      .card, .callout, .scenario-panel, .reference-card { border-radius: 16px; }
+    }
+
+    @media print {
+      body {
+        margin: 0;
+        padding: 0.4in 0.6in;
+        background: #fff;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .container, .dashboard, .shell, main {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+
+      [style*="position:sticky"], [style*="position: sticky"],
+      [class*="topbar"], [class*="navbar"], [class*="header"][class*="sticky"] {
+        position: static !important;
+      }
+
+      section, [class*="section"], .header {
+        break-inside: avoid;
+        margin-bottom: 20px !important;
+      }
+
+      [class*="card"], [class*="Card"] {
+        break-inside: avoid;
+        padding: 18px !important;
+        box-shadow: none !important;
+        border: 1px solid rgba(0,0,0,0.08);
+      }
+
+      [class*="grid"], [class*="row"] {
+        gap: 10px !important;
+        margin-bottom: 20px !important;
+      }
+
+      [class*="chart"], [class*="Chart"] {
+        break-inside: avoid;
+        height: 240px !important;
+      }
+
+      [class*="chart"][class*="tall"], [class*="Chart"][class*="tall"],
+      [class*="chart"][class*="full"], [class*="Chart"][class*="full"] {
+        height: 280px !important;
+      }
+
+      table, thead, .funnel, .heatmap, .list, .goals {
+        break-inside: avoid;
+      }
+
+      [class*="quote-list"], [class*="scroll"],
+      [style*="max-height"], [style*="overflow"] {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      [class*="tab-panel"], [class*="tabpanel"] {
+        display: block !important;
+      }
+
+      [class*="tab-bar"], [class*="tabs"]:not([class*="panel"]) {
+        display: none !important;
+      }
+
+      [class*="fade"], [class*="animate"], [class*="slide"] {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+
+      button, [role="button"], .interactive-only {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Lucid-style reference diagram • Identity for AI</div>
+      <h1>How Ping keeps an AI agent from doing bad things</h1>
+      <p class="subhead">This diagram shows the control chain from agent identity, to delegated access, to per-action enforcement, to runtime risk detection and human oversight — so the agent can act, but only inside explicit guardrails.</p>
+    </section>
+
+    <section class="scenario-panel">
+      <div class="scenario-row">
+        <button class="chip active" data-scenario="default">Full guardrail flow</button>
+        <button class="chip" data-scenario="findagents">Find agents</button>
+        <button class="chip" data-scenario="impersonation">Impersonation</button>
+        <button class="chip" data-scenario="overprivilege">Over-privilege</button>
+        <button class="chip" data-scenario="risky">Risky behavior</button>
+        <button class="chip" data-scenario="secrets">Secret exposure</button>
+      </div>
+      <p class="scenario-copy" id="scenario-copy">Ping treats the agent as its own identity, gives it scoped delegated authority, checks every action at runtime, adds risk signals, can surface newly seen agents into Governance for AI, and forces human approval when the action crosses a high-risk boundary.</p>
+    </section>
+
+    <section class="diagram" id="diagram">
+      <div class="lane">
+        <div class="lane-title">Actors</div>
+        <article class="card actor scenario-default scenario-impersonation" data-key="actor-human">
+          <div class="connector"></div>
+          <h3>Human sponsor / operator</h3>
+          <p>The human initiates intent and can remain accountable for sensitive outcomes.</p>
+          <div class="tags">
+            <span class="tag">Owner</span>
+            <span class="tag risk">Approval point</span>
+          </div>
+        </article>
+        <article class="card actor scenario-default scenario-overprivilege scenario-risky scenario-secrets" data-key="actor-agent">
+          <div class="connector"></div>
+          <h3>AI agent / runtime</h3>
+          <p>The agent can plan and act, but it should never inherit raw human credentials or unlimited standing access.</p>
+          <div class="tags">
+            <span class="tag danger">No shared creds</span>
+            <span class="tag">Task execution</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Identity guardrails</div>
+        <article class="card identity scenario-default scenario-impersonation scenario-overprivilege" data-key="iam-core">
+          <div class="connector"></div>
+          <h3>Agent IAM Core</h3>
+          <p>Registers the agent as a first-class non-human identity with its own credentials, ownership, lifecycle controls, and delegated authority.</p>
+          <div class="tags">
+            <span class="tag identity">Unique agent identity</span>
+            <span class="tag identity">Delegation</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Runtime enforcement</div>
+        <article class="card runtime scenario-default scenario-overprivilege scenario-secrets" data-key="gateway">
+          <div class="connector"></div>
+          <h3>Agent Gateway / Ping Gateway</h3>
+          <p>Sits in front of MCP servers, APIs, and tools to validate requests, enforce least privilege, centralize runtime control, and surface newly observed agents so they can be added into Governance for AI.</p>
+          <div class="tags">
+            <span class="tag runtime">PEP</span>
+            <span class="tag runtime">MCP / API control</span>
+            <span class="tag identity">Discover new agents</span>
+          </div>
+        </article>
+        <article class="card runtime scenario-default scenario-overprivilege scenario-risky" data-key="authorize">
+          <div class="connector"></div>
+          <h3>PingOne Authorize</h3>
+          <p>Evaluates each action against policy, context, risk, scope, and intent so the agent receives only the minimum authority needed for the current task.</p>
+          <div class="tags">
+            <span class="tag runtime">Per-action policy</span>
+            <span class="tag runtime">JIT / scoped access</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Risk + oversight</div>
+        <article class="card risk scenario-default scenario-risky scenario-impersonation" data-key="protect">
+          <div class="connector"></div>
+          <h3>PingOne Protect</h3>
+          <p>Continuously scores runtime risk and can distinguish legitimate agents from malicious bots or suspicious AI/browser behavior, then trigger the right response.</p>
+          <div class="tags">
+            <span class="tag risk">Risk signals</span>
+            <span class="tag risk">Agent detection</span>
+          </div>
+        </article>
+        <article class="card risk scenario-default scenario-risky scenario-overprivilege" data-key="oversight">
+          <div class="connector"></div>
+          <h3>Governance for AI + human approval</h3>
+          <p>High-impact steps can require approval, and every action can be logged for audit, accountability, review, and ongoing governance of newly observed agents.</p>
+          <div class="tags">
+            <span class="tag risk">HITL</span>
+            <span class="tag risk">Audit trail</span>
+          </div>
+        </article>
+        <article class="card risk scenario-default scenario-secrets" data-key="privilege">
+          <h3>Agent Privilege</h3>
+          <p>Desktop and coding agents get access to resources without being handed the underlying secrets, reducing standing privilege and secret sprawl.</p>
+          <div class="tags">
+            <span class="tag danger">No secret handoff</span>
+            <span class="tag risk">Privileged access</span>
+          </div>
+        </article>
+        <article class="card risk scenario-default scenario-overprivilege scenario-secrets" data-key="endpoint-jit">
+          <h3>Endpoint agent + JIT privileged access</h3>
+          <p>If the agent is running on an endpoint for a privileged user, Ping can broker just-in-time access so the agent receives time-bound elevation for the task instead of broad standing privilege, and newly observed endpoint agents can also be brought into Governance for AI.</p>
+          <div class="tags">
+            <span class="tag risk">Endpoint agent</span>
+            <span class="tag runtime">JIT access</span>
+            <span class="tag danger">Protect privileged users</span>
+            <span class="tag identity">Enroll into governance</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Protected resources</div>
+        <article class="card resource scenario-default scenario-overprivilege scenario-secrets" data-key="resources">
+          <h3>MCP servers, SaaS apps, APIs, data, repos</h3>
+          <p>Resources are exposed to the agent only through policy-aware access paths, not by trusting the agent outright.</p>
+          <div class="tags">
+            <span class="tag">Tool use</span>
+            <span class="tag">Controlled resource access</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="callout-grid" id="callouts">
+      <article class="callout" data-scenario="impersonation">
+        <h4>Stopped: human impersonation</h4>
+        <p>The agent gets its own identity and delegated authority instead of borrowing a human login.</p>
+      </article>
+      <article class="callout" data-scenario="overprivilege">
+        <h4>Stopped: over-privileged actions</h4>
+        <p>Policy and JIT scope keep the agent inside the exact action boundary for the task.</p>
+      </article>
+      <article class="callout" data-scenario="risky">
+        <h4>Stopped: abnormal or malicious behavior</h4>
+        <p>Risk signals and agent detection can block, challenge, or escalate before damage happens.</p>
+      </article>
+      <article class="callout" data-scenario="secrets">
+        <h4>Stopped: secret leakage</h4>
+        <p>Privileged access is brokered so the agent gets access outcomes, not raw reusable secrets.</p>
+      </article>
+    </section>
+
+    <div class="legend">
+      <span class="legend-item"><span class="swatch"></span> Normal request path</span>
+      <span class="legend-item"><span class="swatch good"></span> Allowed only after policy checks</span>
+      <span class="legend-item"><span class="swatch risk"></span> Block / challenge / approval boundary</span>
+    </div>
+
+    <section class="summary" id="summary">
+      <strong>Talk track:</strong> Ping does not trust the agent just because it authenticated once. It gives the agent a distinct identity, limits delegation, enforces every tool call at runtime, adds risk and bot/agent detection, can surface newly seen agents into Governance for AI, and inserts human approval when the task is sensitive.
+    </section>
+
+    <section class="reference-section">
+      <div class="reference-grid">
+        <article class="reference-card">
+          <h3>Real diagram 1: Generic reference architecture</h3>
+          <p>This is the internal generic Identity for AI flow showing the user, agentic runtime, gateway, tokens, and protected MCP resources.</p>
+          <img alt="Generic Identity for AI reference architecture" src="https://pingidentity-be.glean.com/api/v1/images?key=eyJ0eXBlIjoiRE9DVU1FTlRfSU1BR0UiLCJpZCI6ImI3ODY1OWMxNDA5NDA5OWEyMzEwN2EyOWI5YjQ4YjBiOWZlZDhiYTg3ZGI4ZWRkYzEzYzIzZTk1Yzg0YWM2ZWYiLCJkb2NpZCI6IkdEUklWRV8xUFRVc2tYMVRfd19iUnB0RWhHVEFzNl9XanNqYmxvS2lkSlpYVnNMYzNWbyIsImV4dCI6Ii5wbmcifQ==" />
+          <div class="reference-caption">Source-aligned internal field diagram for the generic end-to-end control flow.</div>
+        </article>
+        <article class="reference-card">
+          <h3>Real diagram 2: Platform-specific Ping product mapping</h3>
+          <p>This is the internal product-mapped diagram showing where Agent IAM Core, Ping Gateway, PingOne Authorize, and PingOne Protect fit in the runtime path.</p>
+          <img alt="Platform-specific Ping product architecture" src="https://pingidentity-be.glean.com/api/v1/images?key=eyJ0eXBlIjoiRE9DVU1FTlRfSU1BR0UiLCJpZCI6IjgxMzlhOWMwNDU0ZTQ1YzM5NmZmOTIyYmZhM2IxOTY0MzY1NGEzNjg5ZjI4MjhhNmQxYTAzMTg4MmM1Mjg1NDAiLCJkb2NpZCI6IkdEUklWRV8xUFRVc2tYMVRfd19iUnB0RWhHVEFzNl9XanNqYmxvS2lkSlpYVnNMYzNWbyIsImV4dCI6Ii5wbmcifQ==" />
+          <div class="reference-caption">Source-aligned internal field diagram for the product-specific deployment view.</div>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer-note">Designed as a clean Lucid-style reference view for customer conversations, with scenario toggles you can use to explain how Ping prevents agent impersonation, overreach, risky behavior, secret exposure, and how Ping finds new agents.</p>
+  </main>
+
+  <script>
+    const scenarioCopy = {
+      default: 'Ping treats the agent as its own identity, gives it scoped delegated authority, checks every action at runtime, adds risk signals, can surface newly seen agents into Governance for AI, and forces human approval when the action crosses a high-risk boundary.',
+      findagents: 'This view shows how Ping finds new agents: Agent Gateway sees new tool-using agents, endpoint controls can surface new endpoint agents, and Governance for AI becomes the system of record for bringing them under policy and oversight.',
+      impersonation: 'The core control here is identity separation: the agent must use its own identity and delegated authority, while Protect helps detect suspicious non-human behavior pretending to be something it is not.',
+      overprivilege: 'The core control here is least privilege: Ping limits what the agent can do through delegated entitlements, runtime policy, and just-in-time access instead of standing broad permissions.',
+      risky: 'The core control here is runtime evaluation: Protect adds risk signals and Authorize can force step-up or human approval when behavior looks abnormal or the requested action is too sensitive.',
+      secrets: 'The core control here is secret minimization: the gateway and privileged access layers broker access so the agent gets tightly scoped outcomes without being handed reusable credentials or secrets.'
+    };
+
+    const summaryCopy = {
+      default: 'Ping does not trust the agent just because it authenticated once. It gives the agent a distinct identity, limits delegation, enforces every tool call at runtime, adds risk and bot/agent detection, can surface newly seen agents into Governance for AI, and inserts human approval when the task is sensitive.',
+      findagents: 'To find agents, Ping uses runtime visibility and control points. Agent Gateway can surface newly observed MCP and API agents, endpoint controls can surface new endpoint agents, and Governance for AI can bring those agents into a managed inventory with oversight and policy.',
+      impersonation: 'To stop impersonation, Ping makes the agent operate as its own governed identity instead of a hidden human proxy, then adds runtime detection for suspicious AI or bot-like activity.',
+      overprivilege: 'To stop overreach, Ping narrows authority per action through delegated entitlements, policy evaluation, and just-in-time scope so the agent cannot keep broad standing access.',
+      risky: 'To stop harmful behavior in motion, Ping combines risk scoring, AI-agent detection, policy enforcement, and human approval so unusual actions are challenged before they become incidents.',
+      secrets: 'To stop secret exposure, Ping brokers privileged access and runtime calls so the agent uses approved access paths and short-lived authority rather than seeing or storing long-lived secrets.'
+    };
+
+    const scenarioToKeys = {
+      default: ['actor-human','actor-agent','iam-core','gateway','authorize','protect','oversight','privilege','endpoint-jit','resources'],
+      findagents: ['gateway','oversight','endpoint-jit'],
+      impersonation: ['actor-human','iam-core','protect'],
+      overprivilege: ['actor-agent','iam-core','gateway','authorize','oversight','endpoint-jit','resources'],
+      risky: ['actor-agent','authorize','protect','oversight'],
+      secrets: ['actor-agent','gateway','privilege','endpoint-jit','resources']
+    };
+
+    const chips = Array.from(document.querySelectorAll('.chip'));
+    const cards = Array.from(document.querySelectorAll('.card'));
+    const callouts = Array.from(document.querySelectorAll('.callout'));
+    const summary = document.getElementById('summary');
+    const scenarioCopyEl = document.getElementById('scenario-copy');
+
+    function activateScenario(name) {
+      chips.forEach(chip => chip.classList.toggle('active', chip.dataset.scenario === name));
+      scenarioCopyEl.textContent = scenarioCopy[name];
+      summary.innerHTML = '<strong>Talk track:</strong> ' + summaryCopy[name];
+
+      const activeKeys = new Set(scenarioToKeys[name]);
+      cards.forEach(card => {
+        const active = activeKeys.has(card.dataset.key);
+        card.classList.toggle('active-card', active);
+        card.classList.toggle('muted-card', name !== 'default' && !active);
+      });
+
+      callouts.forEach(callout => {
+        const match = name === 'default' || callout.dataset.scenario === name;
+        callout.classList.toggle('good', match);
+        callout.style.opacity = (name === 'default' || match) ? '1' : '0.5';
+        callout.style.transform = match ? 'translateY(-2px)' : 'translateY(0)';
+      });
+    }
+
+    chips.forEach(chip => chip.addEventListener('click', () => activateScenario(chip.dataset.scenario)));
+    activateScenario('default');
+  </script>
+
+  <script>
+    window.GleanBridge.postMessage({
+      actionId: 'export-pdf',
+      type: 'glean-add-menu',
+      metadata: { label: 'Export as PDF', icon: 'export' }
+    });
+    window.GleanBridge.onMessage('action', function(data) {
+      if (data.actionId === 'export-pdf') window.print();
+    });
+
+    function prepareChartsForPrint() {
+      document.querySelectorAll('[_echarts_instance_]').forEach(function(el) {
+        var chart = echarts.getInstanceByDom(el);
+        if (!chart) return;
+        var img = new Image();
+        img.src = chart.getDataURL({ type: 'png', pixelRatio: 2 });
+        img.className = 'print-chart-img';
+        img.style.cssText =
+          'width:100%;height:100%;object-fit:contain;' +
+          'position:absolute;top:0;left:0;z-index:10;';
+        el.dataset.prevPosition = el.style.position;
+        el.style.position = 'relative';
+        el.appendChild(img);
+      });
+    }
+
+    function cleanUpAfterPrint() {
+      document.querySelectorAll('[_echarts_instance_]').forEach(function(el) {
+        var img = el.querySelector('.print-chart-img');
+        if (!img) return;
+        img.remove();
+        el.style.position = el.dataset.prevPosition || '';
+        delete el.dataset.prevPosition;
+      });
+    }
+
+    window.addEventListener('beforeprint', prepareChartsForPrint);
+    window.addEventListener('afterprint', cleanUpAfterPrint);
+  </script>
+</body>
+</html>
