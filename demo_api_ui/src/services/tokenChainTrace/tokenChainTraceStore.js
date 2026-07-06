@@ -6,7 +6,8 @@ import { buildTraceSteps } from "./buildTraceSteps";
 import { agentFlowDiagram } from "../agentFlowDiagramService";
 
 const EMPTY_TRACE = () => ({
-  startedAt: null, prompt: null, llmDetail: null, llmReply: null,
+  startedAt: null, prompt: null, routingMode: null, routingDetail: null,
+  llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
 });
 
@@ -39,12 +40,22 @@ export const tokenChainTraceStore = {
     trace.startedAt = Date.now();
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.tokenEvents = sessionEvents;
+    try {
+      agentFlowDiagram.clearServerEvents();
+    } catch { /* display-only */ }
     emit();
   },
   ingestPhases(serverEvents) {
     if (!Array.isArray(serverEvents) || !serverEvents.length) return;
     ensureTrace();
     trace.phases = serverEvents.slice();
+    emit();
+  },
+  ingestRoutingMode(mode, detail = null) {
+    if (!mode) return;
+    ensureTrace();
+    trace.routingMode = mode;
+    trace.routingDetail = detail && typeof detail === "object" ? { ...detail } : null;
     emit();
   },
   ingestTokenEvents(events) {

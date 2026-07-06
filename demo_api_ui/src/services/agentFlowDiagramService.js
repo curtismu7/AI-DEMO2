@@ -330,6 +330,14 @@ export const agentFlowDiagram = {
     emit();
   },
 
+  /** Drop SSE phase rows without resetting the compliance checklist UI. */
+  clearServerEvents() {
+    if (state.serverEvents.length === 0) return;
+    state.serverEvents = [];
+    state.updatedAt = Date.now();
+    emit();
+  },
+
   /**
    * @param {string} toolName MCP tool name e.g. get_my_accounts
    */

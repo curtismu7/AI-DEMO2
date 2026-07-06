@@ -74,7 +74,8 @@ function makeStep(id, status, detail) {
 }
 
 export function buildTraceSteps(trace) {
-  const { prompt, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize } = trace;
+  const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize } = trace;
+  const isHeuristic = routingMode === "heuristic";
   const steps = [];
 
   // 1. signin — evidence: user-token / session-token-introspection events
@@ -93,19 +94,36 @@ export function buildTraceSteps(trace) {
       text: `POST /api/agent/run\n${asJson({ message: prompt.message })}` },
   } : {}));
 
-  // 3. agent — evidence: request_accepted phase or any activity at all
-  const agentSeen = hasPhase(phases, "request_accepted") || !!llmDetail;
-  steps.push(makeStep("agent", agentSeen ? "done" : "pending"));
-
-  // 4. llm
-  steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
-    request: { title: "LLM request (actual)",
-      text: `model: ${llmDetail.model || "?"}\n${asJson(llmDetail.request || {})}` },
-    response: { title: "LLM response — tool call", text: asJson(llmDetail.toolCalls || []) },
-    kv: llmDetail.usage
-      ? [["tokens used", `prompt ${llmDetail.usage.inputTokens} · completion ${llmDetail.usage.outputTokens}`]]
-      : [],
+  // 3. agent — evidence: request_accepted phase, LLM activity, or heuristic routing
+  const agentSeen = isHeuristic || hasPhase(phases, "request_accepted") || !!llmDetail;
+  steps.push(makeStep("agent", agentSeen ? "done" : "pending", isHeuristic ? {
+    kv: [
+      ["routing", "Heuristic intent match"],
+      routingDetail?.action ? ["matched action", String(routingDetail.action)] : null,
+    ].filter(Boolean),
   } : {}));
+
+  // 4. llm — heuristic runs skip the model but the step still lights up as bypassed
+  if (isHeuristic) {
+    steps.push(makeStep("llm", "done", {
+      kv: [["routing", "Heuristic match — LLM not invoked"]],
+      response: {
+        title: "Heuristic routing",
+        text: routingDetail?.action
+          ? `Matched "${routingDetail.action}" from the prompt without calling the LLM.`
+          : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
+      },
+    }));
+  } else {
+    steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
+      request: { title: "LLM request (actual)",
+        text: `model: ${llmDetail.model || "?"}\n${asJson(llmDetail.request || {})}` },
+      response: { title: "LLM response — tool call", text: asJson(llmDetail.toolCalls || []) },
+      kv: llmDetail.usage
+        ? [["tokens used", `prompt ${llmDetail.usage.inputTokens} · completion ${llmDetail.usage.outputTokens}`]]
+        : [],
+    } : {}));
+  }
 
   // 5. agent-token
   const agentTok = findEvent(tokenEvents, "agent-actor-token", "two-ex-agent-actor");
