@@ -21,3 +21,27 @@ if (dsn) {
 } else {
     console.log('[sentry] SENTRY_DSN not set — error monitoring disabled');
 }
+
+// OpenTelemetry → Jaeger (OTLP/gRPC). No-op when OTEL_EXPORTER_OTLP_ENDPOINT is
+// unset, so local runs without a collector are unaffected. Must run before any
+// instrumented library import (express/http/axios) for auto-instrumentation.
+const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+if (otlpEndpoint) {
+    const { NodeSDK } = require('@opentelemetry/sdk-node');
+    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
+    const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+    const { resourceFromAttributes } = require('@opentelemetry/resources');
+    const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
+
+    const sdk = new NodeSDK({
+        traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
+        instrumentations: [getNodeAutoInstrumentations()],
+        resource: resourceFromAttributes({
+            [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'demo-api-server',
+        }),
+    });
+    sdk.start();
+    console.log(`[otel] tracing to ${otlpEndpoint} as ${process.env.OTEL_SERVICE_NAME || 'demo-api-server'}`);
+} else {
+    console.log('[otel] OTEL_EXPORTER_OTLP_ENDPOINT not set — tracing disabled');
+}
