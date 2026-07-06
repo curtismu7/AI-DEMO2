@@ -19,9 +19,9 @@ mkdir -p "$LOG_DIR"
 # NOTE: :8095 is skipped — the mcp-code-search container publishes it.
 declare -a MODELS=(
   "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4:"
-  "8092:Tier2:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf:4:"
+  "8092:Tier2:gemma-3-12b-it-qat-UD-Q4_K_XL.gguf:4:"
   "8093:Tier3:starcoder2-15b-instruct-v0.1-Q4_K_M.gguf:6:"
-  "8094:Tier4:gemma-4-12b-it-UD-Q4_K_XL.gguf:8:"
+  "8094:Tier4:gemma-3-12b-it-UD-Q4_K_XL.gguf:8:"
   "8096:Tier5:gpt-oss-20b-mxfp4.gguf:6:--jinja"
 )
 
