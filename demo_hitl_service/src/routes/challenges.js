@@ -18,7 +18,15 @@ const { teachLog } = require('../teachLogger');
 const HITL_INTERNAL_SECRET = process.env.HITL_INTERNAL_SECRET || '';
 
 function requireSecret(req, res, next) {
-  if (!HITL_INTERNAL_SECRET) return next();
+  if (!HITL_INTERNAL_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({
+        error: 'hitl_misconfigured',
+        message: 'HITL_INTERNAL_SECRET is required in production.',
+      });
+    }
+    return next();
+  }
   if (req.headers['x-hitl-internal-secret'] !== HITL_INTERNAL_SECRET) {
     return res.status(401).json({ error: 'unauthorized' });
   }

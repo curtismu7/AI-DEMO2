@@ -6,6 +6,11 @@ const { agentRunStore } = require('../services/agentRunStore');
 
 const router = express.Router();
 
+/** Resolve the PingOne user sub from the browser session. */
+function _sessionSub(req) {
+  return req.session?.user?.oauthId || req.session?.user?.id || null;
+}
+
 /**
  * POST /api/agent/consent/:runId
  *
@@ -17,6 +22,7 @@ const router = express.Router();
 router.post('/consent/:runId', requireSession, async (req, res) => {
   const { runId } = req.params;
   const { approved } = req.body;
+  const userSub = _sessionSub(req);
 
   const runState = await agentRunStore.getRunState(runId);
   if (!runState) {
@@ -24,6 +30,12 @@ router.post('/consent/:runId', requireSession, async (req, res) => {
   }
   if (runState.status !== 'suspended_hitl') {
     return res.status(409).json({ error: 'Run is not awaiting consent' });
+  }
+  if (!runState.userId || !userSub || runState.userId !== userSub) {
+    return res.status(403).json({
+      error: 'forbidden',
+      message: 'Consent request belongs to another user.',
+    });
   }
 
   // Publish consent signal via pub/sub — SSE handler on any instance receives it

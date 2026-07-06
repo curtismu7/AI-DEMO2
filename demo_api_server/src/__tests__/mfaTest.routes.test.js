@@ -134,3 +134,24 @@ describe('POST /integration/initiate (email) — pingoneRequest shape', () => {
     }
   });
 });
+
+describe('MFA test routes production gate', () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const ORIGINAL_FF = process.env.FF_MFA_TEST_ROUTES;
+
+  afterEach(() => {
+    if (ORIGINAL_NODE_ENV === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    if (ORIGINAL_FF === undefined) delete process.env.FF_MFA_TEST_ROUTES;
+    else process.env.FF_MFA_TEST_ROUTES = ORIGINAL_FF;
+  });
+
+  it('returns 403 in production unless FF_MFA_TEST_ROUTES=true', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.FF_MFA_TEST_ROUTES;
+
+    const res = await request(app).get('/config');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('mfa_test_routes_disabled');
+  });
+});
