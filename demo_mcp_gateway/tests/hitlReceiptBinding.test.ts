@@ -95,26 +95,26 @@ describe('verifyHitlReceipt — CR-01 caller/agent/tool binding', () => {
     expect(result.message).toMatch(/expired/i);
   });
 
-  test('missing userId in receipt — lenient, does not reject on userId', () => {
-    // Older HITL service may not echo userId. The check is bind-on-presence:
-    // we don't reject for ABSENT fields, only for MISMATCHED fields.
+  test('missing userId in receipt — rejected when caller supplies expectedUserId', () => {
     const result = verifyHitlReceipt(
       makeApproved({ userId: null }),
       'user-a',
       'agent-a',
       'create_deposit',
     );
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/different user/i);
   });
 
-  test('missing agentId in receipt — lenient, does not reject on agentId', () => {
+  test('missing agentId in receipt — rejected when caller supplies expectedAgentId', () => {
     const result = verifyHitlReceipt(
       makeApproved({ agentId: null }),
       'user-a',
       'agent-a',
       'create_deposit',
     );
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/different agent/i);
   });
 
   test('missing expectedAgentId (unactored token) — lenient', () => {

@@ -4,9 +4,14 @@ const express = require('express');
 // Set fallback BEFORE any require of agentRunStore
 process.env.AGUI_STORE_FALLBACK = 'true';
 
-// Mock auth first
+const SESSION_USER = 'user-sub-1';
+
+// Mock auth first — inject a session user sub for ownership checks
 jest.mock('../middleware/auth', () => ({
-  requireSession: (_req, _res, next) => next(),
+  requireSession: (req, _res, next) => {
+    req.session = { user: { id: SESSION_USER, oauthId: SESSION_USER } };
+    next();
+  },
 }));
 
 // Import and use the real store in test mode (fallback)
@@ -25,8 +30,11 @@ describe('POST /api/agent/consent/:runId', () => {
     expect(res.status).toBe(404);
   });
 
-  test('publishes consent signal for a suspended run', async () => {
-    await agentRunStore.setRunState('run_test', { status: 'suspended_hitl' });
+  test('publishes consent signal for a suspended run owned by the session user', async () => {
+    await agentRunStore.setRunState('run_test', {
+      status: 'suspended_hitl',
+      userId: SESSION_USER,
+    });
     const received = [];
     await agentRunStore.subscribeConsent('run_test', (msg) => received.push(msg));
 
@@ -40,8 +48,35 @@ describe('POST /api/agent/consent/:runId', () => {
     expect(received[0]).toEqual({ approved: true });
   });
 
+  test('returns 403 when run belongs to a different user', async () => {
+    await agentRunStore.setRunState('run_other', {
+      status: 'suspended_hitl',
+      userId: 'other-user',
+    });
+
+    const res = await request(app)
+      .post('/api/agent/consent/run_other')
+      .send({ approved: true });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('forbidden');
+  });
+
+  test('returns 403 when run state has no userId binding', async () => {
+    await agentRunStore.setRunState('run_unbound', { status: 'suspended_hitl' });
+
+    const res = await request(app)
+      .post('/api/agent/consent/run_unbound')
+      .send({ approved: true });
+
+    expect(res.status).toBe(403);
+  });
+
   test('returns 409 if run is not suspended', async () => {
-    await agentRunStore.setRunState('run_active', { status: 'running' });
+    await agentRunStore.setRunState('run_active', {
+      status: 'running',
+      userId: SESSION_USER,
+    });
     const res = await request(app)
       .post('/api/agent/consent/run_active')
       .send({ approved: true });

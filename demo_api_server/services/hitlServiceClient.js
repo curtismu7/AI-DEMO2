@@ -83,9 +83,10 @@ async function respondToChallenge(challengeId, decision, correlationId) {
  * Verify an approved HITL receipt is bound to THIS caller, agent, and tool.
  *
  * Faithful port of demo_mcp_gateway/src/hitlClient.ts::verifyHitlReceipt — keep
- * the two in lockstep (the "one verification contract" invariant). Lenient on
- * absent binding fields (older/looser challenge records pass on those fields);
- * only a MISMATCH or non-approved/expired status rejects.
+ * the two in lockstep (the "one verification contract" invariant). Fail-closed:
+ * when an expected value is provided but the receipt field is missing/empty,
+ * reject. Only skip the check when BOTH sides are empty (caller did not supply
+ * an expected value).
  *
  * @param {object} status            GET /challenges/:id response body
  * @param {string|undefined} expectedUserId   userSub from the inbound session/token
@@ -110,13 +111,13 @@ function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool
     }
   }
 
-  if (status.userId && expectedUserId && status.userId !== expectedUserId) {
+  if (expectedUserId && (!status.userId || status.userId !== expectedUserId)) {
     return { ok: false, message: 'HITL challenge belongs to a different user' };
   }
-  if (status.agentId && expectedAgentId && status.agentId !== expectedAgentId) {
+  if (expectedAgentId && (!status.agentId || status.agentId !== expectedAgentId)) {
     return { ok: false, message: 'HITL challenge belongs to a different agent' };
   }
-  if (status.tool && expectedTool && status.tool !== expectedTool) {
+  if (expectedTool && (!status.tool || status.tool !== expectedTool)) {
     return { ok: false, message: 'HITL challenge belongs to a different tool' };
   }
 

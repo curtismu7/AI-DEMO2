@@ -54,9 +54,26 @@ describe('hitlServiceClient.verifyHitlReceipt — anti-replay binding contract',
     expect(r.message).toMatch(/different tool/);
   });
 
-  it('is lenient when a binding field is absent on the record (does not reject)', () => {
-    // older/looser challenge records may omit agentId/tool — only a MISMATCH rejects.
+  it('rejects when expected agentId is provided but absent on the receipt', () => {
     const r = verifyHitlReceipt({ status: 'approved', userId: 'u1', expiresAt: future }, 'u1', 'a1', 'create_transfer', NOW);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/different agent/);
+  });
+
+  it('rejects when expected tool is provided but absent on the receipt', () => {
+    const r = verifyHitlReceipt({ status: 'approved', userId: 'u1', agentId: 'a1', expiresAt: future }, 'u1', 'a1', 'create_transfer', NOW);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/different tool/);
+  });
+
+  it('skips agentId check when caller provides no expectedAgentId', () => {
+    const r = verifyHitlReceipt(
+      { status: 'approved', userId: 'u1', agentId: 'a1', tool: 'create_transfer', expiresAt: future },
+      'u1',
+      undefined,
+      'create_transfer',
+      NOW,
+    );
     expect(r.ok).toBe(true);
   });
 

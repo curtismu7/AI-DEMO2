@@ -68,6 +68,7 @@ app.get('/health', (_req, res) => {
     uptime: process.uptime(),
     checks: {
       env: _envOk ? 'ok' : 'warn',
+      secret: (process.env.HITL_INTERNAL_SECRET || process.env.NODE_ENV !== 'production') ? 'ok' : 'error',
     },
   });
 });

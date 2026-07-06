@@ -6,6 +6,20 @@
 
 const express = require('express');
 const router = express.Router();
+
+// Block unauthenticated MFA lab routes in production unless explicitly enabled.
+router.use((req, res, next) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const featureFlagEnabled = process.env.FF_MFA_TEST_ROUTES === 'true';
+  if (isProduction && !featureFlagEnabled) {
+    return res.status(403).json({
+      error: 'mfa_test_routes_disabled',
+      message: 'MFA test routes are disabled in production.',
+    });
+  }
+  next();
+});
+
 const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const apiCallTrackerService = require('../services/apiCallTrackerService');
