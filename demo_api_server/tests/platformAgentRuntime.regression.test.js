@@ -6,6 +6,13 @@ describe('buildPlatformRequest', () => {
   const gwUrl = 'https://gw.example/mcp';
   const tok = 'eyJtok';
 
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+  });
+  afterEach(() => {
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
   test('openai → Responses API shape with mcp tool + authorization', () => {
     const r = buildPlatformRequest('openai', { gatewayMcpUrl: gwUrl, gatewayToken: tok, userMessage: 'List accounts', model: 'gpt-4o' });
     expect(r.url).toMatch(/openai|responses/i);
@@ -17,6 +24,11 @@ describe('buildPlatformRequest', () => {
     const r = buildPlatformRequest('anthropic', { gatewayMcpUrl: gwUrl, gatewayToken: tok, userMessage: 'List accounts', model: 'claude-sonnet-4-6' });
     expect(r.body.mcp_servers[0]).toMatchObject({ type: 'url', url: gwUrl, authorization_token: tok });
     expect(r.body.messages[0]).toMatchObject({ role: 'user', content: 'List accounts' });
+  });
+
+  test('anthropic → includes mcp-client beta header', () => {
+    const r = buildPlatformRequest('anthropic', { gatewayMcpUrl: gwUrl, gatewayToken: tok, userMessage: 'hi' });
+    expect(r.headers['anthropic-beta']).toBe('mcp-client-2025-04-04');
   });
 
   test('session vertical persona → openai instructions / anthropic system; omitted when absent', () => {
