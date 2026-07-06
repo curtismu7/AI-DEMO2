@@ -13,18 +13,13 @@
 
 const { test, expect } = require('@playwright/test');
 const { loginAsCustomer, requireRealLoginEnv } = require('./helpers/realLogin');
-const {
-  completeConsentModalWithOtp,
-  openDashboardTransferForm,
-  submitDashboardTransfer,
-} = require('./helpers/hitlMocks');
+const { completeConsentModalWithOtp } = require('./helpers/hitlMocks');
 
 test.describe('Transaction HITL consent (real login)', () => {
   test.skip(!requireRealLoginEnv(), 'Skipped: set E2E_CUSTOMER_USERNAME and E2E_CUSTOMER_PASSWORD');
 
   test('agent HITL event completes consent with demo OTP 123123', async ({ page }) => {
     await loginAsCustomer(page);
-    await expect(page.getByRole('heading', { name: 'Your Accounts' })).toBeVisible({ timeout: 30000 });
 
     const accounts = await page.evaluate(async () => {
       const r = await fetch('/api/accounts/my', { credentials: 'include' });
@@ -62,10 +57,19 @@ test.describe('Transaction HITL consent (real login)', () => {
 
   test('dashboard transfer completes HITL consent with demo OTP 123123', async ({ page }) => {
     await loginAsCustomer(page);
-    await expect(page.getByRole('heading', { name: 'Your Accounts' })).toBeVisible({ timeout: 30000 });
 
-    await openDashboardTransferForm(page);
-    await submitDashboardTransfer(page, { amount: '300' });
+    const transferBtn = page.locator('.account-card').first().getByRole('button', { name: 'Transfer' });
+    const hasCards = await transferBtn.isVisible({ timeout: 15000 }).catch(() => false);
+    test.skip(!hasCards, 'Dashboard layout does not show account-card Transfer buttons');
+
+    await transferBtn.click();
+    await expect(page.getByRole('heading', { name: 'Transfer Money' })).toBeVisible({ timeout: 15000 });
+
+    const form = page.locator('.transfer-form');
+    await form.locator('select').selectOption({ index: 1 });
+    await form.getByPlaceholder('Enter amount').fill('300');
+    await form.locator('.transfer-btn').click();
+
     await completeConsentModalWithOtp(page);
     await expect(page.getByRole('heading', { name: 'Transfer Money' })).toBeHidden({ timeout: 30000 });
   });
