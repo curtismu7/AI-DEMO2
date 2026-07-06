@@ -38,7 +38,7 @@ def get_llm(
     lmstudio_base_url: str = "http://localhost:1234/v1",
     anthropic_base_url: str = "",
     llamacpp_base_url: str = "http://127.0.0.1:8090",
-    llamacpp_model: str = "gemma-3-4b-it",
+    llamacpp_model: str = "phi-4-mini-instruct",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",

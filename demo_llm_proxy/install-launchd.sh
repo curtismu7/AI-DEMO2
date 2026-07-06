@@ -1,13 +1,13 @@
 #!/bin/bash
 # install-launchd.sh — keep the local LLM backend alive across logins/reboots so
 # the agent's "llama.cpp only" mode never silently dies — in SWAP MODE (minimal
-# RAM), NOT by loading all 5 tiers.
+# RAM), NOT by loading all tiers.
 #
 # Installs a per-user LaunchAgent that runs `supervise-swap.sh` at login
 # (RunAtLoad) and every 5 minutes (StartInterval). supervise-swap keeps the
 # tier-manager daemon (:8097) up and ensures the SMALLEST tier is loaded only
 # when nothing is loaded — the router swaps up on demand and decays back. At
-# most one model is resident at a time (~2-12GB, not ~30GB).
+# most one model is resident at a time (~2-11GB, not ~13GB).
 #
 # macOS only. Usage:
 #   bash demo_llm_proxy/install-launchd.sh            # install + load now

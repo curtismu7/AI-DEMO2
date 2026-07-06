@@ -1,39 +1,36 @@
-# Multi-Model LLM Proxy
+# 2-Tier LLM Proxy
 
-Smart routing proxy for managing 5 local language models through a single endpoint.
+Smart routing proxy for managing 2 local language models through a single endpoint.
 
 ## Architecture
 
 The proxy runs in **swap mode** — only ONE tier is loaded at a time ("smallest
 that does the job"). A request is classed by its `model` field (per-agent pin
-via `LLAMACPP_MODEL`: BFF → gemma-3-4b-it, agent-service → gpt-oss-20b, Code
-Explorer → starcoder2-15b-instruct) or, absent a pin, by keyword
-classification. It is served by the smallest *loaded* tier that covers the
-class; if nothing loaded covers it, the router asks the host `tier-manager.js`
-(:8097) to swap — unload everything, load the needed tier — and after 5 idle
-minutes it decays back to Tier 1. The first request after a swap pays the
-model-load pause (a few seconds warm, up to ~30s cold for gpt-oss).
+via `LLAMACPP_MODEL`: BFF → phi-4-mini-instruct, agent-service → gpt-oss-20b)
+or, absent a pin, by keyword classification. It is served by the smallest
+*loaded* tier that covers the class; if nothing loaded covers it, the router
+asks the host `tier-manager.js` (:8097) to swap — unload everything, load the
+needed tier — and after 5 idle minutes it decays back to Tier 1. The first
+request after a swap pays the model-load pause (a few seconds warm, up to ~30s
+cold for gpt-oss).
 
-Tier capability order (smallest → largest):
+Two tiers, both US-origin:
 
-- **Tier 1**: Gemma-3-4B (4B) — simple explanations, "what is", basic Q&A
-- **Tier 2**: Gemma-4-12B qat (12B) — moderate complexity, "how does", multi-step reasoning
-- **Tier 3**: StarCoder2-15B-Instruct (15B) — code generation/debugging ("implement", "function", "regex")
-- **Tier 4**: Gemma-4-12B (12B) — advanced, fallback for overloaded tiers
-- **Tier 5**: gpt-oss-20B (20B) — first-class tier for complex technical/reasoning prompts ("demonstrate", token flows) and last-resort cascade target; MoE with ~3.6B active params, so fast despite its size
+- **Tier 1**: Microsoft Phi-4-mini-instruct (3.8B) — small/teaching/classification, "what is", basic Q&A, NL intent
+- **Tier 5**: OpenAI gpt-oss-20B (20B MoE) — vibe coding / reasoning / agent brain; complex technical prompts ("demonstrate", token flows), code generation, tool calls. MoE with ~3.6B active params, so fast despite its size
 
 The tier list is defined once in `router.js` (`TIERS`) and the exact GGUF
 filenames in `start-local-models.sh`; keep those two in sync when changing models.
 
 ## Request Classification
 
-The proxy analyzes incoming requests and routes to the **smallest model that can handle it**:
+The proxy analyzes incoming requests and routes to the appropriate tier:
 
 ```
-"what is OAuth?" → Gemma-3-4B (fastest)
-"how does token exchange work?" → Gemma-4-12B (balanced)
-"implement a PKCE verifier function" → StarCoder2-15B-Instruct (code)
-"demonstrate HITL approval" → gpt-oss-20B (reasoning)
+"what is OAuth?" → Phi-4-mini (small, fast)
+"how does token exchange work?" → gpt-oss-20b (reasoning)
+"implement a PKCE verifier function" → gpt-oss-20b (code)
+"demonstrate HITL approval" → gpt-oss-20b (reasoning)
 ```
 
 A bigger loaded tier serves smaller classes without a swap; swaps happen only upward, and idle decay brings it back down.
@@ -50,11 +47,8 @@ bash demo_llm_proxy/download-models.sh
 
 This script checks for required models and provides download links if missing.
 
-**Model files needed:**
-- `gemma-3-4b-it-qat-Q4_0.gguf` (~2.2GB)
-- `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` (~6.3GB)
-- `starcoder2-15b-instruct-v0.1-Q4_K_M.gguf` (~9.1GB)
-- `gemma-4-12b-it-UD-Q4_K_XL.gguf` (~6.9GB)
+**Model files needed (both US-origin):**
+- `microsoft_Phi-4-mini-instruct-Q4_K_M.gguf` (~2.5GB)
 - `gpt-oss-20b-mxfp4.gguf` (~11GB)
 
 ### 2. Update docker-compose.yml
@@ -62,7 +56,7 @@ This script checks for required models and provides download links if missing.
 The proxy is included in `docker-compose.yml` by default:
 
 ```bash
-docker compose up llm-proxy   # Starts proxy + 4 model instances
+docker compose up llm-proxy   # Starts proxy (host llama-server backends are separate)
 ```
 
 ### 3. Configure Agent Service
@@ -89,10 +83,8 @@ Response:
 {
   "status": "healthy",
   "models": [
-    {"name": "phi-2", "port": 8091, "healthy": true, "load": 0},
-    {"name": "phi-3", "port": 8092, "healthy": true, "load": 1},
-    {"name": "starcoder2-15b-instruct", "port": 8093, "healthy": true, "load": 0},
-    {"name": "gemma-4-12b", "port": 8094, "healthy": false, "load": 0}
+    {"name": "phi-4-mini-instruct", "port": 8091, "healthy": true, "load": 0},
+    {"name": "gpt-oss-20b",         "port": 8096, "healthy": false, "load": 0}
   ]
 }
 ```
@@ -150,7 +142,7 @@ curl http://localhost:8090/health | jq .
 If llama.cpp instances fail to start, check:
 
 1. Models exist in `/Users/cmuir/models/`
-2. Filenames match expected patterns (e.g., `*phi-2*.gguf`)
+2. Filenames match expected patterns (`microsoft_Phi-4-mini-instruct-Q4_K_M.gguf`, `gpt-oss-20b-mxfp4.gguf`)
 3. Model files are readable: `ls -lh /Users/cmuir/models/`
 
 ### Proxy can't reach models
@@ -158,34 +150,32 @@ If llama.cpp instances fail to start, check:
 If the proxy reports all models unhealthy:
 
 1. Check Docker network: `docker network ls | grep ai-demo`
-2. Verify containers started: `docker ps | grep llm-`
-3. Check logs: `docker compose logs llm-phi2`
+2. Verify host llama-server backends started: `bash demo_llm_proxy/start-local-models.sh status`
+3. Check logs: `tail /tmp/llama-models/llama-*.log`
 
 ### Slow responses
 
 - Check load per model: `curl http://localhost:8090/health | jq .models`
 - Verify model tier selection is appropriate for your prompts
-- Increase context size in `docker-compose.yml` for larger models (starcoder2, gemma)
+- Increase context size in `start-local-models.sh` (`--ctx-size` flag)
 
 ## Configuration
 
-Edit `docker-compose.yml` to customize:
+Edit `demo_llm_proxy/start-local-models.sh` to customize:
 
-- **Threads per model**: `LLAMA_ARG_THREADS`
-- **GPU layers**: `LLAMA_ARG_N_GPU_LAYERS` (0 = CPU only)
-- **Context size**: `LLAMA_ARG_CTX_SIZE` (larger = more memory, slower startup)
+- **Threads per model**: the 4th field in each `MODELS` entry (e.g. `4` for Tier 1)
+- **GPU layers**: `--n-gpu-layers 33` flag (set to `0` for CPU only)
+- **Context size**: `--ctx-size 4096` (larger = more memory, slower startup)
 
-Example: use CPU only by setting `N_GPU_LAYERS=0` in all llm-* services.
+Example: use CPU only by setting `--n-gpu-layers 0` for both tiers.
 
 ## Performance Tips
 
-1. **Phi-2 for chat** — fastest, good for simple explanations
-2. **Phi-3 for reasoning** — balanced speed/quality
-3. **StarCoder2 for technical** — complex OAuth/token flows
-4. **Gemma as fallback** — only when others are overloaded
+1. **Phi-4-mini for chat** — fastest, good for simple explanations and NL intent classification
+2. **gpt-oss-20b for reasoning/code** — complex OAuth/token flows, vibe coding, tool calls
 
 If you're seeing slow responses:
 
-- Reduce `LLAMA_ARG_CTX_SIZE` (uses less VRAM, but shorter context)
-- Disable GPU: set `N_GPU_LAYERS=0`
+- Reduce `--ctx-size` (uses less VRAM, but shorter context)
+- Disable GPU: set `--n-gpu-layers 0`
 - Use smaller quantization (Q3 instead of Q4)

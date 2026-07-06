@@ -31,7 +31,7 @@ def get_config() -> Config:
         # the smallest loaded tier). Override via AGENT_LLM_MODEL.
         model=os.environ.get("AGENT_LLM_MODEL")
             or os.environ.get("OPENAI_MODEL")
-            or "gemma-3-4b-it",
+            or "phi-4-mini-instruct",
         bff_internal_secret=os.environ.get("BFF_INTERNAL_SECRET", "dev-shared-secret-change-me"),
         bff_tool_url=os.environ.get("BFF_INTERNAL_TOOL_URL", "http://127.0.0.1:3001/internal/agent-tool"),
         host=os.environ.get("AGENT_HTTP_HOST", "127.0.0.1"),

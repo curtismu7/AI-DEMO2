@@ -39,7 +39,7 @@ LLM_BASE_URL: str = os.environ.get("AGENT_LLM_BASE_URL", "http://localhost:8090/
 LLM_MODEL: str = (
     os.environ.get("AGENT_LLM_MODEL")
     or os.environ.get("OPENAI_MODEL")
-    or "gemma-3-4b-it"
+    or "phi-4-mini-instruct"
 )
 BFF_INTERNAL_SECRET: str = os.environ.get("BFF_INTERNAL_SECRET", "dev-secret")
 BFF_INTERNAL_TOOL_URL: str = os.getenv("BFF_INTERNAL_TOOL_URL", "http://127.0.0.1:3001/internal/agent-tool")

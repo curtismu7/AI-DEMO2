@@ -24,7 +24,7 @@ def build_agent(
         from pydantic_ai.providers.anthropic import AnthropicProvider
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
         # run_handler resolves model to ctx.model or cfg.LLM_MODEL (a local-proxy
-        # tier id like "gemma-3-4b-it") before we get here, so an empty check is
+        # tier id like "phi-4-mini-instruct") before we get here, so an empty check is
         # not enough — only honor the caller's model when it's actually an
         # Anthropic model id; otherwise fall back to the Anthropic default.
         effective_model = (

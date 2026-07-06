@@ -1147,16 +1147,6 @@ async function main() {
       console.warn('[Bootstrap] TraT claims setup failed (non-fatal):', err.message);
     }
 
-    // Download Ollama phi model — non-fatal, runs after provisioning is complete.
-    console.log('  Downloading Ollama phi model (2.7B, used for OAuth Academy)...');
-    try {
-      execSync('ollama pull phi', { stdio: 'inherit', timeout: 600000 }); // 10 min timeout
-    } catch (err) {
-      console.warn('[Bootstrap] Ollama phi download failed (non-fatal):', err.message);
-      console.warn('  You can download it manually with: ollama pull phi');
-      console.warn('  Make sure Ollama is installed and running: https://ollama.ai');
-    }
-
     // Offer to auto-run ./run.sh restart so the running services pick up
     // the new .env. Skipped under --non-interactive (CI / scripted runs print
     // the instruction and exit). The repo root is two levels up from this

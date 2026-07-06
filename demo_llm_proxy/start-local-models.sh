@@ -1,7 +1,7 @@
 #!/bin/bash
-# start-local-models.sh — start 5 local llama-server instances for the LLM proxy
+# start-local-models.sh — start 2 local llama-server instances for the LLM proxy
 #
-# Runs 5 separate llama-server processes in background on ports 8091-8096.
+# Runs 2 separate llama-server processes in background on ports 8091 and 8096.
 # Call this BEFORE starting the docker-compose stack.
 #
 # Usage: bash demo_llm_proxy/start-local-models.sh [start|stop|status]
@@ -12,18 +12,11 @@ MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 LOG_DIR="/tmp/llama-models"
 mkdir -p "$LOG_DIR"
 
-# Tier-4 Gemma-12B reuses the Tier-2 qat GGUF when the canonical name is absent.
-TIER4_ALIAS="gemma-3-12b-it-qat-UD-Q4_K_XL.gguf"
-
 resolve_model_path() {
   local model="$1"
   local direct="$MODELS_DIR/$model"
   if [ -f "$direct" ]; then
     echo "$direct"
-    return 0
-  fi
-  if [ "$model" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
-    echo "$MODELS_DIR/$TIER4_ALIAS"
     return 0
   fi
   echo "$direct"
@@ -40,10 +33,7 @@ tier_file_present() {
 # clients get only the final answer in content.
 # NOTE: :8095 is skipped — the mcp-code-search container publishes it.
 declare -a MODELS=(
-  "8091:Tier1:gemma-3-4b-it-qat-Q4_0.gguf:4:"
-  "8092:Tier2:gemma-3-12b-it-qat-UD-Q4_K_XL.gguf:4:"
-  "8093:Tier3:starcoder2-15b-instruct-v0.1-Q4_K_M.gguf:6:"
-  "8094:Tier4:gemma-3-12b-it-UD-Q4_K_XL.gguf:8:"
+  "8091:Tier1:microsoft_Phi-4-mini-instruct-Q4_K_M.gguf:4:"
   "8096:Tier5:gpt-oss-20b-mxfp4.gguf:6:--jinja"
 )
 
@@ -144,7 +134,7 @@ ACTION="${1:-start}"
 case "$ACTION" in
   start)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔷 Starting 5-tier LLM proxy backend (local llama-server instances)"
+    echo "🔷 Starting 2-tier LLM proxy backend (local llama-server instances)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     failed=0
@@ -154,7 +144,7 @@ case "$ACTION" in
     echo ""
     if [ $failed -eq 0 ]; then
       echo "✅ All ${#MODELS[@]} models started successfully!"
-      echo "   Proxy will route to these instances on ports 8091-8096"
+      echo "   Proxy will route to these instances on ports 8091 and 8096"
       echo "   Start proxy with: docker compose up llm-proxy"
     else
       echo "❌ $failed model(s) failed to start"

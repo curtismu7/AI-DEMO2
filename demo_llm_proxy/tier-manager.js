@@ -20,7 +20,16 @@ const path = require('path');
 
 const PORT = process.env.TIER_MANAGER_PORT || 8097;
 const SCRIPT = path.join(__dirname, 'start-local-models.sh');
-const VALID_PORTS = new Set(['8091', '8092', '8093', '8094', '8096']);
+// Derive the valid tier ports from modelCatalog.js (SSOT) so this file never
+// drifts when tiers change. Falls back to the historical 5-tier set only if
+// the catalog can't be required (e.g. running from a stripped copy).
+let VALID_PORTS;
+try {
+  const { TIERS } = require('./modelCatalog');
+  VALID_PORTS = new Set(TIERS.map((t) => String(t.port)));
+} catch (_) {
+  VALID_PORTS = new Set(['8091', '8096']);
+}
 const ENSURE_TIMEOUT_MS = 180000; // cold load of the 11GB gpt-oss can be slow
 
 let queue = Promise.resolve();     // serializes swaps

@@ -91,7 +91,7 @@ export default function LlmConfigPanel() {
   };
 
   // A tier counts as loaded for a pick-list model if a healthy tier's name
-  // shares the model's family prefix (e.g. gemma-4-12b-it ↔ gemma-4-12b-qat).
+  // shares the model's family prefix (e.g. phi-4-mini-instruct ↔ phi-4-mini).
   const isTierLoaded = (model) => {
     if (!tiers?.models) return false;
     const family = model.replace(/-it$/, '');

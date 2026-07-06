@@ -4,8 +4,8 @@ import apiClient from '../services/apiClient';
 import { notifySuccess, notifyError, notifyInfo } from '../utils/appToast';
 import './LlmConfig.css';
 
-const PIN_MODELS = ['gemma-3-4b-it', 'gemma-4-12b-it', 'starcoder2-15b-instruct', 'gpt-oss-20b'];
-const DEFAULT_MODEL = 'gemma-3-4b-it';
+const PIN_MODELS = ['phi-4-mini-instruct', 'gpt-oss-20b'];
+const DEFAULT_MODEL = 'phi-4-mini-instruct';
 
 function formatBytes(bytes) {
   if (bytes == null || Number.isNaN(bytes)) return '—';

@@ -1,40 +1,30 @@
 #!/bin/bash
-# download-models.sh — verify the GGUF models the multi-model LLM proxy needs.
+# download-models.sh — verify the GGUF models the 2-tier LLM proxy needs.
 #
-# Usage: bash demo_llm_proxy/download-models.sh
+# Usage: bash demo_llm_proxy/download-models.sh [fetch]
 #
 # The exact filenames below MUST match the MODELS list in start-local-models.sh
-# (that script launches these files by name on ports 8091-8096). All are
-# quantized GGUF, optimized for llama.cpp.
+# (that script launches these files by name on ports 8091 and 8096). All are
+# quantized GGUF, optimized for llama.cpp. Both models are US-origin.
 
 set -e
 
 MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 mkdir -p "$MODELS_DIR"
 
-# Tier-4 Gemma-12B reuses the Tier-2 qat file when present (saves ~7GB).
-TIER4_ALIAS="gemma-3-12b-it-qat-UD-Q4_K_XL.gguf"
-
 model_present() {
   local file="$1"
-  [ -f "$MODELS_DIR/$file" ] && return 0
-  if [ "$file" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
-    return 0
-  fi
-  return 1
+  [ -f "$MODELS_DIR/$file" ]
 }
 
 # tier|exact filename|human label|hf repo (for `fetch`)
 MODELS=(
-  "1|gemma-3-4b-it-qat-Q4_0.gguf|Gemma-3-4B (4B) — simple, fast|unsloth/gemma-3-4b-it-qat-GGUF"
-  "2|gemma-3-12b-it-qat-UD-Q4_K_XL.gguf|Gemma-3-12B qat (12B) — moderate|unsloth/gemma-3-12b-it-qat-GGUF"
-  "3|starcoder2-15b-instruct-v0.1-Q4_K_M.gguf|StarCoder2-15B-Instruct (15B) — complex|bartowski/starcoder2-15b-instruct-v0.1-GGUF"
-  "4|gemma-3-12b-it-UD-Q4_K_XL.gguf|Gemma-3-12B (12B) — fallback|unsloth/gemma-3-12b-it-GGUF"
-  "5|gpt-oss-20b-mxfp4.gguf|gpt-oss-20B (20B) — top tier / overflow|ggml-org/gpt-oss-20b-GGUF"
+  "1|microsoft_Phi-4-mini-instruct-Q4_K_M.gguf|Phi-4-mini-instruct (3.8B) — small, fast, US-origin|bartowski/microsoft_Phi-4-mini-instruct-GGUF"
+  "5|gpt-oss-20b-mxfp4.gguf|gpt-oss-20B (20B MoE) — vibe coding / reasoning, US-origin|ggml-org/gpt-oss-20b-GGUF"
 )
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔷 Multi-Model LLM Setup — checking $MODELS_DIR"
+echo "🔷 2-Tier LLM Setup — checking $MODELS_DIR"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -60,15 +50,11 @@ fi
 
 if [ "${1:-}" = "fetch" ]; then
   command -v hf >/dev/null 2>&1 || { echo "❌ hf CLI not found — run: brew install huggingface-cli"; exit 1; }
-  echo "Downloading $missing missing model(s) into $MODELS_DIR (~35GB total)..."
+  echo "Downloading $missing missing model(s) into $MODELS_DIR (~13GB total)..."
   echo ""
   for entry in "${MODELS[@]}"; do
     IFS='|' read -r tier file label repo <<< "$entry"
     [ -f "$MODELS_DIR/$file" ] && continue
-    if [ "$file" = "gemma-3-12b-it-UD-Q4_K_XL.gguf" ] && [ -f "$MODELS_DIR/$TIER4_ALIAS" ]; then
-      echo "  ⏭️  Tier $tier: skipping (Tier 2 file satisfies alias)"
-      continue
-    fi
     echo "  ⬇️  Tier $tier: $file"
     hf download "$repo" "$file" --local-dir "$MODELS_DIR" || exit 1
   done
@@ -82,5 +68,5 @@ echo "⚠️  $missing model(s) missing — download into $MODELS_DIR, then star
 echo "     bash demo_llm_proxy/download-models.sh fetch"
 echo "     bash demo_llm_proxy/start-local-models.sh start"
 echo ""
-echo "    Tier 1 alone (~2.2GB) is enough for ./run-docker.sh swap mode (smallest model)."
+echo "    Tier 1 alone (~2.5GB) is enough for ./run-docker.sh swap mode (smallest model)."
 echo ""

@@ -220,15 +220,15 @@
   <p>You don't have to do anything now! In Step 6 you'll pick a ready-made setup, and llama will automatically download the brain the first time. Just be patient — the first download is several gigabytes.</p>
 
   <h3>Way B — Download it yourself into a folder</h3>
-  <p>Make a <code>models</code> folder in your home directory and download a brain into it. Example (a small, fast one — about 2&nbsp;GB):</p>
+  <p>Make a <code>models</code> folder in your home directory and download a brain into it. Example (a small, fast one — about 2.5&nbsp;GB):</p>
   <pre><code>mkdir -p ~/models
-hf download unsloth/gemma-3-4b-it-qat-GGUF gemma-3-4b-it-qat-Q4_0.gguf --local-dir ~/models</code></pre>
+hf download bartowski/microsoft_Phi-4-mini-instruct-GGUF microsoft_Phi-4-mini-instruct-Q4_K_M.gguf --local-dir ~/models</code></pre>
 
   <div class="tip">
     <b>Which brain should I pick?</b>
     <ul style="margin:6px 0">
-      <li><b>For chatting / asking questions:</b> a <b>Gemma</b> or <b>Qwen</b> model.</li>
-      <li><b>For "vibe coding" (the robot that edits files):</b> <b>gpt-oss 20B</b> is the best free local choice. ⭐</li>
+      <li><b>For chatting / asking questions:</b> <b>Phi-4-mini</b> (Microsoft, US-origin).</li>
+      <li><b>For "vibe coding" (the robot that edits files):</b> <b>gpt-oss 20B</b> (OpenAI, US-origin) is the best free local choice. ⭐</li>
       <li><b>Bigger number (20B, 14B) = smarter but slower &amp; needs more memory.</b> Smaller (4B, 1.5B) = faster but simpler.</li>
     </ul>
   </div>
@@ -324,7 +324,7 @@ hf download unsloth/gemma-3-4b-it-qat-GGUF gemma-3-4b-it-qat-Q4_0.gguf --local-d
   <p>Each brain runs as a tiny background "server" on a numbered <b>port</b> (like a parking spot number). When you pick a model, llama-vscode offers to <b>start its server</b> — say yes. The first time, it may download the brain (be patient).</p>
 
   <p>You can also start one yourself in the Terminal. Example:</p>
-  <pre><code>llama serve -m ~/models/gemma-3-4b-it-qat-Q4_0.gguf --port 8011</code></pre>
+  <pre><code>llama serve -m ~/models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf --port 8011</code></pre>
 
   <table>
     <tr><th>Job</th><th>Usual port (parking spot)</th></tr>

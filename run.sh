@@ -358,17 +358,18 @@ preflight_checks() {
   # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
   # and just verify reachability. If unset, default to localhost:8090.
   #
-  # Architecture note: :8090 is the multi-model LLM proxy (demo_llm_proxy/router.js).
-  # It classifies each request and routes it to 4 tier llama-server backends on
-  # :8091-8096, managed by demo_llm_proxy/start-local-models.sh (GGUFs verified by
-  # demo_llm_proxy/download-models.sh). NEVER bind a raw llama-server straight onto
-  # :8090 — the proxy owns that port and exposes the same OpenAI-compatible /v1 API
-  # the services expect. Both the router and the tiers bind 0.0.0.0, so Docker/k8s
-  # containers can reach them via host.docker.internal.
+  # Architecture note: :8090 is the 2-tier LLM proxy (demo_llm_proxy/router.js).
+  # It classifies each request and routes it to a llama-server backend on
+  # :8091 (small) or :8096 (big), managed by demo_llm_proxy/start-local-models.sh
+  # (GGUFs verified by demo_llm_proxy/download-models.sh). NEVER bind a raw
+  # llama-server straight onto :8090 — the proxy owns that port and exposes the
+  # same OpenAI-compatible /v1 API the services expect. Both the router and the
+  # tiers bind 0.0.0.0, so Docker/k8s containers can reach them via
+  # host.docker.internal.
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
-  local llamacpp_model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
+  local llamacpp_model="${LLAMACPP_MODEL:-phi-4-mini-instruct}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
   local llamacpp_host llamacpp_port
@@ -429,9 +430,9 @@ preflight_checks() {
             warn "Automatic install unavailable on this platform — build from https://github.com/ggml-org/llama.cpp"
           fi
           if command -v llama-server >/dev/null 2>&1; then
-            echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8096 + router :8090)…"
+            echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091 + :8096 + router :8090)…"
             _start_llm_proxy_stack \
-              && ok "LLM proxy ready on :8090 (routing tiers 8091-8096)" \
+              && ok "LLM proxy ready on :8090 (routing tiers 8091 + 8096)" \
               || warn "LLM proxy did not become ready — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
           fi
           ;;
@@ -441,11 +442,11 @@ preflight_checks() {
       warn "  Install it for NL intent routing: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp)"
     fi
   elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
-    ok "LLM proxy already serving :${llamacpp_port} (multi-model router)"
+    ok "LLM proxy already serving :${llamacpp_port} (2-tier router)"
   else
-    echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091-8096 + router :8090)…"
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091 + :8096 + router :8090)…"
     if _start_llm_proxy_stack; then
-      ok "LLM proxy ready on :8090 (routing tiers 8091-8096)"
+      ok "LLM proxy ready on :8090 (routing tiers 8091 + 8096)"
     else
       warn "LLM proxy did not become ready on :8090 — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
     fi

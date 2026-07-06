@@ -36,7 +36,7 @@ GW_SECRET="${BFF_INTERNAL_SECRET:-$(docker exec ai-demo-api-server printenv BFF_
 # AGENT_LLM_BASE_URL to repoint the agents and this preflight together.
 LLM_BASE="${AGENT_LLM_BASE_URL:-http://localhost:8090/v1}"
 PROXY_BASE="${LLM_BASE%/v1}"
-E2E_MODEL="${AGENT_LLM_MODEL:-gemma-3-4b-it}"
+E2E_MODEL="${AGENT_LLM_MODEL:-phi-4-mini-instruct}"
 CURL_TIMEOUT=45
 
 # Per-agent: name, AG-UI /run SSE port. langchain_agent runs three listeners

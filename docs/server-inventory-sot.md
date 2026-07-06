@@ -8,7 +8,7 @@
 ## Summary
 
 - **20 compose services** total (19 auto-start + 1 gated behind the `demo-attack` profile).
-- **Plus 4 host `llama-server` tiers** on ports 8091–8094 — NOT in compose; started via `demo_llm_proxy/start-local-models.sh`. The `llm-proxy` routes to these.
+- **Plus 2 host `llama-server` tiers** on ports 8091 (small) and 8096 (big) — NOT in compose; started via `demo_llm_proxy/start-local-models.sh`. The `llm-proxy` routes to these.
 - Two images are third-party pulls (weaviate, llama.cpp); the rest are locally built from this repo.
 
 ## Full inventory
@@ -30,7 +30,7 @@
 | **hitl-service** | ai-demo-hitl-service | 3009→3009 | 213 MB | Node (plain JS) | Human-in-the-loop consent service (CIBA-style approvals). |
 | **mortgage-service** | ai-demo-mortgage-service | 8082→8082 | 200 MB | Node (plain JS) | Mock mortgage backend/business API. |
 | **authz-server** | ai-demo-authz-server | 9001→9001 | 209 MB | Node | **Mock PingOne Authorization server** — token introspection + policy decisions. Build context = repo root (consumes `scope-topology.json`). |
-| **llm-proxy** | ai-demo-llm-proxy | 8090→8090 | 194 MB | Node smart router | Classifies each LLM request and routes to the smallest capable of 4 host `llama-server` tiers (8091–8094), cascading on overload. BFF + agent-service target this via `LLAMACPP_BASE_URL`. Reaches host via `host.docker.internal`. |
+| **llm-proxy** | ai-demo-llm-proxy | 8090→8090 | 194 MB | Node smart router | Classifies each LLM request and routes to one of 2 host `llama-server` tiers (small :8091 / big :8096) in swap mode — one tier loaded at a time. BFF + agent-service target this via `LLAMACPP_BASE_URL`. Reaches host via `host.docker.internal`. |
 | **weaviate** | ai-demo-weaviate | internal only (8080) | 274 MB | `semitechnologies/weaviate:latest` | Vector DB backing RAG code search. No host port; healthcheck via `wget /v1/meta`. Data in `weaviate-data` volume. |
 | **embeddings** | ai-demo-embeddings | 8084→8080 | 1.21 GB | `ghcr.io/ggml-org/llama.cpp:server` | llama.cpp in `--embedding` mode (NOT Ollama). OpenAI-compatible `/v1/embeddings`. GGUF model `nomic-embed-text-v1.5:Q8_0` (~140 MB) cached in `embed-models` volume. `start_period: 180s` warmup. |
 | **demo-mcp-code-search** | ai-demo-mcp-code-search | 8095→8095 | 334 MB | Node | RAG code-search MCP service over weaviate + embeddings. `/health` stays green while embedder warms (index/search 503 until ready). |
@@ -40,10 +40,8 @@
 
 | Process | Port | What it does |
 |---|---|---|
-| llama-server tier 1 | 8091 | Local LLM backend (smallest) — target of llm-proxy |
-| llama-server tier 2 | 8092 | Local LLM backend |
-| llama-server tier 3 | 8093 | Local LLM backend |
-| llama-server tier 4 | 8094 | Local LLM backend (largest) |
+| llama-server tier 1 | 8091 | Local LLM backend (small — Phi-4-mini-instruct) — target of llm-proxy |
+| llama-server tier 5 | 8096 | Local LLM backend (big — gpt-oss-20b) — target of llm-proxy |
 
 Start with: `bash demo_llm_proxy/start-local-models.sh` (or `demo_llm_proxy/start-local-models.sh`).
 
@@ -62,7 +60,8 @@ Start with: `bash demo_llm_proxy/start-local-models.sh` (or `demo_llm_proxy/star
 | 8082 | mortgage-service |
 | 8084 | embeddings (→8080 internal) |
 | 8090 | llm-proxy |
-| 8091–8094 | host llama-server tiers |
+| 8091 | host llama-server tier 1 (small) |
+| 8096 | host llama-server tier 5 (big) |
 | 8095 | demo-mcp-code-search |
 | 8888–8890 | langchain-agent (SSE / WS / health) |
 | 8891 | openai-agent |
@@ -78,7 +77,7 @@ Start with: `bash demo_llm_proxy/start-local-models.sh` (or `demo_llm_proxy/star
 - **mcp-gateway vs ping-gateway** are two implementations of the *same* role (auth-enforcing MCP proxy). Toggle: `ff_mcp_gateway_pinggateway`. Transport differs: mcp-gateway=WebSocket, ping-gateway=HTTP.
 - **agent-service host port is 3016** (not 3006) to dodge OrbStack's macOS reservation.
 - **demo-mcp-code-search** depends on `weaviate` (healthy) + `embeddings` (started, not healthy — it warms for up to 180s).
-- **llm-proxy is useless without the host llama-server tiers** (8091–8094) running first.
+- **llm-proxy is useless without the host llama-server tiers** (8091 + 8096) running first.
 - **Data persistence**: named volumes `ai-demo-bff-data`, `weaviate-data`, `embed-models`; ping-gateway `/var/gateway` must stay ephemeral (no named volume, else stale `ig.pid`).
 - **ungoverned-agent** is intentionally excluded from normal `up` (profile `demo-attack`).
 

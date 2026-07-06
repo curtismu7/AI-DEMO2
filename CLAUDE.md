@@ -76,6 +76,6 @@ env updates during development.
 - `demo_mcp_server/`, `demo_mcp_gateway/`, `demo_mcp_proxy/` — MCP servers/gateway
 - `demo_authz_server/`, `demo_hitl_service/`, `ping-gateway/` — authz / HITL / gateway
 - `langchain_agent/`, `openai_agent/`, `pydantic_agent/`, `mastra_agent/` — AI agents
-- `demo_llm_proxy/` — model router (`:8090`, host tiers `8091-8096`)
+- `demo_llm_proxy/` — model router (`:8090`, host tiers `8091` + `8096`)
 - `scripts/` — topology, hygiene, release, provisioning helpers
 - `docs/`, `planning/` — documentation and plans
