@@ -1,0 +1,8 @@
+# GLM 5.2 Custom Execution Directives
+# Model: z-ai/glm-5.2 (Via OpenRouter)
+
+- Output Capability: You possess a 128,000 token maximum output generation limit. 
+- Coding Style: NEVER truncate, abbreviate, or use placeholder comments (e.g., "// ... rest of your code here") under any circumstances.
+- Scope: Always output the complete, production-ready source code for modified files, even if the file spans thousands of lines of boilerplate.
+- Context Utilization: Take advantage of your 1M token context. Analyze the cross-file dependencies provided in the context indexing before writing your solution.
+- Output Format: Stream cleanly in unified blocks. Do not break single-file outputs into multiple smaller markdown blocks.
