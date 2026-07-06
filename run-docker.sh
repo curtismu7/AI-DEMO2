@@ -30,6 +30,16 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="${BASEDIR}/docker-compose.yml"
 OVERRIDE_FILE="${BASEDIR}/docker-compose.override.yml"
 
+# Pin the Compose project name so the stack is reachable by the same DNS
+# namespace regardless of which directory (main checkout or a git worktree)
+# the launcher is run from. docker-compose.yml documents this requirement
+# at the ping-gateway service. Without it, the default project name derives
+# from the cwd basename (e.g. "aidemo2guardrails" from a worktree), and
+# containers left over from a run under a different project name survive
+# `down --remove-orphans` because Compose can't see them — producing the
+# "container name /ai-demo-... is already in use" conflict on the next start.
+export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ai-demo}"
+
 # Auto-merge the local dev override (Vite HMR for the UI + `node --watch` for the
 # BFF) when it's present. Passing -f explicitly disables Compose's implicit
 # docker-compose.override.yml merge, so we add it back here. Set PROD_MODE=1 to
@@ -546,6 +556,27 @@ cmd_start() {
 
   # Always stop first — clean slate
   cmd_stop
+
+  # Defense-in-depth: a container left over from a different Compose project
+  # (e.g. a prior run under a different cwd, or a manual `docker run` using the
+  # same `container_name`) survives `down --remove-orphans` because Compose
+  # only removes containers it owns. Force-remove any container claiming an
+  # `ai-demo-*` name so `up` can recreate it. Sourced from the compose config
+  # so new services are picked up automatically.
+  local stale_names
+  stale_names="$(docker compose "${COMPOSE_FILES[@]}" config --format json 2>/dev/null \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(s.get("container_name","") for s in d.get("services",{}).values() if s.get("container_name")))' 2>/dev/null || true)"
+  if [[ -n "${stale_names}" ]]; then
+    local removed=0
+    for name in ${stale_names}; do
+      if docker rm -f "${name}" >/dev/null 2>&1; then
+        ((removed++))
+      fi
+    done
+    if [[ ${removed} -gt 0 ]]; then
+      warn "Removed ${removed} stale container(s) from a previous Compose project."
+    fi
+  fi
 
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo -e "${CYAN}${BOLD}   [DOCKER]  AI DEMO — STARTING                                    ${RESET}"
