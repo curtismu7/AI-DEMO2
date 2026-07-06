@@ -90,6 +90,14 @@ unset _override_host _pub_url
 
 API_PORT=3001
 UI_PORT=4000
+JAEGER_UI_PORT=16686
+JAEGER_OTLP_PORT=4317
+# OpenTelemetry → local Jaeger (same as docker-compose.yml). Set on every native
+# BFF launch so tracing works without editing demo_api_server/.env.
+OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:${JAEGER_OTLP_PORT}"
+OTEL_BOOTSTRAP="${BASEDIR}/scripts/otel-instrument.js"
+OTEL_NODE_OPTIONS="-r ${OTEL_BOOTSTRAP}"
+OTEL_SERVICE_NAME="demo-api-server"
 
 CERT_DIR="${BASEDIR}/certs"
 # mkcert names cert files after the first SAN argument, e.g.:
@@ -216,6 +224,7 @@ LOG_PYDANTIC=/tmp/demo-pydantic-agent.log
 LOG_AUTH=/tmp/demo-authorize.log
 LOG_HELIX=/tmp/demo-helix.log
 LOG_PG=/tmp/demo-ping-gateway.log
+LOG_JAEGER=/tmp/demo-jaeger.log
 PID_LOG_JANITOR=/tmp/demo-log-janitor.pid
 # Computed once — docker info is a daemon RPC (~200-500 ms); cache the result.
 DOCKER_AVAILABLE=false
@@ -712,6 +721,13 @@ print_status_table() {
     printf "  ${YELLOW}  [WAIT]  %-24s${RESET}  ${MAGENTA}:%-6s${RESET}  ${DIM}%-10s${RESET}  %s${RESET}\n" \
       "PingGateway (IG)" "3036" "stopped" "http://localhost:3036 (MCP gateway)"
   fi
+  if port_listening "${JAEGER_UI_PORT}"; then
+    printf "  ${GREEN}${BOLD}  [OK]  %-24s${RESET}  ${MAGENTA}:%-6s${RESET}  ${GREEN}%-10s${RESET}  ${YELLOW}%s${RESET}\n" \
+      "Jaeger (tracing UI)" "${JAEGER_UI_PORT}" "port-up" "http://localhost:${JAEGER_UI_PORT} (service: ${OTEL_SERVICE_NAME})"
+  else
+    printf "  ${YELLOW}  [WAIT]  %-24s${RESET}  ${MAGENTA}:%-6s${RESET}  ${DIM}%-10s${RESET}  %s${RESET}\n" \
+      "Jaeger (tracing UI)" "${JAEGER_UI_PORT}" "stopped" "http://localhost:${JAEGER_UI_PORT}"
+  fi
   if port_listening ${UI_PORT}; then
     printf "  ${GREEN}${BOLD}  [OK]  %-24s${RESET}  ${MAGENTA}:%-6s${RESET}  ${GREEN}%-10s${RESET}  ${YELLOW}%s${RESET}\n" \
       "Demo UI (React)" "${UI_PORT}" "port-up" "${CLIENT_URL}"
@@ -909,6 +925,7 @@ case "${COMMAND}" in
     echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG]   Admin Config  ${YELLOW}${BOLD}${CLIENT_URL}/config${RESET}"
     echo -e "${GREEN}${BOLD}  │${RESET}  [SSL]  Admin Login   ${YELLOW}${BOLD}${API_URL}/api/auth/oauth/login${RESET}"
     echo -e "${GREEN}${BOLD}  │${RESET}  [USER]  User Login    ${YELLOW}${BOLD}${API_URL}/api/auth/oauth/user/login${RESET}"
+    echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE] Jaeger UI     ${YELLOW}${BOLD}http://localhost:${JAEGER_UI_PORT}${RESET}  ${DIM}(BFF, gateway, MCP, authz, HITL, agent)${RESET}"
     echo -e "${GREEN}${BOLD}  └─────────────────────────────────────────────────────────────┘${RESET}"
     echo ""
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -988,7 +1005,7 @@ fi
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
 SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mortgage_service mastra_agent demo_authz_server)
 SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                    "ts"          "")
-SVC_INSTALL_FLAGS=(""        ""                 ""       ""                  ""                   ""                    ""                 ""                    ""            "")
+SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                    ""            "")
 
 # Decide whether a Node service needs `npm install`. Prints a short human reason
 # and returns 0 when install is needed; returns 1 (no output) when in sync.
@@ -1196,12 +1213,33 @@ refresh_service_envs() {
     demo_api_server/scripts/refresh-service-envs.js || true
 }
 
+# Start Jaeger (OTLP :4317, UI :16686) when missing — native BFF exports traces
+# to localhost:4317 (OTEL_EXPORTER_OTLP_ENDPOINT). Uses the same compose service
+# as run-docker.sh; no-op when the collector is already listening.
+ensure_jaeger() {
+  if port_listening "${JAEGER_OTLP_PORT}"; then
+    return 0
+  fi
+  if [[ "$DOCKER_AVAILABLE" != "true" ]]; then
+    warn "Jaeger not listening on :${JAEGER_OTLP_PORT} and Docker unavailable — tracing may be empty"
+    return 1
+  fi
+  if [[ ! -f "${BASEDIR}/docker-compose.yml" ]]; then
+    return 1
+  fi
+  echo "[TRACE]  Starting Jaeger (OTLP :${JAEGER_OTLP_PORT}, UI :${JAEGER_UI_PORT})..."
+  COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ai-demo}" \
+    docker compose -f "${BASEDIR}/docker-compose.yml" up -d jaeger \
+    >> "${LOG_JAEGER}" 2>&1 || true
+}
+
 # ── Pre-launch: write all service .envs from PingOne before any process starts ──
 # refresh_service_envs queries PingOne by canonical app name (scope-topology.json),
 # fetches live credentials, and writes a correct .env for every service.
 # Falls back silently if PingOne is unreachable — idempotent and safe to re-run.
 echo "[ENVS] Refreshing service .env files from PingOne..."
 refresh_service_envs
+ensure_jaeger
 
 # ── Tier 1: Demo API Server (Express) on :3001 ───────────────────────────────
 echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."
@@ -1209,6 +1247,9 @@ echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."
   cd "$BASEDIR/demo_api_server"
   PORT=${API_PORT} \
   NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-}" \
+  OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+  OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME}" \
+  NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
   REACT_APP_CLIENT_URL=${CLIENT_URL} \
   FRONTEND_ADMIN_URL=${CLIENT_URL}/admin \
   FRONTEND_DASHBOARD_URL=${CLIENT_URL}/dashboard \
@@ -1241,6 +1282,9 @@ if [[ -d "$BASEDIR/demo_mcp_server" ]]; then
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
     NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-}" \
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="mcp-server" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_MCP}" 2>&1
   ) &
   echo $! > "$PID_MCP"
@@ -1254,6 +1298,9 @@ if [[ -d "$BASEDIR/demo_authz_server" ]]; then
   echo "[AUTH]   Starting PingOne Authorization Server (mock) on :9001..."
   (
     cd "$BASEDIR/demo_authz_server"
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="authz-server" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_AUTH}" 2>&1
   ) &
   echo $! > "$PID_AUTHZ"
@@ -1270,6 +1317,9 @@ if [[ -d "$BASEDIR/demo_mcp_gateway" ]]; then
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
     GW_INTROSPECTION_ENDPOINT="${GW_INTROSPECTION_ENDPOINT:-http://localhost:9001/as/introspect}" \
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="mcp-gateway" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_GW}" 2>&1
   ) &
   echo $! > "$PID_GW"
@@ -1293,7 +1343,11 @@ if [[ -d "$BASEDIR/demo_hitl_service" ]]; then
   echo "[ALERT] Starting HITL Service on :3009..."
   (
     cd "$BASEDIR/demo_hitl_service"
-    PORT=3009 npm start > "${LOG_HITL}" 2>&1
+    PORT=3009 \
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="hitl-service" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
+    npm start > "${LOG_HITL}" 2>&1
   ) &
   echo $! > "$PID_HITL"
 fi
@@ -1316,6 +1370,9 @@ if [[ -d "$BASEDIR/demo_agent_service" ]]; then
     BFF_TOOL_URL="http://127.0.0.1:${API_PORT}/internal/agent-tool" \
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="agent-service" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_AGENT_SVC}" 2>&1
   ) &
   echo $! > "$PID_AGENT_SVC"
@@ -1326,7 +1383,11 @@ if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
   echo "[INVEST] Starting MCP Invest Server on :8081..."
   (
     cd "$BASEDIR/demo_mcp_invest"
-    PORT=8081 npm start > "${LOG_INVEST}" 2>&1
+    PORT=8081 \
+    OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+    OTEL_SERVICE_NAME="mcp-invest" \
+    NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
+    npm start > "${LOG_INVEST}" 2>&1
   ) &
   echo $! > "$PID_INVEST"
 fi
@@ -1515,6 +1576,7 @@ echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]  App            ${YELLOW}${BOLD}${C
 echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG]   Admin Config   ${YELLOW}${BOLD}${CLIENT_URL}/config${RESET}"
 echo -e "${GREEN}${BOLD}  │${RESET}  [SSL]  Admin Login    ${YELLOW}${BOLD}${API_URL}/api/auth/oauth/login${RESET}"
 echo -e "${GREEN}${BOLD}  │${RESET}  [USER]  User Login     ${YELLOW}${BOLD}${API_URL}/api/auth/oauth/user/login${RESET}"
+echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE] Jaeger UI      ${YELLOW}${BOLD}http://localhost:${JAEGER_UI_PORT}${RESET}  ${DIM}(BFF, gateway, MCP, authz, HITL, agent)${RESET}"
 echo -e "${GREEN}${BOLD}  └─────────────────────────────────────────────────────────────┘${RESET}"
 echo ""
 echo -e "${MAGENTA}${BOLD}  ┌─ QUICK START ───────────────────────────────────────────────┐${RESET}"

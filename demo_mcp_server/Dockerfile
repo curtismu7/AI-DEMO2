@@ -10,8 +10,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for build)
-RUN npm ci
+# Install dependencies (including dev dependencies for build).
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copy source code
 COPY . .

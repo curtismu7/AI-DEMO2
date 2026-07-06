@@ -5,7 +5,9 @@ ENV GIT_SHA=$GIT_SHA
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 COPY src/ ./src/
 

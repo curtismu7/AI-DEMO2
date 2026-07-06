@@ -102,6 +102,7 @@ import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ServersPage from "./pages/ServersPage";
+import TracingPage from "./pages/TracingPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
@@ -501,6 +502,21 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <ServersPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/tracing"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TracingPage />
                         </main>
                       </>
                     ) : (

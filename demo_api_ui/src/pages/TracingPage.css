@@ -1,0 +1,219 @@
+.tracing-page {
+  padding: 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tracing-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.tracing-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.tracing-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #4b5563;
+  max-width: 52rem;
+}
+
+.tracing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.tracing-meta {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.tracing-btn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.tracing-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.tracing-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tracing-btn--secondary {
+  background: #f9fafb;
+}
+
+.tracing-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tracing-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tracing-pill--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tracing-pill--down {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tracing-error {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.tracing-error-hint {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: #7f1d1d;
+}
+
+.tracing-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tracing-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.tracing-filter select {
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.tracing-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  margin-bottom: 24px;
+}
+
+.tracing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tracing-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tracing-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #111827;
+  vertical-align: middle;
+}
+
+.tracing-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.tracing-op {
+  font-weight: 600;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tracing-id code {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.tracing-link {
+  font-weight: 600;
+  color: #1d4ed8;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tracing-link:hover {
+  text-decoration: underline;
+}
+
+.tracing-empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 32px 16px !important;
+}
+
+.tracing-help {
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.tracing-help h2 {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tracing-help ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.6;
+}

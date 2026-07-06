@@ -669,5 +669,7 @@ router.get('/inventory/sizes', async (_req, res) => {
   return res.status(200).json(await getServerSizes());
 });
 
+router.use('/tracing', require('./tracing'));
+
 module.exports = router;
 

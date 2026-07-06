@@ -433,6 +433,7 @@ export default function AdminSideNav({ user }) {
         // Token Diff — token chain now lives in the portal rails / agent panel.
         // { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
+        { label: "Tracing", path: "/tracing", icon: "log" },
         {
           label: "Error Audit Log",
           path: "/error-audit",
@@ -703,6 +704,7 @@ export default function AdminSideNav({ user }) {
     // index-coupled groups (same rule as AI Control Plane) so the auto-expand
     // adminIdx/customerIdx offsets above stay valid.
     { label: "Servers", path: "/servers", icon: "clk" },
+    { label: "Tracing", path: "/tracing", icon: "log" },
   ];
 
   // Filter by role. adminOnly items are NOT hidden — they render with an

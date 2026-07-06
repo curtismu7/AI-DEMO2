@@ -9,7 +9,9 @@ ENV GIT_SHA=$GIT_SHA
 WORKDIR /repo/demo_authz_server
 
 COPY demo_authz_server/package*.json ./
-RUN npm ci --omit=dev
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 COPY demo_authz_server/*.js ./
 COPY demo_authz_server/routes/ ./routes/

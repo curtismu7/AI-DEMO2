@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@opentelemetry/auto-instrumentations-node": "^0.59.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
+    "@opentelemetry/sdk-node": "^0.200.0",
     "axios": "^1.17.0",
     "dotenv": "^17.2.2",
     "jose": "^6.2.3",

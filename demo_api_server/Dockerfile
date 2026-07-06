@@ -17,8 +17,9 @@ RUN apk add --no-cache python3 make g++ curl
 # Copy package files from service subdirectory (context is repo root)
 COPY demo_api_server/package*.json ./
 
-# Install production dependencies (native modules compile here)
-RUN npm ci --omit=dev
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 # Copy BFF application code
 COPY demo_api_server/ .

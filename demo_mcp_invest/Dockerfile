@@ -3,7 +3,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json tsconfig.json ./
-RUN npm ci
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY src/ ./src/
 RUN npm run build
@@ -16,7 +18,9 @@ ENV GIT_SHA=$GIT_SHA
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --legacy-peer-deps --omit=dev --no-audit --no-fund
 
 COPY --from=builder /app/dist ./dist
 COPY openapi/ ./openapi/

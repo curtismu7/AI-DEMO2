@@ -11,7 +11,7 @@ COPY mcp-tool-schemas.json ./
 # Install deps before copying source (layer cache)
 COPY demo_mcp_gateway/package*.json demo_mcp_gateway/tsconfig.json ./demo_mcp_gateway/
 WORKDIR /repo/demo_mcp_gateway
-RUN npm ci
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY demo_mcp_gateway/src/ ./src/
 RUN npm run build
@@ -27,7 +27,9 @@ ENV GIT_SHA=$GIT_SHA
 WORKDIR /repo/demo_mcp_gateway
 
 COPY demo_mcp_gateway/package*.json ./
-RUN npm ci --omit=dev
+# Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
+# reliably from a fresh checkout.
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 COPY --from=builder /repo/demo_mcp_gateway/dist ./dist
 
