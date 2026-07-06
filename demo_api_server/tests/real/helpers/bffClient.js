@@ -46,4 +46,27 @@ function loadFixtures() {
   return JSON.parse(fs.readFileSync(FIXTURES_CACHE, 'utf8'));
 }
 
-module.exports = { createBffClient, setVertical, restoreVertical, loadFixtures, BFF_BASE };
+/** Normalize account type strings for case-insensitive lookup (CHECKING vs checking). */
+function normalizeAccountType(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+/** Find an account id by type across API field naming variants. */
+function findAccountId(accounts, type) {
+  if (!Array.isArray(accounts)) return undefined;
+  const want = normalizeAccountType(type);
+  const match = accounts.find((a) => {
+    const raw = a.accountType ?? a.account_type ?? a.type;
+    return normalizeAccountType(raw) === want;
+  });
+  return match?.id;
+}
+
+module.exports = {
+  createBffClient,
+  setVertical,
+  restoreVertical,
+  loadFixtures,
+  findAccountId,
+  BFF_BASE,
+};

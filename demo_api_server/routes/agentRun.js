@@ -38,10 +38,42 @@ router.use(agentSessionMiddleware);
 // ---------------------------------------------------------------------------
 const _traceStore = new Map(); // runId → { events: Array, expiresAt: number }
 const _TRACE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const _hitlConsentSubs = new Map(); // runId → { unsub, res }
+
+/** Subscribe to cross-instance consent pub/sub and forward to the open SSE stream. */
+async function _ensureHitlConsentSubscription(runId, res) {
+  if (_hitlConsentSubs.has(runId)) return;
+  try {
+    const unsub = await agentRunStore.subscribeConsent(runId, (payload) => {
+      if (!res || res.writableEnded) return;
+      try {
+        res.write(`data: ${JSON.stringify({
+          type: 'CUSTOM',
+          name: 'hitl_consent',
+          value: payload,
+        })}\n\n`);
+      } catch (_) { /* client disconnected */ }
+    });
+    _hitlConsentSubs.set(runId, { unsub, res });
+  } catch (err) {
+    console.warn('[agentRun] HITL consent subscribe failed:', err.message);
+  }
+}
+
+/** Tear down a run-scoped consent subscription. */
+async function _cleanupHitlConsentSubscription(runId) {
+  const entry = _hitlConsentSubs.get(runId);
+  if (!entry) return;
+  _hitlConsentSubs.delete(runId);
+  try {
+    await entry.unsub();
+  } catch (_) { /* best-effort */ }
+}
 
 function _recordTraceEvents(runId, chunk, owner) {
   const text = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
   let entry = _traceStore.get(runId);
+  let hitlSuspended = false;
   if (!entry) {
     // Bind the trace to the user who started the run so /runs/:runId/events
     // cannot be read by another authenticated user who guesses the runId.
@@ -54,6 +86,7 @@ function _recordTraceEvents(runId, chunk, owner) {
       const evt = JSON.parse(line.slice(6));
       entry.events.push(evt);
       if (evt.type === 'RUN_FINISHED' && evt.outcome?.type === 'interrupt' && owner) {
+        hitlSuspended = true;
         agentRunStore.setRunState(runId, {
           status: 'suspended_hitl',
           userId: owner,
@@ -65,6 +98,7 @@ function _recordTraceEvents(runId, chunk, owner) {
       }
     } catch (_) { /* partial frame */ }
   }
+  return hitlSuspended;
 }
 setInterval(() => {
   const now = Date.now();
@@ -408,6 +442,7 @@ router.post('/run', async (req, res) => {
   let agentReq;
   req.on('close', () => {
     if (agentReq) agentReq.destroy();
+    _cleanupHitlConsentSubscription(runId);
   });
 
   agentReq = http.request(options, (agentRes) => {
@@ -424,17 +459,22 @@ router.post('/run', async (req, res) => {
             code: 'AGENT_HTTP_ERROR',
           }) + '\n\n');
         } catch (_) {}
-        res.end();
+        _cleanupHitlConsentSubscription(runId).finally(() => res.end());
       });
       return;
     }
     // Pipe SSE stream verbatim to browser and record events for trace retrieval
     agentRes.on('data', (chunk) => {
-      _recordTraceEvents(runId, chunk, userId);
+      const hitlSuspended = _recordTraceEvents(runId, chunk, userId);
+      if (hitlSuspended) {
+        _ensureHitlConsentSubscription(runId, res).catch((err) => {
+          console.warn('[agentRun] HITL consent wiring failed:', err.message);
+        });
+      }
       res.write(chunk);
     });
     agentRes.on('end', () => {
-      res.end();
+      _cleanupHitlConsentSubscription(runId).finally(() => res.end());
     });
     agentRes.on('error', (err) => {
       console.error('[agentRun] Agent service stream error:', err.message);
@@ -446,7 +486,7 @@ router.post('/run', async (req, res) => {
           code: 'STREAM_ERROR',
         }) + '\n\n');
       } catch (_) {}
-      res.end();
+      _cleanupHitlConsentSubscription(runId).finally(() => res.end());
     });
   });
 
@@ -459,7 +499,7 @@ router.post('/run', async (req, res) => {
         code: 'AGENT_UNREACHABLE',
       }) + '\n\n');
     } catch (_) {}
-    res.end();
+    _cleanupHitlConsentSubscription(runId).finally(() => res.end());
   });
 
   agentReq.write(bodyStr);
@@ -485,4 +525,9 @@ module.exports = router;
 // Exported for the framework-routing test so it asserts against the actual
 // constants instead of a re-declared copy that can silently drift.
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
-module.exports.__test = { resolveAgentRunTools, _recordTraceEvents };
+module.exports.__test = {
+  resolveAgentRunTools,
+  _recordTraceEvents,
+  _ensureHitlConsentSubscription,
+  _cleanupHitlConsentSubscription,
+};

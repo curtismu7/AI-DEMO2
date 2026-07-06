@@ -1,6 +1,6 @@
 'use strict';
 
-const { createBffClient, setVertical, restoreVertical } = require('../helpers/bffClient');
+const { createBffClient, setVertical, restoreVertical, findAccountId } = require('../helpers/bffClient');
 const { resetSuite } = require('../helpers/reset');
 
 const VERTICAL = 'workforce';
@@ -21,8 +21,8 @@ describe(`HITL enforcement — ${VERTICAL} vertical (real)`, () => {
 
     const acctRes = await client.get('/api/accounts/my');
     if (acctRes.status === 200 && acctRes.data.accounts) {
-      chkId = acctRes.data.accounts.find(a => a.accountType === 'checking')?.id;
-      savId = acctRes.data.accounts.find(a => a.accountType === 'savings')?.id;
+      chkId = findAccountId(acctRes.data.accounts, 'checking');
+      savId = findAccountId(acctRes.data.accounts, 'savings');
     }
   });
 
