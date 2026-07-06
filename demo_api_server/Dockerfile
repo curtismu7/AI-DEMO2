@@ -30,6 +30,8 @@ COPY scope-topology.json /scope-topology.json
 COPY service-topology.json /service-topology.json
 # geminiNlIntent.js resolves to /docs/HELIX_AGENT_DIRECTIVES.json
 COPY docs/ /docs/
+# llamacppModelsService.js resolves to /demo_llm_proxy/modelCatalog.js (../../ from /app/services)
+COPY demo_llm_proxy/modelCatalog.js /demo_llm_proxy/modelCatalog.js
 
 # Create data directory with proper permissions. Pre-create the LMDB persist
 # dir (/app/data/persistent) so that when docker-compose mounts the
