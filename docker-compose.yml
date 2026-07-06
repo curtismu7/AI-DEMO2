@@ -728,6 +728,7 @@ services:
       # authz server by compose service DNS, not host.docker.internal.
       PG_OLB_BACKEND_URL: "http://mcp-server:8080"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
       # Do NOT pin it here — the env block wins over env_file, and a placeholder

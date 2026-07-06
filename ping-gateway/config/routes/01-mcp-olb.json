@@ -42,7 +42,7 @@
       "config": {
         "requireHttps": false,
         "scopes": [
-          "${env['PG_INBOUND_SCOPE']}"
+          "${empty env['PG_INBOUND_SCOPE'] ? 'gateway:mcp:invoke' : env['PG_INBOUND_SCOPE']}"
         ],
         "accessTokenResolver": "RsFilterTokenResolver"
       }
