@@ -23,6 +23,7 @@ const express = require('express');
 const http = require('http');
 const configStore = require('../services/configStore');
 const { verticalManifest } = require('../services/verticalManifest');
+const { agentRunStore } = require('../services/agentRunStore');
 const verticalDispatch = require('../services/verticalDispatch');
 const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const { mintIntentToken } = require('../services/intentTokenService');
@@ -49,7 +50,20 @@ function _recordTraceEvents(runId, chunk, owner) {
   }
   for (const line of text.split('\n')) {
     if (!line.startsWith('data: ')) continue;
-    try { entry.events.push(JSON.parse(line.slice(6))); } catch (_) { /* partial frame */ }
+    try {
+      const evt = JSON.parse(line.slice(6));
+      entry.events.push(evt);
+      if (evt.type === 'RUN_FINISHED' && evt.outcome?.type === 'interrupt' && owner) {
+        agentRunStore.setRunState(runId, {
+          status: 'suspended_hitl',
+          userId: owner,
+          threadId: evt.threadId || null,
+          interrupt: evt.outcome.interrupts?.[0] || null,
+        }).catch((err) => {
+          console.warn('[agentRun] failed to persist HITL suspend state:', err.message);
+        });
+      }
+    } catch (_) { /* partial frame */ }
   }
 }
 setInterval(() => {
@@ -471,4 +485,4 @@ module.exports = router;
 // Exported for the framework-routing test so it asserts against the actual
 // constants instead of a re-declared copy that can silently drift.
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
-module.exports.__test = { resolveAgentRunTools };
+module.exports.__test = { resolveAgentRunTools, _recordTraceEvents };
