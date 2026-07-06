@@ -26,4 +26,21 @@ describe('agentRun HITL suspend wiring', () => {
       interrupt: { id: 'int-1' },
     });
   });
+
+  test('wires subscribeConsent and forwards consent as CUSTOM SSE event', async () => {
+    const { _ensureHitlConsentSubscription, _cleanupHitlConsentSubscription } =
+      require('../routes/agentRun').__test;
+    const mockRes = { writableEnded: false, write: jest.fn() };
+
+    await _ensureHitlConsentSubscription('run-hitl-sub', mockRes);
+    await agentRunStore.publishConsent('run-hitl-sub', { approved: true });
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockRes.write).toHaveBeenCalled();
+    const payload = mockRes.write.mock.calls[0][0];
+    expect(payload).toContain('"name":"hitl_consent"');
+    expect(payload).toContain('"approved":true');
+
+    await _cleanupHitlConsentSubscription('run-hitl-sub');
+  });
 });

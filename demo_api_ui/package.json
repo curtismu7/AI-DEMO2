@@ -49,6 +49,7 @@
     "test:e2e:admin": "playwright test tests/e2e/admin-dashboard.spec.js --reporter=list",
     "test:e2e:security": "playwright test tests/e2e/security-settings.spec.js --reporter=list",
     "test:e2e:agent": "playwright test tests/e2e/banking-agent.spec.js --reporter=list",
+    "test:e2e:hitl": "playwright test tests/e2e/hitl-transfer.spec.js tests/e2e/hitl-agui-interrupt.spec.js --reporter=list",
     "test:e2e:customer": "playwright test tests/e2e/customer-dashboard.spec.js --reporter=list",
     "test:e2e:landing": "playwright test tests/e2e/landing-marketing.spec.js --reporter=list",
     "test:e2e:ui:smoke": "playwright test tests/e2e/customer-dashboard.spec.js tests/e2e/landing-marketing.spec.js --reporter=list",
