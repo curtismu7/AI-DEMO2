@@ -10,13 +10,13 @@ Read `CLAUDE.md` first, then [REGRESSION_PLAN.md](./REGRESSION_PLAN.md) §1 befo
     },
     "provider": "llamacpp",
     "inline_provider": "llamacpp",
-    "default_model": "qwen2.5-3b-instruct"
+    "default_model": "phi-4-mini-instruct"
   },
   "assistant": {
     "version": "2",
     "default_model": {
       "provider": "llamacpp",
-      "model": "qwen2.5-3b-instruct"
+      "model": "phi-4-mini-instruct"
     }
   }
 }

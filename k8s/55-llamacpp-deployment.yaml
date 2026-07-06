@@ -75,7 +75,7 @@ spec:
           - "--port"
           - "8090"
           - "-hf"
-          - "ggml-org/gemma-3-4b-it-GGUF:Q4_K_M"
+          - "bartowski/microsoft_Phi-4-mini-instruct-GGUF:microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
         volumeMounts:
         - name: models
           mountPath: /root/.cache/llama.cpp

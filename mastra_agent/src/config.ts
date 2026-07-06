@@ -36,7 +36,7 @@ export function getConfig(): Config {
     // Default is a proxy tier id (the router recognizes it and serves it from
     // the smallest loaded tier). Override via AGENT_LLM_MODEL.
     model:
-      process.env.AGENT_LLM_MODEL ?? process.env.OPENAI_MODEL ?? 'gemma-3-4b-it',
+      process.env.AGENT_LLM_MODEL ?? process.env.OPENAI_MODEL ?? 'phi-4-mini-instruct',
     bffInternalSecret: process.env.BFF_INTERNAL_SECRET ?? 'dev-shared-secret-change-me',
     bffToolUrl: process.env.BFF_INTERNAL_TOOL_URL ?? 'http://127.0.0.1:3001/internal/agent-tool',
     host: process.env.AGENT_HTTP_HOST ?? '127.0.0.1',

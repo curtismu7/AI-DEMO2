@@ -111,7 +111,7 @@ data:
   # origin only — the services append /v1. The pod downloads the GGUF on first
   # start; the served model id is what llama-server reports via /v1/models.
   LLAMACPP_BASE_URL: "http://llamacpp:8090"
-  LLAMACPP_MODEL: "gemma-3-4b-it"
+  LLAMACPP_MODEL: "phi-4-mini-instruct"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -7,7 +7,6 @@ const httpProxy = require('http-proxy');
 // host.docker.internal lets the container reach llama-server processes running
 // on the host; override with LLAMA_HOST for non-Docker runs.
 const HOST = process.env.LLAMA_HOST || 'host.docker.internal';
-const COMPLEXITY_CHAR_THRESHOLD = 150; // prompt length above which we bump a tier
 const HEALTH_TTL_MS = 30000;           // don't re-probe a backend more often than this
 const HEALTH_INTERVAL_MS = HEALTH_TTL_MS; // sweep cadence — matches the TTL so no wasted passes
 
@@ -20,30 +19,25 @@ const SWAP_POLL_MS = 1500;             // health-poll cadence while a swap is lo
 const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unloading
 const IDLE_DECAY_MS = parseInt(process.env.LLM_PROXY_IDLE_DECAY_MS || '300000', 10); // 5 min
 
-// Model tiers, smallest → largest capability. Names/sizes MUST match the
-// processes start-local-models.sh launches on each port. health/load/lastCheck
-// live on the tier object itself (single source of truth).
+// Two tiers only (US-origin): small (Phi-4-mini, :8091) and big (gpt-oss-20b,
+// :8096). Names/sizes MUST match the processes start-local-models.sh launches
+// on each port. health/load/lastCheck live on the tier object itself.
 const TIERS = [
-  { name: 'gemma-3-4b',      port: 8091, size: '4B',  host: HOST },
-  { name: 'gemma-4-12b-qat', port: 8092, size: '12B', host: HOST },
-  { name: 'starcoder2-15b-instruct', port: 8093, size: '15B', host: HOST },
-  { name: 'gemma-4-12b',     port: 8094, size: '12B', host: HOST },
-  // gpt-oss-20b: strongest tier — complex technical/reasoning prompts and any
-  // agent that pins model=gpt-oss-20b. MoE (~3.6B active params), so fast
-  // despite the size. On :8096 because mcp-code-search publishes :8095.
-  { name: 'gpt-oss-20b',     port: 8096, size: '20B', host: HOST },
+  { name: 'phi-4-mini-instruct', port: 8091, size: '3.8B', host: HOST },
+  // gpt-oss-20b: complex technical/reasoning prompts and any agent that pins
+  // model=gpt-oss-20b. MoE (~3.6B active params), so fast despite the size.
+  // On :8096 because mcp-code-search publishes :8095.
+  { name: 'gpt-oss-20b',         port: 8096, size: '20B',  host: HOST },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
 // ── Per-agent routing: honor the request's `model` field ───────────────────
-// Each agent pins its class via LLAMACPP_MODEL (BFF → gemma-3-4b-it,
-// agent-service → gpt-oss-20b, Code Explorer → starcoder2-15b-instruct).
-// The value is a MINIMUM capability class: a bigger loaded tier serves it
-// without a swap. Unknown/absent model falls back to keyword classification.
+// Each agent pins its class via LLAMACPP_MODEL (BFF → phi-4-mini-instruct,
+// agent-service → gpt-oss-20b). The value is a MINIMUM capability class: a
+// bigger loaded tier serves it without a swap. Unknown/absent model falls back
+// to keyword classification.
 const MODEL_CLASS = [
-  [/gemma-3-4b/, 0],
-  [/gemma-4-12b|gemma-3-12b/, 1],
-  [/starcoder2/, 2],
-  [/gpt-oss/, 4],
+  [/phi-4-mini|gemma-3-4b/, 0], // legacy gemma-3-4b pin still routes to small
+  [/gpt-oss/, 1],
 ];
 
 function classFromModel(model) {
@@ -64,8 +58,8 @@ const partition = (kws) => {
   return { substrings, patterns };
 };
 
-// Complex/reasoning prompts → gpt-oss (tier 5); code prompts → StarCoder2
-// (tier 3); moderate → tier 2 (long) or 1 (short).
+// Two tiers: small (Phi-4-mini) and big (gpt-oss-20b). Complex/reasoning and
+// code prompts route to the big tier; everything else stays on small.
 const COMPLEX = partition([
   'demonstrate', 'show.*flow', 'show.*diagram', 'token exchange', 'rfc 8693',
   'act and may_act', 'delegation', 'pkce', 'confused deputy', 'introspection',
@@ -75,22 +69,17 @@ const CODE = partition([
   'write.*code', 'code.*example', 'implement', 'function', 'script', 'snippet',
   'regex', 'sql', 'json.*schema', 'refactor', 'debug',
 ]);
-const MODERATE = partition([
-  'how does', 'how to', 'explain.*flow', 'what is.*scope', 'what is.*delegation',
-  'token', 'exchange',
-]);
+// MODERATE no longer needs a separate tier — anything that would have been
+// "moderate" (how does / what is / token) is handled fine by the small tier.
 
 const matchesAny = (text, { substrings, patterns }) =>
   substrings.some((s) => text.includes(s)) || patterns.some((re) => re.test(text));
 
 function classifyText(text) {
   const t = (typeof text === 'string' ? text : '').toLowerCase();
-  const isLong = t.length > COMPLEXITY_CHAR_THRESHOLD;
-
-  if (matchesAny(t, CODE)) return 2;           // StarCoder2-15B-Instruct: code generation / debugging
-  if (matchesAny(t, COMPLEX)) return 4;        // gpt-oss-20b: complex technical / token flows / reasoning
-  if (matchesAny(t, MODERATE)) return isLong ? 2 : 1;
-  return isLong ? 1 : 0;                       // default: smallest tier
+  if (matchesAny(t, CODE)) return 1;     // gpt-oss-20b: code generation / debugging
+  if (matchesAny(t, COMPLEX)) return 1;  // gpt-oss-20b: complex technical / token flows / reasoning
+  return 0;                              // default: small tier (Phi-4-mini)
 }
 
 // Pull only the USER-VISIBLE text out of an OpenAI-style body. Classifying the

@@ -129,9 +129,9 @@ services:
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       # Small NON-reasoning model: BFF NL-intent / teaching answers must return
       # under the SPA fetch timeout. A reasoning model takes ~22s+ and blows it,
-      # surfacing "Could not parse: signal timed out"; a 3B-class model answers in
-      # ~3s. Leave LLAMACPP_MODEL unset to use whatever llama-server reports.
-      LLAMACPP_MODEL: "gemma-3-4b-it"
+      # surfacing "Could not parse: signal timed out"; a 3.8B-class model answers
+      # in ~3s. Leave LLAMACPP_MODEL unset to use whatever llama-server reports.
+      LLAMACPP_MODEL: "phi-4-mini-instruct"
       CODE_SEARCH_DEFAULT_INDEX: ${CODE_SEARCH_DEFAULT_INDEX:-true}
       CODE_SEARCH_REPO_ROOT: /repo
       LLAMAINDEX_AGENT_URL: http://llamaindex-agent:8894
@@ -290,8 +290,10 @@ services:
       CHAT_WS_HOST: "0.0.0.0"
       # CodeGraph Explorer LLM — auto-detects: llama.cpp (host) → Helix → lmstudio
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
-      # Code Explorer is code work → StarCoder2 class (per-agent routing).
-      LLAMACPP_MODEL: "starcoder2-15b-instruct"
+      # Code Explorer is code work → route to gpt-oss-20b (vibe-coding brain,
+      # per-agent routing). StarCoder2 tier was retired; gpt-oss handles code
+      # better and is the same brain the agent-service uses.
+      LLAMACPP_MODEL: "gpt-oss-20b"
       # Code Explorer "Refresh index" reads live source + writes the rebuilt DB
       # under the bind-mounted repo (see volumes below). Pointing both at the live
       # tree means grep/read_file always see current source and a re-index only
@@ -825,8 +827,8 @@ services:
 
   # ── LLM Proxy (Node.js smart router) ──────────────────────────────────────
   # Serves the :8090 endpoint that BFF + agent-service already target via
-  # LLAMACPP_BASE_URL. Classifies each request and routes to the smallest
-  # capable of 4 local llama-server tiers (8091-8094), cascading on overload.
+  # LLAMACPP_BASE_URL. Classifies each request and routes to one of 2 local
+  # llama-server tiers (small :8091 / big :8096), swapping on demand.
   # Start the model backends first: bash demo_llm_proxy/start-local-models.sh
   llm-proxy:
     build:

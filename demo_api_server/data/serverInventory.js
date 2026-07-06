@@ -136,11 +136,13 @@ const SERVER_INVENTORY = [
     hostPort: null, internalPort: null, lang: 'Node + headless browser', category: 'demo-prop', sourceDir: 'demo_ungoverned_agent', probe: false,
     purpose: 'Demo attack prop — on-demand only (profile demo-attack); rides a logged-in bank session via the UI.',
   },
-  ...[1, 2, 3, 4].map((n) => ({
+  // Two local llama-server tiers: small (Phi-4-mini on :8091) and big
+  // (gpt-oss-20b on :8096). :8095 is the mcp-code-search container.
+  ...[1, 6].map((n) => ({
     key: `llama-tier-${n}`, name: `llama-server tier ${n}`, container: null, sourceDir: null,
     hostPort: 8090 + n, internalPort: 8090 + n, lang: 'llama.cpp server', category: 'ai-infra', probe: true,
     candidates: candidates(`http://host.docker.internal:${8090 + n}`, `http://localhost:${8090 + n}`),
-    purpose: `Host-side local LLM backend (${n === 1 ? 'smallest' : n === 4 ? 'largest' : 'mid'}) — target of llm-proxy. Not in compose; start via demo_llm_proxy/start-local-models.sh.`,
+    purpose: `Host-side local LLM backend (${n === 1 ? 'small / Phi-4-mini' : 'big / gpt-oss-20b'}) — target of llm-proxy. Not in compose; start via demo_llm_proxy/start-local-models.sh.`,
   })),
 ];
 

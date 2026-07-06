@@ -1,5 +1,9 @@
 // demo_llm_proxy/modelCatalog.js — single source of truth for local LLM tier GGUFs.
 // Consumed by start-local-models.sh (via Node helpers), BFF download UI, and router pins.
+//
+// Two tiers only (US-origin):
+//   Tier 1 — Microsoft Phi-4-mini-instruct (3.8B): small/teaching/classification.
+//   Tier 5 — OpenAI gpt-oss-20b (20B MoE): vibe coding / reasoning / agent brain.
 
 const fs = require('fs');
 const path = require('path');
@@ -12,46 +16,18 @@ const TIERS = [
   {
     tier: 1,
     port: 8091,
-    pinName: 'gemma-3-4b-it',
-    file: 'gemma-3-4b-it-qat-Q4_0.gguf',
-    label: 'Gemma-3-4B (4B) — simple, fast',
-    repo: 'unsloth/gemma-3-4b-it-qat-GGUF',
-    sizeBytes: 2_360_000_000,
-  },
-  {
-    tier: 2,
-    port: 8092,
-    pinName: 'gemma-4-12b-it',
-    file: 'gemma-3-12b-it-qat-UD-Q4_K_XL.gguf',
-    label: 'Gemma-3-12B qat (12B) — moderate',
-    repo: 'unsloth/gemma-3-12b-it-qat-GGUF',
-    sizeBytes: 6_900_000_000,
-  },
-  {
-    tier: 3,
-    port: 8093,
-    pinName: 'starcoder2-15b-instruct',
-    file: 'starcoder2-15b-instruct-v0.1-Q4_K_M.gguf',
-    label: 'StarCoder2-15B-Instruct (15B) — complex',
-    repo: 'bartowski/starcoder2-15b-instruct-v0.1-GGUF',
-    sizeBytes: 9_200_000_000,
-  },
-  {
-    tier: 4,
-    port: 8094,
-    pinName: 'gemma-4-12b',
-    file: 'gemma-3-12b-it-UD-Q4_K_XL.gguf',
-    label: 'Gemma-3-12B (12B) — fallback',
-    repo: 'unsloth/gemma-3-12b-it-GGUF',
-    sizeBytes: 6_900_000_000,
-    aliasFile: 'gemma-3-12b-it-qat-UD-Q4_K_XL.gguf',
+    pinName: 'phi-4-mini-instruct',
+    file: 'microsoft_Phi-4-mini-instruct-Q4_K_M.gguf',
+    label: 'Phi-4-mini-instruct (3.8B) — small, fast, US-origin',
+    repo: 'bartowski/microsoft_Phi-4-mini-instruct-GGUF',
+    sizeBytes: 2_490_000_000,
   },
   {
     tier: 5,
     port: 8096,
     pinName: 'gpt-oss-20b',
     file: 'gpt-oss-20b-mxfp4.gguf',
-    label: 'gpt-oss-20B (20B) — top tier',
+    label: 'gpt-oss-20B (20B MoE) — vibe coding / reasoning, US-origin',
     repo: 'ggml-org/gpt-oss-20b-GGUF',
     sizeBytes: 11_000_000_000,
   },

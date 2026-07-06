@@ -368,7 +368,7 @@ preflight_checks() {
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
-  local llamacpp_model="${LLAMACPP_MODEL:-gemma-3-4b-it}"
+  local llamacpp_model="${LLAMACPP_MODEL:-phi-4-mini-instruct}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
   local llamacpp_host llamacpp_port

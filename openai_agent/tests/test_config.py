@@ -49,5 +49,5 @@ def test_config_defaults_to_local_proxy_when_nothing_set():
         c = _reload_cfg()
         assert c.llm_api_key == "llama-cpp"
         assert c.llm_base_url == "http://localhost:8090/v1"
-        assert c.model == "gemma-3-4b-it"  # default local proxy tier
+        assert c.model == "phi-4-mini-instruct"  # default local proxy tier
         assert c.port == 8891

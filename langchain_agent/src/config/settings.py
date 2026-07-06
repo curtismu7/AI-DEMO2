@@ -90,7 +90,7 @@ class LangChainConfig:
     # `llama-server --host 0.0.0.0 --port 8090 -hf <model>` (8090 avoids the MCP
     # server's 8080 and this sub-project's own backend port).
     llamacpp_base_url: str = "http://127.0.0.1:8090"
-    llamacpp_model: str = "gemma-3-4b-it"
+    llamacpp_model: str = "phi-4-mini-instruct"
     # Anthropic credentials — used by both "anthropic" (cloud) and "anthropic-lmstudio" (local).
     # When ANTHROPIC_BASE_URL is set to an LM Studio origin, the "anthropic" provider hits LM Studio
     # instead of api.anthropic.com, letting you demo "Anthropic" using a local model.
@@ -444,7 +444,7 @@ class ConfigManager:
             provider=get_env_value("LANGCHAIN_LLM_PROVIDER", "none"),
             lmstudio_base_url=get_env_value("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
             llamacpp_base_url=get_env_value("LLAMACPP_BASE_URL", "http://127.0.0.1:8090"),
-            llamacpp_model=get_env_value("LLAMACPP_MODEL", "gemma-3-4b-it"),
+            llamacpp_model=get_env_value("LLAMACPP_MODEL", "phi-4-mini-instruct"),
             # Anthropic credentials — cloud or LM Studio proxy depending on ANTHROPIC_BASE_URL
             anthropic_api_key=get_env_value("ANTHROPIC_API_KEY", "lm-studio"),
             anthropic_base_url=get_env_value("ANTHROPIC_BASE_URL", ""),

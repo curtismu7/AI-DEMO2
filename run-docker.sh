@@ -217,7 +217,7 @@ git_sync_check() {
 # reach the proxy at http://llm-proxy:8090 (in-network) or
 # host.docker.internal:8090.
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
-LLAMACPP_MODEL="${LLAMACPP_MODEL:-gemma-3-4b-it}"   # model id label reported to services
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
 _TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
 
