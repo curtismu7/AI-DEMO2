@@ -31,13 +31,16 @@ export function CodeSearchPage() {
   const [isIndexing, setIsIndexing] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
+  const [defaultStatus, setDefaultStatus] = useState('idle');
+  const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
 
   // Persist codebases to localStorage. Safe now that state is seeded from
   // localStorage on the first render, so this never writes an empty array over
   // an existing list. localStorage is only the pre-fetch/offline fallback —
   // the server list below is authoritative once it loads.
   useEffect(() => {
-    localStorage.setItem('codeSearchCodebases', JSON.stringify(codebases));
+    const persistable = codebases.filter((c) => !c.isDefault);
+    localStorage.setItem('codeSearchCodebases', JSON.stringify(persistable));
   }, [codebases]);
 
   // Load the codebases actually indexed on the server. The server response is
@@ -112,6 +115,21 @@ export function CodeSearchPage() {
     []
   );
 
+  const handleFolderIndexed = useCallback((cb) => {
+    // Use the id the uploader stored under (matches Weaviate) so Search/Ask
+    // actually query the indexed folder — do NOT mint a new unrelated id.
+    const newCodebase = {
+      id: cb.id,
+      name: cb.name,
+      uploadedAt: new Date().toISOString(),
+    };
+    setCodebases((prev) => [
+      newCodebase,
+      ...prev.filter((c) => c.id !== cb.id),
+    ]);
+    setSelectedCodebaseId(newCodebase.id);
+  }, []);
+
   const handleSearch = useCallback(async () => {
     if (!query.trim()) {
       setSearchError('Please enter a search query');
@@ -149,7 +167,11 @@ export function CodeSearchPage() {
     <div className="code-search-page">
       <div className="search-container">
         <div className="search-panel-left">
-          <CodebaseUploader onUpload={handleUpload} isLoading={isIndexing} />
+          <CodebaseUploader
+            onUpload={handleUpload}
+            isLoading={isIndexing}
+            onFolderIndexed={handleFolderIndexed}
+          />
 
           {indexError && <div className="panel-error">{indexError}</div>}
 
@@ -186,34 +208,54 @@ export function CodeSearchPage() {
         </div>
 
         <div className="search-panel-right">
-          <div className="search-form">
-            <h2>Search Code</h2>
-            <div className="search-input-group">
-              <input
-                type="text"
-                placeholder="e.g., find authentication logic..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSearching}
-                className="search-input"
-              />
-              <button
-                onClick={handleSearch}
-                disabled={isSearching || !selectedCodebaseId}
-                className="search-button"
-              >
-                {isSearching ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-            {searchError && <div className="search-error">{searchError}</div>}
+          <div className="cs-tabs">
+            <button
+              className={rightTab === 'ask' ? 'active' : ''}
+              onClick={() => setRightTab('ask')}
+            >
+              Ask
+            </button>
+            <button
+              className={rightTab === 'search' ? 'active' : ''}
+              onClick={() => setRightTab('search')}
+            >
+              Search
+            </button>
           </div>
+          {rightTab === 'ask' ? (
+            <CodeSearchAsk codebaseId={selectedCodebaseId} />
+          ) : (
+            <>
+              <div className="search-form">
+                <h2>Search Code</h2>
+                <div className="search-input-group">
+                  <input
+                    type="text"
+                    placeholder="e.g., find authentication logic..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isSearching}
+                    className="search-input"
+                  />
+                  <button
+                    onClick={handleSearch}
+                    disabled={isSearching || !selectedCodebaseId}
+                    className="search-button"
+                  >
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                {searchError && <div className="search-error">{searchError}</div>}
+              </div>
 
-          <SearchResults
-            results={results}
-            isLoading={isSearching}
-            error={searchError}
-          />
+              <SearchResults
+                results={results}
+                isLoading={isSearching}
+                error={searchError}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>

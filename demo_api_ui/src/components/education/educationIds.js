@@ -56,6 +56,8 @@ export const EDU = {
   ID_JAG: "id-jag",
   /** Glean Integration — Enterprise AI assistant with PingFed, PingOne Authorization Server, CIBA, and Ping Agent Gateway */
   GLEAN: "glean",
+  /** Weaviate Vector Search — Semantic search and RAG with vector embeddings */
+  VECTOR_RAG: "vector-rag",
   /** Intent-Bound, Constraint-Based Delegation — AP2, Verifiable Intent, consent verification, and how this demo implements the pattern */
   INTENT_DELEGATION: "intent-delegation",
   /** AuthZEN — OpenID Foundation working group standardizing PEP/PDP authorization API */

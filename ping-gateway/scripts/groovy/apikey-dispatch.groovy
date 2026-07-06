@@ -37,10 +37,14 @@ def ROUTE_FOR_TOOL = [
     show_enrollment    : 'enrollment',
     show_work_order    : 'workOrder',
 ]
-// tool -> vault key name the BFF bridge will return (only these two wired in Phase 2/3)
+// tool -> vault key name the BFF bridge will return. mortgage + invest are the
+// SAME backend (demo_data_service), which validates every vertical against a
+// single shared secret (MORTGAGE_SERVICE_API_KEY, default demo-mortgage-key-0000).
+// So both tools present that one service key — DEMO_MORTGAGE_SERVICE_KEY, the only
+// demo backend key seeded (setupFresh.js) and the value the backend accepts.
 def KEY_FOR_TOOL = [
     show_mortgage  : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_investment: 'DEMO_INVEST_SERVICE_KEY',
+    show_investment: 'DEMO_MORTGAGE_SERVICE_KEY',
 ]
 
 def bffVaultUrl   = System.getenv('BFF_VAULT_KEY_URL') ?: ''

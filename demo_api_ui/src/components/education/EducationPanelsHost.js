@@ -50,6 +50,7 @@ import TokenFlowPanel from "./TokenFlowPanel";
 import TransactionTokensPanel from "./TransactionTokensPanel";
 import DPoPPanel from "./DPoPPanel";
 import VerticalSetupPanel from "./VerticalSetupPanel";
+import WeaviateRagPanel from "./WeaviateRagPanel";
 import WebMcpEduPanel from "./WebMcpEduPanel";
 
 const PANEL_MAP = {
@@ -102,6 +103,7 @@ const PANEL_MAP = {
   [EDU.WEB_MCP]: WebMcpEduPanel,
   [EDU.AGENT_TECH_COMPARISON]: AgentTechComparisonPanel,
   [EDU.SERVER_CAPABILITIES]: ServerCapabilitiesPanel,
+  [EDU.VECTOR_RAG]: WeaviateRagPanel,
 };
 
 export default function EducationPanelsHost() {
