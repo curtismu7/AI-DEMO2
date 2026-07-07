@@ -25,8 +25,6 @@
 # Optional groups (for `optional start|stop`):
 #   rag        Code Search — weaviate + embeddings + demo-mcp-code-search + llamaindex-agent
 #   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
-#   verticals  Invest + mortgage MCP verticals
-#   proxy      MCP proxy routing path
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
 #
@@ -65,26 +63,24 @@ fi
 
 # Core banking demo — always started by default (~750MB Docker RSS).
 CORE_SERVICES=(
-  ui mcp-server ping-gateway langchain-agent agent-service
-  hitl-service llm-proxy
+  ui mcp-server mcp-invest mortgage-service mcp-proxy
+  ping-gateway langchain-agent agent-service hitl-service llm-proxy
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents verticals proxy tracing demo-auth)
+OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile verticals --profile proxy --profile tracing --profile demo-auth)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth)
 
 # Return compose profile name(s) for an optional group (or `all`).
 _optional_group_profiles() {
   case "$1" in
     rag)       echo "rag" ;;
     agents)    echo "agents" ;;
-    verticals) echo "verticals" ;;
-    proxy)     echo "proxy" ;;
     tracing)   echo "tracing" ;;
     demo-auth) echo "demo-auth" ;;
-    all)       echo "rag agents verticals proxy tracing demo-auth" ;;
+    all)       echo "rag agents tracing demo-auth" ;;
     *) return 1 ;;
   esac
 }
@@ -105,8 +101,6 @@ _optional_group_services() {
   case "$1" in
     rag)       echo "weaviate embeddings demo-mcp-code-search llamaindex-agent" ;;
     agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
-    verticals) echo "mcp-invest mortgage-service" ;;
-    proxy)     echo "mcp-proxy" ;;
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway" ;;
     all)
@@ -126,8 +120,6 @@ _optional_group_desc() {
   case "$1" in
     rag)       echo "Code Search (Weaviate + embeddings + MCP code-search + LlamaIndex /ask)" ;;
     agents)    echo "Alternate agent frameworks (OpenAI / Mastra / Pydantic)" ;;
-    verticals) echo "Optional banking verticals (invest + mortgage)" ;;
-    proxy)     echo "MCP proxy routing path" ;;
     tracing)   echo "Jaeger OTLP tracing backend" ;;
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
     all)       echo "Every optional group" ;;
@@ -798,6 +790,12 @@ cmd_demo_sync() {
     ok "Real stack (P1AZ + PingGateway) — stopping demo authz-server and mcp-gateway"
     docker compose "${COMPOSE_FILES[@]}" --profile demo-auth stop authz-server mcp-gateway 2>/dev/null || true
   fi
+
+  # mcp-proxy is core — point it at the active gateway (PingGateway by default).
+  local proxy_gw_url="http://ping-gateway:8080"
+  [[ ${need_demo_gw} -eq 1 ]] && proxy_gw_url="http://mcp-gateway:3005"
+  MCP_GATEWAY_HTTP_URL="${proxy_gw_url}" \
+    docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps mcp-proxy >/dev/null 2>&1 || true
   echo ""
 }
 
@@ -894,7 +892,7 @@ cmd_optional_help() {
   echo ""
   echo "  Examples:"
   echo "    ./run-docker.sh optional start rag"
-  echo "    ./run-docker.sh optional start agents verticals"
+  echo "    ./run-docker.sh optional start agents"
   echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional status"
   echo ""
