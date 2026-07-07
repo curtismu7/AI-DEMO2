@@ -406,13 +406,31 @@ router.get('/startup', (_req, res) => {
  * No auth required — called before the user may have logged in.
  */
 router.get('/demo-status', async (_req, res) => {
-  // Prefer MCP_GATEWAY_HTTP_URL when the gateway is active; fall back to
-  // normalising MCP_SERVER_URL (ws/wss → http/https).
-  const _rawMcpUrl = process.env.MCP_GATEWAY_HTTP_URL
-    || (process.env.MCP_SERVER_URL || 'http://localhost:8080')
-        .replace(/^ws:\/\//, 'http://')
-        .replace(/^wss:\/\//, 'https://');
-  const mcpServerUrl = _rawMcpUrl;
+  const normalizeMcpHttpUrl = (url) => (url || 'http://localhost:8080')
+    .replace(/^ws:\/\//, 'http://')
+    .replace(/^wss:\/\//, 'https://')
+    .replace(/\/$/, '');
+
+  // Probe /health on a base URL; retry https when mkcert dev TLS is in use.
+  const probeMcpHealth = async (rawUrl) => {
+    const base = normalizeMcpHttpUrl(rawUrl);
+    try {
+      await axios.get(`${base}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
+      return { up: true, url: base };
+    } catch (e) {
+      if (base.startsWith('http://')) {
+        try {
+          const httpsBase = base.replace('http://', 'https://');
+          await axios.get(`${httpsBase}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
+          return { up: true, url: httpsBase };
+        } catch (e2) {
+          return { up: false, url: base, error: e2.code || e2.message };
+        }
+      }
+      return { up: false, url: base, error: e.code || e.message };
+    }
+  };
+
   const servers = [];
 
   // ── BFF API Server ─────────────────────────────────────────────────────────
@@ -427,33 +445,22 @@ router.get('/demo-status', async (_req, res) => {
   });
 
   // ── MCP Tool Server / Gateway ─────────────────────────────────────────────
-  let mcpUp = false;
-  let mcpError = null;
-  try {
-    await axios.get(`${mcpServerUrl}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
-    mcpUp = true;
-  } catch (e) {
-    // If http:// failed, retry as https:// (gateway uses TLS with mkcert in local dev)
-    if (!mcpUp && mcpServerUrl.startsWith('http://')) {
-      try {
-        await axios.get(`${mcpServerUrl.replace('http://', 'https://')}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
-        mcpUp = true;
-      } catch (e2) {
-        mcpError = e2.code || e2.message;
-      }
-    } else {
-      mcpError = e.code || e.message;
-    }
-  }
+  // Prefer MCP_GATEWAY_HTTP_URL when the demo gateway container is up; in real-stack
+  // mode (demo-auth off) the gateway is stopped — fall back to direct MCP_SERVER_URL.
+  const gatewayProbe = process.env.MCP_GATEWAY_HTTP_URL
+    ? await probeMcpHealth(process.env.MCP_GATEWAY_HTTP_URL)
+    : null;
+  const directProbe = await probeMcpHealth(process.env.MCP_SERVER_URL);
+  const mcpProbe = (gatewayProbe?.up && gatewayProbe) || directProbe;
   servers.push({
     name: 'Banking MCP Server',
     key: 'mcp_server',
-    up: mcpUp,
+    up: mcpProbe.up,
     startCmd: 'cd demo_mcp_server && npm run dev',
     description: 'MCP tool server — provides AI agent banking tools over WebSocket',
     port: 8080,
-    url: mcpServerUrl,
-    error: mcpUp ? undefined : mcpError,
+    url: mcpProbe.url,
+    error: mcpProbe.up ? undefined : mcpProbe.error,
   });
 
   const allUp = servers.every(s => s.up);
