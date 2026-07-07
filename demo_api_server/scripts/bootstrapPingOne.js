@@ -20,6 +20,7 @@
  *   PINGONE_BOOTSTRAP_CLIENT_ID=...
  *   PINGONE_BOOTSTRAP_CLIENT_SECRET=...
  *   PUBLIC_APP_URL=https://demo-api-server:3001   (optional)
+ *   PING_EMAIL=you@pingidentity.com               (optional — SE K8 namespace)
  *   node scripts/bootstrapPingOne.js --non-interactive
  */
 
@@ -128,6 +129,7 @@ Exit codes:
 checkNodeVersion();
 
 const NON_INTERACTIVE = args.includes('--non-interactive') || !!process.env.CI;
+const { resolvePingEmail, isValidPingEmail } = require('../services/pingoneProvisionService');
 // When launched from install.sh the restart prompt is irrelevant — install.sh
 // manages service startup. Skip it to avoid blocking on a dangling TTY prompt.
 const FROM_INSTALLER = args.includes('--from-installer');
@@ -555,6 +557,7 @@ async function gatherCredsViaBrowser() {
       publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
       audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
       mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
+      pingEmail: resolvePingEmail(),
     };
   }
 
@@ -566,7 +569,7 @@ async function gatherCredsViaBrowser() {
   const publicAppUrl = process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001';
   const audience = process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo';
   const mcpGatewayAudience = process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo';
-  const creds = { ...fromForm, publicAppUrl, audience, mcpGatewayAudience };
+  const creds = { ...fromForm, publicAppUrl, audience, mcpGatewayAudience, pingEmail: resolvePingEmail() };
   writeCredCache(creds);
   console.log(`Saved creds to ${CRED_CACHE_PATH} (mode 0600). Future runs will skip these prompts.`);
   return creds;
@@ -586,6 +589,7 @@ async function gatherCredsInteractive() {
       publicAppUrl: cached.publicAppUrl || process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
       audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
       mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
+      pingEmail: resolvePingEmail(),
     };
   }
 
@@ -612,10 +616,25 @@ async function gatherCredsInteractive() {
       defaultValue: process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
     });
 
+    const pingEmailDefault = resolvePingEmail();
+    let pingEmail = '';
+    for (;;) {
+      const entered = await prompt(rl, 'Ping email (@pingidentity.com, for SE K8 namespace)', {
+        defaultValue: pingEmailDefault || undefined,
+      });
+      const candidate = (entered || pingEmailDefault || '').trim();
+      if (!candidate) break;
+      if (isValidPingEmail(candidate)) {
+        pingEmail = candidate.toLowerCase();
+        break;
+      }
+      console.log('  Must be a @pingidentity.com address — personal email is not allowed.');
+    }
+
     const audience = process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo';
     const mcpGatewayAudience = process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo';
 
-    const creds = { envId, region, workerClientId, workerClientSecret, publicAppUrl, audience, mcpGatewayAudience };
+    const creds = { envId, region, workerClientId, workerClientSecret, publicAppUrl, audience, mcpGatewayAudience, pingEmail };
     writeCredCache(creds);
     console.log(`Saved creds to ${CRED_CACHE_PATH} (mode 0600). Future runs will skip these prompts.`);
     return creds;
@@ -638,6 +657,10 @@ function gatherCredsFromEnv() {
     throw new Error(`Non-interactive mode missing required env vars: ${missing.join(', ')}`);
   }
 
+  if (process.env.PING_EMAIL && !isValidPingEmail(process.env.PING_EMAIL)) {
+    throw new Error(`PING_EMAIL must be a @pingidentity.com address (got: ${process.env.PING_EMAIL})`);
+  }
+
   return {
     envId,
     region: process.env.PINGONE_BOOTSTRAP_REGION || 'com',
@@ -646,6 +669,7 @@ function gatherCredsFromEnv() {
     publicAppUrl: process.env.PUBLIC_APP_URL || 'https://demo-api-server:3001',
     audience: process.env.PINGONE_BOOTSTRAP_AUDIENCE || 'enduser.ping.demo',
     mcpGatewayAudience: process.env.MCP_GW_AUDIENCE || 'mcpgateway.ping.demo',
+    pingEmail: resolvePingEmail(),
   };
 }
 
@@ -663,6 +687,7 @@ function printPlan(creds) {
   console.log(`  Public app URL:     ${creds.publicAppUrl}`);
   console.log(`  Audience:           ${creds.audience}`);
   console.log(`  Gateway audience:   ${creds.mcpGatewayAudience}`);
+  if (creds.pingEmail) console.log(`  Ping email:         ${creds.pingEmail}`);
   console.log('');
   console.log('Will create or reuse:');
   console.log('  3 resource servers, ~25 scopes, 7 applications, 2 users (with passwords),');
@@ -785,6 +810,7 @@ The full .env is at \`demo_api_server/.env\`. Key groups present:
 \`\`\`text
 PINGONE_ENVIRONMENT_ID
 PINGONE_REGION
+PING_EMAIL
 PINGONE_ADMIN_CLIENT_ID / SECRET / REDIRECT_URI
 PINGONE_CORE_CLIENT_ID / SECRET / REDIRECT_URI
 PINGONE_TOKEN_EXCHANGER_CLIENT_ID / SECRET

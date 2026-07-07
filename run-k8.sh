@@ -82,6 +82,8 @@ set -euo pipefail
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 K8S_DIR="$BASEDIR/k8s"
+# shellcheck source=scripts/ping-email.sh
+source "$BASEDIR/scripts/ping-email.sh"
 
 # Strip --agent=<name> from $@ before the case statement sees it.
 # Exported so k8s/deploy.sh inherits it without any extra plumbing.
@@ -377,29 +379,26 @@ derive_se_namespace() {
 
   # 1. Explicit env var
   if [[ -n "${PING_EMAIL:-}" ]]; then
-    email="$PING_EMAIL"
+    email="$(sanitize_ping_email "$PING_EMAIL")"
+    if [[ -z "$email" ]]; then
+      die "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
+    fi
   fi
 
   # 2. PING_EMAIL in demo_api_server/.env
   if [[ -z "$email" && -f "$BASEDIR/demo_api_server/.env" ]]; then
-    email="$(grep -E '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
+    email="$(sanitize_ping_email "$(grep -E '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | cut -d= -f2- || true)")"
   fi
 
   # 3. git config — only if it's a Ping email
   if [[ -z "$email" ]]; then
-    local _git_email
-    _git_email="$(git config user.email 2>/dev/null || true)"
-    if [[ "$_git_email" == *@pingidentity.com ]]; then
-      email="$_git_email"
-    fi
+    email="$(sanitize_ping_email "$(git config user.email 2>/dev/null || true)")"
   fi
 
   # 4. Ask the user — namespace can't be derived without a Ping email
   if [[ -z "$email" ]]; then
     if [[ -t 0 ]] || [[ -r /dev/tty ]]; then
-      local _input=""
-      read -r -p "  Enter your Ping email (e.g. cmuir@pingidentity.com): " _input </dev/tty 2>/dev/null || true
-      email="$_input"
+      email="$(read_ping_email "  Enter your Ping email (e.g. cmuir@pingidentity.com): ")"
       # Cache it in .env for next time
       if [[ -n "$email" && -f "$BASEDIR/demo_api_server/.env" ]]; then
         if grep -q '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null; then

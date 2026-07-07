@@ -43,7 +43,7 @@ cd demo_api_server
 npm run pingone:bootstrap
 ```
 
-This creates the OIDC applications, the resource server, the plain `read` / `write` / `admin` scopes, and the demo users automatically. If you prefer to set things up by hand, the sections below describe what the bootstrap creates.
+This creates the OIDC applications, the resource server, the plain `read` / `write` / `admin` scopes, and the demo users automatically. It also writes `demo_api_server/.env`, including `PING_EMAIL` when your git `user.email` ends in `@pingidentity.com` (used by `./run-k8.sh` for SE namespace derivation). If you prefer to set things up by hand, the sections below describe what the bootstrap creates.
 
 **Source of truth for env vars:** See [ENV_VARS.md](ENV_VARS.md) for the authoritative environment variable catalog.
 

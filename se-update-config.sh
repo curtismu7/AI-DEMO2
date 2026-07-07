@@ -12,6 +12,8 @@
 set -euo pipefail
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/ping-email.sh
+source "$BASEDIR/scripts/ping-email.sh"
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
@@ -20,10 +22,10 @@ die()     { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 derive_ns() {
   [[ -n "${SE_NAMESPACE:-}" ]] && echo "$SE_NAMESPACE" && return
   local email=""
-  [[ -n "${PING_EMAIL:-}" ]] && email="$PING_EMAIL"
+  [[ -n "${PING_EMAIL:-}" ]] && email="$(sanitize_ping_email "$PING_EMAIL")"
   [[ -z "$email" && -f "$BASEDIR/demo_api_server/.env" ]] && \
-    email="$(grep -E '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
-  [[ -z "$email" ]] && die "Cannot derive namespace — set SE_NAMESPACE=ping-devops-<you> or PING_EMAIL=you@pingidentity.com"
+    email="$(sanitize_ping_email "$(grep -E '^PING_EMAIL=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | cut -d= -f2- || true)")"
+  [[ -z "$email" ]] && die "Cannot derive namespace — set SE_NAMESPACE=ping-devops-<you> or PING_EMAIL=you@pingidentity.com (@pingidentity.com only)"
   local slug; slug="$(echo "${email%%@*}" | tr -d '.' | tr '[:upper:]' '[:lower:]')"
   echo "ping-devops-${slug}"
 }

@@ -224,6 +224,7 @@ gh auth token | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 Your namespace is auto-derived from your Ping email:
 
 - `cmuir@pingidentity.com` → `ping-devops-cmuir`
+- Bootstrap writes `PING_EMAIL` to `demo_api_server/.env` (from git config when `user.email` ends in `@pingidentity.com`, or from the interactive bootstrap prompt)
 - Override: `SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-all`
 
 ### Split build and deploy
