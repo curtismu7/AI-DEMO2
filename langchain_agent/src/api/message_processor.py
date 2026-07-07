@@ -792,8 +792,13 @@ class MessageProcessor:
         _LMSTUDIO_PROVIDERS = frozenset(["anthropic-lmstudio", "lmstudio"])
         _CLAUDE_PROVIDERS = frozenset(["anthropic"])
         _LLAMACPP_PROVIDERS = frozenset(["llamacpp"])
+        _HELIX_PROVIDERS = frozenset(["helix"])
         run_llm = self.agent.llm
-        if run_provider and (run_provider in _LMSTUDIO_PROVIDERS or run_provider in _CLAUDE_PROVIDERS or run_provider in _LLAMACPP_PROVIDERS):
+        # True once a per-run provider actually produced its own LLM, so the MCP
+        # graph path below knows to rebuild instead of reusing the startup graph.
+        run_llm_overridden = False
+        if run_provider and (run_provider in _LMSTUDIO_PROVIDERS or run_provider in _CLAUDE_PROVIDERS
+                             or run_provider in _LLAMACPP_PROVIDERS or run_provider in _HELIX_PROVIDERS):
             try:
                 from agent.llm_factory import get_llm
                 import os
@@ -818,6 +823,21 @@ class MessageProcessor:
                         streaming=bool(getattr(lc, "stream_llm_tokens", True)),
                         lmstudio_base_url=getattr(lc, "lmstudio_base_url", "http://localhost:1234/v1"),
                     )
+                elif run_provider in _HELIX_PROVIDERS:
+                    # Helix — tenant-specific config carried on the agent's
+                    # LangChainConfig (no env fallbacks; get_llm raises if unset).
+                    run_llm = get_llm(
+                        provider="helix",
+                        model=run_model or None,
+                        temperature=lc.temperature,
+                        max_tokens=lc.max_tokens,
+                        streaming=bool(getattr(lc, "stream_llm_tokens", True)),
+                        helix_base_url=getattr(lc, "helix_base_url", ""),
+                        helix_api_key=getattr(lc, "helix_api_key", ""),
+                        helix_environment_id=getattr(lc, "helix_environment_id", ""),
+                        helix_agent_id=getattr(lc, "helix_agent_id", ""),
+                        helix_prompt_field_id=getattr(lc, "helix_prompt_field_id", ""),
+                    )
                 else:
                     # anthropic — use real Anthropic API key from env
                     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -829,9 +849,12 @@ class MessageProcessor:
                         max_tokens=lc.max_tokens,
                         streaming=bool(getattr(lc, "stream_llm_tokens", True)),
                     )
-                logger.info("[AG-UI] per-run LLM override: provider=%s model=%s", run_provider, run_model or "auto")
+                run_llm_overridden = run_llm is not None and run_llm is not self.agent.llm
+                logger.info("[AG-UI] per-run LLM override: provider=%s model=%s applied=%s",
+                            run_provider, run_model or "auto", run_llm_overridden)
             except Exception as _llm_err:
                 logger.warning("[AG-UI] per-run LLM init failed (%s), using default", _llm_err)
+                run_llm = self.agent.llm
 
         if bff_tool_url and tool_schemas:
             # ── BFF tool path ──────────────────────────────────────────────────
@@ -899,23 +922,46 @@ class MessageProcessor:
             )
         else:
             # ── MCP graph path (existing) ──────────────────────────────────────
-            if not self.agent._graph:
-                await self.agent.initialize_tools()
+            # Honor the per-run LLM override on this path too. The startup graph
+            # is bound to self.agent.llm (which may be None when
+            # LANGCHAIN_LLM_PROVIDER=none); when the user picked a different
+            # provider for this run, build a graph from run_llm over the MCP
+            # tools + shared checkpointer so the selection isn't silently ignored
+            # (and the "No LLM configured" message isn't shown despite a choice).
+            if run_llm_overridden:
+                if not self.agent._tools:
+                    try:
+                        self.agent._tools = await self.agent.mcp_tool_provider.get_langchain_tools()
+                    except Exception:
+                        logger.warning("[AG-UI] MCP tool load failed for per-run graph; running tool-less")
+                        self.agent._tools = self.agent._tools or []
+                from langgraph.prebuilt import create_react_agent as _create_react_agent
+                active_graph = _create_react_agent(
+                    model=run_llm,
+                    tools=self.agent._tools,
+                    pre_model_hook=self.agent._pre_model_hook,
+                    checkpointer=self.agent._checkpointer,
+                )
+                logger.info("[AG-UI] MCP path using per-run LLM override (provider=%s)", run_provider)
+            else:
                 if not self.agent._graph:
-                    if self.agent.llm is None:
-                        _no_llm_msg = (
-                            "No LLM is configured (LANGCHAIN_LLM_PROVIDER=none). "
-                            "Set LANGCHAIN_LLM_PROVIDER in langchain_agent/.env to enable AI responses."
-                        )
-                        await emitter.on_llm_start()
-                        await emitter.on_llm_new_token(_no_llm_msg)
-                        await emitter.on_llm_end()
-                        return
-                    raise RuntimeError("Agent graph failed to initialise")
+                    await self.agent.initialize_tools()
+                    if not self.agent._graph:
+                        if self.agent.llm is None:
+                            _no_llm_msg = (
+                                "No LLM is configured (LANGCHAIN_LLM_PROVIDER=none). "
+                                "Set LANGCHAIN_LLM_PROVIDER in langchain_agent/.env to enable AI responses."
+                            )
+                            await emitter.on_llm_start()
+                            await emitter.on_llm_new_token(_no_llm_msg)
+                            await emitter.on_llm_end()
+                            return
+                        raise RuntimeError("Agent graph failed to initialise")
+                active_graph = self.agent._graph
 
             # Inject SystemMessage only on the first turn.
             try:
-                graph_state = self.agent._graph.get_state(
+                graph_state = active_graph.get_state(
                     {"configurable": {"thread_id": session_id}}
                 )
                 has_prior_history = bool(graph_state.values.get("messages"))
@@ -935,7 +981,6 @@ class MessageProcessor:
 
             await self.agent.mcp_tool_provider.set_session_context(session_id)
 
-            active_graph = self.agent._graph
             active_config = RunnableConfig(
                 configurable={"thread_id": session_id},
                 recursion_limit=getattr(self.agent.config.langchain, "max_iterations", 25),

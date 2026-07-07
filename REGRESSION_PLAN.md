@@ -81,6 +81,39 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-07 — AG-UI agent: multi-turn memory, per-run provider on MCP path, tool timeout
+
+**Files changed:**
+- `demo_api_ui/src/components/AIAgent.js` — the two fresh-turn AG-UI send sites
+  (`sendAsNlInner` and the typed-query branch) now send prior visible turns from
+  the `messages` thread, not just the current message, so the agent has
+  multi-turn context ("reverse that"). `messages` is the render-time closure, so
+  the current turn is appended explicitly (no duplication); the BFF already
+  windows the array (`agent_history_limit`). Only the `messages:` array passed to
+  `aguiRun` changed — dock/FAB/layout/session/token logic untouched.
+- `langchain_agent/src/api/message_processor.py` — the per-run LLM override now
+  (1) supports `helix`, and (2) is honored on the MCP graph path too: when a run
+  picks a provider different from the startup LLM, a graph is built from that LLM
+  over the MCP tools + shared checkpointer (previously the MCP path silently used
+  the startup LLM and, when startup=none, returned "No LLM configured" despite a
+  valid selection).
+- `langchain_agent/src/agui/bff_tool_adapter.py` — the BFF tool-callback timeout
+  is raised from 30s to a configurable `BFF_TOOL_TIMEOUT_SECONDS` (default 120s)
+  with a short connect timeout, and a timeout returns a "do NOT auto-retry"
+  message to the LLM instead of a hard error — so a slow-but-successful
+  non-idempotent tool (e.g. a transfer) isn't spuriously aborted and then
+  double-executed on retry.
+
+**Do not break:** the agent still never receives a user access token. The UI must
+keep appending the current turn (not rely on `messages` including it) to avoid
+duplicating the latest message. Per-run provider override must not change the
+default (no-override) behavior.
+
+**Verify:** live against the patched agent container — MCP-path run with
+`provider=llamacpp` answers instead of "No LLM configured"; a 3-message history
+array is correctly recalled ("teal"); UI build gate `cd demo_api_ui && npm run
+build` exits 0; `bff_tool_adapter.py` / `message_processor.py` compile.
+
 ### 2026-07-05 — TopNav: dark-on-blue labels and controls painting over each other
 
 **Files changed:**
