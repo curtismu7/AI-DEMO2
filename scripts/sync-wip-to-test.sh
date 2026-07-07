@@ -10,13 +10,13 @@
 #   ./scripts/sync-wip-to-test.sh testmac --no-restart
 #
 # Environment:
-#   REMOTE_DIR  path on test Mac (default: ~/AI-demo-test)
+#   REMOTE_DIR  path on test Mac (default: ~/Development/AI-demo-test)
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST="${1:-testmac}"
-REMOTE_DIR="${REMOTE_DIR:-~/AI-demo-test}"
+REMOTE_DIR="${REMOTE_DIR:-~/Development/AI-demo-test}"
 RESTART=1
 
 if [[ "${2:-}" == "--no-restart" ]]; then

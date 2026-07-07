@@ -11,7 +11,7 @@
 # Remote steps: git pull → ./run-docker.sh build → ./run-docker.sh start full
 #
 # Environment overrides:
-#   REMOTE_DIR   path on test Mac (default: ~/AI-demo-test)
+#   REMOTE_DIR   path on test Mac (default: ~/Development/AI-demo-test)
 #   SKIP_PUSH=1  skip git push (remote already has the branch)
 #   SKIP_BUILD=1 skip docker image rebuild
 #
@@ -20,7 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BRANCH="${1:-$(git -C "$ROOT" branch --show-current)}"
 HOST="${2:-testmac}"
-REMOTE_DIR="${REMOTE_DIR:-~/AI-demo-test}"
+REMOTE_DIR="${REMOTE_DIR:-~/Development/AI-demo-test}"
 
 red()   { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }

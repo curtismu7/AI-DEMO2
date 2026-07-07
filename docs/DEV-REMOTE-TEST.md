@@ -12,10 +12,18 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
    curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
    ```
 
-2. Clone the repo:
+2. Clone the repo (or move an existing install):
 
    ```bash
-   git clone <your-remote-url> ~/AI-demo-test
+   mkdir -p ~/Development
+   git clone https://github.com/curtismu7/AI-DEMO2.git ~/Development/AI-demo-test
+   ```
+
+   Already cloned at `~/AI-demo-test`?
+
+   ```bash
+   mkdir -p ~/Development
+   mv ~/AI-demo-test ~/Development/AI-demo-test
    ```
 
 3. Enable **Remote Login** (System Settings → General → Sharing).
@@ -24,8 +32,8 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
 
    ```bash
    # Run on dev Mac
-   scp demo_api_server/.env testmac:~/AI-demo-test/demo_api_server/.env
-   scp -r certs/ testmac:~/AI-demo-test/
+   scp demo_api_server/.env testmac:~/Development/AI-demo-test/demo_api_server/.env
+   scp -r certs/ testmac:~/Development/AI-demo-test/
    ```
 
 ### Dev Mac (one time)
@@ -54,7 +62,7 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
 4. Verify the full stack starts:
 
    ```bash
-   ssh testmac 'cd ~/AI-demo-test && ./run-docker.sh start full && ./run-docker.sh status'
+   ssh testmac 'cd ~/Development/AI-demo-test && ./run-docker.sh start full && ./run-docker.sh status'
    ```
 
 ## Daily workflow
@@ -109,7 +117,7 @@ No lean/smoke profile — the 64GB test machine is expected to run everything.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `REMOTE_DIR` | `~/AI-demo-test` | Repo path on test Mac |
+| `REMOTE_DIR` | `~/Development/AI-demo-test` | Repo path on test Mac |
 | `SKIP_PUSH=1` | — | Skip `git push` (branch already on remote) |
 | `SKIP_BUILD=1` | — | Skip `docker` image rebuild on test Mac |
 
@@ -128,7 +136,7 @@ No lean/smoke profile — the 64GB test machine is expected to run everything.
 **Tests fail with stack not running**
 
 - Deploy first: `./scripts/push-to-test.sh`
-- Check status: `ssh testmac 'cd ~/AI-demo-test && ./run-docker.sh status'`
+- Check status: `ssh testmac 'cd ~/Development/AI-demo-test && ./run-docker.sh status'`
 
 **Stop SSH tunnel**
 
@@ -139,7 +147,7 @@ No lean/smoke profile — the 64GB test machine is expected to run everything.
 **Refresh PingOne env on test Mac**
 
 ```bash
-ssh testmac 'cd ~/AI-demo-test/demo_api_server && npm run pingone:refresh-envs'
+ssh testmac 'cd ~/Development/AI-demo-test/demo_api_server && npm run pingone:refresh-envs'
 ```
 
 ## What not to sync

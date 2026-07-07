@@ -8,13 +8,13 @@
 #   ./scripts/run-remote-tests.sh all testmac
 #
 # Environment:
-#   REMOTE_DIR  path on test Mac (default: ~/AI-demo-test)
+#   REMOTE_DIR  path on test Mac (default: ~/Development/AI-demo-test)
 #
 set -euo pipefail
 
 MODE="${1:-all}"
 HOST="${2:-testmac}"
-REMOTE_DIR="${REMOTE_DIR:-~/AI-demo-test}"
+REMOTE_DIR="${REMOTE_DIR:-~/Development/AI-demo-test}"
 
 if [[ "$MODE" == "testmac" || "$MODE" == *.local ]]; then
   HOST="$MODE"
