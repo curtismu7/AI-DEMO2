@@ -38,8 +38,6 @@
 # Optional compose profiles (lean default — core only; start on demand):
 #   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent
 #   agents     openai-agent, mastra-agent, pydantic-agent
-#   verticals  mcp-invest, mortgage-service
-#   proxy      mcp-proxy
 #   tracing    jaeger
 #   demo-auth  demo authz-server + demo mcp-gateway (when FF selects demo path)
 # Core default: real PingOne Authorize + PingGateway (IG). Flip FF in admin, then
@@ -406,7 +404,7 @@ services:
         condition: service_started
       mcp-invest:
         condition: service_started
-        required: false   # verticals profile — gateway routes invest when it is up
+        required: false   # core service — routes invest when up
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — co-starts with mcp-gateway via demo-sync
@@ -478,7 +476,6 @@ services:
 
   # ── MCP Invest Server (TypeScript — investment tools) ───────────────────────
   mcp-invest:
-    profiles: ["verticals"]
     build:
       context: ./demo_mcp_invest
       dockerfile: Dockerfile
@@ -513,7 +510,6 @@ services:
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
   mortgage-service:
-    profiles: ["verticals"]
     build:
       context: ./demo_mortgage_service
       dockerfile: Dockerfile
@@ -680,7 +676,6 @@ services:
   # simple HTTP (GET /tools, POST /tools/:name) without implementing MCP protocol.
   # Auth: callers pass Bearer token; proxy forwards it to the MCP gateway unchanged.
   mcp-proxy:
-    profiles: ["proxy"]
     build:
       context: ./demo_mcp_proxy
       dockerfile: Dockerfile
@@ -691,11 +686,13 @@ services:
       - "8895:8895"
     environment:
       PORT: "8895"
-      MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
+      # Default stack uses PingGateway (IG), not demo mcp-gateway.
+      MCP_GATEWAY_HTTP_URL: "http://ping-gateway:8080"
     networks:
       - ai-demo
     depends_on:
-      - mcp-gateway
+      ping-gateway:
+        condition: service_started
     restart: unless-stopped
 
   # ── PingGateway (Ping Identity IG) — alternative MCP gateway ─────────────────
@@ -785,7 +782,8 @@ services:
         condition: service_started
       mcp-invest:
         condition: service_started
-        required: false   # verticals profile — gateway routes invest when it is up
+      mortgage-service:
+        condition: service_started
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — mock Authorize when ff_authorize_simulated is ON
