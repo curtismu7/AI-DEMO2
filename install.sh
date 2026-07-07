@@ -500,6 +500,46 @@ ensure_llamacpp() {
   fi
 }
 
+# Offer oMLX on macOS as the recommended Mac fast path for agent chip sessions.
+# Optional — llama.cpp remains the cross-platform default.
+ensure_omlx() {
+  [[ "$(uname)" == "Darwin" ]] || return 0
+  if command -v omlx >/dev/null 2>&1; then
+    ok "oMLX already installed (Mac fast path: LLM_BACKEND=omlx)."
+    return 0
+  fi
+
+  echo ""
+  echo "  ${BOLD}oMLX${RESET} (optional Mac fast path) speeds up agent chip and tool-loop"
+  echo "  sessions with SSD-persisted KV cache. Recommended on Apple Silicon for"
+  echo "  daily dev; Docker/K8s still use llama.cpp by default."
+  echo ""
+  echo "  After install: bash demo_llm_proxy/download-omlx-models.sh fetch"
+  echo "  Then run with:  LLM_BACKEND=omlx ./run.sh"
+  echo ""
+
+  if ! ask_yes_no "Install oMLX for Mac agent dev? [y/N] " no; then
+    info "Skipping oMLX — use llama.cpp (default) or install later from demo_llm_proxy/README.md"
+    return 0
+  fi
+
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "Homebrew required for oMLX — see https://github.com/jundot/omlx"
+    return 0
+  fi
+
+  info "Adding oMLX tap and trusting it (Homebrew 6.0+)..."
+  brew tap jundot/omlx https://github.com/jundot/omlx 2>/dev/null || true
+  brew trust jundot/omlx 2>/dev/null || true
+  info "Installing oMLX..."
+  if brew install omlx --quiet; then
+    ok "oMLX installed. Download MLX models: bash demo_llm_proxy/download-omlx-models.sh fetch"
+    ok "Run with: LLM_BACKEND=omlx ./run.sh"
+  else
+    warn "brew install omlx failed — see https://github.com/jundot/omlx"
+  fi
+}
+
 # Ensure llama.cpp is installed and the 2-tier LLM proxy is serving :8090.
 # :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier llama-servers on
 # :8091 and :8096) — never a raw llama-server pointing straight at one model.
@@ -1134,7 +1174,8 @@ main() {
       # PingGateway (the MCP authorization gateway, ping-gateway/docker-compose.yml).
       # Without Docker run.sh starts but silently skips PingGateway, so install it.
       ensure_orbstack  # Docker (+ kubectl) via OrbStack on macOS — used by PingGateway
-      ensure_llamacpp  # offer local llama.cpp for NL intent routing
+      ensure_llamacpp  # offer local llama.cpp for NL intent routing (default backend)
+      ensure_omlx      # optional Mac fast path for agent chip dev
       ensure_codegraph_llamacpp  # Code Explorer requires tool-capable model
       ;;
     orbstack)
