@@ -36,6 +36,16 @@ describe('resolveLlmProvider', () => {
       .toEqual({ provider: 'llamacpp', model: 'qwen3-8b' });
   });
 
+  test('honors explicit mlx (Apple mlx-lm demo; no API key)', () => {
+    expect(resolveLlmProvider({ provider: 'mlx', model: 'mlx-community/Phi-4-mini-instruct-4bit' }))
+      .toEqual({ provider: 'mlx', model: 'mlx-community/Phi-4-mini-instruct-4bit' });
+  });
+
+  test('honors explicit mlx without model', () => {
+    expect(resolveLlmProvider({ provider: 'mlx' }))
+      .toEqual({ provider: 'mlx', model: undefined });
+  });
+
   test('honors explicit llamacpp without model', () => {
     expect(resolveLlmProvider({ provider: 'llamacpp' }))
       .toEqual({ provider: 'llamacpp', model: undefined });

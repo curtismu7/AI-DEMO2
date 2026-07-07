@@ -1,7 +1,7 @@
 // banking_api_server/tests/agentModeResolver.regression.test.js
 const { resolveAgentMode, AGENT_MODES, DEFAULT_MODE } = require('../services/agentModeResolver');
 
-describe('resolveAgentMode (four single-brain modes)', () => {
+describe('resolveAgentMode (five single-brain modes)', () => {
   test('heuristics: no provider, heuristic routing on, no external wiring', () => {
     expect(resolveAgentMode('heuristics')).toEqual({
       mode: 'heuristics', provider: null, heuristicRouting: true, externalWiring: null,
@@ -23,9 +23,15 @@ describe('resolveAgentMode (four single-brain modes)', () => {
     });
   });
 
-  test('AGENT_MODES lists exactly the four single-brain modes', () => {
+  test('mlx: mlx provider, routing off (pure LLM), defaults to bff wiring', () => {
+    expect(resolveAgentMode('mlx')).toEqual({
+      mode: 'mlx', provider: 'mlx', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
+
+  test('AGENT_MODES lists exactly the five single-brain modes', () => {
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'llamacpp', 'claude', 'helix_google',
+      'heuristics', 'llamacpp', 'mlx', 'claude', 'helix_google',
     ]);
   });
 

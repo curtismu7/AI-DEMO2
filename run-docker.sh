@@ -339,6 +339,7 @@ git_sync_check() {
 #              host tiers :8091 (small) / :8096 (big) via tier-manager :8097
 #   omlx     — oMLX on host :8090; llm-proxy container is skipped (port clash);
 #              containers reach host via host.docker.internal:8090
+#   mlx      — Apple mlx-lm on host :8090 (fallback); same skip as omlx
 #
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
 _LLM_BACKEND="${LLM_BACKEND:-llamacpp}"
@@ -346,6 +347,7 @@ LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label repor
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
 _TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
 _OMLX_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-omlx.sh"
+_MLX_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-mlx.sh"
 
 _local_llm_ready() {
   curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1 \
@@ -358,7 +360,7 @@ _proxy_up() { _local_llm_ready; }
 _effective_core_services() {
   local svc
   for svc in "${CORE_SERVICES[@]}"; do
-    [[ "${_LLM_BACKEND}" == "omlx" && "${svc}" == "llm-proxy" ]] && continue
+    [[ ("${_LLM_BACKEND}" == "omlx" || "${_LLM_BACKEND}" == "mlx") && "${svc}" == "llm-proxy" ]] && continue
     echo "${svc}"
   done
 }
@@ -394,6 +396,22 @@ _start_tier_manager() {
 }
 
 start_llamacpp() {
+  if [[ "${_LLM_BACKEND}" == "mlx" ]]; then
+    if [[ "$(uname)" != "Darwin" ]]; then
+      warn "LLM_BACKEND=mlx requires macOS — starting llama.cpp tiers instead"
+    elif [[ -x "${_MLX_SCRIPT}" ]] || [[ -f "${_MLX_SCRIPT}" ]]; then
+      docker compose "${COMPOSE_FILES[@]}" stop llm-proxy 2>/dev/null || true
+      if bash "$_MLX_SCRIPT" start; then
+        ok "mlx-lm on :8090 — containers use host.docker.internal:8090 (llm-proxy container skipped)"
+        return 0
+      fi
+      warn "mlx-lm failed to start — see /tmp/mlx-models/ (log: mlx-8090.log)"
+      return 0
+    else
+      warn "start-mlx.sh not found — bash demo_llm_proxy/setup-mlx-venv.sh"
+      return 0
+    fi
+  fi
   if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
     if [[ "$(uname)" != "Darwin" ]]; then
       warn "LLM_BACKEND=omlx requires macOS — starting llama.cpp tiers instead"
@@ -423,6 +441,11 @@ start_llamacpp() {
 }
 
 stop_llamacpp() {
+  if [[ "${_LLM_BACKEND}" == "mlx" ]]; then
+    bash "$_MLX_SCRIPT" stop 2>/dev/null || true
+    ok "mlx-lm stopped"
+    return 0
+  fi
   if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
     bash "$_OMLX_SCRIPT" stop 2>/dev/null || true
     ok "oMLX stopped"
@@ -774,7 +797,7 @@ cmd_build_one() {
 # Before `up`, clear any NON-Docker listener on a Docker-published port. Docker's
 # own forwarders (OrbStack / com.docker / vpnkit) are left alone, and the
 # intentional host model tiers on :8091 and :8096 are never touched (not in SERVICES).
-# When LLM_BACKEND=omlx, host oMLX owns :8090 and the llm-proxy container is skipped.
+# When LLM_BACKEND=omlx or mlx, the host owns :8090 and the llm-proxy container is skipped.
 clear_stale_host_listeners() {
   local cleared=0 entry _svc _label port pids pid cmd
   for entry in "${SERVICES[@]}"; do
@@ -1060,6 +1083,8 @@ cmd_start() {
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
         ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+      elif [[ "${_LLM_BACKEND}" == "mlx" ]]; then
+        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host mlx-lm on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       else
         ok "Starting core stack (${#_CORE_UP[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       fi

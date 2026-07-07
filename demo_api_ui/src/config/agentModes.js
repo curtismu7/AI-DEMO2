@@ -1,6 +1,6 @@
 // demo_api_ui/src/config/agentModes.js
 //
-// Client-side single source of truth for the FOUR single-brain agent modes.
+// Client-side single source of truth for the FIVE single-brain agent modes.
 // This table MUST mirror the server resolver's CORE_MODES in
 // demo_api_server/services/agentModeResolver.js — the drift guard in
 // __tests__/agentModes.test.js reads that file and fails the build if the id
@@ -21,11 +21,12 @@
 export const AGENT_MODES = [
   { id: "heuristics",   label: "Heuristics", provider: null,        pure: false },
   { id: "llamacpp",     label: "llama.cpp",  provider: "llamacpp",  pure: true  },
+  { id: "mlx",          label: "MLX",        provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
 ];
 
-// Picker order for the four core modes.
+// Picker order for the five core modes.
 export const CORE_MODE_IDS = AGENT_MODES.map((m) => m.id);
 
 // mode id -> provider string the BFF expects (null for heuristics).

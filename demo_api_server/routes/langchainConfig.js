@@ -31,6 +31,7 @@ const PROVIDER_MODELS = {
   // short teaching answers must return under the SPA fetch timeout, which reasoning
   // models routinely blow.
   llamacpp:            ['phi-4-mini-instruct', 'gpt-oss-20b'],
+  mlx:                 ['mlx-community/Phi-4-mini-instruct-4bit'],
 };
 
 const DEFAULT_MODELS = {
@@ -41,6 +42,7 @@ const DEFAULT_MODELS = {
   helix:               'gpt-4o-mini',
   'anthropic-lmstudio': 'google/gemma-4-e2b',
   llamacpp:            'phi-4-mini-instruct',
+  mlx:                 'mlx-community/Phi-4-mini-instruct-4bit',
 };
 
 // Default provider fallback order surfaced by the LLM Config UI when the

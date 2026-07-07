@@ -31,6 +31,7 @@ describe("agentModes SSOT — internal consistency", () => {
     // Regression guard for the actual bug: llama.cpp MUST be a pure LLM mode, or
     // a down llama.cpp fails silently instead of offering the Heuristics prompt.
     expect(PURE_LLM_MODES).toContain("llamacpp");
+    expect(PURE_LLM_MODES).toContain("mlx");
     expect(PURE_LLM_MODES).not.toContain("ollama");
   });
 
@@ -55,9 +56,10 @@ describe("agentModes SSOT — matches the server resolver", () => {
     serverMap[m[1]] = m[2] === "null" ? null : m[3];
   }
 
-  test("parsed at least the four core modes from the server file", () => {
-    expect(Object.keys(serverMap).length).toBeGreaterThanOrEqual(4);
+  test("parsed at least the five core modes from the server file", () => {
+    expect(Object.keys(serverMap).length).toBeGreaterThanOrEqual(5);
     expect(serverMap).toHaveProperty("llamacpp", "llamacpp");
+    expect(serverMap).toHaveProperty("mlx", "mlx");
   });
 
   test("client id -> provider mapping equals the server's", () => {

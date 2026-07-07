@@ -58,6 +58,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   // llama-server serves whatever model it was launched with; this is only a
   // last-resort fallback when /v1/models can't be reached and no env override.
   llamacpp: 'local-model',
+  mlx: 'local-model',
 };
 
 // Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.
@@ -131,6 +132,17 @@ async function resolveLlamaCppModel(apiBase: string): Promise<string> {
     if (first?.id) return first.id;
   } catch { /* fall through to fallback */ }
   return DEFAULT_MODELS.llamacpp;
+}
+
+/** Resolve the model id mlx-lm is serving (OpenAI-style /v1/models). */
+async function resolveMlxModel(origin: string): Promise<string> {
+  try {
+    const res = await fetch(`${origin}/v1/models`);
+    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const first = Array.isArray(data?.data) ? data.data.find((m) => m && m.id) : undefined;
+    if (first?.id) return first.id;
+  } catch { /* fall through to fallback */ }
+  return DEFAULT_MODELS.mlx;
 }
 
 export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
@@ -309,6 +321,53 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
       };
     } catch (err) {
       teachLog.error('llama.cpp reasoning step failed', err, { operation: 'reasonOnce' });
+      return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
+    }
+  }
+
+  if (req.provider === 'mlx') {
+    // Apple mlx-lm demo server — OpenAI-compatible /v1 on MLX_LM_BASE_URL (:8098).
+    try {
+      const origin = (process.env.MLX_LM_BASE_URL || 'http://127.0.0.1:8098').replace(/\/+$/, '');
+      const baseURL = `${origin}/v1`;
+      const model = req.model || process.env.MLX_LM_MODEL || (await resolveMlxModel(origin));
+      const llm = new ChatOpenAI({
+        model,
+        temperature: 0,
+        apiKey: 'mlx-lm',
+        configuration: { baseURL },
+      });
+      const withTools = req.tools.length > 0
+        ? llm.bindTools(req.tools.map((t) => ({
+            type: 'function' as const,
+            function: { name: t.name, description: t.description, parameters: t.inputSchema },
+          })))
+        : llm;
+      const response = await withTools.invoke(toLangChainMessages(req.messages, req.systemPrompt));
+      const text = stripThink(extractTextContent(response.content));
+      const toolCalls = response.tool_calls ?? [];
+      if (toolCalls.length > 0) {
+        const calls = toolCalls.map((tc) => ({
+          id: tc.id ?? `mlx-${crypto.randomUUID()}`,
+          name: tc.name,
+          args: (tc.args ?? {}) as Record<string, unknown>,
+        }));
+        const assistantMsg: ReasonMessage = {
+          role: 'assistant',
+          content: text,
+          tool_calls: calls,
+        };
+        return { type: 'tool_calls', calls, messages: [...req.messages, assistantMsg] };
+      }
+      return {
+        type: 'final',
+        answer: text,
+        messages: [...req.messages, { role: 'assistant', content: text }],
+        inputTokens: response.usage_metadata?.input_tokens,
+        outputTokens: response.usage_metadata?.output_tokens,
+      };
+    } catch (err) {
+      teachLog.error('mlx-lm reasoning step failed', err, { operation: 'reasonOnce' });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
   }

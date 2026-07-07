@@ -168,6 +168,8 @@ services:
       # surfacing "Could not parse: signal timed out"; a 3.8B-class model answers
       # in ~3s. Leave LLAMACPP_MODEL unset to use whatever llama-server reports.
       LLAMACPP_MODEL: "phi-4-mini-instruct"
+      # Apple mlx-lm demo agent mode (host mlx_lm.server on :8098; Mac only).
+      MLX_LM_BASE_URL: "http://host.docker.internal:8098"
       CODE_SEARCH_DEFAULT_INDEX: ${CODE_SEARCH_DEFAULT_INDEX:-true}
       CODE_SEARCH_REPO_ROOT: /repo
       LLAMAINDEX_AGENT_URL: http://llamaindex-agent:8894
@@ -445,6 +447,7 @@ services:
       # Agent reasoning + native tool calls → strongest tier. The proxy treats
       # this as a minimum capability class (per-agent routing, swap mode).
       LLAMACPP_MODEL: "gpt-oss-20b"
+      MLX_LM_BASE_URL: "http://host.docker.internal:8098"
     env_file:
       - path: ./demo_agent_service/.env
         required: false

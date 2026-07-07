@@ -17,7 +17,7 @@ export interface ReasonMessage {
 export interface ReasonRequest {
   messages: ReasonMessage[];
   tools: ReasonToolSchema[];
-  provider: 'helix' | 'anthropic' | 'anthropic-lmstudio' | 'lmstudio' | 'llamacpp'; // already resolved by the BFF
+  provider: 'helix' | 'anthropic' | 'anthropic-lmstudio' | 'lmstudio' | 'llamacpp' | 'mlx'; // already resolved by the BFF
   model?: string;
   // Vertical system prompt injected by the BFF from manifest.agent.systemPromptFlavor
   systemPrompt?: string;

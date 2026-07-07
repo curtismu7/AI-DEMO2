@@ -370,6 +370,7 @@ preflight_checks() {
   # LLM_BACKEND selects the Mac host backend (default: llamacpp):
   #   llamacpp — 2-tier llama.cpp proxy (router :8090 → tiers :8091/:8096)
   #   omlx     — oMLX on :8090 (Apple Silicon; see demo_llm_proxy/start-omlx.sh)
+  #   mlx      — Apple mlx-lm on :8090 (fallback; see demo_llm_proxy/start-mlx.sh)
   #
   # Architecture note (llamacpp): :8090 is the 2-tier LLM proxy (router.js).
   # It classifies each request and routes it to a llama-server backend on
@@ -423,6 +424,15 @@ preflight_checks() {
     return 1
   }
 
+  _start_mlx_stack() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+      warn "LLM_BACKEND=mlx requires macOS — falling back to llama.cpp"
+      _start_llm_proxy_stack
+      return $?
+    fi
+    bash "${BASEDIR}/demo_llm_proxy/start-mlx.sh" start
+  }
+
   _start_omlx_stack() {
     if [[ "$(uname)" != "Darwin" ]]; then
       warn "LLM_BACKEND=omlx requires macOS — falling back to llama.cpp"
@@ -446,10 +456,19 @@ preflight_checks() {
       warn "local LLM at ${llamacpp_base} not reachable — NL fallback may be disabled"
     fi
   elif _local_llm_ready "${llamacpp_port}"; then
-    if [[ "$llm_backend" == "omlx" ]]; then
+    if [[ "$llm_backend" == "mlx" ]]; then
+      ok "mlx-lm already serving :${llamacpp_port}"
+    elif [[ "$llm_backend" == "omlx" ]]; then
       ok "oMLX already serving :${llamacpp_port}"
     else
       ok "LLM proxy already serving :${llamacpp_port} (2-tier router)"
+    fi
+  elif [[ "$llm_backend" == "mlx" ]]; then
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting mlx-lm on :${llamacpp_port}…"
+    if _start_mlx_stack; then
+      ok "mlx-lm ready on :${llamacpp_port}"
+    else
+      warn "mlx-lm did not become ready — bash demo_llm_proxy/setup-mlx-venv.sh"
     fi
   elif [[ "$llm_backend" == "omlx" ]]; then
     echo -e "  ${CYAN}[SPIN]${RESET}  Starting oMLX on :${llamacpp_port}…"
@@ -494,6 +513,22 @@ preflight_checks() {
       ok "LLM proxy ready on :8090 (routing tiers 8091 + 8096)"
     else
       warn "LLM proxy did not become ready on :8090 — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
+    fi
+  fi
+
+  # MLX demo agent mode — Apple's mlx-lm on :8098 (Mac only; non-fatal).
+  # Skipped when LLM_BACKEND=mlx already owns :8090 with mlx-lm.
+  if [[ "$(uname)" == "Darwin" && "$llm_backend" != "mlx" ]]; then
+    if curl -sf --max-time 3 "http://127.0.0.1:8098/health" >/dev/null 2>&1 \
+       || curl -sf --max-time 3 "http://127.0.0.1:8098/v1/models" >/dev/null 2>&1; then
+      ok "mlx-lm demo server already serving :8098"
+    elif [[ -x "${BASEDIR}/demo_llm_proxy/.mlx-venv/bin/mlx_lm.server" ]]; then
+      echo -e "  ${CYAN}[SPIN]${RESET}  Starting mlx-lm demo server on :8098…"
+      if bash "${BASEDIR}/demo_llm_proxy/start-mlx-lm.sh" start; then
+        ok "mlx-lm demo ready on :8098 (agent mode: MLX)"
+      else
+        warn "mlx-lm demo did not start — run: bash demo_llm_proxy/setup-mlx-venv.sh"
+      fi
     fi
   fi
 

@@ -45,6 +45,7 @@ echo ""
 if [[ $missing -eq 0 ]]; then
   echo "✅ All MLX models present. Start with:"
   echo "     LLM_BACKEND=omlx bash demo_llm_proxy/start-omlx.sh start"
+  echo "     LLM_BACKEND=mlx  bash demo_llm_proxy/start-mlx.sh start"
   exit 0
 fi
 

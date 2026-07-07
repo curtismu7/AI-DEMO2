@@ -4,7 +4,7 @@ import useLangchainProvider from "../hooks/useLangchainProvider";
 import { CORE_MODE_IDS, MODE_PROVIDER, DEFAULT_MODE } from "../config/agentModes";
 import "./AgentModeSelector.css";
 
-// FOUR single-brain modes (2026-06-11 simplification). Each maps to one
+// FIVE single-brain modes (four production + one MLX demo). Each maps to one
 // provider; heuristics needs none. A mode is greyed out when its provider is
 // unconfigured/unreachable — the honest disabled state that replaced the old
 // silent Helix fallback. The id/provider table is the shared SSOT in
@@ -30,6 +30,7 @@ export default function AgentModeSelector({ compact = false, onChange }) {
   // no model loaded); anthropic/helix come from the honest sync keySet.
   // null = not yet probed (treated as available so we never flicker-disable).
   const [llamaCppOk, setLlamaCppOk] = useState(null);
+  const [mlxOk, setMlxOk] = useState(null);
   // Re-probe on mount, when the tab regains focus, and on a slow interval, so a
   // recovering (or newly-dead) llama.cpp clears/sets "not configured" without a
   // full page reload.
@@ -40,6 +41,10 @@ export default function AgentModeSelector({ compact = false, onChange }) {
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (alive) setLlamaCppOk(d ? d.status === "available" : false); })
         .catch(() => { if (alive) setLlamaCppOk(false); });
+      fetch("/api/langchain/provider/mlx/status", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (alive) setMlxOk(d ? d.status === "available" : false); })
+        .catch(() => { if (alive) setMlxOk(false); });
     };
     probe();
     const onFocus = () => probe();
@@ -54,6 +59,7 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     const p = MODE_PROVIDER[id];
     if (!p) return true;
     if (p === 'llamacpp') return llamaCppOk !== false;
+    if (p === 'mlx') return mlxOk !== false;
     return keySet?.[p] === true;
   };
 
@@ -69,7 +75,12 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     const p = MODE_PROVIDER[mode];
     // Don't act on llama.cpp until it has actually been probed (null = unknown).
     if (p === "llamacpp" && llamaCppOk === null) return;
-    const available = !p ? true : (p === "llamacpp" ? llamaCppOk !== false : keySet?.[p] === true);
+    if (p === "mlx" && mlxOk === null) return;
+    const available = !p ? true : (
+      p === "llamacpp" ? llamaCppOk !== false
+        : p === "mlx" ? mlxOk !== false
+          : keySet?.[p] === true
+    );
     if (mode === DEFAULT_MODE || available) {
       autoSwitchedRef.current = false;
       return;
@@ -79,7 +90,7 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     const label = modeOptions.find((m) => m.id === mode)?.label || "The selected model";
     setAutoSwitchNotice(`${label} is unavailable — switched to Heuristics.`);
     setMode(DEFAULT_MODE, externalWiring);
-  }, [mode, llamaCppOk, keySet, loading, saving, externalWiring, modeOptions, setMode]);
+  }, [mode, llamaCppOk, mlxOk, keySet, loading, saving, externalWiring, modeOptions, setMode]);
 
   useEffect(() => {
     if (!autoSwitchNotice) return undefined;

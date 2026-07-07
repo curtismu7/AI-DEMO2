@@ -60,6 +60,8 @@ happened — an unrelated commit swept up another session's staged files).
   Used by Docker, K8s, and CI. Set `LLM_BACKEND=llamacpp` or omit.
 - **oMLX** (Mac fast path) — `LLM_BACKEND=omlx` on Apple Silicon for agent chip /
   tool-loop dev. See `demo_llm_proxy/README.md`.
+- **mlx-lm** (Mac fallback) — `LLM_BACKEND=mlx` when oMLX is unavailable; same
+  `:8090` contract. See `planning/PLAN-llm-backends-mac.md`.
 
 ## Tests
 

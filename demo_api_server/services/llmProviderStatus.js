@@ -103,6 +103,31 @@ async function getProviderStatus(provider, config = {}) {
     }
   }
 
+  // mlx-lm (Apple) — demo agent mode; ping mlx_lm.server on MLX_LM_BASE_URL (:8098).
+  if (provider === 'mlx') {
+    const origin = (process.env.MLX_LM_BASE_URL || 'http://127.0.0.1:8098').replace(/\/+$/, '');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+      let response = await fetch(`${origin}/health`, { signal: controller.signal });
+      if (!response.ok) {
+        response = await fetch(`${origin}/v1/models`, { signal: controller.signal });
+      }
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const models = (data.data || []).map((m) => m.id).filter(Boolean);
+        const reason = models.length > 0
+          ? `mlx-lm running — serving ${models[0]}`
+          : 'mlx-lm server running';
+        return { status: 'available', reason, hasKey: true, isReachable: true };
+      }
+      return { status: 'unreachable', reason: `mlx-lm returned ${response.status}`, hasKey: true, isReachable: false };
+    } catch (err) {
+      return { status: 'unreachable', reason: `mlx-lm not reachable at ${origin}: ${err.message} (run: bash demo_llm_proxy/start-mlx-lm.sh start)`, hasKey: true, isReachable: false };
+    }
+  }
+
   return { status: 'unconfigured', reason: `Provider "${provider}" not supported`, hasKey: false, isReachable: false };
 }
 

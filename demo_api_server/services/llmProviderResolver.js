@@ -17,7 +17,7 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'anthropic-lmstudio'|'llamacpp', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'anthropic-lmstudio'|'llamacpp'|'mlx', model: string|undefined }}
  */
 function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
@@ -37,6 +37,11 @@ function resolveLlmProvider(langchainConfig = {}) {
     // llama.cpp — local small LLM (e.g. Gemma 3) with native tool-calling; no API key.
     // :3006 reasons via @langchain/openai against LLAMACPP_BASE_URL (llama-server /v1).
     return { provider: 'llamacpp', model };
+  }
+
+  if (requested === 'mlx') {
+    // Apple mlx-lm demo server — OpenAI-compatible /v1 on MLX_LM_BASE_URL (:8098).
+    return { provider: 'mlx', model };
   }
 
   if (requested === 'helix') return { provider: 'helix', model };

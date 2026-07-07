@@ -105,6 +105,7 @@ async function answerWithHelix(userMessage, context = {}) {
 const LMSTUDIO_PROVIDERS = new Set(['anthropic-lmstudio', 'lmstudio']);
 const CLAUDE_PROVIDERS = new Set(['anthropic']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
+const MLX_PROVIDERS = new Set(['mlx']);
 
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
@@ -187,11 +188,27 @@ async function answerWithLlamaCpp(userMessage, context = {}) {
   }
 }
 
+async function answerWithMlx(userMessage, context = {}) {
+  try {
+    const { callMlx } = require('./mlxLlmService');
+    const systemWithCtx = buildSystemWithCtx(null, context);
+    const raw = await callMlx([
+      { role: 'system', content: systemWithCtx },
+      { role: 'user', content: userMessage },
+    ]);
+    return raw || null;
+  } catch (err) {
+    console.warn('[nlIntent] mlx-lm conversational error:', err.message);
+    return null;
+  }
+}
+
 async function answerConversational(userMessage, context, selectedProvider) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
   else if (LLAMACPP_PROVIDERS.has(selectedProvider)) result = await answerWithLlamaCpp(userMessage, context);
+  else if (MLX_PROVIDERS.has(selectedProvider)) result = await answerWithMlx(userMessage, context);
   else result = await answerWithHelix(userMessage, context);
   return ensureRenderableAnswer(result);
 }
@@ -201,6 +218,7 @@ function conversationalSource(selectedProvider) {
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) return 'lmstudio_fallback';
   if (CLAUDE_PROVIDERS.has(selectedProvider)) return 'claude_fallback';
   if (LLAMACPP_PROVIDERS.has(selectedProvider)) return 'llamacpp_fallback';
+  if (MLX_PROVIDERS.has(selectedProvider)) return 'mlx_fallback';
   return 'helix_fallback';
 }
 
