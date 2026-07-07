@@ -27,8 +27,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Set working directory
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies (bash required by scripts/startup.sh shebang)
 RUN apt-get update && apt-get install -y \
+    bash \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

@@ -137,6 +137,12 @@ services:
       HITL_SERVICE_URL: "http://hitl-service:3009"
       AGENT_SERVICE_URL: "http://agent-service:3006"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
+      # Pin MCP audiences so stale demo_api_server/.env cannot fail startupConfigGuard.
+      # Both keys map to the mcpServer role and MUST include mcpserver.ping.demo
+      # (see startupConfigGuard.js + scope-topology.json).
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # Agent frameworks (langchain et al) call back into the BFF at this origin
       # to execute tools with RFC 8693 exchange — agentRun.js appends
