@@ -123,6 +123,21 @@ No lean/smoke profile — the 64GB test machine is expected to run everything.
 
 ## Troubleshooting
 
+
+**Dev Mac browser shows SSL error (ERR_SSL_PROTOCOL_ERROR)**
+
+Docker/OrbStack on macOS often breaks HTTPS to LAN clients. Use plain HTTP instead:
+
+```bash
+# Test Mac
+docker compose -f docker-compose.yml -f docker-compose.lan-remote.yml up -d ui
+
+# Dev Mac (/etc/hosts: 192.168.1.225 api.ping.demo)
+open http://api.ping.demo:4080
+```
+
+Stop any `socat` workaround — not needed with HTTP on :4080.
+
 **SSH fails**
 
 - Confirm Remote Login is on and `ssh testmac` works without a password.

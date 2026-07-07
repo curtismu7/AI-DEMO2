@@ -1,0 +1,24 @@
+# docker-compose.lan-remote.yml — plain-HTTP UI for Dev Mac → Test Mac browser access
+#
+# Docker Desktop/OrbStack on macOS serves HTTPS poorly to LAN clients (TLS handshake
+# fails on 192.168.x.x even when localhost works). This overlay switches the Vite dev
+# UI to plain HTTP so another Mac on the LAN can browse the Test Mac stack.
+#
+# Usage on Test Mac (stack already running):
+#   docker compose -f docker-compose.yml -f docker-compose.lan-remote.yml up -d ui
+#
+# Then on Dev Mac (/etc/hosts: 192.168.x.x api.ping.demo):
+#   open http://api.ping.demo:4080
+#
+# Local Test Mac browser (same URL):
+#   open http://api.ping.demo:4080
+#
+# Revert to HTTPS-only local UI:
+#   docker compose up -d ui
+
+services:
+  ui:
+    environment:
+      HTTPS: "false"
+    ports:
+      - "4080:4000"
