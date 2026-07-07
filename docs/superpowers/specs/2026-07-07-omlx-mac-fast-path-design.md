@@ -1,6 +1,6 @@
 # oMLX Mac Fast Path — Design Sketch
 
-**Status:** sketch (not implemented in main)  
+**Status:** shipped (llamacpp default + oMLX Mac fast path)  
 **Scope:** optional Mac-native LLM backend for `./run.sh` local dev  
 **Out of scope:** Docker Compose, K8s, CI — keep llama.cpp there
 
@@ -176,14 +176,14 @@ fi
 
 - [x] Design spec
 - [x] `start-omlx.sh` + `download-omlx-models.sh`
-- [ ] Manual smoke: `LLM_BACKEND=omlx bash demo_llm_proxy/start-omlx.sh start`
+- [x] Manual smoke: `LLM_BACKEND=omlx bash demo_llm_proxy/start-omlx.sh start`
 
 ### Phase 1 — `run.sh` toggle
 
 - [x] `LLM_BACKEND` branch in `run.sh`
 - [x] `run-docker.sh` `start_llamacpp` / `stop_llamacpp` branch
 - [x] `.env.example` notes
-- [ ] `install.sh` optional `ensure_omlx()` on Darwin
+- [x] `install.sh` optional `ensure_omlx()` on Darwin
 
 ### Phase 2 — UX
 

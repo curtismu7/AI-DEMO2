@@ -54,6 +54,13 @@ happened — an unrelated commit swept up another session's staged files).
   profiles and Quick Flag → container sync.
 - `./run-k8.sh` — Kubernetes / OrbStack / EKS variants (see `README.md`).
 
+**Local LLM backends** (`LLAMACPP_BASE_URL`, default `http://localhost:8090`):
+
+- **llama.cpp** (default) — GGUF tiers on `:8091`/`:8096`, routed by `demo_llm_proxy/`.
+  Used by Docker, K8s, and CI. Set `LLM_BACKEND=llamacpp` or omit.
+- **oMLX** (Mac fast path) — `LLM_BACKEND=omlx` on Apple Silicon for agent chip /
+  tool-loop dev. See `demo_llm_proxy/README.md`.
+
 ## Tests
 
 - `./run-tests.sh [unit|api|e2e|all]` — quick entry point; `unit` is the fastest

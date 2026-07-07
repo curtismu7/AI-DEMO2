@@ -2,6 +2,18 @@
 
 Smart routing proxy for managing 2 local language models through a single endpoint.
 
+## Which backend?
+
+| Context | Backend | How |
+|---------|---------|-----|
+| **Default** — Docker, K8s, CI, Linux | **llama.cpp** | Omit `LLM_BACKEND` (GGUF tiers + this router) |
+| **Mac daily dev** — agent chips, tool loops | **oMLX** | `LLM_BACKEND=omlx ./run.sh` or `./run-docker.sh start` |
+
+Provider id stays `llamacpp` in the UI for all backends (OpenAI-compatible `/v1` on `:8090`).
+Docker/K8s clusters always use llama.cpp in-cluster; oMLX is a host-only Mac fast path.
+
+See [oMLX Mac fast path](#omlx-mac-fast-path-recommended-on-apple-silicon) below.
+
 ## Architecture
 
 The proxy runs in **swap mode** — only ONE tier is loaded at a time ("smallest
@@ -180,22 +192,22 @@ If you're seeing slow responses:
 - Disable GPU: set `--n-gpu-layers 0`
 - Use smaller quantization (Q3 instead of Q4)
 
-## oMLX Mac fast path (optional)
+## oMLX Mac fast path (recommended on Apple Silicon)
 
-On Apple Silicon, [oMLX](https://github.com/jundot/omlx) can replace the llama.cpp
-tier stack for local dev. It keeps the same consumer contract (`:8090`, OpenAI `/v1`)
-but adds SSD-persisted KV cache and multi-model LRU — better for agent tool loops.
+On Apple Silicon, [oMLX](https://github.com/jundot/omlx) is the recommended Mac
+backend for agent chip sessions. It serves `:8090` directly (no tier router) with
+SSD-persisted KV cache — much faster repeat turns than swap-mode llama.cpp.
 
 ```bash
 brew tap jundot/omlx https://github.com/jundot/omlx
 brew trust jundot/omlx   # required on Homebrew 6.0+
 brew install omlx
 bash demo_llm_proxy/download-omlx-models.sh fetch
-LLM_BACKEND=omlx bash demo_llm_proxy/start-omlx.sh start
 LLM_BACKEND=omlx ./run.sh                    # native
 LLM_BACKEND=omlx ./run-docker.sh start       # containers → host.docker.internal:8090
 ```
 
-Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`
+After first start, open http://127.0.0.1:8090/admin — pin Phi-4 and alias models
+to `phi-4-mini-instruct` (BFF) and `gpt-oss-20b` (agent-service).
 
-Docker/K8s production paths stay on llama.cpp unless `LLM_BACKEND=omlx` is set on the Mac host.
+Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`
