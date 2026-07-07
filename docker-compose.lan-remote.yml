@@ -5,20 +5,24 @@
 # UI to plain HTTP so another Mac on the LAN can browse the Test Mac stack.
 #
 # Usage on Test Mac (stack already running):
-#   docker compose -f docker-compose.yml -f docker-compose.lan-remote.yml up -d ui
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.override.yml:docker-compose.lan-remote.yml \
+#     docker compose up -d --force-recreate ui
 #
-# Then on Dev Mac (/etc/hosts: 192.168.x.x api.ping.demo):
+# Verify (must say http, not https):
+#   docker exec ai-demo-ui printenv HTTPS
+#   curl -I http://127.0.0.1:4080
+#
+# Dev Mac (/etc/hosts: 192.168.x.x api.ping.demo):
 #   open http://api.ping.demo:4080
 #
-# Local Test Mac browser (same URL):
-#   open http://api.ping.demo:4080
-#
-# Revert to HTTPS-only local UI:
-#   docker compose up -d ui
+# Revert to HTTPS local UI (:4000):
+#   docker compose up -d --force-recreate ui
 
 services:
   ui:
     environment:
       HTTPS: "false"
+      REACT_APP_API_HOST: demo-api-server
     ports:
       - "4080:4000"
+    command: ["sh", "-c", "HTTPS=false npm start"]
