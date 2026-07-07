@@ -367,7 +367,11 @@ preflight_checks() {
   # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
   # and just verify reachability. If unset, default to localhost:8090.
   #
-  # Architecture note: :8090 is the 2-tier LLM proxy (demo_llm_proxy/router.js).
+  # LLM_BACKEND selects the Mac host backend (default: llamacpp):
+  #   llamacpp — 2-tier llama.cpp proxy (router :8090 → tiers :8091/:8096)
+  #   omlx     — oMLX on :8090 (Apple Silicon; see demo_llm_proxy/start-omlx.sh)
+  #
+  # Architecture note (llamacpp): :8090 is the 2-tier LLM proxy (router.js).
   # It classifies each request and routes it to a llama-server backend on
   # :8091 (small) or :8096 (big), managed by demo_llm_proxy/start-local-models.sh
   # (GGUFs verified by demo_llm_proxy/download-models.sh). NEVER bind a raw
@@ -378,6 +382,7 @@ preflight_checks() {
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
+  local llm_backend="${LLM_BACKEND:-llamacpp}"
   local llamacpp_model="${LLAMACPP_MODEL:-phi-4-mini-instruct}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
@@ -385,6 +390,12 @@ preflight_checks() {
   llamacpp_host=$(echo "$llamacpp_base" | sed -E 's|https?://([^:/]+).*|\1|')
   llamacpp_port=$(echo "$llamacpp_base" | sed -E 's|https?://[^:]+:([0-9]+).*|\1|')
   [[ "$llamacpp_port" == "$llamacpp_base" ]] && llamacpp_port="8090"  # sed produced no match → default
+
+  _local_llm_ready() {
+    local port="${1:-8090}"
+    curl -sf --max-time 3 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 \
+      || curl -sf --max-time 3 "http://127.0.0.1:${port}/v1/models" >/dev/null 2>&1
+  }
 
   # Start the local LLM proxy stack in SWAP MODE: the tier-manager daemon
   # (:8097) + only the smallest tier, then the smart router on :8090 if nothing
@@ -400,25 +411,52 @@ preflight_checks() {
       warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
       return 1
     }
-    if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then
+    if ! _local_llm_ready 8090; then
       LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
       echo $! > /tmp/demo-llm-proxy.pid
     fi
     local _w=0
     while [[ $_w -lt 30 ]]; do
-      curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1 && return 0
+      _local_llm_ready 8090 && return 0
       sleep 1; (( _w++ )) || true
     done
     return 1
   }
 
+  _start_omlx_stack() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+      warn "LLM_BACKEND=omlx requires macOS — falling back to llama.cpp"
+      _start_llm_proxy_stack
+      return $?
+    fi
+    if ! command -v omlx >/dev/null 2>&1; then
+      warn "omlx not found — brew tap jundot/omlx && brew install omlx"
+      warn "  models: bash demo_llm_proxy/download-omlx-models.sh fetch"
+      return 1
+    fi
+    bash "${BASEDIR}/demo_llm_proxy/start-omlx.sh" start
+  }
+
   if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
-    # Remote llama.cpp — just check reachability, never try to start locally
+    # Remote LLM — just check reachability, never try to start locally
     if curl -sf --max-time 3 "${llamacpp_base}/health" >/dev/null 2>&1 \
        || curl -sf --max-time 3 "${llamacpp_base}/v1/models" >/dev/null 2>&1; then
-      ok "llama.cpp reachable at ${llamacpp_base} — model: ${llamacpp_model}"
+      ok "local LLM reachable at ${llamacpp_base} — model: ${llamacpp_model}"
     else
-      warn "llama.cpp at ${llamacpp_base} not reachable — NL fallback may be disabled"
+      warn "local LLM at ${llamacpp_base} not reachable — NL fallback may be disabled"
+    fi
+  elif _local_llm_ready "${llamacpp_port}"; then
+    if [[ "$llm_backend" == "omlx" ]]; then
+      ok "oMLX already serving :${llamacpp_port}"
+    else
+      ok "LLM proxy already serving :${llamacpp_port} (2-tier router)"
+    fi
+  elif [[ "$llm_backend" == "omlx" ]]; then
+    echo -e "  ${CYAN}[SPIN]${RESET}  Starting oMLX on :${llamacpp_port}…"
+    if _start_omlx_stack; then
+      ok "oMLX ready on :${llamacpp_port}"
+    else
+      warn "oMLX did not become ready — check /tmp/omlx-models/ and demo_llm_proxy/start-omlx.sh"
     fi
   elif ! command -v llama-server >/dev/null 2>&1; then
     warn "llama-server not found — NL fallback LLM disabled."
@@ -445,13 +483,11 @@ preflight_checks() {
               || warn "LLM proxy did not become ready — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
           fi
           ;;
-        *) warn "Skipping llama.cpp — NL fallback disabled. Install later: https://github.com/ggml-org/llama.cpp" ;;
+        *) warn "Skipping llama.cpp — NL fallback disabled. Install later: https://github.com/ggml-org/llama.cpp  (or: LLM_BACKEND=omlx on Mac)" ;;
       esac
     else
-      warn "  Install it for NL intent routing: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp)"
+      warn "  Install llama.cpp: https://github.com/ggml-org/llama.cpp  (or: brew install llama.cpp; Mac: LLM_BACKEND=omlx)"
     fi
-  elif curl -sf --max-time 3 "http://127.0.0.1:${llamacpp_port}/health" >/dev/null 2>&1; then
-    ok "LLM proxy already serving :${llamacpp_port} (2-tier router)"
   else
     echo -e "  ${CYAN}[SPIN]${RESET}  Starting LLM proxy stack (tiers :8091 + :8096 + router :8090)…"
     if _start_llm_proxy_stack; then

@@ -19,7 +19,7 @@
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
-#   ./run-docker.sh llamacpp restart      stop and restart host model tiers 8091 + 8096 (containers untouched)
+#   ./run-docker.sh llamacpp restart      stop and restart host LLM backend (llama.cpp tiers or oMLX)
 #   ./run-docker.sh help                  show this message
 #
 # Optional groups (for `optional start|stop`):
@@ -333,23 +333,35 @@ git_sync_check() {
   fi
 }
 
-# ── Local LLM (host) lifecycle — 2-tier proxy ───────────────────────────────
-# :8090 is the 2-tier LLM proxy (the llm-proxy container running
-# demo_llm_proxy/router.js) — NEVER bind a raw llama-server straight onto it.
-# The proxy routes per agent (request model pin) or by keyword class to tier
-# llama-server backends on host ports 8091 (small) and 8096 (big), managed by
-# demo_llm_proxy/start-local-models.sh (GGUFs verified by download-models.sh).
-# SWAP MODE: only one tier is loaded at a time — the router asks the
-# tier-manager daemon (:8097, host) to swap up when a request needs a bigger
-# model, and decays back to the smallest tier when idle. Dockerized services
-# reach the proxy at http://llm-proxy:8090 (in-network) or
-# host.docker.internal:8090.
+# ── Local LLM (host) lifecycle ───────────────────────────────────────────────
+# LLM_BACKEND selects the Mac host backend (default: llamacpp):
+#   llamacpp — 2-tier llama.cpp proxy; llm-proxy container on :8090 routes to
+#              host tiers :8091 (small) / :8096 (big) via tier-manager :8097
+#   omlx     — oMLX on host :8090; llm-proxy container is skipped (port clash);
+#              containers reach host via host.docker.internal:8090
+#
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
+_LLM_BACKEND="${LLM_BACKEND:-llamacpp}"
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
 _TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
+_OMLX_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-omlx.sh"
 
-_proxy_up() { curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1; }
+_local_llm_ready() {
+  curl -sf --max-time 2 http://127.0.0.1:8090/health >/dev/null 2>&1 \
+    || curl -sf --max-time 2 http://127.0.0.1:8090/v1/models >/dev/null 2>&1
+}
+
+_proxy_up() { _local_llm_ready; }
+
+# Core services for compose up — omit llm-proxy when host oMLX owns :8090.
+_effective_core_services() {
+  local svc
+  for svc in "${CORE_SERVICES[@]}"; do
+    [[ "${_LLM_BACKEND}" == "omlx" && "${svc}" == "llm-proxy" ]] && continue
+    echo "${svc}"
+  done
+}
 
 # Legacy guard: a raw llama-server bound to :8090 shadows the llm-proxy
 # container on IPv4 (both listen; IPv4 clients then hit the wrong backend).
@@ -382,6 +394,23 @@ _start_tier_manager() {
 }
 
 start_llamacpp() {
+  if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
+    if [[ "$(uname)" != "Darwin" ]]; then
+      warn "LLM_BACKEND=omlx requires macOS — starting llama.cpp tiers instead"
+    elif command -v omlx >/dev/null 2>&1; then
+      docker compose "${COMPOSE_FILES[@]}" stop llm-proxy 2>/dev/null || true
+      if bash "$_OMLX_SCRIPT" start; then
+        ok "oMLX on :8090 — containers use host.docker.internal:8090 (llm-proxy container skipped)"
+        return 0
+      fi
+      warn "oMLX failed to start — see /tmp/omlx-models/ (log: omlx-8090.log)"
+      return 0
+    else
+      warn "omlx not installed — brew tap jundot/omlx && brew install omlx"
+      warn "  models: bash demo_llm_proxy/download-omlx-models.sh fetch"
+      return 0
+    fi
+  fi
   command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
   _clear_8090_squatter
   _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
@@ -394,6 +423,11 @@ start_llamacpp() {
 }
 
 stop_llamacpp() {
+  if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
+    bash "$_OMLX_SCRIPT" stop 2>/dev/null || true
+    ok "oMLX stopped"
+    return 0
+  fi
   bash "$_TIERS_SCRIPT" stop 2>/dev/null || true
   if [[ -f "$_TIER_MANAGER_PIDFILE" ]]; then
     kill "$(cat "$_TIER_MANAGER_PIDFILE")" 2>/dev/null || true
@@ -739,9 +773,8 @@ cmd_build_one() {
 #
 # Before `up`, clear any NON-Docker listener on a Docker-published port. Docker's
 # own forwarders (OrbStack / com.docker / vpnkit) are left alone, and the
-# intentional host model tiers on :8091 and :8096 are never touched (not in SERVICES);
-# :8090 IS in SERVICES (llm-proxy container), so a stale host listener there —
-# e.g. a legacy raw llama-server — gets cleared, which is exactly what we want.
+# intentional host model tiers on :8091 and :8096 are never touched (not in SERVICES).
+# When LLM_BACKEND=omlx, host oMLX owns :8090 and the llm-proxy container is skipped.
 clear_stale_host_listeners() {
   local cleared=0 entry _svc _label port pids pid cmd
   for entry in "${SERVICES[@]}"; do
@@ -1002,6 +1035,8 @@ cmd_start() {
   start_llamacpp
   echo ""
 
+  _CORE_UP=($(_effective_core_services))
+
   # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
   # that would silently shadow a Docker container's published port.
   clear_stale_host_listeners
@@ -1013,7 +1048,7 @@ cmd_start() {
     if [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
-      docker compose "${COMPOSE_FILES[@]}" up --build -d demo-api-server "${CORE_SERVICES[@]}"
+      docker compose "${COMPOSE_FILES[@]}" up --build -d demo-api-server "${_CORE_UP[@]}"
     fi
   else
     ok "Ensuring demo-api-server is up to date..."
@@ -1023,9 +1058,13 @@ cmd_start() {
       ok "Starting full stack (core + all compose profiles)..."
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
     else
-      ok "Starting core stack (${#CORE_SERVICES[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+      if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
+        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+      else
+        ok "Starting core stack (${#_CORE_UP[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+      fi
       ok "After toggling Quick Flags: ./run-docker.sh demo-sync"
-      docker compose "${COMPOSE_FILES[@]}" up -d "${CORE_SERVICES[@]}"
+      docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
     fi
   fi
 
@@ -1079,7 +1118,7 @@ cmd_start() {
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET}              pick service to tail"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh logs${RESET} <svc>        tail specific service"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh status${RESET}            show container health"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh llamacpp restart${RESET}  restart host model tiers"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh llamacpp restart${RESET}  restart host LLM (llama.cpp tiers or oMLX)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh help${RESET}              show full help"
   echo -e "${WHITE}${BOLD}  │${RESET}"
   echo -e "${WHITE}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
@@ -1161,7 +1200,7 @@ cmd_help() {
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
-  echo "    llamacpp restart      Stop and restart host model tiers 8091 + 8096 (containers untouched)"
+  echo "    llamacpp restart      Stop and restart host LLM backend (llama.cpp tiers or oMLX)"
   echo "    help                  Show this message"
   echo ""
   cmd_optional_help

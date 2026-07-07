@@ -179,3 +179,23 @@ If you're seeing slow responses:
 - Reduce `--ctx-size` (uses less VRAM, but shorter context)
 - Disable GPU: set `--n-gpu-layers 0`
 - Use smaller quantization (Q3 instead of Q4)
+
+## oMLX Mac fast path (optional)
+
+On Apple Silicon, [oMLX](https://github.com/jundot/omlx) can replace the llama.cpp
+tier stack for local dev. It keeps the same consumer contract (`:8090`, OpenAI `/v1`)
+but adds SSD-persisted KV cache and multi-model LRU — better for agent tool loops.
+
+```bash
+brew tap jundot/omlx https://github.com/jundot/omlx
+brew trust jundot/omlx   # required on Homebrew 6.0+
+brew install omlx
+bash demo_llm_proxy/download-omlx-models.sh fetch
+LLM_BACKEND=omlx bash demo_llm_proxy/start-omlx.sh start
+LLM_BACKEND=omlx ./run.sh                    # native
+LLM_BACKEND=omlx ./run-docker.sh start       # containers → host.docker.internal:8090
+```
+
+Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`
+
+Docker/K8s production paths stay on llama.cpp unless `LLM_BACKEND=omlx` is set on the Mac host.
