@@ -1,6 +1,6 @@
 # Dev on One Mac, Test on Another (Same LAN)
 
-Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same network for full-stack runs, E2E, and memory-heavy profiles.
+Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same network. The test Mac always runs the **full Docker stack** — every compose service, RAG, alternate agents, tracing, and demo-auth.
 
 ## Prerequisites
 
@@ -51,10 +51,10 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
    ssh-copy-id testmac
    ```
 
-4. Verify:
+4. Verify the full stack starts:
 
    ```bash
-   ssh testmac 'cd ~/AI-demo-test && ./run-docker.sh status'
+   ssh testmac 'cd ~/AI-demo-test && ./run-docker.sh start full && ./run-docker.sh status'
    ```
 
 ## Daily workflow
@@ -65,7 +65,7 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
 # Fast gate on dev Mac
 ./run-tests.sh unit
 
-# Push branch and deploy on test Mac
+# Push branch and deploy full Docker stack on test Mac
 ./scripts/push-to-test.sh
 
 # Run heavy tests remotely
@@ -88,23 +88,22 @@ Prefer git push for anything you want to keep — rsync is for quick experiments
 
 | Script | Purpose |
 | --- | --- |
-| `scripts/push-to-test.sh [branch] [host] [profile]` | `git push` + remote pull, build, start |
-| `scripts/sync-wip-to-test.sh [host] [--no-restart]` | Rsync WIP (no secrets) + restart key services |
+| `scripts/push-to-test.sh [branch] [host]` | `git push` + remote pull, build, `start full` |
+| `scripts/sync-wip-to-test.sh [host] [--no-restart]` | Rsync WIP (no secrets) + restart hot-reload services |
 | `scripts/run-remote-tests.sh [unit\|api\|e2e\|all] [host]` | Run `./run-tests.sh` on test Mac |
 | `scripts/open-test-ui.sh [host]` | SSH tunnel + open `https://api.ping.demo:4000` |
 
-### Deploy profiles
+### What starts on the test Mac
 
-| Profile | What starts |
-| --- | --- |
-| `smoke` | Core stack only (`./run-docker.sh start`, ~750MB) |
-| `full` | Every compose service (default) |
-| `max` | Full + RAG + alternate agent frameworks |
+`push-to-test.sh` always runs `./run-docker.sh start full`, which includes:
 
-```bash
-./scripts/push-to-test.sh my-branch testmac smoke
-./scripts/push-to-test.sh my-branch testmac max
-```
+- Core banking stack (BFF, UI, MCP servers, PingGateway, agents, HITL, LLM proxy)
+- RAG / Code Search (Weaviate, embeddings, llamaindex-agent)
+- Alternate agent frameworks (OpenAI, Mastra, Pydantic)
+- Jaeger tracing
+- Demo authz + demo MCP gateway (via `demo-sync` after start)
+
+No lean/smoke profile — the 64GB test machine is expected to run everything.
 
 ### Environment overrides
 
