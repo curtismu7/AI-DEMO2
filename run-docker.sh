@@ -418,6 +418,15 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
+_RUN_DOCKER_CMD_EARLY="${1:-start}"
+if [[ "${_RUN_DOCKER_CMD_EARLY}" != "stop" && "${_RUN_DOCKER_CMD_EARLY}" != "help" && "${_RUN_DOCKER_CMD_EARLY}" != "--help" && "${_RUN_DOCKER_CMD_EARLY}" != "-h" ]]; then
+  if ! docker info >/dev/null 2>&1; then
+    err "Docker daemon not running — start OrbStack or Docker Desktop, then retry."
+    exit 1
+  fi
+fi
+unset _RUN_DOCKER_CMD_EARLY
+
 if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
   err "demo_api_server/.env not found."
   echo ""
@@ -526,6 +535,51 @@ tail_logs() {
   fi
 }
 
+# ── Docker helpers ────────────────────────────────────────────────────────────
+
+# True when the Docker daemon answers (OrbStack / Docker Desktop running).
+_docker_daemon_ready() {
+  docker info >/dev/null 2>&1
+}
+
+# Run `docker compose …` with a wall-clock cap so a hung daemon does not block stop.
+_compose_with_timeout() {
+  local secs="$1"
+  shift
+  docker compose "${COMPOSE_FILES[@]}" "$@" &
+  local pid=$!
+  local waited=0
+  while kill -0 "${pid}" 2>/dev/null && (( waited < secs )); do
+    sleep 1
+    ((waited++)) || true
+  done
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill "${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+    return 124
+  fi
+  wait "${pid}"
+}
+
+_compose_down() {
+  if ! _docker_daemon_ready; then
+    warn "Docker daemon not running — skipping compose down (start OrbStack or Docker Desktop)"
+    return 0
+  fi
+  echo "Stopping containers..."
+  local down_rc=0
+  if [[ $# -gt 0 ]]; then
+    _compose_with_timeout 120 down --timeout 10 "$@" --remove-orphans 2>/dev/null || down_rc=$?
+  else
+    _compose_with_timeout 120 down --timeout 10 --remove-orphans 2>/dev/null || down_rc=$?
+  fi
+  if [[ "${down_rc}" -ne 0 ]]; then
+    warn "compose down timed out — forcing stop"
+    docker compose "${COMPOSE_FILES[@]}" kill 2>/dev/null || true
+    docker compose "${COMPOSE_FILES[@]}" rm -f 2>/dev/null || true
+  fi
+}
+
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 cmd_stop() {
@@ -534,7 +588,7 @@ cmd_stop() {
   echo -e "${CYAN}${BOLD}   [DOCKER]  AI DEMO — STOPPING                                    ${RESET}"
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
-  docker compose "${COMPOSE_FILES[@]}" down --remove-orphans 2>/dev/null || true
+  _compose_down
   ok "All containers stopped and removed."
   echo ""
 }
@@ -551,10 +605,10 @@ cmd_down() {
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
   if [[ "$remove_volumes" == "-v" ]]; then
-    docker compose "${COMPOSE_FILES[@]}" down -v --remove-orphans 2>/dev/null || true
+    _compose_down -v
     ok "All containers, networks, and volumes removed."
   else
-    docker compose "${COMPOSE_FILES[@]}" down --remove-orphans 2>/dev/null || true
+    _compose_down
     ok "All containers and networks stopped and removed (volumes preserved)."
   fi
   echo ""
