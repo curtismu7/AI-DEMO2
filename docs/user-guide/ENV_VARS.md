@@ -43,6 +43,7 @@
 |---|---|---|
 | `PINGONE_ENVIRONMENT_ID` | PingOne environment UUID | `d02d2305-...` |
 | `PINGONE_REGION` | Region TLD | `com` |
+| `PING_EMAIL` | Ping Identity email (`@pingidentity.com` only — personal email is rejected). `./run-k8.sh` derives `ping-devops-*` namespace from the local part (dots stripped). Bootstrap preserves an existing value, reads `PING_EMAIL` from the environment, or auto-fills from `git config user.email` when it ends in `@pingidentity.com`. | `cmuir@pingidentity.com` |
 
 ### Session / Encryption
 

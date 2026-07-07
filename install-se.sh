@@ -51,6 +51,30 @@ warn()  { echo "${YELLOW}!${RESET}  $*"; }
 err()   { echo "${RED}✗${RESET}  $*" >&2; }
 fatal() { err "$*"; exit 1; }
 
+is_valid_ping_email() {
+  local email
+  email="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
+  [[ -n "$email" && "$email" == *@pingidentity.com ]]
+}
+
+read_ping_email_install() {
+  local prompt="${1:-  Your Ping email (e.g. cmuir@pingidentity.com): }"
+  local _input="" _valid=""
+  while true; do
+    _input=""
+    if [[ -r /dev/tty ]]; then
+      read -r -p "$prompt" _input </dev/tty 2>/dev/null || true
+    fi
+    _input="$(printf '%s' "$_input" | tr -d ' "')"
+    [[ -z "$_input" ]] && return 1
+    if is_valid_ping_email "$_input"; then
+      printf '%s' "$(printf '%s' "$_input" | tr '[:upper:]' '[:lower:]')"
+      return 0
+    fi
+    warn "Must be a @pingidentity.com address — personal email is not allowed."
+  done
+}
+
 ensure_homebrew() {
   if command -v brew >/dev/null 2>&1; then return 0; fi
   if [[ "$(uname)" != "Darwin" ]]; then return 0; fi
@@ -508,12 +532,19 @@ main() {
   # Prompt for Ping email up front — needed for namespace derivation later.
   local PING_EMAIL="${PING_EMAIL:-}"
   if [[ -z "$PING_EMAIL" ]]; then
-    if [[ -r /dev/tty ]]; then
-      read -r -p "  Your Ping email (e.g. cmuir@pingidentity.com): " PING_EMAIL </dev/tty 2>/dev/null || true
+    local _git_email
+    _git_email="$(git config user.email 2>/dev/null || true)"
+    if is_valid_ping_email "$_git_email"; then
+      PING_EMAIL="$(printf '%s' "$_git_email" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
     fi
   fi
   if [[ -z "$PING_EMAIL" ]]; then
+    PING_EMAIL="$(read_ping_email_install "  Your Ping email (e.g. cmuir@pingidentity.com): " || true)"
+  fi
+  if [[ -z "$PING_EMAIL" ]]; then
     warn "No Ping email entered — you will be prompted for it when deploying."
+  elif ! is_valid_ping_email "$PING_EMAIL"; then
+    fatal "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
   else
     ok "Ping email: ${PING_EMAIL}"
     export PING_EMAIL

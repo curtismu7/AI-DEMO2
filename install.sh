@@ -76,6 +76,32 @@ warn()   { echo "${YELLOW}!${RESET}  $*"; }
 err()    { echo "${RED}✗${RESET}  $*" >&2; }
 fatal()  { err "$*"; exit 1; }
 
+# Ping email validation — install.sh runs via curl before the repo exists, so keep
+# this inline (scripts/ping-email.sh is used after clone by run-k8.sh etc.).
+is_valid_ping_email() {
+  local email
+  email="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
+  [[ -n "$email" && "$email" == *@pingidentity.com ]]
+}
+
+read_ping_email_install() {
+  local prompt="${1:-  Your Ping email (e.g. cmuir@pingidentity.com): }"
+  local _input="" _valid=""
+  while true; do
+    _input=""
+    if [[ -r /dev/tty ]]; then
+      read -r -p "$prompt" _input </dev/tty 2>/dev/null || true
+    fi
+    _input="$(printf '%s' "$_input" | tr -d ' "')"
+    [[ -z "$_input" ]] && return 1
+    if is_valid_ping_email "$_input"; then
+      printf '%s' "$(printf '%s' "$_input" | tr '[:upper:]' '[:lower:]')"
+      return 0
+    fi
+    warn "Must be a @pingidentity.com address — personal email is not allowed."
+  done
+}
+
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 
 # Install Homebrew if missing (macOS only). On Linux this is a no-op.
@@ -1192,11 +1218,19 @@ main() {
       # Capture the user's Ping email now so run-k8.sh se-deploy can derive
       # the namespace without prompting later.
       if [[ -z "${PING_EMAIL:-}" ]]; then
-        local _ping_email=""
-        if [[ -r /dev/tty ]]; then
-          read -r -p "  Your Ping email (e.g. cmuir@pingidentity.com): " _ping_email </dev/tty 2>/dev/null || true
+        local _git_email
+        _git_email="$(git config user.email 2>/dev/null || true)"
+        if is_valid_ping_email "$_git_email"; then
+          export PING_EMAIL="$(printf '%s' "$_git_email" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
         fi
+      fi
+      if [[ -z "${PING_EMAIL:-}" ]]; then
+        local _ping_email=""
+        _ping_email="$(read_ping_email_install "  Your Ping email (e.g. cmuir@pingidentity.com): " || true)"
         [[ -n "$_ping_email" ]] && export PING_EMAIL="$_ping_email"
+      fi
+      if [[ -n "${PING_EMAIL:-}" ]] && ! is_valid_ping_email "$PING_EMAIL"; then
+        fatal "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
       fi
       ;;
     eks)
