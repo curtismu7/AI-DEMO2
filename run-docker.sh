@@ -212,6 +212,32 @@ ensure_bind_mounts() {
   else
     ok "LLM2.json present."
   fi
+
+  # pingcli — must be a FILE at demo_api_server/bin/pingcli for the /pingcli demo page.
+  # Docker/OrbStack cannot bind-mount /opt/homebrew; copy the host binary into the
+  # repo (already bind-mounted as /app) before `up`. Skip with a warning when absent.
+  local pingcli_bin="${BASEDIR}/demo_api_server/bin/pingcli"
+  if [[ -d "$pingcli_bin" ]]; then
+    warn "demo_api_server/bin/pingcli is a directory (Docker auto-created it) — removing."
+    rm -rf "$pingcli_bin"
+  fi
+  local pingcli_src=""
+  if command -v pingcli >/dev/null 2>&1; then
+    pingcli_src="$(command -v pingcli)"
+  elif [[ -x /opt/homebrew/bin/pingcli ]]; then
+    pingcli_src="/opt/homebrew/bin/pingcli"
+  elif [[ -x /usr/local/bin/pingcli ]]; then
+    pingcli_src="/usr/local/bin/pingcli"
+  fi
+  if [[ -n "$pingcli_src" ]]; then
+    mkdir -p "${BASEDIR}/demo_api_server/bin"
+    cp -f "$pingcli_src" "$pingcli_bin"
+    chmod +x "$pingcli_bin"
+    ok "pingcli staged at demo_api_server/bin/pingcli (from ${pingcli_src})."
+  else
+    warn "pingcli not found on host — /pingcli demo page commands will fail until installed."
+    warn "Install: brew install pingidentity/tap/pingcli"
+  fi
 }
 
 # ── Vault preflight ───────────────────────────────────────────────────────────
