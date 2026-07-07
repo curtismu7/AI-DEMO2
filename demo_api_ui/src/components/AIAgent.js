@@ -4648,10 +4648,18 @@ export default function BankingAgent({
       addMessage('user', text);
       activityStartRequest(text);
       setNlLoading(true);
+      // Send prior visible turns so the agent has multi-turn context ("reverse
+      // that" needs the earlier turn). `messages` here is the pre-add closure
+      // value, so the current turn is appended explicitly (no duplication). The
+      // BFF windows this array (agent_history_limit) before forwarding.
+      const priorHistory = (messages || [])
+        .filter((m) => (m.role === 'user' || m.role === 'assistant')
+          && typeof m.content === 'string' && m.content.trim() && !m.streaming)
+        .map((m) => ({ role: m.role, content: m.content }));
       aguiRun({
         threadId,
         runId,
-        messages: [{ role: 'user', content: text }],
+        messages: [...priorHistory, { role: 'user', content: text }],
         provider: activeLlmProvider,
       }).finally(() => {
         setNlLoading(false);
@@ -5609,10 +5617,16 @@ export default function BankingAgent({
         if (!aguiThreadIdRef.current) aguiThreadIdRef.current = "ba-" + Date.now();
         aguiActiveRunIdRef.current = "run-" + Date.now();
         if (activityNarrationEnabled) activityStartRequest(text);
+        // Send prior visible turns for multi-turn context; `messages` is the
+        // render-time closure (current turn not yet included), so append it.
+        const priorHistory = (messages || [])
+          .filter((m) => (m.role === "user" || m.role === "assistant")
+            && typeof m.content === "string" && m.content.trim() && !m.streaming)
+          .map((m) => ({ role: m.role, content: m.content }));
         await aguiRun({
           threadId: aguiThreadIdRef.current,
           runId: aguiActiveRunIdRef.current,
-          messages: [{ role: "user", content: text }],
+          messages: [...priorHistory, { role: "user", content: text }],
           provider: activeLlmProvider,
         });
         return;
