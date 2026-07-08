@@ -7,6 +7,7 @@
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
+const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
 const { isAdminClientToken, adminTokenAgentResponse } = require('./customerTokenGuard');
 const { executePluginToolViaMcp } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
@@ -114,6 +115,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Public catalog — no RFC 8693 exchange (progressive trust Act 1 / UC24).
     if (action === 'branch_hours') {
       const result = searchPublicBranches(params || {});
+      const tokenEvents = buildPublicCatalogTokenEvents('get_branch_hours');
       return {
         reply: formatBranchCatalogReply(result),
         success: true,
@@ -121,7 +123,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         tokensUsed: 0,
         requiresConsent: false,
         agentConfigured: true,
-        tokenEvents: [],
+        tokenEvents,
         branches: result.branches,
         publicCatalog: true,
       };
