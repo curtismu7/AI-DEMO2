@@ -439,18 +439,6 @@ async function main() {
     PG_INVEST_SCOPE:                'read mcp:invoke invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
-    // Real PingOne Authorize (p1az-decision.groovy) — required when BFF sends
-    // X-Authz-Simulated:false. Without these the filter fails closed with 403.
-    P1AZ_REAL_BASE:                 `https://api.pingone.${region}/v1/environments/${envId}`,
-    P1AZ_WORKER_ID:                 fb('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID')
-                                      || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
-                                      || '',
-    P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID')
-                                      || fb('PINGONE_WORKER_CLIENT_ID')
-                                      || '',
-    P1AZ_WORKER_CLIENT_SECRET:      fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET')
-                                      || fb('PINGONE_WORKER_CLIENT_SECRET')
-                                      || '',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
