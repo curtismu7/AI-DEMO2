@@ -478,7 +478,9 @@ _yotuo_patch_tier() {
   python3 - "$dep" "$port" "$model_file" "$with_jinja" "$host_path" "$NS" <<'PY'
 import json, subprocess, sys
 dep, port, model_file, with_jinja, host_path, ns = sys.argv[1:7]
-args = ["--host", "0.0.0.0", "--port", port]
+# Match demo_llm_proxy/start-local-models.sh — cap context + single slot so
+# Phi-4 fits in a 5Gi K8 limit (default ctx would OOM on ~17Gi OrbStack nodes).
+args = ["--host", "0.0.0.0", "--port", port, "--ctx-size", "4096", "--parallel", "1"]
 if with_jinja == "1":
     args.append("--jinja")
 args += ["-m", f"/models/{model_file}"]
