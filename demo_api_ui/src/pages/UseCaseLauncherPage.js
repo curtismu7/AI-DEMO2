@@ -46,6 +46,16 @@ function normalizeSim(s) {
 // ff_ciba in the catalog is a legacy alias; the real key is ciba_enabled.
 const FLAG_ID_ALIASES = { ff_ciba: 'ciba_enabled' };
 
+/** Progressive trust presenter flow — Acts 1–5 (UC24–UC28). */
+const PROGRESSIVE_TRUST_ACT_SLUGS = [
+  'progressive-trust-public-access',
+  'progressive-trust-authenticated-access',
+  'progressive-trust-hitl-consent',
+  'progressive-trust-ciba-approval',
+  'progressive-trust-policy-deny',
+];
+const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24', 'UC25', 'UC26', 'UC27', 'UC28']);
+
 /**
  * Returns the FLAG_REGISTRY id for a flag-gated UC maturity string,
  * or null if maturity is not flag-gated.
@@ -352,6 +362,97 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, c
   );
 }
 
+/**
+ * Ordered five-act presenter strip for the progressive trust demo (Phase 3).
+ * Runs the same chip flow as individual UC cards but in narrative order.
+ */
+function ProgressiveTrustDemoStrip({
+  useCases,
+  onRun,
+  onExplain,
+  chipRun,
+  flagMap,
+  flagsLoading,
+  setFlag,
+}) {
+  const acts = PROGRESSIVE_TRUST_ACT_SLUGS
+    .map((slug, index) => {
+      const uc = useCases.find((u) => u.useCaseId === slug);
+      return uc ? { ...uc, actNum: index + 1 } : null;
+    })
+    .filter(Boolean);
+
+  if (!acts.length) return null;
+
+  return (
+    <div className="pt-demo-strip">
+      <p className="pt-demo-strip__banner">
+        Progressive Trust Demo — run Acts 1–5 in order on Helix, llama.cpp, or Google.
+        Act 1 skips token exchange; Acts 2–5 light up Authorize, HITL, and CIBA.
+      </p>
+      <ol className="pt-demo-strip__list">
+        {acts.map((uc) => {
+          const flagId = parseFlagId(uc.maturity);
+          const flagIsOn = flagId != null
+            ? (flagMap != null ? Boolean(flagMap[flagId]) : false)
+            : true;
+          const flagGated = flagId != null && !flagIsOn;
+          const chipRunning = chipRun?.id === uc.id && chipRun.state === 'running';
+          const chipRunError = chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null;
+          const mat = maturityLabel(uc.maturity);
+
+          return (
+            <li key={uc.id} className="pt-demo-strip__step">
+              <div className="pt-demo-strip__step-head">
+                <span className="pt-demo-strip__act">Act {uc.actNum}</span>
+                <h3 className="pt-demo-strip__title">{uc.title}</h3>
+                {mat && <span className={`uc-maturity ${mat.cls}`}>{mat.text}</span>}
+              </div>
+              {uc.trigger?.text && (
+                <p className="pt-demo-strip__prompt">
+                  <span className="pt-demo-strip__prompt-label">Chip:</span>
+                  <code>{uc.trigger.text}</code>
+                </p>
+              )}
+              <p className="pt-demo-strip__say">{uc.whatToSay}</p>
+              {flagId != null && (
+                <FlagGate
+                  flagId={flagId}
+                  isOn={flagIsOn}
+                  loading={flagsLoading}
+                  onToggle={setFlag}
+                />
+              )}
+              <div className="pt-demo-strip__actions">
+                <button
+                  type="button"
+                  className="uc-explain-btn"
+                  onClick={() => onExplain(uc)}
+                  aria-label={`Explain ${uc.title}`}
+                >
+                  Explain
+                </button>
+                <button
+                  type="button"
+                  className={`uc-run-btn${flagGated || chipRunning ? ' uc-run-btn--disabled' : ''}`}
+                  disabled={flagGated || chipRunning}
+                  title={flagGated ? `Enable ${flagId} to run this act` : undefined}
+                  onClick={() => onRun(uc)}
+                >
+                  {chipRunning ? 'Launching…' : 'Run act'}
+                </button>
+              </div>
+              {chipRunError && (
+                <p className="uc-sim-result__fetch-error">{chipRunError}</p>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 export default function UseCaseLauncherPage() {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
@@ -494,12 +595,27 @@ export default function UseCaseLauncherPage() {
         </p>
       </header>
 
-      {grouped.map(({ track, items }) => (
-        items.length === 0 ? null : (
+      {grouped.map(({ track, items }) => {
+        if (items.length === 0) return null;
+        const displayItems = track === 'demo'
+          ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
+          : items;
+        return (
           <section key={track} className="uc-track">
             <h2 className="uc-track__heading">{TRACK_LABELS[track]}</h2>
+            {track === 'demo' && (
+              <ProgressiveTrustDemoStrip
+                useCases={items}
+                onRun={handleRun}
+                onExplain={setExplainUc}
+                chipRun={chipRun}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            )}
             <div className="uc-track__grid">
-              {items.map((uc) => (
+              {displayItems.map((uc) => (
                 <UseCaseCard
                   key={uc.id}
                   uc={uc}
@@ -517,8 +633,8 @@ export default function UseCaseLauncherPage() {
               ))}
             </div>
           </section>
-        )
-      ))}
+        );
+      })}
 
       {/* A7.1 — attack anatomy explainer, shown after any attack sim run */}
       <AttackAnatomyExplainer ucEntry={lastSimUcEntry} simResult={lastSimResult} />
