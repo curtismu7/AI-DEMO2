@@ -182,7 +182,7 @@ This is PingOne policy configuration only — no application code unless policy 
 
 ---
 
-### Phase 5 — Multi-LLM showcase (optional, ~half day)
+### Phase 5 — Multi-LLM showcase — **Done**
 
 Run the same five-act script across LLM providers to prove security is provider-agnostic.
 
@@ -193,6 +193,11 @@ Run the same five-act script across LLM providers to prove security is provider-
 | `gemini` | Google Gemini | `GOOGLE_API_KEY` or configStore |
 
 **Talking point:** Swap Helix for llama.cpp or Google — PingOne Authorize, D-05 anti-bypass, and token exchange do not move. The LLM is a router; the BFF is the token custodian.
+
+**Files touched:**
+
+- `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ProgressiveTrustLlmShowcase` (Helix → llama.cpp → Gemini mode switcher)
+- `demo_api_ui/src/pages/UseCaseLauncherPage.css` — showcase grid layout
 
 ---
 
@@ -270,7 +275,7 @@ Run the same five-act script across LLM providers to prove security is provider-
 | **P1** | Live demo with existing stack, no new code | Zero | Validates narrative |
 | **P2** | One public read-only tool (Phase 2) | Done | Completes Act 1 |
 | **P3** | UI chip strip / demo mode (Phase 3) | Done | Smoother presenter flow |
-| **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | ~half day | Provider-agnostic proof |
+| **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | Done | Provider-agnostic proof |
 | **P5** | PingOne threshold tuning (Phase 4) | Config | Blog amount parity (optional) |
 
 ---

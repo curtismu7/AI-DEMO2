@@ -14,6 +14,8 @@ import UseCaseExplainModal from '../components/UseCaseExplainModal';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
+import useLangchainProvider from '../hooks/useLangchainProvider';
+import { MODE_PROVIDER } from '../config/agentModes';
 import './UseCaseLauncherPage.css';
 // A8 -- Ping product attribution
 import { PingProductChip } from '../components/PingProductChip';
@@ -55,6 +57,34 @@ const PROGRESSIVE_TRUST_ACT_SLUGS = [
   'progressive-trust-policy-deny',
 ];
 const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24', 'UC25', 'UC26', 'UC27', 'UC28']);
+
+/** Presenter order for Phase 5 multi-LLM rerun (Helix → llama.cpp → Gemini). */
+const PROGRESSIVE_TRUST_LLM_SHOWCASE = [
+  {
+    modeId: 'helix_google',
+    label: 'Helix',
+    step: 1,
+    blurb: 'Default for talks — Ping-native LLM routing.',
+    configHint: 'HELIX_* env or /setup',
+    rerunHint: 'Run the full Acts 1–5 script.',
+  },
+  {
+    modeId: 'llamacpp',
+    label: 'llama.cpp',
+    step: 2,
+    blurb: 'Offline — local demo_llm_proxy on :8090.',
+    configHint: './run.sh (LLM_BACKEND=llamacpp)',
+    rerunHint: 'Rerun Act 2 — Token Chain unchanged.',
+  },
+  {
+    modeId: 'gemini',
+    label: 'Google Gemini',
+    step: 3,
+    blurb: 'Cloud alternative brain.',
+    configHint: 'GOOGLE_API_KEY or configStore',
+    rerunHint: 'Rerun Act 3 or the full script.',
+  },
+];
 
 /**
  * Returns the FLAG_REGISTRY id for a flag-gated UC maturity string,
@@ -445,6 +475,79 @@ function ProgressiveTrustDemoStrip({
               {chipRunError && (
                 <p className="uc-sim-result__fetch-error">{chipRunError}</p>
               )}
+            </li>
+          );
+        })}
+      </ol>
+      <ProgressiveTrustLlmShowcase />
+    </div>
+  );
+}
+
+/**
+ * Phase 5 — switch agent brain between Helix, llama.cpp, and Gemini, then rerun acts.
+ */
+function ProgressiveTrustLlmShowcase() {
+  const { mode, setMode, saving, keySet, loading } = useLangchainProvider();
+  const [llamaCppOk, setLlamaCppOk] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    const probe = () => {
+      fetch('/api/langchain/provider/llamacpp/status', { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (alive) setLlamaCppOk(d ? d.status === 'available' : false); })
+        .catch(() => { if (alive) setLlamaCppOk(false); });
+    };
+    probe();
+    const onFocus = () => probe();
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.removeEventListener('focus', onFocus); };
+  }, []);
+
+  const modeAvailable = useCallback((modeId) => {
+    const provider = MODE_PROVIDER[modeId];
+    if (!provider) return true;
+    if (provider === 'llamacpp') return llamaCppOk !== false;
+    return keySet?.[provider] === true;
+  }, [keySet, llamaCppOk]);
+
+  return (
+    <div className="pt-llm-showcase">
+      <h3 className="pt-llm-showcase__heading">Multi-LLM showcase</h3>
+      <p className="pt-llm-showcase__lead">
+        Swap the agent brain — PingOne Authorize, D-05 anti-bypass, and token exchange do not move.
+        Rerun Acts 2–5 after each switch to prove provider-agnostic security.
+      </p>
+      <ol className="pt-llm-showcase__modes">
+        {PROGRESSIVE_TRUST_LLM_SHOWCASE.map((entry) => {
+          const available = !loading && modeAvailable(entry.modeId);
+          const active = mode === entry.modeId;
+          return (
+            <li
+              key={entry.modeId}
+              className={`pt-llm-showcase__mode${active ? ' pt-llm-showcase__mode--active' : ''}`}
+            >
+              <div className="pt-llm-showcase__mode-head">
+                <span className="pt-llm-showcase__step">Step {entry.step}</span>
+                <strong className="pt-llm-showcase__label">{entry.label}</strong>
+                {active && <span className="pt-llm-showcase__active">Active</span>}
+              </div>
+              <p className="pt-llm-showcase__blurb">{entry.blurb}</p>
+              <p className="pt-llm-showcase__config">
+                <span className="pt-llm-showcase__config-label">Config:</span>
+                <code>{entry.configHint}</code>
+              </p>
+              <p className="pt-llm-showcase__rerun">{entry.rerunHint}</p>
+              <button
+                type="button"
+                className={`uc-run-btn${!available || active ? ' uc-run-btn--disabled' : ''}`}
+                disabled={!available || saving || active}
+                title={!available ? `${entry.label} is not configured` : undefined}
+                onClick={() => setMode(entry.modeId)}
+              >
+                {active ? 'Active brain' : saving ? 'Saving…' : 'Use this brain'}
+              </button>
             </li>
           );
         })}
