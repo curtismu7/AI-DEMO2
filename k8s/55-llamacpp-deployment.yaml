@@ -1,4 +1,5 @@
-# In-cluster llama.cpp (local LLM) — replaces the old host.docker.internal route.
+# In-cluster llama.cpp (local LLM) — DEPRECATED: superseded by k8s/56-llm-stack.yaml.
+# Kept for reference / manual rollback only; deploy.sh no longer applies this file.
 #
 # Why this exists: the agent's "llama.cpp" mode used to reach a Mac-native runtime
 # via host.docker.internal, which only resolves on a local cluster (OrbStack /

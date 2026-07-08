@@ -1,0 +1,399 @@
+# RAG Code Search stack (Phase 3 K8 parity with Docker `rag` profile).
+# Default replicas:0 — start with `./k8s/deploy.sh rag on` (~1.2GB when running).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: weaviate-data
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: weaviate
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: embed-models
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: embeddings
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weaviate
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: weaviate
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: weaviate
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: weaviate
+    spec:
+      containers:
+        - name: weaviate
+          image: semitechnologies/weaviate:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: QUERY_DEFAULTS_LIMIT
+              value: "20"
+            - name: AUTHENTICATION_APIKEY_ENABLED
+              value: "false"
+            - name: PERSISTENCE_DATA_PATH
+              value: "/var/lib/weaviate"
+            - name: DEFAULT_VECTORIZER_MODULE
+              value: "none"
+            - name: ENABLE_MODULES
+              value: ""
+            - name: CLUSTER_HOSTNAME
+              value: "weaviate"
+            - name: RAFT_BOOTSTRAP_EXPECT
+              value: "1"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/weaviate
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          readinessProbe:
+            exec:
+              command: ["wget", "-qO-", "http://localhost:8080/v1/meta"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command: ["wget", "-qO-", "http://localhost:8080/v1/meta"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: weaviate-data
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weaviate
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: weaviate
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+    - port: 50051
+      targetPort: 50051
+      protocol: TCP
+      name: grpc
+  selector:
+    app: ai-demo
+    component: weaviate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embeddings
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: embeddings
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: embeddings
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: embeddings
+    spec:
+      containers:
+        - name: embeddings
+          image: ghcr.io/ggml-org/llama.cpp:server
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8080"
+            - "--embedding"
+            - "--pooling"
+            - "mean"
+            - "-c"
+            - "8192"
+            - "-b"
+            - "512"
+            - "-ub"
+            - "512"
+            - "--parallel"
+            - "1"
+            - "-hf"
+            - "nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0"
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: models
+              mountPath: /root/.cache/llama.cpp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: embed-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embeddings
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: embeddings
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: embeddings
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-code-search
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-code-search
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-code-search
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-code-search
+    spec:
+      containers:
+        - name: mcp-code-search
+          image: ai-demo-mcp-code-search:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8095
+              name: http
+          env:
+            - name: WEAVIATE_URL
+              value: "http://weaviate:8080"
+            - name: EMBEDDING_URL
+              value: "http://embeddings:8080"
+            - name: EMBEDDING_MODEL
+              value: "nomic-embed-text-v1.5"
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            exec:
+              command: ["wget", "-qO-", "http://localhost:8095/health"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command: ["wget", "-qO-", "http://localhost:8095/health"]
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-code-search
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-code-search
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8095
+      targetPort: 8095
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: mcp-code-search
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llamaindex-agent
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llamaindex-agent
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llamaindex-agent
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llamaindex-agent
+    spec:
+      containers:
+        - name: llamaindex-agent
+          image: ai-demo-llamaindex-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8894
+              name: http
+          env:
+            - name: WEAVIATE_URL
+              value: "http://weaviate:8080"
+            - name: WEAVIATE_GRPC_PORT
+              value: "50051"
+            - name: EMBEDDING_URL
+              value: "http://embeddings:8080"
+            - name: EMBEDDING_MODEL
+              value: "nomic-embed-text-v1.5"
+            - name: LLAMACPP_BASE_URL
+              value: "http://llm-proxy:8090"
+            - name: AGENT_MAX_TOOL_CALLS
+              value: "4"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request;urllib.request.urlopen('http://localhost:8894/health')"
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 8
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request;urllib.request.urlopen('http://localhost:8894/health')"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llamaindex-agent
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llamaindex-agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8894
+      targetPort: 8894
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: llamaindex-agent

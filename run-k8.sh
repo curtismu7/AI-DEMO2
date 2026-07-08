@@ -12,6 +12,9 @@
 #   ./run-k8.sh kill                     # kill ai-demo port-forwards + stray demo-port listeners
 #   ./run-k8.sh stop                     # clear forwards + scale all workloads to 0 (keep config; frees memory)
 #   ./run-k8.sh extras off               # stop just the investment + mortgage backends (frees memory; 'extras on' restores)
+#   ./run-k8.sh rag on                     # start Code Search / RAG stack on demand
+#   ./run-k8.sh yotuo on                   # mount YOTUO host GGUFs into llama tiers (OrbStack)
+#   ./run-k8.sh demo-sync                # align gateway deployments with admin Quick Flags
 #   ./run-k8.sh status                   # show pod/service status
 #   ./run-k8.sh restart                  # rebuild images + rolling redeploy + forward
 #   ./run-k8.sh restart --agent=pydantic #   and start the pydantic agent
@@ -126,14 +129,9 @@ check_prereqs() {
   check_docker
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. For local dev: enable Kubernetes in OrbStack/Docker Desktop Settings."
   info "K8s cluster reachable."
-  # llama.cpp runs as an in-cluster pod (k8s/55-llamacpp-deployment.yaml) — no host
-  # install is required. The pod downloads the GGUF on first deploy and caches
-  # the weights on a PVC so restarts don't re-download.
-  if ! command -v llama-server >/dev/null 2>&1; then
-    info "llama.cpp: will run in-cluster (no host install needed for Kubernetes)."
-  else
-    info "llama.cpp: host binary present — in-cluster pod will be used by agents regardless."
-  fi
+  # llama.cpp runs as an in-cluster 2-tier stack (k8s/56-llm-stack.yaml) — no host
+  # install is required. The llm-proxy pod routes to llama-tier1/llama-tier5.
+  info "LLM: in-cluster 2-tier stack — no host llama-server install required."
 }
 
 # Stop anything that would collide with the port-forwards before we bind: all
@@ -165,6 +163,7 @@ build() {
   mkdir -p "$BASEDIR/.codegraph"
   [[ -f "$BASEDIR/.codegraph/codegraph.db" ]] || touch "$BASEDIR/.codegraph/codegraph.db"
   docker compose build
+  docker compose --profile k8-build build tier-manager-k8
   success "Images built."
 }
 
@@ -422,52 +421,10 @@ derive_se_namespace() {
   echo "ping-devops-${slug}"
 }
 
-# Ensure llama.cpp is installed and the 2-tier LLM proxy serves :8090 for
-# the Code Explorer. :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier
-# llama-servers on :8091 and :8096) — never a raw llama-server pointing straight at
-# one model. Called before any deploy that uses docker-compose (se-deploy,
-# se-all); the langchain-agent container connects via host.docker.internal:8090.
+# In-cluster K8 deploy uses k8s/56-llm-stack.yaml (llm-proxy + swap tiers).
+# Host llama-server setup is not needed before kubectl apply.
 ensure_llamacpp_running() {
-  if ! command -v llama-server >/dev/null 2>&1; then
-    info "Installing llama.cpp (required for Code Explorer)..."
-    if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-      brew install llama.cpp --quiet && success "llama.cpp installed." \
-        || { info "brew install llama.cpp failed — build from https://github.com/ggml-org/llama.cpp"; return 0; }
-    else
-      info "llama.cpp not found and Homebrew unavailable — build from https://github.com/ggml-org/llama.cpp"
-      return 0
-    fi
-  fi
-
-  # Reuse whatever healthy proxy already serves :8090 (llm-proxy container when
-  # the compose stack is up, or a host router started earlier).
-  if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-    success "LLM proxy already serving :8090."
-    return 0
-  fi
-
-  if [[ -f demo_llm_proxy/start-local-models.sh ]]; then
-    info "Starting LLM proxy stack in swap mode (tier-manager :8097 + smallest tier + router :8090)..."
-    if ! curl -sf --max-time 2 http://localhost:8097/health >/dev/null 2>&1; then
-      nohup node demo_llm_proxy/tier-manager.js > /tmp/demo-tier-manager.log 2>&1 &
-      echo $! > /tmp/demo-tier-manager.pid
-    fi
-    bash demo_llm_proxy/start-local-models.sh ensure 8091 \
-      || { info "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh"; return 0; }
-    LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node demo_llm_proxy/router.js > /tmp/demo-llm-proxy.log 2>&1 &
-    echo $! > /tmp/demo-llm-proxy.pid
-    local waited=0
-    while [[ $waited -lt 60 ]]; do
-      if curl -sf --max-time 2 http://localhost:8090/health >/dev/null 2>&1; then
-        success "LLM proxy ready on :8090 (routing tiers 8091 + 8096)."
-        return 0
-      fi
-      sleep 3; (( waited += 3 ))
-    done
-    info "LLM proxy not ready yet — check /tmp/demo-llm-proxy.log and /tmp/llama-models/"
-  else
-    info "demo_llm_proxy/ not found (run from the repo root) — :8090 left unserved; no raw llama-server fallback."
-  fi
+  info "LLM: in-cluster 2-tier stack (llm-proxy + swap tiers) — skipping host llama-server setup."
 }
 
 se_deploy() {
@@ -571,6 +528,9 @@ case "${1:-all}" in
   kill)       kill_all ;;
   stop)       check_prereqs; stop ;;
   extras)     check_prereqs; extras "${2:-}" ;;
+  rag)        check_prereqs; bash "$K8S_DIR/deploy.sh" rag "${2:-on}" ;;
+  yotuo)      check_prereqs; bash "$K8S_DIR/deploy.sh" yotuo "${2:-on}" "${3:-}" ;;
+  demo-sync)  check_prereqs; bash "$K8S_DIR/deploy.sh" demo-sync ;;
   status)     check_prereqs; status ;;
   restart)    check_prereqs; restart; kill_all; forward ;;
   destroy)    check_prereqs; destroy ;;
@@ -585,7 +545,7 @@ case "${1:-all}" in
   aws-all)    aws_build; aws_deploy; aws_finish ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|kill|stop|extras|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-undeploy|aws-build|aws-deploy|aws-all|help}"
+    echo "Usage: $0 {all|build|deploy|forward|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-undeploy|aws-build|aws-deploy|aws-all|help}"
     exit 1
     ;;
 esac

@@ -84,6 +84,10 @@ data:
   # 404'd. Override CODEGRAPH_LLM_PROVIDER=anthropic (+ a real ANTHROPIC_API_KEY)
   # for cloud, or set CODEGRAPH_MODEL to pin the id llama-server actually serves.
 
+  # RAG Code Search (hand-managed): optional profile — start with `./k8s/deploy.sh rag on`.
+  MCP_CODE_SEARCH_URL: "http://mcp-code-search:8095"
+  LLAMAINDEX_AGENT_URL: "http://llamaindex-agent:8894"
+
   # BFF -> langchain-agent HTTP base (hand-managed): consumed by codegraphProxy.js
   # and aguiSseProxy.js, which otherwise default to 127.0.0.1:8888 (the BFF pod
   # itself) and 502 in-cluster. Points at the langchain-agent ClusterIP service.
@@ -103,14 +107,10 @@ data:
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
 
-  # llama.cpp (local LLM) runs as an in-cluster pod — see k8s/55-llamacpp-deployment.yaml.
-  # Consumers reach it via the `llamacpp` Service (cluster DNS), so the "llama.cpp"
-  # agent mode now works on remote clusters too, not just local OrbStack/Docker
-  # Desktop. (Bare-metal `./run.sh` still uses a host-native llama-server on
-  # localhost; that path is separate and untouched.) LLAMACPP_BASE_URL is the
-  # origin only — the services append /v1. The pod downloads the GGUF on first
-  # start; the served model id is what llama-server reports via /v1/models.
-  LLAMACPP_BASE_URL: "http://llamacpp:8090"
+  # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
+  # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
+  # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.
+  LLAMACPP_BASE_URL: "http://llm-proxy:8090"
   LLAMACPP_MODEL: "phi-4-mini-instruct"
 ---
 apiVersion: v1
