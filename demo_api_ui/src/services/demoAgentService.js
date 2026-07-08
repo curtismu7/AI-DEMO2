@@ -871,8 +871,13 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   body.flowTraceId = flowTraceId;
 
   // Fresh trace per agent turn — clears prior run checkmarks/details.
+  // When forceHeuristic is set (vertical chips after /nl), mark HEURISTICS
+  // immediately so Token Chain steps 4/11 check before /agent/invoke returns.
   try {
     tokenChainTraceStore.beginTrace({ prompt: message });
+    if (forceHeuristic) {
+      tokenChainTraceStore.ingestRoutingMode("heuristic", { action: null });
+    }
   } catch { /* display-only */ }
 
   // Tag all API traffic entries captured during this agent turn so the panel
