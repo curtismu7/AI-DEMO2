@@ -49,12 +49,10 @@ data:
   AGUI_HTTP_PORT: "8888"
   WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"
-  # K8s liveness/readiness probes hit the pod IP, not loopback — bind health on all interfaces.
-  HEALTH_HTTP_HOST: "0.0.0.0"
   AGUI_HTTP_HOST: "0.0.0.0"
   CHAT_WS_HOST: "0.0.0.0"
-  MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-  MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+  MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo"
+  MCP_RESOURCE_URI: "mcpserver.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
@@ -74,7 +72,7 @@ data:
   # (api.pingone.com/v1/environments/{env}), whose /jwks returns 403, so every
   # agent token signature check fails -> 401 -> the user is logged out on the
   # first agent prompt. Must point at the AUTH host's OIDC JWKS (/as/jwks).
-  PINGONE_JWKS_URI: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/jwks"
+  PINGONE_JWKS_URI: "https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as/jwks"
 
   # CodeGraph index (hand-managed): baked into the langchain-agent image at
   # build time; not network topology, so it lives outside the generated block.
@@ -137,8 +135,45 @@ data:
         root /usr/share/nginx/html;
         index index.html;
 
+        # Content-hashed build assets — safe to cache forever.
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header Referrer-Policy "no-referrer-when-downgrade" always;
+            add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
+        }
+
+        # BFF public test pages (pinggateway-test.html, etc.) — must precede SPA fallback.
+        location ~ \.(html)$ {
+            proxy_pass https://demo-api-server:3001$request_uri;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_set_header Host api.ping.demo:4000;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
         location / {
             try_files $uri $uri/ /index.html;
+
+            add_header Cache-Control "no-cache" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header Referrer-Policy "no-referrer-when-downgrade" always;
+            add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
+        }
+
+        location /health {
+            proxy_pass https://demo-api-server:3001/health;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
         }
 
         location /api/ {

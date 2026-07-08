@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
   // Fail loud: surface the resolved proxy target at boot so a misconfigured
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
-  console.log(`[vite] dev proxy: /api,/health → ${httpTarget}  |  /ws → ${wsTarget}`)
+  console.log(`[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`)
 
   // Shim process.env.REACT_APP_* so existing source files need no changes.
   // Vite replaces these string patterns at build time with the actual values.
@@ -107,6 +107,13 @@ export default defineConfig(({ mode }) => {
       }),
       proxy: {
         '/health': {
+          target: httpTarget,
+          changeOrigin: true,
+          secure: false,
+        },
+        // BFF public test pages (demo_api_server/public/) — mirrors nginx.conf
+        // location ~ \.(html)$ so AdminSideNav "PingGateway Test" works in dev.
+        '/pinggateway-test.html': {
           target: httpTarget,
           changeOrigin: true,
           secure: false,
