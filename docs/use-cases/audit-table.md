@@ -17,9 +17,7 @@
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
 | UC8 | [HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
 | UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
-| UC25 | [Act 2 — Authenticated access](./progressive-trust-authenticated-access.md) | demo | ✅ works | 🛡️ T8, T9 |  |
-| UC26 | [Act 3 — In-app HITL consent](./progressive-trust-hitl-consent.md) | demo | ✅ works | 🛡️ T10 |  |
-| UC28 | [Act 5 — Policy hard deny](./progressive-trust-policy-deny.md) | demo | ✅ works | 🛡️ T3, T10 |  |
+| UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC5 | [Wrong / insufficient scope](./insufficient-scope.md) | attacks | ✅ works | 🛡️ T2, T3 |  |
 | UC10 | [Resource-ownership / account takeover](./cross-owner-account.md) | attacks | ✅ works | 🛡️ T3 |  |
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
@@ -41,7 +39,6 @@
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | 🚩 flag-gated (ff_a2a_delegation) | 🛡️ T9, T13 |  |
 | UC9 | [Group / entitlement check](./group-entitlement-check.md) | controls | 🚩 flag-gated (ff_authorize_group_policy) | 🛡️ T3 |  |
 | UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ff_ciba) | 🛡️ T10 |  |
-| UC27 | [Act 4 — CIBA out-of-band approval](./progressive-trust-ciba-approval.md) | demo | 🚩 flag-gated (ff_ciba) | 🛡️ T10 | Enable CIBA in Feature Flags (ff_ciba / ciba_enabled). |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
 | UC14 | [RAR intent violation](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
 
@@ -52,7 +49,6 @@
 | UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | 🏗️ needs-build | 🛡️ T9, T13 | See plan |
 | UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | 🏗️ needs-build | 🛡️ T8 | See plan |
 | UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | 🏗️ needs-build | 🛡️ T3 | See plan |
-| UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | 🏗️ needs-build | 🛡️ T3 | Phase 2 in PLAN-progressive-trust-demo.md — add get_branch_hours (or list_public_products) to the MCP tool registry. |
 | UC15 | [Intent-token tampering](./intent-token-tampering.md) | attacks | 🏗️ needs-build | 🛡️ T6, T8 | See plan |
 | UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | 🏗️ needs-build | 🛡️ T9 | See plan |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | 🏗️ needs-build | 🛡️ T3, T9 | See plan |
@@ -62,8 +58,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 24 |
-| 🚩 Flag-gated | 6 |
+| ✅ Works | 22 |
+| 🚩 Flag-gated | 5 |
 | 📥 Needs console import | 0 |
-| 🏗️ Needs build | 8 |
-| **Total** | **38** |
+| 🏗️ Needs build | 7 |
+| **Total** | **34** |

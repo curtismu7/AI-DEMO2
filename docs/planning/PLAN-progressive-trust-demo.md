@@ -76,16 +76,17 @@ The **reasoning engine** picks which MCP tool to call. It never holds or mints t
 
 ## Progressive Trust Journey
 
-| UC ID | useCaseId | Act |
-|---|---|---|
-| UC23 | `progressive-trust-demo` | Presenter guide (link) |
-| UC24 | `progressive-trust-public-access` | Act 1 — public catalog |
-| UC25 | `progressive-trust-authenticated-access` | Act 2 — authenticated balances |
-| UC26 | `progressive-trust-hitl-consent` | Act 3 — in-app HITL |
-| UC27 | `progressive-trust-ciba-approval` | Act 4 — CIBA OOB |
-| UC28 | `progressive-trust-policy-deny` | Act 5 — policy DENY |
+| UC ID | useCaseId | Act | Source UC |
+|---|---|---|---|
+| UC23 | `progressive-trust-demo` | Presenter guide (link) | — |
+| UC24 | `progressive-trust-public-access` | Act 1 — public catalog | (net-new tool) |
+| — | — | Act 2 — authenticated balances | **UC1** `delegated-access-with-proof` |
+| — | — | Act 3 — in-app HITL | **UC8** `hitl-consent` |
+| — | — | Act 4 — MFA step-up | **UC7** `step-up-required` |
+| — | — | Act 4b — CIBA OOB (optional, FF) | **UC22** `ciba-out-of-band-approval` |
+| — | — | Act 5 — policy DENY | **UC6** `authz-denied` |
 
-Launch from **Use Cases → Progressive Trust Demo** in the UI (`/use-cases`).
+Launch from **Use Cases → Progressive Trust Demo** in the UI (`/use-cases`). The act strip references existing UCs for Acts 2–5 (UC25–UC28 removed as duplicates).
 
 | Act | Blog tool / action | Banking demo | Existing UC / doc | Token Chain |
 |---|---|---|---|---|
@@ -113,7 +114,7 @@ Threshold alignment in PingOne Authorize is optional config work (Phase 4). The 
 
 **Deliverables:**
 
-- [x] `docs/use-cases/progressive-trust-*.md` — six catalog entries (UC23–UC28) generated from `useCases.js`
+- [x] `docs/use-cases/progressive-trust-*.md` — UC23 guide + UC24 Act 1 (Acts 2–5 use existing UC docs)
 - [x] Cross-links from `docs/use-cases/README.md` (regenerate via `npm run use-cases:docs:gen` after catalog edits)
 
 **No code changes required.**
@@ -164,9 +165,9 @@ Add a **Progressive Trust Demo** chip strip (or extend existing chip infrastruct
 
 **Files touched:**
 
-- `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ProgressiveTrustDemoStrip` (Acts 1–5, Run + Explain, flag gate for UC27)
+- `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ProgressiveTrustDemoStrip` act map → UC1/8/7/22/6/24
 - `demo_api_ui/src/pages/UseCaseLauncherPage.css` — strip layout
-- UC24–UC28 hidden from demo track grid (shown only in strip); UC23 presenter card remains
+- UC24 hidden from demo grid; UC23 presenter card remains; UC25–UC28 removed from catalog
 
 **Regression guard:** Read REGRESSION_PLAN §0 (emoji rule) and §1 before touching auth/UI surfaces.
 
@@ -235,19 +236,29 @@ Run the same five-act script across LLM providers to prove security is provider-
 
 **Chip:** `Transfer $300 to savings`
 
-**Expected:** Authorize returns step-up obligation. Agent pauses. User approves in UI. Transfer completes.
+**Expected:** Authorize returns HITL obligation. Agent pauses. User approves in UI. Transfer completes.
 
 **Say:** "Policy evaluated the amount server-side — not hard-coded in the agent."
 
 ---
 
-### Act 4 — CIBA (out-of-band)
+### Act 4 — MFA step-up (default)
 
-**Chip:** `Transfer $600 to savings`
+**Chip:** `transfer $600 to savings` (via **UC7**)
 
-**Expected:** CIBA panel activates. User approves on phone/separate device. Poll succeeds. Token Chain: `authorize-decision → ciba-poll → tool-dispatched`.
+**Expected:** Authorize returns step-up obligation. User completes MFA in session. Transfer proceeds.
 
-**Say:** "Higher risk triggers decoupled approval on a separate device — same pattern as booking approval in the Ping MyHotels demo."
+**Say:** "Mid-range amount triggers MFA step-up — policy-driven, not hard-coded in the agent."
+
+---
+
+### Act 4b — CIBA (optional encore, `ciba_enabled`)
+
+**Chip:** `transfer $600 to savings` (via **UC22**)
+
+**Expected:** CIBA panel activates. User approves on phone/separate device. Poll succeeds.
+
+**Say:** "Ping MyHotels blog parity — decoupled approval on a separate device."
 
 ---
 

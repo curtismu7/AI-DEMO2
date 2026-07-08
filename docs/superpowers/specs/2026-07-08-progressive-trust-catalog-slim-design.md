@@ -1,7 +1,7 @@
 # Progressive Trust Demo — catalog slim + strip references existing UCs
 
 **Date:** 2026-07-08  
-**Status:** Approved design (brainstorming), pending implementation plan  
+**Status:** Implemented  
 **Audience:** 1:1 buyer / SE calls (B) and internal enablement (C)  
 **Related:** [PLAN-progressive-trust-demo.md](../../../planning/PLAN-progressive-trust-demo.md)
 
@@ -151,7 +151,7 @@ loaded catalog).
 
 ## Success criteria
 
-- [ ] Catalog has no UC25–UC28; docs/check pass.  
-- [ ] Strip Run/Explain uses UC1, UC8, UC7, UC6, UC24; 4b uses UC22 when FF on.  
-- [ ] Presenter can run full ladder with CIBA off (Acts 1–3, 4 MFA, 5).  
-- [ ] Presenter can add Act 4b without conflating MFA and CIBA.
+- [x] Catalog has no UC25–UC28; docs/check pass.  
+- [x] Strip Run/Explain uses UC1, UC8, UC7, UC6, UC24; 4b uses UC22 when FF on.  
+- [x] Presenter can run full ladder with CIBA off (Acts 1–3, 4 MFA, 5).  
+- [x] Presenter can add Act 4b without conflating MFA and CIBA.

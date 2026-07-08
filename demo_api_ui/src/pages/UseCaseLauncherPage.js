@@ -48,15 +48,59 @@ function normalizeSim(s) {
 // ff_ciba in the catalog is a legacy alias; the real key is ciba_enabled.
 const FLAG_ID_ALIASES = { ff_ciba: 'ciba_enabled' };
 
-/** Progressive trust presenter flow — Acts 1–5 (UC24–UC28). */
-const PROGRESSIVE_TRUST_ACT_SLUGS = [
-  'progressive-trust-public-access',
-  'progressive-trust-authenticated-access',
-  'progressive-trust-hitl-consent',
-  'progressive-trust-ciba-approval',
-  'progressive-trust-policy-deny',
+/** Hide Act 1 from demo grid — shown only in the presenter strip. */
+const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24']);
+
+/**
+ * Progressive trust act strip — references existing catalog UCs (see design spec).
+ * Acts 2–5 reuse UC1 / UC8 / UC7 / UC22 (optional) / UC6; only Act 1 is UC24.
+ */
+const PROGRESSIVE_TRUST_ACT_MAP = [
+  {
+    actKey: '1',
+    actLabel: 'Act 1',
+    title: 'Public catalog access',
+    sourceId: 'UC24',
+    presenterLine: 'Low-friction first — no token exchange for public catalog data.',
+  },
+  {
+    actKey: '2',
+    actLabel: 'Act 2',
+    title: 'Authenticated access',
+    sourceId: 'UC1',
+    chipDisplay: 'Show my account balances',
+    presenterLine: 'Same progressive pattern as member rates in the Ping blog — authenticate when value is clear, with full act-chain visibility.',
+  },
+  {
+    actKey: '3',
+    actLabel: 'Act 3',
+    title: 'In-app HITL consent',
+    sourceId: 'UC8',
+    presenterLine: 'Policy evaluated the amount server-side — the transfer only ran after you approved it in the app.',
+  },
+  {
+    actKey: '4',
+    actLabel: 'Act 4',
+    title: 'MFA step-up',
+    sourceId: 'UC7',
+    presenterLine: '$600 crosses the step-up threshold — MFA in session, then PERMIT.',
+  },
+  {
+    actKey: '4b',
+    actLabel: 'Act 4b',
+    title: 'CIBA out-of-band (Ping blog parity)',
+    sourceId: 'UC22',
+    optional: true,
+    presenterLine: 'Higher risk triggers decoupled approval on a separate device — enable ciba_enabled first.',
+  },
+  {
+    actKey: '5',
+    actLabel: 'Act 5',
+    title: 'Policy hard deny',
+    sourceId: 'UC6',
+    presenterLine: 'Policy ceiling — blocked before CIBA even starts.',
+  },
 ];
-const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24', 'UC25', 'UC26', 'UC27', 'UC28']);
 
 /** Presenter order for Phase 5 multi-LLM rerun (Helix → llama.cpp → Gemini). */
 const PROGRESSIVE_TRUST_LLM_SHOWCASE = [
@@ -393,8 +437,28 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, c
 }
 
 /**
- * Ordered five-act presenter strip for the progressive trust demo (Phase 3).
- * Runs the same chip flow as individual UC cards but in narrative order.
+ * Resolve progressive trust strip steps from the loaded catalog + act map.
+ */
+function resolveProgressiveTrustActs(useCases) {
+  return PROGRESSIVE_TRUST_ACT_MAP.map((entry) => {
+    const uc = useCases.find((u) => u.id === entry.sourceId);
+    if (!uc) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Progressive trust act ${entry.actKey}: missing catalog entry ${entry.sourceId}`);
+      }
+      return null;
+    }
+    return {
+      ...entry,
+      uc,
+      chipText: entry.chipDisplay || uc.trigger?.text || '',
+    };
+  }).filter(Boolean);
+}
+
+/**
+ * Ordered presenter strip for the progressive trust demo.
+ * Run/Explain delegate to source UCs (UC1, UC8, UC7, UC22, UC6, UC24).
  */
 function ProgressiveTrustDemoStrip({
   useCases,
@@ -405,23 +469,19 @@ function ProgressiveTrustDemoStrip({
   flagsLoading,
   setFlag,
 }) {
-  const acts = PROGRESSIVE_TRUST_ACT_SLUGS
-    .map((slug, index) => {
-      const uc = useCases.find((u) => u.useCaseId === slug);
-      return uc ? { ...uc, actNum: index + 1 } : null;
-    })
-    .filter(Boolean);
+  const acts = resolveProgressiveTrustActs(useCases);
 
   if (!acts.length) return null;
 
   return (
     <div className="pt-demo-strip">
       <p className="pt-demo-strip__banner">
-        Progressive Trust Demo — run Acts 1–5 in order on Helix, llama.cpp, or Google.
-        Act 1 skips token exchange; Acts 2–5 light up Authorize, HITL, and CIBA.
+        Progressive Trust Demo — Act 1 from here; Acts 2–5 on the dashboard with Token Chain open.
+        Act 4 is MFA step-up (UC7); Act 4b is optional CIBA (UC22) when ciba_enabled is on.
       </p>
       <ol className="pt-demo-strip__list">
-        {acts.map((uc) => {
+        {acts.map((act) => {
+          const { uc } = act;
           const flagId = parseFlagId(uc.maturity);
           const flagIsOn = flagId != null
             ? (flagMap != null ? Boolean(flagMap[flagId]) : false)
@@ -432,19 +492,27 @@ function ProgressiveTrustDemoStrip({
           const mat = maturityLabel(uc.maturity);
 
           return (
-            <li key={uc.id} className="pt-demo-strip__step">
+            <li
+              key={act.actKey}
+              className={`pt-demo-strip__step${act.optional ? ' pt-demo-strip__step--optional' : ''}`}
+            >
               <div className="pt-demo-strip__step-head">
-                <span className="pt-demo-strip__act">Act {uc.actNum}</span>
-                <h3 className="pt-demo-strip__title">{uc.title}</h3>
+                <span className="pt-demo-strip__act">{act.actLabel}</span>
+                <h3 className="pt-demo-strip__title">{act.title}</h3>
                 {mat && <span className={`uc-maturity ${mat.cls}`}>{mat.text}</span>}
+                {act.sourceId !== 'UC24' && (
+                  <span className="pt-demo-strip__source" title="Catalog source use case">
+                    {act.sourceId}
+                  </span>
+                )}
               </div>
-              {uc.trigger?.text && (
+              {act.chipText && (
                 <p className="pt-demo-strip__prompt">
                   <span className="pt-demo-strip__prompt-label">Chip:</span>
-                  <code>{uc.trigger.text}</code>
+                  <code>{act.chipText}</code>
                 </p>
               )}
-              <p className="pt-demo-strip__say">{uc.whatToSay}</p>
+              <p className="pt-demo-strip__say">{act.presenterLine}</p>
               {flagId != null && (
                 <FlagGate
                   flagId={flagId}
@@ -458,7 +526,7 @@ function ProgressiveTrustDemoStrip({
                   type="button"
                   className="uc-explain-btn"
                   onClick={() => onExplain(uc)}
-                  aria-label={`Explain ${uc.title}`}
+                  aria-label={`Explain ${act.title}`}
                 >
                   Explain
                 </button>

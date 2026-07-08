@@ -615,6 +615,20 @@
 
 /* ── Multi-LLM showcase (Phase 5) ───────────────────────────────────────── */
 
+.pt-demo-strip__step--optional {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.pt-demo-strip__source {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6b7280;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: #eef2f8;
+}
+
 .pt-llm-showcase {
   margin-top: 1.25rem;
   padding-top: 1rem;
