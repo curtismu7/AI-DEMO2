@@ -61,7 +61,13 @@ def _resolve_provider() -> str:
         logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
         return explicit
 
-    llamacpp_url = os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090")
+    # Prefer CODEGRAPH_LLAMACPP_BASE_URL when set (e.g. host mlx-lm on :8098
+    # while LLAMACPP_BASE_URL still points at in-cluster llm-proxy).
+    llamacpp_url = (
+        os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
+        or os.getenv("LLAMACPP_BASE_URL")
+        or "http://host.docker.internal:8090"
+    )
     if _llamacpp_reachable(llamacpp_url):
         logger.info("CodeGraph LLM: llama.cpp reachable at %s — using llamacpp", llamacpp_url)
         return "llamacpp"
@@ -88,9 +94,20 @@ def create_codegraph_agent(api_key: str):
         provider=provider,
         model=os.getenv("CODEGRAPH_MODEL") or None,
         api_key=api_key,
-        llamacpp_base_url=os.getenv("LLAMACPP_BASE_URL", "http://host.docker.internal:8090"),
+        llamacpp_base_url=(
+            os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
+            or os.getenv("LLAMACPP_BASE_URL")
+            or "http://host.docker.internal:8090"
+        ),
         llamacpp_model=os.getenv("LLAMACPP_MODEL", "phi-4-mini-instruct"),
         lmstudio_base_url=os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
+        # Helix fallback reads these from env when llama.cpp is unreachable.
+        # Must be passed explicitly — get_llm does not load HELIX_* itself.
+        helix_base_url=os.getenv("HELIX_BASE_URL", ""),
+        helix_api_key=os.getenv("HELIX_API_KEY", ""),
+        helix_environment_id=os.getenv("HELIX_ENVIRONMENT_ID", ""),
+        helix_agent_id=os.getenv("HELIX_AGENT_ID", ""),
+        helix_prompt_field_id=os.getenv("HELIX_PROMPT_FIELD_ID", ""),
     )
     tools = get_codegraph_tools()
     return create_react_agent(llm, tools, prompt=SYSTEM_PROMPT)

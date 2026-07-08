@@ -44,6 +44,12 @@ COPY langchain_agent/src/ ./src/
 # then let a host-side docker compose volume override it at runtime.
 # The agent handles a missing/empty db gracefully (returns [] for all queries).
 RUN touch /app/codegraph.db
+# Prefer a pre-built index from the build context when present
+# (host .codegraph/codegraph.db copied to langchain_agent/codegraph.db).
+COPY langchain_agent/codegraph.db* /tmp/codegraph-build/
+RUN if [ -f /tmp/codegraph-build/codegraph.db ] && [ -s /tmp/codegraph-build/codegraph.db ]; then \
+      cp /tmp/codegraph-build/codegraph.db /app/codegraph.db; \
+    fi && rm -rf /tmp/codegraph-build
 ENV CODEGRAPH_DB_PATH=/app/codegraph.db
 COPY langchain_agent/scripts/ ./scripts/
 # Code Explorer: the indexed repo source subset, staged by
