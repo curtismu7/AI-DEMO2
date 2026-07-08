@@ -175,10 +175,10 @@ build() {
   mkdir -p "$BASEDIR/.codegraph"
   [[ -f "$BASEDIR/.codegraph/codegraph.db" ]] || touch "$BASEDIR/.codegraph/codegraph.db"
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
-  COMPOSE_PARALLEL_LIMIT=1 docker compose build \
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.yml build \
     demo-api-server ui mcp-server langchain-agent agent-service \
     hitl-service mcp-invest mortgage-service mcp-proxy authz-server mcp-gateway
-  COMPOSE_PARALLEL_LIMIT=1 docker compose --profile k8-build build tier-manager-k8 llm-proxy
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   tag_k8_images
   success "Images built and tagged for K8."
 }
