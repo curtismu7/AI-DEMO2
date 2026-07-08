@@ -1,6 +1,25 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import bffAxios from '../services/bffAxios';
 import PolicyDecisionTree from './PolicyDecisionTree';
+import JsonHighlight from './shared/JsonHighlight';
+import './McpInspector.css';
+import './PingOneMcpInspector.css';
+
+/** Collapsible trace section — same pattern as PingOne MCP Inspector. */
+const Section = ({ title, hint, status, defaultOpen = true, children }) => (
+  <details className="p1mcp-section" open={defaultOpen}>
+    <summary>
+      <span className="p1mcp-section__title">{title}</span>
+      {status && (
+        <span className={`p1mcp-section__status p1mcp-section__status--${status}`}>
+          {status === 'ok' ? '✓ received' : status === 'error' ? '✗ error' : status}
+        </span>
+      )}
+      {hint && <span className="p1mcp-section__hint">{hint}</span>}
+    </summary>
+    <div className="p1mcp-section__body">{children}</div>
+  </details>
+);
 
 // ---------------------------------------------------------------------------
 // PingOne Authorize — Live Policy Console
@@ -147,6 +166,21 @@ function displayDecision(r) {
 
 const DECISION_ICON = { PERMIT: '✅', DENY: '❌', INDETERMINATE: '⚠️', STEP_UP: '⚠️', CONSENT: '⚠️' };
 
+/** Normalize the PingOne Authorize HTTP call for the trace panel. */
+function authorizeRequestPayload(result, endpointId, parameters) {
+  if (result?.pingoneRequest) return result.pingoneRequest;
+  return {
+    method: 'POST',
+    url: `/v1/environments/{envId}/decisionEndpoints/${endpointId || '{endpointId}'}`,
+    contentType: 'application/json',
+    body: { parameters },
+  };
+}
+
+function authorizeResponsePayload(result) {
+  return result?.pingoneResponse || result?.raw || null;
+}
+
 function endpointLabel(ep) {
   return `${ep.name || '(unnamed)'} — ${ep.id}`;
 }
@@ -178,7 +212,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
-  const [showRaw, setShowRaw] = useState(false);
+  const [lastTrace, setLastTrace] = useState(null);
 
   // Transaction preset fields
   const [amount, setAmount] = useState('5000');
@@ -206,7 +240,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   ]);
 
   // When the endpoint changes, reset to its auto-detected preset and clear result.
-  useEffect(() => { setPreset(autoPreset); setResult(null); setErr(null); }, [endpointId, autoPreset]);
+  useEffect(() => { setPreset(autoPreset); setResult(null); setErr(null); setLastTrace(null); }, [endpointId, autoPreset]);
 
   // Pre-fill the MCP First Tool fields from config (the real delegated actor +
   // the expected resource URI for the active exchange mode) so a default Evaluate
@@ -261,15 +295,32 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   };
 
   const run = async () => {
-    setRunning(true); setResult(null); setErr(null);
+    setRunning(true); setResult(null); setErr(null); setLastTrace(null);
+    const parameters = buildParameters();
+    const started = Date.now();
     try {
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
         endpointId,
-        parameters: buildParameters(),
+        parameters,
       });
+      const elapsed = Date.now() - started;
       setResult(res.data);
+      setLastTrace({
+        request: authorizeRequestPayload(res.data, endpointId, parameters),
+        response: authorizeResponsePayload(res.data),
+        timingsMs: elapsed,
+        error: false,
+      });
     } catch (e) {
-      setErr(e.response?.data?.message || e.response?.data?.error || e.message);
+      const elapsed = Date.now() - started;
+      const message = e.response?.data?.message || e.response?.data?.error || e.message;
+      setErr(message);
+      setLastTrace({
+        request: authorizeRequestPayload(null, endpointId, parameters),
+        response: e.response?.data || { error: message },
+        timingsMs: elapsed,
+        error: true,
+      });
     } finally { setRunning(false); }
   };
 
@@ -386,20 +437,40 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
             <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
             <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
           </div>
-          <button onClick={() => setShowRaw(v => !v)} style={S.iconBtn}>{showRaw ? 'Hide' : 'Show'} request / response</button>
-          {showRaw && (
-            <div style={{ ...S.jsonGrid, marginTop: '10px' }}>
-              <div>
-                <div style={S.jsonLabel}>Request → PingOne Authorize</div>
-                <pre style={S.pre}>{JSON.stringify(result.pingoneRequest?.body || result.pingoneRequest || {}, null, 2)}</pre>
-              </div>
-              <div>
-                <div style={S.jsonLabel}>Response ← PingOne Authorize</div>
-                <pre style={S.pre}>{JSON.stringify(result.pingoneResponse || result.raw || {}, null, 2)}</pre>
-              </div>
-            </div>
-          )}
         </div>
+      )}
+
+      {lastTrace && (
+        <>
+          <div className={`p1mcp-call-status ${lastTrace.error ? 'p1mcp-call-status--error' : ''}`} style={{ marginTop: '12px' }}>
+            {lastTrace.error
+              ? 'PingOne Authorize call failed'
+              : `Completed in ${lastTrace.timingsMs ?? '?'} ms`}
+          </div>
+          <Section
+            title="Authorize request"
+            hint="POST decisionEndpoints — BFF → PingOne Authorize"
+            status="ok"
+            defaultOpen
+          >
+            <pre className="mcp-inspector__code jh-dark">
+              <JsonHighlight value={lastTrace.request} deep />
+            </pre>
+          </Section>
+          <Section
+            title="Authorize response"
+            status={lastTrace.error ? 'error' : 'ok'}
+            defaultOpen
+          >
+            {lastTrace.response ? (
+              <pre className="mcp-inspector__code jh-dark">
+                <JsonHighlight value={lastTrace.response} deep />
+              </pre>
+            ) : (
+              <p className="mcp-inspector__muted">No response body returned.</p>
+            )}
+          </Section>
+        </>
       )}
 
       {result && <PolicyDecisionTree policies={policies} result={result} />}

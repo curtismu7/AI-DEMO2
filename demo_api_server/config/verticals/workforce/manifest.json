@@ -45,6 +45,26 @@
     "highValueAction": "Expense Approval",
     "highValueLabel": "High-value expense"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Workforce_Privileged",
+        "description": "Users permitted to access sensitive payroll details (UC9)"
+      },
+      "delegates": {
+        "name": "Workforce_Delegates",
+        "description": "Users authorized as delegated HR agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_payroll_details": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "HR Assistant",
     "greeting": "Hi {name}! I'm your HR Assistant. I can help you check PTO balance, submit expense reports, or review benefits. What would you like to do?",

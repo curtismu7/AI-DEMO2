@@ -45,6 +45,26 @@
     "highValueAction": "Records Release",
     "highValueLabel": "High-sensitivity records release"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Healthcare_Privileged",
+        "description": "Users permitted to access sensitive patient records (UC9)"
+      },
+      "delegates": {
+        "name": "Healthcare_Delegates",
+        "description": "Users authorized as delegated care agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_patient_records": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Care Assistant",
     "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go. What do you need?",

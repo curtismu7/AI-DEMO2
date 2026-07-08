@@ -945,6 +945,63 @@ class PingOneProvisionService {
   }
 
   /**
+   * Create PingOne groups for vertical manifest `groups` blocks and assign demo
+   * users per userMemberships (idempotent). Callable without full bootstrap.
+   */
+  async provisionVerticalGroupsFromManifest(demoUsersByUsername, steps, { verticalId = null } = {}) {
+    const onStep = (s) => steps.push(s);
+    await this._provisionVerticalGroups(demoUsersByUsername, steps, onStep, { verticalId });
+    return steps;
+  }
+
+  /**
+   * Create PingOne groups for every vertical manifest `groups` block and assign
+   * demo users per userMemberships (idempotent).
+   */
+  async _provisionVerticalGroups(demoUsersByUsername, steps, onStep, { verticalId = null } = {}) {
+    const groupPolicy = require('./groupPolicy');
+    let defs = groupPolicy.listAllVerticalGroupDefinitions();
+    if (verticalId) {
+      defs = defs.filter((d) => d.verticalId === verticalId);
+    }
+
+    for (const def of defs) {
+      const catGroupIds = {};
+      for (const [catKey, cat] of Object.entries(def.categories)) {
+        const stepKey = `${def.verticalId}-${catKey}-group`;
+        steps.push({ step: stepKey, icon: '👥', message: `Ensuring ${cat.name}...` });
+        onStep(steps[steps.length - 1]);
+        try {
+          catGroupIds[catKey] = await this._ensureGroup(cat.name, cat.description || '');
+          steps.push({ step: stepKey, icon: '✅', message: `${cat.name} ready` });
+        } catch (err) {
+          steps.push({ step: stepKey, icon: '⚠️', message: `Group ${cat.name}: ${err.message}` });
+        }
+        onStep(steps[steps.length - 1]);
+      }
+
+      for (const [username, catKeys] of Object.entries(def.userMemberships)) {
+        const userRec = demoUsersByUsername[username];
+        if (!userRec || !userRec.id || !Array.isArray(catKeys)) continue;
+        for (const catKey of catKeys) {
+          const groupId = catGroupIds[catKey];
+          if (!groupId) continue;
+          try {
+            await this._ensureUserInGroup(userRec.id, groupId);
+          } catch (err) {
+            steps.push({
+              step: `${def.verticalId}-${username}-${catKey}-member`,
+              icon: '⚠️',
+              message: `Could not add ${username} to ${def.categories[catKey]?.name}: ${err.message}`,
+            });
+            onStep(steps[steps.length - 1]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Grant scopes to application — idempotent.
    *
    * PingOne /applications/{id}/grants POST payload shape:
@@ -2050,32 +2107,19 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
-      // Create BankDelegates group + add demoDelegate as member (idempotent).
-      steps.push({ step: 'bankDelegates-group', icon: '👥', message: 'Ensuring BankDelegates group...' });
+      // Vertical-scoped PingOne groups (UC9 privileged + UC21 tier + delegates).
+      // Source of truth: each vertical manifest `groups` block via groupPolicy.
+      steps.push({ step: 'vertical-groups', icon: '👥', message: 'Ensuring vertical-scoped PingOne groups...' });
       onStep(steps[steps.length - 1]);
       try {
-        const groupId = await this._ensureGroup('BankDelegates', 'Users authorized as delegated agents (demo)');
-        await this._ensureUserInGroup(bankDelegateResult.user.id, groupId);
-        steps.push({ step: 'bankDelegates-group', icon: '✅', message: 'demoDelegate added to BankDelegates group' });
+        await this._provisionVerticalGroups({
+          demoUser: bankUserResult?.user,
+          demoAdmin: bankAdminResult?.user,
+          demoDelegate: bankDelegateResult?.user,
+        }, steps, onStep);
+        steps.push({ step: 'vertical-groups', icon: '✅', message: 'Vertical group membership provisioned' });
       } catch (err) {
-        steps.push({ step: 'bankDelegates-group', icon: '⚠️', message: `Group step: ${err.message}` });
-      }
-      onStep(steps[steps.length - 1]);
-
-      // Scenario 1 (Denied Access — user not in group): create the PrivilegedBanking
-      // group and add demoUser + demoAdmin. demoDelegate is intentionally left OUT
-      // so it triggers the group-deny demo on a restricted tool. Membership must
-      // match config/group-policy.json (the simulated engine's source of truth) so
-      // simulated and live PingOne decisions agree. Idempotent.
-      steps.push({ step: 'privilegedBanking-group', icon: '👥', message: 'Ensuring PrivilegedBanking group...' });
-      onStep(steps[steps.length - 1]);
-      try {
-        const groupId = await this._ensureGroup('PrivilegedBanking', 'Users permitted to view sensitive banking data (demo, Scenario 1)');
-        if (bankUserResult?.user?.id) await this._ensureUserInGroup(bankUserResult.user.id, groupId);
-        if (bankAdminResult?.user?.id) await this._ensureUserInGroup(bankAdminResult.user.id, groupId);
-        steps.push({ step: 'privilegedBanking-group', icon: '✅', message: 'demoUser + demoAdmin added to PrivilegedBanking (demoDelegate excluded)' });
-      } catch (err) {
-        steps.push({ step: 'privilegedBanking-group', icon: '⚠️', message: `Group step: ${err.message}` });
+        steps.push({ step: 'vertical-groups', icon: '⚠️', message: `Vertical groups step: ${err.message}` });
       }
       onStep(steps[steps.length - 1]);
 
@@ -3022,7 +3066,13 @@ class PingOneProvisionService {
     const RESOURCE_PREFIXES = ['Super Banking', 'Demo'];
     const isOwnedApp = (name) => APP_PREFIXES.some(p => (name || '').startsWith(p));
     const isOwnedResource = (name) => RESOURCE_PREFIXES.some(p => (name || '').startsWith(p));
-    const DEMO_GROUPS = new Set(['BankDelegates', 'PrivilegedBanking']);
+    const groupPolicy = require('./groupPolicy');
+    const DEMO_GROUPS = new Set(
+      groupPolicy.listAllVerticalGroupDefinitions()
+        .flatMap((d) => Object.values(d.categories).map((c) => c.name)),
+    );
+    // Legacy banking-only names from pre-vertical group bootstrap.
+    ['BankDelegates', 'PrivilegedBanking', 'PrivateBanking'].forEach((n) => DEMO_GROUPS.add(n));
     const DEMO_ATTRS = new Set(['isDelegate', 'mayAct', 'delegatedTo', 'bankingPrincipalUserId', 'agentRestrictions']);
     const DEMO_USERS = new Set(['demoUser', 'demoAdmin', 'demoDelegate']);
 

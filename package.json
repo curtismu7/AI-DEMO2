@@ -45,6 +45,7 @@
     "uninstall": "bash scripts/run-node.sh demo_api_server/scripts/uninstall.js",
     "pingone:refresh-envs": "bash scripts/run-node.sh demo_api_server/scripts/refresh-service-envs.js",
     "pingone:bootstrap": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js",
+    "pingone:provision-groups": "bash scripts/run-node.sh demo_api_server/scripts/provisionVerticalGroups.js",
     "pingone:wipe": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --wipe-environment",
     "pingone:recreate": "bash scripts/run-node.sh demo_api_server/scripts/bootstrapPingOne.js --recreate-apps",
     "pingone:bootstrap:legacy-manifest": "node scripts/pingone-bootstrap.js",

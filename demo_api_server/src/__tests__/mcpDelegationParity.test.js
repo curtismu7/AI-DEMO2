@@ -122,13 +122,13 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
         toolName: 'get_my_accounts',
         tokenAudience: 'mcp.aud',
         mcpResourceUri: 'mcp.aud',
-        requiredGroup: 'PrivilegedBanking',
-        userGroups: ['Standard', 'PrivilegedBanking'],
+        requiredGroup: 'Banking_Privileged',
+        userGroups: ['Standard', 'Banking_Privileged'],
         userTier: 'Standard',
         inRequiredGroup: true,
       });
       const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
-      expect(body.RequiredGroup).toBe('PrivilegedBanking');
+      expect(body.RequiredGroup).toBe('Banking_Privileged');
       expect(body.UserTier).toBe('Standard');
       expect(body.InRequiredGroup).toBe(true);
       expect(body.UserGroups).toBeUndefined();

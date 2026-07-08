@@ -204,6 +204,7 @@ async function evaluateMcpFirstTool({
   // when ff_authorize_group_policy is on; null/absent otherwise → guard skipped.
   requiredGroup = null,
   userGroups = null,
+  verticalId = 'banking',
   // RAR enforcement (NNP-1, UC14). Attested values extracted from the TraT's azd
   // field by the caller (mcpToolAuthorizationService). Never sourced from the
   // request body — a caller-supplied body amount must NOT relax the granted limit.
@@ -382,8 +383,8 @@ async function evaluateMcpFirstTool({
   const _tierFlagOn = configStore.get('ff_authorize_group_policy') === 'true'
     || configStore.get('ff_authorize_group_policy') === true;
   if (_tierFlagOn) {
-    const _tierPolicy = getTierPolicy();
-    const _userTier = _resolveUserTierFromGroups(userGroups);
+    const _tierPolicy = getTierPolicy(verticalId);
+    const _userTier = _resolveUserTierFromGroups(userGroups, verticalId);
     const _tierConfig = _tierPolicy[_userTier] || _tierPolicy[NNP8_DEFAULT_TIER];
     // (a) Tool restriction: privateBankingOnlyTools are denied for non-PrivateBanking tiers.
     if (_tierConfig.privateBankingOnlyTools.length > 0 &&
@@ -745,23 +746,33 @@ function acrLooksStrong(acr) {
 // Reads tier limits from scope-topology.json policy.authorization.amountLimitsByTier.
 const NNP8_DEFAULT_TIER = 'Standard';
 
-function getTierPolicy() {
+function getTierPolicy(verticalId = 'banking') {
+  const groupPolicy = require('./groupPolicy');
+  const defs = groupPolicy.getTierDefinitions(verticalId);
   const limits = scopeTopology.amountLimitsByTier();
-  return {
-    PrivateBanking: {
-      maxAmountUsd: limits.privatebanking || 50000,
-      privateBankingOnlyTools: [],
-    },
-    Standard: {
+  const out = {};
+  for (const [tierName, def] of Object.entries(defs)) {
+    const key = tierName.toLowerCase().replace(/\s+/g, '');
+    const fallbackLimit = tierName === 'PrivateBanking'
+      ? (limits.privatebanking || 50000)
+      : (limits.standard || 2000);
+    out[tierName] = {
+      maxAmountUsd: def.maxAmountUsd != null ? def.maxAmountUsd : fallbackLimit,
+      privateBankingOnlyTools: def.restrictedTools || [],
+    };
+  }
+  if (!out[NNP8_DEFAULT_TIER]) {
+    out[NNP8_DEFAULT_TIER] = {
       maxAmountUsd: limits.standard || 2000,
       privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
-    },
-  };
+    };
+  }
+  return out;
 }
 
-function _resolveUserTierFromGroups(userGroups) {
-  if (Array.isArray(userGroups) && userGroups.includes('PrivateBanking')) return 'PrivateBanking';
-  return NNP8_DEFAULT_TIER;
+function _resolveUserTierFromGroups(userGroups, verticalId = 'banking') {
+  const groupPolicy = require('./groupPolicy');
+  return groupPolicy.resolveUserTier(userGroups, verticalId);
 }
 
 /**

@@ -44,6 +44,26 @@
     "highValueAction": "Team Order",
     "highValueLabel": "High-value team order requires confirmation"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "SportingGoods_Privileged",
+        "description": "Users permitted to access sensitive membership details (UC9)"
+      },
+      "delegates": {
+        "name": "SportingGoods_Delegates",
+        "description": "Users authorized as delegated sports retail agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_membership_details": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Sports Assistant",
     "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders. What do you need?",
