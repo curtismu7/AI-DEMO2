@@ -51,7 +51,7 @@ describe('langchainConfig agent_mode', () => {
     expect(res.body.agent_mode).toBe('heuristics');
     expect(Array.isArray(res.body.agent_modes)).toBe(true);
     expect(res.body.agent_modes.map((m) => m.id)).toEqual([
-      'heuristics', 'llamacpp', 'mlx', 'claude', 'helix_google',
+      'heuristics', 'llamacpp', 'mlx', 'claude', 'gemini', 'helix_google',
     ]);
   });
 });

@@ -23,6 +23,7 @@ export const AGENT_MODES = [
   { id: "llamacpp",     label: "llama.cpp",  provider: "llamacpp",  pure: true  },
   { id: "mlx",          label: "MLX",        provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
+  { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
 ];
 

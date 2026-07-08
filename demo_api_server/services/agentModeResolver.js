@@ -19,6 +19,7 @@ const AGENT_MODES = [
   { id: 'llamacpp',     label: 'llama.cpp only',  provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'mlx',          label: 'MLX (Apple)',     provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
+  { id: 'gemini',       label: 'Google Gemini only', provider: 'google', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
 ];
 

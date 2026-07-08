@@ -17,6 +17,12 @@ describe('resolveAgentMode (five single-brain modes)', () => {
       mode: 'claude', provider: 'anthropic', heuristicRouting: false, externalWiring: 'platform',
     });
   });
+  test('gemini: google provider, routing off, defaults to bff wiring', () => {
+    expect(resolveAgentMode('gemini')).toEqual({
+      mode: 'gemini', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
+
   test('helix_google: helix provider, routing off, defaults to bff wiring', () => {
     expect(resolveAgentMode('helix_google')).toEqual({
       mode: 'helix_google', provider: 'helix', heuristicRouting: false, externalWiring: 'bff',
@@ -31,7 +37,7 @@ describe('resolveAgentMode (five single-brain modes)', () => {
 
   test('AGENT_MODES lists exactly the five single-brain modes', () => {
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'llamacpp', 'mlx', 'claude', 'helix_google',
+      'heuristics', 'llamacpp', 'mlx', 'claude', 'gemini', 'helix_google',
     ]);
   });
 
