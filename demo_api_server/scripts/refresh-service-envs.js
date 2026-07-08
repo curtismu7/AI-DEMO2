@@ -402,9 +402,22 @@ async function main() {
   // ── ping-gateway/.env ─────────────────────────────────────────────────────
   // PingGateway uses INTROSPECT_CLIENT_ID and a plain-text introspection endpoint.
   // The exchanger client is the right introspector for mcpgateway.ping.demo tokens.
+  // Exchange #3 (olb-token-exchange.groovy) needs TE_CLIENT_* + PG_OLB_* — without
+  // them the Groovy filter posts empty client_id/secret and PingOne returns
+  // invalid_client before any tool reaches the MCP server.
+  const mcpServerAud = topology.resources?.['Super Banking MCP Server']?.uri
+    || fb('MCP_SERVER_RESOURCE_URI')
+    || 'mcpserver.ping.demo';
+  const mcpInvestAud = topology.resources?.['Super Banking MCP Invest']?.uri
+    || fb('MCP_INVEST_RESOURCE_URI')
+    || 'mcp-invest.ping.demo';
+  const mcpGatewayAud = topology.resources?.['Super Banking MCP Gateway']?.uri
+    || fb('MCP_GW_RESOURCE_URI')
+    || 'mcpgateway.ping.demo';
   writeEnvFile(path.join(ROOT, 'ping-gateway', '.env'), {
     PINGONE_INTROSPECTION_ENDPOINT: `${asBase}/introspect`,
     PINGONE_ISSUER_URI:             `${asBase}`,
+    PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
     INTROSPECT_CLIENT_ID:           creds.mcpExchangerClientId,
     INTROSPECT_CLIENT_SECRET:       creds.mcpExchangerSecret,
     // McpProtectionFilter.resourceId — the aud the inbound MCP token must carry.
@@ -415,6 +428,29 @@ async function main() {
     PG_GATEWAY_RESOURCE_ID:         topology.deployment?.environments?.local?.pingGatewayResourceUri
                                       || fb('PINGONE_RESOURCE_PINGGATEWAY_URI')
                                       || 'https://api.ping.demo:3036/mcp',
+    PG_GATEWAY_RESOURCE_URI:        mcpGatewayAud,
+    PG_INBOUND_SCOPE:               'gateway:mcp:invoke',
+    TE_CLIENT_ID:                   creds.mcpExchangerClientId,
+    TE_CLIENT_SECRET:               creds.mcpExchangerSecret,
+    PG_OLB_RESOURCE_URI:            mcpServerAud,
+    // Intersection of subject scopes ∩ mcpserver mirrored scopes for read tools.
+    PG_OLB_SCOPE:                   'read mcp:invoke',
+    PG_INVEST_RESOURCE_URI:         mcpInvestAud,
+    PG_INVEST_SCOPE:                'read mcp:invoke invest:read',
+    PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
+    PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
+    // Real PingOne Authorize (p1az-decision.groovy) — required when BFF sends
+    // X-Authz-Simulated:false. Without these the filter fails closed with 403.
+    P1AZ_REAL_BASE:                 `https://api.pingone.${region}/v1/environments/${envId}`,
+    P1AZ_WORKER_ID:                 fb('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID')
+                                      || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
+                                      || '',
+    P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID')
+                                      || fb('PINGONE_WORKER_CLIENT_ID')
+                                      || '',
+    P1AZ_WORKER_CLIENT_SECRET:      fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET')
+                                      || fb('PINGONE_WORKER_CLIENT_SECRET')
+                                      || '',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',

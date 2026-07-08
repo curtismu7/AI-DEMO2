@@ -49,10 +49,12 @@ data:
   AGUI_HTTP_PORT: "8888"
   WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"
+  # K8s liveness/readiness probes hit the pod IP, not loopback — bind health on all interfaces.
+  HEALTH_HTTP_HOST: "0.0.0.0"
   AGUI_HTTP_HOST: "0.0.0.0"
   CHAT_WS_HOST: "0.0.0.0"
-  MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo"
-  MCP_RESOURCE_URI: "mcpserver.ping.demo"
+  MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+  MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
@@ -72,7 +74,7 @@ data:
   # (api.pingone.com/v1/environments/{env}), whose /jwks returns 403, so every
   # agent token signature check fails -> 401 -> the user is logged out on the
   # first agent prompt. Must point at the AUTH host's OIDC JWKS (/as/jwks).
-  PINGONE_JWKS_URI: "https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as/jwks"
+  PINGONE_JWKS_URI: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/jwks"
 
   # CodeGraph index (hand-managed): baked into the langchain-agent image at
   # build time; not network topology, so it lives outside the generated block.
