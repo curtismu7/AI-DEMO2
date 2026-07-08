@@ -155,16 +155,32 @@ kill_all() {
   success "Cleared existing processes."
 }
 
+# Compose project "ai-demo" tags the BFF image ai-demo-demo-api-server; K8 manifests
+# expect ai-demo-api-server. Retag after every build so IfNotPresent pulls locally.
+tag_k8_images() {
+  local compose_bff="ai-demo-demo-api-server"
+  if docker image inspect "${compose_bff}:latest" &>/dev/null; then
+    docker tag "${compose_bff}:latest" ai-demo-api-server:latest
+    info "Tagged ${compose_bff}:latest → ai-demo-api-server:latest"
+  else
+    warn "Missing ${compose_bff}:latest — build demo-api-server first"
+  fi
+}
+
 build() {
-  info "Building Docker images..."
+  info "Building Docker images (sequential — easier on OrbStack memory)..."
   # Ensure .codegraph/codegraph.db exists as a regular file before compose
   # starts. If the path doesn't exist, Docker creates a directory there and
   # mounts it into the langchain-agent container, breaking SQLite.
   mkdir -p "$BASEDIR/.codegraph"
   [[ -f "$BASEDIR/.codegraph/codegraph.db" ]] || touch "$BASEDIR/.codegraph/codegraph.db"
-  docker compose build
-  docker compose --profile k8-build build tier-manager-k8
-  success "Images built."
+  # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
+  COMPOSE_PARALLEL_LIMIT=1 docker compose build \
+    demo-api-server ui mcp-server langchain-agent agent-service \
+    hitl-service mcp-invest mortgage-service mcp-proxy authz-server mcp-gateway
+  COMPOSE_PARALLEL_LIMIT=1 docker compose --profile k8-build build tier-manager-k8 llm-proxy
+  tag_k8_images
+  success "Images built and tagged for K8."
 }
 
 # Recreate cluster resources that OrbStack wipes on VM restart:

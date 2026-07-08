@@ -75,6 +75,7 @@ deploy() {
   bash "$SCRIPT_DIR/create-secrets.sh"
 
   kubectl apply -f "$SCRIPT_DIR/02-configmap.yaml"
+  kubectl apply -f "$SCRIPT_DIR/21-api-server-logs-pvc.yaml"
 
   # Deploy in dependency order: backends → bff → gateway/agents → ui
   # Backend tool servers
