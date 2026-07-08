@@ -298,6 +298,18 @@ export const EDUCATION_COMMANDS = [
     tab: "overview",
   },
   {
+    id: "enterprise-managed-auth",
+    label: "Enterprise-Managed Authorization (MCP)",
+    panel: EDU.ENTERPRISE_MANAGED_AUTH,
+    tab: "overview",
+  },
+  {
+    id: "enterprise-managed-auth-demo",
+    label: "Enterprise-Managed Auth: In This Demo",
+    panel: EDU.ENTERPRISE_MANAGED_AUTH,
+    tab: "in-this-demo",
+  },
+  {
     id: "id-jag-how",
     label: "ID-JAG: How It Works",
     panel: EDU.ID_JAG,
