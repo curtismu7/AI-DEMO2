@@ -701,8 +701,9 @@ services:
       - "8895:8895"
     environment:
       PORT: "8895"
-      # Default stack uses PingGateway (IG), not demo mcp-gateway.
-      MCP_GATEWAY_HTTP_URL: "http://ping-gateway:8080"
+      # Topology SoT default (mcp-gateway:3005). run-docker.sh demo-sync recreates this
+      # service with ping-gateway:8080 when Quick Flags select the real PingGateway stack.
+      MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
     networks:
       - ai-demo
     depends_on:
