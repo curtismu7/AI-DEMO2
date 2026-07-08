@@ -125,6 +125,41 @@
   color: #fff;
 }
 
+/* Tool search filter */
+.p1mcp-tool-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.p1mcp-tool-search__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.p1mcp-tool-search__input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 420px;
+  padding: 7px 12px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  background: #fff;
+}
+.p1mcp-tool-search__input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.p1mcp-tool-search__count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
 /* Tool chip catalog */
 .p1mcp-chips-callbar {
   display: flex;
