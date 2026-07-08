@@ -6,6 +6,7 @@
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
+const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { isAdminClientToken, adminTokenAgentResponse } = require('./customerTokenGuard');
 const { executePluginToolViaMcp } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
@@ -110,6 +111,22 @@ async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
 
   try {
+    // Public catalog — no RFC 8693 exchange (progressive trust Act 1 / UC24).
+    if (action === 'branch_hours') {
+      const result = searchPublicBranches(params || {});
+      return {
+        reply: formatBranchCatalogReply(result),
+        success: true,
+        toolsCalled: ['get_branch_hours'],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents: [],
+        branches: result.branches,
+        publicCatalog: true,
+      };
+    }
+
     // READ actions — route through the full token-exchange → gateway → MCP server
     // pipeline so PingAuthorize evaluates every call (same path as the chip/action UI).
     // executeBffTool does RFC 8693 token exchange, calls the tool executor with the

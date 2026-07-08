@@ -19,7 +19,7 @@ See also: [Audit Table](./audit-table.md)
 ## Demo
 
 - [**UC23** — Progressive trust demo — presenter guide](./progressive-trust-demo.md) ✅ 🛡️
-- [**UC24** — Act 1 — Public catalog access](./progressive-trust-public-access.md) 🏗️ 🛡️
+- [**UC24** — Act 1 — Public catalog access](./progressive-trust-public-access.md) ✅ 🛡️
 - [**UC25** — Act 2 — Authenticated access](./progressive-trust-authenticated-access.md) ✅ 🛡️
 - [**UC26** — Act 3 — In-app HITL consent](./progressive-trust-hitl-consent.md) ✅ 🛡️
 - [**UC27** — Act 4 — CIBA out-of-band approval](./progressive-trust-ciba-approval.md) 🚩 🛡️

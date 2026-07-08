@@ -78,6 +78,7 @@ const CAPABILITY_CATALOG = [
   'withdraw — "withdraw $200 from checking"',
   'spending summary — "spending summary" / "how much did I spend" / "biggest purchase"',
   'mortgage — "show my mortgage" / "home loan details"',
+  'branches — "what branches are near me?" / "branch hours in Austin"',
   'MCP tools — "list available tools" / "show mcp tools"',
   'education — "explain token exchange" / "what is CIBA" / "how does step-up work"',
 ];
@@ -530,6 +531,18 @@ function parseBanking(t) {
   // Vertical feature phrases (retail/healthcare/sporting-goods/workforce) plus the generic chip message
   if (VERTICAL_FEATURE_RE.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
+  }
+  // Public branch catalog (progressive trust Act 1 / UC24) — before balance/accounts
+  if (
+    /\b(branch|branches|atm|atms)\b/.test(t) &&
+    /\b(branch|branches|atm|atms|hours|near|location|find|where|what|open)\b/.test(t)
+  ) {
+    const cityMatch = t.match(/\b(?:in|near)\s+(?!me\b)([a-z][a-z\s-]{1,30}?)(?:\?|$)/i);
+    const params = cityMatch?.[1] ? { city: cityMatch[1].trim() } : undefined;
+    return {
+      kind: "banking",
+      banking: { action: "branch_hours", ...(params ? { params } : {}) },
+    };
   }
   // Balance: explicit account id, or phrases like "my balance", "current balance", "check balance" — MUST precede accounts check
   if (/\bbalances?\b/.test(t)) {

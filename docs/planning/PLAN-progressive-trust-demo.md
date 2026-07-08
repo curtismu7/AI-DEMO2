@@ -122,7 +122,7 @@ Threshold alignment in PingOne Authorize is optional config work (Phase 4). The 
 
 ### Phase 2 — One public read-only tool (~1 day)
 
-The blog's Act 1 requires a tool that works without authentication. Most banking tools set `requiresUserAuth: true`.
+**Status:** Done — `get_branch_hours` tool + heuristic `branch_hours` action (no token exchange).
 
 **Add one intentionally public MCP tool**, for example:
 
@@ -267,7 +267,7 @@ Run the same five-act script across LLM providers to prove security is provider-
 |---|---|---|---|
 | **P0** | Presenter doc + five chip prompts (Phase 1) | Hours | Run demo today with existing UCs (Acts 2–5) |
 | **P1** | Live demo with existing stack, no new code | Zero | Validates narrative |
-| **P2** | One public read-only tool (Phase 2) | ~1 day | Completes Act 1 |
+| **P2** | One public read-only tool (Phase 2) | Done | Completes Act 1 |
 | **P3** | UI chip strip / demo mode (Phase 3) | ~1–2 days | Smoother presenter flow |
 | **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | ~half day | Provider-agnostic proof |
 | **P5** | PingOne threshold tuning (Phase 4) | Config | Blog amount parity (optional) |

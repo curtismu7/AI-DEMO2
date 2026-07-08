@@ -407,11 +407,12 @@ const RAW_USE_CASES = [
     trigger: { type: 'chip', text: 'What branches are near me?' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: [], activity: ['mcp'] },
-    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_mcp_server/src/tools/'],
-    maturity: 'needs-build',
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts'],
+    maturity: 'works',
     owasp: { threats: ['T3'], sections: ['§4.1.1'] },
     whatToSay: 'Low-friction first — no token exchange for public catalog data.',
     advanced: false,
+    match: { tool: 'get_branch_hours' },
     whatLong: 'Act 1 of the progressive trust demo. The agent answers a public branch-catalog question without authentication — mirroring the MyHotels public hotel search. Requires a read-only MCP tool (e.g. get_branch_hours) with Authorize PERMIT for anonymous callers.',
     businessValue: 'Demonstrates progressive authentication — users are not forced to sign in before seeing non-sensitive catalog data.',
     productRoles: {
@@ -419,7 +420,6 @@ const RAW_USE_CASES = [
       gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
     },
     primaryTool: 'get_branch_hours',
-    whatToEnable: 'Phase 2 in PLAN-progressive-trust-demo.md — add get_branch_hours (or list_public_products) to the MCP tool registry.',
   },
   {
     id: 'UC25',

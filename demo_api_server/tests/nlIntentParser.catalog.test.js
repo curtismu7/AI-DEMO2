@@ -169,3 +169,10 @@ describe('chip routing contract — every `both` chip resolves to a heuristic (a
     });
   }
 });
+
+describe('progressive trust Act 1 (UC24)', () => {
+  it('routes "What branches are near me?" to branch_hours without LLM', () => {
+    const res = parseHeuristic('What branches are near me?');
+    expect(res).toEqual({ kind: 'banking', banking: { action: 'branch_hours' } });
+  });
+});

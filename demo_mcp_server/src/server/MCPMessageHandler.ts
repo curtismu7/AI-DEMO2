@@ -310,20 +310,24 @@ export class MCPMessageHandler {
         return await this.handleAuthorizationCode(message, context);
       }
 
+      // Resolve tool early — public catalog tools skip auth (progressive trust Act 1).
+      const availableTools = this.toolProvider.getAvailableTools() || [];
+      const tool = availableTools.find(t => t.name === toolName);
+      const isPublicCatalogTool = !!tool
+        && tool.requiresUserAuth === false
+        && (!tool.requiredScopes || tool.requiredScopes.length === 0);
+
       // Auth failure is a protocol error (-32001), not a tool execution error — reject before
       // checking tool validity so the client can obtain a token then retry.
-      if (!context.agentToken && !context.session) {
+      if (!isPublicCatalogTool && !context.agentToken && !context.session) {
         return this.authIntegration.createAuthenticationErrorResponse(
           String(message.id ?? 'unknown'),
           'Authentication required'
         ) as ToolCallResponse;
       }
 
-      // Get tool definition to check required scopes.
       // Unknown tool name is a tool execution error (isError: true), not a protocol error,
       // so the LLM can self-correct and retry with a valid name. (MCP spec input validation MUST)
-      const availableTools = this.toolProvider.getAvailableTools() || [];
-      const tool = availableTools.find(t => t.name === toolName);
       if (!tool) {
         console.warn(`[MCPMessageHandler] Unknown tool requested: "${toolName}"`);
         return {
@@ -339,12 +343,25 @@ export class MCPMessageHandler {
       }
       const requiredScopes = tool.requiredScopes;
 
-      // Validate authentication using integration service
+      if (isPublicCatalogTool && !context.session) {
+        context.session = {
+          sessionId: 'public-catalog',
+          agentTokenHash: 'public-catalog',
+          createdAt: new Date(),
+          lastActivity: new Date(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        };
+      }
+
+      let authResult: { success: boolean; session?: typeof context.session; error?: string; insufficientScope?: boolean; missingScopes?: string[]; availableScopes?: string[]; authChallenge?: unknown };
+      if (isPublicCatalogTool) {
+        authResult = { success: true, session: context.session };
+      } else {
       console.log(`[MCPMessageHandler] Validating authentication for scopes:`, requiredScopes);
       console.log(`[MCPMessageHandler] Session exists:`, !!context.session);
       console.log(`[MCPMessageHandler] Agent token exists:`, !!context.agentToken);
       
-      const authResult = await this.authIntegration.validateToolAuthentication(
+      authResult = await this.authIntegration.validateToolAuthentication(
         context.session,
         context.agentToken,
         requiredScopes
@@ -355,6 +372,7 @@ export class MCPMessageHandler {
         error: authResult.error,
         hasAuthChallenge: !!authResult.authChallenge
       });
+      }
 
       if (!authResult.success) {
         // Insufficient scope: valid token present but lacks required scope(s).
@@ -460,8 +478,8 @@ export class MCPMessageHandler {
       // Update context with validated session
       context.session = authResult.session;
 
-      // Update session activity
-      if (context.session) {
+      // Update session activity (skip ephemeral public-catalog stub)
+      if (context.session && context.session.sessionId !== 'public-catalog') {
         await this.sessionManager.updateSessionActivity(context.session.sessionId, 'tool_call');
       }
 

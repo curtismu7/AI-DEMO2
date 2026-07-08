@@ -3,9 +3,7 @@
 # UC24 — Act 1 — Public catalog access
 
 **Track:** demo  
-**Maturity:** 🏗️ `needs-build`
-
-> **To enable:** Phase 2 in PLAN-progressive-trust-demo.md — add get_branch_hours (or list_public_products) to the MCP tool registry.  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T3 · Sections: §4.1.1
 
 ## Buyer Story
@@ -33,7 +31,8 @@ PingOne Authorize PERMITs a read-only public tool with no token exchange.
 ## Code References
 
 - `docs/planning/PLAN-progressive-trust-demo.md`
-- `demo_mcp_server/src/tools/`
+- `demo_api_server/data/publicBranchCatalog.js`
+- `demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts`
 
 
 

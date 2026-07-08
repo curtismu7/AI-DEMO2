@@ -18,6 +18,7 @@ const txConsent = require('./transactionConsentChallenge');
 const { resolveAccountId } = require('../utils/accountUtils');
 const { roundToCents } = require('../utils/money');
 const { BANKING_ACCOUNT_SPECS, SPEC_BY_TYPE, buildBankingAccount } = require('../data/bankingAccountSpecs');
+const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 
 /**
  * Mirrors POST /api/transactions HITL gate (Phase 170):
@@ -592,6 +593,15 @@ function listLocalInspectorTools() {
  * Local implementation of sequential_think — pure reasoning, no auth or DB needed.
  * Mirrors the BankingToolProvider.executeSequentialThink output shape.
  */
+async function get_branch_hours(params = {}) {
+  const result = searchPublicBranches(params);
+  return JSON.stringify({
+    branches: result.branches,
+    query: result.query,
+    message: formatBranchCatalogReply(result),
+  });
+}
+
 async function sequential_think({ query, context } = {}) {
   if (!query) return JSON.stringify({ error: 'query is required' });
   const q = String(query).trim();
@@ -613,6 +623,7 @@ const TOOL_MAP = {
   create_withdrawal,
   create_transfer,
   get_sensitive_account_details,
+  get_branch_hours,
   sequential_think,
   // Legacy aliases
   list_accounts:     get_my_accounts,
