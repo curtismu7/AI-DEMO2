@@ -12,7 +12,7 @@
  * @typedef {Object} UseCase
  * @property {string} id            e.g. 'UC7'
  * @property {string} useCaseId     slug, e.g. 'step-up-required'
- * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'} track
+ * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'} track
  * @property {string} title
  * @property {string} buyerStory
  * @property {string} pingOneSolution
@@ -369,6 +369,156 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: null,
+  },
+
+  // --- PROGRESSIVE TRUST DEMO (Ping MyHotels pattern on banking agents) ---
+  {
+    id: 'UC23',
+    useCaseId: 'progressive-trust-demo',
+    track: 'demo',
+    title: 'Progressive trust demo — presenter guide',
+    buyerStory: 'Personal agents should move from public access to authenticated access, in-app step-up, out-of-band approval, and hard deny — without collapsing trust into one token.',
+    pingOneSolution: 'PingOne OAuth, Authorize, RFC 8693 token exchange, and CIBA — orchestrated by the BFF and MCP gateway while Helix, llama.cpp, or Google routes tool calls.',
+    trigger: { type: 'link', path: '/use-cases', label: 'Run Acts 1–5 below in order' },
+    expectedOutcome: 'GUIDED_DEMO',
+    evidence: { tokenChain: [], activity: ['authorize', 'token', 'mcp', 'hitl', 'ciba'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/services/agentModeResolver.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T10'], sections: ['§3.1.5', '§4.1.1', '§8'] },
+    whatToSay: 'Five acts, one story — progressive trust from public catalog to policy deny, with full delegation visible in the Token Chain panel.',
+    advanced: false,
+    whatLong: 'Guided presenter journey mapped from the Ping Identity MyHotels blog to Super Banking. Run Acts 1–5 in order on the use-case launcher (Helix, llama.cpp, or Google agent mode). Act 1 is public catalog access; Acts 2–5 reuse the same Authorize, exchange, HITL, CIBA, and DENY pipeline already shown elsewhere — reframed as a single trust ladder.',
+    businessValue: 'One narrated walkthrough that shows buyers how PingOne secures personal agents across trust boundaries — without ChatGPT or a third-party agent host.',
+    productRoles: {
+      idp:   'Authenticates the user and mints delegated tokens when protected tools are invoked.',
+      gw:    'Enforces Authorize on every tool call and performs RFC 8693 re-exchange to the MCP audience.',
+      authz: 'Returns PERMIT, HITL obligation, CIBA requirement, or DENY based on tool and transaction amount.',
+      llm:   'Routes natural-language prompts to tools (Helix, llama.cpp, or Google) — never holds tokens.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC24',
+    useCaseId: 'progressive-trust-public-access',
+    track: 'demo',
+    title: 'Act 1 — Public catalog access',
+    buyerStory: 'Users should explore low-risk information before signing in — auth only when value is clear.',
+    pingOneSolution: 'PingOne Authorize PERMITs a read-only public tool with no token exchange.',
+    trigger: { type: 'chip', text: 'What branches are near me?' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: [], activity: ['mcp'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_mcp_server/src/tools/'],
+    maturity: 'needs-build',
+    owasp: { threats: ['T3'], sections: ['§4.1.1'] },
+    whatToSay: 'Low-friction first — no token exchange for public catalog data.',
+    advanced: false,
+    whatLong: 'Act 1 of the progressive trust demo. The agent answers a public branch-catalog question without authentication — mirroring the MyHotels public hotel search. Requires a read-only MCP tool (e.g. get_branch_hours) with Authorize PERMIT for anonymous callers.',
+    businessValue: 'Demonstrates progressive authentication — users are not forced to sign in before seeing non-sensitive catalog data.',
+    productRoles: {
+      authz: 'Returns PERMIT for the public tool without requiring a bearer token.',
+      gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
+    },
+    primaryTool: 'get_branch_hours',
+    whatToEnable: 'Phase 2 in PLAN-progressive-trust-demo.md — add get_branch_hours (or list_public_products) to the MCP tool registry.',
+  },
+  {
+    id: 'UC25',
+    useCaseId: 'progressive-trust-authenticated-access',
+    track: 'demo',
+    title: 'Act 2 — Authenticated access',
+    buyerStory: 'Protected data requires proof of delegation — the agent must act for a signed-in user with a visible act chain.',
+    pingOneSolution: 'RFC 8693 token exchange mints a delegated MCP token; PingOne Authorize PERMITs the balance read.',
+    trigger: { type: 'chip', text: 'Show my account balances' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/services/agentMcpTokenService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3'] },
+    whatToSay: 'Same progressive pattern as member rates in the Ping blog — authenticate when value is clear, with full act-chain visibility.',
+    advanced: false,
+    match: { tool: 'get_balance' },
+    whatLong: 'Act 2 of the progressive trust demo. After public exploration, the user requests account balances. The BFF performs RFC 8693 exchange, Authorize PERMITs, and the Token Chain panel shows subject → actor → narrowed aud → act claim.',
+    businessValue: 'Shows authenticated agent access with cryptographic proof of delegation — stronger than third-party agent hosts that forfeit the chain.',
+    productRoles: {
+      idp:   'Mints the delegated agent token with the act claim.',
+      gw:    'Validates aud and act, evaluates Authorize, re-exchanges to the MCP audience.',
+      authz: 'Returns PERMIT for the balance read when the delegation chain is valid.',
+    },
+    primaryTool: 'get_account_balance',
+  },
+  {
+    id: 'UC26',
+    useCaseId: 'progressive-trust-hitl-consent',
+    track: 'demo',
+    title: 'Act 3 — In-app HITL consent',
+    buyerStory: 'Consequential actions need explicit in-session human approval — not just authentication.',
+    pingOneSolution: 'PingOne Authorize returns a HITL obligation; the agent pauses until the user approves in the UI.',
+    trigger: { type: 'chip', text: 'transfer $300 to savings' },
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp', 'hitl'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/routes/hitl.js'],
+    maturity: 'works',
+    owasp: { threats: ['T10'], sections: ['§3.1.5', '§8'] },
+    whatToSay: 'Policy evaluated the amount server-side — the transfer only ran after you approved it in the app.',
+    advanced: false,
+    match: { tool: 'create_transfer', amountMin: 250, amountMax: 499.99 },
+    whatLong: 'Act 3 of the progressive trust demo. A $300 transfer triggers an in-app HITL obligation from PingOne Authorize — mirroring a low-threshold booking prepare in MyHotels.',
+    businessValue: 'Policy-driven step-up without hard-coding thresholds in the agent — Authorize decides when human consent is required.',
+    productRoles: {
+      authz: 'Returns HITL obligation when TransactionAmount crosses the in-app consent threshold.',
+      gw:    'Blocks tool dispatch until a HITL receipt is presented.',
+    },
+    primaryTool: 'create_transfer',
+  },
+  {
+    id: 'UC27',
+    useCaseId: 'progressive-trust-ciba-approval',
+    track: 'demo',
+    title: 'Act 4 — CIBA out-of-band approval',
+    buyerStory: 'Higher-value actions should be approvable on a separate device — not just in the same browser session.',
+    pingOneSolution: 'PingOne CIBA sends a backchannel auth request; the agent polls until the user approves on their phone.',
+    trigger: { type: 'chip', text: 'transfer $600 to savings' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/services/cibaService.js'],
+    maturity: 'flag:ff_ciba',
+    owasp: { threats: ['T10'], sections: ['§3.1.5'] },
+    whatToSay: 'Higher risk triggers decoupled approval on a separate device — same pattern as booking approval in the Ping MyHotels demo.',
+    advanced: false,
+    whatLong: 'Act 4 of the progressive trust demo. A $600 transfer requires CIBA out-of-band approval — mirroring MyHotels finalize_booking with phone approval.',
+    businessValue: 'Out-of-band approval is meaningfully stronger than in-session step-up for high-value agent actions.',
+    productRoles: {
+      idp:   'Delivers the CIBA challenge to the user enrolled device.',
+      authz: 'Returns PERMIT only after CIBA approval is received.',
+      gw:    'Holds the tool call until the CIBA poll succeeds.',
+      mfa:   'User approves on a separate device via CIBA push or OTP.',
+    },
+    primaryTool: 'create_transfer',
+    whatToEnable: 'Enable CIBA in Feature Flags (ff_ciba / ciba_enabled).',
+  },
+  {
+    id: 'UC28',
+    useCaseId: 'progressive-trust-policy-deny',
+    track: 'demo',
+    title: 'Act 5 — Policy hard deny',
+    buyerStory: 'Some actions must be blocked entirely — policy should deny before any approval flow starts.',
+    pingOneSolution: 'PingOne Authorize evaluates TransactionAmount and returns DENY when the amount exceeds the policy ceiling.',
+    trigger: { type: 'chip', text: 'transfer $2500 to savings' },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T3', 'T10'], sections: ['§4.1.1', '§3.1.5'] },
+    whatToSay: 'Policy ceiling — blocked before CIBA even starts, just like a > €1000 booking in MyHotels.',
+    advanced: false,
+    match: { tool: 'create_transfer', amountMin: 2500 },
+    whatLong: 'Act 5 of the progressive trust demo. A $2500 transfer exceeds the Authorize policy ceiling and is DENYed before execution — mirroring MyHotels luxury booking denial.',
+    businessValue: 'Centralized policy can block dangerous agent actions regardless of authentication state or user intent phrasing.',
+    productRoles: {
+      authz: 'Returns DENY when TransactionAmount exceeds the configured ceiling.',
+      gw:    'Enforces DENY and returns a policy error to the agent without dispatching the tool.',
+    },
+    primaryTool: 'create_transfer',
   },
 
   // --- ATTACKS ---
@@ -822,7 +972,7 @@ function resolveUseCase(id, vertical) {
   return rest;
 }
 
-/** All 22 entries resolved for a vertical. @returns {UseCase[]} */
+/** All catalog entries resolved for a vertical. @returns {UseCase[]} */
 function listUseCases(vertical) {
   return USE_CASES.map((u) => resolveUseCase(u.id, vertical));
 }

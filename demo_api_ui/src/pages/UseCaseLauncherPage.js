@@ -19,9 +19,10 @@ import './UseCaseLauncherPage.css';
 import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
 
-const TRACK_ORDER = ['foundations', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
+const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
   foundations: 'Happy Paths — core delegation and authorization',
+  demo:        'Progressive Trust Demo — Ping MyHotels pattern on banking agents (Acts 1–5)',
   attacks:     'Attacks — malicious attempts blocked by PingOne',
   hitl:        'Human-in-the-Loop — approval, step-up, and consent requirements',
   controls:    'Other Controls — additional policy gates',

@@ -76,7 +76,16 @@ The **reasoning engine** picks which MCP tool to call. It never holds or mints t
 
 ## Progressive Trust Journey
 
-Map the blog's four acts to banking use cases already in the repo.
+| UC ID | useCaseId | Act |
+|---|---|---|
+| UC23 | `progressive-trust-demo` | Presenter guide (link) |
+| UC24 | `progressive-trust-public-access` | Act 1 — public catalog |
+| UC25 | `progressive-trust-authenticated-access` | Act 2 — authenticated balances |
+| UC26 | `progressive-trust-hitl-consent` | Act 3 — in-app HITL |
+| UC27 | `progressive-trust-ciba-approval` | Act 4 — CIBA OOB |
+| UC28 | `progressive-trust-policy-deny` | Act 5 — policy DENY |
+
+Launch from **Use Cases → Progressive Trust Demo** in the UI (`/use-cases`).
 
 | Act | Blog tool / action | Banking demo | Existing UC / doc | Token Chain |
 |---|---|---|---|---|
@@ -104,8 +113,8 @@ Threshold alignment in PingOne Authorize is optional config work (Phase 4). The 
 
 **Deliverables:**
 
-- [ ] `docs/use-cases/progressive-trust-demo.md` — presenter script, chip text, expected outcomes, Token Chain evidence
-- [ ] Cross-links from `docs/use-cases/README.md` (regenerate via `npm run use-cases:docs:gen` if needed)
+- [x] `docs/use-cases/progressive-trust-*.md` — six catalog entries (UC23–UC28) generated from `useCases.js`
+- [ ] Cross-links from `docs/use-cases/README.md` (regenerate via `npm run use-cases:docs:gen` after catalog edits)
 
 **No code changes required.**
 
