@@ -149,9 +149,9 @@ data:
             add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
         }
 
-        # BFF public test pages (pinggateway-test.html, etc.) — must precede SPA fallback.
-        location ~ \.(html)$ {
-            proxy_pass https://demo-api-server:3001$request_uri;
+        # BFF public test page only — do not proxy index.html or UI public/*.html
+        location = /pinggateway-test.html {
+            proxy_pass https://demo-api-server:3001/pinggateway-test.html;
             proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
             proxy_ssl_verify              on;
             proxy_ssl_name                api.ping.demo;
