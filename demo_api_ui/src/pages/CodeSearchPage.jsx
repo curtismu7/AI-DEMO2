@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
+import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
 import './CodeSearchPage.css';
