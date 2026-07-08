@@ -1005,6 +1005,23 @@ _patch_pingone_mcp() {
   ' "$mcp_json" "$env_id" "$client_id"
 }
 
+# Cursor's project `.cursor/mcp.json` — seed from example and patch OAuth client ids
+# from demo_api_server/.env. Uses stdio for github/banking-dev/codegraph (reliable in
+# Cursor) and remote url+auth for pingone/banking-gateway.
+configure_cursor_mcp() {
+  local dir="$1"
+  local patch_script="${dir}/scripts/patch-cursor-mcp.js"
+  [[ -f "$patch_script" ]] || return 0
+  command -v node >/dev/null 2>&1 || { warn "node not found — skipping .cursor/mcp.json setup."; return 0; }
+  if node "$patch_script" "$dir" "${RUN_MODE:-local}"; then
+    ok "Cursor MCP servers configured in .cursor/mcp.json."
+    info "In Cursor: Customize → MCP → disable built-in plugin servers (github/playwright/context7) if they show errors; use the project github entry instead."
+    info "Connect OAuth servers: pingone, banking-gateway (stack must be running for gateway)."
+  else
+    warn "Could not patch .cursor/mcp.json — copy .cursor/mcp.json.example and run npm run patch:cursor-mcp."
+  fi
+}
+
 # Claude Code's `pingone` MCP server (PingOne admin / management tools) is
 # tenant-specific: the environment id in its URL and the OAuth clientId must
 # belong to YOUR PingOne environment. Prefer the values bootstrap provisioned
@@ -1391,6 +1408,7 @@ EOF
   configure_pingone_mcp "$target"
   build_dev_mcp "$target"
   set_gateway_scheme "$target"
+  configure_cursor_mcp "$target"
 
   echo ""
   ok "AI Demo installed at: $target"

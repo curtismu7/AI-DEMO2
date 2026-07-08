@@ -11,6 +11,7 @@
     "hygiene:check": "node scripts/check-fresh-clone-hygiene.js",
     "regression:paths": "node scripts/check-regression-plan-paths.js",
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",
+    "patch:cursor-mcp": "node scripts/patch-cursor-mcp.js",
     "topology:generate": "node scripts/gen-service-topology.js generate",
     "snapshot:check": "node snapshots/gen-authorize-snapshot.js --check",
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
