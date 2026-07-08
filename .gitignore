@@ -83,3 +83,5 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 .cursor/mcp.json
 # Personal Claude Code allowlist/settings — never committed (hygiene check 3).
 .claude/settings.local.json
+# Local GGUF cache on internal HD (not YOTUO); see demo_llm_proxy/download-models.sh
+.local/

@@ -8,7 +8,7 @@
 #   ./k8s/deploy.sh stop-forward          # stop a running port-forward session
 #   ./k8s/deploy.sh extras off            # stop just the investment + mortgage backends (frees memory)
 #   ./k8s/deploy.sh rag on                  # start Code Search / RAG stack on demand
-#   ./k8s/deploy.sh yotuo on                # mount host GGUFs from YOTUO external drive (OrbStack)
+#   ./k8s/deploy.sh yotuo on                # mount host GGUFs from .local/models (internal HD)
 #   ./k8s/deploy.sh stop                  # scale all workloads to 0 (keep config; frees memory)
 #   ./k8s/deploy.sh agent mastra          # switch active agent to mastra (others → 0)
 #   ./k8s/deploy.sh agent langchain       #   or switch back to langchain
@@ -42,7 +42,7 @@ ALL_AGENTS="langchain mastra openai pydantic"
 # shed (or restore) memory on demand without touching the rest of the stack.
 EXTRA_SERVICES="mcp-invest mortgage-service"
 RAG_SERVICES="weaviate embeddings mcp-code-search llamaindex-agent"
-DEFAULT_YOTUO_PATH="${LLM_MODELS_HOST_PATH:-/Volumes/YOTUO/ai-models/models}"
+DEFAULT_YOTUO_PATH="${LLM_MODELS_HOST_PATH:-$(cd "$SCRIPT_DIR/.." && pwd)/.local/models}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 
@@ -182,7 +182,7 @@ show_commands() {
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh stop-forward"      "stop a running port-forward session"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh extras [on|off]"   "stop/start investment + mortgage backends (frees memory)"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh rag [on|off]"      "start/stop Code Search / RAG stack"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh yotuo [on|off]"    "mount host GGUFs from YOTUO drive (OrbStack)"
+  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh yotuo [on|off]"    "mount host GGUFs from .local/models (internal HD)"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh stop"              "scale all workloads to 0 (keep config; frees memory)"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh agent <name>"      "switch agent  [langchain|mastra|openai|pydantic]"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh agent <name> off"  "stop agent, free quota"
@@ -500,7 +500,7 @@ PY
     || warn "$dep rollout slow after YOTUO patch — check: kubectl logs deploy/$dep -n $NS"
 }
 
-# Mount pre-downloaded GGUFs from the Mac host (default: /Volumes/YOTUO/ai-models/models).
+# Mount pre-downloaded GGUFs from the Mac host (default: repo .local/models on internal HD).
 yotuo_cmd() {
   local action="${1:-on}"
   if [ "$action" = "off" ]; then
@@ -523,7 +523,7 @@ yotuo_cmd() {
   success "YOTUO models mounted — llama tiers read from $path (no HF download on cold start)."
 }
 
-# Auto-apply YOTUO overlay on deploy when the external drive is mounted (OrbStack local dev).
+# Auto-apply host GGUF overlay on deploy when models exist under .local/models.
 _maybe_apply_yotuo_models() {
   if [ "${APPLY_YOTUO_MODELS:-auto}" = "0" ]; then
     return 0
