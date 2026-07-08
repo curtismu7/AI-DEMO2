@@ -50,8 +50,8 @@ const DEFAULT_CHIPS10 = [
   { id: 'bk6',  label: 'Withdraw',                    message: 'withdraw $40 from checking',               mode: 'both', tool: 'create_withdrawal' },
   { id: 'bk7',  label: 'My mortgage',                 message: 'show my mortgage',                         mode: 'both', tool: 'show_mortgage' },
   { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'both' },
-  { id: 'bk9',  label: 'Check for unusual patterns',  message: 'Check for unusual patterns',               mode: 'llm' },
-  { id: 'bk10', label: 'Can I afford a big expense?', message: 'Could my savings cover a big upcoming expense?', mode: 'llm' },
+  { id: 'bk9',  label: 'Check for unusual patterns',  message: 'Check for unusual patterns',               mode: 'both' },
+  { id: 'bk10', label: 'Can I afford a big expense?', message: 'Could my savings cover a big upcoming expense?', mode: 'both' },
 ];
 
 export default function BankingChips({

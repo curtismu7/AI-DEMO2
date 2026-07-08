@@ -259,7 +259,21 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   let llmAttempted = false;
   const { verticalId: activeVertical, verticalCtx: _verticalCtx } = resolveVerticalRouting(context?.vertical);
   const isAdmin = context?.role === 'admin' || context?.isAdmin === true;
-  const heuristicResult = parseHeuristic(message, activeVertical, _verticalCtx, { isAdmin });
+  // Heuristics-only (provider:"heuristic" or agent_mode heuristics) has no LLM
+  // fallthrough — allow mode=llm chip messages to match deterministic heuristics
+  // instead of short-circuiting to the capability catalog.
+  const { resolveAgentMode, AGENT_MODES } = require('./agentModeResolver');
+  const rawAgentMode = configStore.getEffective('agent_mode');
+  const resolvedAgentModeEarly = rawAgentMode
+    ? resolveAgentMode(rawAgentMode, configStore.getEffective('agent_external_wiring'))
+    : null;
+  const heuristicsOnly =
+    provider === 'heuristic' ||
+    (resolvedAgentModeEarly && resolvedAgentModeEarly.mode === 'heuristics');
+  const heuristicResult = parseHeuristic(message, activeVertical, _verticalCtx, {
+    isAdmin,
+    heuristicsOnly,
+  });
 
   // Single concise log per /nl call — vertical + message preview + provider.
   // Surfaces in /tmp/demo-api.log for post-hoc diagnosis of routing decisions.
@@ -302,11 +316,8 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // agent_mode controls heuristicRouting per the five-mode spec.
   // When mode is helix_google (Helix only), bypass the heuristic fast-return
   // so the LLM path is always taken — matching heuristicRouting:false in agentModeResolver.
-  const { resolveAgentMode, AGENT_MODES } = require('./agentModeResolver');
-  const rawAgentMode = configStore.getEffective('agent_mode');
-  const resolvedAgentMode = rawAgentMode
-    ? resolveAgentMode(rawAgentMode, configStore.getEffective('agent_external_wiring'))
-    : null;
+  // resolveAgentMode / AGENT_MODES already required above for heuristicsOnly.
+  const resolvedAgentMode = resolvedAgentModeEarly;
   // If the request specifies an explicit LLM provider (not 'heuristic'/'auto'), honour
   // that provider's heuristicRouting flag even when configStore.agent_mode differs.
   // This ensures the mode-picker selection on the frontend takes precedence over the

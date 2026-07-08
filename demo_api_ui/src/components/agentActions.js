@@ -618,6 +618,8 @@ export const API_DIRECT_CHIPS = new Set([
 export const CHIP_NL_PROMPTS = {
   biggest_purchase: "What is my biggest purchase?",
   spending_summary: "Give me a spending summary",
+  unusual_patterns: "Check for unusual patterns",
+  afford_check: "Could my savings cover a big upcoming expense?",
   query_user: "Query user by email: ",
   sequential_think: "Think: Should I transfer money from checking to savings?",
   demo_nl_routing: "What is my checking account balance?",

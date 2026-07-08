@@ -31,6 +31,9 @@ const HEURISTICS = [
   { re: /\border\s+status\b|\btrack\s+(my\s+)?order\b/, action: 'gear_order_status', extractsOrderId: true, paramHint: 'e.g. "order status 1003" — find your order ID in the gear list' },
   { re: /\b(my\s+)?gear\b|\bmy\s+equipment\b|\border\s+history\b/, action: 'list_gear' },
   { re: /\b(my\s+|check\s+)?(rewards?\s+points?|loyalty|point\s+balance)\b|\b(next\s+)?tier\b|\bhow\s+(close|far)\b.*\btier\b/, action: 'loyalty_balance' },
+  // Chips sg8/sg10 — equipment suggestions (Heuristics-only → gear list)
+  { re: /\b(suggest|recommend|recommend\w*|matching)\b.*\b(equipment|gear|purchases?)\b|\btrail[\s-]?ready\b|\bequipment matching\b/i, action: 'list_gear' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|order|charge|spend)|check for unusual|flag any unusual|spot unusual/i, action: 'list_gear' },
 ];
 
 function getManifest() {

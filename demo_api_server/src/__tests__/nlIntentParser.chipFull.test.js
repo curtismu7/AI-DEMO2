@@ -348,6 +348,32 @@ describe('nlIntentParser — spending_summary and biggest_purchase chips', () =>
   });
 });
 
+describe('nlIntentParser — unusual_patterns and afford_check chips', () => {
+  it('"Check for unusual patterns" → unusual_patterns', () => {
+    expect(bank('Check for unusual patterns').banking.action).toBe('unusual_patterns');
+  });
+
+  it('"Check for unusual patterns in my recent activity" → unusual_patterns', () => {
+    expect(bank('Check for unusual patterns in my recent activity').banking.action).toBe(
+      'unusual_patterns',
+    );
+  });
+
+  it('"Any unusual transactions?" → unusual_patterns', () => {
+    expect(bank('Any unusual transactions?').banking.action).toBe('unusual_patterns');
+  });
+
+  it('"Could my savings cover a big upcoming expense?" → afford_check', () => {
+    expect(bank('Could my savings cover a big upcoming expense?').banking.action).toBe(
+      'afford_check',
+    );
+  });
+
+  it('"can I afford a big expense" → afford_check', () => {
+    expect(bank('can I afford a big expense').banking.action).toBe('afford_check');
+  });
+});
+
 // ── Fallback / none ───────────────────────────────────────────────────────────
 
 describe('nlIntentParser — heuristic none fallback', () => {
