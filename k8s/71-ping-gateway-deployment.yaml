@@ -61,6 +61,8 @@ spec:
           value: "http://127.0.0.1:9001"
         - name: P1AZ_WORKER_ID
           value: "mcp-policy"
+        - name: PG_GATEWAY_RESOURCE_URI
+          value: "mcpgateway.ping.demo"
         volumeMounts:
         # emptyDir gives IG a writable instance dir. Routes, config, and scripts
         # are overlaid by configMap mounts below — the emptyDir mount must come
