@@ -3,7 +3,9 @@
 **Status:** Draft  
 **Date:** 2026-07-08  
 **Reference:** [Securing ChatGPT apps with OAuth 2.0 and CIBA](https://developer.pingidentity.com/blog/securing-chatgpt-apps/) (Ping Identity, June 2026)  
-**Goal:** Reproduce the MyHotels progressive-trust security story using the existing AI-DEMO2 agent stack — **without ChatGPT or the OpenAI Apps SDK**.
+**Goal:** Reproduce the MyHotels progressive-trust security story using the existing AI-DEMO2 agent stack — **without ChatGPT, Claude.ai connectors, or the OpenAI Apps SDK**.
+
+**LLM providers for this demo:** **Helix** (Ping AI), **llama.cpp** (local via `demo_llm_proxy` `:8090`), or **Google Gemini** — selected from the agent mode picker in the UI. No ChatGPT or external agent-host integration is in scope.
 
 ---
 
@@ -11,9 +13,11 @@
 
 The Ping blog describes **MyHotels**: a personal-agent demo that moves across four trust levels — public access, authenticated access, policy-driven step-up, and out-of-band (CIBA) approval — secured by PingOne OAuth, PingOne Authorize, RFC 8693 token exchange, and CIBA.
 
-This repo already implements that security stack. The work is **curating a narrated banking demo** on top of existing services, not building a new platform or ChatGPT connector.
+This repo already implements that security stack. The work is **curating a narrated banking demo** on top of existing services, not building a new platform or third-party agent connector.
 
-Our stack is a **stronger teaching path** than the blog because the BFF retains full RFC 8693 delegation and the Token Chain panel stays visible — capabilities ChatGPT apps deliberately forfeit.
+**Important distinction:** the blog uses ChatGPT as the *orchestrator host*. We use our own BFF + `langchain_agent` tool loop with a swappable **LLM brain** (Helix / llama.cpp / Google). Identity, Authorize, token exchange, and CIBA are unchanged regardless of which LLM routes tool calls.
+
+Our stack is a **stronger teaching path** than the blog because the BFF retains full RFC 8693 delegation and the Token Chain panel stays visible — capabilities third-party agent hosts deliberately forfeit.
 
 ---
 
@@ -21,9 +25,9 @@ Our stack is a **stronger teaching path** than the blog because the BFF retains 
 
 | Blog (MyHotels + ChatGPT) | AI-DEMO2 equivalent |
 |---|---|
-| ChatGPT orchestrator | `langchain_agent` (default) or `openai_agent` / `pydantic_agent` / `mastra_agent` via `configStore.llm_framework` |
-| ChatGPT OAuth | User login in `demo_api_ui` → BFF session (PingOne OIDC) |
-| Widget UI (`window.openai`) | React UI — chat, chip prompts, Token Chain panel, CIBA panel |
+| ChatGPT orchestrator (blog only) | BFF + `langchain_agent` tool loop; LLM brain via agent mode picker (`agentModeResolver.js`) |
+| ChatGPT OAuth (blog only) | User login in `demo_api_ui` → BFF session (PingOne OIDC) |
+| Widget UI (`window.openai`, blog only) | React UI — chat, chip prompts, Token Chain panel, CIBA panel |
 | MCP server (policy + exchange) | `demo_mcp_gateway` → `demo_mcp_server` |
 | Backend hotel API | `demo_api_server` banking routes |
 | PingOne Authorize per tool | Gateway `PingOneAuthorizeClient.ts` |
@@ -36,13 +40,28 @@ Our stack is a **stronger teaching path** than the blog because the BFF retains 
 User
   → demo_api_ui (:4000)
   → demo_api_server (:3001)          [token custodian, RFC 8693 per tool]
-  → langchain_agent (:8889 WS)       [or OASDK :8891 / Mastra :8892 / Pydantic :8893]
+  → langchain_agent (:8889 WS)       [tool loop — LLM brain is separate, see below]
   → demo_mcp_gateway (:3005)         [Authorize + D-05 + re-exchange]
   → demo_mcp_server (:8080)
   → demo_api_server banking API
 
 PingOne ← BFF, gateway, MCP (auth, Authorize, exchange, CIBA)
 ```
+
+### LLM brain (swappable — security boundary does not move)
+
+The **reasoning engine** picks which MCP tool to call. It never holds or mints tokens. Select via the agent mode picker (`demo_api_server/services/agentModeResolver.js`):
+
+| Mode ID | Label | Provider | Demo use |
+|---|---|---|---|
+| `helix_google` | Helix only | Ping AI / Helix | **Default for talks** — Ping-native LLM routing |
+| `llamacpp` | llama.cpp only | Local `:8090` proxy | Offline / no cloud API keys |
+| `gemini` | Google Gemini only | Google | Cloud alternative |
+| `heuristics` | Heuristics only | None (regex) | Deterministic chip routing, zero LLM latency |
+
+`claude` and `mlx` are also available but not required for this demo.
+
+**Recommended demo path:** `helix_google` for Acts 2–5 (natural language), optionally `heuristics` to show chip-driven routing with zero LLM dependency, then rerun one act under `llamacpp` or `gemini` to prove the LLM swap is cosmetic to the security pipeline.
 
 ### What we do not need to build
 
@@ -132,7 +151,7 @@ Add a **Progressive Trust Demo** chip strip (or extend existing chip infrastruct
 
 - Each chip links to the relevant use-case doc for the presenter
 - Optional banner: "Progressive Trust Demo — Ping MyHotels pattern on banking agents"
-- No agent framework changes required
+- No LLM provider or agent framework changes required
 
 **Files likely touched:**
 
@@ -153,18 +172,17 @@ This is PingOne policy configuration only — no application code unless policy 
 
 ---
 
-### Phase 5 — Multi-agent showcase (optional, ~half day)
+### Phase 5 — Multi-LLM showcase (optional, ~half day)
 
-Run the same five-act script across agent framework pickers to prove security is agent-agnostic.
+Run the same five-act script across LLM providers to prove security is provider-agnostic.
 
-| Agent | Port | Config key |
+| Agent mode | Provider | Config / env |
 |---|---|---|
-| LangChain (default) | `:8889` (WS), `:8881` (health) | `llm_framework=langchain` |
-| OpenAI Agents SDK | `:8891` | `llm_framework=openai` |
-| Pydantic AI | `:8893` | `llm_framework=pydantic` |
-| Mastra | `:8892` | `llm_framework=mastra` |
+| `helix_google` | Ping AI / Helix | `HELIX_*` env vars or `/setup` |
+| `llamacpp` | llama.cpp local | `demo_llm_proxy` on `:8090`; `./run.sh` |
+| `gemini` | Google Gemini | `GOOGLE_API_KEY` or configStore |
 
-**Talking point:** Swap the reasoning engine; PingOne Authorize, D-05 anti-bypass, and token exchange do not move.
+**Talking point:** Swap Helix for llama.cpp or Google — PingOne Authorize, D-05 anti-bypass, and token exchange do not move. The LLM is a router; the BFF is the token custodian.
 
 ---
 
@@ -176,7 +194,7 @@ Run the same five-act script across agent framework pickers to prove security is
 2. Log in as demo user in `demo_api_ui` (`:4000`)
 3. Enable feature flag: `ff_ciba`
 4. Open **Token Chain** and **Activity** panels
-5. Confirm LangChain agent selected (or chosen framework from Phase 5)
+5. Set agent mode to **Helix only** (`helix_google`) in the agent picker — or `llamacpp` / `gemini` per Phase 5
 
 ### Act 1 — Public (no sensitive data)
 
@@ -242,7 +260,7 @@ Run the same five-act script across agent framework pickers to prove security is
 | **P1** | Live demo with existing stack, no new code | Zero | Validates narrative |
 | **P2** | One public read-only tool (Phase 2) | ~1 day | Completes Act 1 |
 | **P3** | UI chip strip / demo mode (Phase 3) | ~1–2 days | Smoother presenter flow |
-| **P4** | Multi-agent rerun (Phase 5) | ~half day | Framework-agnostic proof |
+| **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | ~half day | Provider-agnostic proof |
 | **P5** | PingOne threshold tuning (Phase 4) | Config | Blog amount parity (optional) |
 
 ---
@@ -256,7 +274,10 @@ Run the same five-act script across agent framework pickers to prove security is
 | CIBA service | `demo_api_server/services/cibaService.js`, `demo_api_server/routes/ciba.js` |
 | MCP CIBA store | `demo_mcp_server/src/storage/BankingSessionManager.ts` |
 | Use case catalog | `demo_api_server/config/useCases.js` |
-| ChatGPT-as-agent design (contrast) | `docs/superpowers/specs/2026-05-18-chatgpt-claude-as-agent-design.md` |
+| Agent mode picker (Helix / llama / Google) | `demo_api_server/services/agentModeResolver.js` |
+| LLM provider resolution | `demo_api_server/services/llmProviderResolver.js` |
+| Local llama.cpp proxy | `demo_llm_proxy/` (`:8090`) |
+| ChatGPT-as-agent design (contrast only — not in scope) | `docs/superpowers/specs/2026-05-18-chatgpt-claude-as-agent-design.md` |
 | Dev gateway token (B3 stage prop) | `demo_api_server/scripts/mint-gateway-token.js` |
 
 ---
