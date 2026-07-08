@@ -87,6 +87,10 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "8091"
+            - "--ctx-size"
+            - "4096"
+            - "--parallel"
+            - "1"
             - "-hf"
             - "bartowski/microsoft_Phi-4-mini-instruct-GGUF:microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
           ports:
@@ -97,24 +101,24 @@ spec:
               mountPath: /root/.cache/llama.cpp
           resources:
             requests:
-              memory: "1Gi"
+              memory: "2Gi"
               cpu: "250m"
             limits:
-              memory: "4Gi"
+              memory: "5Gi"
               cpu: "2000m"
           readinessProbe:
             httpGet:
               path: /health
               port: 8091
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 40
+            failureThreshold: 60
           livenessProbe:
             httpGet:
               path: /health
               port: 8091
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 60
             timeoutSeconds: 5
             failureThreshold: 3

@@ -122,6 +122,8 @@ router.get('/config/status', (req, res) => {
         anthropic: !!(cfg.anthropic_api_key ||
           configStore.getEffective('anthropic_api_key') ||
           process.env.ANTHROPIC_API_KEY),
+        groq: !!(cfg.groq_api_key || process.env.GROQ_API_KEY),
+        google: !!(cfg.google_api_key || process.env.GOOGLE_API_KEY),
         // LM Studio — no API key needed; always "configured" (local server, no auth)
         'anthropic-lmstudio': true,
       },

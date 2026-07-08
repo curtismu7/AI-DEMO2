@@ -49,7 +49,7 @@ async function getProviderStatus(provider, config = {}) {
   const CLOUD_PROVIDERS = { openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', groq: 'GROQ_API_KEY', google: 'GOOGLE_API_KEY' };
   if (CLOUD_PROVIDERS[provider]) {
     const keyField = provider + '_api_key';
-    const hasKey = !!(config[keyField]);
+    const hasKey = !!(config[keyField] || process.env[CLOUD_PROVIDERS[provider]]);
     return {
       status: hasKey ? 'available' : 'unconfigured',
       reason: hasKey ? `${provider} API key is set` : `Set a ${CLOUD_PROVIDERS[provider]} in the LangChain config to enable ${provider}`,
