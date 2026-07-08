@@ -81,6 +81,37 @@ describe('hitlServiceClient.verifyHitlReceipt — anti-replay binding contract',
     expect(verifyHitlReceipt(null, 'u1', 'a1', 'create_transfer', NOW).ok).toBe(false);
     expect(verifyHitlReceipt(undefined, 'u1', 'a1', 'create_transfer', NOW).ok).toBe(false);
   });
+
+  it('ok when retry amount matches receipt context.amount', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('rejects when retry amount differs from receipt context.amount', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      499,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/different amount/);
+  });
+
+  it('rejects when retry carries amount but receipt has none', () => {
+    const r = verifyHitlReceipt(approved(), 'u1', 'a1', 'create_transfer', NOW, 250);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/no bound amount/);
+  });
 });
 
 describe('hitlServiceClient wire calls', () => {

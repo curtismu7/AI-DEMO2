@@ -197,6 +197,7 @@ async function evaluateMcpFirstTool({
   // the boolean; provenance is bound by the caller's verifyHitlReceipt. The
   // live PingAuthorize path must apply the SAME rule (parity invariant).
   hitlApproved = false,
+  hitlChallengeId = null,
   resourceOwnerId = null,
   // Group-membership policy (Scenario 1). requiredGroup is the group the tool
   // demands; userGroups is the requesting user's membership list. Both are
@@ -227,6 +228,7 @@ async function evaluateMcpFirstTool({
     ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(amount != null ? { Amount: amount } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
+    ...(hitlApproved && hitlChallengeId ? { HitlChallengeId: hitlChallengeId } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(Array.isArray(userGroups) ? { UserGroups: userGroups } : {}),
@@ -737,7 +739,9 @@ function getSimulatedRecentDecisions(limit = 20) {
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
-  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey');
+  // Do NOT treat bare "http" as strong — URI-shaped ACRs like "http-only" would
+  // otherwise bypass STEP_UP / HITL_CONSENT. Match MFA / FIDO / passkey only.
+  return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
 // ── NNP-8 tier policy (UC21) — entitlement-tiered capability ──────────────────

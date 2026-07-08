@@ -38,8 +38,11 @@ export function extractTratClaims(
     // malformed JWT — fall through to header
   }
 
-  // Path 2: simulation shim via X-TraT-Context header
-  if (xTratContextHeader) {
+  // Path 2: simulation shim via X-TraT-Context header.
+  // Only trust the header when the bearer already embeds TraT claims (Path 1
+  // above) OR when an explicit demo flag allows the unsigned shim. Otherwise a
+  // direct caller can forge purp/reqctx/azd and influence authorize/audit.
+  if (xTratContextHeader && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
     try {
       const parsed = JSON.parse(xTratContextHeader);
       if (typeof parsed.purp === 'string' && typeof parsed.reqctx?.tool === 'string' && parsed.azd && parsed.rctx) {

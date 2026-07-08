@@ -113,27 +113,43 @@ export class BankingToolProvider {
 
       this.logger.debug(`[BankingToolProvider] Parameters validated successfully for ${toolName}`);
 
-      // Check user authorization using the challenge handler (only for tools that require user auth).
-      // When agentToken is provided, the agent is already authorized via the BFF token exchange
-      // pipeline -- skip session-based challenge detection.
-      if (tool.requiresUserAuth && tool.requiredScopes.length > 0 && !agentToken) {
-        this.logger.debug(`[BankingToolProvider] Checking authorization for scopes: [${tool.requiredScopes.join(', ')}]`);
-        const challengeResult = await this.authChallengeHandler.detectAuthorizationChallenge(
-          session,
-          tool.requiredScopes
-        );
+      // Authorization for tools that require user auth / scopes:
+      // - agentToken path: enforce requiredScopes on the bearer (defense in depth for
+      //   direct MCP access). Skip session-based OAuth challenge detection — the
+      //   delegated token is the credential.
+      // - session path: run the challenge handler against session user tokens.
+      if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
+        if (agentToken) {
+          const hasScopes = await this.authManager.validateTokenScopes(agentToken, tool.requiredScopes);
+          if (!hasScopes) {
+            this.logger.warn(
+              `[BankingToolProvider] agentToken missing required scopes for ${toolName}: [${tool.requiredScopes.join(', ')}]`
+            );
+            return this.createErrorResult(
+              `Insufficient scope. Required: ${tool.requiredScopes.join(', ')}`,
+              params
+            );
+          }
+          this.logger.debug(`[BankingToolProvider] agentToken scope check passed for ${toolName}`);
+        } else {
+          this.logger.debug(`[BankingToolProvider] Checking authorization for scopes: [${tool.requiredScopes.join(', ')}]`);
+          const challengeResult = await this.authChallengeHandler.detectAuthorizationChallenge(
+            session,
+            tool.requiredScopes
+          );
 
-        if (challengeResult.challengeNeeded) {
-          this.logger.info(`[BankingToolProvider] Authorization challenge required for ${toolName}`);
-          return this.createAuthChallengeResult(challengeResult.challenge!);
-        }
+          if (challengeResult.challengeNeeded) {
+            this.logger.info(`[BankingToolProvider] Authorization challenge required for ${toolName}`);
+            return this.createAuthChallengeResult(challengeResult.challenge!);
+          }
 
-        this.logger.debug(`[BankingToolProvider] Authorization check passed for ${toolName}`);
+          this.logger.debug(`[BankingToolProvider] Authorization check passed for ${toolName}`);
 
-        // Re-fetch the session in case tokens were refreshed during the challenge check
-        const refreshedSession = await this.sessionManager.getSession(session.sessionId);
-        if (refreshedSession) {
-          session = refreshedSession;
+          // Re-fetch the session in case tokens were refreshed during the challenge check
+          const refreshedSession = await this.sessionManager.getSession(session.sessionId);
+          if (refreshedSession) {
+            session = refreshedSession;
+          }
         }
       } else {
         this.logger.debug(`[BankingToolProvider] Tool ${toolName} does not require user authorization, skipping auth check`);

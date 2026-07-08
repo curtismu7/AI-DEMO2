@@ -136,17 +136,10 @@ async function main() {
         headers: JSON_HEADERS, data: payload,
       });
       if (r.status() === 428) {
-        // The transfer tripped a policy-driven human-in-the-loop consent (a control
-        // tied to the user, requiring genuine step-up the rider can't fake). Fall
-        // back to a lower-friction write to still demonstrate the clientType point:
-        // even this proceeds with full user power and no agent attribution.
-        log('transfer required human consent (428 HITL) — a real control; falling back to a deposit to show the clientType');
-        const d = await context.request.post(`${CFG.apiUrl}/api/transactions`, {
-          headers: JSON_HEADERS,
-          data: { type: 'deposit', amount: CFG.amount, toAccountId: to.id, description: `${CFG.description} (deposit)` },
-        });
-        if (d.status() >= 400) throw new Error(`deposit failed: ${d.status()} ${await d.text()}`);
-        log('deposit submitted via bearer token (API mode)');
+        // HITL blocked the transfer — stop. Do not fall back to another write
+        // (deposit) that would bypass the consent gate with the same bearer.
+        log('transfer required human consent (428 HITL) — stopping without fallback write');
+        throw new Error('transfer blocked by HITL consent (428); no fallback write performed');
       } else if (r.status() >= 400) {
         throw new Error(`transfer failed: ${r.status()} ${await r.text()}`);
       } else {

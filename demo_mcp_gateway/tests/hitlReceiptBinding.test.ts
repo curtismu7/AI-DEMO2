@@ -140,4 +140,29 @@ describe('verifyHitlReceipt — CR-01 caller/agent/tool binding', () => {
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/denied/);
   });
+
+  test('approved challenge with matching amount — proceeds', () => {
+    const result = verifyHitlReceipt(
+      makeApproved({ context: { amount: 250 } } as Partial<HitlChallenge>),
+      'user-a',
+      'agent-a',
+      'create_deposit',
+      Date.now(),
+      250,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  test('approved challenge with mismatched amount — rejected', () => {
+    const result = verifyHitlReceipt(
+      makeApproved({ context: { amount: 250 } } as Partial<HitlChallenge>),
+      'user-a',
+      'agent-a',
+      'create_deposit',
+      Date.now(),
+      499,
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/different amount/i);
+  });
 });

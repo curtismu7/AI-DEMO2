@@ -29,6 +29,13 @@ const API_KEY = process.env.MORTGAGE_SERVICE_API_KEY || 'demo-mortgage-key-0000'
 // Startup env validation
 const DEFAULT_MORTGAGE_KEY = 'demo-mortgage-key-0000';
 if (API_KEY === DEFAULT_MORTGAGE_KEY) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[demo-mortgage-service] FATAL: MORTGAGE_SERVICE_API_KEY is the insecure default. ' +
+      'Set MORTGAGE_SERVICE_API_KEY before starting in production.'
+    );
+    process.exit(1);
+  }
   console.warn(
     '[demo-mortgage-service] WARNING: MORTGAGE_SERVICE_API_KEY is using the ' +
     'insecure default key. Set MORTGAGE_SERVICE_API_KEY in demo_api_server/.env ' +

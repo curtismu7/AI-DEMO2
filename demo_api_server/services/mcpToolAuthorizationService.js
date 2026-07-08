@@ -209,6 +209,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
         subjectId,
         actClientId || undefined,
         tool,
+        Date.now(),
+        toolParams?.amount,
       );
       hitlApproved = verification.ok === true;
       if (!hitlApproved) {
@@ -286,6 +288,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     amount: toolAmount,
     transactionType,
     hitlApproved,
+    hitlChallengeId: hitlApproved ? hitlChallengeId : null,
     resourceOwnerId,
     requiredGroup,
     userGroups,
@@ -328,6 +331,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     amount: toolAmount,
     transactionType,
     hitlApproved,
+    hitlChallengeId: hitlApproved ? hitlChallengeId : null,
     requiredGroup,
     userGroups,
     userTier,

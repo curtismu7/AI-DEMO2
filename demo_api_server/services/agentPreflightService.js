@@ -88,6 +88,8 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
         userSub || undefined,
         agentId || undefined,
         tool,
+        Date.now(),
+        params?.amount,
       );
       if (verification.ok) {
         return { decision: 'PERMIT', reason: 'hitl_receipt_verified', tokenEvents };

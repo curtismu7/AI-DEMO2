@@ -151,6 +151,8 @@ export async function guardToolCall(
   xTratContext?: string,
   hitlApproved?: boolean,
   vertical?: string,
+  hitlChallengeId?: string,
+  intentValidation?: import('./intentTokenValidator').IntentValidationResult | null,
 ): Promise<AuthzDecision> {
   // UC16 — Impersonation block: must run BEFORE the Authorization Server call so
   // the check is reachable in production. GatewayTokenPolicy.validate() fires with
@@ -228,8 +230,10 @@ export async function guardToolCall(
         toolArgs,
         tratClaims,
         hitlApproved,
-        null,
+        intentValidation ?? null,
         vertical,
+        undefined,
+        hitlChallengeId,
       ),
     };
 

@@ -78,8 +78,8 @@ async function _getWorkerToken() {
  *   { enabled: boolean, status: string, found: boolean }
  *
  * Caches results for CACHE_TTL_MS. On any network/API error returns
- * { enabled: true, status: 'UNKNOWN', found: false } so a lookup failure
- * does NOT block a legitimate request — the other authz rules still apply.
+ * { enabled: false, status: 'LOOKUP_FAILED', found: false } so decision.js
+ * can fail closed (DENY) rather than treating unknown users as ACTIVE.
  */
 async function lookupUser(sub) {
   if (!sub) return { enabled: false, status: 'MISSING_SUB', found: false };
@@ -107,8 +107,8 @@ async function lookupUser(sub) {
     }
 
     if (!resp.ok) {
-      console.warn(`[pingOneUserLookup] API error ${resp.status} for sub=${sub} — failing open`);
-      return { enabled: true, status: 'UNKNOWN', found: false };
+      console.warn(`[pingOneUserLookup] API error ${resp.status} for sub=${sub} — failing closed`);
+      return { enabled: false, status: 'LOOKUP_FAILED', found: false };
     }
 
     const user = await resp.json();
@@ -121,9 +121,10 @@ async function lookupUser(sub) {
     return result;
 
   } catch (err) {
-    // Network failure or timeout — fail open so infra issues don't block users
-    console.warn(`[pingOneUserLookup] Lookup failed for sub=${sub}: ${err.message} — failing open`);
-    return { enabled: true, status: 'UNKNOWN', found: false };
+    // Network failure or timeout — fail closed so disabled/unknown users cannot
+    // pass Rule 0a2 while the Management API is down.
+    console.warn(`[pingOneUserLookup] Lookup failed for sub=${sub}: ${err.message} — failing closed`);
+    return { enabled: false, status: 'LOOKUP_FAILED', found: false };
   }
 }
 

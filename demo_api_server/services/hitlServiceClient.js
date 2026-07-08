@@ -80,7 +80,19 @@ async function respondToChallenge(challengeId, decision, correlationId) {
 }
 
 /**
- * Verify an approved HITL receipt is bound to THIS caller, agent, and tool.
+ * Normalize a transaction amount for HITL receipt binding.
+ * Returns null when the value is absent/non-numeric so callers can skip the check.
+ * @param {unknown} value
+ * @returns {number|null}
+ */
+function normalizeHitlAmount(value) {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Verify an approved HITL receipt is bound to THIS caller, agent, tool, and amount.
  *
  * Faithful port of demo_mcp_gateway/src/hitlClient.ts::verifyHitlReceipt — keep
  * the two in lockstep (the "one verification contract" invariant). Fail-closed:
@@ -93,9 +105,10 @@ async function respondToChallenge(challengeId, decision, correlationId) {
  * @param {string|undefined} expectedAgentId  act.sub from the inbound MCP token (may be undefined)
  * @param {string} expectedTool      tool name being retried
  * @param {number} [now=Date.now()]  injectable for tests
+ * @param {number|string|null|undefined} [expectedAmount] retry amount; when set, must match status.context.amount
  * @returns {{ ok: boolean, message?: string }}
  */
-function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool, now = Date.now()) {
+function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool, now = Date.now(), expectedAmount) {
   if (!status || typeof status !== 'object') {
     return { ok: false, message: 'No HITL challenge status' };
   }
@@ -119,6 +132,20 @@ function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool
   }
   if (expectedTool && (!status.tool || status.tool !== expectedTool)) {
     return { ok: false, message: 'HITL challenge belongs to a different tool' };
+  }
+
+  // Amount binding: a receipt approved for $250 must not discharge a $499 retry.
+  // When the retry carries an amount, require an exact match against context.amount
+  // (or a top-level amount field on older challenge records).
+  const expectedAmt = normalizeHitlAmount(expectedAmount);
+  if (expectedAmt != null) {
+    const receiptAmt = normalizeHitlAmount(status?.context?.amount ?? status?.amount);
+    if (receiptAmt == null) {
+      return { ok: false, message: 'HITL challenge has no bound amount' };
+    }
+    if (receiptAmt !== expectedAmt) {
+      return { ok: false, message: 'HITL challenge belongs to a different amount' };
+    }
   }
 
   return { ok: true };

@@ -212,19 +212,29 @@ export class HttpMCPTransport {
     }
 
     // Internal audit endpoint (proxied by BFF /api/mcp/audit — admin-gated at BFF level).
-    // Bearer authentication is required: audit data contains PII and security-sensitive events.
+    // Bearer + admin:read required: audit data contains PII and security-sensitive events.
     if (pathname === '/audit' && req.method === 'GET') {
       const bearerToken = await this.authenticateBearer(req, res);
       if (!bearerToken) return;
+      const hasAdmin = await this.authManager.validateTokenScopes(bearerToken, ['admin:read']);
+      if (!hasAdmin) {
+        this.sendInsufficientScope(res, ['admin:read']);
+        return;
+      }
       await this.handleAuditQuery(req, res);
       return;
     }
 
     // Demo reset: clear in-memory audit log (BFF reset-demo route calls this).
-    // Bearer authentication required — at least as protected as GET.
+    // Bearer + admin:write required — wiping the audit trail is privileged.
     if (pathname === '/audit' && req.method === 'DELETE') {
       const bearerToken = await this.authenticateBearer(req, res);
       if (!bearerToken) return;
+      const hasAdmin = await this.authManager.validateTokenScopes(bearerToken, ['admin:write']);
+      if (!hasAdmin) {
+        this.sendInsufficientScope(res, ['admin:write']);
+        return;
+      }
       AuditLogger.clearEvents();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'Audit log cleared' }));

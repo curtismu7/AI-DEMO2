@@ -87,7 +87,15 @@ interface GwAuditTrail {
  */
 export interface AuthorizeMcpRequestDeps {
   introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number }>;
-  authorize: (decoded: any, method: string, toolName?: string, toolArgs?: any, hitlApproved?: boolean, intentValidation?: ReturnType<typeof validateIntentToken> | null) =>
+  authorize: (
+    decoded: any,
+    method: string,
+    toolName?: string,
+    toolArgs?: any,
+    hitlApproved?: boolean,
+    intentValidation?: ReturnType<typeof validateIntentToken> | null,
+    hitlChallengeId?: string,
+  ) =>
     Promise<{
       decision: 'PERMIT' | 'DENY' | 'INDETERMINATE';
       reason?: string;
@@ -409,7 +417,15 @@ export function buildAuthorizeMcpRequest(
       let verification: ReceiptVerification | null = null;
       try {
         const status = await getHitlChallengeStatus(config.hitlServiceUrl, hitlChallengeId);
-        verification = verifyHitlReceipt(status, decoded.sub, decoded.act?.sub, toolName ?? '');
+        const retryAmount = (toolArgs as Record<string, unknown> | undefined)?.amount;
+        verification = verifyHitlReceipt(
+          status,
+          decoded.sub,
+          decoded.act?.sub,
+          toolName ?? '',
+          Date.now(),
+          retryAmount as number | string | undefined,
+        );
       } catch (verifyErr) {
         // HITL service unreachable or threw — fail closed with 503 rather than
         // silently treating the receipt as missing (which would re-issue a new challenge).
@@ -614,7 +630,15 @@ export function buildAuthorizeMcpRequest(
     let authzDecision;
     try {
       if (deps) {
-        authzDecision = await deps.authorize(decoded, method, toolName, toolArgs, hitlApproved, intentValidation);
+        authzDecision = await deps.authorize(
+          decoded,
+          method,
+          toolName,
+          toolArgs,
+          hitlApproved,
+          intentValidation,
+          hitlChallengeId,
+        );
       } else {
         authzDecision = await authorizeClient.evaluate(
           decoded,
@@ -625,6 +649,7 @@ export function buildAuthorizeMcpRequest(
           intentValidation,
           _tratClaims,
           config.introspectionProvider === 'p1az' ? introspectionResult : undefined,
+          hitlChallengeId,
         );
       }
     } catch {

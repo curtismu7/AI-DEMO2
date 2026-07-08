@@ -409,7 +409,7 @@ describe('mcpToolAuthorizationService', () => {
       await evaluateMcpFirstToolGate({ ...baseReq, hitlChallengeId: 'c1' });
       expect(hitlServiceClient.getChallengeStatus).toHaveBeenCalledWith('c1');
       expect(hitlServiceClient.verifyHitlReceipt).toHaveBeenCalledWith(
-        expect.any(Object), 'u1', 'agent-1', 'create_transfer');
+        expect.any(Object), 'u1', 'agent-1', 'create_transfer', expect.any(Number), undefined);
       expect(SIM()).toHaveBeenCalledWith(expect.objectContaining({ hitlApproved: true }));
     });
 
@@ -465,6 +465,8 @@ describe('mcpToolAuthorizationService', () => {
     });
 
     it('auto-disables ff_authorize_group_policy and retries when PingOne rejects UserGroups', async () => {
+      // This case exercises the live PingOne path — leave simulated mode off.
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
       configStore.get.mockImplementation((k) => {
         if (k === 'ff_authorize_mcp_first_tool') return 'true';
         if (k === 'ff_authorize_group_policy') return 'true';

@@ -95,10 +95,18 @@ export async function getHitlChallengeStatus(
  *   expectedAgentId  — decoded.act?.sub from the inbound bearer (may be undef)
  *   expectedTool     — toolName from the JSON-RPC `tools/call` params
  *   now        — Date.now() at the call site (injectable for tests)
+ *   expectedAmount — retry amount; when set, must match status.context.amount
  */
 export interface ReceiptVerification {
   ok: boolean;
   message?: string;
+}
+
+/** Normalize a transaction amount for HITL receipt binding. */
+function normalizeHitlAmount(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
 }
 
 export function verifyHitlReceipt(
@@ -107,6 +115,7 @@ export function verifyHitlReceipt(
   expectedAgentId: string | undefined,
   expectedTool: string,
   now: number = Date.now(),
+  expectedAmount?: number | string | null,
 ): ReceiptVerification {
   if (status.status !== 'approved') {
     return {
@@ -147,6 +156,19 @@ export function verifyHitlReceipt(
       ok: false,
       message: 'HITL challenge belongs to a different tool',
     };
+  }
+
+  // Amount binding: a receipt approved for $250 must not discharge a $499 retry.
+  const expectedAmt = normalizeHitlAmount(expectedAmount);
+  if (expectedAmt != null) {
+    const ctx = (status as HitlChallenge & { context?: { amount?: unknown }; amount?: unknown });
+    const receiptAmt = normalizeHitlAmount(ctx.context?.amount ?? ctx.amount);
+    if (receiptAmt == null) {
+      return { ok: false, message: 'HITL challenge has no bound amount' };
+    }
+    if (receiptAmt !== expectedAmt) {
+      return { ok: false, message: 'HITL challenge belongs to a different amount' };
+    }
   }
 
   return { ok: true };

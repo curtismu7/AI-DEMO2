@@ -99,7 +99,7 @@ module.exports = function rulesHandler(_req, res) {
         config: {
           thresholdUsd: ruleStore.getHitlThreshold(),
           writeTools,
-          note: 'Set HitlApproved=true in the request to bypass this gate after consent is obtained.',
+          note: 'Set HitlApproved=true and HitlChallengeId=<id> after a verified HITL receipt to discharge this gate.',
         },
       },
     ],
