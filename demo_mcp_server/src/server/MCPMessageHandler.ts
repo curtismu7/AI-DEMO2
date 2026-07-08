@@ -21,7 +21,7 @@ import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManag
 import { BankingSessionManager, BankingSession } from '../storage/BankingSessionManager';
 import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { AuthenticationError, AuthErrorCodes } from '../interfaces/auth';
-import { AuthenticationIntegration } from './AuthenticationIntegration';
+import { AuthenticationIntegration, AuthenticationResult } from './AuthenticationIntegration';
 import { MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
 import type { BankingToolDefinition } from '../tools/BankingToolRegistry';
 import { AuditLogger } from '../utils/AuditLogger';
@@ -353,7 +353,7 @@ export class MCPMessageHandler {
         };
       }
 
-      let authResult: { success: boolean; session?: typeof context.session; error?: string; insufficientScope?: boolean; missingScopes?: string[]; availableScopes?: string[]; authChallenge?: unknown };
+      let authResult: AuthenticationResult;
       if (isPublicCatalogTool) {
         authResult = { success: true, session: context.session };
       } else {
