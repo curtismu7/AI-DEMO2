@@ -23,7 +23,7 @@ const Section = ({ title, hint, status, defaultOpen = true, children }) => (
   <details className="p1mcp-section" open={defaultOpen}>
     <summary>
       <span className="p1mcp-section__title">{title}</span>
-      {status && <span className={`p1mcp-section__status p1mcp-section__status--${status}`}>{status === 'ok' ? '✓ received' : status === 'error' ? '✗ error' : status}</span>}
+      {status && <span className={`p1mcp-section__status p1mcp-section__status--${status}`}>{status === 'ok' ? '✓ received' : status === 'error' ? 'error' : status}</span>}
       {hint && <span className="p1mcp-section__hint">{hint}</span>}
     </summary>
     <div className="p1mcp-section__body">{children}</div>
@@ -101,23 +101,23 @@ const chipGroupKey = (name) => {
 };
 
 const CHIP_GROUP_META = {
-  environments:     { label: 'Environments',              icon: '🌐' },
-  applications:     { label: 'Applications',              icon: '📱' },
-  'app-attrmap':    { label: 'App · Attribute mappings',  icon: '🔗' },
-  'app-grants':     { label: 'App · Grants',              icon: '🎫' },
-  'app-roles':      { label: 'App · Role assignments',    icon: '🛡️' },
-  'app-signon':     { label: 'App · Sign-on policy',      icon: '🔐' },
-  'app-flowpolicy': { label: 'App · Flow policy',         icon: '🪧' },
-  'app-push':       { label: 'App · Push credentials',    icon: '📨' },
-  users:            { label: 'Users',                     icon: '👤' },
-  populations:      { label: 'Populations',               icon: '👥' },
-  'dv-flows':       { label: 'DaVinci · Flows',           icon: '🌊' },
-  'dv-apps':        { label: 'DaVinci · Applications',    icon: '📱' },
-  'dv-connectors':  { label: 'DaVinci · Connectors',      icon: '🔌' },
-  'dv-forms':       { label: 'DaVinci · Forms',           icon: '📝' },
-  'dv-variables':   { label: 'DaVinci · Variables',       icon: '🔢' },
-  'dv-other':       { label: 'DaVinci · Other',           icon: '🧩' },
-  other:            { label: 'Other',                     icon: '🔧' },
+  environments:     { label: 'Environments' },
+  applications:     { label: 'Applications' },
+  'app-attrmap':    { label: 'App · Attribute mappings' },
+  'app-grants':     { label: 'App · Grants' },
+  'app-roles':      { label: 'App · Role assignments' },
+  'app-signon':     { label: 'App · Sign-on policy' },
+  'app-flowpolicy': { label: 'App · Flow policy' },
+  'app-push':       { label: 'App · Push credentials' },
+  users:            { label: 'Users' },
+  populations:      { label: 'Populations' },
+  'dv-flows':       { label: 'DaVinci · Flows' },
+  'dv-apps':        { label: 'DaVinci · Applications' },
+  'dv-connectors':  { label: 'DaVinci · Connectors' },
+  'dv-forms':       { label: 'DaVinci · Forms' },
+  'dv-variables':   { label: 'DaVinci · Variables' },
+  'dv-other':       { label: 'DaVinci · Other' },
+  other:            { label: 'Other' },
 };
 const CHIP_GROUP_ORDER = [
   'environments', 'applications', 'app-attrmap', 'app-grants', 'app-roles',
@@ -593,7 +593,6 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
                 return (
                   <details className="p1mcp-chip-group" key={key} open={CHIP_GROUP_OPEN.has(key)}>
                     <summary className="p1mcp-chip-group__head">
-                      <span aria-hidden="true">{meta.icon}</span>
                       {meta.label}
                       <span className="p1mcp-chip-group__count">{groupTools.length}</span>
                     </summary>
