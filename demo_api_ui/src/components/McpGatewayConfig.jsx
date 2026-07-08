@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import "./McpGatewayConfig.css";
 import CopyableValue from "./CopyableValue";
 import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
@@ -10,6 +11,8 @@ import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
+
+const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs"];
 
 function StatusBadge({ running, devBypass, enabled }) {
 	if (!enabled) return <span className="mgc-badge mgc-badge--off">Disabled</span>;
@@ -67,10 +70,19 @@ function EnvVarTable({ vars, title }) {
 }
 
 function McpGatewayConfigInner() {
+	const [searchParams] = useSearchParams();
 	const [data, setData] = useState(null);
 	const [error, setError] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState("mock");
+
+	// Deep-link from AdminSideNav "Gateway Tester" → /setup?tab=mcp-gateway&subtab=tester
+	useEffect(() => {
+		const subtab = searchParams.get("subtab");
+		if (subtab && MGC_TABS.includes(subtab)) {
+			setActiveTab(subtab);
+		}
+	}, [searchParams]);
 
 	// Shared field context setters — used by seed effect and Step 2 onChange handlers.
 	// CopyableValue reads from context directly via fieldKey; no need to read values here.
