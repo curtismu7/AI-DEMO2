@@ -40,7 +40,7 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "deployments/scale"]
     resourceNames: ["llama-tier1", "llama-tier5"]
-    verbs: ["get", "patch", "update"]
+    verbs: ["get", "list", "watch", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
