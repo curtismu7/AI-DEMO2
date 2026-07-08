@@ -1,6 +1,6 @@
 # Progressive Trust Demo — Implementation Plan
 
-**Status:** Draft  
+**Status:** Complete (P0–P4 implemented; Phase 4 Option A — no PingOne retune)
 **Date:** 2026-07-08  
 **Reference:** [Securing ChatGPT apps with OAuth 2.0 and CIBA](https://developer.pingidentity.com/blog/securing-chatgpt-apps/) (Ping Identity, June 2026)  
 **Goal:** Reproduce the MyHotels progressive-trust security story using the existing AI-DEMO2 agent stack — **without ChatGPT, Claude.ai connectors, or the OpenAI Apps SDK**.
@@ -114,7 +114,7 @@ Threshold alignment in PingOne Authorize is optional config work (Phase 4). The 
 **Deliverables:**
 
 - [x] `docs/use-cases/progressive-trust-*.md` — six catalog entries (UC23–UC28) generated from `useCases.js`
-- [ ] Cross-links from `docs/use-cases/README.md` (regenerate via `npm run use-cases:docs:gen` after catalog edits)
+- [x] Cross-links from `docs/use-cases/README.md` (regenerate via `npm run use-cases:docs:gen` after catalog edits)
 
 **No code changes required.**
 
@@ -172,11 +172,11 @@ Add a **Progressive Trust Demo** chip strip (or extend existing chip infrastruct
 
 ---
 
-### Phase 4 — Policy threshold alignment (optional, PingOne config)
+### Phase 4 — Policy threshold alignment — **Deferred (Option A)**
 
-**Option A (recommended):** Keep banking amounts ($300 / $600 / $2500) and explain domain mapping in the talk.
+**Option A (recommended):** Keep banking amounts ($300 / $600 / $2500) and explain domain mapping in the talk. **Adopted** — no PingOne policy changes.
 
-**Option B:** Add Authorize rules at blog-equivalent thresholds for conference parity with the Ping post.
+**Option B:** Add Authorize rules at blog-equivalent thresholds for conference parity with the Ping post. Not implemented; revisit only if conference parity with the Ping blog amounts is required.
 
 This is PingOne policy configuration only — no application code unless policy input attributes need extending (e.g. `TransactionAmount` is already sent by the gateway).
 
@@ -276,7 +276,7 @@ Run the same five-act script across LLM providers to prove security is provider-
 | **P2** | One public read-only tool (Phase 2) | Done | Completes Act 1 |
 | **P3** | UI chip strip / demo mode (Phase 3) | Done | Smoother presenter flow |
 | **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | Done | Provider-agnostic proof |
-| **P5** | PingOne threshold tuning (Phase 4) | Config | Blog amount parity (optional) |
+| **P5** | PingOne threshold tuning (Phase 4) | Deferred (Option A) | Banking amounts + talk track |
 
 ---
 
@@ -313,4 +313,5 @@ Run the same five-act script across LLM providers to prove security is provider-
 - [UC6 — Authz denied](../use-cases/authz-denied.md)
 - [UC22 — CIBA out-of-band approval](../use-cases/ciba-out-of-band-approval.md)
 - [HITL consent](../use-cases/hitl-consent.md)
+- [Progressive trust demo — presenter guide](../use-cases/progressive-trust-demo.md)
 - [ChatGPT / Claude as the Agent — Design](../superpowers/specs/2026-05-18-chatgpt-claude-as-agent-design.md)
