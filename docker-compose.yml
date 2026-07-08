@@ -873,6 +873,7 @@ services:
     build:
       context: ./demo_mcp_code_search
       dockerfile: Dockerfile
+    image: ai-demo-mcp-code-search:latest
     container_name: ai-demo-mcp-code-search
     ports:
       - "8095:8095"
@@ -902,6 +903,7 @@ services:
     build:
       context: ./llamaindex_agent
       dockerfile: Dockerfile
+    image: ai-demo-llamaindex-agent:latest
     container_name: ai-demo-llamaindex-agent
     ports:
       - "8894:8894"
@@ -937,6 +939,7 @@ services:
     build:
       context: ./demo_llm_proxy
       dockerfile: Dockerfile
+    image: ai-demo-llm-proxy:latest
     container_name: ai-demo-llm-proxy
     ports:
       - "8090:8090"
@@ -949,6 +952,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+
+  # K8-only tier swap manager (built for in-cluster llm stack; never starts in compose).
+  tier-manager-k8:
+    profiles: ["k8-build"]
+    build:
+      context: ./demo_llm_proxy
+      dockerfile: Dockerfile.tier-manager
+    image: ai-demo-tier-manager:latest
 
   # ── Ungoverned Agent (demo prop — DOES NOT auto-start) ───────────────────────
   # A headless browser that rides a logged-in bank session and moves money via

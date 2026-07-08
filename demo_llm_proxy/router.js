@@ -10,6 +10,10 @@ const HOST = process.env.LLAMA_HOST || 'host.docker.internal';
 const HEALTH_TTL_MS = 30000;           // don't re-probe a backend more often than this
 const HEALTH_INTERVAL_MS = HEALTH_TTL_MS; // sweep cadence — matches the TTL so no wasted passes
 
+// Per-tier host override for in-cluster K8 (llama-tier1 / llama-tier5 Services).
+// Falls back to LLAMA_HOST (host.docker.internal in Docker) when unset.
+const tierHost = (envKey) => process.env[envKey] || HOST;
+
 // Swap mode: only ONE tier is loaded at a time ("smallest that does the job").
 // The tier-manager daemon on the HOST performs the actual llama-server
 // start/stop (this container cannot manage host processes).
@@ -23,11 +27,11 @@ const IDLE_DECAY_MS = parseInt(process.env.LLM_PROXY_IDLE_DECAY_MS || '300000', 
 // :8096). Names/sizes MUST match the processes start-local-models.sh launches
 // on each port. health/load/lastCheck live on the tier object itself.
 const TIERS = [
-  { name: 'phi-4-mini-instruct', port: 8091, size: '3.8B', host: HOST },
+  { name: 'phi-4-mini-instruct', port: 8091, size: '3.8B', host: tierHost('LLAMA_TIER1_HOST') },
   // gpt-oss-20b: complex technical/reasoning prompts and any agent that pins
   // model=gpt-oss-20b. MoE (~3.6B active params), so fast despite the size.
   // On :8096 because mcp-code-search publishes :8095.
-  { name: 'gpt-oss-20b',         port: 8096, size: '20B',  host: HOST },
+  { name: 'gpt-oss-20b',         port: 8096, size: '20B',  host: tierHost('LLAMA_TIER5_HOST') },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
 // ── Per-agent routing: honor the request's `model` field ───────────────────

@@ -1,0 +1,387 @@
+# 2-tier in-cluster LLM stack (Phase 2 K8 parity with Docker llm-proxy).
+#
+# Swap mode: only ONE llama-server tier runs at a time. tier-manager scales
+# llama-tier1 (:8091, Phi-4-mini) vs llama-tier5 (:8096, gpt-oss-20b) on
+# demand; llm-proxy (:8090) routes agent/BFF traffic and triggers swaps.
+#
+# Consumers use LLAMACPP_BASE_URL=http://llm-proxy:8090 (configmap).
+# Replaces the legacy single-model llamacpp Deployment (55-llamacpp).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llm-models
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llm-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: llm-tier-manager
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: tier-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm-tier-manager
+  namespace: ai-demo
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    resourceNames: ["llama-tier1", "llama-tier5"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: llm-tier-manager
+  namespace: ai-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: llm-tier-manager
+subjects:
+  - kind: ServiceAccount
+    name: llm-tier-manager
+    namespace: ai-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-tier1
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier1
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llama-tier1
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llama-tier1
+    spec:
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8091"
+            - "-hf"
+            - "bartowski/microsoft_Phi-4-mini-instruct-GGUF:microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+          ports:
+            - containerPort: 8091
+              name: http
+          volumeMounts:
+            - name: models
+              mountPath: /root/.cache/llama.cpp
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8091
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 40
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8091
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llm-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-tier1
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier1
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8091
+      targetPort: 8091
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: llama-tier1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-tier5
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier5
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llama-tier5
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llama-tier5
+    spec:
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8096"
+            - "--jinja"
+            - "-hf"
+            - "ggml-org/gpt-oss-20b-GGUF:gpt-oss-20b-mxfp4.gguf"
+          ports:
+            - containerPort: 8096
+              name: http
+          volumeMounts:
+            - name: models
+              mountPath: /root/.cache/llama.cpp
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "16Gi"
+              cpu: "4000m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llm-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-tier5
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier5
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8096
+      targetPort: 8096
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: llama-tier5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tier-manager
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: tier-manager
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: tier-manager
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: tier-manager
+    spec:
+      serviceAccountName: llm-tier-manager
+      containers:
+        - name: tier-manager
+          image: ai-demo-tier-manager:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8097
+              name: http
+          env:
+            - name: K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: TIER_MANAGER_PORT
+              value: "8097"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8097
+            initialDelaySeconds: 3
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tier-manager
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: tier-manager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8097
+      targetPort: 8097
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: tier-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-proxy
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llm-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llm-proxy
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llm-proxy
+    spec:
+      containers:
+        - name: llm-proxy
+          image: ai-demo-llm-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+              name: http
+          env:
+            - name: LLM_PROXY_PORT
+              value: "8090"
+            - name: TIER_MANAGER_URL
+              value: "http://tier-manager:8097"
+            - name: LLAMA_TIER1_HOST
+              value: "llama-tier1"
+            - name: LLAMA_TIER5_HOST
+              value: "llama-tier5"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-proxy
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llm-proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8090
+      targetPort: 8090
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: llm-proxy

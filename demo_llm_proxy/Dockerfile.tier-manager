@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache curl \
+  && KVER="$(curl -L -s https://dl.k8s.io/release/stable.txt)" \
+  && curl -LO "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl" \
+  && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+  && rm kubectl
+
+WORKDIR /app
+COPY modelCatalog.js tier-manager-k8.js ./
+
+ENV TIER_MANAGER_PORT=8097
+ENV K8S_NAMESPACE=ai-demo
+
+EXPOSE 8097
+CMD ["node", "tier-manager-k8.js"]

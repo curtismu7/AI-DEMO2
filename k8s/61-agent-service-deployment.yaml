@@ -43,6 +43,8 @@ spec:
           value: "https://demo-api-server:3001"
         - name: MCP_GATEWAY_URL
           value: "http://mcp-gateway:3005"
+        - name: LLAMACPP_MODEL
+          value: "gpt-oss-20b"
         # agent-secrets supplies AGENT_CLIENT_ID/SECRET, PINGONE_TOKEN_ENDPOINT,
         # PINGONE_* (from demo_agent_service/.env, same as compose's env_file).
         envFrom:
