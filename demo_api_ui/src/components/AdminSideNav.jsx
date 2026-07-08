@@ -482,8 +482,16 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         {
-          label: "PingGateway Test",
-          path: "/pinggateway-test.html",
+          label: "Gateway Tester",
+          path: "/setup?tab=mcp-gateway&subtab=tester",
+          icon: "tst",
+        },
+        {
+          label: "Token Lab",
+          // Static HTML page (BFF public/) — full navigation avoids SPA catch-all.
+          action: () => {
+            window.location.href = "/pinggateway-test.html";
+          },
           icon: "tst",
         },
       ],
