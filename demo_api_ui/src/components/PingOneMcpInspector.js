@@ -461,6 +461,8 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('platform');
   // 'all' shows every PingOne tool; the rest filter by resource group.
   const [platformGroup, setPlatformGroup] = useState('all');
+  // Client-side filter over the visible chip list (name + description).
+  const [toolSearch, setToolSearch] = useState('');
 
   // Tool invocation state
   const [selectedTool, setSelectedTool] = useState(null);
@@ -517,12 +519,21 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
     return { platformTools: platform, davinciTools: davinci, platformSubTabs: subTabs };
   }, [tools]);
 
-  const visibleTools =
+  const tabTools =
     activeTab === 'davinci'
       ? davinciTools
       : platformGroup === 'all'
       ? platformTools
       : platformTools.filter((t) => platformGroupId(t.name) === platformGroup);
+
+  const searchQuery = toolSearch.trim().toLowerCase();
+  const visibleTools = searchQuery
+    ? tabTools.filter((t) => {
+        const name = (t.name || '').toLowerCase();
+        const desc = (t.description || '').toLowerCase();
+        return name.includes(searchQuery) || desc.includes(searchQuery);
+      })
+    : tabTools;
 
   // Flip the page-only mcp_inspector_pingone_live flag, then re-query so the
   // catalog reflects the new state immediately.
@@ -720,16 +731,40 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
               <div className="p1mcp-chips-callbar">{callButton}</div>
             )}
 
+            <div className="p1mcp-tool-search">
+              <label htmlFor="p1mcp-tool-search" className="p1mcp-tool-search__label">
+                Search tools
+              </label>
+              <input
+                id="p1mcp-tool-search"
+                type="search"
+                className="p1mcp-tool-search__input"
+                placeholder="Filter by name or description…"
+                value={toolSearch}
+                onChange={(e) => setToolSearch(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {searchQuery && (
+                <span className="p1mcp-tool-search__count" aria-live="polite">
+                  {visibleTools.length} of {tabTools.length}
+                </span>
+              )}
+            </div>
+
             {visibleTools.length === 0 ? (
               <p className="mcp-inspector__muted">
-                No {activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.
-                {activeTab === 'davinci' && ' DaVinci Admin role required.'}
+                {searchQuery
+                  ? `No tools match "${toolSearch.trim()}".`
+                  : `No ${activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.${
+                      activeTab === 'davinci' ? ' DaVinci Admin role required.' : ''
+                    }`}
               </p>
             ) : (
               groupChips(visibleTools).map(([key, groupTools]) => {
                 const meta = CHIP_GROUP_META[key];
                 return (
-                  <details className="p1mcp-chip-group" key={key} open={CHIP_GROUP_OPEN.has(key)}>
+                  <details className="p1mcp-chip-group" key={key} open={!!searchQuery || CHIP_GROUP_OPEN.has(key)}>
                     <summary className="p1mcp-chip-group__head">
                       <span className="p1mcp-chip-group__icon" aria-hidden="true">{meta.icon}</span>
                       <span className="p1mcp-chip-group__label">{meta.label}</span>
