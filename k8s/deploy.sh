@@ -640,6 +640,17 @@ demo_sync_cmd() {
     kubectl rollout status deployment/mcp-proxy -n "$NS" --timeout=120s \
       || warn "mcp-proxy rollout slow — check: kubectl logs deploy/mcp-proxy -n $NS"
   fi
+
+  # BFF tool calls read MCP_GATEWAY_HTTP_URL from ai-demo-config (envFrom). Keep it
+  # aligned with the active gateway — configmap defaults to mcp-gateway:3005 but
+  # real-stack mode uses PingGateway at ping-gateway:8080.
+  if kubectl get configmap ai-demo-config -n "$NS" &>/dev/null; then
+    kubectl patch configmap ai-demo-config -n "$NS" --type merge \
+      -p "{\"data\":{\"MCP_GATEWAY_HTTP_URL\":\"${proxy_gw_url}\"}}"
+    kubectl rollout restart deployment/demo-api-server -n "$NS"
+    kubectl rollout status deployment/demo-api-server -n "$NS" --timeout=180s \
+      || warn "demo-api-server rollout slow after gateway URL patch"
+  fi
   echo ""
 }
 
