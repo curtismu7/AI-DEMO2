@@ -112,6 +112,11 @@ data:
   # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.
   LLAMACPP_BASE_URL: "http://llm-proxy:8090"
   LLAMACPP_MODEL: "phi-4-mini-instruct"
+  # Apple mlx-lm demo agent mode — host mlx_lm.server on :8098 (Mac/OrbStack only).
+  # BFF + agent-service reach the Mac host via host.docker.internal. On remote
+  # clusters this URL is unreachable; the MLX agent mode stays greyed out.
+  # Start on the host: bash demo_llm_proxy/start-mlx-lm.sh start
+  MLX_LM_BASE_URL: "http://host.docker.internal:8098"
 ---
 apiVersion: v1
 kind: ConfigMap
