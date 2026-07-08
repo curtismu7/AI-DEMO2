@@ -146,7 +146,7 @@ Threshold alignment in PingOne Authorize is optional config work (Phase 4). The 
 
 ---
 
-### Phase 3 — Guided demo mode in UI (~1–2 days)
+### Phase 3 — Guided demo mode in UI — **Done**
 
 Add a **Progressive Trust Demo** chip strip (or extend existing chip infrastructure) with five preset prompts in order:
 
@@ -162,10 +162,11 @@ Add a **Progressive Trust Demo** chip strip (or extend existing chip infrastruct
 - Optional banner: "Progressive Trust Demo — Ping MyHotels pattern on banking agents"
 - No LLM provider or agent framework changes required
 
-**Files likely touched:**
+**Files touched:**
 
-- `demo_api_ui/src/` — chip definitions or demo-mode panel
-- `demo_api_server/config/useCases.js` — chip metadata if centralized
+- `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ProgressiveTrustDemoStrip` (Acts 1–5, Run + Explain, flag gate for UC27)
+- `demo_api_ui/src/pages/UseCaseLauncherPage.css` — strip layout
+- UC24–UC28 hidden from demo track grid (shown only in strip); UC23 presenter card remains
 
 **Regression guard:** Read REGRESSION_PLAN §0 (emoji rule) and §1 before touching auth/UI surfaces.
 
@@ -268,7 +269,7 @@ Run the same five-act script across LLM providers to prove security is provider-
 | **P0** | Presenter doc + five chip prompts (Phase 1) | Hours | Run demo today with existing UCs (Acts 2–5) |
 | **P1** | Live demo with existing stack, no new code | Zero | Validates narrative |
 | **P2** | One public read-only tool (Phase 2) | Done | Completes Act 1 |
-| **P3** | UI chip strip / demo mode (Phase 3) | ~1–2 days | Smoother presenter flow |
+| **P3** | UI chip strip / demo mode (Phase 3) | Done | Smoother presenter flow |
 | **P4** | Multi-LLM rerun — Helix → llama → Google (Phase 5) | ~half day | Provider-agnostic proof |
 | **P5** | PingOne threshold tuning (Phase 4) | Config | Blog amount parity (optional) |
 
