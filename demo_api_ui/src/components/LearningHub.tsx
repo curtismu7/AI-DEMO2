@@ -331,6 +331,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         action: () => {},
       },
       {
+        label: "Agent Guardrails",
+        description: "How Ping keeps AI agents inside explicit guardrails",
+        icon: "🛡️",
+        action: () => {},
+      },
+      {
         label: "OWASP Agentic",
         description: "Security for autonomous agents",
         icon: "🛡️",
@@ -428,6 +434,7 @@ export default function LearningHub() {
       "WebMCP (Google)": () => (window.location.href = "/webmcp"),
       AuthZEN: () => openEdu(EDU.AUTHZEN, "overview"),
       "Agentic Trust": () => (window.location.href = "/agentic-trust"),
+      "Agent Guardrails": () => (window.location.href = "/agent-guardrails"),
       "OWASP Agentic": () => (window.location.href = "/owasp"),
       "Gartner Machine IAM Survey": () =>
         openEdu(EDU.MACHINE_IAM_SURVEY, "findings"),

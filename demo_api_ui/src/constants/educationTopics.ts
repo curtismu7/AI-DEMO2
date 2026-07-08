@@ -321,6 +321,12 @@ export const EDUCATION_CATEGORIES: EducationCategory[] = [
         actionId: "agentic-trust",
       },
       {
+        label: "Agent Guardrails",
+        description: "How Ping keeps AI agents inside explicit guardrails",
+        icon: "shld",
+        actionId: "agent-guardrails",
+      },
+      {
         label: "OWASP Agentic",
         description: "Security for autonomous agents",
         icon: "shld",
@@ -387,5 +393,6 @@ export const createEducationActionMap = (
   webmcp: () => (window.location.href = "/webmcp"),
   authzen: () => openEdu(EDU.AUTHZEN, "overview"),
   "agentic-trust": () => (window.location.href = "/agentic-trust"),
+  "agent-guardrails": () => (window.location.href = "/agent-guardrails"),
   "owasp-agentic": () => (window.location.href = "/owasp"),
 });

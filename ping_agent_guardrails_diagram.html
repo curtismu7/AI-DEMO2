@@ -475,18 +475,18 @@
       <div class="scenario-row">
         <button class="chip active" data-scenario="default">Full guardrail flow</button>
         <button class="chip" data-scenario="findagents">Find agents</button>
-        <button class="chip" data-scenario="impersonation">Impersonation</button>
+        <button class="chip" data-scenario="obo">OBO (on behalf of)</button>
         <button class="chip" data-scenario="overprivilege">Over-privilege</button>
         <button class="chip" data-scenario="risky">Risky behavior</button>
         <button class="chip" data-scenario="secrets">Secret exposure</button>
       </div>
-      <p class="scenario-copy" id="scenario-copy">Ping treats the agent as its own identity, gives it scoped delegated authority, checks every action at runtime, adds risk signals, can surface newly seen agents into Governance for AI, and forces human approval when the action crosses a high-risk boundary.</p>
+      <p class="scenario-copy" id="scenario-copy">Walk the full control chain: the human sponsor initiates intent, the agent runs as its own non-human identity, Agent IAM Core issues scoped delegated authority (not shared human credentials), the gateway and Authorize enforce every tool call at runtime, Protect adds risk and agent-detection signals, newly observed agents can flow into Governance for AI, and high-impact actions can require human approval before they execute.</p>
     </section>
 
     <section class="diagram" id="diagram">
       <div class="lane">
         <div class="lane-title">Actors</div>
-        <article class="card actor scenario-default scenario-impersonation" data-key="actor-human">
+        <article class="card actor scenario-default scenario-obo" data-key="actor-human">
           <div class="connector"></div>
           <h3>Human sponsor / operator</h3>
           <p>The human initiates intent and can remain accountable for sensitive outcomes.</p>
@@ -508,7 +508,7 @@
 
       <div class="lane">
         <div class="lane-title">Identity guardrails</div>
-        <article class="card identity scenario-default scenario-impersonation scenario-overprivilege" data-key="iam-core">
+        <article class="card identity scenario-default scenario-obo scenario-overprivilege" data-key="iam-core">
           <div class="connector"></div>
           <h3>Agent IAM Core</h3>
           <p>Registers the agent as a first-class non-human identity with its own credentials, ownership, lifecycle controls, and delegated authority.</p>
@@ -544,7 +544,7 @@
 
       <div class="lane">
         <div class="lane-title">Risk + oversight</div>
-        <article class="card risk scenario-default scenario-risky scenario-impersonation" data-key="protect">
+        <article class="card risk scenario-default scenario-risky scenario-obo" data-key="protect">
           <div class="connector"></div>
           <h3>PingOne Protect</h3>
           <p>Continuously scores runtime risk and can distinguish legitimate agents from malicious bots or suspicious AI/browser behavior, then trigger the right response.</p>
@@ -596,9 +596,9 @@
     </section>
 
     <section class="callout-grid" id="callouts">
-      <article class="callout" data-scenario="impersonation">
-        <h4>Stopped: human impersonation</h4>
-        <p>The agent gets its own identity and delegated authority instead of borrowing a human login.</p>
+      <article class="callout" data-scenario="obo">
+        <h4>Stopped: ungoverned OBO</h4>
+        <p>The agent acts on behalf of the user only through its own identity and an explicitly scoped delegated token — never by reusing the human's raw login or standing session.</p>
       </article>
       <article class="callout" data-scenario="overprivilege">
         <h4>Stopped: over-privileged actions</h4>
@@ -641,23 +641,23 @@
       </div>
     </section>
 
-    <p class="footer-note">Designed as a clean Lucid-style reference view for customer conversations, with scenario toggles you can use to explain how Ping prevents agent impersonation, overreach, risky behavior, secret exposure, and how Ping finds new agents.</p>
+    <p class="footer-note">Designed as a clean Lucid-style reference view for customer conversations, with scenario toggles you can use to explain how Ping prevents ungoverned OBO, overreach, risky behavior, secret exposure, and how Ping finds new agents.</p>
   </main>
 
   <script>
     const scenarioCopy = {
-      default: 'Ping treats the agent as its own identity, gives it scoped delegated authority, checks every action at runtime, adds risk signals, can surface newly seen agents into Governance for AI, and forces human approval when the action crosses a high-risk boundary.',
-      findagents: 'This view shows how Ping finds new agents: Agent Gateway sees new tool-using agents, endpoint controls can surface new endpoint agents, and Governance for AI becomes the system of record for bringing them under policy and oversight.',
-      impersonation: 'The core control here is identity separation: the agent must use its own identity and delegated authority, while Protect helps detect suspicious non-human behavior pretending to be something it is not.',
-      overprivilege: 'The core control here is least privilege: Ping limits what the agent can do through delegated entitlements, runtime policy, and just-in-time access instead of standing broad permissions.',
-      risky: 'The core control here is runtime evaluation: Protect adds risk signals and Authorize can force step-up or human approval when behavior looks abnormal or the requested action is too sensitive.',
-      secrets: 'The core control here is secret minimization: the gateway and privileged access layers broker access so the agent gets tightly scoped outcomes without being handed reusable credentials or secrets.'
+      default: 'Walk the full control chain: the human sponsor initiates intent, the agent runs as its own non-human identity, Agent IAM Core issues scoped delegated authority (not shared human credentials), the gateway and Authorize enforce every tool call at runtime, Protect adds risk and agent-detection signals, newly observed agents can flow into Governance for AI, and high-impact actions can require human approval before they execute.',
+      findagents: 'Shadow agents are the governance gap — tool-using runtimes that appear without enrollment. Agent Gateway watches MCP and API traffic to surface newly observed agents, endpoint controls can reveal agents running on privileged workstations, and Governance for AI becomes the inventory where those agents are enrolled, attributed to an owner, and wrapped in policy and ongoing oversight.',
+      obo: 'OBO (on behalf of) is legitimate when delegation is explicit: the agent must have its own identity, a sponsor who remains accountable, and a scoped delegated token (RFC 8693 / may_act) — not the user\'s long-lived session, refresh token, or browser cookie. Agent IAM Core registers the agent and binds delegation to the human sponsor; Protect can flag tokens or traffic that look like naked user proxying rather than governed OBO.',
+      overprivilege: 'Agents fail safe when authority is narrow and task-bound. Delegated entitlements define what the agent may request, Authorize evaluates each action against policy, context, risk, and intent, and just-in-time access replaces standing broad roles — so a task-scoped agent cannot keep permissions after the task ends or reach resources outside the declared intent.',
+      risky: 'Runtime is where harm happens. Protect continuously scores agent, browser, and bot-like behavior; Authorize can deny, challenge, or force step-up when the action or context is abnormal; and Governance for AI plus human approval can pause high-impact steps until a human confirms the agent is still acting within intent.',
+      secrets: 'Agents should receive outcomes, not secrets. The gateway brokers tool and API calls through policy-aware paths, Agent Privilege and endpoint JIT controls lift privilege for the task without handing over vault passwords or API keys, and short-lived, scoped credentials replace long-lived secret handoff that would spread through prompts, logs, and agent memory.'
     };
 
     const summaryCopy = {
       default: 'Ping does not trust the agent just because it authenticated once. It gives the agent a distinct identity, limits delegation, enforces every tool call at runtime, adds risk and bot/agent detection, can surface newly seen agents into Governance for AI, and inserts human approval when the task is sensitive.',
       findagents: 'To find agents, Ping uses runtime visibility and control points. Agent Gateway can surface newly observed MCP and API agents, endpoint controls can surface new endpoint agents, and Governance for AI can bring those agents into a managed inventory with oversight and policy.',
-      impersonation: 'To stop impersonation, Ping makes the agent operate as its own governed identity instead of a hidden human proxy, then adds runtime detection for suspicious AI or bot-like activity.',
+      obo: 'To govern OBO, Ping makes the agent operate as its own identity with explicit delegated authority tied to a human sponsor — not as a hidden proxy on the user\'s session — and adds runtime detection for tokens or behavior that bypass that delegation model.',
       overprivilege: 'To stop overreach, Ping narrows authority per action through delegated entitlements, policy evaluation, and just-in-time scope so the agent cannot keep broad standing access.',
       risky: 'To stop harmful behavior in motion, Ping combines risk scoring, AI-agent detection, policy enforcement, and human approval so unusual actions are challenged before they become incidents.',
       secrets: 'To stop secret exposure, Ping brokers privileged access and runtime calls so the agent uses approved access paths and short-lived authority rather than seeing or storing long-lived secrets.'
@@ -666,7 +666,7 @@
     const scenarioToKeys = {
       default: ['actor-human','actor-agent','iam-core','gateway','authorize','protect','oversight','privilege','endpoint-jit','resources'],
       findagents: ['gateway','oversight','endpoint-jit'],
-      impersonation: ['actor-human','iam-core','protect'],
+      obo: ['actor-human','iam-core','protect'],
       overprivilege: ['actor-agent','iam-core','gateway','authorize','oversight','endpoint-jit','resources'],
       risky: ['actor-agent','authorize','protect','oversight'],
       secrets: ['actor-agent','gateway','privilege','endpoint-jit','resources']
@@ -703,14 +703,16 @@
   </script>
 
   <script>
-    window.GleanBridge.postMessage({
-      actionId: 'export-pdf',
-      type: 'glean-add-menu',
-      metadata: { label: 'Export as PDF', icon: 'export' }
-    });
-    window.GleanBridge.onMessage('action', function(data) {
-      if (data.actionId === 'export-pdf') window.print();
-    });
+    if (window.GleanBridge) {
+      window.GleanBridge.postMessage({
+        actionId: 'export-pdf',
+        type: 'glean-add-menu',
+        metadata: { label: 'Export as PDF', icon: 'export' }
+      });
+      window.GleanBridge.onMessage('action', function(data) {
+        if (data.actionId === 'export-pdf') window.print();
+      });
+    }
 
     function prepareChartsForPrint() {
       document.querySelectorAll('[_echarts_instance_]').forEach(function(el) {
