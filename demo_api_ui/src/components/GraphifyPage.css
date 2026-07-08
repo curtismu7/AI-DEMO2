@@ -1,0 +1,262 @@
+/* demo_api_ui/src/components/GraphifyPage.css */
+@import './HeroSection.css';
+
+.graphify-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--v2-bg, #f7f7f5);
+  color: #111110;
+}
+
+.graphify-page__body {
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 3rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.graphify-page__thesis {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--v2-ink-2, #4c4c48);
+  border-left: 3px solid var(--v2-accent, #1b3a6b);
+  padding: 0.35rem 0 0.35rem 1rem;
+}
+
+.graphify-page__thesis strong {
+  color: #111110;
+}
+
+.graphify-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.graphify-stat {
+  flex: 1 1 120px;
+  min-width: 110px;
+  background: #fff;
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-md, 8px);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.04));
+}
+
+.graphify-stat__value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111110;
+}
+
+.graphify-stat__label {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--v2-ink-3, #6b6b66);
+}
+
+.graphify-section h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.graphify-section p {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+  color: var(--v2-ink-2, #4c4c48);
+  font-size: 0.95rem;
+}
+
+.graphify-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background: #fff;
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-md, 8px);
+  overflow: hidden;
+}
+
+.graphify-compare th,
+.graphify-compare td {
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--v2-line-1, #e4e4e0);
+  vertical-align: top;
+}
+
+.graphify-compare th {
+  background: var(--v2-surface-2, #f0f0ec);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--v2-ink-3, #6b6b66);
+}
+
+.graphify-compare tr:last-child td {
+  border-bottom: none;
+}
+
+.graphify-compare code {
+  font-size: 0.8rem;
+}
+
+.graphify-demos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.graphify-demo-btn {
+  appearance: none;
+  border: 1px solid var(--v2-line-2, #d5d5d0);
+  background: #fff;
+  color: #111110;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.graphify-demo-btn:hover {
+  background: var(--v2-surface-2, #f0f0ec);
+}
+
+.graphify-demo-btn--active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+
+.graphify-demo-card {
+  background: #fff;
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-lg, 12px);
+  padding: 1rem 1.15rem 1.15rem;
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.04));
+}
+
+.graphify-demo-card__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.graphify-demo-card__teach {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--v2-ink-2, #4c4c48);
+}
+
+.graphify-cmd-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.graphify-cmd {
+  flex: 1;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  background: #111110;
+  color: #e8e8e4;
+  border-radius: var(--v2-r-md, 8px);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.graphify-copy {
+  appearance: none;
+  border: 1px solid var(--v2-line-2, #d5d5d0);
+  background: var(--v2-surface-2, #f0f0ec);
+  border-radius: var(--v2-r-md, 8px);
+  padding: 0 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.graphify-copy:hover {
+  background: var(--v2-line-1, #e4e4e0);
+}
+
+.graphify-output {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-radius: var(--v2-r-md, 8px);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.graphify-flow {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px dashed var(--v2-line-2, #d5d5d0);
+  border-radius: var(--v2-r-md, 8px);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--v2-ink-2, #4c4c48);
+  overflow-x: auto;
+}
+
+.graphify-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.graphify-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.95rem;
+  background: #fff;
+  border: 1px solid var(--v2-line-2, #d5d5d0);
+  border-radius: var(--v2-r-md, 8px);
+  color: #111110;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+
+.graphify-link:hover {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.graphify-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--v2-ink-3, #6b6b66);
+  line-height: 1.5;
+}

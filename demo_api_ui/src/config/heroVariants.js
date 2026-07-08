@@ -19,6 +19,11 @@ export const HERO_VARIANTS = {
     backgroundEndColor: '#4f46e5',
     label: 'OAuth Academy',
   },
+  graphify: {
+    backgroundColor: '#0f766e',
+    backgroundEndColor: '#115e59',
+    label: 'Graphify',
+  },
 };
 
 export const DEFAULT_HERO_VARIANT = 'code-explorer';
