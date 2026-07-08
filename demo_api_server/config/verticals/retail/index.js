@@ -26,7 +26,13 @@ const HEURISTICS = [
   { re: /\breturns?\b|\breturn\s+history\b|\breturn\s+an?\s+item\b/i, action: 'view_returns' },
   /* PACK:heuristics:end */
   { re: /\bsensitive\b.*\border\b|\border\b.*\bsensitive\b/i, action: 'sensitive_order_history' },
-  { re: /\bcheckout\b|\bplace\s+(an?\s+)?order\b|\bbuy\b/, action: 'checkout', extractsCheckoutParams: true, paramHint: 'e.g. "checkout laptop $999" or "buy headphones $79"' },
+  // Points advice (chip rt8) before checkout so "buy with my points" ≠ checkout
+  { re: /\b(buy|spend|redeem|use)\b.*\bpoints?\b|\bpoints?\b.*\b(buy|spend|redeem|use|what should)\b|\bwhat should i buy\b/i, action: 'rewards_balance' },
+  // Deals on viewed items (chip rt10)
+  { re: /\b(deals?|offers?|promos?|discounts?)\b.*\b(viewed|browsed|watched)\b|\b(viewed|browsed)\b.*\b(deals?|offers?)\b|\bany deals on what i viewed\b/i, action: 'view_recently_viewed' },
+  // "check out my cart" (showcase MFA) — space form must match, not only "checkout"
+  { re: /\bcheck\s*out\b|\bplace\s+(an?\s+)?order\b|\bbuy\b(?!\s+with\b)/, action: 'checkout', extractsCheckoutParams: true, paramHint: 'e.g. "checkout laptop $999" or "buy headphones $79"' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|order|charge|spend)|check for unusual|flag any unusual|spot unusual/i, action: 'list_orders' },
   { re: /\border\s+status\b|\bwhere\s+is\s+my\s+order\b|\btrack\s+(my\s+)?order\b/, action: 'order_status', extractsOrderId: true, paramHint: 'e.g. "order status 1234" — find your order ID in your orders list' },
   { re: /\b(my\s+|list\s+|show\s+)?orders?\b|\border\s+history\b/, action: 'list_orders' },
   { re: /\bcompare\b.*\b(orders?|purchases?|buys?)\b|\b(recent|last|my)\b.*\bpurchases?\b/, action: 'list_orders' },

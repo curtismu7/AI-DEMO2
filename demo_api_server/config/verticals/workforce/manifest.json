@@ -103,8 +103,8 @@
       { "id": "wf-feature", "label": "My expense report", "message": "view my expense report", "mode": "both", "tool": "show_expense_report" },
       { "id": "wf6", "label": "Sick leave balance", "message": "sick leave balance", "mode": "both" },
       { "id": "wf7", "label": "Expense history", "message": "expense history", "mode": "both", "tool": "list_expenses" },
-      { "id": "wf8", "label": "When should I use my PTO?", "message": "What's the best time of year for a sabbatical?", "mode": "llm" },
-      { "id": "wf9", "label": "Right medical plan?", "message": "Do I have the right insurance plan for my needs?", "mode": "llm" },
+      { "id": "wf8", "label": "When should I use my PTO?", "message": "What's the best time of year for a sabbatical?", "mode": "both" },
+      { "id": "wf9", "label": "Right medical plan?", "message": "Do I have the right insurance plan for my needs?", "mode": "both" },
       { "id": "wf10", "label": "Which expenses are pending?", "message": "What's still waiting on my manager's sign-off?", "mode": "both" },
       { "id": "wf-direct", "label": "🔌 Direct MCP", "message": "show expense report", "mode": "direct", "tool": "list_expenses" }
     ],
@@ -149,8 +149,8 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
-            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },
         {

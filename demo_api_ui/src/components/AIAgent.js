@@ -5003,7 +5003,11 @@ export default function BankingAgent({
         );
         return;
       }
-      if (action === "biggest_purchase" || action === "spending_summary") {
+      if (
+        action === "biggest_purchase" ||
+        action === "spending_summary" ||
+        action === "unusual_patterns"
+      ) {
         const txRes = await getMyTransactions(50).catch(() => null);
         const txNorm = txRes ? normalizeAgentToolResult(txRes.result) : null;
         const txList = txNorm?.transactions;
@@ -5032,6 +5036,45 @@ export default function BankingAgent({
             "assistant",
             `Your biggest purchase was $${amt} at ${desc}${when ? ` on ${when}` : ""}.`,
           );
+        } else if (action === "unusual_patterns") {
+          const debits = txList.filter(
+            (tx) =>
+              tx.type === "debit" || tx.type === "purchase" || tx.amount < 0,
+          );
+          const amounts = debits.map((tx) => Math.abs(Number(tx.amount) || 0));
+          const avg =
+            amounts.length > 0
+              ? amounts.reduce((s, a) => s + a, 0) / amounts.length
+              : 0;
+          const threshold = Math.max(avg * 2.5, 200);
+          const outliers = debits
+            .filter((tx) => Math.abs(Number(tx.amount) || 0) >= threshold)
+            .sort(
+              (a, b) =>
+                Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0),
+            )
+            .slice(0, 5);
+          if (outliers.length === 0) {
+            addMessage(
+              "assistant",
+              `No unusual patterns in your recent activity. Average debit is $${avg.toFixed(2)}; nothing stood out above $${threshold.toFixed(2)}.`,
+            );
+          } else {
+            const lines = outliers
+              .map((tx) => {
+                const amt = Math.abs(Number(tx.amount) || 0).toFixed(2);
+                const desc = tx.merchant || tx.description || "Unknown";
+                const when = tx.createdAt
+                  ? new Date(tx.createdAt).toLocaleDateString()
+                  : "";
+                return `- $${amt} at ${desc}${when ? ` on ${when}` : ""}`;
+              })
+              .join("\n");
+            addMessage(
+              "assistant",
+              `Flagged ${outliers.length} unusual transaction(s) (avg debit $${avg.toFixed(2)}, threshold $${threshold.toFixed(2)}):\n${lines}`,
+            );
+          }
         } else {
           const debits = txList.filter(
             (tx) =>
@@ -5061,8 +5104,43 @@ export default function BankingAgent({
           title:
             action === "biggest_purchase"
               ? (terminology?.transactions || "Transactions")
-              : "Spending Breakdown",
+              : action === "unusual_patterns"
+                ? "Unusual Patterns"
+                : "Spending Breakdown",
           data: txList,
+          terminology,
+        });
+        return;
+      }
+      if (action === "afford_check") {
+        const acctRes = await getMyAccounts().catch(() => null);
+        const acctNorm = acctRes ? normalizeAgentToolResult(acctRes.result) : null;
+        const accounts = acctNorm?.accounts || acctNorm?.data?.accounts || [];
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          addMessage(
+            "assistant",
+            "I couldn't load your accounts to check affordability. Try \"show my accounts\" first.",
+          );
+          return;
+        }
+        const savings = accounts.filter((a) =>
+          /sav/i.test(String(a.accountType || a.type || a.name || "")),
+        );
+        const pool = savings.length > 0 ? savings : accounts;
+        const total = pool.reduce(
+          (sum, a) => sum + (Number(a.balance) || 0),
+          0,
+        );
+        const label =
+          savings.length > 0 ? "savings" : "available account balances";
+        addMessage(
+          "assistant",
+          `You have $${total.toFixed(2)} across ${pool.length} ${label} account(s). A large upcoming expense is affordable if it stays under that amount — leave a buffer for bills and emergencies.`,
+        );
+        setResultPanel({
+          type: "accounts",
+          title: "Affordability Check",
+          data: accounts,
           terminology,
         });
         return;
