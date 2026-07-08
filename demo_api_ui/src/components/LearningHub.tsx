@@ -391,10 +391,7 @@ export default function LearningHub() {
       "Ping Agent Gateway Security": () =>
         openEdu(EDU.PINGGATEWAY_MCP, "overview"),
       "Enterprise-Managed Auth (EMA)": () =>
-        window.open(
-          "https://blog.modelcontextprotocol.io/posts/enterprise-managed-auth/",
-          "_blank"
-        ),
+        openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),

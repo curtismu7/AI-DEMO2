@@ -19,6 +19,7 @@ import MachineIamSurveyPanel from "./MachineIamSurveyPanel";
 import CimdPanel from "./CimdPanel";
 import ComputerUseAgentPanel from "./ComputerUseAgentPanel";
 import ElicitationPanel from "./ElicitationPanel";
+import EnterpriseManagedAuthPanel from "./EnterpriseManagedAuthPanel";
 import FlowDiagramsPanel from "./FlowDiagramsPanel";
 import GleanPanel from "./GleanPanel";
 import HumanInLoopPanel from "./HumanInLoopPanel";
@@ -83,6 +84,7 @@ const PANEL_MAP = {
   [EDU.LOGIN_FLOW]: LoginFlowPanel,
   [EDU.MAY_ACT]: MayActPanel,
   [EDU.MCP_ELICITATION]: ElicitationPanel,
+  [EDU.ENTERPRISE_MANAGED_AUTH]: EnterpriseManagedAuthPanel,
   [EDU.MCP_PROTOCOL]: McpProtocolPanel,
   [EDU.OBO]: OboPanel,
   [EDU.OIDC_21]: Oidc21Panel,
