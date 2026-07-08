@@ -40,7 +40,7 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "deployments/scale"]
     resourceNames: ["llama-tier1", "llama-tier5"]
-    verbs: ["get", "patch", "update"]
+    verbs: ["get", "list", "watch", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -346,6 +346,8 @@ spec:
               value: "llama-tier1"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
+            - name: LLM_PROXY_PIN_TIER
+              value: "8091"
           resources:
             requests:
               memory: "64Mi"
