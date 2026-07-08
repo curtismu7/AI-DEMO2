@@ -103,9 +103,10 @@ export function buildTraceSteps(trace) {
     ].filter(Boolean),
   } : {}));
 
-  // 4. llm — heuristic runs skip the model but the step still lights up as bypassed
+  // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
   if (isHeuristic) {
-    steps.push(makeStep("llm", "done", {
+    const llmStep = makeStep("llm", "done", {
+      narrative: "Heuristics matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
       kv: [["routing", "Heuristic match — LLM not invoked"]],
       response: {
         title: "Heuristic routing",
@@ -113,7 +114,10 @@ export function buildTraceSteps(trace) {
           ? `Matched "${routingDetail.action}" from the prompt without calling the LLM.`
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
-    }));
+    });
+    llmStep.title = "Heuristics — intent match & tool choice";
+    llmStep.lane = "HEURISTICS";
+    steps.push(llmStep);
   } else {
     steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
       request: { title: "LLM request (actual)",
@@ -241,10 +245,23 @@ export function buildTraceSteps(trace) {
       ].filter(Boolean),
     } : {}));
 
-  // 11. reply
-  steps.push(makeStep("reply", llmReply ? "done" : "pending", llmReply ? {
-    response: { title: "Streamed reply", text: String(llmReply) },
-  } : {}));
+  // 11. reply — heuristics compose from the tool result (no LLM); chip paths
+  // often have mcpResult but no llmReply, so either evidence marks the step done.
+  const replyDone = Boolean(llmReply) || (isHeuristic && mcpDone);
+  const replyStep = makeStep("reply", replyDone ? "done" : "pending",
+    llmReply ? {
+      response: { title: "Streamed reply", text: String(llmReply) },
+    } : isHeuristic && mcpDone ? {
+      narrative: "Heuristics formatted the tool result into the chat reply — no LLM composition.",
+      response: mcpResult && mcpResult.result
+        ? { title: "Composed reply (from tool result)", text: asJson(mcpResult.result) }
+        : undefined,
+    } : {});
+  if (isHeuristic) {
+    replyStep.title = "Heuristics composes reply → chat";
+    replyStep.lane = "HEURISTICS";
+  }
+  steps.push(replyStep);
 
   return steps.map((s, i) => ({ ...s, num: i + 1 }));
 }

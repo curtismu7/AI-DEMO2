@@ -225,8 +225,30 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId.agent.status).toBe("done");
     expect(byId.llm.status).toBe("done");
+    expect(byId.llm.title).toBe("Heuristics — intent match & tool choice");
+    expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.llm.detail.response.text).toContain("view_coverage");
     expect(byId.reply.status).toBe("done");
+    expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+    expect(byId.reply.lane).toBe("HEURISTICS");
+  });
+
+  test("heuristic chip path marks reply done from mcpResult without llmReply", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      routingMode: "heuristic",
+      routingDetail: { action: "get_my_accounts" },
+      phases: [{ phase: "mcp_remote_done" }],
+      mcpResult: { tool: "get_my_accounts", result: { accounts: [{ id: "a1" }] } },
+      tokenEvents: [{ id: "user-token", status: "active", claims: { sub: "u1" } }],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.llm.status).toBe("done");
+    expect(byId.llm.lane).toBe("HEURISTICS");
+    expect(byId.reply.status).toBe("done");
+    expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+    expect(byId.reply.lane).toBe("HEURISTICS");
+    expect(byId.reply.detail.response.text).toContain("a1");
   });
 
   test("api step surfaces the api-key call + masked key when the swap ran", () => {
