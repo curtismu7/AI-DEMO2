@@ -56,7 +56,31 @@
       }
     },
     "groupToTier": {
-      "PrivateBanking": "PrivateBanking"
+      "Banking_PremiumTier": "PrivateBanking"
+    }
+  },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Banking_Privileged",
+        "description": "Users permitted to view sensitive banking data (UC9)"
+      },
+      "delegates": {
+        "name": "Banking_Delegates",
+        "description": "Users authorized as delegated banking agents"
+      },
+      "premiumTier": {
+        "name": "Banking_PremiumTier",
+        "description": "Private banking tier — higher limits and wire tools (UC21)"
+      }
+    },
+    "restrictedTools": {
+      "get_sensitive_account_details": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged", "premiumTier"],
+      "demoAdmin": ["privileged", "premiumTier"],
+      "demoDelegate": ["delegates"]
     }
   },
   "agent": {

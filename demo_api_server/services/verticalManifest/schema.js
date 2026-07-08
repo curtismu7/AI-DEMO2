@@ -69,6 +69,18 @@ const TiersSchema = z.object({
   groupToTier: z.record(z.string(), z.string()).optional(),
 }).optional();
 
+// PingOne group categories — same keys across verticals, vertical-specific names.
+const GroupCategorySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+});
+
+const GroupsSchema = z.object({
+  categories: z.record(z.string(), GroupCategorySchema),
+  restrictedTools: z.record(z.string(), z.string()).optional(),
+  userMemberships: z.record(z.string(), z.array(z.string())).optional(),
+}).optional();
+
 const ManifestSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/),
   schemaVersion: z.literal(3),
@@ -136,6 +148,8 @@ const ManifestSchema = z.object({
   }).optional(),
 
   tiers: TiersSchema,
+
+  groups: GroupsSchema,
 
   scopes: z.object({
     read: z.string().default('read'),

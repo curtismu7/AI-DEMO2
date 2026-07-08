@@ -241,14 +241,14 @@ describe('simulatedAuthorizeService', () => {
     it('DENIES when the user is not in the tool\'s required group', async () => {
       const r = await evaluateMcpFirstTool({
         ...BASE,
-        requiredGroup: 'PrivilegedBanking',
+        requiredGroup: 'Banking_Privileged',
         userGroups: ['general_users'],
       });
       expect(r.decision).toBe('DENY');
       expect(r.raw.deny_reason).toBe('user_not_in_group');
-      expect(r.raw.reason).toMatch(/PrivilegedBanking/);
+      expect(r.raw.reason).toMatch(/Banking_Privileged/);
       // deny_parameters must carry RequiredGroup + UserGroups for the UI/log.
-      expect(r.raw.parameters.RequiredGroup).toBe('PrivilegedBanking');
+      expect(r.raw.parameters.RequiredGroup).toBe('Banking_Privileged');
       expect(r.raw.parameters.UserGroups).toEqual(['general_users']);
     });
 
@@ -260,16 +260,16 @@ describe('simulatedAuthorizeService', () => {
       // discharges the consent gate to a clean PERMIT.
       const gated = await evaluateMcpFirstTool({
         ...BASE,
-        requiredGroup: 'PrivilegedBanking',
-        userGroups: ['PrivilegedBanking'],
+        requiredGroup: 'Banking_Privileged',
+        userGroups: ['Banking_Privileged'],
       });
       expect(gated.decision).not.toBe('DENY');
       expect(gated.raw.deny_reason).toBeUndefined();
 
       const permitted = await evaluateMcpFirstTool({
         ...BASE,
-        requiredGroup: 'PrivilegedBanking',
-        userGroups: ['PrivilegedBanking'],
+        requiredGroup: 'Banking_Privileged',
+        userGroups: ['Banking_Privileged'],
         hitlApproved: true,
       });
       expect(permitted.decision).toBe('PERMIT');
@@ -433,6 +433,7 @@ describe('simulatedAuthorizeService', () => {
       tokenAudience: 'https://mcp.example',
       actClientId: 'bff',
       acr: '',
+      verticalId: 'banking',
     };
 
     afterEach(() => {
@@ -463,7 +464,7 @@ describe('simulatedAuthorizeService', () => {
       const r = await evaluateMcpFirstTool({
         ...BASE,
         toolName: 'create_withdrawal',
-        userGroups: ['PrivateBanking'],
+        userGroups: ['Banking_PremiumTier'],
         amount: 10000,
         transactionType: 'withdrawal',
       });

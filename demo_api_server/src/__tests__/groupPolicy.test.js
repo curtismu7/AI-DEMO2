@@ -1,34 +1,66 @@
 'use strict';
 
 /**
- * Scenario 1 — groupPolicy accessors over config/group-policy.json.
- * Verifies the demo data the simulated engine + live PingOne params rely on,
- * and the ff_authorize_group_policy gate.
+ * Vertical-scoped groupPolicy — manifest-backed accessors + legacy fallback.
  */
 
+const { verticalManifest } = require('../../services/verticalManifest');
 const groupPolicy = require('../../services/groupPolicy');
 
 describe('groupPolicy', () => {
+  beforeAll(() => {
+    verticalManifest.init();
+  });
+
+  beforeEach(() => {
+    groupPolicy._reset();
+  });
+
   describe('requiredGroupForTool', () => {
-    it('returns the required group for a restricted tool', () => {
-      expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details')).toBe('PrivilegedBanking');
+    it('returns the banking privileged group for a restricted tool', () => {
+      expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details', 'banking'))
+        .toBe('Banking_Privileged');
     });
+
+    it('returns the healthcare privileged group for sensitive_patient_records', () => {
+      expect(groupPolicy.requiredGroupForTool('sensitive_patient_records', 'healthcare'))
+        .toBe('Healthcare_Privileged');
+    });
+
     it('returns null for an unrestricted tool', () => {
-      expect(groupPolicy.requiredGroupForTool('get_my_accounts')).toBeNull();
-      expect(groupPolicy.requiredGroupForTool(undefined)).toBeNull();
+      expect(groupPolicy.requiredGroupForTool('get_my_accounts', 'banking')).toBeNull();
+      expect(groupPolicy.requiredGroupForTool(undefined, 'banking')).toBeNull();
     });
   });
 
-  describe('groupsForUser', () => {
-    it('returns membership for a known demo user', () => {
-      expect(groupPolicy.groupsForUser('demoUser')).toContain('PrivilegedBanking');
+  describe('groupsForUserSync', () => {
+    it('returns banking membership for demoUser', () => {
+      const groups = groupPolicy.groupsForUserSync('demoUser', 'banking');
+      expect(groups).toContain('Banking_Privileged');
+      expect(groups).toContain('Banking_PremiumTier');
     });
-    it('returns an empty array for the out-of-group demo user', () => {
-      expect(groupPolicy.groupsForUser('demoDelegate')).toEqual([]);
+
+    it('returns delegates group for demoDelegate in banking', () => {
+      expect(groupPolicy.groupsForUserSync('demoDelegate', 'banking')).toContain('Banking_Delegates');
     });
-    it('returns an empty array for an unknown user', () => {
-      expect(groupPolicy.groupsForUser('nobody')).toEqual([]);
-      expect(groupPolicy.groupsForUser(undefined)).toEqual([]);
+
+    it('returns empty for demoDelegate in healthcare (deny demo)', () => {
+      expect(groupPolicy.groupsForUserSync('demoDelegate', 'healthcare')).toEqual([]);
+    });
+
+    it('returns empty for unknown user', () => {
+      expect(groupPolicy.groupsForUserSync('nobody', 'banking')).toEqual([]);
+      expect(groupPolicy.groupsForUserSync(undefined, 'banking')).toEqual([]);
+    });
+  });
+
+  describe('resolveUserTier', () => {
+    it('maps Banking_PremiumTier to PrivateBanking tier', () => {
+      expect(groupPolicy.resolveUserTier(['Banking_PremiumTier'], 'banking')).toBe('PrivateBanking');
+    });
+
+    it('defaults to Standard when no tier group', () => {
+      expect(groupPolicy.resolveUserTier([], 'banking')).toBe('Standard');
     });
   });
 

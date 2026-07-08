@@ -50,6 +50,26 @@
     "highValueAction": "Large Purchase",
     "highValueLabel": "High-value purchase"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Retail_Privileged",
+        "description": "Users permitted to access sensitive order history (UC9)"
+      },
+      "delegates": {
+        "name": "Retail_Delegates",
+        "description": "Users authorized as delegated shopping agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_order_history": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Shopping Assistant",
     "greeting": "Hi {name}! I can browse products, check prices, help with your cart, and explain the OAuth flows securing your checkout. What would you like to do?",

@@ -166,7 +166,7 @@ const MCP_GAPS = [
     group: 'No MCP coverage at all',
     items: [
       ['DaVinci authoring', 'All DaVinci tools are read-only (list/get) — creating/updating/deploying flows, connectors, forms, variables is direct.'],
-      ['Groups & memberships', ''],
+      ['Groups & memberships', 'No MCP tools — demo provisions via Management API (GET /users/{id}/memberOfGroups). See Vertical group membership panel below.'],
       ['Identity providers / social login', ''],
       ['Keys & certificates', 'signing/encryption, rotation'],
       ['Directory schema / custom attributes', 'MCP maps attributes on apps; it does not define directory schema.'],
@@ -189,6 +189,144 @@ const CIMD_STEP_LABELS = {
   fetch: 'Fetch client metadata document',
   validate: 'Validate document (client_id = URL, grant types, scopes)',
   register: 'Register client in the mock AS',
+};
+
+/** Live PingOne directory membership for the active vertical (Management API, not MCP). */
+const VerticalGroupMembershipSection = ({ isAdmin = false }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionResult, setProvisionResult] = useState(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/api/groups/membership');
+      setData(res.data);
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to load vertical group membership'));
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const handleProvision = useCallback(async () => {
+    if (!isAdmin) return;
+    setProvisioning(true);
+    setProvisionResult(null);
+    try {
+      const res = await apiClient.post('/api/groups/provision', {
+        verticalId: data?.verticalId || null,
+      });
+      setProvisionResult(res.data);
+      await refresh();
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to provision vertical groups'));
+    } finally {
+      setProvisioning(false);
+    }
+  }, [isAdmin, data?.verticalId, refresh]);
+
+  const categories = data?.categories ? Object.entries(data.categories) : [];
+  const restricted = data?.restrictedTools ? Object.entries(data.restrictedTools) : [];
+
+  return (
+    <Section
+      title="Vertical group membership"
+      hint="Management API — active vertical only"
+      defaultOpen
+    >
+      <p className="mcp-inspector__muted">
+        Each vertical owns its own PingOne groups (e.g. <code>Healthcare_Privileged</code>, not
+        banking names). The hosted PingOne MCP server has <strong>no group tools</strong> — groups
+        are created via the Management API (<code>POST /groups</code>,{' '}
+        <code>POST /users/&#123;id&#125;/memberOfGroups</code>) using worker creds from{' '}
+        <code>.env</code>.
+      </p>
+      <div className="p1mcp-toolbar" style={{ marginBottom: 12 }}>
+        <button type="button" className="p1mcp-btn" onClick={refresh} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh membership'}
+        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="p1mcp-btn"
+            onClick={handleProvision}
+            disabled={provisioning}
+            title="Create groups for active vertical via Management API (no bootstrap)"
+          >
+            {provisioning ? 'Provisioning…' : 'Provision groups (API)'}
+          </button>
+        )}
+        {data?.source && (
+          <span className="p1mcp-cimd-badge" title="pingone = live directory; manifest = demo JSON fallback">
+            Source: {data.source}
+          </span>
+        )}
+      </div>
+      {provisionResult && (
+        <p className="mcp-inspector__muted">
+          Provisioned via {provisionResult.transport}: {provisionResult.summary?.groupsEnsured ?? 0}{' '}
+          group step(s)
+          {provisionResult.summary?.warnings ? `, ${provisionResult.summary.warnings} warning(s)` : ''}.
+        </p>
+      )}
+      {data && (
+        <>
+          <div className="p1mcp-gap-group">
+            <div className="p1mcp-gap-group__title">
+              {data.displayName || data.verticalId}
+              {data.policyEnabled ? ' — policy ON' : ' — policy OFF'}
+            </div>
+            <ul className="p1mcp-gap-list">
+              <li className="p1mcp-gap-item">
+                <span className="p1mcp-gap-item__name">User</span>
+                <span className="p1mcp-gap-item__why">
+                  {data.username || '—'}
+                  {data.userTier ? ` · tier ${data.userTier}` : ''}
+                </span>
+              </li>
+              <li className="p1mcp-gap-item">
+                <span className="p1mcp-gap-item__name">Member of</span>
+                <span className="p1mcp-gap-item__why">
+                  {data.groups?.length ? data.groups.join(', ') : '(none)'}
+                </span>
+              </li>
+            </ul>
+          </div>
+          {categories.length > 0 && (
+            <div className="p1mcp-gap-group">
+              <div className="p1mcp-gap-group__title">Categories (this vertical)</div>
+              <ul className="p1mcp-gap-list">
+                {categories.map(([key, cat]) => (
+                  <li className="p1mcp-gap-item" key={key}>
+                    <span className="p1mcp-gap-item__name">{key}</span>
+                    <span className="p1mcp-gap-item__why">{cat.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {restricted.length > 0 && (
+            <div className="p1mcp-gap-group">
+              <div className="p1mcp-gap-group__title">Restricted tools</div>
+              <ul className="p1mcp-gap-list">
+                {restricted.map(([tool, group]) => (
+                  <li className="p1mcp-gap-item" key={tool}>
+                    <span className="p1mcp-gap-item__name">{tool}</span>
+                    <span className="p1mcp-gap-item__why">requires {group}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </Section>
+  );
 };
 
 const CimdRegistrationSection = () => {
@@ -593,7 +731,8 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
                 return (
                   <details className="p1mcp-chip-group" key={key} open={CHIP_GROUP_OPEN.has(key)}>
                     <summary className="p1mcp-chip-group__head">
-                      {meta.label}
+                      <span className="p1mcp-chip-group__icon" aria-hidden="true">{meta.icon}</span>
+                      <span className="p1mcp-chip-group__label">{meta.label}</span>
                       <span className="p1mcp-chip-group__count">{groupTools.length}</span>
                     </summary>
                     <div className="p1mcp-chips">
@@ -673,6 +812,8 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
           </>
         )}
       </Section>
+
+      <VerticalGroupMembershipSection isAdmin={user?.role === 'admin'} />
 
       <CimdRegistrationSection />
 

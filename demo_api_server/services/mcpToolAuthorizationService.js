@@ -16,6 +16,7 @@ const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
+const { verticalManifest } = require('./verticalManifest');
 
 /**
  * Extract nested actor id from MCP JWT (RFC 8693 multi-hop) when PingOne issues act.act.
@@ -237,20 +238,17 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // flag is off these stay null and the group guard is a no-op end-to-end.
   let requiredGroup = null;
   let userGroups = null;
-  // UC21 tier (UserTier) + UC9 membership (InRequiredGroup) scalars for the live
-  // PingOne path. The snapshot DSL has no array-contains, so the BFF pre-resolves
-  // them here; the simulated engine still derives tier from the raw UserGroups
-  // array (parity preserved by matching the resolution rule).
   let userTier = null;
   let inRequiredGroup = null;
+  const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
   if (groupPolicy.isEnabled(configStore)) {
-    // Resolve the user's groups whenever the policy is on (not only for
-    // group-restricted tools) so the tier check can run for any tool.
-    userGroups = groupPolicy.groupsForUser(req.session?.user?.username);
-    // Must match simulatedAuthorizeService _resolveUserTierFromGroups:
-    // PrivateBanking when a member, else the default Standard tier.
-    userTier = userGroups.includes('PrivateBanking') ? 'PrivateBanking' : 'Standard';
-    requiredGroup = groupPolicy.requiredGroupForTool(tool);
+    userGroups = await groupPolicy.groupsForUser(
+      req.session?.user?.username,
+      verticalId,
+      { pingOneUserId: subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
+    );
+    userTier = groupPolicy.resolveUserTier(userGroups, verticalId);
+    requiredGroup = groupPolicy.requiredGroupForTool(tool, verticalId);
     if (requiredGroup) {
       inRequiredGroup = userGroups.includes(requiredGroup);
     }
@@ -291,6 +289,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     resourceOwnerId,
     requiredGroup,
     userGroups,
+    verticalId,
     rarMaxAmount,
     rarPermittedPayees,
     toAccountId,
