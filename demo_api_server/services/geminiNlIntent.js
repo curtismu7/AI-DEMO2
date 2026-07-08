@@ -546,6 +546,34 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
+  // mlx-lm JSON intent parsing — same pattern as llama.cpp above.
+  // Lets "MLX (Apple)" mode (heuristicRouting:false) route structured actions.
+  if (MLX_PROVIDERS.has(selectedProvider)) {
+    const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    try {
+      const { callMlx } = require('./mlxLlmService');
+      const raw = await callMlx([
+        { role: 'system', content: systemWithCtx },
+        { role: 'user', content: message },
+      ]);
+      const tryParse = (text) => {
+        if (!text) return null;
+        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+        } catch (_) {}
+        return null;
+      };
+      const parsed = tryParse(raw);
+      if (parsed) return logAndReturn({ source: 'mlx', result: parsed });
+      llmAttempted = true;
+    } catch (err) {
+      console.warn('[nlIntent] mlx-lm intent error:', err.message);
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+    }
+  }
+
   // In LLM-only mode go straight to the conversational answer
   // from whichever LLM the mode selected (Helix or LM Studio).
   if (!heuristicEnabled) {
@@ -567,13 +595,14 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   }
 
   // 3. Try the selected LLM for general knowledge questions when banking intent
-  // fails (fallback only) — Helix, LM Studio, llama.cpp, or Claude.
+  // fails (fallback only) — Helix, LM Studio, llama.cpp, mlx-lm, or Claude.
   if (
     selectedProvider === 'helix' ||
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
     CLAUDE_PROVIDERS.has(selectedProvider) ||
     GOOGLE_PROVIDERS.has(selectedProvider) ||
     LLAMACPP_PROVIDERS.has(selectedProvider) ||
+    MLX_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
     const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
