@@ -33,7 +33,7 @@
 | Demo User App | `https://api.ping.demo:4000/api/auth/oauth/user/callback` |
 | Demo AI Agent | `https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback` |
 | Demo MCP Exchanger | `https://api.ping.demo:4000/api/auth/oauth/mcp-exchanger-placeholder-callback` |
-| PingOne MCP Server | `http://localhost:7464/callback` and `http://127.0.0.1:7464/callback` (both registered; provisioned by bootstrap, patched into `.mcp.json` by `install.sh`) |
+| PingOne MCP Server | `http://localhost:7464/callback`, `http://127.0.0.1:7464/callback` (Claude Code), `cursor://anysphere.cursor-mcp/oauth/callback`, `https://www.cursor.com/agents/mcp/oauth/callback` (Cursor; provisioned by bootstrap, patched into `.mcp.json` / `.cursor/mcp.json` by `install.sh` / `npm run patch:cursor-mcp`) |
 
 ---
 

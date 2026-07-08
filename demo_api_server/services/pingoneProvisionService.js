@@ -1416,8 +1416,8 @@ class PingOneProvisionService {
       '',
       '# Claude Code / Cursor "pingone" MCP server OAuth client (developer tooling, not a',
       '# runtime component). NATIVE_APP, PKCE S256, no secret; redirect',
-      '# http://localhost:7464/callback. install.sh patches this into .mcp.json',
-      '# mcpServers.pingone.oauth.clientId so the hosted PingOne MCP server connects.',
+      '# http://localhost:7464/callback (Claude Code) plus Cursor OAuth callbacks.',
+      '# install.sh / npm run patch:cursor-mcp wire .cursor/mcp.json from this value.',
       `PINGONE_MCP_OAUTH_CLIENT_ID=${provisioned.pingOneMcpServerApp?.clientId || ''}`,
       '',
       '# Claude Code "banking-gateway" MCP OAuth client (developer tooling). NATIVE_APP,',
@@ -2777,7 +2777,12 @@ class PingOneProvisionService {
           const updatedMcpApp = await this.updateApplication(pingOneMcpAppId, {
             // Register both loopback hosts — different MCP clients use localhost vs
             // 127.0.0.1, and PingOne requires an exact redirect_uri match.
-            redirectUris: ['http://localhost:7464/callback', 'http://127.0.0.1:7464/callback'],
+            redirectUris: [
+              'http://localhost:7464/callback',
+              'http://127.0.0.1:7464/callback',
+              'cursor://anysphere.cursor-mcp/oauth/callback',
+              'https://www.cursor.com/agents/mcp/oauth/callback',
+            ],
           });
           if (updatedMcpApp?.clientId) provisioned.pingOneMcpServerApp = updatedMcpApp;
         } catch (err) {

@@ -44,6 +44,7 @@ Management API rather than retrying MCP in a loop.
 | Consumer | Config | Auth |
 |---|---|---|
 | Claude Code session | `.air/mcp.json` (per-machine, gitignored; template `.air/mcp.json.example`) | Interactive OAuth — run `/mcp` in an interactive session to authorize; per-user, not shareable |
+| Cursor (project) | `.cursor/mcp.json` (per-machine, gitignored; template `.cursor/mcp.json.example`; `npm run patch:cursor-mcp`) | Static OAuth `auth.CLIENT_ID` from bootstrap; Customize → MCP → Connect. Stdio entries: `github`, `codegraph`, `banking-dev`. |
 | BFF (runtime) | `demo_api_server/services/mcpPingOneHttpAdapter.js` | Worker `client_credentials` Bearer token; stateless JSON-RPC (no initialize handshake, no session id); `tools/list` cached for process lifetime |
 | Scripts / smoke | `scripts/smoke-pingone-mcp.js` | Same worker Bearer pattern as the BFF |
 

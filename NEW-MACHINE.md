@@ -18,7 +18,7 @@ For the everyday run details (ports, commands, troubleshooting) see
 | Slash commands | [.claude/commands/](.claude/commands/) |
 | Workflows | [.claude/workflows/](.claude/workflows/) |
 | Shared Claude settings | [.claude/settings.json](.claude/settings.json) (must stay secret-free; personal allowlists go in gitignored `settings.local.json`) |
-| MCP server registry | `.air/mcp.json` (per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)) |
+| MCP server registry | `.air/mcp.json` (Claude Code, per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)); `.cursor/mcp.json` (Cursor, per-machine, gitignored — copy from [.cursor/mcp.json.example](.cursor/mcp.json.example) or run `npm run patch:cursor-mcp`) |
 | Launchers | `run.sh`, `run-docker.sh`, `docker-compose.yml` |
 | Env templates | `.env.example`, `.env.docker.example` |
 
@@ -69,10 +69,12 @@ header of `.env.docker.example`).
 ```
 First run installs deps + builds automatically; no manual `npm install` needed.
 
-## 4. Claude Code tooling notes (optional — not needed to run the demo)
+## 4. Claude Code / Cursor tooling notes (optional — not needed to run the demo)
 
 The demo itself does not depend on these; they are dev conveniences in
-[.mcp.json](.mcp.json):
+[.air/mcp.json](.air/mcp.json) (Claude Code) and [.cursor/mcp.json](.cursor/mcp.json) (Cursor):
+
+- **Cursor MCP** — copy [.cursor/mcp.json.example](.cursor/mcp.json.example) to `.cursor/mcp.json`, then run `npm run patch:cursor-mcp` to fill PingOne OAuth client ids from `demo_api_server/.env`. Uses **stdio** for `github` (Docker + `gh auth token`), `codegraph`, and `banking-dev` — disable Cursor's built-in plugin MCP servers (github/playwright/context7) in **Customize → MCP** if they show `net::ERR_FAILED`; use the project `github` entry instead. Remote OAuth servers (`pingone`, `banking-gateway`) need **Connect** in that same panel.
 
 - **`banking-dev`** MCP server needs a one-time build (its `dist/` is gitignored).
   `install.sh` now builds it; otherwise run `cd dev_mcp/banking-dev && npm install &&
