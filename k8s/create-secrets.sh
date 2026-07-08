@@ -182,11 +182,17 @@ if [ -f "$ASSET_ROOT/ping-gateway/config/admin.json" ]; then
     --namespace="$NS" \
     --from-file=admin.json="$ASSET_ROOT/ping-gateway/config/admin.json" \
     --from-file=config.json="$ASSET_ROOT/ping-gateway/config/config.json" \
-    --from-file=01-mcp-olb.json="$ASSET_ROOT/ping-gateway/config/routes/01-mcp-olb.json" \
-    --from-file=02-mcp-invest.json="$ASSET_ROOT/ping-gateway/config/routes/02-mcp-invest.json" \
-    --from-file=p1az-decision.groovy="$ASSET_ROOT/ping-gateway/scripts/groovy/p1az-decision.groovy" \
+    --from-file=mcp-tool-schemas.json="$ASSET_ROOT/mcp-tool-schemas.json" \
     --dry-run=client -o yaml | kubectl apply -f -
-  info "  ping-gateway-config applied."
+  kubectl create configmap ping-gateway-routes \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/ping-gateway/config/routes/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap ping-gateway-groovy \
+    --namespace="$NS" \
+    --from-file="$ASSET_ROOT/ping-gateway/scripts/groovy/" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  ping-gateway-config, ping-gateway-routes, ping-gateway-groovy applied."
 else
   warn "ping-gateway/config/admin.json not found — skipping ping-gateway-config ConfigMap"
 fi
