@@ -187,8 +187,11 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
     log.warn("Flow diagram initialization failed:", err);
   }
   // Start a fresh trace for each chip-fired tool call.
+  // Chips are deterministic (no LLM) — mark the rail as heuristic so steps 4/11
+  // show HEURISTICS labels and checkmarks instead of pending LLM hops.
   try {
     tokenChainTraceStore.beginTrace({ prompt: tool });
+    tokenChainTraceStore.ingestRoutingMode("heuristic", { action: tool });
   } catch { /* display-only */ }
 
   const flowTraceId =
