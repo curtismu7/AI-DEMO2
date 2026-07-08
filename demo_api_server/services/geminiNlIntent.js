@@ -104,6 +104,7 @@ async function answerWithHelix(userMessage, context = {}) {
 // Agent modes 'lmstudio' and 'heuristics_lmstudio' resolve to this provider.
 const LMSTUDIO_PROVIDERS = new Set(['anthropic-lmstudio', 'lmstudio']);
 const CLAUDE_PROVIDERS = new Set(['anthropic']);
+const GOOGLE_PROVIDERS = new Set(['google']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
 const MLX_PROVIDERS = new Set(['mlx']);
 
@@ -203,10 +204,28 @@ async function answerWithMlx(userMessage, context = {}) {
   }
 }
 
-async function answerConversational(userMessage, context, selectedProvider) {
+async function answerWithGoogle(userMessage, context = {}, langchainConfig = {}) {
+  try {
+    const { callGemini } = require('./googleGeminiLlmService');
+    const systemWithCtx = buildSystemWithCtx(null, context);
+    const answer = await callGemini([
+      { role: 'system', content: systemWithCtx },
+      { role: 'user', content: userMessage },
+    ], langchainConfig);
+    if (answer) {
+      return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
+    }
+  } catch (err) {
+    console.warn('[nlIntent] Gemini error:', err.message);
+  }
+  return null;
+}
+
+async function answerConversational(userMessage, context, selectedProvider, langchainConfig = {}) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
+  else if (GOOGLE_PROVIDERS.has(selectedProvider)) result = await answerWithGoogle(userMessage, context, langchainConfig);
   else if (LLAMACPP_PROVIDERS.has(selectedProvider)) result = await answerWithLlamaCpp(userMessage, context);
   else if (MLX_PROVIDERS.has(selectedProvider)) result = await answerWithMlx(userMessage, context);
   else result = await answerWithHelix(userMessage, context);
@@ -217,6 +236,7 @@ async function answerConversational(userMessage, context, selectedProvider) {
 function conversationalSource(selectedProvider) {
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) return 'lmstudio_fallback';
   if (CLAUDE_PROVIDERS.has(selectedProvider)) return 'claude_fallback';
+  if (GOOGLE_PROVIDERS.has(selectedProvider)) return 'google_fallback';
   if (LLAMACPP_PROVIDERS.has(selectedProvider)) return 'llamacpp_fallback';
   if (MLX_PROVIDERS.has(selectedProvider)) return 'mlx_fallback';
   return 'helix_fallback';
@@ -433,6 +453,40 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
+  // Google Gemini JSON intent parsing — parallel to the Claude branch.
+  if (GOOGLE_PROVIDERS.has(selectedProvider)) {
+    const apiKey = langchainConfig?.google_api_key
+      || configStore.getEffective('google_api_key')
+      || process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      console.warn('[nlIntent] Gemini not configured (GOOGLE_API_KEY missing) — falling back to heuristic');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, llm_not_configured: true };
+    }
+    const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    try {
+      const { callGemini } = require('./googleGeminiLlmService');
+      const rawText = await callGemini([
+        { role: 'system', content: systemWithCtx },
+        { role: 'user', content: message },
+      ], langchainConfig);
+      const tryParse = (text) => {
+        if (!text) return null;
+        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+        } catch (_) {}
+        return null;
+      };
+      const parsed = tryParse(rawText);
+      if (parsed) return logAndReturn({ source: 'google', result: parsed });
+      llmAttempted = true;
+    } catch (err) {
+      console.warn('[nlIntent] Gemini intent error:', err.message);
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+    }
+  }
+
   // LM Studio JSON intent parsing — parallel to the Helix and Claude branches.
   // This is what lets the pure-LM-Studio mode (heuristicRouting:false) route
   // structured actions; without it, every message in that mode would only get a
@@ -495,7 +549,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // In LLM-only mode go straight to the conversational answer
   // from whichever LLM the mode selected (Helix or LM Studio).
   if (!heuristicEnabled) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
       console.warn('[nlIntent] conversational LLM failed:', e.message);
       return null;
     });
@@ -518,10 +572,11 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     selectedProvider === 'helix' ||
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
     CLAUDE_PROVIDERS.has(selectedProvider) ||
+    GOOGLE_PROVIDERS.has(selectedProvider) ||
     LLAMACPP_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
       console.warn('[nlIntent] conversational fallback failed:', e.message);
       return null;
     });
