@@ -1,0 +1,23 @@
+---
+description: Emoji allowlist — only six emojis permitted in UI, code, skills, and commands
+alwaysApply: true
+---
+
+# Emoji allowlist
+
+Do **not** use emojis in skills, commands, code, or UI text except:
+
+| Glyph | Use |
+|-------|-----|
+| `⚠️` | Warning |
+| `✅` | Success / green check |
+| `❌` | Error / red X |
+| `🔐` | Security / lock (HITL trigger chips) |
+| `✕` | Close / dismiss |
+| `✓` | Check / confirm |
+
+Everything else: plain text, CSS icons, or semantic HTML. Remove disallowed emojis when encountered.
+
+**Not emojis (OK in UI):** `→ ← ↑ ↓` and box-drawing `│ ├ └ ─ ┌ ┐ ┘ ┬ ┤`.
+
+Canonical source: `REGRESSION_PLAN.md` §0.
