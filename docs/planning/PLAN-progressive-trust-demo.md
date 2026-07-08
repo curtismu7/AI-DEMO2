@@ -93,7 +93,8 @@ Launch from **Use Cases → Progressive Trust Demo** in the UI (`/use-cases`). T
 | 1 — Public | `search_hotels` | Branch/product FAQ (no PII) | **New** thin read-only tool (optional) | Minimal / none |
 | 2 — Authenticated | `search_hotels_member_rates` | "Show my account balances" | UC1 — `delegated-access-with-proof.md` | Full chain: subject → actor → narrowed aud → act |
 | 3 — In-app step-up | `prepare_booking` (< threshold) | "Transfer $300 to savings" | HITL — `hitl-consent.md` | authorize-decision → HITL |
-| 4 — OOB approval | `finalize_booking` + CIBA | "Transfer $600 to savings" | UC22 — `ciba-out-of-band-approval.md` | authorize-decision → ciba-poll → tool-dispatched |
+| 4 — MFA step-up | `prepare_booking` (mid tier) | "Transfer $600 to savings" | UC7 — `step-up-required.md` | authorize-decision → MFA → PERMIT |
+| 4b — OOB (optional) | `finalize_booking` + CIBA | "Transfer $600 to savings" | UC22 — `ciba-out-of-band-approval.md` | authorize-decision → ciba-poll → tool-dispatched |
 | 5 — Hard deny | Booking > €1000 | "Transfer $2500 to savings" | UC6 — `authz-denied.md` | authorize-decision → DENY |
 
 ### Policy threshold mapping
@@ -101,7 +102,7 @@ Launch from **Use Cases → Progressive Trust Demo** in the UI (`/use-cases`). T
 | Blog (MyHotels) | Banking demo (current) | Notes |
 |---|---|---|
 | ≤ €200 — permit immediately | ≤ $300 — HITL in-app | Different amounts; same pattern (policy-driven step-up) |
-| €200–€1000 — CIBA required | $600 — CIBA OOB | Enable `ff_ciba` |
+| €200–€1000 — CIBA required | $600 — MFA step-up (UC7); CIBA optional (UC22, FF) | Enable `ciba_enabled` for Act 4b |
 | > €1000 — DENY | $2500 — DENY | Authorize blocks before execution |
 
 Threshold alignment in PingOne Authorize is optional config work (Phase 4). The demo works with existing banking amounts by explaining the domain mapping.
