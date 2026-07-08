@@ -346,6 +346,8 @@ spec:
               value: "llama-tier1"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
+            - name: LLM_PROXY_PIN_TIER
+              value: "8091"
           resources:
             requests:
               memory: "64Mi"
