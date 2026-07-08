@@ -6600,6 +6600,23 @@ export default function BankingAgent({
                       addMessage("user", label || message);
                       setNlLoading(true);
 
+                      // Start Token Chain for every Actions-dropdown / showcase chip.
+                      // Non-LLM chips (all verticals' mode:"both"/direct) mark HEURISTICS
+                      // immediately; LLM chips leave steps 4/11 pending until llmDetail/reply.
+                      try {
+                        tokenChainTraceStore.beginTrace({ prompt: message });
+                        // PingOne Admin chips use /api/admin-agent (LLM/MCP hosted), not heuristics.
+                        const chipIsHeuristic =
+                          !requiresLlm &&
+                          agentProviderMode !== "helix_google" &&
+                          !(chipId && PINGONE_ADMIN_CHIP_IDS.has(chipId));
+                        if (chipIsHeuristic) {
+                          tokenChainTraceStore.ingestRoutingMode("heuristic", {
+                            action: chipId || null,
+                          });
+                        }
+                      } catch (_) { /* display-only */ }
+
                       // ── Security Showcase dispatch ─────────────────────────────
                       // Action-typed showcase chips fire a dedicated live harness here;
                       // message-typed ones (MFA/HITL transfers, LLM prompts) fall through
@@ -6646,6 +6663,11 @@ export default function BankingAgent({
                           // bridged actor with a rogue, non-allowlisted client_id (_testActClientId).
                           // PingOne Authorize's HasValidActorChain returns a real DENY.
                           (async () => {
+                            try {
+                              tokenChainTraceStore.ingestRoutingMode("heuristic", {
+                                action: "atk_confused_deputy",
+                              });
+                            } catch (_) { /* display-only */ }
                             const rogue = "rogue-agent-9f2a-not-allowlisted";
                             try {
                               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -6724,6 +6746,11 @@ export default function BankingAgent({
                           // (create_withdrawal). The gateway binds each receipt to the tool it
                           // approved, so the reuse is re-challenged (428), not honored.
                           (async () => {
+                            try {
+                              tokenChainTraceStore.ingestRoutingMode("heuristic", {
+                                action: "atk_hitl_replay",
+                              });
+                            } catch (_) { /* display-only */ }
                             const apiBase = process.env.REACT_APP_API_URL || "";
                             const call = (tool, params) =>
                               fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params }) });
@@ -8379,6 +8406,14 @@ export default function BankingAgent({
                               setNlInput("");
                               addMessage("user", chip.label);
                               setNlLoading(true);
+                              try {
+                                tokenChainTraceStore.beginTrace({ prompt: chip.label });
+                                if ((activeLlmProvider || "heuristic") === "heuristic") {
+                                  tokenChainTraceStore.ingestRoutingMode("heuristic", {
+                                    action: chip.id,
+                                  });
+                                }
+                              } catch (_) { /* display-only */ }
                               (async () => {
                                 try {
                                   const _guestNlRes = await fetch(
