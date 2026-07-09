@@ -65,14 +65,16 @@ if $DO_CONFIG; then
 fi
 
 # ── 2. Rebuild image(s) ──────────────────────────────────────────────────────
+# Production images only — never merge docker-compose.override.yml (Vite dev target).
+K8S_COMPOSE=( -f "${REPO_ROOT}/docker-compose.yml" )
 if [ "${#SERVICES[@]}" -eq 0 ]; then
-  info "Rebuilding ALL images (docker compose build)..."
-  ( cd "$REPO_ROOT" && docker compose build )
+  info "Rebuilding ALL images (docker compose -f docker-compose.yml build)..."
+  ( cd "$REPO_ROOT" && docker compose "${K8S_COMPOSE[@]}" build )
 else
   compose_names=()
   for s in "${SERVICES[@]}"; do compose_names+=("$(to_compose "$s")"); done
   info "Rebuilding: ${compose_names[*]}"
-  ( cd "$REPO_ROOT" && docker compose build "${compose_names[@]}" )
+  ( cd "$REPO_ROOT" && docker compose "${K8S_COMPOSE[@]}" build "${compose_names[@]}" )
 fi
 
 # Compose tags images as <project>-<service>:latest (e.g. ai-demo-demo-api-server).

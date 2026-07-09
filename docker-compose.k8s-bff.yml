@@ -1,0 +1,17 @@
+# Hybrid stack: Vite dev UI in Docker Compose + BFF in k8s (OrbStack).
+#
+# The default override sets REACT_APP_API_HOST=demo-api-server, which only resolves
+# inside the compose network. When the BFF runs in k8s instead, use this file:
+#
+#   kubectl port-forward -n ai-demo svc/demo-api-server 3001:3001 &
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml \
+#     -f docker-compose.k8s-bff.yml up -d --no-deps ui
+#
+# Prefer ./run-docker.sh for the full compose stack; use this only for k8s+BFF dev UI.
+
+services:
+  ui:
+    environment:
+      REACT_APP_API_HOST: host.docker.internal
+      REACT_APP_API_HTTPS: "true"
+      REQUIRE_DEV_TLS: "1"

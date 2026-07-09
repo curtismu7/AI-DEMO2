@@ -384,7 +384,7 @@ aws_build() {
     || die "GHCR login failed — run: gh auth login"
 
   info "Building images..."
-  docker compose build
+  docker compose -f docker-compose.yml build
 
   # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
   local IMAGE_MAP=(

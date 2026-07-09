@@ -6,6 +6,21 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+/** Resolve mkcert TLS files — repo ../certs locally, /certs in Docker dev mount. */
+function resolveMkcertPaths() {
+  const dirs = [
+    resolve(__dirname, '../certs'),
+    '/certs',
+    process.env.CERT_DIR,
+  ].filter(Boolean)
+  for (const dir of dirs) {
+    const cert = resolve(dir, 'api.ping.demo+2.pem')
+    const key = resolve(dir, 'api.ping.demo+2-key.pem')
+    if (existsSync(cert) && existsSync(key)) return { cert, key, dir }
+  }
+  return null
+}
+
 export default defineConfig(({ mode }) => {
   // Load env vars prefixed with REACT_APP_ or VITE_ (REACT_APP_ for CRA compat).
   // IMPORTANT: loadEnv only reads .env* files — it does NOT see process.env. In
@@ -19,8 +34,8 @@ export default defineConfig(({ mode }) => {
 
   // Proxy config — mirrors setupProxy.js logic exactly
   const apiPort = cfg('REACT_APP_API_PORT') || '3001'
-  const certFile = resolve(__dirname, '../certs/api.ping.demo+2.pem')
-  const apiHttps = existsSync(certFile) || cfg('REACT_APP_API_HTTPS') === 'true'
+  const mkcert = resolveMkcertPaths()
+  const apiHttps = Boolean(mkcert) || cfg('REACT_APP_API_HTTPS') === 'true'
   const hostname = cfg('REACT_APP_API_HOST') || (apiHttps ? 'api.ping.demo' : 'localhost')
   const httpTarget = `${apiHttps ? 'https' : 'http'}://${hostname}:${apiPort}`
   const wsTarget = `${apiHttps ? 'wss' : 'ws'}://${hostname}:${apiPort}`
@@ -28,7 +43,25 @@ export default defineConfig(({ mode }) => {
   // Fail loud: surface the resolved proxy target at boot so a misconfigured
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
-  console.log(`[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`)
+  console.log(
+    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
+  )
+  if (process.env.HTTPS !== 'false') {
+    if (mkcert) {
+      console.log(
+        `[vite] dev TLS: https://api.ping.demo:4000 (certs from ${mkcert.dir})`,
+      )
+    } else {
+      const msg =
+        '[vite] FATAL: mkcert TLS files missing — https://api.ping.demo:4000 will not work. ' +
+        'Run: npm run certs:ensure (or ./run-docker.sh restart ui)'
+      if (process.env.REQUIRE_DEV_TLS === '1') {
+        console.error(msg)
+        process.exit(1)
+      }
+      console.warn(`${msg} (continuing HTTP-only — set REQUIRE_DEV_TLS=1 to fail fast)`)
+    }
+  }
 
   // Shim process.env.REACT_APP_* so existing source files need no changes.
   // Vite replaces these string patterns at build time with the actual values.
@@ -99,10 +132,10 @@ export default defineConfig(({ mode }) => {
       // (mkcert cert present) for `npm start` and the Docker dev mount.
       port: process.env.PORT ? Number(process.env.PORT) : 4000,
       allowedHosts: ['api.ping.demo'],
-      ...(process.env.HTTPS !== 'false' && existsSync(certFile) && {
+      ...(process.env.HTTPS !== 'false' && mkcert && {
         https: {
-          key: readFileSync(resolve(__dirname, '../certs/api.ping.demo+2-key.pem')),
-          cert: readFileSync(certFile),
+          key: readFileSync(mkcert.key),
+          cert: readFileSync(mkcert.cert),
         },
       }),
       proxy: {
