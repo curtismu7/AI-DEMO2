@@ -31,7 +31,7 @@ describe('no banking fallback when a plugin is active', () => {
   it('heuristics map only to plugin actions', () => {
     const h = dispatch.heuristicsFor('health', () => { throw new Error('legacy'); });
     const actions = h.map((x) => x.action);
-    for (const a of actions) expect(a).toBe('book_appointment');
+    for (const a of actions) expect(['book_appointment', 'account_nickname']).toContain(a);
   });
 
   it('executeTool returns the plugin result, never a banking shape', async () => {

@@ -176,7 +176,7 @@ describe('useCases catalog SoT', () => {
   });
 
   test('productRoles keys are valid product ids', () => {
-    const VALID = new Set(['idp', 'mfa', 'gw', 'authz', 'llm']);
+    const VALID = new Set(['idp', 'mfa', 'gw', 'authz', 'llm', 'privilege']);
     for (const u of USE_CASES) {
       for (const key of Object.keys(u.productRoles)) {
         expect(VALID.has(key)).toBe(true);

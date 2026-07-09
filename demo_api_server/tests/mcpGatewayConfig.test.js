@@ -251,10 +251,12 @@ describe('POST /config — setRaw persistence', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete process.env.MCP_GATEWAY_HTTP_URL;
+        process.env.BFF_INTERNAL_SECRET = 'test-internal-secret';
     });
 
     afterEach(() => {
         if (httpSpy) httpSpy.mockRestore();
+        delete process.env.BFF_INTERNAL_SECRET;
     });
 
     test('calls configStore.setRaw with new keys when gateway push succeeds', async () => {
@@ -283,13 +285,14 @@ describe('POST /config — setRaw persistence', () => {
 
     test('does not call setRaw when gateway push fails (502)', async () => {
         httpSpy = stubHttpRequestError();
+        process.env.BFF_INTERNAL_SECRET = 'test-internal-secret';
 
         const configStore = require('../services/configStore');
         const app = buildApp();
 
         await supertest(app)
             .post('/config')
-            .send({ mcp_gw_client_id: 'test-client' });
+            .send({ rateLimitEnabled: true });
 
         expect(configStore.setRaw).not.toHaveBeenCalled();
     });

@@ -5,6 +5,7 @@ jest.mock('../../services/verticalManifest', () => {
 
 const { verticalManifest } = require('../../services/verticalManifest');
 const dispatch = require('../../services/verticalDispatch');
+const { ACCOUNT_NICKNAME_HEURISTIC } = require('../../config/verticals/shared/bankingChipHeuristics');
 
 const fakePlugin = {
   getManifest: () => ({ id: 'health' }),
@@ -26,7 +27,7 @@ describe('verticalDispatch — plugin present', () => {
   it('heuristicsFor returns plugin heuristics, never the legacy callback', () => {
     const legacy = jest.fn(() => [{ re: /never/, action: 'banking_transfer' }]);
     const out = dispatch.heuristicsFor('health', legacy);
-    expect(out).toEqual(fakePlugin.getHeuristics());
+    expect(out).toEqual([ACCOUNT_NICKNAME_HEURISTIC, ...fakePlugin.getHeuristics()]);
     expect(legacy).not.toHaveBeenCalled();
   });
 
@@ -63,8 +64,12 @@ describe('verticalDispatch — no plugin (legacy fallback)', () => {
   it('hasPlugin false', () => { expect(dispatch.hasPlugin('retail')).toBe(false); });
 
   it('heuristicsFor calls the legacy callback', () => {
-    const legacy = jest.fn(() => 'LEGACY');
-    expect(dispatch.heuristicsFor('retail', legacy)).toBe('LEGACY');
+    const legacyResult = [{ re: /legacy/, action: 'legacy_action' }];
+    const legacy = jest.fn(() => legacyResult);
+    expect(dispatch.heuristicsFor('retail', legacy)).toEqual([
+      ACCOUNT_NICKNAME_HEURISTIC,
+      ...legacyResult,
+    ]);
     expect(legacy).toHaveBeenCalledTimes(1);
   });
 
