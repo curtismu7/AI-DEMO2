@@ -119,6 +119,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'marketing_customer_login_mode', 'marketing_demo_username_hint', 'marketing_demo_password_hint',
   'demo_username', 'demo_password', 'demo_admin_username', 'demo_admin_password', 'demo_accounts',
   'demo_apikey_backend_service_key', 'demo_mortgage_service_key', 'demo_invest_service_key',
+  'enterprise_mcp_allowed_groups', 'enterprise_mcp_resource_uris',
   'default_user_type',
   // oauth behavior / callbacks (deployment, not env identity)
   'oauth_admin_callback_path', 'oauth_user_callback_path', 'oauth_discovery_enabled',

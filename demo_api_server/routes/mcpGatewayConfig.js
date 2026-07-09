@@ -412,9 +412,13 @@ router.post('/config', async (req, res) => {
     }
 
     try {
-        const pushResult = await pushGatewayAdminConfig(gatewayUrl, gatewayUpdates);
-        if (!pushResult.ok) {
-            return res.status(502).json({ error: 'Could not reach mock gateway', detail: pushResult.error });
+        let gatewayConfig = null;
+        if (Object.keys(gatewayUpdates).length > 0) {
+            const pushResult = await pushGatewayAdminConfig(gatewayUrl, gatewayUpdates);
+            if (!pushResult.ok) {
+                return res.status(502).json({ error: 'Could not reach mock gateway', detail: pushResult.error });
+            }
+            gatewayConfig = pushResult.config;
         }
 
         const persistKeys = ['mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope'];
@@ -428,7 +432,7 @@ router.post('/config', async (req, res) => {
             }
         }
 
-        res.json({ ok: true, pushed: updates, gatewayConfig: pushResult.config });
+        res.json({ ok: true, pushed: updates, gatewayConfig });
     } catch (err) {
         res.status(502).json({ error: 'Could not reach mock gateway', detail: err.message });
     }

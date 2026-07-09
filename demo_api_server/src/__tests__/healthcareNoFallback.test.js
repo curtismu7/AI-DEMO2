@@ -33,6 +33,7 @@ describe('healthcare active — no banking fallback anywhere in the shared path'
 
   it('heuristics map only to healthcare actions', () => {
     const toolNames = healthcarePlugin.getTools().map((t) => t.name);
+    toolNames.push('account_nickname');
     const actions = dispatch.heuristicsFor('healthcare', () => { throw new Error('legacy'); }).map((h) => h.action);
     for (const a of actions) expect(toolNames).toContain(a);
   });

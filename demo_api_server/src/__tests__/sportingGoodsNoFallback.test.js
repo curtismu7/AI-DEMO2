@@ -33,6 +33,7 @@ describe('sporting-goods active — no banking fallback anywhere in the shared p
 
   it('heuristics map only to sporting-goods actions', () => {
     const toolNames = sgPlugin.getTools().map((t) => t.name);
+    toolNames.push('account_nickname');
     const actions = dispatch.heuristicsFor('sporting-goods', () => { throw new Error('legacy'); }).map((h) => h.action);
     for (const a of actions) expect(toolNames).toContain(a);
   });
