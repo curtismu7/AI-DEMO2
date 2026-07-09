@@ -411,21 +411,30 @@ router.post('/config', async (req, res) => {
         return res.status(400).json({ error: 'No valid fields to update' });
     }
 
+    const persistKeys = ['mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope'];
+    const toStore = {};
+    for (const k of persistKeys) {
+        if (k in updates) toStore[k] = updates[k];
+    }
+
     try {
         let gatewayConfig = null;
-        if (Object.keys(gatewayUpdates).length > 0) {
-            const pushResult = await pushGatewayAdminConfig(gatewayUrl, gatewayUpdates);
-            if (!pushResult.ok) {
-                return res.status(502).json({ error: 'Could not reach mock gateway', detail: pushResult.error });
+        if (Object.keys(gatewayUpdates).length === 0) {
+            if (Object.keys(toStore).length === 0) {
+                return res.status(400).json({ error: 'No valid fields to update' });
             }
-            gatewayConfig = pushResult.config;
+            try { await configStore.setRaw(toStore); } catch (e) {
+                console.warn('[mcpGatewayConfig] configStore persist failed:', e.message);
+            }
+            return res.json({ ok: true, pushed: updates, gatewayConfig: null, persistedOnly: true });
         }
 
-        const persistKeys = ['mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope'];
-        const toStore = {};
-        for (const k of persistKeys) {
-            if (k in updates) toStore[k] = updates[k];
+        const pushResult = await pushGatewayAdminConfig(gatewayUrl, gatewayUpdates);
+        if (!pushResult.ok) {
+            return res.status(502).json({ error: 'Could not reach mock gateway', detail: pushResult.error });
         }
+        gatewayConfig = pushResult.config;
+
         if (Object.keys(toStore).length > 0) {
             try { await configStore.setRaw(toStore); } catch (e) {
                 console.warn('[mcpGatewayConfig] configStore persist failed:', e.message);

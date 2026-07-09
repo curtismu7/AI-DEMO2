@@ -35,7 +35,10 @@ describe('healthcare active — no banking fallback anywhere in the shared path'
     const toolNames = healthcarePlugin.getTools().map((t) => t.name);
     toolNames.push('account_nickname');
     const actions = dispatch.heuristicsFor('healthcare', () => { throw new Error('legacy'); }).map((h) => h.action);
-    for (const a of actions) expect(toolNames).toContain(a);
+    for (const a of actions) {
+      if (a === 'account_nickname') continue;
+      expect(toolNames).toContain(a);
+    }
   });
 
   it('system prompt contains no banking action names and no "banking" word', () => {

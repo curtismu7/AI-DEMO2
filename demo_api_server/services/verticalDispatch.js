@@ -62,6 +62,9 @@ function mergeToolsByName(tools, overlayTools) {
 function heuristicsFor(activeId, legacy, ctx = {}) {
   const p = resolvePlugin(activeId);
   let heuristics = p ? p.getHeuristics() : legacy();
+  if (!Array.isArray(heuristics)) {
+    heuristics = heuristics != null ? [heuristics] : [];
+  }
   // Cross-vertical banking MCP chips — prepend on non-banking verticals so account
   // nickname wins over broad rules that match bare "account". Banking plugin keeps
   // its own ordered copy (before accounts) in config/verticals/banking/index.js.
