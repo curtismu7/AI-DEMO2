@@ -37,14 +37,22 @@ def ROUTE_FOR_TOOL = [
     show_enrollment    : 'enrollment',
     show_work_order    : 'workOrder',
 ]
-// tool -> vault key name the BFF bridge will return. mortgage + invest are the
-// SAME backend (demo_data_service), which validates every vertical against a
-// single shared secret (MORTGAGE_SERVICE_API_KEY, default demo-mortgage-key-0000).
-// So both tools present that one service key — DEMO_MORTGAGE_SERVICE_KEY, the only
-// demo backend key seeded (setupFresh.js) and the value the backend accepts.
+// tool -> vault key name the BFF bridge will return. Every api_key-disposition
+// tool hits the SAME backend (demo_mortgage_service / demo_data_service), which
+// validates every vertical against a single shared secret (MORTGAGE_SERVICE_API_KEY).
+// So every tool presents DEMO_MORTGAGE_SERVICE_KEY — the only demo backend key
+// seeded (setupFresh.js) and the value the backend accepts. Tools omitted here
+// would fail with "no vault key configured" even after P1AZ PERMIT.
 def KEY_FOR_TOOL = [
-    show_mortgage  : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_investment: 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_mortgage      : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_investment    : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_large_purchase: 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_health_record : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_gear_order    : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_expense_report: 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_permit        : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_enrollment    : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_work_order    : 'DEMO_MORTGAGE_SERVICE_KEY',
 ]
 
 def bffVaultUrl   = System.getenv('BFF_VAULT_KEY_URL') ?: ''
@@ -61,9 +69,18 @@ def rpcError = { id, code, message ->
 }
 
 // Blocking GET (URLConnection, not http.send — event-loop safe). Returns [code, body].
+// HostnameVerifier: the BFF mkcert cert SANs are api.ping.demo/localhost only, but
+// in-cluster the vault URL uses demo-api-server ClusterIP DNS. Trust still comes
+// from the JVM truststore (mkcert root imported at container start); this only
+// relaxes the name check for those two demo hostnames.
 def httpGet = { String url, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
+        if (conn instanceof javax.net.ssl.HttpsURLConnection) {
+            conn.setHostnameVerifier({ String hostname, javax.net.ssl.SSLSession session ->
+                hostname == 'demo-api-server' || hostname == 'api.ping.demo' || hostname == 'localhost'
+            } as javax.net.ssl.HostnameVerifier)
+        }
         conn.requestMethod = 'GET'
         conn.connectTimeout = 5000
         conn.readTimeout = 10000

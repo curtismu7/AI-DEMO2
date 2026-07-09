@@ -594,6 +594,13 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // Phase 266 — Path A demo: service API key the gateway swaps in (masked last-4 shown on info page)
   demo_apikey_backend_service_key:       { public: false, default: 'demo-api-key-0000' },
 
+  // PingGateway vault bridge (/internal/vault/service-key) — shared secret the
+  // apikey-dispatch.groovy handler injects as X-API-Key to demo_mortgage_service.
+  // Must match MORTGAGE_SERVICE_API_KEY on that backend. Defaults keep the local
+  // demo runnable when vault-migrate has not seeded these entries yet.
+  demo_mortgage_service_key:             { public: false, default: 'demo-mortgage-key-0000' },
+  demo_invest_service_key:               { public: false, default: 'demo-mortgage-key-0000' },
+
   // PingOne Recognize — biometric / device intelligence
   RECOGNIZE_API_KEY:    { public: false, default: '' },
   RECOGNIZE_TENANT_NAME: { public: true,  default: '' },
@@ -1248,6 +1255,8 @@ class ConfigStore {
 
       // Phase 266 — Path A demo API key
       demo_apikey_backend_service_key:      ['DEMO_APIKEY_SERVICE_KEY'],
+      demo_mortgage_service_key:            ['DEMO_MORTGAGE_SERVICE_KEY'],
+      demo_invest_service_key:              ['DEMO_INVEST_SERVICE_KEY'],
 
       // Agent mode (five-mode provider)
       agent_mode:                           ['AGENT_MODE'],

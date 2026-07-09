@@ -1,7 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 
-jest.mock('../services/configStore', () => ({ get: jest.fn() }));
+jest.mock('../services/configStore', () => ({ get: jest.fn(), getEffective: jest.fn() }));
 const configStore = require('../services/configStore');
 
 process.env.BFF_INTERNAL_SECRET = 'test-internal-secret';
@@ -16,7 +16,10 @@ function buildApp() {
 const SECRET = 'test-internal-secret';
 
 describe('GET /internal/vault/service-key', () => {
-  beforeEach(() => configStore.get.mockReset());
+  beforeEach(() => {
+    configStore.get.mockReset();
+    configStore.getEffective.mockReset();
+  });
 
   test('403 when the internal secret is missing', async () => {
     const res = await request(buildApp())
@@ -35,35 +38,35 @@ describe('GET /internal/vault/service-key', () => {
   });
 
   test('404 for a non-allow-listed name (never leaks other secrets)', async () => {
-    configStore.get.mockReturnValue('super-secret-value');
+    configStore.getEffective.mockReturnValue('super-secret-value');
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', SECRET)
       .query({ name: 'SESSION_SECRET' });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('not_allowlisted');
-    expect(configStore.get).not.toHaveBeenCalled();
+    expect(configStore.getEffective).not.toHaveBeenCalled();
   });
 
   test('404 when an allow-listed key is unset', async () => {
-    configStore.get.mockReturnValue(null);
+    configStore.getEffective.mockReturnValue(null);
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', SECRET)
       .query({ name: 'DEMO_INVEST_SERVICE_KEY' });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('key_unset');
-    expect(configStore.get).toHaveBeenCalledWith('demo_invest_service_key');
+    expect(configStore.getEffective).toHaveBeenCalledWith('demo_invest_service_key');
   });
 
   test('200 returns the value for an allow-listed name', async () => {
-    configStore.get.mockReturnValue('demo-mortgage-key-0000');
+    configStore.getEffective.mockReturnValue('demo-mortgage-key-0000');
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', SECRET)
       .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ name: 'DEMO_MORTGAGE_SERVICE_KEY', value: 'demo-mortgage-key-0000' });
-    expect(configStore.get).toHaveBeenCalledWith('demo_mortgage_service_key');
+    expect(configStore.getEffective).toHaveBeenCalledWith('demo_mortgage_service_key');
   });
 });

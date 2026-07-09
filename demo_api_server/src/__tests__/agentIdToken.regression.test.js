@@ -88,6 +88,33 @@ test('Test 4: Correct secret + matching session with idToken returns 200', async
   expect(res.body).toEqual({ idToken: 'eyJhbGciOiJSUzI1NiJ9.fake.jwt' });
 });
 
+test('Test 4b: prefers freshest matching session when stale rows exist', async () => {
+  const now = Date.now();
+  const sessions = [
+    {
+      oauthTokens: {
+        subjectSub: 'user-abc',
+        idToken: 'stale.jwt',
+        expiresAt: now - 60 * 60 * 1000,
+      },
+    },
+    {
+      oauthTokens: {
+        subjectSub: 'user-abc',
+        idToken: 'fresh.jwt',
+        expiresAt: now + 60 * 60 * 1000,
+      },
+    },
+  ];
+  const app = buildApp({ store: makeStore(sessions) });
+  const res = await request(app)
+    .get('/internal/id-token')
+    .set('x-internal-gateway-secret', 'test-secret-123')
+    .set('x-subject-sub', 'user-abc');
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ idToken: 'fresh.jwt' });
+});
+
 // =============================================================================
 // Test 5: Correct secret + session WITHOUT idToken → 412
 // =============================================================================

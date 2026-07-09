@@ -53,10 +53,18 @@ const { log, warn, auditDecision } = require('../logger');
 
 // Env override first (deployment can pin it), else the SoT (scope-topology.json
 // gateway resource uri), else the canonical demo literal as a last resort.
-const EXPECTED_AUD = process.env.MCP_GATEWAY_RESOURCE_URI ||
+// Comma-separated list is supported so Path B (dual_token) can land on the Node
+// gateway with a PingGateway-minted aud while MCP_GW_RESOURCE_URI lists both.
+const EXPECTED_AUD_RAW = process.env.MCP_GATEWAY_RESOURCE_URI ||
+  process.env.MCP_GW_RESOURCE_URI ||
   process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
   scopeTopology.gatewayAudience() ||
   'mcpgateway.ping.demo';
+const EXPECTED_AUDS = String(EXPECTED_AUD_RAW)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const EXPECTED_AUD = EXPECTED_AUDS[0];
 
 const _issEnvId  = process.env.PINGONE_ENVIRONMENT_ID || '';
 const _issRegion = process.env.PINGONE_REGION || 'com';
@@ -207,9 +215,9 @@ module.exports = async function decisionHandler(req, res) {
   } catch {
     audList = rawAud.split(/\s+/).filter(Boolean);
   }
-  if (!audList.includes(EXPECTED_AUD)) {
-    warn(`[AuthzServer/decision] DENY — aud mismatch: [${audList.join(',')}] expected ${EXPECTED_AUD}`);
-    return deny(res, `invalid_aud: audience does not include ${EXPECTED_AUD}`);
+  if (!EXPECTED_AUDS.some((a) => audList.includes(a))) {
+    warn(`[AuthzServer/decision] DENY — aud mismatch: [${audList.join(',')}] expected ${EXPECTED_AUDS.join(' | ')}`);
+    return deny(res, `invalid_aud: audience does not include ${EXPECTED_AUDS.join(' | ')}`);
   }
 
   // ── Rule 0c: TokenAudience must equal McpResourceUri ──────────────────────

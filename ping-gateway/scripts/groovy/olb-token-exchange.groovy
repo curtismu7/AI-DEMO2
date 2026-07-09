@@ -79,12 +79,17 @@ if (!subjectToken) {
 }
 
 // ── Exchange #3: get OLB token from PingOne ───────────────────────────────────
+// RFC 8707: PingOne requires `resource=` to narrow to ONE resource server when
+// the TE client has grants on several — `audience=` alone is silently ignored
+// ("May not request scopes for multiple resources"), so the issued token keeps
+// the subject aud (mcpgateway.ping.demo) and mcp-server rejects it. Mirror the
+// Node gateway's McpTokenExchangeClient (resource=, not audience=).
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
     'subject_token_type'   : 'urn:ietf:params:oauth:token-type:access_token',
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
-    'audience'             : olbAudience,
+    'resource'             : olbAudience,
     'scope'                : olbScope,
     'client_id'            : teClientId,
     'client_secret'        : teClientSecret,
@@ -93,7 +98,7 @@ def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + tokenEndpoint + ' audience=' + olbAudience + ' scope=' + olbScope)
+logger.info('[OlbExchange] REQUEST → ' + tokenEndpoint + ' resource=' + olbAudience + ' scope=' + olbScope)
 def exchangeResp = httpPostForm(tokenEndpoint, formBody)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 

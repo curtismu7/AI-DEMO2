@@ -42,6 +42,7 @@ import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
+import { buildDualTokenToolResult } from '../dualTokenDispatch';
 import { validateIntentToken } from '../intentTokenValidator';
 import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
@@ -752,10 +753,27 @@ export function buildAuthorizeMcpRequest(
     // banking_mortgage_service). The WS handler (index.ts) has always done this;
     // the HTTP path used to skip it and raw-proxy to OLB, producing "Unknown tool".
     // Shared logic lives in apiKeyDispatch (one source, both transports).
-    // dualtoken/bankingdata remain WS-only for now — see REGRESSION_PLAN §4.
+    // dual_token (Path B) is now HTTP-parity via dualTokenDispatch (was WS-only).
     if (method === 'tools/call' && toolName && routeTool(toolName) === 'apikey') {
       const rpcId = parsedBody.id ?? null;
       const outcome = await buildApiKeyToolResult(toolName, decoded.sub, undefined, config);
+      setAuditHeader(res);
+      teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (outcome.ok) {
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: rpcId, result: outcome.result }));
+      } else {
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: rpcId,
+          error: { code: outcome.code, message: outcome.message, data: outcome.data },
+        }));
+      }
+      return;
+    }
+    if (method === 'tools/call' && toolName && routeTool(toolName) === 'dualtoken') {
+      const rpcId = parsedBody.id ?? null;
+      const outcome = await buildDualTokenToolResult(toolName, bearerToken, decoded.sub, config);
       setAuditHeader(res);
       teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
       res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -75,6 +75,25 @@ else
   ( cd "$REPO_ROOT" && docker compose build "${compose_names[@]}" )
 fi
 
+# Compose tags images as <project>-<service>:latest (e.g. ai-demo-demo-api-server).
+# K8s deployments use shorter names (ai-demo-api-server). Retag so rollouts pick
+# up the just-built layers instead of a stale IfNotPresent image.
+retag_compose_to_k8s() {
+  local compose_svc="$1" k8s_image="$2"
+  local project="${COMPOSE_PROJECT_NAME:-ai-demo}"
+  local src="${project}-${compose_svc}:latest"
+  if docker image inspect "$src" >/dev/null 2>&1; then
+    docker tag "$src" "$k8s_image"
+    info "Tagged $src → $k8s_image"
+  fi
+}
+if [ "${#SERVICES[@]}" -eq 0 ] || printf '%s\n' "${SERVICES[@]}" | grep -qx 'demo-api-server'; then
+  retag_compose_to_k8s demo-api-server ai-demo-api-server:latest
+fi
+if [ "${#SERVICES[@]}" -eq 0 ] || printf '%s\n' "${SERVICES[@]}" | grep -qx 'ui\|frontend'; then
+  retag_compose_to_k8s ui ai-demo-ui:latest
+fi
+
 # ── 3. Restart deployment(s) so new images are pulled into fresh pods ────────
 if [ "${#SERVICES[@]}" -eq 0 ]; then
   info "Restarting ALL deployments..."
