@@ -3,9 +3,8 @@
  * patch-cursor-mcp.js — seed and patch project .cursor/mcp.json from bootstrap values.
  *
  * Reads demo_api_server/.env for PINGONE_ENVIRONMENT_ID, PINGONE_MCP_OAUTH_CLIENT_ID,
- * PINGONE_REGION, and PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID. Copies .cursor/mcp.json.example
- * when missing, patches the hosted PingOne MCP server URL (api.pingone.{region}/.../mcp),
- * and aligns banking-gateway scheme with run mode.
+ * and PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID. Copies .cursor/mcp.json.example when missing,
+ * then fills tenant-specific OAuth client ids and aligns banking-gateway scheme with run mode.
  *
  * Usage:
  *   node scripts/patch-cursor-mcp.js [repoRoot] [runMode]
@@ -43,12 +42,6 @@ function loadEnvFile(filePath) {
   return out;
 }
 
-/** Hosted PingOne MCP admin-plane URL for the target environment. */
-function pingoneMcpUrl(envId, region) {
-  const r = (region || 'com').toLowerCase();
-  return `https://api.pingone.${r}/v1/environments/${envId}/mcp`;
-}
-
 /** Load JSON or return null when the file is missing or invalid. */
 function readJson(filePath) {
   try {
@@ -68,15 +61,6 @@ function mergeTemplateServers(config, template) {
     }
   }
   return config;
-}
-
-/** Apply hosted PingOne MCP (replaces any legacy stdio pingone-mcp-server entry). */
-function patchPingoneHosted(config, envId, clientId, region) {
-  if (!envId || !clientId) return;
-  config.mcpServers.pingone = {
-    url: pingoneMcpUrl(envId, region),
-    auth: { CLIENT_ID: clientId },
-  };
 }
 
 function main() {
@@ -100,11 +84,15 @@ function main() {
   const envId = process.env.PINGONE_ENVIRONMENT_ID || fileEnv.PINGONE_ENVIRONMENT_ID || '';
   const pingoneClient =
     process.env.PINGONE_MCP_OAUTH_CLIENT_ID || fileEnv.PINGONE_MCP_OAUTH_CLIENT_ID || '';
-  const region = process.env.PINGONE_REGION || fileEnv.PINGONE_REGION || 'com';
   const gatewayClient =
     process.env.PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID || fileEnv.PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID || '';
 
-  patchPingoneHosted(config, envId, pingoneClient, region);
+  if (envId && pingoneClient) {
+    config.mcpServers.pingone = config.mcpServers.pingone || {};
+    config.mcpServers.pingone.url = `https://api.pingone.com/v1/environments/${envId}/mcp`;
+    config.mcpServers.pingone.auth = config.mcpServers.pingone.auth || {};
+    config.mcpServers.pingone.auth.CLIENT_ID = pingoneClient;
+  }
 
   const scheme = RUN_MODE === 'local' ? 'https' : 'http';
   const gateway = config.mcpServers['banking-gateway'];
@@ -113,8 +101,6 @@ function main() {
     if (gatewayClient) {
       gateway.auth = gateway.auth || {};
       gateway.auth.CLIENT_ID = gatewayClient;
-    } else if (gateway.auth?.CLIENT_ID?.startsWith('<')) {
-      delete gateway.auth;
     }
   }
 

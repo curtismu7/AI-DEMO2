@@ -1474,7 +1474,7 @@ class PingOneProvisionService {
       '# Claude Code / Cursor "pingone" MCP server OAuth client (developer tooling, not a',
       '# runtime component). NATIVE_APP, PKCE S256, no secret; redirect',
       '# http://localhost:7464/callback (Claude Code) plus Cursor OAuth callbacks.',
-      '# install.sh / npm run patch:cursor-mcp wire .cursor/mcp.json from this value.',
+      '# install.sh patches this into .mcp.json and .cursor/mcp.json.',
       `PINGONE_MCP_OAUTH_CLIENT_ID=${provisioned.pingOneMcpServerApp?.clientId || ''}`,
       '',
       '# Claude Code "banking-gateway" MCP OAuth client (developer tooling). NATIVE_APP,',

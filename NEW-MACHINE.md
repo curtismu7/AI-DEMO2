@@ -18,7 +18,7 @@ For the everyday run details (ports, commands, troubleshooting) see
 | Slash commands | [.claude/commands/](.claude/commands/) |
 | Workflows | [.claude/workflows/](.claude/workflows/) |
 | Shared Claude settings | [.claude/settings.json](.claude/settings.json) (must stay secret-free; personal allowlists go in gitignored `settings.local.json`) |
-| MCP server registry | `.air/mcp.json` (Claude Code, per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)); `.cursor/mcp.json` (Cursor, per-machine, gitignored — copy from [.cursor/mcp.json.example](.cursor/mcp.json.example) or run `npm run patch:cursor-mcp`) |
+| MCP server registry | `.air/mcp.json` (Claude Code, per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)); `.cursor/mcp.json` (Cursor, per-machine, gitignored — copy from [.cursor/mcp.json.example](.cursor/mcp.json.example)) |
 | Launchers | `run.sh`, `run-docker.sh`, `docker-compose.yml` |
 | Env templates | `.env.example`, `.env.docker.example` |
 
