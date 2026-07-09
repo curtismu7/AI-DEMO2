@@ -71,6 +71,9 @@ async function callLlamaCpp(messages) {
       model: mdl,
       messages: toOpenAiMessages(messages),
       stream: false,
+      temperature: 0,
+      // Intent JSON is short; cap tokens so small models finish under SPA timeouts.
+      max_tokens: 256,
     }),
   });
   if (!res.ok) {

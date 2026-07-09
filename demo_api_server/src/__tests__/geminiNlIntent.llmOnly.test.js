@@ -69,6 +69,7 @@ function setHeuristicMode() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  callHelixAgent.mockReset();
 });
 
 describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => {
@@ -110,6 +111,32 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     expect(r.result.kind).toBe('education');
     expect(r.result.education.panel).toBe('general-knowledge');
     expect(r.result.message).toBe('Here is my conversational answer');
+  });
+
+
+  it('prefers heuristic when LLM JSON action disagrees with chip match', async () => {
+    setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({
+      kind: 'vertical',
+      vertical: 'workforce',
+      action: 'list_expenses',
+      params: {},
+    });
+    callHelixAgent.mockReset();
+    callHelixAgent.mockResolvedValueOnce(
+      '{"kind":"banking","banking":{"action":"unusual_patterns","params":{}}}',
+    );
+
+    const r = await parseNaturalLanguage(
+      'Check for unusual patterns in my recent activity',
+      { role: 'customer', vertical: 'workforce' },
+      'helix',
+      {},
+    );
+
+    expect(r.source).toBe('heuristic');
+    expect(r.result.action).toBe('list_expenses');
+    expect(r.llm_attempted).toBe(true);
   });
 
   it('prefers heuristic chip match over conversational when JSON router misses', async () => {
@@ -200,6 +227,7 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     // answerWithHelix should NOT have been called (router matched)
     expect(callHelixAgent).toHaveBeenCalledTimes(1);
   });
+
 });
 
 describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
@@ -208,6 +236,7 @@ describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
     parseHeuristic.mockReturnValue({ kind: 'none', message: '' });
 
     // 3 calls: router (kind:none) → refusal-retry (non-JSON) → answerWithHelix fallback.
+    callHelixAgent.mockReset();
     callHelixAgent
       .mockResolvedValueOnce('{"kind":"none","message":"unknown"}') // 1: router → kind:none
       .mockResolvedValueOnce('still not json') // 2: refusal-retry — parse fails
