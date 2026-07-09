@@ -105,6 +105,7 @@
       { "id": "rt3", "label": "My reward points", "message": "my reward points", "mode": "both", "tool": "rewards_balance" },
       { "id": "rt4", "label": "🔐 Checkout", "message": "checkout", "mode": "both", "hitlTrigger": true, "tool": "checkout" },
       { "id": "rt-feature", "label": "My recent purchase", "message": "show my recent purchase", "mode": "both", "tool": "show_large_purchase" },
+      { "id": "rt-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "rt5", "label": "Order history", "message": "order history", "mode": "both" },
       { "id": "rt6", "label": "Track my order", "message": "track my order", "mode": "both", "tool": "order_status" },
       { "id": "rt7", "label": "Store credit balance", "message": "store credit balance", "mode": "both", "tool": "rewards_balance" },

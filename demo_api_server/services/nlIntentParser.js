@@ -8,7 +8,11 @@
 const verticalDispatch = require("./verticalDispatch");
 
 const VERTICAL_FEATURE_RE =
-  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|\bshow\s+vertical\s+feature\b/;
+  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report|permit\s*status|enrollment\s*status|work\s*order\s*status)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|^permit\s*status$|^enrollment\s*status$|^work\s*order\s*status$|\bshow\s+vertical\s+feature\b/;
+
+// Cross-vertical invest / portfolio chip — always routes to invest_demo (show_investment).
+const INVEST_FEATURE_RE =
+  /\b(show|view|see|get|my)\s*(portfolio\s*status|investment\s*portfolio|investments?|portfolio)\b|\bportfolio\s*status\b|^investments?$|^portfolio$/;
 
 // Per-vertical feature-demo triggers. The pre-plugin feature check (parseHeuristic)
 // runs ONLY the active vertical's trigger — never another vertical's phrases — so a
@@ -19,7 +23,7 @@ const VERTICAL_FEATURE_RE =
 const PURCHASE_FEATURE_RE =
   /\b(show|view|see|get|my)\s*(large|big|recent)\s*purchases?\b|^(large|big)\s*purchase$/;
 const FEATURE_TRIGGERS = {
-  banking: PURCHASE_FEATURE_RE,
+  // Banking Path A feature is mortgage_demo (handled above); purchase phrases stay retail-only.
   retail: PURCHASE_FEATURE_RE,
   healthcare:
     /\b(show|view|see|get)\s+(my\s+)?(health|medical)\s+records?\b|^health\s*records?$/,
@@ -27,6 +31,13 @@ const FEATURE_TRIGGERS = {
     /\b(show|view|see|get|my)\s*(gear|equipment|sports?)\s*orders?\b|^gear\s*order$/,
   workforce:
     /\b(show|view|see|get|my)\s*expenses?\s*reports?\b|^expense\s*report$/,
+  investment: INVEST_FEATURE_RE,
+  government:
+    /\b(show|view|see|get|my)\s*permit\s*status\b|^permit\s*status$/,
+  university:
+    /\b(show|view|see|get|my)\s*enrollment\s*status\b|^enrollment\s*status$/,
+  manufacturing:
+    /\b(show|view|see|get|my)\s*work\s*order\s*status\b|^work\s*order\s*status$/,
 };
 
 const EDU = {
@@ -555,6 +566,10 @@ function parseBanking(t) {
   ) {
     return { kind: "banking", banking: { action: "mortgage_demo" } };
   }
+  // Cross-vertical invest chip — must precede balance so "portfolio" does not fall through.
+  if (INVEST_FEATURE_RE.test(t)) {
+    return { kind: "banking", banking: { action: "invest_demo" } };
+  }
   // Vertical feature phrases (retail/healthcare/sporting-goods/workforce) plus the generic chip message
   if (VERTICAL_FEATURE_RE.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
@@ -846,6 +861,10 @@ function parseHeuristic(
   // swallow the more specific vertical-feature intent first. Scoped to the ACTIVE
   // vertical's own trigger only, so one vertical's feature phrase can never fire in
   // another vertical's context.
+  // Invest / portfolio chip is available on every customer vertical.
+  if (INVEST_FEATURE_RE.test(t)) {
+    return { kind: "banking", banking: { action: "invest_demo" } };
+  }
   const featureTrigger = FEATURE_TRIGGERS[vertical];
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };

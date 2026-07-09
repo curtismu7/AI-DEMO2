@@ -14,6 +14,8 @@ const HEURISTICS = [
   { re: /\b(sensitive account details|full account|routing number|account number|account details)\b/, action: 'sensitive_account_details' },
   // mortgage_demo (must precede balance check)
   { re: /\b(show|view|see|get|my|whats?|what is)\s*(mortgage|home\s*loan)\b|\b(mortgage|home\s*loan)\s*(data|info|details|balance|summary|payment)\b|^mortgage$|^home\s*loan$/, action: 'mortgage_demo' },
+  // invest_demo — cross-vertical portfolio chip (must precede balance)
+  { re: /\b(show|view|see|get|my)\s*(portfolio\s*status|investment\s*portfolio|investments?|portfolio)\b|\bportfolio\s*status\b|^investments?$|^portfolio$/, action: 'invest_demo' },
   // branch_hours (public catalog / progressive trust Act 1) — before balance/accounts
   { re: /\b(branch|branches|atm|atms)\b/, action: 'branch_hours' },
   // balance (must precede accounts check). extractsAccountType pulls the
@@ -122,6 +124,13 @@ function getToolsWithActionAliases() {
     {
       name: 'mortgage_demo',
       description: 'Show mortgage information.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'invest_demo',
+      description: 'Show investment portfolio via api_key path.',
       inputSchema: { type: 'object', properties: {} },
       scopes: ['read'],
       authz: {},

@@ -124,6 +124,7 @@
       { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status" },
       { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance" },
       { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order" },
+      { "id": "sg-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "sg6", "label": "What's due back?", "message": "what is due back", "mode": "both" },
       { "id": "sg7", "label": "Order history", "message": "order history", "mode": "both", "tool": "gear_order_status" },
       { "id": "sg8", "label": "What gear matches my buys?", "message": "suggest equipment matching my recent purchases", "mode": "both" },

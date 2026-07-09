@@ -101,6 +101,7 @@
       { "id": "wf4", "label": "🔐 Submit an expense", "message": "submit an expense", "mode": "both", "hitlTrigger": true, "tool": "submit_expense" },
       { "id": "wf5", "label": "🔐 Request time off", "message": "request time off", "mode": "both", "hitlTrigger": true, "tool": "request_time_off" },
       { "id": "wf-feature", "label": "My expense report", "message": "view my expense report", "mode": "both", "tool": "show_expense_report" },
+      { "id": "wf-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "wf6", "label": "Sick leave balance", "message": "sick leave balance", "mode": "both" },
       { "id": "wf7", "label": "Expense history", "message": "expense history", "mode": "both", "tool": "list_expenses" },
       { "id": "wf8", "label": "When should I use my PTO?", "message": "What's the best time of year for a sabbatical?", "mode": "both" },

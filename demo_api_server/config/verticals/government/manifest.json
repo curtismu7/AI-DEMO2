@@ -81,6 +81,7 @@
       { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee" },
       { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "tool": "release_record" },
       { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit" },
+      { "id": "gv-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "both" },
       { "id": "gv7", "label": "Inspection status", "message": "what is my inspection status", "mode": "both" },
       { "id": "gv8", "label": "Renew a license", "message": "renew my professional license", "mode": "both", "elicitationTrigger": true },

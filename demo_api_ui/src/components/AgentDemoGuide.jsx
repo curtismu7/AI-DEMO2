@@ -689,7 +689,7 @@ export const DEMO_SCENARIOS = [
           "Even if the LLM parses this as intent, nlIntentSanitize.js rejects any action kind not in VALID_BANKING_ACTIONS. 'delete' is not in the allowlist — blocked before any MCP call.",
         watch: [
           "✅ Agent: operation not supported",
-          "VALID_BANKING_ACTIONS allowlist: accounts, transactions, balance, deposit, withdraw, transfer, logout, mcp_tools, mortgage_demo, vertical_feature_demo, biggest_purchase, spending_summary, web_search",
+          "VALID_BANKING_ACTIONS allowlist: accounts, transactions, balance, deposit, withdraw, transfer, logout, mcp_tools, mortgage_demo, invest_demo, vertical_feature_demo, biggest_purchase, spending_summary, web_search",
           "LLM output is re-validated — the LLM is not trusted to self-enforce limits",
         ],
       },

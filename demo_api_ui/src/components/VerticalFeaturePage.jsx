@@ -9,7 +9,7 @@ export default function VerticalFeaturePage() {
   const location  = useLocation();
   const { pageManifest: manifest } = useVertical();
 
-  const fp  = manifest?.featurePage || null;
+  const fp  = location.state?.featurePageOverride || manifest?.featurePage || null;
   const raw = location.state?.featurePayload || null;
 
   // accentColor is the only accent field in the v3 schema; the surrounding

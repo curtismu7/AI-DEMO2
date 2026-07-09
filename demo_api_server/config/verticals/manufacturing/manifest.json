@@ -64,6 +64,7 @@
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
       { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
+      { "id": "mf-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "both" },
       { "id": "mf7", "label": "Inspection status", "message": "what is my latest inspection status", "mode": "both" },
       { "id": "mf8", "label": "Capacity this week", "message": "do I have capacity to take a rush order this week", "mode": "both", "tool": "view_work_orders" },

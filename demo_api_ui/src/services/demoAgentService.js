@@ -604,6 +604,15 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
     }));
 
     appendTokenEvents(tool, pathTaggedEvents);
+    try {
+      tokenChainTraceStore.ingestTokenEvents(pathTaggedEvents);
+      tokenChainTraceStore.ingestMcpResult({
+        tool,
+        result: data.result,
+        _meta: data.result?._meta || null,
+        requestJson: { name: tool, arguments: params || {} },
+      });
+    } catch { /* display-only */ }
     // Phase 194: mark tool milestone done
     updateMilestoneStatus(_toolId, "done");
     addMilestone("Flow Complete", "flow_complete", {});

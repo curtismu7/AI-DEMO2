@@ -2499,6 +2499,94 @@ export default function BankingAgent({
           navigate("/path/mortgage", { state: { mortgagePayload } });
           return;
         }
+        case "invest_demo": {
+          // Path A — api_key disposition for show_investment (available on every customer vertical).
+          // Always calls show_investment and renders with the investment featurePage schema,
+          // even when the active vertical's own featurePage is mortgage/health/etc.
+          toast.update(toastId, {
+            render:
+              " Routing to portfolio path (gateway swaps OAuth bearer for service API key)…",
+          });
+          let investResp;
+          try {
+            investResp = await callMcpTool("show_investment", {});
+          } catch (e) {
+            console.error(
+              "[BankingAgent] invest_demo dispatch failed:",
+              e?.message,
+            );
+            toast.dismiss(toastId);
+            setLoading(false);
+            toolProgressIdRef.current = null;
+            addMessage(
+              "assistant",
+              `Could not load portfolio data: ${e?.message || "gateway call failed"}.`,
+              actionId,
+              resultExtra,
+            );
+            return;
+          }
+          const investMcp = investResp?.result;
+          const investNorm = normalizeAgentToolResult(investMcp);
+          if (isAgentToolErrorResult(investNorm)) {
+            toast.dismiss(toastId);
+            setLoading(false);
+            toolProgressIdRef.current = null;
+            const insufficient =
+              investNorm.error === "insufficient_scope" ||
+              /scope/i.test(investNorm.message || "");
+            addMessage(
+              "assistant",
+              insufficient
+                ? "The agent's access token does not carry the invest:read scope, so the gateway refused to swap it for the investment service API key. Sign out and sign back in to consent to investment access, then try \"Portfolio status\" again."
+                : `Could not load portfolio data: ${investNorm.message || "backend error"}.`,
+              actionId,
+              resultExtra,
+            );
+            return;
+          }
+          const investMeta = investMcp?._meta || {};
+          const featurePayload = {
+            ...(investNorm || {}),
+            apiKeyMaskedLast4: investMeta.apiKeyMaskedLast4,
+            apiCall: investMeta.apiCall,
+            message: investNorm.note || investMeta.note,
+            backend: {
+              source: investNorm.source,
+              authMechanism: investNorm.authMechanism,
+              note: investNorm.note,
+            },
+          };
+          if (tokenChain && Array.isArray(investResp?.tokenEvents)) {
+            tokenChain.setTokenEvents(actionId, investResp.tokenEvents);
+          }
+          toast.dismiss(toastId);
+          setLoading(false);
+          toolProgressIdRef.current = null;
+          navigate("/path/feature", {
+            state: {
+              featurePayload,
+              featurePageOverride: {
+                mcpTool: "show_investment",
+                pageTitle: "Portfolio Status",
+                badgeLabel: "API-KEY PATH",
+                accentColor: "#047857",
+                dataKey: "invest",
+                fields: [
+                  { label: "Portfolio ID", path: "portfolioId" },
+                  { label: "Holder", path: "holder" },
+                  { label: "Total value", path: "totalValue", format: "money", accent: true },
+                  { label: "Cash sweep", path: "cashSweep", format: "money" },
+                  { label: "YTD return", path: "ytdReturnPct", format: "percent" },
+                  { label: "Risk profile", path: "riskProfile" },
+                ],
+                sectionTitle: "Portfolio details",
+                emptyPrompt: "show portfolio status",
+              },
+            },
+          });
+          return;
+        }
         case "vertical_feature_demo": {
           // Path A — api_key disposition for all non-banking verticals.
           // The active vertical's featurePage config drives tool name, scope error message,
@@ -6840,6 +6928,10 @@ export default function BankingAgent({
                               const ba = nlResult.banking;
                               if (ba.action === "accounts") {
                                 resolvedTool = "get_my_accounts";
+                              } else if (ba.action === "mortgage_demo") {
+                                resolvedTool = "show_mortgage";
+                              } else if (ba.action === "invest_demo") {
+                                resolvedTool = "show_investment";
                               } else if (ba.action === "vertical_feature_demo") {
                                 resolvedTool = themeManifest?.featurePage?.mcpTool || null;
                               }

@@ -416,7 +416,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     }
 
     // Unhandled actions that need LLM reasoning — return null to signal fallthrough
-    if (['mcp_tools', 'mortgage_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
+    if (['mcp_tools', 'mortgage_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
       return null; // Heuristic matched but requires client-side / LLM formatting
     }
 
