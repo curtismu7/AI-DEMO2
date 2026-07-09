@@ -133,7 +133,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // pipeline so PingAuthorize evaluates every call (same path as the chip/action UI).
     // executeBffTool does RFC 8693 token exchange, calls the tool executor with the
     // exchanged agent token, and collects tokenEvents for the Token Chain panel.
-    if (action === 'accounts' || action === 'balance' || action === 'transactions') {
+    if (action === 'accounts' || action === 'balance' || action === 'transactions' || action === 'account_nickname') {
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
 
@@ -141,6 +141,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       if (action === 'accounts') {
         toolName = 'get_my_accounts';
         toolArgs = {};
+      } else if (action === 'account_nickname') {
+        toolName = 'get_account_nickname';
+        toolArgs = params.accountId ? { account_id: params.accountId } : {};
       } else if (action === 'balance') {
         if (params.accountId) {
           toolName = 'get_account_balance';
@@ -169,6 +172,14 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       if (!parsed2 || parsed2.error || parsed2.isError) {
         const errMsg = parsed2?.content?.[0]?.text || parsed2?.message || parsed2?.error || 'Tool call failed.';
         return { reply: `❌ ${errMsg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+
+      if (action === 'account_nickname') {
+        const nick = parsed2.nickname;
+        if (!nick) {
+          return { reply: '❌ Could not resolve an account nickname.', success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        }
+        return { reply: `Your account nickname: **${nick}**`, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, nickname: nick };
       }
 
       // accounts / balance: return structured accounts list

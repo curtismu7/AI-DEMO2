@@ -612,6 +612,14 @@ function parseBanking(t) {
     // ceremony; we should answer.
     return { kind: "banking", banking: { action: "balance" } };
   }
+  // Account nickname — narrow read; must precede generic accounts list
+  if (
+    /^account nickname$/i.test(t) ||
+    (/\bnickname\b/.test(t) && /\baccount/.test(t)) ||
+    /\b(display\s+name|account\s+display\s+name)\b/.test(t)
+  ) {
+    return { kind: "banking", banking: { action: "account_nickname" } };
+  }
   // Accounts: show/list/get/what accounts — but not "account history" (transactions)
   if (
     /\b(what|show|list|get|see|view|pull|display).*(accounts?)\b|\bmy accounts?\b(?!\s+balance)|\ball\b.*\baccounts?\b|\bcustomer accounts?\b|^accounts?$/.test(
