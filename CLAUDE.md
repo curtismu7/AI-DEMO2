@@ -79,11 +79,6 @@ file. See [`.aidlc/README.md`](.aidlc/README.md).
   Used by Docker, K8s, and CI. Set `LLM_BACKEND=llamacpp` or omit.
 - **oMLX** (Mac fast path) — `LLM_BACKEND=omlx` on Apple Silicon for agent chip /
   tool-loop dev. See `demo_llm_proxy/README.md`.
-<<<<<<< HEAD
-- **mlx-lm** (Mac fallback) — `LLM_BACKEND=mlx` when oMLX is unavailable; same
-  `:8090` contract. See `planning/PLAN-llm-backends-mac.md`.
-=======
->>>>>>> f9ed4f9d (docs(llm): document llamacpp default and oMLX Mac fast path)
 
 ## Tests
 

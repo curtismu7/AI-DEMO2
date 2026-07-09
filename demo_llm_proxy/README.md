@@ -8,16 +8,9 @@ Smart routing proxy for managing 2 local language models through a single endpoi
 |---------|---------|-----|
 | **Default** — Docker, K8s, CI, Linux | **llama.cpp** | Omit `LLM_BACKEND` (GGUF tiers + this router) |
 | **Mac daily dev** — agent chips, tool loops | **oMLX** | `LLM_BACKEND=omlx ./run.sh` or `./run-docker.sh start` |
-<<<<<<< HEAD
-| **Mac fallback** — Apple-official if oMLX unavailable | **mlx-lm** | `LLM_BACKEND=mlx ./run.sh` or `./run-docker.sh start` |
-
-Provider id stays `llamacpp` in the UI for all `:8090` backends (OpenAI-compatible `/v1`).
-Docker/K8s clusters always use llama.cpp in-cluster; oMLX/mlx-lm are host-only Mac paths.
-=======
 
 Provider id stays `llamacpp` in the UI for all backends (OpenAI-compatible `/v1` on `:8090`).
 Docker/K8s clusters always use llama.cpp in-cluster; oMLX is a host-only Mac fast path.
->>>>>>> f9ed4f9d (docs(llm): document llamacpp default and oMLX Mac fast path)
 
 See [oMLX Mac fast path](#omlx-mac-fast-path-recommended-on-apple-silicon) below.
 
@@ -216,40 +209,5 @@ LLM_BACKEND=omlx ./run-docker.sh start       # containers → host.docker.intern
 
 After first start, open http://127.0.0.1:8090/admin — pin Phi-4 and alias models
 to `phi-4-mini-instruct` (BFF) and `gpt-oss-20b` (agent-service).
-<<<<<<< HEAD
 
 Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`
-
-## mlx-lm fallback backend (`LLM_BACKEND=mlx`)
-
-Apple's official [mlx-lm](https://pypi.org/project/mlx-lm/) on **`:8090`** — same URL
-contract as llama.cpp/oMLX. A symlink alias-farm maps `phi-4-mini-instruct` and
-`gpt-oss-20b` to the shared `~/.omlx/models/` dirs (no duplicate downloads).
-
-```bash
-bash demo_llm_proxy/setup-mlx-venv.sh
-bash demo_llm_proxy/download-omlx-models.sh fetch   # shared with oMLX
-LLM_BACKEND=mlx ./run.sh
-LLM_BACKEND=mlx ./run-docker.sh start
-```
-
-Use when oMLX install/trust is blocked; **not** the daily-driver path (weaker agent
-cache than oMLX). Default remains llama.cpp.
-
-## mlx-lm demo agent mode (Apple Silicon showcase)
-
-A fifth agent mode — **MLX (Apple)** — routes to Apple's official `mlx_lm.server`
-on **`:8098`** (separate from the `:8090` llama.cpp/oMLX stack). One MLX model per
-process; reuses `~/.omlx/models/Phi-4-mini-instruct-4bit` when present.
-
-```bash
-bash demo_llm_proxy/setup-mlx-venv.sh
-bash demo_llm_proxy/start-mlx-lm.sh start   # or ./run.sh (auto-starts on Mac)
-```
-
-In the UI, pick **Agent mode → MLX (Apple)**. Docker reaches the host server via
-`MLX_LM_BASE_URL=http://host.docker.internal:8098`.
-=======
-
-Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`
->>>>>>> f9ed4f9d (docs(llm): document llamacpp default and oMLX Mac fast path)
