@@ -57,7 +57,7 @@ step "6/7 PingGateway tool-schema drift (mcp-tool-schemas.json)"
 # generated from the tool registry by `gen:tool-schemas`. Fails if a tool was
 # added/renamed/removed without regenerating — PingGateway would then reject it
 # with "Unknown tool". Fix: npm --prefix demo_mcp_gateway run gen:tool-schemas
-( cd demo_mcp_gateway && npx --no-install jest toolSchemaDrift --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
+( cd demo_mcp_gateway && npm test -- --testPathPattern=toolSchemaDrift --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
 step "7/7 tool scope-audience coverage (configStore allowlist)"
 # Every gateway-surface tool's requiredScopes must be present in the RFC 8707

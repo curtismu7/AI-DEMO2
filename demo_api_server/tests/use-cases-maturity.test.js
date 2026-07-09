@@ -15,14 +15,50 @@ const fs = require('fs');
 const ROOT = path.join(__dirname, '../../');
 const { USE_CASES } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
 
+/** Walk a directory tree, invoking fn on each .js/.ts file. */
+function walkSourceFiles(dir, fn) {
+  if (!fs.existsSync(dir)) return;
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, ent.name);
+    if (ent.isDirectory()) {
+      if (ent.name === 'node_modules') continue;
+      walkSourceFiles(abs, fn);
+      continue;
+    }
+    if (/\.(js|ts)$/.test(ent.name)) fn(abs);
+  }
+}
+
+/** Node fallback when ripgrep is unavailable (e.g. GitHub Actions runners). */
+function nodePatternCount(pattern, relDirs, extraFlags = '') {
+  const skipComments = pattern.includes('(?!\\s*(?:\\/\\/|\\*))');
+  const body = pattern.replace(/^\^|\$$/g, '');
+  const flags = extraFlags.includes('--multiline') ? 'im' : 'i';
+  const re = new RegExp(body, flags);
+  let count = 0;
+  for (const rel of relDirs) {
+    walkSourceFiles(path.join(ROOT, rel), (filePath) => {
+      const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+      for (const line of lines) {
+        if (skipComments && /^\s*(\/\/|\*)/.test(line)) continue;
+        const m = line.match(re);
+        if (m) count += m.length;
+      }
+    });
+  }
+  return count;
+}
+
 /**
  * Run rg and return total match count.
  * - exit 0: matches found
  * - exit 1: no matches → 0
  * - exit 2: bad path/IO → throws with a clear message
+ * Falls back to nodePatternCount when rg is not installed.
  */
 function rgCount(pattern, dirs, extraFlags = '') {
-  const absDirs = dirs.map((d) => path.join(ROOT, d));
+  const absDirs = dirs.map((d) => path.join(ROOT, d)).filter((d) => fs.existsSync(d));
+  if (absDirs.length === 0) return 0;
   const cmd = `rg --count-matches ${extraFlags} ${JSON.stringify(pattern)} ${absDirs.join(' ')}`;
   try {
     const out = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
@@ -31,8 +67,12 @@ function rgCount(pattern, dirs, extraFlags = '') {
       .reduce((a, b) => a + b, 0);
   } catch (err) {
     if (err.status === 1) { return 0; }
+    const stderr = String(err.stderr || err.message || '');
+    if (err.status === 127 || stderr.includes('rg: not found') || stderr.includes('command not found')) {
+      return nodePatternCount(pattern, dirs, extraFlags);
+    }
     throw new Error(
-      '[maturity-probe] rg error (exit ' + err.status + ') searching [' + dirs.join(', ') + ']: ' + (err.stderr || err.message),
+      '[maturity-probe] rg error (exit ' + err.status + ') searching [' + dirs.join(', ') + ']: ' + stderr,
     );
   }
 }

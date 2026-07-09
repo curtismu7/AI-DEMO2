@@ -136,6 +136,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'use_agent_actor_for_mcp', 'token_exchange_auto_fallback', 'token_exchange_log_mode_switches',
   'mcp_use_legacy_protocol', 'mcp_gw_passthrough_to_mcp_server', 'gateway_health_probe_insecure',
   'mcp_gateway_reject_unauthorized', 'pingone_validate_on_startup', 'mcp_gw_p1az_enabled',
+  // enterprise-managed MCP auth policy (Phase 2 demo — group/resource allowlists, not env identity)
+  'enterprise_mcp_allowed_groups', 'enterprise_mcp_resource_uris',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

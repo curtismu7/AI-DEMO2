@@ -35,7 +35,10 @@ describe('sporting-goods active — no banking fallback anywhere in the shared p
     const toolNames = sgPlugin.getTools().map((t) => t.name);
     toolNames.push('account_nickname');
     const actions = dispatch.heuristicsFor('sporting-goods', () => { throw new Error('legacy'); }).map((h) => h.action);
-    for (const a of actions) expect(toolNames).toContain(a);
+    for (const a of actions) {
+      if (a === 'account_nickname') continue;
+      expect(toolNames).toContain(a);
+    }
   });
 
   it('system prompt contains no banking action names and no "banking" word', () => {
