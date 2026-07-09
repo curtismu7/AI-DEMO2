@@ -146,12 +146,54 @@ kill_all() {
   # canonical teardown (supervisor + its children); it no-ops when none is up.
   bash "$K8S_DIR/deploy.sh" stop-forward >/dev/null 2>&1 || true
   pkill -f "kubectl port-forward -n ai-demo" 2>/dev/null || true
-  local pids
+
+  # Docker Compose (./run-docker.sh) publishes the same host ports as K8s
+  # port-forwards (3001/4000/…). Leaving those containers up makes OrbStack
+  # keep *:PORT while kubectl also binds 127.0.0.1:PORT — clients then see
+  # flaky /api/health (curl exit 000 / wrong backend). Stop the compose
+  # project first; do NOT kill the OrbStack helper PID itself.
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE '^ai-demo-'; then
+      info "Stopping Docker Compose ai-demo containers that publish demo ports..."
+      (cd "$BASEDIR" && docker compose -f docker-compose.yml stop \
+        demo-api-server ui mcp-server mcp-invest mortgage-service \
+        mcp-gateway agent-service hitl-service langchain-agent \
+        openai-agent mastra-agent pydantic-agent mcp-proxy \
+        2>/dev/null) || true
+      # Force-remove any leftover publish on DEMO_PORTS (stopped containers can
+      # still hold bindings briefly; compose rm is safer than killing OrbStack).
+      local cname
+      for cname in $(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -E '^ai-demo-' || true); do
+        local published
+        published=$(docker port "$cname" 2>/dev/null || true)
+        for port in $DEMO_PORTS; do
+          if printf '%s\n' "$published" | grep -qE ":${port}\b"; then
+            docker stop "$cname" >/dev/null 2>&1 || true
+            break
+          fi
+        done
+      done
+    fi
+  fi
+
+  local pids pname
   for port in $DEMO_PORTS; do
     pids=$(lsof -nP -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
-    [ -n "$pids" ] && kill $pids 2>/dev/null || true
+    for pid in $pids; do
+      pname=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+      # Never SIGKILL/TERM the OrbStack VM helper — stop containers above instead.
+      case "$pname" in
+        OrbStack|vmgr) continue ;;
+      esac
+      kill "$pid" 2>/dev/null || true
+    done
   done
   sleep 1
+  # Verify BFF port is free (or only held by a process we will replace).
+  if lsof -nP -iTCP:3001 -sTCP:LISTEN >/dev/null 2>&1; then
+    warn_listeners=$(lsof -nP -iTCP:3001 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $1"/"$2}' | tr '\n' ' ')
+    info "Port 3001 still has listener(s): ${warn_listeners:-unknown} (compose stop may still be draining)"
+  fi
   success "Cleared existing processes."
 }
 

@@ -8,7 +8,7 @@
 const verticalDispatch = require("./verticalDispatch");
 
 const VERTICAL_FEATURE_RE =
-  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report|permit\s*status|enrollment\s*status|work\s*order\s*status)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|^permit\s*status$|^enrollment\s*status$|^work\s*order\s*status$|\bshow\s+vertical\s+feature\b/;
+  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report|permit\s*status|enrollment\s*status|work\s*order\s*status)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|^permit\s*status$|^enrollment\s*status$|^work\s*order\s*status$|\bshow\s+vertical\s+feature\b/;
 
 // Cross-vertical invest / portfolio chip — always routes to invest_demo (show_investment).
 const INVEST_FEATURE_RE =
@@ -21,7 +21,7 @@ const INVEST_FEATURE_RE =
 // to the release_records heuristic instead of the feature demo. A vertical absent
 // from this map (no feature page) skips the feature check entirely.
 const PURCHASE_FEATURE_RE =
-  /\b(show|view|see|get|my)\s*(large|big|recent)\s*purchases?\b|^(large|big)\s*purchase$/;
+  /\b(show|view|see|get|my)\s*(large|big)\s*purchases?\b|^(large|big)\s*purchase$/;
 const FEATURE_TRIGGERS = {
   // Banking Path A feature is mortgage_demo (handled above); purchase phrases stay retail-only.
   retail: PURCHASE_FEATURE_RE,
