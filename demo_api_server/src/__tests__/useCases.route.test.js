@@ -11,11 +11,11 @@ function makeApp() {
 }
 
 describe('GET /api/use-cases', () => {
-  test('lists all 34 use cases, defaulting to banking', async () => {
+  test('lists all 39 use cases, defaulting to banking', async () => {
     const res = await request(makeApp()).get('/api/use-cases');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('banking');
-    expect(res.body.useCases).toHaveLength(34);
+    expect(res.body.useCases).toHaveLength(39);
   });
 
   test('resolves per-vertical when ?vertical= is given', async () => {

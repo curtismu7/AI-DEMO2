@@ -41,6 +41,11 @@ vi.mock('../vertical/useVertical', () => ({
   useVertical: () => ({ activeId: 'banking' }),
 }));
 
+const mockOpenEdu = vi.fn();
+vi.mock('../context/EducationUIContext', () => ({
+  useEducationUI: () => ({ open: mockOpenEdu, close: vi.fn(), panel: null, tab: null }),
+}));
+
 // VerticalSwitcher hits /api/verticals/list — stub as empty so the picker stays quiet in unit tests.
 vi.mock('../components/VerticalSwitcher', () => ({
   default: function VerticalSwitcherStub() {
