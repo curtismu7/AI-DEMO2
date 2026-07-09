@@ -18,7 +18,7 @@ const WORKER_ID = process.env.PINGAUTHORIZE_WORKER_ID || 'mcp-gateway-policy';
 
 // Tool → vertical mapping (matches the vertical manifests under config/verticals/)
 const VERTICAL_TOOL_MAP = {
-  'Banking':       ['get_my_accounts','get_account_balance','get_my_transactions','get_sensitive_account_details','create_deposit','create_withdrawal','create_transfer','get_investment_balance','get_investment_accounts','get_portfolio_summary','show_mortgage','sequential_think'],
+  'Banking':       ['get_my_accounts','get_account_balance','get_account_nickname','get_my_transactions','get_sensitive_account_details','create_deposit','create_withdrawal','create_transfer','get_investment_balance','get_investment_accounts','get_portfolio_summary','show_mortgage','sequential_think'],
   'Healthcare':    ['show_health_record','view_records','view_coverage','list_appointments','book_appointment','release_records','sensitive_patient_records'],
   'Retail':        ['show_large_purchase','list_orders','order_status','rewards_balance','checkout','sensitive_order_history'],
   'Sporting Goods':['show_gear_order','list_gear','list_rentals','gear_order_status','loyalty_balance','extend_rental','sensitive_membership_details'],

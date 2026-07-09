@@ -280,6 +280,14 @@ describe('nlIntentParser — agent chip / suggestion commands', () => {
     expect(bank('Check my account balance').banking.action).toBe('balance');
   });
 
+  it('"account nickname" chip → account_nickname', () => {
+    expect(bank('Account nickname').banking.action).toBe('account_nickname');
+  });
+
+  it('"show my account nickname" → account_nickname', () => {
+    expect(bank('show my account nickname').banking.action).toBe('account_nickname');
+  });
+
   it('suggestion "What is my current balance?" → balance', () => {
     expect(bank('What is my current balance?').banking.action).toBe('balance');
   });
@@ -469,6 +477,24 @@ describe('nlIntentParser — Phase 266 regression guard (existing actions unaffe
     const r = parseHeuristic('show my accounts');
     expect(r.kind).toBe('banking');
     expect(r.banking.action).toBe('accounts');
+  });
+});
+
+describe('nlIntentParser — account nickname (cross-vertical)', () => {
+  const VERTICALS = ['healthcare', 'retail', 'sporting-goods', 'workforce', 'government', 'university', 'manufacturing'];
+
+  for (const vertical of VERTICALS) {
+    it(`routes "Account nickname" on ${vertical} → account_nickname (not accounts)`, () => {
+      const r = parseHeuristic('Account nickname', vertical);
+      expect(r.kind).toBe('banking');
+      expect(r.banking.action).toBe('account_nickname');
+    });
+  }
+
+  it('routes "show my account nickname" on healthcare before view_records', () => {
+    const r = parseHeuristic('show my account nickname', 'healthcare');
+    expect(r.kind).toBe('banking');
+    expect(r.banking.action).toBe('account_nickname');
   });
 });
 

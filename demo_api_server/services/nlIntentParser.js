@@ -6,6 +6,9 @@
 "use strict";
 
 const verticalDispatch = require("./verticalDispatch");
+const {
+  matchesAccountNickname,
+} = require("../config/verticals/shared/bankingChipHeuristics");
 
 const VERTICAL_FEATURE_RE =
   /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report|permit\s*status|enrollment\s*status|work\s*order\s*status)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|^permit\s*status$|^enrollment\s*status$|^work\s*order\s*status$|\bshow\s+vertical\s+feature\b/;
@@ -612,6 +615,10 @@ function parseBanking(t) {
     // ceremony; we should answer.
     return { kind: "banking", banking: { action: "balance" } };
   }
+  // Account nickname — narrow read; must precede generic accounts list
+  if (matchesAccountNickname(t)) {
+    return { kind: "banking", banking: { action: "account_nickname" } };
+  }
   // Accounts: show/list/get/what accounts — but not "account history" (transactions)
   if (
     /\b(what|show|list|get|see|view|pull|display).*(accounts?)\b|\bmy accounts?\b(?!\s+balance)|\ball\b.*\baccounts?\b|\bcustomer accounts?\b|^accounts?$/.test(
@@ -856,6 +863,12 @@ function parseHeuristic(
     return { kind: "banking", banking: { action: "mcp_tools" } };
   }
 
+  // Account nickname — cross-vertical banking MCP chip; must precede plugin heuristics
+  // that match bare "account" (banking accounts list, admin customer accounts, etc.).
+  if (matchesAccountNickname(t)) {
+    return { kind: "banking", banking: { action: "account_nickname" } };
+  }
+
   // Vertical feature chip phrase — must precede heuristic matching because some
   // verticals have broad rules (e.g. healthcare "records?" → accounts) that would
   // swallow the more specific vertical-feature intent first. Scoped to the ACTIVE
@@ -1069,8 +1082,9 @@ function parseHeuristic(
           ? new Set(_adminPlugin.getTools().map((t) => t.name))
           : new Set();
         const _isAdminAction = _adminToolNames.has(h.action);
+        const _isCrossVerticalBanking = h.action === "account_nickname";
         if (
-          vertical === "banking" &&
+          (vertical === "banking" || _isCrossVerticalBanking) &&
           h.action !== "delegate_to_specialist" &&
           !_isAdminAction
         ) {

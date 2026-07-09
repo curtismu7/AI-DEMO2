@@ -3,6 +3,7 @@
 const { verticalManifest } = require('./verticalManifest');
 const { isA2aEnabled } = require('./a2aDelegationService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
+const { ACCOUNT_NICKNAME_HEURISTIC } = require('../config/verticals/shared/bankingChipHeuristics');
 
 /** Overlays with index.js but no manifest.json — not returned by loader.list(). */
 const PLUGIN_OVERLAY_IDS = ['admin'];
@@ -61,6 +62,12 @@ function mergeToolsByName(tools, overlayTools) {
 function heuristicsFor(activeId, legacy, ctx = {}) {
   const p = resolvePlugin(activeId);
   let heuristics = p ? p.getHeuristics() : legacy();
+  // Cross-vertical banking MCP chips — prepend on non-banking verticals so account
+  // nickname wins over broad rules that match bare "account". Banking plugin keeps
+  // its own ordered copy (before accounts) in config/verticals/banking/index.js.
+  if (activeId && activeId !== 'banking') {
+    heuristics = [ACCOUNT_NICKNAME_HEURISTIC, ...heuristics];
+  }
   if (ctx?.isAdmin) {
     const adminOverlay = resolvePlugin('admin');
     if (adminOverlay && typeof adminOverlay.getHeuristics === 'function') {

@@ -5241,7 +5241,7 @@ export default function BankingAgent({
         });
         return;
       }
-      if (action === "accounts" || action === "transactions") {
+      if (action === "accounts" || action === "transactions" || action === "account_nickname") {
         await runAction(action, {}, { skipUserLabel: true, nlSource: _source });
       } else if (action === "balance" && (p.accountId || p.accountType)) {
         let resolvedId = p.accountId;
@@ -6936,6 +6936,8 @@ export default function BankingAgent({
                               const ba = nlResult.banking;
                               if (ba.action === "accounts") {
                                 resolvedTool = "get_my_accounts";
+                              } else if (ba.action === "account_nickname") {
+                                resolvedTool = "get_account_nickname";
                               } else if (ba.action === "mortgage_demo") {
                                 resolvedTool = "show_mortgage";
                               } else if (ba.action === "invest_demo") {
