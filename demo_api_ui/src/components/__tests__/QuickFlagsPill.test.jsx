@@ -72,7 +72,7 @@ describe('QuickFlagsPill', () => {
     await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
-    fireEvent.click(screen.getByRole('button', { name: /🔎 Introspect/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Introspect/ }));
     await waitFor(() => {
       const patch = fetchMock.mock.calls.find(([, o]) => o && o.method === 'PATCH');
       expect(patch).toBeTruthy();
@@ -123,7 +123,7 @@ describe('QuickFlagsPill', () => {
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
     expect(screen.getByText('Sign in to change flags')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /🔎 Introspect/ }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: /Introspect/ }).disabled).toBe(true);
   });
 
   it('PATCH 403 flips to the non-admin state', async () => {
@@ -137,7 +137,7 @@ describe('QuickFlagsPill', () => {
     await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
-    fireEvent.click(screen.getByRole('button', { name: /🔎 Introspect/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Introspect/ }));
     await waitFor(() => expect(screen.getByText('Sign in to change flags')).toBeTruthy());
     await waitFor(() => {
       const jwksBtns = screen.getAllByRole('button', { name: /🔐 JWKS/ });

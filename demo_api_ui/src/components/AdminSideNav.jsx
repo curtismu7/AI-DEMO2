@@ -950,13 +950,13 @@ export default function AdminSideNav({ user }) {
               <>
                 <span className="admin-side-nav__label">{item.label}</span>
                 {item.adminOnly && (
-                  <span className="admin-side-nav__badge">🛡️ admin</span>
+                  <span className="admin-side-nav__badge">🔐 admin</span>
                 )}
                 <span
                   className={`admin-side-nav__chevron ${isExpanded ? "admin-side-nav__chevron--expanded" : ""}`}
                   aria-hidden="true"
                 >
-                  ▶
+                  →
                 </span>
               </>
             )}
@@ -1006,7 +1006,7 @@ export default function AdminSideNav({ user }) {
                     <NavIcon name={child.icon} />
                     <span className="admin-side-nav__label">{child.label}</span>
                     {isAdminFeature && (
-                      <span className="admin-side-nav__badge">🛡️ admin</span>
+                      <span className="admin-side-nav__badge">🔐 admin</span>
                     )}
                   </Link>
                 );
@@ -1222,7 +1222,7 @@ export default function AdminSideNav({ user }) {
                   <span
                     className={`admin-side-nav__chevron ${expandedSections["agent-ui-placement"] ? "admin-side-nav__chevron--expanded" : ""}`}
                   >
-                    ▶
+                    →
                   </span>
                 </>
               )}
@@ -1277,7 +1277,7 @@ export default function AdminSideNav({ user }) {
                   <span
                     className={`admin-side-nav__chevron ${expandedSections["vertical-picker"] ? "admin-side-nav__chevron--expanded" : ""}`}
                   >
-                    ▶
+                    →
                   </span>
                 </>
               )}
