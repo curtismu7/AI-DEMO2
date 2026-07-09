@@ -1,16 +1,34 @@
 'use strict';
 
-process.env.AGUI_STORE_FALLBACK = 'true';
+jest.mock('../services/agentRunStore', () => {
+  const { EventEmitter } = require('events');
+  const state = new Map();
+  const emitter = new EventEmitter();
+  const agentRunStore = {
+    async setRunState(runId, value) { state.set(runId, value); },
+    async getRunState(runId) { return state.get(runId) || null; },
+    async deleteRunState(runId) { state.delete(runId); },
+    async publishConsent(runId, payload) { emitter.emit(`consent:${runId}`, payload); },
+    async subscribeConsent(runId, handler) {
+      const channel = `consent:${runId}`;
+      emitter.on(channel, handler);
+      return () => { emitter.off(channel, handler); };
+    },
+  };
+  return { agentRunStore };
+});
 
 const { agentRunStore } = require('../services/agentRunStore');
+const { _recordTraceEvents, _ensureHitlConsentSubscription, _cleanupHitlConsentSubscription } =
+  require('../routes/agentRun').__test;
 
 describe('agentRun HITL suspend wiring', () => {
   beforeEach(async () => {
     await agentRunStore.deleteRunState('run-hitl-1');
+    await _cleanupHitlConsentSubscription('run-hitl-sub');
   });
 
   test('persists suspended_hitl with userId when RUN_FINISHED interrupt is recorded', async () => {
-    const { _recordTraceEvents } = require('../routes/agentRun').__test;
     const chunk = Buffer.from(
       'data: {"type":"RUN_FINISHED","runId":"run-hitl-1","threadId":"t-1","outcome":{"type":"interrupt","interrupts":[{"id":"int-1"}]}}\n\n',
     );
@@ -28,8 +46,6 @@ describe('agentRun HITL suspend wiring', () => {
   });
 
   test('wires subscribeConsent and forwards consent as CUSTOM SSE event', async () => {
-    const { _ensureHitlConsentSubscription, _cleanupHitlConsentSubscription } =
-      require('../routes/agentRun').__test;
     const mockRes = { writableEnded: false, write: jest.fn() };
 
     await _ensureHitlConsentSubscription('run-hitl-sub', mockRes);

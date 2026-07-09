@@ -32,7 +32,7 @@ describe('parseNaturalLanguage — request vertical overrides global active', ()
       'my benefits',
       'workforce',
       workforceCtx,
-      { isAdmin: false },
+      { isAdmin: false, heuristicsOnly: true },
     );
   });
 });

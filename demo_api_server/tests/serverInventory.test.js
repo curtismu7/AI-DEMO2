@@ -2,11 +2,14 @@
 
 const { SERVER_INVENTORY } = require('../data/serverInventory');
 
+// 20 compose services + 2 host llama tiers — see docs/server-inventory-sot.md
+const EXPECTED_INVENTORY_COUNT = 22;
+
 describe('serverInventory', () => {
-  test('has 24 entries with unique keys', () => {
-    expect(SERVER_INVENTORY).toHaveLength(24);
+  test('has 22 entries with unique keys', () => {
+    expect(SERVER_INVENTORY).toHaveLength(EXPECTED_INVENTORY_COUNT);
     const keys = SERVER_INVENTORY.map((s) => s.key);
-    expect(new Set(keys).size).toBe(24);
+    expect(new Set(keys).size).toBe(EXPECTED_INVENTORY_COUNT);
   });
 
   test('every entry has the required fields', () => {
