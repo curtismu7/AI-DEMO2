@@ -184,6 +184,7 @@ export default function EducationBar() {
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.STEP_UP, 'what')}>Step-up authentication</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.PINGONE_AUTHORIZE, 'what')}>PingOne Authorize</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.PINGGATEWAY_MCP, 'overview')}>PingGateway + MCP</button>
+            <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.ENTERPRISE_MANAGED_AUTH, 'overview')}>Enterprise-managed auth</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.WEB_MCP, 'overview')}>Web-based MCP</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.MCP_ELICITATION, 'what')}>MCP elicitation</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AGENT_RESTRICTIONS, 'overview')}>Agent restrictions</button>

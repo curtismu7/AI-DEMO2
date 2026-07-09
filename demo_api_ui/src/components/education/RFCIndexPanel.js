@@ -35,6 +35,7 @@ const ROWS = [
   { rfc: 'OIDC Core 1.0', name: 'OpenID Connect', app: 'openid scope, /userinfo', status: FINAL, href: 'https://openid.net/specs/openid-connect-core-1_0.html', panel: EDU.LOGIN_FLOW, tab: 'what' },
   { rfc: 'OIDC CIBA', name: 'Client-Initiated Backchannel Auth', app: 'bc-authorize, poll /token; OOB email or push', status: FINAL, href: 'https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html', panel: null, tab: null, ciba: true },
   { rfc: 'MCP 2025-11-25', name: 'Model Context Protocol', app: 'Structured agent tool-use protocol', status: LIVING, href: 'https://spec.modelcontextprotocol.io/specification/2025-11-25/', panel: EDU.MCP_PROTOCOL, tab: 'what' },
+  { rfc: 'MCP Ext', name: 'Enterprise-Managed Authorization', app: 'IdP-centralized MCP access; ID-JAG exchange', status: LIVING, href: 'https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization', panel: EDU.ENTERPRISE_MANAGED_AUTH, tab: 'overview' },
   // ── Not yet ratified — active drafts the demo tracks ─────────────────────────
   { rfc: 'OIDC 2.1', name: 'OpenID Connect 2.1 (consolidation)', app: 'Security baseline: PKCE required, no implicit flow', status: CONSOLIDATION, href: 'https://openid.net/specs/', panel: EDU.OIDC_21, tab: 'what' },
   { rfc: 'ID-JAG', name: 'Identity Assertion Authorization Grant (Cross-App Access)', app: 'Cross-app access grant (contrast: RFC 8693)', status: DRAFT, href: 'https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/', panel: EDU.ID_JAG, tab: 'overview' },
