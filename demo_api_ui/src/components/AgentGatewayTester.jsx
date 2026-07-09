@@ -18,6 +18,8 @@ import './McpGatewayConfig.css';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_simulated';
+const MCP_SECURITY_GATEWAY_DOC =
+  'https://docs.pingidentity.com/pinggateway/2026/mcp/index.html';
 
 // Fallback when the live tools/list is gated (MFA step-up) or empty — the tool call
 // itself mints the delegated token server-side, so these still work.
@@ -140,6 +142,14 @@ export default function AgentGatewayTester() {
           <p className="mgc-subtitle">
             Send an MCP tool call through the active gateway and inspect the response, the
             authorize decision, and the rules the gateway applied.
+          </p>
+          <p className="mgc-subtitle" style={{ marginTop: 6 }}>
+            Official Ping docs:{' '}
+            <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+              MCP security gateway | PingGateway 2026
+            </a>
+            {' '}— audit MCP requests and actors, throttle, OAuth RS controls, fine-grained
+            Authorize, and token transformation.
           </p>
         </div>
       </div>

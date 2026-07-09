@@ -1796,6 +1796,89 @@ function AuthorizeDecisionEduBox({ event }) {
   );
 }
 
+/**
+ * Shows the McpAuditFilter 5W1H attribution for a gateway tool call.
+ * Mirrors what PingGateway writes to audit/mcp.audit.json.
+ */
+function GwMcpAuditEduBox({ event }) {
+  if (event.id !== "gw-mcp-audit") return null;
+  const who = event.who || event.mcpAudit?.who || {};
+  const what = event.what || event.mcpAudit?.what || {};
+  const where = event.where || event.mcpAudit?.where || {};
+  const how = event.how || event.mcpAudit?.how || {};
+  const whenMs = event.when || event.mcpAudit?.when;
+  const whenLabel = whenMs
+    ? new Date(typeof whenMs === "number" ? whenMs : Number(whenMs)).toISOString()
+    : null;
+  const isBlocked = how.result === "blocked" || how.decision === "DENY";
+  return (
+    <div className={`tcd-edu-box ${isBlocked ? "tcd-edu-box--error" : "tcd-edu-box--ok"}`}>
+      <div className="tcd-edu-box-hd">
+        <span className="tcd-edu-icon">{isBlocked ? "❌" : "✅"}</span>
+        <strong>McpAuditFilter — who / what / when / where / how</strong>
+      </div>
+      <div className="tcd-edu-body">
+        <p>
+          PingGateway <code>McpAuditFilter</code> emits MCP-specific audit events for{" "}
+          <em>who called which tool, where, and with what result</em>. The same story is
+          written to <code>audit/mcp.audit.json</code> and returned on{" "}
+          <code>X-Gw-Audit-Trail.mcpAudit</code> for this Token Chain hop.
+        </p>
+        <ul className="tcd-edu-checklist">
+          <li>
+            <span className="tcd-edu-check-lbl">Who:</span>
+            <span>
+              user <code>{who.userSub || "—"}</code>
+              {who.agentSub ? (
+                <>
+                  {" "}
+                  via agent <code>{who.agentSub}</code>
+                </>
+              ) : null}
+            </span>
+          </li>
+          <li>
+            <span className="tcd-edu-check-lbl">What:</span>
+            <span>
+              <code>{what.mcpMethod || "—"}</code>
+              {what.tool ? (
+                <>
+                  {" "}
+                  → <code>{what.tool}</code>
+                </>
+              ) : null}
+            </span>
+          </li>
+          {whenLabel && (
+            <li>
+              <span className="tcd-edu-check-lbl">When:</span>
+              <span>
+                <code>{whenLabel}</code>
+              </span>
+            </li>
+          )}
+          <li>
+            <span className="tcd-edu-check-lbl">Where:</span>
+            <span>
+              <code>{where.resourceId || where.routePath || "—"}</code>
+              {where.vertical ? <> ({where.vertical})</> : null}
+            </span>
+          </li>
+          <li>
+            <span className="tcd-edu-check-lbl">How:</span>
+            <span>
+              <strong>{how.decision || "—"}</strong>
+              {how.result ? ` → ${how.result}` : ""}
+              {how.backend ? ` (${how.backend})` : ""}
+            </span>
+          </li>
+        </ul>
+        <JsonField label="mcpAudit (JSON)" value={event.mcpAudit || { who, what, when: whenMs, where, how }} />
+      </div>
+    </div>
+  );
+}
+
 function GwAuthorizeEduBox({ event }) {
   if (event.id !== "gw-authorize") return null;
   const rawDecision = event.decision || null;
@@ -1964,6 +2047,13 @@ function EventDetail({ event }) {
         event={event}
         Component={GwAuthorizeEduBox}
       />
+      {event.id === "gw-mcp-audit" && (
+        <CollapsibleEdu
+          title="McpAuditFilter — who / what / when / where / how"
+          event={event}
+          Component={GwMcpAuditEduBox}
+        />
+      )}
       <CollapsibleEdu
         title="Audience (aud)"
         event={event}
@@ -2359,6 +2449,7 @@ const CLAIMS_STRIP_IDS = new Set([
   // Gateway auth pipeline events (Phase 259)
   "gw-introspection",
   "gw-authorize",
+  "gw-mcp-audit",
   "gw-exchange",
   // TraT context + mTLS status badges (Phase 10)
   "gw-mtls",
@@ -2537,6 +2628,7 @@ const STEP_SUB_LABELS = {
   "mcp-agent-token-presented": "Tool Token",
   "gw-introspection": "Introspection",
   "gw-authorize": "Policy Decision",
+  "gw-mcp-audit": "MCP Audit",
   "mcp-gateway-route": "Gateway",
   "resource-server-reply": "API Reply",
   "mcp-tool-result": "Tool Result",
@@ -3646,6 +3738,15 @@ const PLACEHOLDER_EVENTS = [
     authorizeEngine: "pingone",
   },
   {
+    id: "gw-mcp-audit",
+    label: "Ping Agent Gateway — McpAuditFilter (who / what / when / where / how)",
+    status: "waiting",
+    claims: null,
+    explanation:
+      "McpAuditFilter records MCP-specific audit events: who (user + agent), what (method/tool), when, where (resource), and how (PERMIT/DENY result). Events are written to audit/mcp.audit.json and mirrored on X-Gw-Audit-Trail.mcpAudit for this Token Chain hop.",
+    rfc: "PingGateway McpAuditFilter",
+  },
+  {
     id: "mcp-gateway-route",
     label: "Token forwarded unchanged → MCP Server executes tool",
     status: "waiting",
@@ -3779,6 +3880,11 @@ const STEP_EXPLAINERS = {
     why: "Putting this check at one gateway means every agent call is policed in the same place, not in scattered app code.",
     value: "Every request gets an allow, deny, or step-up decision, and there is one place to watch and stop agent traffic.",
   },
+  "gw-mcp-audit": {
+    what: "PingGateway recorded who called which tool, where, when, and with what result (McpAuditFilter).",
+    why: "Governance needs a durable trail of agent actions — not only token hops.",
+    value: "You can answer who / what / when / where / how for every MCP transaction through the gateway.",
+  },
   gateway: {
     what: "PingGateway received the request, checked the token, and routed it to the MCP server upstream.",
     why: "A single gateway in front of the MCP server is the one place to enforce token checks and policy on agent traffic.",
@@ -3803,6 +3909,7 @@ function getStepExplainer(event) {
   };
   if (id.includes("intent") || id.includes("routing")) return STEP_EXPLAINERS.intent;
   if (id.includes("introspection")) return STEP_EXPLAINERS.introspection;
+  if (id.includes("mcp-audit") || id === "gw-mcp-audit") return STEP_EXPLAINERS["gw-mcp-audit"];
   if (id.includes("authorize")) return STEP_EXPLAINERS.authorize;
   if (id.includes("exchanged-token") || id.includes("verified") || id.includes("transaction"))
     return STEP_EXPLAINERS.transaction;

@@ -11,15 +11,19 @@ RFC 8693 token exchange to the backend, and reverse-proxies to the MCP servers.
 1. **Inbound token validation** — `McpProtectionFilter` + `OAuth2ResourceServerFilter`
    introspect the bearer (PingOne, via the MCP exchanger client) and require the
    `gateway:mcp:invoke` scope (`PG_INBOUND_SCOPE`). No/invalid token -> `401`.
-2. **MCP protocol validation** — `McpValidationFilter` parses the JSON-RPC body.
-3. **Authorize decision** — `scripts/groovy/p1az-decision.groovy` builds the SAME 18-key
+2. **MCP audit** — `McpAuditFilter` (first in every MCP route chain) writes structured
+   MCP events to `audit/mcp.audit.json` (who/what/when/where/how) via the heap
+   `AuditService` (`JsonAuditEventHandler`, topics `access` + `mcp`).
+3. **MCP protocol validation** — `McpValidationFilter` parses the JSON-RPC body; with
+   `metricsEnabled: true` it exposes Prometheus counters/gauges (`ig_mcp_*`).
+4. **Authorize decision** — `scripts/groovy/p1az-decision.groovy` builds the SAME 18-key
    `parameters` payload as the Node gateway's `buildAuthorizeParameters` and POSTs it to
    `<BASE>/governance/pap/alpha/policy/<P1AZ_WORKER_ID>/decision`. PERMIT continues; DENY /
    INDETERMINATE / error -> `403` (fail closed).
-4. **RFC 8693 exchange** — `OAuth2TokenExchangeFilter` exchanges the inbound token for one
+5. **RFC 8693 exchange** — `OAuth2TokenExchangeFilter` exchanges the inbound token for one
    scoped to the backend audience (`mcpserver.ping.demo` / `mcp-invest.ping.demo`), then a
    `HeaderFilter` swaps it onto the `Authorization` header.
-5. **Reverse proxy** — to `mcp-server:8080` (`/mcp`) or `mcp-invest:8081` (`/mcp/invest`).
+6. **Reverse proxy** — to `mcp-server:8080` (`/mcp`) or `mcp-invest:8081` (`/mcp/invest`).
 
 ## Selecting PingGateway (runtime flag)
 

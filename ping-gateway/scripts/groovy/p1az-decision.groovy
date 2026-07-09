@@ -428,6 +428,38 @@ def backendLabel = failoverUsed ? 'mock-failover' : (simulated ? 'mock' : 'real'
 logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub + ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical)
 
 // ── Build audit trail ─────────────────────────────────────────────────────────
+// mcpAudit mirrors what McpAuditFilter records to audit/mcp.audit.json
+// (who called which tool, where, with what result) so Token Chain can show
+// the 5W1H story without reading the IG audit volume.
+def resourceWhere = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: (request.uri?.toString() ?: '/mcp')
+def mcpAudit = [
+    eventName       : 'PING-GATEWAY-MCP',
+    who             : [
+        userSub    : sub,
+        agentSub   : actSub ?: null,
+        mayActSub  : mayActSub ?: null,
+        clientId   : introspectionData.client_id,
+        actDepth   : actDepth,
+    ],
+    what            : [
+        mcpMethod  : mcpMethod,
+        tool       : toolName ?: null,
+        transactionType   : transactionType ?: null,
+        transactionAmount : transactionAmount ?: null,
+    ],
+    when            : System.currentTimeMillis(),
+    where           : [
+        resourceId : resourceWhere,
+        vertical   : vertical ?: null,
+        routePath  : request.uri?.path ?: null,
+    ],
+    how             : [
+        decision   : outcome,
+        backend    : backendLabel,
+        result     : outcome == 'PERMIT' ? 'forwarded' : 'blocked',
+        reason     : authorizeFullResponse?.reason ?: null,
+    ],
+]
 def auditTrail = [
     introspection: introspectionData,
     authorize: [
@@ -442,6 +474,7 @@ def auditTrail = [
         reason     : authorizeFullResponse?.reason ?: null,
         statements : authorizeFullResponse?.statements ?: null,
     ],
+    mcpAudit: mcpAudit,
 ]
 def auditTrailJson = JsonOutput.toJson(auditTrail)
 

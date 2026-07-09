@@ -253,6 +253,34 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(ids).not.toContain('gw-exchange');
   });
 
+  test('remote success via gateway with mcpAudit → gw-mcp-audit token event (5W1H)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: {
+        introspection: { active: true, sub: 'u1' },
+        authorize: { decision: 'PERMIT', tool: 'get_balance', method: 'tools/call' },
+        mcpAudit: {
+          eventName: 'PING-GATEWAY-MCP',
+          who: { userSub: 'u1', agentSub: 'agent-1' },
+          what: { mcpMethod: 'tools/call', tool: 'get_balance' },
+          when: 1700000000000,
+          where: { resourceId: 'https://gw/mcp', vertical: 'olb' },
+          how: { decision: 'PERMIT', backend: 'real', result: 'forwarded' },
+        },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.body.tokenEvents.some((e) => e.id === 'gw-mcp-audit')).toBe(true);
+    const auditCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-mcp-audit');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall[5]).toEqual(expect.objectContaining({
+      who: expect.objectContaining({ userSub: 'u1', agentSub: 'agent-1' }),
+      what: expect.objectContaining({ tool: 'get_balance' }),
+      how: expect.objectContaining({ result: 'forwarded', decision: 'PERMIT' }),
+    }));
+  });
   test('mcp_insufficient_scope thrown by remote → block 403 mcp_scope_denied, NO local fallback', async () => {
     const deps = makeDeps();
     deps.mcpCallTool = jest.fn(async () => { throw Object.assign(new Error('scope'), { code: 'mcp_insufficient_scope', mcpErrorData: { missingScopes: ['write'] } }); });

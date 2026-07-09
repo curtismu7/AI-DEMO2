@@ -125,7 +125,7 @@ function writeTransaction(t) {
  *
  * @param {object} a
  * @param {string|string[]} [a.tokenAud]   aud of the bearer presented to the gateway
- * @param {object} [a.gwAuditTrail]        { introspection, authorize, mtls } from X-Gw-Audit-Trail
+ * @param {object} [a.gwAuditTrail]        { introspection, authorize, mtls, mcpAudit } from X-Gw-Audit-Trail
  * @param {{isError?:boolean}} [a.result]  the tool result (success path)
  * @param {Error} [a.error]                the thrown error (failure path), e.g. gateway 401
  * @returns {Array} steps for formatTransactionBlock
@@ -154,6 +154,20 @@ function buildMcpHopSteps({ tokenAud, gwAuditTrail, result, error } = {}) {
       label: 'GATEWAY PINGONE AUTHORIZE',
       ok: decision === 'PERMIT',
       result: `${decision}${gw.authorize.reason ? ` (${gw.authorize.reason})` : ''}`,
+    });
+  }
+  if (gw.mcpAudit) {
+    const a = gw.mcpAudit;
+    steps.push({
+      label: 'GATEWAY MCP AUDIT (who/what/when/where/how)',
+      ok: a.how?.result !== 'blocked',
+      fields: {
+        who: a.who?.userSub,
+        agent: a.who?.agentSub,
+        what: a.what?.tool || a.what?.mcpMethod,
+        where: a.where?.resourceId,
+      },
+      result: `${a.how?.decision || '—'} → ${a.how?.result || 'recorded'}`,
     });
   }
 

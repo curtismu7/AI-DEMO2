@@ -1,26 +1,46 @@
 // banking_api_ui/src/components/education/PingGatewayMcpPanel.js
 import EducationDrawer from '../shared/EducationDrawer';
 
+const MCP_SECURITY_GATEWAY_DOC =
+  'https://docs.pingidentity.com/pinggateway/2026/mcp/index.html';
+
 function OverviewTab() {
   return (
     <div>
       <p style={{ color: "#374151", marginBottom: "1rem" }}>
         <strong>MCP servers contain no security logic.</strong> Token validation, scope enforcement, protocol compliance, rate limiting, and audit all live in the gateway. The MCP server trusts that whatever reaches it has already been authorized — it focuses entirely on tool execution.
       </p>
+      <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
+        Canonical Ping docs:{' '}
+        <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+          MCP security gateway | PingGateway 2026
+        </a>
+        {' '}(Evolving interface stability).
+      </p>
       <h3 style={{ marginTop: 0 }}>Why secure MCP with a gateway?</h3>
       <p>
-        MCP servers expose <strong>tools</strong> that perform real actions — account reads, transfers,
-        user lookups. Without a gateway in front of the MCP server, every tool call hits the
-        application directly with no centralized enforcement layer.
+        MCP is an open standard to connect AI agents with AI servers. Exposing services over MCP
+        makes them usable by agents — but you still need an appropriate, consistent, documented,
+        and adaptable security model across those assets. PingGateway sits as an MCP gateway so
+        business teams can accelerate AI adoption while IAM/security teams own enforcement.
       </p>
 
-      <h4>What PingGateway adds</h4>
+      <h4>What PingGateway protects MCP servers to do</h4>
+      <p style={{ fontSize: '0.82rem', color: '#374151' }}>
+        From the official{' '}
+        <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+          MCP security gateway
+        </a>{' '}
+        guide:
+      </p>
       <ul>
-        <li><strong>Token validation</strong> — every request's Bearer token is introspected or JWT-verified before reaching the MCP server</li>
-        <li><strong>Scope enforcement</strong> — maps MCP tool names to required OAuth scopes (e.g. <code>get_balance</code> → <code>read</code>)</li>
-        <li><strong>Rate limiting</strong> — per-client, per-user, or per-tool call limits</li>
-        <li><strong>Audit logging</strong> — centralized log of every tool invocation with caller identity</li>
-        <li><strong>Content filtering</strong> — inspect request/response payloads for sensitive data leakage</li>
+        <li><strong>Allow only valid MCP requests</strong> — protocol / JSON-RPC shape before tools run</li>
+        <li><strong>Audit MCP requests and actors</strong> — <code>McpAuditFilter</code> → <code>audit/mcp.audit.json</code>; Token Chain shows the same 5W1H hop live</li>
+        <li><strong>Throttle request rates</strong> — protect backends from noisy or malicious agents</li>
+        <li><strong>Enforce coarse-grained OAuth 2.0</strong> — RS validation, scopes, audience</li>
+        <li><strong>Enforce fine-grained access control</strong> — PingOne Authorize, PingAuthorize, PingOne Protect, Advanced Identity Cloud</li>
+        <li><strong>Token transformation</strong> — map inbound agent tokens to your backend security model</li>
+        <li><strong>Metrics</strong> — Prometheus <code>ig_mcp_*</code> counts, latencies, and errors per MCP method/tool</li>
       </ul>
 
       <h4>Architecture</h4>
@@ -263,12 +283,18 @@ function OfficialFiltersTab() {
     <div>
       <h3 style={{ marginTop: 0 }}>Official PingGateway MCP filters</h3>
       <p>
-        PingGateway ships three dedicated MCP filters (as of 2026). They run as a chain
-        before the <code>ReverseProxyHandler</code> that forwards traffic to the MCP server.
+        PingGateway ships dedicated MCP filters (Agent Gateway module, Evolving stability).
+        They run as a chain before the <code>ReverseProxyHandler</code> that forwards traffic
+        to the MCP server.
       </p>
 
       <h4>Filter chain order</h4>
-      <pre className="edu-code">{`[McpAuditFilter] → [McpProtectionFilter] → [McpValidationFilter] → ReverseProxyHandler`}</pre>
+      <pre className="edu-code">{`[McpAuditFilter] → [McpProtectionFilter] → [McpValidationFilter] → … → ReverseProxyHandler`}</pre>
+      <p style={{ fontSize: '0.82rem', color: '#374151' }}>
+        Docs require an <code>McpValidationFilter</code> <em>after</em>{" "}
+        <code>McpAuditFilter</code> so <code>McpContext</code> is populated for audit events.
+        This demo also runs PingOne Authorize and token exchange after validation.
+      </p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', marginBottom: '1rem' }}>
         <thead>
@@ -279,9 +305,9 @@ function OfficialFiltersTab() {
         </thead>
         <tbody>
           {[
-            ['McpAuditFilter', <>Records all MCP request activity to audit/mcp.audit.json<br />Audit log entries include user email (from <code className="edu-code">sub</code> claim resolution), agent <code className="edu-code">client_id</code> (from <code className="edu-code">act.sub</code>), the full delegation chain (<code className="edu-code">act</code> nesting), the target service, and request latency — giving complete attribution for every tool invocation.</>],
-            ['McpProtectionFilter', 'OAuth 2.0 resource server validation for MCP — introspects or JWT-verifies the Bearer token'],
-            ['McpValidationFilter', 'Validates MCP protocol compliance (message shape, method names, JSON-RPC structure)'],
+            ['McpAuditFilter', <>Records MCP request activity to <code className="edu-code">audit/mcp.audit.json</code> via an <code className="edu-code">AuditService</code> (topics <code className="edu-code">access</code> + <code className="edu-code">mcp</code>). Ping describes it as emitting MCP audit events for <em>who called which tool, where, and with what result</em>. Attribution includes user (<code className="edu-code">sub</code>), agent (<code className="edu-code">act.sub</code> / client), nested delegation, target service, and latency.</>],
+            ['McpProtectionFilter', 'OAuth 2.0 resource server validation for MCP — introspects or JWT-verifies the Bearer token, serves protected-resource metadata, enforces aud vs resourceId'],
+            ['McpValidationFilter', <>Validates Origin / Accept, JSON-RPC + MCP client message shape; rewrites protocol version; populates <code className="edu-code">McpContext</code> (<code className="edu-code">${'{'}contexts.mcp{'}'}</code>); optionally records metrics (<code className="edu-code">metricsEnabled</code>, default true)</>],
           ].map(([name, desc], i) => (
             <tr key={name} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 ? '#f9fafb' : 'white' }}>
               <td style={{ padding: '8px' }}><code>{name}</code></td>
@@ -290,6 +316,66 @@ function OfficialFiltersTab() {
           ))}
         </tbody>
       </table>
+
+      <h4>What McpAuditFilter logs (5W1H)</h4>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', marginBottom: '1rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+            <th style={{ padding: '8px' }}>Dimension</th>
+            <th style={{ padding: '8px' }}>Captured</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ['Who', 'User subject + acting agent (act / client_id) and delegation depth'],
+            ['What', 'MCP method (e.g. tools/call) and tool / param name'],
+            ['When', 'Event timestamp (and latency via metrics)'],
+            ['Where', 'Gateway resource / route and target MCP service'],
+            ['How / result', 'Forwarded vs blocked; policy outcome when Authorize runs'],
+          ].map(([dim, cap], i) => (
+            <tr key={dim} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 ? '#f9fafb' : 'white' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>{dim}</td>
+              <td style={{ padding: '8px' }}>{cap}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p style={{ fontSize: '0.82rem' }}>
+        In this demo, the same 5W1H payload is also mirrored on{" "}
+        <code className="edu-code">X-Gw-Audit-Trail.mcpAudit</code> and shown as a Token Chain hop
+        (<code className="edu-code">gw-mcp-audit</code>) so you can show it off live without opening
+        the IG audit volume.
+      </p>
+
+      <h4>Broader MCP observability</h4>
+      <ul style={{ fontSize: '0.82rem' }}>
+        <li>
+          <strong>Structured MCP traffic logging</strong> — <code>McpAuditFilter</code> +{" "}
+          <code>McpValidationFilter</code> (validation rejects bad Origin/Accept/JSON-RPC before
+          tools run; audit records accepted traffic and actors).
+        </li>
+        <li>
+          <strong>Metrics per MCP method/tool</strong> — with <code>metricsEnabled: true</code>{" "}
+          (default), Prometheus scrapes include{" "}
+          <code>ig_mcp_method_time_seconds</code> (latency summary with method/tool labels) and{" "}
+          <code>ig_mcp_error_total</code> (error counters). Endpoint pattern:{" "}
+          <code>/metrics/prometheus/0.0.4</code> on the IG monitoring port.
+        </li>
+        <li>
+          <strong>Audit / throttling visibility</strong> — requests that are validated, rejected
+          (401/403/429), or forwarded are visible in audit + route metrics. Optional{" "}
+          <code>ThrottlingFilter</code> (rate / MappedThrottlingPolicy) returns{" "}
+          <code>429 Too Many Requests</code> with <code>Retry-After</code> when limits are hit —
+          per route, tool, client, or identity.
+        </li>
+      </ul>
+
+      <h4>McpContext (for downstream filters)</h4>
+      <p style={{ fontSize: '0.82rem' }}>
+        After validation, <code>${'{'}contexts.mcp{'}'}</code> exposes client/server message types,
+        JSON-RPC payloads, protocol version, and MCP <code>sessionId</code> — so throttling,
+        policy, and metrics can key off method and tool name without re-parsing the body.
+      </p>
 
       <h4>McpProtectionFilter key properties</h4>
       <pre className="edu-code">{`{
@@ -307,6 +393,27 @@ function OfficialFiltersTab() {
         <li><strong>supportedScopes</strong> — scopes this resource accepts; requests with other scopes are rejected</li>
       </ul>
 
+      <h4>AuditService + McpAuditFilter (this demo)</h4>
+      <pre className="edu-code">{`{
+  "name": "AuditService",
+  "type": "AuditService",
+  "config": {
+    "eventHandlers": [{
+      "class": "org.forgerock.audit.handlers.json.JsonAuditEventHandler",
+      "config": {
+        "name": "json",
+        "logDirectory": "&{ig.instance.dir}/audit",
+        "topics": ["access", "mcp"]
+      }
+    }]
+  }
+}
+
+{
+  "type": "McpAuditFilter",
+  "config": { "auditService": "AuditService" }
+}`}</pre>
+
       <h4>admin.json: enable streaming</h4>
       <p>
         MCP relies on Server-Sent Events (SSE) for tool responses. Without this flag, SSE connections
@@ -315,6 +422,26 @@ function OfficialFiltersTab() {
       <pre className="edu-code">{`{
   "streamingEnabled": true
 }`}</pre>
+
+      <h4>Official sample route — what Ping documents</h4>
+      <p style={{ fontSize: '0.82rem' }}>
+        The{' '}
+        <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+          MCP security gateway tutorial
+        </a>{' '}
+        walks a sample <code>mcp.json</code> route. Key points from that page:
+      </p>
+      <ul style={{ fontSize: '0.82rem' }}>
+        <li>PingGateway acts as an <strong>OAuth 2.0 resource server (RS)</strong> in front of the MCP server.</li>
+        <li><code>McpAuditFilter</code> audits MCP requests into <code>audit/mcp.audit.json</code>.</li>
+        <li><code>UriPathRewriteFilter</code> maps gateway <code>/mcp</code> to the MCP server root <code>/</code>.</li>
+        <li><code>McpProtectionFilter</code> extends the RS config for MCP (<code>resourceId</code>, AS URI, scopes, <code>resourceIdPointer</code>).</li>
+        <li><code>McpValidationFilter</code> validates MCP requests after audit/protection.</li>
+        <li><code>ReverseProxyHandler.soTimeout</code> (e.g. <code>20 seconds</code>) accommodates agents with infrequent SSE updates.</li>
+        <li><code>streamingEnabled: true</code> in <code>admin.json</code> is required for SSE (part of MCP).</li>
+        <li>MCP needs <strong>RFC 8707 resource indicators</strong> so the access token <code>audience</code> matches <code>resourceId</code> (Access Token Modification script on AIC/AM).</li>
+        <li>The simple sample route does <em>not</em> include throttling or fine-grained access control — add those for production.</li>
+      </ul>
 
       <h4>UriPathRewriteFilter + socket timeout</h4>
       <p>
@@ -335,9 +462,26 @@ function OfficialFiltersTab() {
 }`}</pre>
 
       <p style={{ fontSize: '0.82rem', color: '#374151', marginTop: '1rem' }}>
-        Reference:{' '}
-        <a href="https://docs.pingidentity.com/pinggateway/2026/mcp/index.html" target="_blank" rel="noopener noreferrer">
-          MCP security gateway | PingGateway 2026
+        Primary reference:{' '}
+        <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+          https://docs.pingidentity.com/pinggateway/2026/mcp/index.html
+        </a>
+        <br />
+        Also:{' '}
+        <a href="https://docs.pingidentity.com/pinggateway/2026/reference/McpAuditFilter.html" target="_blank" rel="noopener noreferrer">
+          McpAuditFilter
+        </a>
+        {' · '}
+        <a href="https://docs.pingidentity.com/pinggateway/2026/reference/McpValidationFilter.html" target="_blank" rel="noopener noreferrer">
+          McpValidationFilter
+        </a>
+        {' · '}
+        <a href="https://docs.pingidentity.com/pinggateway/2026/reference/MonitoringMetrics.html" target="_blank" rel="noopener noreferrer">
+          Prometheus MCP metrics
+        </a>
+        {' · '}
+        <a href="https://developer.pingidentity.com/blog/securing-mcp-servers-with-pings-mcp-gateway/" target="_blank" rel="noopener noreferrer">
+          Developer blog
         </a>
       </p>
     </div>

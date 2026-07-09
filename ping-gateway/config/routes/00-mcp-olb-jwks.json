@@ -47,6 +47,13 @@
     "config": {
       "filters": [
         {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        {
           "name": "JwksTokenValidation",
           "type": "ScriptableFilter",
           "config": {
@@ -58,7 +65,8 @@
           "name": "McpProtocol",
           "type": "McpValidationFilter",
           "config": {
-            "acceptedOrigins": ".*"
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
           }
         },
         {

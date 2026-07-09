@@ -70,6 +70,22 @@
         "headers": { "Content-Type": ["application/json"] },
         "entity": "{\"error\":\"token_exchange_failed\"}"
       }
+    },
+    {
+      "name": "AuditService",
+      "type": "AuditService",
+      "config": {
+        "eventHandlers": [
+          {
+            "class": "org.forgerock.audit.handlers.json.JsonAuditEventHandler",
+            "config": {
+              "name": "json",
+              "logDirectory": "&{ig.instance.dir}/audit",
+              "topics": ["access", "mcp"]
+            }
+          }
+        ]
+      }
     }
   ],
   "handler": {

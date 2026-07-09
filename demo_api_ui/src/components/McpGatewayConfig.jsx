@@ -676,6 +676,17 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 						</a>
 					</div>
 					<div className="mgc-doc-card">
+						<p className="mgc-doc-card-title">MCP security gateway</p>
+						<p className="mgc-doc-card-desc">
+							Protect MCP servers with PingGateway: valid MCP only, audit requests and actors,
+							throttle, coarse OAuth 2.0, fine-grained Authorize/Protect, and token transformation.
+							Includes the sample <code>mcp.json</code> route (McpAuditFilter → audit/mcp.audit.json).
+						</p>
+						<a className="mgc-doc-card-link" href="https://docs.pingidentity.com/pinggateway/2026/mcp/index.html" target="_blank" rel="noopener noreferrer">
+							docs.pingidentity.com — MCP security gateway
+						</a>
+					</div>
+					<div className="mgc-doc-card">
 						<p className="mgc-doc-card-title">PingOne Agent Gateway Documentation</p>
 						<p className="mgc-doc-card-desc">Full installation, configuration, and deployment guide for Ping Identity Gateway 2025.11 and 2026</p>
 						<a className="mgc-doc-card-link" href="https://docs.pingidentity.com/pinggateway/2026/" target="_blank" rel="noopener noreferrer">
