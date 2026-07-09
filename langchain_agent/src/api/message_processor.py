@@ -769,16 +769,28 @@ class MessageProcessor:
         if auth_token:
             await self.agent.initialize_session_with_token(session_id, auth_token)
         elif user_identity and user_identity.get("userId"):
-            # BFF-tool path: the agent never receives the user's access token
-            # (RFC 8693 exchange stays in the BFF), so identity arrives as a
-            # non-sensitive {userId, email} object. Mark the session identified
-            # so _build_system_message reflects the authenticated user instead
-            # of instructing the LLM to ask the caller for their email.
-            await self.agent.conversation_memory.set_user_identified(
-                session_id,
-                user_identity.get("email") or "unknown",
-                user_identity["userId"],
-            )
+            # BFF-tool path: identity is asserted by the BFF after the gateway
+            # secret middleware authenticated the caller. Only accept a plain
+            # string userId (reject objects/lists) and ignore a mismatched
+            # sessionId claim if the BFF included one.
+            uid = user_identity.get("userId")
+            claimed_sid = user_identity.get("sessionId") or user_identity.get("session_id")
+            if not isinstance(uid, str) or not uid.strip():
+                logger.warning(
+                    "[AG-UI] Ignoring non-string user_identity.userId for session %s",
+                    session_id,
+                )
+            elif claimed_sid and str(claimed_sid) != str(session_id):
+                logger.warning(
+                    "[AG-UI] Ignoring user_identity with mismatched sessionId for session %s",
+                    session_id,
+                )
+            else:
+                await self.agent.conversation_memory.set_user_identified(
+                    session_id,
+                    user_identity.get("email") or "unknown",
+                    uid.strip(),
+                )
         else:
             logger.warning(
                 "[AG-UI] process_agui_message called without auth_token or user_identity for session %s",

@@ -122,6 +122,7 @@ module.exports = async function decisionHandler(req, res) {
     TokenIss = '',
     TransactionAmount = '',
     HitlApproved = '',
+    HitlChallengeId = '',
     IntentTokenValid = '',
     IntentMatchesTool = '',
     IntentJti = '',
@@ -142,7 +143,10 @@ module.exports = async function decisionHandler(req, res) {
   const asStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
   const grantedScopes = new Set(asStr(TokenScopes).split(/\s+/).filter(Boolean));
-  const hitlApproved = HitlApproved === 'true';
+  // Bare HitlApproved=true is not enough — require a non-empty challenge id so a
+  // client cannot spoof consent discharge without a receipt reference. Upstream
+  // (BFF/gateway) only sets HitlApproved after verifyHitlReceipt succeeds.
+  const hitlApproved = HitlApproved === 'true' && !!asStr(HitlChallengeId).trim();
   const nowSec = Math.floor(Date.now() / 1000);
 
   // Bind the structured decision inputs so deny()/indeterminate() can emit a
@@ -249,6 +253,9 @@ module.exports = async function decisionHandler(req, res) {
     if (userInfoList.status === 'NOT_FOUND') {
       return deny(res, 'unknown_sub: user not found in identity provider');
     }
+    if (userInfoList.status === 'LOOKUP_FAILED') {
+      return deny(res, 'user_lookup_failed: unable to verify user status');
+    }
     if (userInfoList.found && !userInfoList.enabled) {
       return deny(res, `user_disabled: sub=${ClientId} status=${userInfoList.status}`);
     }
@@ -292,10 +299,14 @@ module.exports = async function decisionHandler(req, res) {
     warn(`[AuthzServer/decision] CRITICAL: PingOne user lookup failed: ${err.message} — failing closed to prevent unhandled rejection`);
     return deny(res, 'user_lookup_failed: unable to verify user status');
   }
-  // Explicit NOT_FOUND (404 from PingOne) → DENY; network errors already fail-open (found=false, status='UNKNOWN')
+  // Explicit NOT_FOUND (404) or LOOKUP_FAILED (API/network error) → DENY (fail closed).
   if (userInfo.status === 'NOT_FOUND') {
     warn(`[AuthzServer/decision] DENY — sub not found in PingOne: sub=${ClientId}`);
     return deny(res, `unknown_sub: user not found in identity provider`);
+  }
+  if (userInfo.status === 'LOOKUP_FAILED') {
+    warn(`[AuthzServer/decision] DENY — PingOne user lookup failed: sub=${ClientId}`);
+    return deny(res, 'user_lookup_failed: unable to verify user status');
   }
   if (userInfo.found && !userInfo.enabled) {
     warn(`[AuthzServer/decision] DENY — user disabled: sub=${ClientId} status=${userInfo.status}`);
@@ -471,7 +482,16 @@ module.exports = async function decisionHandler(req, res) {
       if (Array.isArray(UserGroups)) {
         parsedGroups = UserGroups;
       } else {
-        try { parsedGroups = JSON.parse(UserGroups); } catch { /* malformed — skip guard */ }
+        try {
+          parsedGroups = JSON.parse(UserGroups);
+        } catch {
+          // Malformed UserGroups with a RequiredGroup set → DENY (fail closed).
+          // Skipping the guard would let attackers bypass premium-group policy.
+          warn(`[AuthzServer/decision] DENY — malformed_user_groups: RequiredGroup="${RequiredGroup}" sub="${ClientId}"`);
+          return deny(res,
+            `malformed_user_groups: RequiredGroup "${RequiredGroup}" was set but UserGroups is not valid JSON`
+          );
+        }
       }
     }
     if (Array.isArray(parsedGroups) && !parsedGroups.includes(RequiredGroup)) {
@@ -643,7 +663,9 @@ module.exports = async function decisionHandler(req, res) {
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
-  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey');
+  // Do NOT treat bare "http" as strong — URI-shaped ACRs like "http-only" would
+  // otherwise bypass STEP_UP / HITL_CONSENT. Match MFA / FIDO / passkey only.
+  return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
 function permit(res, reason) {

@@ -292,6 +292,8 @@ async function evaluateMcpToolDelegation({
   // where step-up wins before the consent branch). Emitted only when true,
   // matching the conditional-spread style of Acr (and the simulated engine).
   hitlApproved = false,
+  // Challenge id that produced hitlApproved (mock authz requires both).
+  hitlChallengeId = null,
   // Group-membership policy (Scenario 1). Live PingOne receives RequiredGroup plus
   // BFF-pre-resolved InRequiredGroup / UserTier scalars (the snapshot DSL has no
   // array-contains). userGroups is accepted for caller parity but is NOT forwarded
@@ -343,6 +345,7 @@ async function evaluateMcpToolDelegation({
     McpResourceUri: mcpResourceUri || '',    // expected MCP resource URI from config
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
+    ...(hitlApproved && hitlChallengeId ? { HitlChallengeId: hitlChallengeId } : {}),
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),

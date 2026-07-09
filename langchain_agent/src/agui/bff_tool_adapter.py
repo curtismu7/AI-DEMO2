@@ -177,7 +177,7 @@ class BffTool(BaseTool):
 
     async def _arun(self, **kwargs: Any) -> str:
         args = {k: v for k, v in kwargs.items() if v is not None}
-        logger.info("[BffTool] %s args=%s session=%s", self.name, args, self.session_id)
+        logger.info("[BffTool] %s arg_keys=%s session=%s", self.name, sorted(args.keys()), self.session_id)
 
         # The BFF /internal/agent-tool call does RFC 8693 token exchange +
         # PingOne Authorize + optional HITL gating, which can take longer than

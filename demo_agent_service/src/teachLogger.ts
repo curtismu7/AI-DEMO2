@@ -19,11 +19,24 @@ export interface TeachLogger {
 }
 
 const RESERVED = new Set(['level', 'time', 'msg', 'service', 'pid', 'hostname', 'correlation_id']);
+const SENSITIVE_KEY = /(?:^|_)(access_token|refresh_token|id_token|client_secret|authorization|password|api[_-]?key|bearer|secret)$/i;
+function redactValue(key: string, value: unknown): unknown {
+  if (SENSITIVE_KEY.test(key)) return '[REDACTED]';
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const nested: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      nested[k] = redactValue(k, v);
+    }
+    return nested;
+  }
+  return value;
+}
 function safeFields(fields?: Record<string, unknown>): Record<string, unknown> {
   if (!fields) return {};
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(fields)) {
-    out[RESERVED.has(k) ? `field_${k}` : k] = v;
+    const key = RESERVED.has(k) ? `field_${k}` : k;
+    out[key] = redactValue(k, v);
   }
   return out;
 }

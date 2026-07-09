@@ -153,4 +153,19 @@ describe('agentPreflightService.evaluate()', () => {
     expect(result.fallback).toBe(true);
     expect(result.reason).toBe('token_exchange_failed');
   });
+
+  test('token exchange fails + fail_open unset/false → DENY (default fail-closed)', async () => {
+    const prev = _cfg.ff_authorize_fail_open;
+    _cfg.ff_authorize_fail_open = 'false';
+    const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
+    resolveMcpAccessTokenWithEvents.mockRejectedValueOnce(new Error('exchange failed'));
+    try {
+      const result = await evaluate({ req: fakeReq(), tool: 'create_transfer', params: {} });
+      expect(result.decision).toBe('DENY');
+      expect(result.reason).toBe('token_exchange_failed');
+      expect(result.fallback).toBeUndefined();
+    } finally {
+      _cfg.ff_authorize_fail_open = prev;
+    }
+  });
 });

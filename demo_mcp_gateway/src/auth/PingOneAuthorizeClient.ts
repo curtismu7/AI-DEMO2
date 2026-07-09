@@ -99,6 +99,7 @@ export function buildAuthorizeParameters(
   intentValidation?: IntentValidationResult | null,
   vertical?: string,
   introspectionResult?: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined,
+  hitlChallengeId?: string,
 ): Record<string, string> {
   const decisionContext = method === 'tools/call' ? 'McpToolCall' : 'McpRequest';
   const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean);
@@ -146,6 +147,11 @@ export function buildAuthorizeParameters(
 
   if (hitlApproved) {
     base['HitlApproved'] = 'true';
+    // Mock authz requires a challenge id alongside HitlApproved so bare
+    // HitlApproved=true cannot spoof consent discharge.
+    if (hitlChallengeId) {
+      base['HitlChallengeId'] = hitlChallengeId;
+    }
   }
 
   if (intentValidation) {
@@ -184,6 +190,7 @@ export class PingOneAuthorizeClient {
     intentValidation?: IntentValidationResult | null,
     tratClaims?: TratClaims | null,
     introspectionResult?: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined,
+    hitlChallengeId?: string,
   ): Promise<AuthzDecision> {
     // When Authorization Server is not configured, fall back to local scope decision
     // for tools/call. This allows development/testing without P1AZ. For other methods,
@@ -217,6 +224,7 @@ export class PingOneAuthorizeClient {
       intentValidation,
       undefined,
       introspectionResult,
+      hitlChallengeId,
     );
     const body = { parameters: params };
 

@@ -180,9 +180,19 @@ test('ACR-drift: weak long ACR ("Single_Factor", 13 chars) does NOT bypass step-
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
-test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved=true -> PERMIT', async () => {
-  const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
+test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved+challengeId -> PERMIT', async () => {
+  const result = await decide(writeParams({
+    TransactionAmount: '300',
+    HitlApproved: 'true',
+    HitlChallengeId: 'chal-1',
+  }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
+test('NNP-6 A-8b: HitlApproved=true without HitlChallengeId does NOT discharge consent', async () => {
+  const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.reason, 'HITL_CONSENT');
 });
 
 // ── Regression: STEP_UP beats HITL_CONSENT (highest-gate-wins) ───────────
@@ -217,9 +227,14 @@ test('IMP-3: amount=600 + HitlApproved=true + weak ACR -> STEP_UP (receipt does 
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP (receipt must not suppress MFA), got: ' + result.reason);
 });
 
-test('IMP-3: amount=300 + HitlApproved=true + weak ACR -> PERMIT (receipt discharges consent)', async () => {
+test('IMP-3: amount=300 + HitlApproved+challengeId + weak ACR -> PERMIT (receipt discharges consent)', async () => {
   // HITL receipt DOES discharge HITL_CONSENT: 300 >= confirm(250) but receipt present -> PERMIT.
-  const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true', Acr: '' }));
+  const result = await decide(writeParams({
+    TransactionAmount: '300',
+    HitlApproved: 'true',
+    HitlChallengeId: 'chal-1',
+    Acr: '',
+  }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT (receipt discharges consent), got ' + result.decision + ': ' + result.reason);
 });
 

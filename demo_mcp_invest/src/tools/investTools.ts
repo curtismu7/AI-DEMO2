@@ -80,7 +80,12 @@ export const INVEST_TOOLS: InvestTool[] = [
 ];
 
 export function filterByScopes(tools: InvestTool[], tokenScopes: string[]): InvestTool[] {
-  if (tokenScopes.length === 0) return tools;
-  const has = (s: string) => tokenScopes.includes(s) || tokenScopes.includes('*') || tokenScopes.includes('*');
-  return tools.filter((t) => t.requiredScopes.every(has));
+  // Empty scope list → only tools that require no scopes (parity with
+  // demo_mcp_server toolScopeMap.filterToolsByScope). Advertising the full
+  // catalog to zero-scope tokens violates least-privilege.
+  if (tokenScopes.length === 0) {
+    return tools.filter((t) => t.requiredScopes.length === 0);
+  }
+  const has = (s: string) => tokenScopes.includes(s) || tokenScopes.includes('*');
+  return tools.filter((t) => t.requiredScopes.length === 0 || t.requiredScopes.every(has));
 }

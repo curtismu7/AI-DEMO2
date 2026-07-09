@@ -270,13 +270,21 @@ export class BankingMCPServer extends EventEmitter {
         return;
       }
 
-      // Zero-trust: extract agent token from Authorization header if present (preferred over params)
+      // Zero-trust: extract + validate agent token from Authorization header at connect
+      // (parity with HttpMCPTransport.authenticateBearer — do not trust an unvalidated bearer).
       const authHeader = (request?.headers?.authorization || request?.headers?.Authorization) as string | undefined;
       if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
         const bearerToken = authHeader.slice(7).trim();
         if (bearerToken) {
-          connectionInfo.agentToken = bearerToken;
-          console.log(`[BankingMCPServer] Agent token pre-authorized via Authorization header for connection ${connectionId}`);
+          try {
+            await this.authManager.validateAgentToken(bearerToken);
+            connectionInfo.agentToken = bearerToken;
+            console.log(`[BankingMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
+          } catch (error) {
+            console.warn(`[BankingMCPServer] Rejecting WebSocket connection ${connectionId}: invalid bearer`, error);
+            ws.close(1008, 'Invalid or expired agent token');
+            return;
+          }
         }
       }
 

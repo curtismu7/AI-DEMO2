@@ -151,6 +151,8 @@ export async function guardToolCall(
   xTratContext?: string,
   hitlApproved?: boolean,
   vertical?: string,
+  hitlChallengeId?: string,
+  intentValidation?: import('./intentTokenValidator').IntentValidationResult | null,
 ): Promise<AuthzDecision> {
   // UC16 — Impersonation block: must run BEFORE the Authorization Server call so
   // the check is reachable in production. GatewayTokenPolicy.validate() fires with
@@ -172,9 +174,11 @@ export async function guardToolCall(
     throw err;
   }
 
-  // Extract TraT claims from X-TraT-Context header for Authorize enrichment
+  // Extract TraT claims from X-TraT-Context only when the unsigned shim is
+  // explicitly allowed (parity with demo_mcp_server TratClaimsExtractor).
+  // Otherwise a direct caller can forge purp/reqctx/azd into Authorize/RAR.
   let tratClaims: TratClaims | null = null;
-  if (xTratContext) {
+  if (xTratContext && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
     try {
       const parsed = JSON.parse(xTratContext);
       if (typeof parsed.purp === 'string' && typeof parsed.reqctx?.tool === 'string' && parsed.azd && parsed.rctx) {
@@ -228,8 +232,10 @@ export async function guardToolCall(
         toolArgs,
         tratClaims,
         hitlApproved,
-        null,
+        intentValidation ?? null,
         vertical,
+        undefined,
+        hitlChallengeId,
       ),
     };
 

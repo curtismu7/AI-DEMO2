@@ -11,12 +11,12 @@ function capture() {
 }
 
 describe('teachLogger (agent-service)', () => {
-  it('keeps token visible', () => {
+  it('redacts access_token in structured fields', () => {
     const { lines, stream } = capture();
     const log = createTeachLogger({ service: 'agent-service', level: 'debug', stream });
     log.info('actor token', { access_token: 'eyJ.a.b' });
     expect(lines[0].service).toBe('agent-service');
-    expect(lines[0].access_token).toBe('eyJ.a.b');
+    expect(lines[0].access_token).toBe('[REDACTED]');
   });
   it('step() narrates', () => {
     const { lines, stream } = capture();

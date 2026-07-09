@@ -75,11 +75,14 @@ def _make_tool(schema: dict, emit_fn: Optional[Callable[[dict], Coroutine]]) -> 
                 timeout=30.0,
             )
         if resp.status_code != 200:
-            # Recoverable: hand control back to the model instead of tearing down
-            # the whole run — it can retry, adjust arguments, or report the error.
-            raise ModelRetry(
-                f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {resp.text[:200]}"
-            )
+            # Retry only on transient failures. 4xx (except 408/429) are caller/
+            # authz errors — ModelRetry would amplify BFF load and risk duplicate
+            # side effects on non-idempotent tools.
+            body = resp.text[:200]
+            msg = f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {body}"
+            if resp.status_code >= 500 or resp.status_code in (408, 429):
+                raise ModelRetry(msg)
+            raise RuntimeError(msg)
         try:
             data = resp.json()
         except ValueError as exc:
