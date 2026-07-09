@@ -108,6 +108,30 @@ const GOOGLE_PROVIDERS = new Set(['google']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
 const MLX_PROVIDERS = new Set(['mlx']);
 
+/** Parse a non-none intent JSON object from an LLM reply (strips markdown fences). */
+function tryParseIntentJson(text) {
+  if (!text) return null;
+  const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * Appended to the system prompt on a second attempt when the first LLM reply
+ * was prose or kind:"none". Chip phrases often omit optional write params;
+ * tools fill defaults server-side — do not fall through to conversational.
+ */
+const JSON_RETRY_NUDGE =
+  `\n\nRETRY NOTE: Your previous response was not a valid non-none JSON action. ` +
+  `You MUST output ONLY a JSON object matching one of the allowed shapes above. ` +
+  `No prose, no markdown fences. For dashboard chip phrases with missing optional ` +
+  `params (orderId, product, amount, recordId, rentalId, days, provider, when), ` +
+  `still emit the matching action with params:{} — do NOT emit kind:"none" and ` +
+  `do NOT answer conversationally. The tools fill defaults server-side.`;
+
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
   try {
@@ -365,17 +389,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           { role: 'user', content: message },
         ]);
 
-        const tryParse = (text) => {
-          if (!text) return null;
-          const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-          try {
-            const parsed = JSON.parse(cleaned);
-            if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-          } catch (e) {
-            // not JSON — fall through to refusal-detection retry
-          }
-          return null;
-        };
+        const tryParse = tryParseIntentJson;
 
         let parsed = tryParse(helixResult);
         if (parsed) return logAndReturn({ source: 'helix', result: parsed });
@@ -388,13 +402,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           /\b(cannot|can't|unable|won'?t|not able|do not have access|don't have access|this is a (banking )?demo|log in to your)\b/i.test(helixResult);
         if (helixResult && (looksLikeRefusal || !parsed)) {
           console.warn('[nlIntent] Helix returned non-JSON or refusal — retrying with explicit JSON-only nudge');
-          const nudge = systemWithCtx +
-            `\n\nRETRY NOTE: Your previous response was not valid JSON or was a refusal. ` +
-            `You MUST output ONLY a JSON object matching one of the allowed shapes above. ` +
-            `Do not refuse on privacy/demo grounds — the user is authenticated and tools work. ` +
-            `If unsure, default to {"kind":"banking","banking":{"action":"spending_summary","params":{}}} ` +
-            `for spending/category/percentage questions, {"action":"transactions","params":{}} for ` +
-            `transaction lists, or {"action":"balance","params":{}} for balance questions.`;
+          const nudge = systemWithCtx + JSON_RETRY_NUDGE;
           try {
             const retry = await callHelixAgent(helixConfig, [
               { role: 'system', content: nudge },
@@ -446,17 +454,23 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         messages: [{ role: 'user', content: message }],
       });
       const rawText = response.content?.find((b) => b.type === 'text')?.text;
-      const tryParse = (text) => {
-        if (!text) return null;
-        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-        } catch (_) {}
-        return null;
-      };
-      const parsed = tryParse(rawText);
+      let parsed = tryParseIntentJson(rawText);
       if (parsed) return logAndReturn({ source: 'claude', result: parsed });
+      if (rawText) {
+        console.warn('[nlIntent] Claude returned non-JSON or kind:none — retrying with explicit JSON-only nudge');
+        try {
+          const retry = await client.messages.create({
+            model,
+            max_tokens: 512,
+            system: systemWithCtx + JSON_RETRY_NUDGE,
+            messages: [{ role: 'user', content: message }],
+          });
+          parsed = tryParseIntentJson(retry.content?.find((b) => b.type === 'text')?.text);
+          if (parsed) return logAndReturn({ source: 'claude', result: parsed });
+        } catch (e) {
+          console.warn('[nlIntent] Claude retry failed:', e.message);
+        }
+      }
       llmAttempted = true;
     } catch (err) {
       console.warn('[nlIntent] Claude intent error:', err.message);
@@ -480,17 +494,25 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ], langchainConfig);
-      const tryParse = (text) => {
-        if (!text) return null;
-        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-        } catch (_) {}
-        return null;
-      };
-      const parsed = tryParse(rawText);
+      let parsed = tryParseIntentJson(rawText);
       if (parsed) return logAndReturn({ source: 'google', result: parsed });
+
+      // Retry-on-prose / kind:none — Gemini often answers write-chip phrases in
+      // conversational text (or emits kind:none for missing optional params).
+      // One JSON-only nudge recovers structured routing for dashboard chips.
+      if (rawText) {
+        console.warn('[nlIntent] Gemini returned non-JSON or kind:none — retrying with explicit JSON-only nudge');
+        try {
+          const retry = await callGemini([
+            { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
+            { role: 'user', content: message },
+          ], langchainConfig);
+          parsed = tryParseIntentJson(retry);
+          if (parsed) return logAndReturn({ source: 'google', result: parsed });
+        } catch (e) {
+          console.warn('[nlIntent] Gemini retry failed:', e.message);
+        }
+      }
       llmAttempted = true;
     } catch (err) {
       console.warn('[nlIntent] Gemini intent error:', err.message);
@@ -511,17 +533,21 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
-      const tryParse = (text) => {
-        if (!text) return null;
-        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-        } catch (_) {}
-        return null;
-      };
-      const parsed = tryParse(raw);
+      let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'lmstudio', result: parsed });
+      if (raw) {
+        console.warn('[nlIntent] LM Studio returned non-JSON or kind:none — retrying with explicit JSON-only nudge');
+        try {
+          const retry = await callLmStudio([
+            { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
+            { role: 'user', content: message },
+          ]);
+          parsed = tryParseIntentJson(retry);
+          if (parsed) return logAndReturn({ source: 'lmstudio', result: parsed });
+        } catch (e) {
+          console.warn('[nlIntent] LM Studio retry failed:', e.message);
+        }
+      }
       llmAttempted = true;
     } catch (err) {
       console.warn('[nlIntent] LM Studio intent error:', err.message);
@@ -539,17 +565,21 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
-      const tryParse = (text) => {
-        if (!text) return null;
-        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-        } catch (_) {}
-        return null;
-      };
-      const parsed = tryParse(raw);
+      let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
+      if (raw) {
+        console.warn('[nlIntent] llama.cpp returned non-JSON or kind:none — retrying with explicit JSON-only nudge');
+        try {
+          const retry = await callLlamaCpp([
+            { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
+            { role: 'user', content: message },
+          ]);
+          parsed = tryParseIntentJson(retry);
+          if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
+        } catch (e) {
+          console.warn('[nlIntent] llama.cpp retry failed:', e.message);
+        }
+      }
       llmAttempted = true;
     } catch (err) {
       console.warn('[nlIntent] llama.cpp intent error:', err.message);
@@ -567,17 +597,21 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
-      const tryParse = (text) => {
-        if (!text) return null;
-        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-        } catch (_) {}
-        return null;
-      };
-      const parsed = tryParse(raw);
+      let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'mlx', result: parsed });
+      if (raw) {
+        console.warn('[nlIntent] mlx-lm returned non-JSON or kind:none — retrying with explicit JSON-only nudge');
+        try {
+          const retry = await callMlx([
+            { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
+            { role: 'user', content: message },
+          ]);
+          parsed = tryParseIntentJson(retry);
+          if (parsed) return logAndReturn({ source: 'mlx', result: parsed });
+        } catch (e) {
+          console.warn('[nlIntent] mlx-lm retry failed:', e.message);
+        }
+      }
       llmAttempted = true;
     } catch (err) {
       console.warn('[nlIntent] mlx-lm intent error:', err.message);
@@ -585,45 +619,19 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
-  // Prefer a structured heuristic match over conversational "general knowledge"
-  // when the JSON router did not produce a tool intent. Pure LLM modes
-  // (heuristicRouting:false) still try the LLM first above; if Helix/llama/etc.
-  // return kind:none / non-JSON, chip phrases must not become edu:general-knowledge
-  // and skip the vertical tool. Same for the ff_heuristic_enabled=false path.
+  // Chip floor (all providers / all LLM-only modes): if the JSON router missed
+  // but the heuristic already matched a dashboard chip phrase, return that
+  // action. Do NOT overwrite with conversational general-knowledge — that was
+  // the Google/Helix write-chip miss (checkout, release records, etc.).
+  // Uses heuristicRoutingEnabled (agent_mode + request provider), not only the
+  // legacy ff_heuristic_enabled flag, so gemini/helix/claude/llamacpp/mlx modes
+  // all get the same floor.
   if (heuristicResult && heuristicResult.kind !== 'none') {
-    if (llmAttempted || !heuristicRoutingEnabled) {
-      console.warn(
-        '[nlIntent] LLM JSON intent missed — using structured heuristic match (%s)',
-        heuristicResult.kind === 'banking'
-          ? heuristicResult.banking?.action
-          : heuristicResult.action || heuristicResult.kind,
-      );
-      return { source: 'heuristic', result: heuristicResult, llm_attempted: llmAttempted };
-    }
-  }
-
-  // In LLM-only mode go straight to the conversational answer
-  // from whichever LLM the mode selected (Helix or LM Studio).
-  if (!heuristicEnabled) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
-      console.warn('[nlIntent] conversational LLM failed:', e.message);
-      return null;
-    });
-    if (llmAnswer) {
-      return logAndReturn({ source: conversationalSource(selectedProvider), result: llmAnswer });
-    }
-    // LLM-only mode but no LLM produced an answer (e.g. Helix not configured,
-    // network failure). Fall back to the heuristic so chips and known phrases
-    // still work — never let a UI canned "I didn't catch that" win.
-    if (heuristicResult && heuristicResult.kind !== 'none') {
-      console.warn('[nlIntent] LLM-only mode: no LLM produced an answer — falling back to heuristic');
-      return { source: 'heuristic', result: heuristicResult, llm_attempted: llmAttempted };
-    }
+    console.warn('[nlIntent] JSON router missed — using heuristic chip match');
     return { source: 'heuristic', result: heuristicResult, llm_attempted: llmAttempted };
   }
 
-  // 3. Try the selected LLM for general knowledge questions when banking intent
-  // fails (fallback only) — Helix, LM Studio, llama.cpp, mlx-lm, or Claude.
+  // Open question (no heuristic match): conversational answer from the selected LLM.
   if (
     selectedProvider === 'helix' ||
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
