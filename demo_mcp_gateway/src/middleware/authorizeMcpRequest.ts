@@ -506,7 +506,8 @@ export function buildAuthorizeMcpRequest(
     let _tratClaims: TratClaims | null = null;
     try {
       const xt = _hdr('x-trat-context');
-      if (xt) {
+      // Unsigned X-TraT-Context is demo-only; gate like MCP TratClaimsExtractor.
+      if (xt && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
         const _env = JSON.parse(xt) as {
           cnf?: { jkt?: string };
           reqctx?: { tool?: string }; purp?: string; azd?: unknown; rctx?: unknown; trat_sim?: boolean;

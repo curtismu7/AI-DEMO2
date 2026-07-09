@@ -126,11 +126,17 @@ async function getConsentDecision(consentId, expected = {}) {
     return { valid: false, error: 'Consent not yet decided' };
   }
 
+  const expectedAmount =
+    expected.amount ??
+    expected.params?.amount ??
+    expected.operation?.params?.amount;
   const verification = hitlServiceClient.verifyHitlReceipt(
     status,
     expected.userId,
     expected.agentId,
     expected.tool || status.tool,
+    Date.now(),
+    expectedAmount,
   );
   if (!verification.ok) {
     return { valid: false, error: verification.message || 'HITL receipt invalid' };
