@@ -66,7 +66,7 @@ test("greys out llama.cpp when the server is unreachable", async () => {
     Promise.resolve({ ok: true, json: () => Promise.resolve({ status: "unreachable" }) }),
   );
   render(<AgentModeSelector />);
-  const llamaCppOpt = screen.getByRole("option", { name: /llama\.cpp only/i });
+  const llamaCppOpt = screen.getByRole("option", { name: /llama\.cpp only — unavailable/i });
   await waitFor(() => expect(llamaCppOpt).toBeDisabled());
 });
 

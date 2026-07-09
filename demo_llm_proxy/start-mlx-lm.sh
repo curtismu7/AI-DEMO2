@@ -65,13 +65,18 @@ start_mlx_lm() {
   model_arg="$(resolve_model_arg)"
   echo "🚀 Starting mlx-lm on :${MLX_LM_PORT} (model: ${model_arg})"
 
+  # Keep prompt-cache modest: 4G + Phi-4-mini on a 24GB Mac gets jetsam-killed
+  # under normal desktop pressure, which greys out "MLX (Apple)" in the UI.
+  local cache_size="${MLX_LM_PROMPT_CACHE_SIZE:-1}"
+  local cache_bytes="${MLX_LM_PROMPT_CACHE_BYTES:-512M}"
+
   nohup "$server_bin" \
     --model "$model_arg" \
     --host 0.0.0.0 \
     --port "$MLX_LM_PORT" \
     --max-tokens 4096 \
-    --prompt-cache-size 4 \
-    --prompt-cache-bytes 4G \
+    --prompt-cache-size "$cache_size" \
+    --prompt-cache-bytes "$cache_bytes" \
     >"$LOG_FILE" 2>&1 &
 
   local new_pid=$!

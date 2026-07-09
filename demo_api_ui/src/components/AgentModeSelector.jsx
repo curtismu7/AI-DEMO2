@@ -138,7 +138,11 @@ export default function AgentModeSelector({ compact = false, onChange }) {
             const available = modeAvailable(m.id);
             return (
               <option key={m.id} value={m.id} disabled={!available}>
-                {m.label}{available ? "" : " — not configured"}
+                {m.label}{available ? "" : (
+                  MODE_PROVIDER[m.id] === "llamacpp" || MODE_PROVIDER[m.id] === "mlx"
+                    ? " — unavailable"
+                    : " — not configured"
+                )}
               </option>
             );
           })}
