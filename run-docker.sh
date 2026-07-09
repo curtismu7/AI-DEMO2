@@ -365,6 +365,14 @@ _effective_core_services() {
   done
 }
 
+# When docker-compose.override.yml selects the Vite dev stage, ensure the UI image
+# is built with `target: dev` — otherwise a cached nginx prod image gets `npm start`.
+_dev_ui_build_arg() {
+  if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
+    echo "ui"
+  fi
+}
+
 # Legacy guard: a raw llama-server bound to :8090 shadows the llm-proxy
 # container on IPv4 (both listen; IPv4 clients then hit the wrong backend).
 _clear_8090_squatter() {
@@ -894,6 +902,11 @@ cmd_demo_sync() {
   [[ ${need_demo_gw} -eq 1 ]] && proxy_gw_url="http://mcp-gateway:3005"
   MCP_GATEWAY_HTTP_URL="${proxy_gw_url}" \
     docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps mcp-proxy >/dev/null 2>&1 || true
+  # BFF compose default is ping-gateway:8080; only recreate when Quick Flags select demo GW.
+  if [[ ${need_demo_gw} -eq 1 ]]; then
+    MCP_GATEWAY_HTTP_URL="${proxy_gw_url}" \
+      docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps demo-api-server >/dev/null 2>&1 || true
+  fi
   echo ""
 }
 
@@ -1076,7 +1089,10 @@ cmd_start() {
   else
     ok "Ensuring demo-api-server is up to date..."
     echo ""
-    docker compose "${COMPOSE_FILES[@]}" up -d --build demo-api-server
+    local _boot_build=(demo-api-server)
+    local _ui_dev; _ui_dev="$(_dev_ui_build_arg)"
+    [[ -n "${_ui_dev}" ]] && _boot_build+=("${_ui_dev}")
+    docker compose "${COMPOSE_FILES[@]}" up -d --build "${_boot_build[@]}"
     if [[ "${stack}" == "full" ]]; then
       ok "Starting full stack (core + all compose profiles)..."
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
