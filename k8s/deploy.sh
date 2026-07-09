@@ -5,6 +5,8 @@
 #   ./k8s/deploy.sh                       # full deploy (langchain agent on by default)
 #   ./k8s/deploy.sh status                # show pod/service/ingress status
 #   ./k8s/deploy.sh forward               # port-forward running services to localhost
+#   ./k8s/deploy.sh forward-api           # BFF only (3001) — auto-respawn supervisor
+#   ./k8s/deploy.sh forward-bg [api|core] # same, detached (survives terminal close)
 #   ./k8s/deploy.sh stop-forward          # stop a running port-forward session
 #   ./k8s/deploy.sh extras off            # stop just the investment + mortgage backends (frees memory)
 #   ./k8s/deploy.sh rag on                  # start Code Search / RAG stack on demand
@@ -179,6 +181,8 @@ show_commands() {
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh"                   "full deploy"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh status"            "pod & agent health"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward"           "port-forward to localhost"
+  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward-api"       "BFF :3001 only (auto-respawn)"
+  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward-bg [api]"  "detached forward supervisor"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh stop-forward"      "stop a running port-forward session"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh extras [on|off]"   "stop/start investment + mortgage backends (frees memory)"
   printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh rag [on|off]"      "start/stop Code Search / RAG stack"
@@ -281,19 +285,76 @@ show_status() {
   show_commands
 }
 
-# Print the PIDs (space-separated) of any OTHER running `forward` sessions of
-# this script. Matches by command line, then drops our own process group — the
-# `$(...)` subshells running this check share our cmdline — so only genuinely
-# separate sessions remain. Empty output means none are running.
+FORWARD_BG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/.local/k8s-forward"
+FORWARD_PIDFILE="$FORWARD_BG_DIR/forward.pid"
+FORWARD_LOG="$FORWARD_BG_DIR/forward.log"
+
+# Print the PIDs (space-separated) of any OTHER running forward supervisors.
+# Checks the detached pidfile first, then foreground `deploy.sh forward*` procs.
 find_forward_sessions() {
   local mypgid pids="" pid pgid
+  if [ -f "$FORWARD_PIDFILE" ]; then
+    pid=$(tr -d ' \n' < "$FORWARD_PIDFILE")
+    if [ -n "$pid" ] && [ "$pid" != "$$" ] && kill -0 "$pid" 2>/dev/null; then
+      pids="$pid"
+    fi
+  fi
   mypgid=$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')
-  for pid in $(pgrep -f "$SCRIPT_NAME forward\$" 2>/dev/null); do
+  for pid in $(pgrep -f "$SCRIPT_NAME forward" 2>/dev/null); do
+    [ "$pid" = "$$" ] && continue
+    case "$(ps -p "$pid" -o args= 2>/dev/null)" in
+      *"stop-forward"*) continue ;;
+      *"$SCRIPT_NAME forward"*) ;;
+      *) continue ;;
+    esac
     pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
-    [ "$pgid" = "$mypgid" ] && continue   # our own process group (incl. $$ and its subshells)
+    [ "$pgid" = "$mypgid" ] && continue
+    case " $pids " in *" $pid "*) continue ;; esac
     pids="$pids $pid"
   done
   echo "${pids# }"
+}
+
+# Return the kubectl port-forward specs for the active FORWARD_PROFILE.
+#   api  — BFF only (local Vite dev)
+#   core — UI + BFF
+#   all  — full debug set (default)
+forward_specs_for_profile() {
+  local profile="${FORWARD_PROFILE:-all}"
+  case "$profile" in
+    api)
+      FORWARD_SPECS=(
+        "svc/demo-api-server 3001:3001"
+      )
+      ;;
+    core)
+      FORWARD_SPECS=(
+        "svc/frontend           4000:4000"
+        "svc/demo-api-server 3001:3001"
+      )
+      ;;
+    all|*)
+      FORWARD_SPECS=(
+        "svc/frontend           4000:4000"
+        "svc/demo-api-server 3001:3001"
+        "svc/mcp-server         8080:8080"
+        "svc/mcp-invest         8081:8081"
+        "svc/mortgage-service   8082:8082"
+        "svc/mcp-gateway        3005:3005"
+        "svc/ping-gateway       3036:8080"
+        "svc/mcp-proxy          8895:8895"
+        "svc/llm-proxy          8090:8090"
+        "svc/mcp-code-search    8095:8095"
+        "svc/llamaindex-agent   8894:8894"
+        "svc/agent-service      3016:3006"
+        "svc/hitl-service       3009:3009"
+        "svc/langchain-agent    8888:8888 8889:8889 8890:8890"
+        "svc/openai-agent       8891:8891"
+        "svc/mastra-agent       8892:8892"
+        "svc/pydantic-agent     8893:8893"
+      )
+      ;;
+  esac
 }
 
 port_forward() {
@@ -308,28 +369,11 @@ port_forward() {
 
   # Each entry is the args after `kubectl port-forward -n "$NS"`. A single
   # kubectl port-forward dies when the pod behind it restarts, so we supervise
-  # them: the loop below respawns any that exit. Frontend/BFF are the
-  # externally-facing ports (match docker-compose host ports); the rest are
-  # loopback-only and handy for debugging.
-  local specs=(
-    "svc/frontend           4000:4000"
-    "svc/demo-api-server 3001:3001"
-    "svc/mcp-server         8080:8080"
-    "svc/mcp-invest         8081:8081"
-    "svc/mortgage-service   8082:8082"
-    "svc/mcp-gateway        3005:3005"
-    "svc/ping-gateway       3036:8080"
-    "svc/mcp-proxy          8895:8895"
-    "svc/llm-proxy          8090:8090"
-    "svc/mcp-code-search    8095:8095"
-    "svc/llamaindex-agent   8894:8894"
-    "svc/agent-service      3016:3006"
-    "svc/hitl-service       3009:3009"
-    "svc/langchain-agent    8888:8888 8889:8889 8890:8890"
-    "svc/openai-agent       8891:8891"
-    "svc/mastra-agent       8892:8892"
-    "svc/pydantic-agent     8893:8893"
-  )
+  # them: the loop below respawns any that exit. FORWARD_PROFILE selects which
+  # ports to bind (api = BFF only; core = UI+BFF; all = full debug set).
+  local specs=()
+  forward_specs_for_profile
+  specs=("${FORWARD_SPECS[@]}")
   # Indexed (not associative) arrays — /bin/bash on macOS is 3.2.
   local pids=()
   # A service backed by a replicas:0 deployment (the on-demand agents) has no
@@ -348,15 +392,35 @@ port_forward() {
     kubectl port-forward -n "$NS" ${specs[$1]} >/dev/null & pids[$1]=$!
   }
 
-  cleanup() { trap - INT TERM EXIT; kill "${pids[@]}" 2>/dev/null; exit 0; }
+  cleanup() {
+    trap - INT TERM EXIT
+    kill "${pids[@]}" 2>/dev/null
+    rm -f "$FORWARD_PIDFILE"
+    exit 0
+  }
   trap cleanup INT TERM EXIT
 
-  info "Port-forwarding — Ctrl-C to stop. Dropped forwards auto-respawn."
+  if [ -n "${FORWARD_DETACHED:-}" ]; then
+    echo $$ > "$FORWARD_PIDFILE"
+  fi
+
+  info "Port-forwarding (${FORWARD_PROFILE:-all}) — Ctrl-C to stop. Dropped forwards auto-respawn."
   local i
   for i in "${!specs[@]}"; do start_fwd "$i"; done
   echo
-  echo -e "  🌐  ${BLUE}https://api.ping.demo:4000${NC}  (UI)"
-  echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+  case "${FORWARD_PROFILE:-all}" in
+    api)
+      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      ;;
+    core)
+      echo -e "  🌐  ${BLUE}https://api.ping.demo:4000${NC}  (UI)"
+      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      ;;
+    *)
+      echo -e "  🌐  ${BLUE}https://api.ping.demo:4000${NC}  (UI)"
+      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      ;;
+  esac
   echo
   success "Forwards up for running services. Watching for drops..."
 
@@ -379,6 +443,40 @@ port_forward() {
       fi
     done
   done
+}
+
+# BFF-only forward — for local Vite on :4000 with K8s API on :3001.
+forward_api() {
+  FORWARD_PROFILE=api port_forward
+}
+
+# Detached supervisor — survives terminal close; auto-respawns dropped forwards.
+forward_bg() {
+  local profile="${1:-api}"
+  case "$profile" in
+    api|core|all) ;;
+    *)
+      die "forward-bg profile must be api, core, or all (got: $profile)"
+      ;;
+  esac
+  local others; others=$(find_forward_sessions)
+  if [ -n "$others" ]; then
+    success "Forward supervisor already running (PID: $others). Log: $FORWARD_LOG"
+    return 0
+  fi
+  mkdir -p "$FORWARD_BG_DIR"
+  : > "$FORWARD_LOG"
+  FORWARD_PROFILE="$profile" FORWARD_DETACHED=1 nohup "$SCRIPT_DIR/deploy.sh" forward >>"$FORWARD_LOG" 2>&1 &
+  sleep 1
+  if [ -f "$FORWARD_PIDFILE" ] && kill -0 "$(tr -d ' \n' < "$FORWARD_PIDFILE")" 2>/dev/null; then
+    success "Port-forward supervisor started in background (profile=$profile, PID=$(tr -d ' \n' < "$FORWARD_PIDFILE"))"
+  else
+    warn "Supervisor may have failed to start — check $FORWARD_LOG"
+    tail -5 "$FORWARD_LOG" 2>/dev/null || true
+    return 1
+  fi
+  success "BFF: https://api.ping.demo:3001 — log: $FORWARD_LOG"
+  success "Stop with: ./k8s/deploy.sh stop-forward"
 }
 
 # Cleanly stop any running `forward` session. TERM lets each supervisor's
@@ -406,6 +504,7 @@ stop_forward() {
     # KILL skips the cleanup trap, so reap any orphaned kubectl forwards.
     pkill -f "kubectl port-forward -n $NS" 2>/dev/null || true
   fi
+  rm -f "$FORWARD_PIDFILE"
   success "Forward session(s) stopped."
 }
 
@@ -660,6 +759,8 @@ case "${1:-deploy}" in
   deploy)        check_prereqs; deploy ;;
   status)        show_status ;;
   forward)       port_forward ;;
+  forward-api)   forward_api ;;
+  forward-bg)    forward_bg "${2:-api}" ;;
   # Exit 0 if a forward session is running, 1 if not — lets run-k8.sh reuse
   # find_forward_sessions (the one source of truth) for its post-deploy hint.
   forward-status) [ -n "$(find_forward_sessions)" ] ;;

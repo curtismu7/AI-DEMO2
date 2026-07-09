@@ -1594,7 +1594,7 @@ _setBffPipelineDeps({
   getSessionAccessToken,
   callToolLocal,
   mcpCallTool,
-  callToolViaGateway: (url, tok, t, p, o) => mcpGatewayClient.callToolViaGateway(url, tok, t, p, o),
+  callToolViaGateway: (url, tok, t, p, o) => mcpGatewayClient.callToolViaResolvedGateway(url, tok, t, p, o),
   http2Bridge: http2McpBridge,
   pingoneAdapter: mcpPingOneHttpAdapter,
   buildTokenEvent,
@@ -1620,8 +1620,15 @@ _setBffPipelineDeps({
   emit: () => {},  // fallback no-op; executeBffTool binds a trace-aware emit per call
   config: {
     get introspectionConfigured() { return !!process.env.PINGONE_INTROSPECTION_ENDPOINT; },
-    get useGateway() { return !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url')); },
-    get gatewayHttpUrl() { return mcpGatewayClient.getMcpGatewayHttpUrl(); },
+    get useGateway() {
+      const { isBedrockGatewayEffective } = require('./services/bedrockPathGate');
+      return !!(
+        process.env.MCP_GATEWAY_HTTP_URL
+        || configStore.getEffective('mcp_gateway_http_url')
+        || isBedrockGatewayEffective()
+      );
+    },
+    get gatewayHttpUrl() { return mcpGatewayClient.resolveMcpGatewayTransport().url; },
     get mcpUrl() { return getMcpServerUrl(); },
     get mcpServerUrlEnv() { return process.env.MCP_SERVER_URL; },
     get useHttp2() {
@@ -1792,7 +1799,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
         getSessionAccessToken,
         callToolLocal,
         mcpCallTool,
-        callToolViaGateway: (url, tok, t, p, o) => mcpGatewayClient.callToolViaGateway(url, tok, t, p, o),
+        callToolViaGateway: (url, tok, t, p, o) => mcpGatewayClient.callToolViaResolvedGateway(url, tok, t, p, o),
         http2Bridge: http2McpBridge,
         pingoneAdapter: mcpPingOneHttpAdapter,
         buildTokenEvent,

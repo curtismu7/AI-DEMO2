@@ -698,6 +698,39 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
 
+  // ── AWS / Bedrock (EKS only — gated by AWS_DEPLOYMENT=1) ───────────────────
+  {
+    id:           'ff_bedrock_agentcore_gateway',
+    name:         'Bedrock AgentCore Gateway',
+    category:     'AWS / Bedrock',
+    description:
+      'Route MCP tool calls through **Amazon Bedrock AgentCore Gateway** on AWS EKS. ' +
+      'Complements the Demo Agent Gateway and PingOne Agent Gateway; local dev is unchanged. ' +
+      'Requires `AWS_DEPLOYMENT=1` and `AGENTCORE_GATEWAY_URL` in the environment.',
+    impact:
+      'OFF (default) = demo_mcp_gateway / PingGateway path unchanged. ' +
+      'ON + AWS deployment = MCP tools/call via AgentCore Gateway (billable AWS service).',
+    type:         'boolean',
+    defaultValue: false,
+    warnIfEnabled: true,
+    runtimeKey:   'bedrockGatewayEnabled',
+  },
+  {
+    id:           'ff_bedrock_llm',
+    name:         'Bedrock LLM',
+    category:     'AWS / Bedrock',
+    description:
+      'Use **Amazon Bedrock Converse** for agent reasoning on AWS EKS instead of llama.cpp / Helix. ' +
+      'Default model is cost-conscious (Haiku). Requires `AWS_DEPLOYMENT=1`, IRSA, and `BEDROCK_MODEL_ID`.',
+    impact:
+      'OFF (default) = local / in-cluster LLM unchanged. ' +
+      'ON + AWS deployment = agent-service calls Bedrock (pay-per-token).',
+    type:         'boolean',
+    defaultValue: false,
+    warnIfEnabled: true,
+    runtimeKey:   'bedrockLlmEnabled',
+  },
+
   // ── CIBA ───────────────────────────────────────────────────────────────────
   {
     id:           'ciba_enabled',

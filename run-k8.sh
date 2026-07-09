@@ -9,6 +9,8 @@
 #   ./run-k8.sh deploy --agent=openai    #   and start the openai agent
 #   ./run-k8.sh forward                  # kill stale procs, then port-forward all services
 #                                        #   (supervised: dropped forwards auto-respawn)
+#   ./run-k8.sh forward-api              # BFF :3001 only (for local Vite on :4000)
+#   ./run-k8.sh forward-bg [api|core]    # detached supervisor (survives terminal close)
 #   ./run-k8.sh kill                     # kill ai-demo port-forwards + stray demo-port listeners
 #   ./run-k8.sh stop                     # clear forwards + scale all workloads to 0 (keep config; frees memory)
 #   ./run-k8.sh extras off               # stop just the investment + mortgage backends (frees memory; 'extras on' restores)
@@ -236,6 +238,15 @@ forward() {
   # up, at the very end of the output.
   RUNK8_POST_FORWARD_BANNER="$(logs_banner; done_banner)" \
     bash "$K8S_DIR/deploy.sh" forward
+}
+
+forward_api() {
+  RUNK8_POST_FORWARD_BANNER="$(logs_banner; done_banner)" \
+    FORWARD_PROFILE=api bash "$K8S_DIR/deploy.sh" forward
+}
+
+forward_bg() {
+  bash "$K8S_DIR/deploy.sh" forward-bg "${1:-api}"
 }
 
 # How to see each service's logs. Printed at the end of every run that leaves
@@ -540,7 +551,9 @@ case "${1:-all}" in
   all)        check_prereqs; kill_all; build; deploy; forward ;;
   build)      build ;;
   deploy)     check_prereqs; deploy; kill_all; forward ;;
-  forward)    check_prereqs; kill_all; forward ;;
+  forward)      check_prereqs; kill_all; forward ;;
+  forward-api)  check_prereqs; kill_all; forward_api ;;
+  forward-bg)   check_prereqs; forward_bg "${2:-api}" ;;
   kill)       kill_all ;;
   stop)       check_prereqs; stop ;;
   extras)     check_prereqs; extras "${2:-}" ;;
@@ -561,7 +574,7 @@ case "${1:-all}" in
   aws-all)    aws_build; aws_deploy; aws_finish ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-undeploy|aws-build|aws-deploy|aws-all|help}"
+    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-undeploy|aws-build|aws-deploy|aws-all|help}"
     exit 1
     ;;
 esac
