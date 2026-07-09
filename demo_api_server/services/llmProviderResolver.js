@@ -17,11 +17,20 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock', model: string|undefined }}
  */
+const { isBedrockLlmEffective } = require('./bedrockPathGate');
+
 function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
   const model = langchainConfig?.model;
+
+  if (isBedrockLlmEffective() && (!requested || requested === 'bedrock')) {
+    return {
+      provider: 'bedrock',
+      model: model || process.env.BEDROCK_MODEL_ID,
+    };
+  }
 
   if (requested === 'openai' || requested === 'anthropic' || requested === 'google') {
     // Pass-through: :3006 enforces credential presence and fails fast.

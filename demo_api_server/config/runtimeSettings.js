@@ -35,6 +35,10 @@ const settings = {
   agentTransactionCountLimit: parseFloat(process.env.AGENT_TRANSACTION_COUNT_LIMIT) || 0,
   agentTransactionValueLimit: parseFloat(process.env.AGENT_TRANSACTION_VALUE_LIMIT) || 0,
   pingonesMfaPolicyId: process.env.PINGONE_MFA_POLICY_ID || '',
+
+  // AWS / Bedrock (EKS path — default OFF; mirrored from feature flags)
+  bedrockGatewayEnabled: false,
+  bedrockLlmEnabled: false,
 };
 
 // Change history kept in-memory for the admin UI audit trail

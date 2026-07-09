@@ -325,6 +325,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
   ff_mcp_rate_limit:               { public: true, default: 'false' }, // UC18: enable per-agent/per-tool sliding-window rate limiting at the MCP gateway (429 on burst). Requires GATEWAY_RATE_LIMIT_ENABLED=true on the gateway process.
+  ff_bedrock_agentcore_gateway:    { public: false, default: 'false' }, // EKS: route MCP via AgentCore Gateway (requires AWS_DEPLOYMENT=1)
+  ff_bedrock_llm:                  { public: false, default: 'false' }, // EKS: Bedrock Converse LLM (requires AWS_DEPLOYMENT=1)
   // MCP Gateway passthrough mode — when true the gateway forwards MCP requests
   // directly to the MCP server without performing a downstream token exchange.
   // Consumed by demo_mcp_gateway/src/config.ts via process.env (gateway service);
@@ -1059,6 +1061,8 @@ class ConfigStore {
       ff_a2a_delegation:               ['FF_A2A_DELEGATION'],
       ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
       ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
+      ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
+      ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
       pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
       ff_authorize_simulated:          ['FF_AUTHORIZE_SIMULATED'],
       pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
@@ -1953,6 +1957,8 @@ async function syncOAuthEndpointsToLmdb() {
     ff_a2a_delegation:          'FF_A2A_DELEGATION',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+    ff_bedrock_agentcore_gateway: 'FF_BEDROCK_AGENTCORE_GATEWAY',
+    ff_bedrock_llm:             'FF_BEDROCK_LLM',
     ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
   };
   let ffSynced = 0;

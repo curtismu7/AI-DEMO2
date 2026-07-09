@@ -484,6 +484,23 @@ function _parseGwAuditTrail(response) {
     }
 }
 
+/**
+ * Resolve which MCP gateway transport is active (demo/PingGateway vs AgentCore).
+ * @returns {{ kind: 'agentcore'|'demo', url: string }}
+ */
+function resolveMcpGatewayTransport() {
+    return require('./mcpGatewayTransport').resolveMcpGatewayTransport();
+}
+
+/**
+ * Route MCP tools/call through the effective gateway (AgentCore or demo/PingGateway).
+ */
+async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
+    return require('./mcpGatewayTransport').callToolViaResolvedGateway(
+        gatewayUrl, bearerToken, tool, params, opts,
+    );
+}
+
 function getMcpGatewayHttpUrl() {
     // ff_mcp_gateway_pinggateway: a runtime user choice (via /config) to route MCP
     // traffic through PingGateway (IG) instead of the Node gateway. When ON and a
@@ -507,4 +524,9 @@ function getMcpGatewayHttpUrl() {
     return url.replace(/\/$/, '');
 }
 
-module.exports = { callToolViaGateway, getMcpGatewayHttpUrl };
+module.exports = {
+    callToolViaGateway,
+    callToolViaResolvedGateway,
+    getMcpGatewayHttpUrl,
+    resolveMcpGatewayTransport,
+};

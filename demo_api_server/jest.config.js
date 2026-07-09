@@ -3,6 +3,8 @@ module.exports = {
   // uuid v9+ is ESM-only; Jest runs CJS — redirect to a minimal CJS shim.
   moduleNameMapper: {
     '^uuid$': '<rootDir>/src/__tests__/__mocks__/uuid-cjs.js',
+    '^express$': '<rootDir>/tests/__mocks__/express.js',
+    '^axios$': '<rootDir>/tests/__mocks__/axios.js',
   },
   // CI runs many suites in parallel across packages; cap workers to reduce flaky supertest/socket errors.
   ...(process.env.CI === 'true' ? { maxWorkers: 2 } : {}),
