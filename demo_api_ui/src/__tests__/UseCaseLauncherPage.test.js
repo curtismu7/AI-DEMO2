@@ -41,6 +41,13 @@ vi.mock('../vertical/useVertical', () => ({
   useVertical: () => ({ activeId: 'banking' }),
 }));
 
+// VerticalSwitcher hits /api/verticals/list — stub as empty so the picker stays quiet in unit tests.
+vi.mock('../components/VerticalSwitcher', () => ({
+  default: function VerticalSwitcherStub() {
+    return null;
+  },
+}));
+
 // Import apiClient after mocking
 import apiClient from '../services/apiClient';
 
@@ -232,11 +239,17 @@ describe('UseCaseLauncherPage', () => {
     await waitFor(() =>
       expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', {
         useCaseId: 'delegated-access-with-proof',
+        vertical: 'banking',
       }),
     );
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
-        state: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip' },
+        state: {
+          useCaseId: 'delegated-access-with-proof',
+          triggerText: 'show my balance',
+          type: 'chip',
+          vertical: 'banking',
+        },
       }),
     );
   });

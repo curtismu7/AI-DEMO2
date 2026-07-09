@@ -63,7 +63,7 @@ function buildSportingGoodsTools(store) {
       description: 'Extend an active rental. Requires confirmation.',
       inputSchema: {
         type: 'object',
-        properties: { rentalId: { type: 'string' }, days: { type: 'number' } },
+        properties: { rentalId: { type: 'string' }, days: { type: 'number' }, amount: { type: 'number' } },
         required: ['rentalId'],
       },
       scopes: ['write'],

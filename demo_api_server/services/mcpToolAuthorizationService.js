@@ -108,6 +108,14 @@ const WRITE_TOOL_TYPE_MAP = {
   create_transfer: 'transfer',
   create_deposit: 'deposit',
   create_withdrawal: 'withdrawal',
+  // Vertical amount-gated writes (use-case launcher UC6/7/8 per vertical).
+  pay_bill: 'transfer',
+  checkout: 'transfer',
+  pay_fee: 'transfer',
+  pay_tuition_balance: 'transfer',
+  submit_expense: 'transfer',
+  extend_rental: 'transfer',
+  approve_purchase_order: 'transfer',
 };
 
 /**

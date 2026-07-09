@@ -23,7 +23,7 @@ describe('GET /api/use-cases', () => {
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('healthcare');
     const uc7 = res.body.useCases.find((u) => u.id === 'UC7');
-    expect(uc7.trigger.text).toBe('pay my $600 specialist claim');
+    expect(uc7.trigger.text).toBe('pay my $600 bill');
   });
 
   test('rejects an unknown vertical with 400', async () => {

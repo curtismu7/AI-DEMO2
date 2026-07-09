@@ -16,6 +16,7 @@ import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
 import { MODE_PROVIDER } from '../config/agentModes';
+import VerticalSwitcher from '../components/VerticalSwitcher';
 import './UseCaseLauncherPage.css';
 // A8 -- Ping product attribution
 import { PingProductChip } from '../components/PingProductChip';
@@ -68,7 +69,6 @@ const PROGRESSIVE_TRUST_ACT_MAP = [
     actLabel: 'Act 2',
     title: 'Authenticated access',
     sourceId: 'UC1',
-    chipDisplay: 'Show my account balances',
     presenterLine: 'Same progressive pattern as member rates in the Ping blog — authenticate when value is clear, with full act-chain visibility.',
   },
   {
@@ -686,7 +686,7 @@ export default function UseCaseLauncherPage() {
       return;
     }
     setChipRun({ id: uc.id, state: 'running' });
-    apiClient.post('/api/use-cases/demo/run', { useCaseId })
+    apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => {
         // Navigation unmounts this page, so chipRun need not be cleared here.
         navigate('/dashboard', {
@@ -694,6 +694,7 @@ export default function UseCaseLauncherPage() {
             useCaseId: data.useCaseId,
             triggerText: data.triggerText,
             type: data.type,
+            vertical,
           }
         });
       })
@@ -701,7 +702,7 @@ export default function UseCaseLauncherPage() {
         console.error('Failed to run use case:', err);
         setChipRun({ id: uc.id, state: 'error', msg: formatAxiosError(err, 'Failed to launch scenario') });
       });
-  }, [navigate]);
+  }, [navigate, vertical]);
 
   // Link-type use cases (developer tools) just navigate to their page.
   const handleOpen = useCallback((uc) => {
@@ -764,6 +765,10 @@ export default function UseCaseLauncherPage() {
         <p className="uc-launcher__subtitle">
           {useCases.length} security use cases grouped by demo track. Click Run to launch a scenario in the agent.
         </p>
+        <div className="uc-launcher__vertical-picker" data-testid="uc-vertical-picker">
+          <span className="uc-launcher__vertical-label">Vertical</span>
+          <VerticalSwitcher variant="pills" />
+        </div>
       </header>
 
       {grouped.map(({ track, items }) => {

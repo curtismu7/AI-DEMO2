@@ -12,7 +12,7 @@ const HEURISTICS = [
   { re: /\b(cancel|drop|withdraw)\b.*\b(registration|enrollment|course|section|class)\b/i, action: 'cancel_course_registration', extractsRecordId: true },
   { re: /\bwaitlist\b.{0,25}\b(course|class|section)\b|\bjoin\b.{0,15}\bwaitlist\b/i, action: 'waitlist_course', extractsRecordId: true },
   { re: /\baccept\b.{0,25}\b(aid|grant|loan|award|scholarship)\b/i, action: 'accept_financial_aid', extractsRecordId: true },
-  { re: /\b(pay|make\s+a\s+payment|settle)\b.{0,25}\b(tuition|bill|balance|invoice|charge)\b/i, action: 'pay_tuition_balance', extractsRecordId: true },
+  { re: /\b(pay|make\s+a\s+payment|settle)\b.{0,25}\b(tuition|bill|balance|invoice|charge)\b/i, action: 'pay_tuition_balance', extractsAmount: true, extractsRecordId: true },
   { re: /\b(clear|release|remove|resolve)\b.{0,20}\bhold\b/i, action: 'release_hold', extractsRecordId: true },
   { re: /\b(request|apply\s+for|change|update)\b.{0,25}\b(housing|dorm|residence\s+hall|room)\b/i, action: 'request_housing_assignment', extractsRecordId: true },
   { re: /\b(renew|extend|reactivate)\b.{0,20}\b(parking|permit)\b/i, action: 'renew_parking_permit', extractsRecordId: true },

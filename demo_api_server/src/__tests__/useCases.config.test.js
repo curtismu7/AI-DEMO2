@@ -77,12 +77,80 @@ describe('useCases catalog SoT', () => {
     const base = getUseCase('UC7');
     const hc = resolveUseCase('UC7', 'healthcare');
     expect(hc.trigger.text).toBe(base.perVertical.healthcare.trigger.text);
+    expect(hc.trigger.text).toBe('pay my $600 bill');
+    expect(hc.whatToSay).toMatch(/step-up/i);
     // unspecified fields fall through to the base
     expect(hc.track).toBe(base.track);
     // banking / no vertical returns base values
     expect(resolveUseCase('UC7', 'banking').trigger.text).toBe(base.trigger.text);
     expect(resolveUseCase('UC7').trigger.text).toBe(base.trigger.text);
     expect(resolveUseCase('NOPE', 'healthcare')).toBeUndefined();
+  });
+
+  test('chip triggers resolve to vertical-specific phrases for every VERTICALS entry', () => {
+    const expected = {
+      banking: {
+        UC1: 'show my balance',
+        UC6: 'transfer $2500 to savings',
+        UC7: 'transfer $600 to savings',
+        UC8: 'transfer $300 to savings',
+        UC24: 'What branches are near me?',
+      },
+      healthcare: {
+        UC1: 'check my coverage',
+        UC6: 'pay my $2500 bill',
+        UC7: 'pay my $600 bill',
+        UC8: 'pay my $300 bill',
+        UC24: 'What clinics are near me?',
+      },
+      retail: {
+        UC1: 'list my orders',
+        UC6: 'checkout headphones for $2500',
+        UC7: 'checkout headphones for $600',
+        UC8: 'checkout headphones for $300',
+        UC24: 'What stores are near me?',
+      },
+      government: {
+        UC1: 'show my permits',
+        UC6: 'pay the $2500 fee',
+        UC7: 'pay the $600 fee',
+        UC8: 'pay the $300 fee',
+        UC24: 'What city offices are near me?',
+      },
+      university: {
+        UC1: 'show my enrolled courses',
+        UC6: 'pay $2500 tuition',
+        UC7: 'pay $600 tuition',
+        UC8: 'pay $300 tuition',
+        UC24: 'What campus locations are near me?',
+      },
+      workforce: {
+        UC1: 'my benefits',
+        UC6: 'submit a $2500 expense',
+        UC7: 'submit a $600 expense',
+        UC8: 'submit a $300 expense',
+        UC24: 'What office locations are near me?',
+      },
+      'sporting-goods': {
+        UC1: 'my gear',
+        UC6: 'extend my rental $2500',
+        UC7: 'extend my rental $600',
+        UC8: 'extend my rental $300',
+        UC24: 'What stores are near me?',
+      },
+      manufacturing: {
+        UC1: 'show my work orders',
+        UC6: 'approve a $2500 purchase order',
+        UC7: 'approve a $600 purchase order',
+        UC8: 'approve a $300 purchase order',
+        UC24: 'What plant locations are near me?',
+      },
+    };
+    for (const vertical of VERTICALS) {
+      for (const [id, text] of Object.entries(expected[vertical])) {
+        expect(resolveUseCase(id, vertical).trigger.text).toBe(text);
+      }
+    }
   });
 
   test('listUseCases returns all 34 resolved for a vertical', () => {
