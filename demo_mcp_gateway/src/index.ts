@@ -49,7 +49,7 @@ import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
-import { validateIntentToken } from './intentTokenValidator';
+import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -176,6 +176,9 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       resource_documentation: 'https://datatracker.ietf.org/doc/html/rfc9728',
     };
     if (asList.length) metadata.authorization_servers = asList;
+    if (isEnterpriseManagedMcpAuthEnabled()) {
+      metadata.extensions = buildEnterpriseExtensionBlock();
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
     res.end(JSON.stringify(metadata, null, 2));

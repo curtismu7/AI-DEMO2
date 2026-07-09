@@ -56,6 +56,8 @@ const oauthConfig = require('../config/oauth');
 const { validateToken: jwksValidateUserToken } = require('./tokenValidationService');
 const { getSessionDpopKey } = require('./dpopKeyService');
 const scopeTopology = require('./scopeTopology');
+const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
+const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 
 /** Read a boolean feature flag from configStore (accepts true | 'true'). */
 function _flagOn(key) {
@@ -888,6 +890,57 @@ async function performDualModeTokenExchange(userToken, actorToken, mcpResourceUr
   return null;
 }
 
+/**
+ * Enterprise-managed MCP path (Phase 2): IT policy gate + RFC 8693 as ID-JAG stand-in.
+ * Throws with structured codes when policy denies or flag is off.
+ */
+async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
+  if (!isEnterpriseManagedFlagOn()) {
+    const err = new Error('Enterprise-managed MCP authorization is not enabled.');
+    err.code = 'enterprise_mcp_not_enabled';
+    err.httpStatus = 400;
+    err.tokenEvents = tokenEvents;
+    throw err;
+  }
+
+  const policy = await enterpriseMcpPolicy.checkPolicy(req);
+  if (!policy.allowed) {
+    const err = new Error(policy.message || 'Enterprise MCP policy denied.');
+    err.code = policy.code || 'enterprise_mcp_policy_denied';
+    err.httpStatus = policy.httpStatus || 403;
+    err.tokenEvents = tokenEvents;
+    throw err;
+  }
+
+  if (req.session && !req.session.agentConsentGiven) {
+    req.session.agentConsentGiven = true;
+    req.session.agentConsentedAt = new Date().toISOString();
+    req.session.enterpriseMcpAutoConnect = true;
+  }
+
+  tokenEvents.push(buildTokenEvent(
+    'enterprise-managed-mode',
+    'Enterprise-Managed MCP — IT policy passed (no Connect MCP step)',
+    'active',
+    null,
+    'Enterprise-managed mode is ON. The user passed IT group/population policy. ' +
+      'RFC 8693 token exchange below is an ID-JAG equivalent stand-in until PingOne ships native ID-JAG.',
+    {
+      rfc: 'MCP Enterprise-Managed Authorization',
+      idJagStandIn: true,
+      matchDetail: policy.matchDetail || null,
+      resourceUris: enterpriseMcpPolicy.getAllowedResourceUris(),
+    }
+  ));
+
+  logAppEvent('enterprise_mcp', 'info', 'enterprise_mcp.token_issued — proceeding to RFC 8693 stand-in exchange', {
+    tag: 'enterprise_mcp/token_issued',
+    metadata: { matchDetail: policy.matchDetail, userSub: req.session?.user?.oauthId },
+  });
+
+  return policy;
+}
+
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   logger.debug(_CAT, `[AGENT_MCP] resolveAccessToken tool=${tool} session=${req.sessionID}`);
 
@@ -1138,6 +1191,9 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  if (isEnterpriseManagedFlagOn()) {
+    await resolveMcpTokenEnterpriseManaged(req, tokenEvents);
+  }
 
   // ── ff_skip_token_exchange — direct user token path (no RFC 8693) ────────
   // When ON the user access token is forwarded to MCP unchanged. No actor token
@@ -1579,12 +1635,19 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     const audMatches = mcpTokenAud === mcpResourceUri ||
       (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(mcpResourceUri));
 
+    const enterpriseStandIn = isEnterpriseManagedFlagOn();
+    const standInNote = enterpriseStandIn
+      ? ' ID-JAG equivalent (RFC 8693 stand-in) — native ID-JAG pending PingOne product support.'
+      : '';
+
     tokenEvents.push(buildTokenEvent(
       'exchanged-token',
-      'MCP access token (delegated) → MCP server',
+      enterpriseStandIn
+        ? 'MCP access token (ID-JAG equivalent — RFC 8693 stand-in) → MCP server'
+        : 'MCP access token (delegated) → MCP server',
       'exchanged',
       mcpAccessTokenDecoded,
-      'PingOne issued the MCP access token. ' +
+      'PingOne issued the MCP access token.' + standInNote + ' ' +
       (mcpAccessTokenClaims?.act
         ? `act: ${JSON.stringify(mcpAccessTokenClaims.act)} — the Backend-for-Frontend (BFF) is acting on behalf of the user. ` +
           'Resource servers use act to identify the current actor for audit and policy decisions.'
@@ -1603,6 +1666,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
         audExpected: mcpResourceUri,
         audActual: mcpTokenAud,
         scopeNarrowed: effectiveToolScopes.join(' '),
+        idJagStandIn: enterpriseStandIn,
         exchangeRequest: {
           grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
           subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',

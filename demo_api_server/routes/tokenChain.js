@@ -37,6 +37,30 @@ router.get('/', async (req, res) => {
         totalEvents: tokenChain.length,
         totalMCPToolCalls: mcpToolCallsChain.length,
         synthetic,
+        enterpriseManagedMode: (() => {
+          try {
+            const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+            return enterpriseMcpPolicy.isEnabled();
+          } catch {
+            return false;
+          }
+        })(),
+        mcpAuthMode: (() => {
+          try {
+            const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+            return enterpriseMcpPolicy.isEnabled() ? 'enterprise-managed' : 'consumer';
+          } catch {
+            return 'consumer';
+          }
+        })(),
+        idJagStandIn: (() => {
+          try {
+            const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+            return enterpriseMcpPolicy.isEnabled();
+          } catch {
+            return false;
+          }
+        })(),
         lastUpdated: new Date().toISOString()
       }
     }));

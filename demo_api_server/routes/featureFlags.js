@@ -680,6 +680,22 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_enterprise_managed_mcp_auth',
+    name:         'Enterprise-Managed MCP Authorization',
+    category:     'MCP / Agent',
+    description:
+      'Enables MCP Enterprise-Managed Authorization (io.modelcontextprotocol/enterprise-managed-authorization). ' +
+      'IT policy gates MCP access by PingOne group/population; employees skip the Connect MCP consent step. ' +
+      'RFC 8693 token exchange runs as an ID-JAG stand-in until PingOne ships native ID-JAG. ' +
+      'See Learning Hub → Enterprise-Managed Authorization.',
+    impact:
+      'OFF (default) = consumer flow unchanged (user consent + RFC 8693 delegation). ' +
+      'ON = RFC 9728 metadata advertises the extension; enterprise policy gate applies; denied users get 403 enterprise_mcp_policy_denied.',
+    type:         'boolean',
+    defaultValue: false,
+    docsUrl:      '/learning-hub?edu=enterprise-managed-auth',
+  },
+  {
     id:           'ff_mcp_rate_limit',
     name:         'UC18 Gateway Rate Limiting',
     category:     'MCP / Agent',
@@ -787,6 +803,7 @@ function resolveFlag(flag) {
 const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+  ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
   ff_helix_lmstudio_fallback: 'FF_HELIX_LMSTUDIO_FALLBACK',

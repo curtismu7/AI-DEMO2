@@ -616,6 +616,18 @@ router.get('/callback', async (req, res) => {
         req.session.stepUpReturnTo = stepUpReturnTo;
       }
 
+      // Enterprise-managed MCP: evaluate IT policy after SSO login (auto-connect when allowed).
+      const bootstrapEnterprise = async () => {
+        try {
+          const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+          if (!enterpriseMcpPolicy.isEnabled()) return;
+          await enterpriseMcpPolicy.establishEnterpriseSession(req);
+        } catch (e) {
+          console.warn('[oauth/user/callback] enterprise MCP policy check skipped:', e.message);
+        }
+      };
+
+      bootstrapEnterprise().finally(() => {
       req.session.save((saveErr) => {
         if (saveErr) {
           console.error('[oauth/user/callback] Session save FAILED — aborting login (no _auth cookie):', saveErr.message);
@@ -676,6 +688,7 @@ router.get('/callback', async (req, res) => {
         } else {
           res.redirect(`${origin}/dashboard?oauth=success${ssoParam}`);
         }
+      });
       });
     });
     
@@ -774,12 +787,27 @@ router.get('/status', (req, res) => {
     : 'token_expired';
 
   // In-app consent flag — set by POST /api/auth/oauth/user/consent (no PingOne dependency)
-  const consentGiven = isAuthenticated && req.session.agentConsentGiven === true;
+  // Enterprise-managed mode auto-grants consent when IT policy passes.
+  const enterpriseManagedMode = (() => {
+    try {
+      const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+      return isAuthenticated && enterpriseMcpPolicy.isEnabled();
+    } catch {
+      return false;
+    }
+  })();
+  const enterprisePolicy = req.session?.enterpriseMcpPolicy || null;
+  const consentGiven = isAuthenticated && (
+    req.session.agentConsentGiven === true ||
+    (enterpriseManagedMode && enterprisePolicy?.allowed === true)
+  );
 
   res.json({
     authenticated: isAuthenticated,
     staleSession,
     staleReason,
+    enterpriseManagedMode,
+    enterpriseMcpPolicy: enterprisePolicy,
     user: isAuthenticated ? {
       id: req.session.user.id,
       username: req.session.user.username,

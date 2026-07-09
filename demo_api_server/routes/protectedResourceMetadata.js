@@ -23,6 +23,7 @@
 
 const express = require('express');
 const router  = express.Router();
+const { buildExtensionBlock, isEnterpriseManagedFlagOn } = require('../services/enterpriseMcpMetadata');
 
 /**
  * Build the RFC 9728 Protected Resource Metadata document.
@@ -58,6 +59,10 @@ function buildMetadata(req) {
 
   if (asList.length > 0) {
     doc.authorization_servers = asList;
+  }
+
+  if (isEnterpriseManagedFlagOn()) {
+    doc.extensions = buildExtensionBlock();
   }
 
   return doc;
@@ -112,3 +117,4 @@ router.get('/all', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.buildMetadata = buildMetadata;
