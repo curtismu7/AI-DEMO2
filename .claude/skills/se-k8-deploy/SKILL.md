@@ -40,7 +40,7 @@ Run through in order. Do not skip to `se-all` until kubectl reaches the SE clust
 | 4 | **kubectl context `us`** | `kubectl config get-contexts` shows `us` |
 | 5 | **OIDC login** | `kubens ping-devops-cmuir` completes (browser popup) |
 | 6 | **GHCR push scope** | `gh auth refresh -h github.com -s write:packages` |
-| 7 | **Repo `.env`** | `demo_api_server/.env` provisioned (`npm run setup:fresh` or copied from dev); includes `PING_EMAIL` for namespace derivation |
+| 7 | **Repo `.env`** | `demo_api_server/.env` provisioned (`npm run setup:fresh` or copied from dev) |
 
 ### First-time cluster access (Ping runbook)
 
@@ -98,7 +98,7 @@ mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled 2>/d
 # 3. Namespace + full image set (gateway, authz, alternate agents)
 export SE_NAMESPACE=ping-devops-cmuir
 export COMPOSE_PROFILES=demo-auth,agents
-# Or rely on PING_EMAIL in demo_api_server/.env (written by bootstrap)
+# Or set PING_EMAIL=cmuir@pingidentity.com in demo_api_server/.env
 
 # 4. Build + push 13 images to GHCR + apply manifests
 ./run-k8.sh se-all
@@ -170,7 +170,7 @@ Auto-derived from Ping email localpart (dots stripped):
 
 - `cmuir@pingidentity.com` → `ping-devops-cmuir`
 - Override: `SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-all`
-- Bootstrap writes `PING_EMAIL` to `demo_api_server/.env` by default (git config or interactive prompt)
+- Or set `PING_EMAIL=` in `demo_api_server/.env`
 
 Git `user.email` is **not** used unless it ends in `@pingidentity.com`.
 

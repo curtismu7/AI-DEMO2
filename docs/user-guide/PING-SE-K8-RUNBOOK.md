@@ -83,11 +83,9 @@ gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
 
 Re-run GHCR login before **every** deploy (token expires).
 
-### 5. Ping email for deploy scripts
+### 5. Ping email for deploy scripts (optional but recommended)
 
-Bootstrap writes `PING_EMAIL` to `demo_api_server/.env` automatically (from `git config user.email` when it ends in `@pingidentity.com`, or from the interactive bootstrap prompt).
-
-To set or override manually:
+Add to `demo_api_server/.env`:
 
 ```bash
 PING_EMAIL=cmuir@pingidentity.com
