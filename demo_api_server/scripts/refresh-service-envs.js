@@ -418,6 +418,15 @@ async function main() {
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
+    // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
+    // P1AZ_WORKER_ID is the MCP decision endpoint (same as authorize_mcp_decision_endpoint_id).
+    P1AZ_REAL_BASE:                 `https://api.pingone.${region}/v1/environments/${envId}`,
+    P1AZ_WORKER_ID:                 fb('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID')
+                                      || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
+                                      || fb('PINGAUTHORIZE_WORKER_ID'),
+    P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || fb('PINGONE_WORKER_CLIENT_ID'),
+    P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || fb('PINGONE_WORKER_CLIENT_SECRET'),
+    PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
