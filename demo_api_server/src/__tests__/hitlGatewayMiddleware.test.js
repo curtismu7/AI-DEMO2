@@ -98,4 +98,23 @@ describe('hitlGatewayMiddleware.getConsentDecision — amount binding', () => {
     expect(result.valid).toBe(true);
     expect(result.approved).toBe(true);
   });
+
+  test('rejects same-amount payee swap on consent path', async () => {
+    mockGetChallengeStatus.mockResolvedValue({
+      status: 'approved',
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      expiresAt: '2099-01-01T00:00:00Z',
+      context: { amount: 250, to_account_id: 'acct-a' },
+    });
+    const result = await getConsentDecision('c1', {
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      params: { amount: 250, to_account_id: 'acct-b' },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/to_account_id/i);
+  });
 });

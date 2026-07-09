@@ -91,6 +91,7 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
         tool,
         Date.now(),
         params?.amount,
+        params || {},
       );
       if (verification.ok) {
         return { decision: 'PERMIT', reason: 'hitl_receipt_verified', tokenEvents };

@@ -417,14 +417,15 @@ export function buildAuthorizeMcpRequest(
       let verification: ReceiptVerification | null = null;
       try {
         const status = await getHitlChallengeStatus(config.hitlServiceUrl, hitlChallengeId);
-        const retryAmount = (toolArgs as Record<string, unknown> | undefined)?.amount;
+        const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
         verification = verifyHitlReceipt(
           status,
           decoded.sub,
           decoded.act?.sub,
           toolName ?? '',
           Date.now(),
-          retryAmount as number | string | undefined,
+          retryArgs.amount as number | string | undefined,
+          retryArgs,
         );
       } catch (verifyErr) {
         // HITL service unreachable or threw — fail closed with 503 rather than
@@ -456,17 +457,28 @@ export function buildAuthorizeMcpRequest(
       hitlApproved = verification?.ok === true;
     }
 
-    // ── Step 2b: Intent token validation ─────────────────────────────────────
+    // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
-    const intentValidation = xIntentToken
+    const intentRequired = process.env.INTENT_TOKEN_REQUIRED === 'true';
+    const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
       : null;
+    if (intentValidation && !intentValidation.valid && intentRequired) {
+      setAuditHeader(res);
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'intent_token_invalid',
+        message: intentValidation.error || 'intent token invalid',
+        login_required: false,
+      }));
+      return;
+    }
     if (!xIntentToken) {
       console.log(`[GW] Intent Token: absent — tool: ${toolName}`);
     } else if (intentValidation && !intentValidation.valid) {
       console.warn(`[GW] Intent Token: INVALID (${intentValidation.error}) — tool: ${toolName}`);
     } else if (intentValidation?.valid) {
-      const permitted = intentValidation.toolPermitted ? '✅ permitted' : '⚠️ not in permitted_tools';
+      const permitted = intentValidation.toolPermitted ? 'permitted' : 'not in permitted_tools';
       console.log(`[GW] Intent Token: valid=true intent=${intentValidation.payload?.intent} confidence=${intentValidation.payload?.confidence} ${permitted} tool=${toolName}`);
     }
 

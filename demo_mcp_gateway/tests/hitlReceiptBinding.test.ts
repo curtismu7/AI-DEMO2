@@ -165,4 +165,34 @@ describe('verifyHitlReceipt — CR-01 caller/agent/tool binding', () => {
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/different amount/i);
   });
+
+  test('receipt has amount but retry omits it — rejected', () => {
+    const result = verifyHitlReceipt(
+      makeApproved({ context: { amount: 250 } } as Partial<HitlChallenge>),
+      'user-a',
+      'agent-a',
+      'create_deposit',
+      Date.now(),
+      undefined,
+      {},
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/missing amount/i);
+  });
+
+  test('same-amount recipient swap — rejected', () => {
+    const result = verifyHitlReceipt(
+      makeApproved({
+        context: { amount: 250, to_account_id: 'payee-a', from_account_id: 'src-1' },
+      } as Partial<HitlChallenge>),
+      'user-a',
+      'agent-a',
+      'create_transfer',
+      Date.now(),
+      250,
+      { amount: 250, to_account_id: 'attacker', from_account_id: 'src-1' },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/to_account_id/i);
+  });
 });

@@ -140,9 +140,11 @@ test('NNP-2 B-8: UserGroups is empty array → DENY user_not_in_group', async ()
     'reason should include user_not_in_group, got: ' + result.reason);
 });
 
-test('NNP-2 B-9: UserGroups absent/empty with RequiredGroup set → PERMIT (guard skipped, mirrors sim engine)', async () => {
+test('NNP-2 B-9: UserGroups absent/empty with RequiredGroup set → DENY (fail closed)', async () => {
   const result = await decide(baseParams({ RequiredGroup: 'Premium', UserGroups: '' }));
-  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT when UserGroups absent, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.decision, 'DENY', 'Expected DENY when UserGroups absent, got ' + result.decision + ': ' + result.reason);
+  assert.ok(String(result.reason).includes('missing_user_groups') || String(result.reason).includes('user_not_in_group'),
+    'Expected missing_user_groups or user_not_in_group, got: ' + result.reason);
 });
 
 test('NNP-2 B-10: malformed UserGroups JSON → DENY (fail closed when RequiredGroup set)', async () => {

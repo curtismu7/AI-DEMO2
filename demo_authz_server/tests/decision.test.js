@@ -180,11 +180,11 @@ test('ACR-drift: weak long ACR ("Single_Factor", 13 chars) does NOT bypass step-
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
-test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved+challengeId -> PERMIT', async () => {
+test('NNP-6 A-8: write tool, amount=300 (would need HITL_CONSENT), HitlApproved+UUID challengeId -> PERMIT', async () => {
   const result = await decide(writeParams({
     TransactionAmount: '300',
     HitlApproved: 'true',
-    HitlChallengeId: 'chal-1',
+    HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
   }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
@@ -193,6 +193,65 @@ test('NNP-6 A-8b: HitlApproved=true without HitlChallengeId does NOT discharge c
   const result = await decide(writeParams({ TransactionAmount: '300', HitlApproved: 'true' }));
   assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
   assert.strictEqual(result.reason, 'HITL_CONSENT');
+});
+
+test('NNP-6 A-8c: HitlApproved=true with non-UUID HitlChallengeId does NOT discharge consent', async () => {
+  const result = await decide(writeParams({
+    TransactionAmount: '300',
+    HitlApproved: 'true',
+    HitlChallengeId: 'chal-1',
+  }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+  assert.strictEqual(result.reason, 'HITL_CONSENT');
+});
+
+test('NNP-6 A-8d: HITL_SERVICE_URL set + pending challenge → does NOT discharge consent', async () => {
+  const prev = process.env.HITL_SERVICE_URL;
+  process.env.HITL_SERVICE_URL = 'http://hitl.test';
+  const origFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ status: 'pending' }),
+  });
+  try {
+    fresh();
+    const result = await decide(writeParams({
+      TransactionAmount: '300',
+      HitlApproved: 'true',
+      HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+    }));
+    assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision + ': ' + result.reason);
+    assert.strictEqual(result.reason, 'HITL_CONSENT');
+  } finally {
+    global.fetch = origFetch;
+    if (prev === undefined) delete process.env.HITL_SERVICE_URL;
+    else process.env.HITL_SERVICE_URL = prev;
+    fresh();
+  }
+});
+
+test('NNP-6 A-8e: HITL_SERVICE_URL set + approved challenge → PERMIT', async () => {
+  const prev = process.env.HITL_SERVICE_URL;
+  process.env.HITL_SERVICE_URL = 'http://hitl.test';
+  const origFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ status: 'approved' }),
+  });
+  try {
+    fresh();
+    const result = await decide(writeParams({
+      TransactionAmount: '300',
+      HitlApproved: 'true',
+      HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+    }));
+    assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+  } finally {
+    global.fetch = origFetch;
+    if (prev === undefined) delete process.env.HITL_SERVICE_URL;
+    else process.env.HITL_SERVICE_URL = prev;
+    fresh();
+  }
 });
 
 // ── Regression: STEP_UP beats HITL_CONSENT (highest-gate-wins) ───────────
@@ -232,7 +291,7 @@ test('IMP-3: amount=300 + HitlApproved+challengeId + weak ACR -> PERMIT (receipt
   const result = await decide(writeParams({
     TransactionAmount: '300',
     HitlApproved: 'true',
-    HitlChallengeId: 'chal-1',
+    HitlChallengeId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
     Acr: '',
   }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT (receipt discharges consent), got ' + result.decision + ': ' + result.reason);

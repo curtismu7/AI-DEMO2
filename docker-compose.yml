@@ -298,6 +298,8 @@ services:
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
+      # Parity with mcp-gateway: allow BFF TraT simulation header in demo compose.
+      ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides
@@ -406,6 +408,11 @@ services:
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
       MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
+      # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
+      DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
+      # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
+      # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
+      ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
@@ -537,6 +544,9 @@ services:
       NODE_ENV: production
       MORTGAGE_SERVICE_PORT: "8082"      # server reads MORTGAGE_SERVICE_PORT, not PORT
       MORTGAGE_SERVICE_HOST: "0.0.0.0"   # default 127.0.0.1 is unreachable cross-container
+      # Shared with mcp-gateway DEMO_MORTGAGE_SERVICE_KEY — never use demo-mortgage-key-0000
+      # (mortgage-service rejects that committed default).
+      MORTGAGE_SERVICE_API_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
     env_file:
       - path: ./demo_mortgage_service/.env
@@ -567,6 +577,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
       OTEL_SERVICE_NAME: "authz-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # When set, HitlApproved+UUID also requires an approved challenge in HITL store.
+      HITL_SERVICE_URL: "http://hitl-service:3009"
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false

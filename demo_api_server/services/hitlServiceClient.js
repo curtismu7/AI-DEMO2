@@ -91,14 +91,36 @@ function normalizeHitlAmount(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Account / payee fields bound into HITL receipts (same-amount recipient swap defense). */
+const HITL_BIND_ACCOUNT_KEYS = [
+  'to_account_id',
+  'from_account_id',
+  'account_id',
+  'toAccountId',
+  'fromAccountId',
+];
+
 /**
- * Verify an approved HITL receipt is bound to THIS caller, agent, tool, and amount.
+ * Normalize a non-empty string field for HITL binding comparison.
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function normalizeHitlField(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s === '' ? null : s;
+}
+
+/**
+ * Verify an approved HITL receipt is bound to THIS caller, agent, tool, amount,
+ * and payee/source accounts.
  *
  * Faithful port of demo_mcp_gateway/src/hitlClient.ts::verifyHitlReceipt — keep
  * the two in lockstep (the "one verification contract" invariant). Fail-closed:
  * when an expected value is provided but the receipt field is missing/empty,
  * reject. Only skip the check when BOTH sides are empty (caller did not supply
- * an expected value).
+ * an expected value). Amount and account fields are two-sided: if either the
+ * receipt or the retry carries a value, both must match.
  *
  * @param {object} status            GET /challenges/:id response body
  * @param {string|undefined} expectedUserId   userSub from the inbound session/token
@@ -106,9 +128,18 @@ function normalizeHitlAmount(value) {
  * @param {string} expectedTool      tool name being retried
  * @param {number} [now=Date.now()]  injectable for tests
  * @param {number|string|null|undefined} [expectedAmount] retry amount; when set, must match status.context.amount
+ * @param {object|null|undefined} [expectedParams] retry tool args (amount + account ids)
  * @returns {{ ok: boolean, message?: string }}
  */
-function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool, now = Date.now(), expectedAmount) {
+function verifyHitlReceipt(
+  status,
+  expectedUserId,
+  expectedAgentId,
+  expectedTool,
+  now = Date.now(),
+  expectedAmount,
+  expectedParams,
+) {
   if (!status || typeof status !== 'object') {
     return { ok: false, message: 'No HITL challenge status' };
   }
@@ -134,17 +165,42 @@ function verifyHitlReceipt(status, expectedUserId, expectedAgentId, expectedTool
     return { ok: false, message: 'HITL challenge belongs to a different tool' };
   }
 
-  // Amount binding: a receipt approved for $250 must not discharge a $499 retry.
-  // When the retry carries an amount, require an exact match against context.amount
-  // (or a top-level amount field on older challenge records).
-  const expectedAmt = normalizeHitlAmount(expectedAmount);
-  if (expectedAmt != null) {
-    const receiptAmt = normalizeHitlAmount(status?.context?.amount ?? status?.amount);
+  const ctx = status.context && typeof status.context === 'object' ? status.context : {};
+  const params = expectedParams && typeof expectedParams === 'object' ? expectedParams : {};
+
+  // Amount binding (two-sided): receipt $250 must not discharge a $499 retry,
+  // and a receipt with a bound amount must not discharge a retry that omits amount.
+  const expectedAmt = normalizeHitlAmount(
+    expectedAmount !== undefined && expectedAmount !== null && expectedAmount !== ''
+      ? expectedAmount
+      : params.amount,
+  );
+  const receiptAmt = normalizeHitlAmount(ctx.amount ?? status.amount);
+  if (receiptAmt != null || expectedAmt != null) {
     if (receiptAmt == null) {
       return { ok: false, message: 'HITL challenge has no bound amount' };
     }
+    if (expectedAmt == null) {
+      return { ok: false, message: 'HITL retry missing amount bound on challenge' };
+    }
     if (receiptAmt !== expectedAmt) {
       return { ok: false, message: 'HITL challenge belongs to a different amount' };
+    }
+  }
+
+  // Payee / source binding: same-amount recipient swap after consent must fail.
+  for (const key of HITL_BIND_ACCOUNT_KEYS) {
+    const receiptVal = normalizeHitlField(ctx[key] ?? status[key]);
+    const expectedVal = normalizeHitlField(params[key]);
+    if (receiptVal == null && expectedVal == null) continue;
+    if (receiptVal == null) {
+      return { ok: false, message: `HITL challenge has no bound ${key}` };
+    }
+    if (expectedVal == null) {
+      return { ok: false, message: `HITL retry missing ${key} bound on challenge` };
+    }
+    if (receiptVal !== expectedVal) {
+      return { ok: false, message: `HITL challenge belongs to a different ${key}` };
     }
   }
 

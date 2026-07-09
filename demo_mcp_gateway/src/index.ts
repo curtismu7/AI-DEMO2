@@ -643,13 +643,15 @@ async function handleMessage(
         send(jsonRpcError(id, -32500, 'Failed to verify HITL challenge'));
         return;
       }
+      const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
       verification = verifyHitlReceipt(
         status,
         decoded.sub,
         decoded.act?.sub,
         toolName,
         Date.now(),
-        (toolArgs as Record<string, unknown> | undefined)?.amount as number | string | undefined,
+        retryArgs.amount as number | string | undefined,
+        retryArgs,
       );
       if (!verification.ok) {
         send(jsonRpcError(id, -32002, verification.message || 'HITL challenge invalid', {
