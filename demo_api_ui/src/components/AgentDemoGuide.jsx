@@ -138,13 +138,14 @@ export const DEMO_SCENARIOS = [
         action: "Log in as demoDelegate, then ask:",
         prompt: '"show my full account details and routing number"',
         explanation:
-          "get_sensitive_account_details requires the PrivilegedBanking group. demoUser/demoAdmin are members; demoDelegate is not. demoDelegate is DENIED before any data is read — even though the token is valid and carries the read scope.",
+          "get_sensitive_account_details requires Banking_Privileged (banking vertical). demoUser/demoAdmin are members; demoDelegate is not. demoDelegate is DENIED before any data is read — even though the token is valid and carries the read scope. In CareConnect, sensitive_patient_records requires Healthcare_Privileged instead.",
         watch: [
           "Chat: agent reports the access was denied by policy (not bypassable)",
           "deny_reason: user_not_in_group",
-          "required_group: PrivilegedBanking, user_groups: [] (demoDelegate)",
+          "required_group: Banking_Privileged, user_groups: [] (demoDelegate in banking)",
           "Audit / Compliance: row shows DENY with the group check failing",
-          "Repeat as demoUser → PERMITted (member of PrivilegedBanking)",
+          "Repeat as demoUser → PERMITted (member of Banking_Privileged)",
+          "Switch to healthcare → demoDelegate also denied on sensitive_patient_records (Healthcare_Privileged)",
         ],
       },
     ],
@@ -688,7 +689,7 @@ export const DEMO_SCENARIOS = [
           "Even if the LLM parses this as intent, nlIntentSanitize.js rejects any action kind not in VALID_BANKING_ACTIONS. 'delete' is not in the allowlist — blocked before any MCP call.",
         watch: [
           "✅ Agent: operation not supported",
-          "VALID_BANKING_ACTIONS allowlist: accounts, transactions, balance, deposit, withdraw, transfer, logout, mcp_tools, mortgage_demo, vertical_feature_demo, biggest_purchase, spending_summary, web_search",
+          "VALID_BANKING_ACTIONS allowlist: accounts, transactions, balance, deposit, withdraw, transfer, logout, mcp_tools, mortgage_demo, invest_demo, vertical_feature_demo, biggest_purchase, spending_summary, web_search",
           "LLM output is re-validated — the LLM is not trusted to self-enforce limits",
         ],
       },

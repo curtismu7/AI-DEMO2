@@ -104,7 +104,9 @@ async function answerWithHelix(userMessage, context = {}) {
 // Agent modes 'lmstudio' and 'heuristics_lmstudio' resolve to this provider.
 const LMSTUDIO_PROVIDERS = new Set(['anthropic-lmstudio', 'lmstudio']);
 const CLAUDE_PROVIDERS = new Set(['anthropic']);
+const GOOGLE_PROVIDERS = new Set(['google']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
+const MLX_PROVIDERS = new Set(['mlx']);
 
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
@@ -187,11 +189,45 @@ async function answerWithLlamaCpp(userMessage, context = {}) {
   }
 }
 
-async function answerConversational(userMessage, context, selectedProvider) {
+async function answerWithMlx(userMessage, context = {}) {
+  try {
+    const { callMlx } = require('./mlxLlmService');
+    const systemWithCtx = buildSystemWithCtx(null, context);
+    const raw = await callMlx([
+      { role: 'system', content: systemWithCtx },
+      { role: 'user', content: userMessage },
+    ]);
+    return raw || null;
+  } catch (err) {
+    console.warn('[nlIntent] mlx-lm conversational error:', err.message);
+    return null;
+  }
+}
+
+async function answerWithGoogle(userMessage, context = {}, langchainConfig = {}) {
+  try {
+    const { callGemini } = require('./googleGeminiLlmService');
+    const systemWithCtx = buildSystemWithCtx(null, context);
+    const answer = await callGemini([
+      { role: 'system', content: systemWithCtx },
+      { role: 'user', content: userMessage },
+    ], langchainConfig);
+    if (answer) {
+      return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
+    }
+  } catch (err) {
+    console.warn('[nlIntent] Gemini error:', err.message);
+  }
+  return null;
+}
+
+async function answerConversational(userMessage, context, selectedProvider, langchainConfig = {}) {
   let result;
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) result = await answerWithLmStudio(userMessage, context);
   else if (CLAUDE_PROVIDERS.has(selectedProvider)) result = await answerWithClaude(userMessage, context);
+  else if (GOOGLE_PROVIDERS.has(selectedProvider)) result = await answerWithGoogle(userMessage, context, langchainConfig);
   else if (LLAMACPP_PROVIDERS.has(selectedProvider)) result = await answerWithLlamaCpp(userMessage, context);
+  else if (MLX_PROVIDERS.has(selectedProvider)) result = await answerWithMlx(userMessage, context);
   else result = await answerWithHelix(userMessage, context);
   return ensureRenderableAnswer(result);
 }
@@ -200,7 +236,9 @@ async function answerConversational(userMessage, context, selectedProvider) {
 function conversationalSource(selectedProvider) {
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) return 'lmstudio_fallback';
   if (CLAUDE_PROVIDERS.has(selectedProvider)) return 'claude_fallback';
+  if (GOOGLE_PROVIDERS.has(selectedProvider)) return 'google_fallback';
   if (LLAMACPP_PROVIDERS.has(selectedProvider)) return 'llamacpp_fallback';
+  if (MLX_PROVIDERS.has(selectedProvider)) return 'mlx_fallback';
   return 'helix_fallback';
 }
 
@@ -221,7 +259,21 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   let llmAttempted = false;
   const { verticalId: activeVertical, verticalCtx: _verticalCtx } = resolveVerticalRouting(context?.vertical);
   const isAdmin = context?.role === 'admin' || context?.isAdmin === true;
-  const heuristicResult = parseHeuristic(message, activeVertical, _verticalCtx, { isAdmin });
+  // Heuristics-only (provider:"heuristic" or agent_mode heuristics) has no LLM
+  // fallthrough — allow mode=llm chip messages to match deterministic heuristics
+  // instead of short-circuiting to the capability catalog.
+  const { resolveAgentMode, AGENT_MODES } = require('./agentModeResolver');
+  const rawAgentMode = configStore.getEffective('agent_mode');
+  const resolvedAgentModeEarly = rawAgentMode
+    ? resolveAgentMode(rawAgentMode, configStore.getEffective('agent_external_wiring'))
+    : null;
+  const heuristicsOnly =
+    provider === 'heuristic' ||
+    (resolvedAgentModeEarly && resolvedAgentModeEarly.mode === 'heuristics');
+  const heuristicResult = parseHeuristic(message, activeVertical, _verticalCtx, {
+    isAdmin,
+    heuristicsOnly,
+  });
 
   // Single concise log per /nl call — vertical + message preview + provider.
   // Surfaces in /tmp/demo-api.log for post-hoc diagnosis of routing decisions.
@@ -264,11 +316,8 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // agent_mode controls heuristicRouting per the five-mode spec.
   // When mode is helix_google (Helix only), bypass the heuristic fast-return
   // so the LLM path is always taken — matching heuristicRouting:false in agentModeResolver.
-  const { resolveAgentMode, AGENT_MODES } = require('./agentModeResolver');
-  const rawAgentMode = configStore.getEffective('agent_mode');
-  const resolvedAgentMode = rawAgentMode
-    ? resolveAgentMode(rawAgentMode, configStore.getEffective('agent_external_wiring'))
-    : null;
+  // resolveAgentMode / AGENT_MODES already required above for heuristicsOnly.
+  const resolvedAgentMode = resolvedAgentModeEarly;
   // If the request specifies an explicit LLM provider (not 'heuristic'/'auto'), honour
   // that provider's heuristicRouting flag even when configStore.agent_mode differs.
   // This ensures the mode-picker selection on the frontend takes precedence over the
@@ -415,6 +464,40 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
+  // Google Gemini JSON intent parsing — parallel to the Claude branch.
+  if (GOOGLE_PROVIDERS.has(selectedProvider)) {
+    const apiKey = langchainConfig?.google_api_key
+      || configStore.getEffective('google_api_key')
+      || process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      console.warn('[nlIntent] Gemini not configured (GOOGLE_API_KEY missing) — falling back to heuristic');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, llm_not_configured: true };
+    }
+    const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    try {
+      const { callGemini } = require('./googleGeminiLlmService');
+      const rawText = await callGemini([
+        { role: 'system', content: systemWithCtx },
+        { role: 'user', content: message },
+      ], langchainConfig);
+      const tryParse = (text) => {
+        if (!text) return null;
+        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+        } catch (_) {}
+        return null;
+      };
+      const parsed = tryParse(rawText);
+      if (parsed) return logAndReturn({ source: 'google', result: parsed });
+      llmAttempted = true;
+    } catch (err) {
+      console.warn('[nlIntent] Gemini intent error:', err.message);
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+    }
+  }
+
   // LM Studio JSON intent parsing — parallel to the Helix and Claude branches.
   // This is what lets the pure-LM-Studio mode (heuristicRouting:false) route
   // structured actions; without it, every message in that mode would only get a
@@ -474,10 +557,38 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
+  // mlx-lm JSON intent parsing — same pattern as llama.cpp above.
+  // Lets "MLX (Apple)" mode (heuristicRouting:false) route structured actions.
+  if (MLX_PROVIDERS.has(selectedProvider)) {
+    const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    try {
+      const { callMlx } = require('./mlxLlmService');
+      const raw = await callMlx([
+        { role: 'system', content: systemWithCtx },
+        { role: 'user', content: message },
+      ]);
+      const tryParse = (text) => {
+        if (!text) return null;
+        const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+        } catch (_) {}
+        return null;
+      };
+      const parsed = tryParse(raw);
+      if (parsed) return logAndReturn({ source: 'mlx', result: parsed });
+      llmAttempted = true;
+    } catch (err) {
+      console.warn('[nlIntent] mlx-lm intent error:', err.message);
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+    }
+  }
+
   // In LLM-only mode go straight to the conversational answer
   // from whichever LLM the mode selected (Helix or LM Studio).
   if (!heuristicEnabled) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
       console.warn('[nlIntent] conversational LLM failed:', e.message);
       return null;
     });
@@ -495,15 +606,17 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   }
 
   // 3. Try the selected LLM for general knowledge questions when banking intent
-  // fails (fallback only) — Helix, LM Studio, llama.cpp, or Claude.
+  // fails (fallback only) — Helix, LM Studio, llama.cpp, mlx-lm, or Claude.
   if (
     selectedProvider === 'helix' ||
     LMSTUDIO_PROVIDERS.has(selectedProvider) ||
     CLAUDE_PROVIDERS.has(selectedProvider) ||
+    GOOGLE_PROVIDERS.has(selectedProvider) ||
     LLAMACPP_PROVIDERS.has(selectedProvider) ||
+    MLX_PROVIDERS.has(selectedProvider) ||
     (selectedProvider === 'auto' && langchainConfig?.provider === 'helix')
   ) {
-    const llmAnswer = await answerConversational(message, context, selectedProvider).catch((e) => {
+    const llmAnswer = await answerConversational(message, context, selectedProvider, langchainConfig).catch((e) => {
       console.warn('[nlIntent] conversational fallback failed:', e.message);
       return null;
     });

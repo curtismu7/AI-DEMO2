@@ -3,6 +3,7 @@ import AppShell from "./AppShell";
 import AuthzTestPage from "../components/AuthzTestPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
+import GraphifyPage from "../components/GraphifyPage";
 import { CodeSearchPage } from "../pages/CodeSearchPage";
 import OAuthAcademyPage from "../components/OAuthAcademyPage";
 import CopilotPage from "../components/CopilotPage";
@@ -118,6 +119,14 @@ export function CodeSearchPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <CodeSearchPage />
+    </AppShell>
+  );
+}
+
+export function GraphifyPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <GraphifyPage />
     </AppShell>
   );
 }

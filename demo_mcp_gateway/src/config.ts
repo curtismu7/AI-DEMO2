@@ -231,7 +231,9 @@ export function loadConfig(): GatewayConfig {
     // Phase 267 fields — dedicated mortgage backend (kept separate from the
     // Phase 266 marker key so the Gateway-only apikey tools are unaffected)
     mortgageServiceBaseUrl: optional('MORTGAGE_SERVICE_URL', 'http://localhost:8082'),
-    mortgageServiceApiKey: optional('DEMO_MORTGAGE_SERVICE_KEY', 'demo-mortgage-key-0000'),
+    // No committed demo default — must match mortgage-service MORTGAGE_SERVICE_API_KEY.
+    // Empty when unset so Path A calls fail closed rather than using a rejected key.
+    mortgageServiceApiKey: optional('DEMO_MORTGAGE_SERVICE_KEY', ''),
     bffInternalIdTokenUrl: optional('BFF_INTERNAL_ID_TOKEN_URL', 'http://localhost:3001/internal/id-token'),
     bffInternalSecret: optional('BFF_INTERNAL_SECRET', DEFAULT_BFF_INTERNAL_SECRET),
     bankingResourceServerBaseUrl: optional('BANKING_RESOURCE_SERVER_BASE_URL', 'http://localhost:3001'),

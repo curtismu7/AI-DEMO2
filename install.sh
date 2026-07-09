@@ -76,6 +76,32 @@ warn()   { echo "${YELLOW}!${RESET}  $*"; }
 err()    { echo "${RED}✗${RESET}  $*" >&2; }
 fatal()  { err "$*"; exit 1; }
 
+# Ping email validation — install.sh runs via curl before the repo exists, so keep
+# this inline (scripts/ping-email.sh is used after clone by run-k8.sh etc.).
+is_valid_ping_email() {
+  local email
+  email="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
+  [[ -n "$email" && "$email" == *@pingidentity.com ]]
+}
+
+read_ping_email_install() {
+  local prompt="${1:-  Your Ping email (e.g. cmuir@pingidentity.com): }"
+  local _input="" _valid=""
+  while true; do
+    _input=""
+    if [[ -r /dev/tty ]]; then
+      read -r -p "$prompt" _input </dev/tty 2>/dev/null || true
+    fi
+    _input="$(printf '%s' "$_input" | tr -d ' "')"
+    [[ -z "$_input" ]] && return 1
+    if is_valid_ping_email "$_input"; then
+      printf '%s' "$(printf '%s' "$_input" | tr '[:upper:]' '[:lower:]')"
+      return 0
+    fi
+    warn "Must be a @pingidentity.com address — personal email is not allowed."
+  done
+}
+
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 
 # Install Homebrew if missing (macOS only). On Linux this is a no-op.
@@ -497,6 +523,46 @@ ensure_llamacpp() {
     info "Local models are served via the 2-tier LLM proxy on :8090 (swap mode)."
     info "  Verify tier GGUFs:   bash demo_llm_proxy/download-models.sh"
     info "  Load smallest tier:  bash demo_llm_proxy/start-local-models.sh ensure 8091"
+  fi
+}
+
+# Offer oMLX on macOS as the recommended Mac fast path for agent chip sessions.
+# Optional — llama.cpp remains the cross-platform default.
+ensure_omlx() {
+  [[ "$(uname)" == "Darwin" ]] || return 0
+  if command -v omlx >/dev/null 2>&1; then
+    ok "oMLX already installed (Mac fast path: LLM_BACKEND=omlx)."
+    return 0
+  fi
+
+  echo ""
+  echo "  ${BOLD}oMLX${RESET} (optional Mac fast path) speeds up agent chip and tool-loop"
+  echo "  sessions with SSD-persisted KV cache. Recommended on Apple Silicon for"
+  echo "  daily dev; Docker/K8s still use llama.cpp by default."
+  echo ""
+  echo "  After install: bash demo_llm_proxy/download-omlx-models.sh fetch"
+  echo "  Then run with:  LLM_BACKEND=omlx ./run.sh"
+  echo ""
+
+  if ! ask_yes_no "Install oMLX for Mac agent dev? [y/N] " no; then
+    info "Skipping oMLX — use llama.cpp (default) or install later from demo_llm_proxy/README.md"
+    return 0
+  fi
+
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "Homebrew required for oMLX — see https://github.com/jundot/omlx"
+    return 0
+  fi
+
+  info "Adding oMLX tap and trusting it (Homebrew 6.0+)..."
+  brew tap jundot/omlx https://github.com/jundot/omlx 2>/dev/null || true
+  brew trust jundot/omlx 2>/dev/null || true
+  info "Installing oMLX..."
+  if brew install omlx --quiet; then
+    ok "oMLX installed. Download MLX models: bash demo_llm_proxy/download-omlx-models.sh fetch"
+    ok "Run with: LLM_BACKEND=omlx ./run.sh"
+  else
+    warn "brew install omlx failed — see https://github.com/jundot/omlx"
   fi
 }
 
@@ -939,6 +1005,23 @@ _patch_pingone_mcp() {
   ' "$mcp_json" "$env_id" "$client_id"
 }
 
+# Cursor's project `.cursor/mcp.json` — seed from example and patch OAuth client ids
+# from demo_api_server/.env. Uses stdio for github/banking-dev/codegraph (reliable in
+# Cursor) and remote url+auth for pingone/banking-gateway.
+configure_cursor_mcp() {
+  local dir="$1"
+  local patch_script="${dir}/scripts/patch-cursor-mcp.js"
+  [[ -f "$patch_script" ]] || return 0
+  command -v node >/dev/null 2>&1 || { warn "node not found — skipping .cursor/mcp.json setup."; return 0; }
+  if node "$patch_script" "$dir" "${RUN_MODE:-local}"; then
+    ok "Cursor MCP servers configured in .cursor/mcp.json."
+    info "In Cursor: Customize → MCP → disable built-in plugin servers (github/playwright/context7) if they show errors; use the project github entry instead."
+    info "Connect OAuth servers: pingone, banking-gateway (stack must be running for gateway)."
+  else
+    warn "Could not patch .cursor/mcp.json — copy .cursor/mcp.json.example and run npm run patch:cursor-mcp."
+  fi
+}
+
 # Claude Code's `pingone` MCP server (PingOne admin / management tools) is
 # tenant-specific: the environment id in its URL and the OAuth clientId must
 # belong to YOUR PingOne environment. Prefer the values bootstrap provisioned
@@ -1134,7 +1217,8 @@ main() {
       # PingGateway (the MCP authorization gateway, ping-gateway/docker-compose.yml).
       # Without Docker run.sh starts but silently skips PingGateway, so install it.
       ensure_orbstack  # Docker (+ kubectl) via OrbStack on macOS — used by PingGateway
-      ensure_llamacpp  # offer local llama.cpp for NL intent routing
+      ensure_llamacpp  # offer local llama.cpp for NL intent routing (default backend)
+      ensure_omlx      # optional Mac fast path for agent chip dev
       ensure_codegraph_llamacpp  # Code Explorer requires tool-capable model
       ;;
     orbstack)
@@ -1151,11 +1235,19 @@ main() {
       # Capture the user's Ping email now so run-k8.sh se-deploy can derive
       # the namespace without prompting later.
       if [[ -z "${PING_EMAIL:-}" ]]; then
-        local _ping_email=""
-        if [[ -r /dev/tty ]]; then
-          read -r -p "  Your Ping email (e.g. cmuir@pingidentity.com): " _ping_email </dev/tty 2>/dev/null || true
+        local _git_email
+        _git_email="$(git config user.email 2>/dev/null || true)"
+        if is_valid_ping_email "$_git_email"; then
+          export PING_EMAIL="$(printf '%s' "$_git_email" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
         fi
+      fi
+      if [[ -z "${PING_EMAIL:-}" ]]; then
+        local _ping_email=""
+        _ping_email="$(read_ping_email_install "  Your Ping email (e.g. cmuir@pingidentity.com): " || true)"
         [[ -n "$_ping_email" ]] && export PING_EMAIL="$_ping_email"
+      fi
+      if [[ -n "${PING_EMAIL:-}" ]] && ! is_valid_ping_email "$PING_EMAIL"; then
+        fatal "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
       fi
       ;;
     eks)
@@ -1316,6 +1408,7 @@ EOF
   configure_pingone_mcp "$target"
   build_dev_mcp "$target"
   set_gateway_scheme "$target"
+  configure_cursor_mcp "$target"
 
   echo ""
   ok "AI Demo installed at: $target"

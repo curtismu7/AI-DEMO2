@@ -187,8 +187,11 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
     log.warn("Flow diagram initialization failed:", err);
   }
   // Start a fresh trace for each chip-fired tool call.
+  // Chips are deterministic (no LLM) — mark the rail as heuristic so steps 4/11
+  // show HEURISTICS labels and checkmarks instead of pending LLM hops.
   try {
     tokenChainTraceStore.beginTrace({ prompt: tool });
+    tokenChainTraceStore.ingestRoutingMode("heuristic", { action: tool });
   } catch { /* display-only */ }
 
   const flowTraceId =
@@ -601,6 +604,15 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
     }));
 
     appendTokenEvents(tool, pathTaggedEvents);
+    try {
+      tokenChainTraceStore.ingestTokenEvents(pathTaggedEvents);
+      tokenChainTraceStore.ingestMcpResult({
+        tool,
+        result: data.result,
+        _meta: data.result?._meta || null,
+        requestJson: { name: tool, arguments: params || {} },
+      });
+    } catch { /* display-only */ }
     // Phase 194: mark tool milestone done
     updateMilestoneStatus(_toolId, "done");
     addMilestone("Flow Complete", "flow_complete", {});
@@ -868,8 +880,13 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   body.flowTraceId = flowTraceId;
 
   // Fresh trace per agent turn — clears prior run checkmarks/details.
+  // When forceHeuristic is set (vertical chips after /nl), mark HEURISTICS
+  // immediately so Token Chain steps 4/11 check before /agent/invoke returns.
   try {
     tokenChainTraceStore.beginTrace({ prompt: message });
+    if (forceHeuristic) {
+      tokenChainTraceStore.ingestRoutingMode("heuristic", { action: null });
+    }
   } catch { /* display-only */ }
 
   // Tag all API traffic entries captured during this agent turn so the panel

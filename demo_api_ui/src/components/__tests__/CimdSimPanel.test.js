@@ -105,7 +105,7 @@ describe('CimdSimPanel — tab navigation', () => {
   });
 
   it('renders all 7 tabs', () => {
-    ['What is CIMD', 'CIMD vs DCR', 'Doc format', 'How AS uses it', 'Flow diagram', '▶ Simulate', 'PingOne']
+    ['What is CIMD', 'CIMD vs DCR', 'Doc format', 'How AS uses it', 'Flow diagram', 'Simulate', 'PingOne']
       .forEach(label => {
         expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
       });
@@ -135,8 +135,8 @@ describe('CimdSimPanel — tab navigation', () => {
     expect(document.body.textContent).toMatch(/CIMD Registration/i);
   });
 
-  it('switches to "▶ Simulate" tab and shows idle state', () => {
-    clickTab('▶ Simulate');
+  it('switches to "Simulate" tab and shows idle state', () => {
+    clickTab('Simulate');
     expect(screen.getByRole('button', { name: /run simulation/i })).toBeInTheDocument();
   });
 
@@ -172,7 +172,7 @@ describe('CimdSimPanel — education-open-cimd event', () => {
     act(() => {
       window.dispatchEvent(new CustomEvent('education-open-cimd', { detail: { tab: 'simulate' } }));
     });
-    expect(screen.getByRole('tab', { name: '▶ Simulate' })).toHaveClass('cimd-tab--active');
+    expect(screen.getByRole('tab', { name: 'Simulate' })).toHaveClass('cimd-tab--active');
     expect(screen.getByRole('button', { name: /run simulation/i })).toBeInTheDocument();
   });
 
@@ -192,7 +192,7 @@ describe('CimdSimPanel — Simulate tab state machine', () => {
     axios.get.mockRejectedValue(new Error('network'));
     render(<CimdSimPanel />);
     openPanel();
-    clickTab('▶ Simulate');
+    clickTab('Simulate');
   });
 
   afterEach(() => {
@@ -322,7 +322,7 @@ describe('CimdSimPanel — real document pre-fetch', () => {
     jest.useFakeTimers();
     render(<CimdSimPanel />);
     openPanel();
-    clickTab('▶ Simulate');
+    clickTab('Simulate');
   });
 
   afterEach(() => {

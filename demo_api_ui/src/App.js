@@ -126,6 +126,7 @@ import PublicRoutes, {
   CodeSearchPageRoute,
   ConfigurePage,
   CopilotPageRoute,
+  GraphifyPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
@@ -376,7 +377,7 @@ function AppWithAuth() {
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
             >
               <ToastContainer
-                position="bottom-right"
+                position="top-center"
                 autoClose={toastContainerAutoCloseMs}
                 hideProgressBar={false}
                 newestOnTop
@@ -448,6 +449,12 @@ function AppWithAuth() {
                   path="/code-search"
                   element={
                     <CodeSearchPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/graphify"
+                  element={
+                    <GraphifyPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

@@ -45,6 +45,26 @@
     "highValueAction": "Records Release",
     "highValueLabel": "High-sensitivity records release"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Healthcare_Privileged",
+        "description": "Users permitted to access sensitive patient records (UC9)"
+      },
+      "delegates": {
+        "name": "Healthcare_Delegates",
+        "description": "Users authorized as delegated care agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_patient_records": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Care Assistant",
     "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go. What do you need?",
@@ -106,9 +126,10 @@
       { "id": "hc5", "label": "🔐 Release my records", "message": "release my records", "mode": "both", "hitlTrigger": true, "tool": "release_records" },
       { "id": "hc-a2a", "label": "🔒 Sensitive records", "message": "access my sensitive patient records", "mode": "both", "tool": "sensitive_patient_records" },
       { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record" },
+      { "id": "hc-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "hc6", "label": "What's my deductible?", "message": "check my deductible", "mode": "both" },
       { "id": "hc7", "label": "Upcoming visits", "message": "upcoming visits", "mode": "both" },
-      { "id": "hc8", "label": "Which providers are in-network?", "message": "Which providers are in-network?", "mode": "llm" },
+      { "id": "hc8", "label": "Which providers are in-network?", "message": "Which providers are in-network?", "mode": "both" },
       { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "both" },
       { "id": "hc10", "label": "Do I need a referral?", "message": "Do I need a referral?", "mode": "both" },
       { "id": "hc-direct", "label": "🔌 Direct MCP", "message": "get my health record", "mode": "direct", "tool": "view_records" }
@@ -130,8 +151,8 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
-            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },
         {

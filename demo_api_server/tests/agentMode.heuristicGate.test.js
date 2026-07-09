@@ -6,8 +6,8 @@ describe('agent mode → heuristic routing gate', () => {
   test('heuristics is the only mode that routes via heuristic', () => {
     expect(resolveAgentMode('heuristics').heuristicRouting).toBe(true);
   });
-  test('the three LLM modes do NOT route via heuristic (pure single-brain)', () => {
-    ['llamacpp', 'claude', 'helix_google', 'google'].forEach((m) => {
+  test('the LLM modes do NOT route via heuristic (pure single-brain)', () => {
+    ['llamacpp', 'mlx', 'claude', 'gemini', 'helix_google'].forEach((m) => {
       expect(resolveAgentMode(m).heuristicRouting).toBe(false);
     });
   });

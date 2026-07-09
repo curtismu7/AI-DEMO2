@@ -781,6 +781,51 @@ export class BankingToolRegistry {
       }
     },
 
+    get_branch_hours: {
+      name: 'get_branch_hours',
+      title: 'Branch & ATM Hours',
+      description: 'Public branch and ATM location catalog with hours. No sign-in required — read-only marketing data only (no account or PII). Use for "branches near me", branch hours, or ATM locations.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeGetBranchHours',
+      readOnly: true,
+      icons: [
+        {
+          src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%230055cc%22 d=%22M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z%22/%3E%3C/svg%3E',
+          mimeType: 'image/svg+xml',
+          sizes: ['16x16', '32x32'],
+        },
+      ],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false,
+        },
+      },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          branches: { type: 'array' },
+          query: { type: ['string', 'null'] },
+          message: { type: 'string' },
+        },
+      },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          city: {
+            type: 'string',
+            description: 'Optional city name to filter branches (e.g. Austin, Dallas)',
+            maxLength: 80,
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+
     sequential_think: {
       name: 'sequential_think',
       title: 'Reason & Analyze',

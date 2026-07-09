@@ -54,6 +54,15 @@ happened — an unrelated commit swept up another session's staged files).
   profiles and Quick Flag → container sync.
 - `./run-k8.sh` — Kubernetes / OrbStack / EKS variants (see `README.md`).
 
+**Local LLM backends** (`LLAMACPP_BASE_URL`, default `http://localhost:8090`):
+
+- **llama.cpp** (default) — GGUF tiers on `:8091`/`:8096`, routed by `demo_llm_proxy/`.
+  Used by Docker, K8s, and CI. Set `LLM_BACKEND=llamacpp` or omit.
+- **oMLX** (Mac fast path) — `LLM_BACKEND=omlx` on Apple Silicon for agent chip /
+  tool-loop dev. See `demo_llm_proxy/README.md`.
+- **mlx-lm** (Mac fallback) — `LLM_BACKEND=mlx` when oMLX is unavailable; same
+  `:8090` contract. See `planning/PLAN-llm-backends-mac.md`.
+
 ## Tests
 
 - `./run-tests.sh [unit|api|e2e|all]` — quick entry point; `unit` is the fastest
@@ -81,3 +90,13 @@ env updates during development.
 - `demo_llm_proxy/` — model router (`:8090`, host tiers `8091` + `8096`)
 - `scripts/` — topology, hygiene, release, provisioning helpers
 - `docs/`, `planning/` — documentation and plans
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

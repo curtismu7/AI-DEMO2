@@ -26,6 +26,25 @@ export interface HitlChallenge {
   userId?: string | null;
   agentId?: string | null;
   tool?: string;
+  /** Tool args captured at challenge creation (amount, to_account_id, …). */
+  context?: Record<string, unknown>;
+  amount?: unknown;
+}
+
+/** Account / payee fields bound into HITL receipts (same-amount recipient swap defense). */
+const HITL_BIND_ACCOUNT_KEYS = [
+  'to_account_id',
+  'from_account_id',
+  'account_id',
+  'toAccountId',
+  'fromAccountId',
+] as const;
+
+/** Normalize a non-empty string field for HITL binding comparison. */
+function normalizeHitlField(value: unknown): string | null {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s === '' ? null : s;
 }
 
 export async function createHitlChallenge(
@@ -95,10 +114,19 @@ export async function getHitlChallengeStatus(
  *   expectedAgentId  — decoded.act?.sub from the inbound bearer (may be undef)
  *   expectedTool     — toolName from the JSON-RPC `tools/call` params
  *   now        — Date.now() at the call site (injectable for tests)
+ *   expectedAmount — retry amount; when set, must match status.context.amount
+ *   expectedParams — retry tool args (amount + account ids); two-sided bind
  */
 export interface ReceiptVerification {
   ok: boolean;
   message?: string;
+}
+
+/** Normalize a transaction amount for HITL receipt binding. */
+function normalizeHitlAmount(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
 }
 
 export function verifyHitlReceipt(
@@ -107,6 +135,8 @@ export function verifyHitlReceipt(
   expectedAgentId: string | undefined,
   expectedTool: string,
   now: number = Date.now(),
+  expectedAmount?: number | string | null,
+  expectedParams?: Record<string, unknown> | null,
 ): ReceiptVerification {
   if (status.status !== 'approved') {
     return {
@@ -147,6 +177,45 @@ export function verifyHitlReceipt(
       ok: false,
       message: 'HITL challenge belongs to a different tool',
     };
+  }
+
+  const ctx = status.context && typeof status.context === 'object' ? status.context : {};
+  const params = expectedParams && typeof expectedParams === 'object' ? expectedParams : {};
+
+  // Amount binding (two-sided): receipt $250 must not discharge a $499 retry,
+  // and a receipt with a bound amount must not discharge a retry that omits amount.
+  const expectedAmt = normalizeHitlAmount(
+    expectedAmount !== undefined && expectedAmount !== null && expectedAmount !== ''
+      ? expectedAmount
+      : params.amount,
+  );
+  const receiptAmt = normalizeHitlAmount(ctx.amount ?? status.amount);
+  if (receiptAmt != null || expectedAmt != null) {
+    if (receiptAmt == null) {
+      return { ok: false, message: 'HITL challenge has no bound amount' };
+    }
+    if (expectedAmt == null) {
+      return { ok: false, message: 'HITL retry missing amount bound on challenge' };
+    }
+    if (receiptAmt !== expectedAmt) {
+      return { ok: false, message: 'HITL challenge belongs to a different amount' };
+    }
+  }
+
+  // Payee / source binding: same-amount recipient swap after consent must fail.
+  for (const key of HITL_BIND_ACCOUNT_KEYS) {
+    const receiptVal = normalizeHitlField(ctx[key] ?? (status as unknown as Record<string, unknown>)[key]);
+    const expectedVal = normalizeHitlField(params[key]);
+    if (receiptVal == null && expectedVal == null) continue;
+    if (receiptVal == null) {
+      return { ok: false, message: `HITL challenge has no bound ${key}` };
+    }
+    if (expectedVal == null) {
+      return { ok: false, message: `HITL retry missing ${key} bound on challenge` };
+    }
+    if (receiptVal !== expectedVal) {
+      return { ok: false, message: `HITL challenge belongs to a different ${key}` };
+    }
   }
 
   return { ok: true };

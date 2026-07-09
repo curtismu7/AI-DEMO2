@@ -4,14 +4,14 @@
 export const LANES = {
   signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
-  gateway: "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
+  gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
 };
 
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
 // here alongside the rest of the step-model vocabulary — the MCP tab and the
 // rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
-export const MCP_STEP_IDS = ["exchange", "gateway", "mcp", "api"];
+export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api"];
 
 const TITLES = {
   signin: "Sign-in — User Token acquired",
@@ -23,6 +23,7 @@ const TITLES = {
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
   gateway: "Agent Gateway — token validated",
+  "api-key-swap": "API-key path — credential swap",
   mcp: "MCP server — tool executes",
   api: "Resource server — API call",
   reply: "LLM composes reply → chat",
@@ -42,6 +43,7 @@ const NARRATIVES = {
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+  "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
@@ -103,9 +105,10 @@ export function buildTraceSteps(trace) {
     ].filter(Boolean),
   } : {}));
 
-  // 4. llm — heuristic runs skip the model but the step still lights up as bypassed
+  // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
   if (isHeuristic) {
-    steps.push(makeStep("llm", "done", {
+    const llmStep = makeStep("llm", "done", {
+      narrative: "Heuristics matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
       kv: [["routing", "Heuristic match — LLM not invoked"]],
       response: {
         title: "Heuristic routing",
@@ -113,7 +116,10 @@ export function buildTraceSteps(trace) {
           ? `Matched "${routingDetail.action}" from the prompt without calling the LLM.`
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
-    }));
+    });
+    llmStep.title = "Heuristics — intent match & tool choice";
+    llmStep.lane = "HEURISTICS";
+    steps.push(llmStep);
   } else {
     steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
       request: { title: "LLM request (actual)",
@@ -198,11 +204,14 @@ export function buildTraceSteps(trace) {
   // 8. gateway
   const gwAz = findEvent(tokenEvents, "gw-authorize");
   const gwIntro = findEvent(tokenEvents, "gw-introspection");
+  const gwInbound = findEvent(tokenEvents, "evt-inbound");
+  const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
   const gwDenied = !!gwDeniedPhase;
+  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
   steps.push(makeStep("gateway",
-    gwDenied ? "error" : (gwAz || gwIntro) ? "done" : "pending",
-    (gwAz || gwIntro || gwDenied) ? {
+    gwDenied ? "error" : gwSeen ? "done" : "pending",
+    (gwSeen || gwDenied) ? {
       decision: gwDenied
         ? { outcome: "DENY",
             // serverEvents rows use "—" as the empty-detail placeholder
@@ -212,11 +221,36 @@ export function buildTraceSteps(trace) {
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
+        gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
+        gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
       ].filter(Boolean),
       response: gwAz && gwAz.rawResponse
         ? { title: "Gateway authorize response", text: asJson(gwAz.rawResponse) }
         : gwIntro && gwIntro.rawResponse
           ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) } : undefined,
+    } : {}));
+
+  // 8b. api-key-swap — Path A credential swap (evt-swap / evt-backend from gateway _meta)
+  const evtSwap = findEvent(tokenEvents, "evt-swap");
+  const evtBackend = findEvent(tokenEvents, "evt-backend");
+  const apiMetaEarly = (mcpResult && mcpResult._meta) || {};
+  const apiKeyPath =
+    apiMetaEarly.credentialPath === "api_key" ||
+    !!(evtSwap || evtBackend) ||
+    tokenEvents.some((e) => e && e.credentialPath === "api_key");
+  steps.push(makeStep("api-key-swap",
+    apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key") ? "done" : "pending",
+    apiKeyPath ? {
+      kv: [
+        evtSwap ? ["swap", evtSwap.label || "OAuth bearer → service API key"] : null,
+        evtSwap && evtSwap.maskedValue ? ["service key", evtSwap.maskedValue] : null,
+        evtBackend ? ["outbound", evtBackend.label || "backend call with X-API-Key"] : null,
+        apiMetaEarly.apiCall ? ["api call", apiMetaEarly.apiCall] : null,
+        apiMetaEarly.apiKeyMaskedLast4 ? ["key last4", `••••${apiMetaEarly.apiKeyMaskedLast4}`] : null,
+      ].filter(Boolean),
+      response: evtSwap || evtBackend
+        ? { title: "API-key path events", text: asJson([evtSwap, evtBackend].filter(Boolean)) }
+        : undefined,
     } : {}));
 
   // 9. mcp + 10. api — a gateway denial means the call never reached the MCP
@@ -229,22 +263,38 @@ export function buildTraceSteps(trace) {
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
     } : {}));
-  const apiMeta = (mcpResult && mcpResult._meta) || {};
-  const apiKeyCall = apiMeta.credentialPath === "api_key";
+  const apiMeta = apiMetaEarly;
+  const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
   steps.push(makeStep("api", (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
     mcpResult && (mcpResult.result || apiKeyCall) ? {
-      narrative: "The actual resource-server call made with the delegated bearer token.",
+      narrative: apiKeyCall
+        ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
+        : "The actual resource-server call made with the delegated bearer token.",
       response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
       kv: [
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
         apiKeyCall && apiMeta.apiKeyMaskedLast4 ? ["service key", `••••${apiMeta.apiKeyMaskedLast4}`] : null,
+        evtBackend ? ["backend", evtBackend.label] : null,
       ].filter(Boolean),
     } : {}));
 
-  // 11. reply
-  steps.push(makeStep("reply", llmReply ? "done" : "pending", llmReply ? {
-    response: { title: "Streamed reply", text: String(llmReply) },
-  } : {}));
+  // 11. reply — heuristics compose from the tool result (no LLM); chip paths
+  // often have mcpResult but no llmReply, so either evidence marks the step done.
+  const replyDone = Boolean(llmReply) || (isHeuristic && mcpDone);
+  const replyStep = makeStep("reply", replyDone ? "done" : "pending",
+    llmReply ? {
+      response: { title: "Streamed reply", text: String(llmReply) },
+    } : isHeuristic && mcpDone ? {
+      narrative: "Heuristics formatted the tool result into the chat reply — no LLM composition.",
+      response: mcpResult && mcpResult.result
+        ? { title: "Composed reply (from tool result)", text: asJson(mcpResult.result) }
+        : undefined,
+    } : {});
+  if (isHeuristic) {
+    replyStep.title = "Heuristics composes reply → chat";
+    replyStep.lane = "HEURISTICS";
+  }
+  steps.push(replyStep);
 
   return steps.map((s, i) => ({ ...s, num: i + 1 }));
 }

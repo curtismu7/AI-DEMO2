@@ -74,6 +74,7 @@
 .tctr-lane--chat { background: #fce7f3; color: #9d174d; }
 .tctr-lane--agent { background: #e9d5ff; color: #7e22ce; }
 .tctr-lane--llm { background: #ede9fe; color: #5b21b6; }
+.tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
 .tctr-lane--bff { background: #f1f5f9; color: #334155; }
 .tctr-lane--authz { background: #fef3c7; color: #92400e; }
 .tctr-lane--gateway { background: #cffafe; color: #0e7490; }

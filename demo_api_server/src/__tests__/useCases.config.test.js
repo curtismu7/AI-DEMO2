@@ -4,18 +4,21 @@ const {
   USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases,
 } = require('../../config/useCases');
 
-const TRACKS = ['foundations', 'controls', 'attacks', 'hitl', 'tools', 'learn'];
+const TRACKS = ['foundations', 'controls', 'attacks', 'hitl', 'tools', 'learn', 'demo'];
 const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 // 'tools' and 'learn' are utility/link-type cards (no scenario run), so they
 // carry no OWASP threat mapping or product-role narrative.
 const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 32 use cases including UC1..UC22', () => {
-    expect(USE_CASES).toHaveLength(32);
+  test('contains all 34 use cases including UC1..UC22 and UC23..UC24', () => {
+    expect(USE_CASES).toHaveLength(34);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(32);
+    expect(new Set(ids).size).toBe(34);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
+    expect(ids).toContain('UC23');
+    expect(ids).toContain('UC24');
+    expect(ids).not.toContain('UC25');
   });
 
   test('every entry is schema-valid', () => {
@@ -82,9 +85,9 @@ describe('useCases catalog SoT', () => {
     expect(resolveUseCase('NOPE', 'healthcare')).toBeUndefined();
   });
 
-  test('listUseCases returns all 32 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(32);
-    expect(listUseCases()).toHaveLength(32);
+  test('listUseCases returns all 34 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(34);
+    expect(listUseCases()).toHaveLength(34);
   });
 
   test('only UC14 and UC15 are advanced', () => {

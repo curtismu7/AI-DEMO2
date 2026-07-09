@@ -64,6 +64,7 @@
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
       { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
+      { "id": "mf-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "both" },
       { "id": "mf7", "label": "Inspection status", "message": "what is my latest inspection status", "mode": "both" },
       { "id": "mf8", "label": "Capacity this week", "message": "do I have capacity to take a rush order this week", "mode": "both", "tool": "view_work_orders" },
@@ -86,8 +87,8 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
-            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },
         {

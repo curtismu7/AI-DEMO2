@@ -20,6 +20,23 @@ kubectl apply -f k8s/overlays/small/
 
 This reverts the namespace quota to 16Gi/8 CPU and all pod limits to their original conservative values.
 
+## Optional: MLX (Apple) agent mode on OrbStack
+
+The **MLX (Apple)** agent mode talks to a host-side `mlx_lm.server` on `:8098`
+(not the in-cluster `llm-proxy`). On OrbStack / Docker Desktop, pods reach it via
+`MLX_LM_BASE_URL=http://host.docker.internal:8098` (set in `02-configmap.yaml`).
+
+```bash
+# On the Mac host (one-time + start)
+bash demo_llm_proxy/setup-mlx-venv.sh
+bash demo_llm_proxy/start-mlx-lm.sh start
+
+# After changing the ConfigMap, restart consumers so they pick up the env:
+kubectl -n ai-demo rollout restart deployment/demo-api-server deployment/agent-service
+```
+
+On remote clusters (no Mac host), leave the URL as-is — the mode stays unavailable.
+
 ## Overview
 
 This guide provides complete instructions for deploying the AI Demo platform (a multi-vertical AI agent security demo — banking, healthcare, retail, workforce, and more) on Kubernetes using the provided manifests and Docker images.

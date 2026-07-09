@@ -80,13 +80,20 @@ function collectIssues() {
   const issues = [];
 
   const topo = JSON.parse(fs.readFileSync(SERVICE_TOPOLOGY_PATH, 'utf8'));
+  const usePingGateway = (() => {
+    const v = effective('ff_mcp_gateway_pinggateway');
+    return v === true || v === 'true';
+  })();
   for (const [key, svcName] of Object.entries(INVARIANT_URL_KEYS)) {
     const val = effective(key);
     if (!val) continue;
-    const expected = topo.services?.[svcName]?.port;
+    // PingGateway mode routes MCP_GATEWAY_HTTP_URL at ping-gateway:8080, not mcp-gateway:3005.
+    const resolvedSvc =
+      key === 'MCP_GATEWAY_HTTP_URL' && usePingGateway ? 'ping-gateway' : svcName;
+    const expected = topo.services?.[resolvedSvc]?.port;
     const got = (val.match(/:(\d+)/) || [])[1];
     if (expected && got && got !== String(expected)) {
-      issues.push(`${key}="${val}" targets port ${got}, but service-topology.json puts ${svcName} on ${expected}`);
+      issues.push(`${key}="${val}" targets port ${got}, but service-topology.json puts ${resolvedSvc} on ${expected}`);
     }
   }
 

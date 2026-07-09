@@ -46,7 +46,8 @@ const hitlServiceClient = require('./hitlServiceClient');
  * }>}
  */
 async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
-  const FAIL_OPEN = configStore.get('ff_authorize_fail_open') !== 'false';
+  // Default fail-closed (matches transactions.js / authorize.js). Opt in with === 'true'.
+  const FAIL_OPEN = configStore.get('ff_authorize_fail_open') === 'true';
 
   // Lazy-require so that Jest's resetModules() in afterEach does not stale
   // the mock reference when a test re-requires agentMcpTokenService inside a test body.
@@ -88,6 +89,9 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
         userSub || undefined,
         agentId || undefined,
         tool,
+        Date.now(),
+        params?.amount,
+        params || {},
       );
       if (verification.ok) {
         return { decision: 'PERMIT', reason: 'hitl_receipt_verified', tokenEvents };

@@ -12,18 +12,15 @@
  * ff_heuristic_enabled primitive. externalWiring is 'bff' | 'platform'
  * for the three external (LLM) modes (null for heuristics-only).
  */
-// FOUR single-brain modes. Each is exactly ONE router with NO fallback chain:
-// heuristics is deterministic-only; the other three are pure-LLM (one provider).
-// The old hybrid "Heuristics + X" combos and the hidden ChatGPT/LM-Studio modes
-// were retired (2026-06-11) — fallback branches were the source of "agent does
-// nothing / ignores the selected mode" instability. A mode whose provider is
-// unconfigured is greyed out in the UI rather than silently falling back.
+// FOUR single-brain modes + one MLX demo mode (Apple mlx-lm on :8098).
+// Each is exactly ONE router with NO fallback chain:
 const AGENT_MODES = [
   { id: 'heuristics',   label: 'Heuristics only', provider: null,        heuristicRouting: true,  external: false },
   { id: 'llamacpp',     label: 'llama.cpp only',  provider: 'llamacpp',  heuristicRouting: false, external: true  },
+  { id: 'mlx',          label: 'MLX (Apple)',     provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
+  { id: 'gemini',       label: 'Google Gemini only', provider: 'google', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
-  { id: 'google',       label: 'Google only',     provider: 'google',    heuristicRouting: false, external: true  },
 ];
 
 const DEFAULT_MODE = 'heuristics'; // stable, no-config-safe default (deterministic)

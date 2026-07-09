@@ -178,6 +178,12 @@ export const EDUCATION_CATEGORIES: EducationCategory[] = [
         icon: "shld",
         actionId: "pinggateway-mcp",
       },
+      {
+        label: "Enterprise-Managed Auth",
+        description: "IdP-centralized MCP access (MCP extension)",
+        icon: "pol",
+        actionId: "enterprise-managed-auth",
+      },
     ],
   },
   {
@@ -358,6 +364,7 @@ export const createEducationActionMap = (
   cua: () => openEdu(EDU.CUA, "what"),
   hitl: () => openEdu(EDU.HUMAN_IN_LOOP, "what"),
   "pinggateway-mcp": () => openEdu(EDU.PINGGATEWAY_MCP, "overview"),
+  "enterprise-managed-auth": () => openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
   "rfc-index": () => openEdu(EDU.RFC_INDEX, "index"),
   "intent-auth": () =>
     openEdu(EDU.INTENT_AUTH_STANDARDS, "rfc-foundations"),

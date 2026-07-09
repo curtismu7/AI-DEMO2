@@ -10,15 +10,27 @@
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
 | UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC3 | [may_act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
 | UC8 | [HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
+| UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
+| UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC5 | [Wrong / insufficient scope](./insufficient-scope.md) | attacks | ✅ works | 🛡️ T2, T3 |  |
 | UC10 | [Resource-ownership / account takeover](./cross-owner-account.md) | attacks | ✅ works | 🛡️ T3 |  |
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
+| UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
+| UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
+| UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
+| UC-LEARN2 | [PingOne MCP Inspector](./pingone-mcp-inspector.md) | learn | ✅ works |  |  |
+| UC-LEARN3 | [Demo MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
+| UC-LEARN4 | [MCP Tools](./mcp-tools.md) | learn | ✅ works |  |  |
+| UC-LEARN5 | [Learning Hub](./learning-hub.md) | learn | ✅ works |  |  |
+| UC-LEARN6 | [Token Flow (Interactive)](./token-flow.md) | learn | ✅ works |  |  |
+| UC-LEARN7 | [The Ungoverned Agent (OpenCLI)](./ungoverned-agent.md) | learn | ✅ works | 🛡️ T2, T3, T8, T9 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -46,8 +58,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 10 |
+| ✅ Works | 22 |
 | 🚩 Flag-gated | 5 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 7 |
-| **Total** | **22** |
+| **Total** | **34** |

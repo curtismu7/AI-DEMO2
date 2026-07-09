@@ -17,6 +17,9 @@ export const TOOL_SCOPES: Record<string, string[]> = {
   search_transactions: ['read'],
   get_transaction_detail: ['read'],
 
+  // Public catalog (progressive trust Act 1 — no scopes)
+  get_branch_hours: [],
+
   // Write tools
   create_deposit: ['write'],
   create_withdrawal: ['write'],

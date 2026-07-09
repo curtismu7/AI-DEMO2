@@ -203,6 +203,8 @@ async function runChip(api, chip, provider, options = {}) {
     withdraw: 'create_withdrawal',
     biggest_purchase: 'get_my_transactions',
     spending_summary: 'get_my_transactions',
+    unusual_patterns: 'get_my_transactions',
+    afford_check: 'get_my_accounts',
     sensitive_account_details: 'get_my_accounts',
     mcp_tools: 'list_tools',
     mortgage_demo: 'show_mortgage',

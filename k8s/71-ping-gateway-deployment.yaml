@@ -59,8 +59,11 @@ spec:
         # exists for the Groovy http client inside IG.
         - name: P1AZ_MOCK_BASE
           value: "http://127.0.0.1:9001"
-        - name: P1AZ_WORKER_ID
-          value: "mcp-policy"
+        # P1AZ_WORKER_ID comes from ping-gateway-secrets (real decision endpoint UUID).
+        # Do NOT hardcode "mcp-policy" here — that mock policy slug 404s against real
+        # PingOne .../decisionEndpoints/{id} and returns INVALID_REQUEST (HTTP 400).
+        - name: PG_GATEWAY_RESOURCE_URI
+          value: "mcpgateway.ping.demo"
         volumeMounts:
         # emptyDir gives IG a writable instance dir. Routes, config, and scripts
         # are overlaid by configMap mounts below — the emptyDir mount must come
@@ -76,16 +79,14 @@ spec:
           subPath: config.json
           readOnly: true
         - name: gateway-config
-          mountPath: /var/gateway/config/routes/01-mcp-olb.json
-          subPath: 01-mcp-olb.json
+          mountPath: /var/gateway/config/mcp-tool-schemas.json
+          subPath: mcp-tool-schemas.json
           readOnly: true
-        - name: gateway-config
-          mountPath: /var/gateway/config/routes/02-mcp-invest.json
-          subPath: 02-mcp-invest.json
+        - name: gateway-routes
+          mountPath: /var/gateway/config/routes
           readOnly: true
-        - name: gateway-config
-          mountPath: /var/gateway/scripts/groovy/p1az-decision.groovy
-          subPath: p1az-decision.groovy
+        - name: gateway-groovy
+          mountPath: /var/gateway/scripts/groovy
           readOnly: true
         resources:
           requests:
@@ -161,6 +162,12 @@ spec:
       - name: gateway-config
         configMap:
           name: ping-gateway-config
+      - name: gateway-routes
+        configMap:
+          name: ping-gateway-routes
+      - name: gateway-groovy
+        configMap:
+          name: ping-gateway-groovy
 
       restartPolicy: Always
 ---

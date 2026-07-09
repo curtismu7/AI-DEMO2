@@ -26,6 +26,51 @@ function _provisioningResourceName(internalKey) {
   return (_PROVISIONING.resourceNames || {})[internalKey] || internalKey;
 }
 
+const PING_EMAIL_DOMAIN = '@pingidentity.com';
+
+/** Return true when email is a Ping Identity address. */
+function isValidPingEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  return normalized.endsWith(PING_EMAIL_DOMAIN);
+}
+
+/**
+ * Resolve the developer's Ping Identity email for SE K8 namespace derivation.
+ * Checks process.env.PING_EMAIL, existing .env text, then git config user.email.
+ * Personal (non-@pingidentity.com) emails are ignored.
+ */
+function resolvePingEmail(existingEnvText = '') {
+  const fromEnv = String(process.env.PING_EMAIL || '').trim();
+  if (fromEnv) {
+    if (isValidPingEmail(fromEnv)) return fromEnv.toLowerCase();
+    console.warn(`[Bootstrap] Ignoring PING_EMAIL=${fromEnv} — must end in ${PING_EMAIL_DOMAIN}`);
+  }
+
+  if (existingEnvText) {
+    const m = existingEnvText.match(/^PING_EMAIL=(.+)$/m);
+    if (m) {
+      const fromFile = m[1].trim().replace(/^["']|["']$/g, '');
+      if (isValidPingEmail(fromFile)) return fromFile.toLowerCase();
+      if (fromFile) {
+        console.warn(`[Bootstrap] Ignoring PING_EMAIL in .env (${fromFile}) — must end in ${PING_EMAIL_DOMAIN}`);
+      }
+    }
+  }
+
+  try {
+    const { execSync } = require('child_process');
+    const gitEmail = execSync('git config user.email', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (isValidPingEmail(gitEmail)) return gitEmail.toLowerCase();
+  } catch (_e) {
+    // git unavailable or user.email unset
+  }
+
+  return '';
+}
+
 // scope-topology.json (v2) is the SINGLE SOURCE OF TRUTH for which scopes
 // exist on each PingOne resource server and which scopes each app is granted.
 // These helpers convert topology scope-name lists into the {name,description}
@@ -900,6 +945,63 @@ class PingOneProvisionService {
   }
 
   /**
+   * Create PingOne groups for vertical manifest `groups` blocks and assign demo
+   * users per userMemberships (idempotent). Callable without full bootstrap.
+   */
+  async provisionVerticalGroupsFromManifest(demoUsersByUsername, steps, { verticalId = null } = {}) {
+    const onStep = (s) => steps.push(s);
+    await this._provisionVerticalGroups(demoUsersByUsername, steps, onStep, { verticalId });
+    return steps;
+  }
+
+  /**
+   * Create PingOne groups for every vertical manifest `groups` block and assign
+   * demo users per userMemberships (idempotent).
+   */
+  async _provisionVerticalGroups(demoUsersByUsername, steps, onStep, { verticalId = null } = {}) {
+    const groupPolicy = require('./groupPolicy');
+    let defs = groupPolicy.listAllVerticalGroupDefinitions();
+    if (verticalId) {
+      defs = defs.filter((d) => d.verticalId === verticalId);
+    }
+
+    for (const def of defs) {
+      const catGroupIds = {};
+      for (const [catKey, cat] of Object.entries(def.categories)) {
+        const stepKey = `${def.verticalId}-${catKey}-group`;
+        steps.push({ step: stepKey, icon: '👥', message: `Ensuring ${cat.name}...` });
+        onStep(steps[steps.length - 1]);
+        try {
+          catGroupIds[catKey] = await this._ensureGroup(cat.name, cat.description || '');
+          steps.push({ step: stepKey, icon: '✅', message: `${cat.name} ready` });
+        } catch (err) {
+          steps.push({ step: stepKey, icon: '⚠️', message: `Group ${cat.name}: ${err.message}` });
+        }
+        onStep(steps[steps.length - 1]);
+      }
+
+      for (const [username, catKeys] of Object.entries(def.userMemberships)) {
+        const userRec = demoUsersByUsername[username];
+        if (!userRec || !userRec.id || !Array.isArray(catKeys)) continue;
+        for (const catKey of catKeys) {
+          const groupId = catGroupIds[catKey];
+          if (!groupId) continue;
+          try {
+            await this._ensureUserInGroup(userRec.id, groupId);
+          } catch (err) {
+            steps.push({
+              step: `${def.verticalId}-${username}-${catKey}-member`,
+              icon: '⚠️',
+              message: `Could not add ${username} to ${def.categories[catKey]?.name}: ${err.message}`,
+            });
+            onStep(steps[steps.length - 1]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Grant scopes to application — idempotent.
    *
    * PingOne /applications/{id}/grants POST payload shape:
@@ -1166,17 +1268,28 @@ class PingOneProvisionService {
     const envPath = path.resolve(__dirname, '..', '.env');
 
     let preserved = {};
+    let existingText = '';
     try {
-      const existing = await fs.readFile(envPath, 'utf8');
+      existingText = await fs.readFile(envPath, 'utf8');
       const grab = (key) => {
-        const m = existing.match(new RegExp(`^${key}=(.+)$`, 'm'));
+        const m = existingText.match(new RegExp(`^${key}=(.+)$`, 'm'));
         return m ? m[1].trim() : null;
       };
       const sessionSecret = grab('SESSION_SECRET');
       const configKey = grab('CONFIG_ENCRYPTION_KEY');
+      const pingEmail = grab('PING_EMAIL');
       if (sessionSecret) preserved.SESSION_SECRET = sessionSecret;
       if (configKey) preserved.CONFIG_ENCRYPTION_KEY = configKey;
+      if (pingEmail) {
+        const cleaned = pingEmail.replace(/^["']|["']$/g, '');
+        if (isValidPingEmail(cleaned)) preserved.PING_EMAIL = cleaned.toLowerCase();
+      }
     } catch (_e) { /* no existing .env — fall through and generate one */ }
+
+    if (!preserved.PING_EMAIL) {
+      const resolved = String(config.pingEmail || resolvePingEmail(existingText) || '').trim();
+      preserved.PING_EMAIL = isValidPingEmail(resolved) ? resolved.toLowerCase() : '';
+    }
 
     if (!preserved.SESSION_SECRET) {
       preserved.SESSION_SECRET = require('crypto').randomBytes(32).toString('hex');
@@ -1301,6 +1414,11 @@ class PingOneProvisionService {
       `PINGONE_ENVIRONMENT_ID=${config.envId}`,
       `PINGONE_REGION=${config.region}`,
       '',
+      '# Ping Identity email — must be @pingidentity.com (used by run-k8.sh for SE K8 namespace)',
+      '# (e.g. cmuir@pingidentity.com → ping-devops-cmuir). Personal email is rejected.',
+      '# required for ./run-k8.sh se-all unless SE_NAMESPACE is set.',
+      `PING_EMAIL=${preserved.PING_EMAIL || ''}`,
+      '',
       '# Session / config encryption (preserved from existing .env if present)',
     ];
     if (preserved.SESSION_SECRET) lines.push(`SESSION_SECRET=${preserved.SESSION_SECRET}`);
@@ -1355,8 +1473,8 @@ class PingOneProvisionService {
       '',
       '# Claude Code / Cursor "pingone" MCP server OAuth client (developer tooling, not a',
       '# runtime component). NATIVE_APP, PKCE S256, no secret; redirect',
-      '# http://localhost:7464/callback. install.sh patches this into .mcp.json',
-      '# mcpServers.pingone.oauth.clientId so the hosted PingOne MCP server connects.',
+      '# http://localhost:7464/callback (Claude Code) plus Cursor OAuth callbacks.',
+      '# install.sh / npm run patch:cursor-mcp wire .cursor/mcp.json from this value.',
       `PINGONE_MCP_OAUTH_CLIENT_ID=${provisioned.pingOneMcpServerApp?.clientId || ''}`,
       '',
       '# Claude Code "banking-gateway" MCP OAuth client (developer tooling). NATIVE_APP,',
@@ -1989,32 +2107,19 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
-      // Create BankDelegates group + add demoDelegate as member (idempotent).
-      steps.push({ step: 'bankDelegates-group', icon: '👥', message: 'Ensuring BankDelegates group...' });
+      // Vertical-scoped PingOne groups (UC9 privileged + UC21 tier + delegates).
+      // Source of truth: each vertical manifest `groups` block via groupPolicy.
+      steps.push({ step: 'vertical-groups', icon: '👥', message: 'Ensuring vertical-scoped PingOne groups...' });
       onStep(steps[steps.length - 1]);
       try {
-        const groupId = await this._ensureGroup('BankDelegates', 'Users authorized as delegated agents (demo)');
-        await this._ensureUserInGroup(bankDelegateResult.user.id, groupId);
-        steps.push({ step: 'bankDelegates-group', icon: '✅', message: 'demoDelegate added to BankDelegates group' });
+        await this._provisionVerticalGroups({
+          demoUser: bankUserResult?.user,
+          demoAdmin: bankAdminResult?.user,
+          demoDelegate: bankDelegateResult?.user,
+        }, steps, onStep);
+        steps.push({ step: 'vertical-groups', icon: '✅', message: 'Vertical group membership provisioned' });
       } catch (err) {
-        steps.push({ step: 'bankDelegates-group', icon: '⚠️', message: `Group step: ${err.message}` });
-      }
-      onStep(steps[steps.length - 1]);
-
-      // Scenario 1 (Denied Access — user not in group): create the PrivilegedBanking
-      // group and add demoUser + demoAdmin. demoDelegate is intentionally left OUT
-      // so it triggers the group-deny demo on a restricted tool. Membership must
-      // match config/group-policy.json (the simulated engine's source of truth) so
-      // simulated and live PingOne decisions agree. Idempotent.
-      steps.push({ step: 'privilegedBanking-group', icon: '👥', message: 'Ensuring PrivilegedBanking group...' });
-      onStep(steps[steps.length - 1]);
-      try {
-        const groupId = await this._ensureGroup('PrivilegedBanking', 'Users permitted to view sensitive banking data (demo, Scenario 1)');
-        if (bankUserResult?.user?.id) await this._ensureUserInGroup(bankUserResult.user.id, groupId);
-        if (bankAdminResult?.user?.id) await this._ensureUserInGroup(bankAdminResult.user.id, groupId);
-        steps.push({ step: 'privilegedBanking-group', icon: '✅', message: 'demoUser + demoAdmin added to PrivilegedBanking (demoDelegate excluded)' });
-      } catch (err) {
-        steps.push({ step: 'privilegedBanking-group', icon: '⚠️', message: `Group step: ${err.message}` });
+        steps.push({ step: 'vertical-groups', icon: '⚠️', message: `Vertical groups step: ${err.message}` });
       }
       onStep(steps[steps.length - 1]);
 
@@ -2716,7 +2821,12 @@ class PingOneProvisionService {
           const updatedMcpApp = await this.updateApplication(pingOneMcpAppId, {
             // Register both loopback hosts — different MCP clients use localhost vs
             // 127.0.0.1, and PingOne requires an exact redirect_uri match.
-            redirectUris: ['http://localhost:7464/callback', 'http://127.0.0.1:7464/callback'],
+            redirectUris: [
+              'http://localhost:7464/callback',
+              'http://127.0.0.1:7464/callback',
+              'cursor://anysphere.cursor-mcp/oauth/callback',
+              'https://www.cursor.com/agents/mcp/oauth/callback',
+            ],
           });
           if (updatedMcpApp?.clientId) provisioned.pingOneMcpServerApp = updatedMcpApp;
         } catch (err) {
@@ -2956,7 +3066,13 @@ class PingOneProvisionService {
     const RESOURCE_PREFIXES = ['Super Banking', 'Demo'];
     const isOwnedApp = (name) => APP_PREFIXES.some(p => (name || '').startsWith(p));
     const isOwnedResource = (name) => RESOURCE_PREFIXES.some(p => (name || '').startsWith(p));
-    const DEMO_GROUPS = new Set(['BankDelegates', 'PrivilegedBanking']);
+    const groupPolicy = require('./groupPolicy');
+    const DEMO_GROUPS = new Set(
+      groupPolicy.listAllVerticalGroupDefinitions()
+        .flatMap((d) => Object.values(d.categories).map((c) => c.name)),
+    );
+    // Legacy banking-only names from pre-vertical group bootstrap.
+    ['BankDelegates', 'PrivilegedBanking', 'PrivateBanking'].forEach((n) => DEMO_GROUPS.add(n));
     const DEMO_ATTRS = new Set(['isDelegate', 'mayAct', 'delegatedTo', 'bankingPrincipalUserId', 'agentRestrictions']);
     const DEMO_USERS = new Set(['demoUser', 'demoAdmin', 'demoDelegate']);
 
@@ -3146,6 +3262,8 @@ module.exports = {
   PingOneProvisionService,
   provisionService,
   DEMO_PASSWORD,
+  resolvePingEmail,
+  isValidPingEmail,
   provisionEnvironment: (config, onStep) => provisionService.provisionEnvironment(config, onStep),
   recreateResource: (config, resourceKey) => provisionService.recreateResource(config, resourceKey),
   // Caller MUST construct a fresh service instance for wipe — the module

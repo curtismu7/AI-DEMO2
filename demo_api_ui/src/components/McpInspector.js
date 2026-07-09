@@ -312,6 +312,9 @@ const McpInspector = ({ user, onLogout }) => {
           <button type="button" className="app-page-toolbar-btn" onClick={() => open(EDU.AGENT_GATEWAY, 'overview')}>
             Agent Gateway
           </button>
+          <button type="button" className="app-page-toolbar-btn" onClick={() => open(EDU.ENTERPRISE_MANAGED_AUTH, 'overview')}>
+            Enterprise-managed auth
+          </button>
         </div>
 
         <div className="mcp-inspector">

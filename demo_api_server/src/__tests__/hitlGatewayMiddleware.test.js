@@ -1,7 +1,5 @@
 'use strict';
 
-const { evaluateToolCall, getHitlThreshold } = require('../../middleware/hitlGatewayMiddleware');
-
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     if (key === 'mfa_threshold_usd_banking') return '750';
@@ -18,6 +16,19 @@ jest.mock('../../services/verticalManifest', () => ({
     },
   },
 }));
+
+const mockGetChallengeStatus = jest.fn();
+jest.mock('../../services/hitlServiceClient', () => ({
+  getChallengeStatus: (...args) => mockGetChallengeStatus(...args),
+  verifyHitlReceipt: jest.requireActual('../../services/hitlServiceClient').verifyHitlReceipt,
+  createChallenge: jest.fn(),
+}));
+
+const {
+  evaluateToolCall,
+  getHitlThreshold,
+  getConsentDecision,
+} = require('../../middleware/hitlGatewayMiddleware');
 
 describe('hitlGatewayMiddleware.evaluateToolCall — vertical thresholds', () => {
   test('uses vertical-specific threshold when configured', async () => {
@@ -42,5 +53,68 @@ describe('hitlGatewayMiddleware.evaluateToolCall — vertical thresholds', () =>
   test('getHitlThreshold falls back to global when vertical key missing', () => {
     expect(getHitlThreshold('unknown-vertical')).toBe(500);
     expect(getHitlThreshold('banking')).toBe(750);
+  });
+});
+
+describe('hitlGatewayMiddleware.getConsentDecision — amount binding', () => {
+  beforeEach(() => {
+    mockGetChallengeStatus.mockReset();
+  });
+
+  test('rejects when retry amount does not match receipt amount', async () => {
+    mockGetChallengeStatus.mockResolvedValue({
+      status: 'approved',
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      expiresAt: '2099-01-01T00:00:00Z',
+      context: { amount: 250 },
+    });
+    const result = await getConsentDecision('c1', {
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      amount: 499,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/amount/i);
+  });
+
+  test('accepts when retry amount matches receipt amount', async () => {
+    mockGetChallengeStatus.mockResolvedValue({
+      status: 'approved',
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      expiresAt: '2099-01-01T00:00:00Z',
+      context: { amount: 250 },
+    });
+    const result = await getConsentDecision('c1', {
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      amount: 250,
+    });
+    expect(result.valid).toBe(true);
+    expect(result.approved).toBe(true);
+  });
+
+  test('rejects same-amount payee swap on consent path', async () => {
+    mockGetChallengeStatus.mockResolvedValue({
+      status: 'approved',
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      expiresAt: '2099-01-01T00:00:00Z',
+      context: { amount: 250, to_account_id: 'acct-a' },
+    });
+    const result = await getConsentDecision('c1', {
+      userId: 'u1',
+      agentId: 'a1',
+      tool: 'create_transfer',
+      params: { amount: 250, to_account_id: 'acct-b' },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/to_account_id/i);
   });
 });

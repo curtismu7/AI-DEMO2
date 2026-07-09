@@ -1,7 +1,7 @@
 // banking_api_server/tests/agentModeResolver.regression.test.js
 const { resolveAgentMode, AGENT_MODES, DEFAULT_MODE } = require('../services/agentModeResolver');
 
-describe('resolveAgentMode (four single-brain modes)', () => {
+describe('resolveAgentMode (five single-brain modes)', () => {
   test('heuristics: no provider, heuristic routing on, no external wiring', () => {
     expect(resolveAgentMode('heuristics')).toEqual({
       mode: 'heuristics', provider: null, heuristicRouting: true, externalWiring: null,
@@ -17,21 +17,27 @@ describe('resolveAgentMode (four single-brain modes)', () => {
       mode: 'claude', provider: 'anthropic', heuristicRouting: false, externalWiring: 'platform',
     });
   });
+  test('gemini: google provider, routing off, defaults to bff wiring', () => {
+    expect(resolveAgentMode('gemini')).toEqual({
+      mode: 'gemini', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
+
   test('helix_google: helix provider, routing off, defaults to bff wiring', () => {
     expect(resolveAgentMode('helix_google')).toEqual({
       mode: 'helix_google', provider: 'helix', heuristicRouting: false, externalWiring: 'bff',
     });
   });
 
-  test('google: google provider, routing off, defaults to bff wiring', () => {
-    expect(resolveAgentMode('google')).toEqual({
-      mode: 'google', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
+  test('mlx: mlx provider, routing off (pure LLM), defaults to bff wiring', () => {
+    expect(resolveAgentMode('mlx')).toEqual({
+      mode: 'mlx', provider: 'mlx', heuristicRouting: false, externalWiring: 'bff',
     });
   });
 
   test('AGENT_MODES lists exactly the five single-brain modes', () => {
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'llamacpp', 'claude', 'helix_google', 'google',
+      'heuristics', 'llamacpp', 'mlx', 'claude', 'gemini', 'helix_google',
     ]);
   });
 

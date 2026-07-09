@@ -11,9 +11,15 @@ See also: [Audit Table](./audit-table.md)
 
 - [**UC1** — Delegated access with proof](./delegated-access-with-proof.md) ✅ 🛡️
 - [**UC2** — A2A delegation](./a2a-delegation.md) 🚩 🛡️
+- [**UC2.5** — A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) ✅ 🛡️
 - [**UC3** — may_act gate](./may-act-gate.md) ✅ 🛡️
 - [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) 🏗️ 🛡️
 - [**UC20** — Audit trail / traceability](./audit-trail.md) 🏗️ 🛡️
+
+## Demo
+
+- [**UC23** — Progressive trust demo — presenter guide](./progressive-trust-demo.md) ✅ 🛡️
+- [**UC24** — Act 1 — Public catalog access](./progressive-trust-public-access.md) ✅ 🛡️
 
 ## Controls
 
@@ -34,3 +40,24 @@ See also: [Audit Table](./audit-table.md)
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) 🏗️ 🛡️
+
+## Hitl
+
+- [**UC7** — Step-up required](./step-up-required.md) ✅ 🛡️
+- [**UC8** — HITL consent](./hitl-consent.md) ✅ 🛡️
+- [**UC22** — CIBA out-of-band approval](./ciba-out-of-band-approval.md) 🚩 🛡️
+
+## Tools
+
+- [**UC-TOOL1** — RAG code search](./code-search.md) ✅
+- [**UC-TOOL2** — Code Explorer](./code-explorer.md) ✅
+
+## Learn
+
+- [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
+- [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅
+- [**UC-LEARN3** — Demo MCP Inspector](./demo-mcp-inspector.md) ✅
+- [**UC-LEARN4** — MCP Tools](./mcp-tools.md) ✅
+- [**UC-LEARN5** — Learning Hub](./learning-hub.md) ✅
+- [**UC-LEARN6** — Token Flow (Interactive)](./token-flow.md) ✅
+- [**UC-LEARN7** — The Ungoverned Agent (OpenCLI)](./ungoverned-agent.md) ✅ 🛡️

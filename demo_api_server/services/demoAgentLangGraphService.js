@@ -6,6 +6,8 @@
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
+const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
+const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
 const { isAdminClientToken, adminTokenAgentResponse } = require('./customerTokenGuard');
 const { executePluginToolViaMcp } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
@@ -110,6 +112,23 @@ async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
 
   try {
+    // Public catalog — no RFC 8693 exchange (progressive trust Act 1 / UC24).
+    if (action === 'branch_hours') {
+      const result = searchPublicBranches(params || {});
+      const tokenEvents = buildPublicCatalogTokenEvents('get_branch_hours');
+      return {
+        reply: formatBranchCatalogReply(result),
+        success: true,
+        toolsCalled: ['get_branch_hours'],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents,
+        branches: result.branches,
+        publicCatalog: true,
+      };
+    }
+
     // READ actions — route through the full token-exchange → gateway → MCP server
     // pipeline so PingAuthorize evaluates every call (same path as the chip/action UI).
     // executeBffTool does RFC 8693 token exchange, calls the tool executor with the
@@ -397,8 +416,8 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     }
 
     // Unhandled actions that need LLM reasoning — return null to signal fallthrough
-    if (['mcp_tools', 'mortgage_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
-      return null; // Heuristic matched but requires LLM reasoning
+    if (['mcp_tools', 'mortgage_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
+      return null; // Heuristic matched but requires client-side / LLM formatting
     }
 
     // Unknown action — log and suggest fallback
@@ -1124,7 +1143,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       const { verticalId: _activeVerticalId, verticalCtx: _verticalCtx } = resolveVerticalRouting(vertical);
       const isAdmin = req && req.session && req.session.user && req.session.user.role === 'admin';
 
-      const heuristic = parseHeuristic(message, _activeVerticalId, _verticalCtx, { isAdmin });
+      const heuristic = parseHeuristic(message, _activeVerticalId, _verticalCtx, {
+        isAdmin,
+        heuristicsOnly: _agentMode && _agentMode.mode === 'heuristics',
+      });
       if (heuristic && heuristic.kind === 'vertical') {
         // A matched vertical action always dispatches an MCP tool call through
         // the gateway, which needs the user's session bearer for the RFC 8693

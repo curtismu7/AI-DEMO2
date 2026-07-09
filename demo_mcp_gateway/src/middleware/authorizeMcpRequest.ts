@@ -87,7 +87,15 @@ interface GwAuditTrail {
  */
 export interface AuthorizeMcpRequestDeps {
   introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number }>;
-  authorize: (decoded: any, method: string, toolName?: string, toolArgs?: any, hitlApproved?: boolean, intentValidation?: ReturnType<typeof validateIntentToken> | null) =>
+  authorize: (
+    decoded: any,
+    method: string,
+    toolName?: string,
+    toolArgs?: any,
+    hitlApproved?: boolean,
+    intentValidation?: ReturnType<typeof validateIntentToken> | null,
+    hitlChallengeId?: string,
+  ) =>
     Promise<{
       decision: 'PERMIT' | 'DENY' | 'INDETERMINATE';
       reason?: string;
@@ -409,7 +417,16 @@ export function buildAuthorizeMcpRequest(
       let verification: ReceiptVerification | null = null;
       try {
         const status = await getHitlChallengeStatus(config.hitlServiceUrl, hitlChallengeId);
-        verification = verifyHitlReceipt(status, decoded.sub, decoded.act?.sub, toolName ?? '');
+        const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
+        verification = verifyHitlReceipt(
+          status,
+          decoded.sub,
+          decoded.act?.sub,
+          toolName ?? '',
+          Date.now(),
+          retryArgs.amount as number | string | undefined,
+          retryArgs,
+        );
       } catch (verifyErr) {
         // HITL service unreachable or threw — fail closed with 503 rather than
         // silently treating the receipt as missing (which would re-issue a new challenge).
@@ -440,17 +457,28 @@ export function buildAuthorizeMcpRequest(
       hitlApproved = verification?.ok === true;
     }
 
-    // ── Step 2b: Intent token validation ─────────────────────────────────────
+    // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
-    const intentValidation = xIntentToken
+    const intentRequired = process.env.INTENT_TOKEN_REQUIRED === 'true';
+    const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
       : null;
+    if (intentValidation && !intentValidation.valid && intentRequired) {
+      setAuditHeader(res);
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'intent_token_invalid',
+        message: intentValidation.error || 'intent token invalid',
+        login_required: false,
+      }));
+      return;
+    }
     if (!xIntentToken) {
       console.log(`[GW] Intent Token: absent — tool: ${toolName}`);
     } else if (intentValidation && !intentValidation.valid) {
       console.warn(`[GW] Intent Token: INVALID (${intentValidation.error}) — tool: ${toolName}`);
     } else if (intentValidation?.valid) {
-      const permitted = intentValidation.toolPermitted ? '✅ permitted' : '⚠️ not in permitted_tools';
+      const permitted = intentValidation.toolPermitted ? 'permitted' : 'not in permitted_tools';
       console.log(`[GW] Intent Token: valid=true intent=${intentValidation.payload?.intent} confidence=${intentValidation.payload?.confidence} ${permitted} tool=${toolName}`);
     }
 
@@ -490,7 +518,8 @@ export function buildAuthorizeMcpRequest(
     let _tratClaims: TratClaims | null = null;
     try {
       const xt = _hdr('x-trat-context');
-      if (xt) {
+      // Unsigned X-TraT-Context is demo-only; gate like MCP TratClaimsExtractor.
+      if (xt && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
         const _env = JSON.parse(xt) as {
           cnf?: { jkt?: string };
           reqctx?: { tool?: string }; purp?: string; azd?: unknown; rctx?: unknown; trat_sim?: boolean;
@@ -614,7 +643,15 @@ export function buildAuthorizeMcpRequest(
     let authzDecision;
     try {
       if (deps) {
-        authzDecision = await deps.authorize(decoded, method, toolName, toolArgs, hitlApproved, intentValidation);
+        authzDecision = await deps.authorize(
+          decoded,
+          method,
+          toolName,
+          toolArgs,
+          hitlApproved,
+          intentValidation,
+          hitlChallengeId,
+        );
       } else {
         authzDecision = await authorizeClient.evaluate(
           decoded,
@@ -625,6 +662,7 @@ export function buildAuthorizeMcpRequest(
           intentValidation,
           _tratClaims,
           config.introspectionProvider === 'p1az' ? introspectionResult : undefined,
+          hitlChallengeId,
         );
       }
     } catch {

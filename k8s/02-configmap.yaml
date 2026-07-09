@@ -51,8 +51,8 @@ data:
   HEALTH_HTTP_PORT: "8890"
   AGUI_HTTP_HOST: "0.0.0.0"
   CHAT_WS_HOST: "0.0.0.0"
-  MCP_SERVER_RESOURCE_URI: "mcpgateway.ping.demo"
-  MCP_RESOURCE_URI: "mcpgateway.ping.demo"
+  MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo"
+  MCP_RESOURCE_URI: "mcpserver.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
@@ -72,7 +72,9 @@ data:
   # (api.pingone.com/v1/environments/{env}), whose /jwks returns 403, so every
   # agent token signature check fails -> 401 -> the user is logged out on the
   # first agent prompt. Must point at the AUTH host's OIDC JWKS (/as/jwks).
-  PINGONE_JWKS_URI: "https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as/jwks"
+  # Must match PINGONE_ENVIRONMENT_ID (tokens are signed by that env's keys).
+  # Was previously pinned to a different env (d02d2305-…) which returned different kids.
+  PINGONE_JWKS_URI: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/jwks"
 
   # CodeGraph index (hand-managed): baked into the langchain-agent image at
   # build time; not network topology, so it lives outside the generated block.
@@ -83,6 +85,10 @@ data:
   # llama-server — a separate CODEGRAPH_MODEL that the server isn't loaded with
   # 404'd. Override CODEGRAPH_LLM_PROVIDER=anthropic (+ a real ANTHROPIC_API_KEY)
   # for cloud, or set CODEGRAPH_MODEL to pin the id llama-server actually serves.
+
+  # RAG Code Search (hand-managed): optional profile — start with `./k8s/deploy.sh rag on`.
+  MCP_CODE_SEARCH_URL: "http://mcp-code-search:8095"
+  LLAMAINDEX_AGENT_URL: "http://llamaindex-agent:8894"
 
   # BFF -> langchain-agent HTTP base (hand-managed): consumed by codegraphProxy.js
   # and aguiSseProxy.js, which otherwise default to 127.0.0.1:8888 (the BFF pod
@@ -103,15 +109,19 @@ data:
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
 
-  # llama.cpp (local LLM) runs as an in-cluster pod — see k8s/55-llamacpp-deployment.yaml.
-  # Consumers reach it via the `llamacpp` Service (cluster DNS), so the "llama.cpp"
-  # agent mode now works on remote clusters too, not just local OrbStack/Docker
-  # Desktop. (Bare-metal `./run.sh` still uses a host-native llama-server on
-  # localhost; that path is separate and untouched.) LLAMACPP_BASE_URL is the
-  # origin only — the services append /v1. The pod downloads the GGUF on first
-  # start; the served model id is what llama-server reports via /v1/models.
-  LLAMACPP_BASE_URL: "http://llamacpp:8090"
+  # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
+  # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
+  # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.
+  LLAMACPP_BASE_URL: "http://llm-proxy:8090"
   LLAMACPP_MODEL: "phi-4-mini-instruct"
+  CODEGRAPH_LLM_PROVIDER: "llamacpp"
+  CODEGRAPH_LLAMACPP_BASE_URL: "http://llama-tier1:8091"
+  CODEGRAPH_MODEL: "phi-4-mini-instruct"
+  # Apple mlx-lm demo agent mode — host mlx_lm.server on :8098 (Mac/OrbStack only).
+  # BFF + agent-service reach the Mac host via host.docker.internal. On remote
+  # clusters this URL is unreachable; the MLX agent mode stays greyed out.
+  # Start on the host: bash demo_llm_proxy/start-mlx-lm.sh start
+  MLX_LM_BASE_URL: "http://host.docker.internal:8098"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -135,8 +145,45 @@ data:
         root /usr/share/nginx/html;
         index index.html;
 
+        # Content-hashed build assets — safe to cache forever.
+        location /assets/ {
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header Referrer-Policy "no-referrer-when-downgrade" always;
+            add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
+        }
+
+        # BFF public test page only — do not proxy index.html or UI public/*.html
+        location = /pinggateway-test.html {
+            proxy_pass https://demo-api-server:3001/pinggateway-test.html;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_set_header Host api.ping.demo:4000;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
         location / {
             try_files $uri $uri/ /index.html;
+
+            add_header Cache-Control "no-cache" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header Referrer-Policy "no-referrer-when-downgrade" always;
+            add_header Content-Security-Policy "default-src 'self' http: https: ws: wss: data: blob: 'unsafe-inline'; connect-src 'self' http: https: ws: wss:" always;
+        }
+
+        location /health {
+            proxy_pass https://demo-api-server:3001/health;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
         }
 
         location /api/ {

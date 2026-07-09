@@ -197,6 +197,7 @@ async function evaluateMcpFirstTool({
   // the boolean; provenance is bound by the caller's verifyHitlReceipt. The
   // live PingAuthorize path must apply the SAME rule (parity invariant).
   hitlApproved = false,
+  hitlChallengeId = null,
   resourceOwnerId = null,
   // Group-membership policy (Scenario 1). requiredGroup is the group the tool
   // demands; userGroups is the requesting user's membership list. Both are
@@ -204,6 +205,7 @@ async function evaluateMcpFirstTool({
   // when ff_authorize_group_policy is on; null/absent otherwise → guard skipped.
   requiredGroup = null,
   userGroups = null,
+  verticalId = 'banking',
   // RAR enforcement (NNP-1, UC14). Attested values extracted from the TraT's azd
   // field by the caller (mcpToolAuthorizationService). Never sourced from the
   // request body — a caller-supplied body amount must NOT relax the granted limit.
@@ -226,6 +228,7 @@ async function evaluateMcpFirstTool({
     ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(amount != null ? { Amount: amount } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
+    ...(hitlApproved && hitlChallengeId ? { HitlChallengeId: hitlChallengeId } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(Array.isArray(userGroups) ? { UserGroups: userGroups } : {}),
@@ -341,32 +344,50 @@ async function evaluateMcpFirstTool({
 
   // ── Group-membership guard (Scenario 1 — Denied Access: user not in group).
   //
-  // When the tool is restricted to a group and the requesting user is not a
-  // member, DENY. RequiredGroup / UserGroups are supplied by the caller only
-  // when ff_authorize_group_policy is on, so this guard is a no-op otherwise.
-  // The live PingOne policy + demo_authz_server enforce the same rule on the
-  // same parameters (parity invariant). Proves least-privilege: an authenticated
-  // user with a valid token is still denied a resource their group does not grant.
-  if (requiredGroup && Array.isArray(userGroups) && !userGroups.includes(requiredGroup)) {
-    const out = {
-      decision: 'DENY',
-      stepUpRequired: false,
-      hitlRequired: false,
-      path: 'simulated',
-      decisionId,
-      raw: {
-        ...rawBase,
+  // When the tool is restricted to a group, UserGroups must be supplied and
+  // include RequiredGroup. Absent userGroups with requiredGroup set → DENY
+  // (fail closed; parity with demo_authz_server decision.js Rule 3.5b).
+  if (requiredGroup) {
+    if (!Array.isArray(userGroups)) {
+      const out = {
         decision: 'DENY',
-        deny_reason: 'user_not_in_group',
-        reason:
-          `Group membership check failed — tool "${toolName}" requires membership in ` +
-          `"${requiredGroup}" but user "${userId}" is in [${userGroups.join(', ') || 'none'}]. ` +
-          `Even with a valid token and the right scope, least-privilege at the authorization ` +
-          `policy blocks access the user's group does not grant.`,
-      },
-    };
-    recordSimulatedDecision(out);
-    return out;
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'missing_user_groups',
+          reason:
+            `Group membership check failed — tool "${toolName}" requires membership in ` +
+            `"${requiredGroup}" but UserGroups was not supplied for user "${userId}".`,
+        },
+      };
+      recordSimulatedDecision(out);
+      return out;
+    }
+    if (!userGroups.includes(requiredGroup)) {
+      const out = {
+        decision: 'DENY',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'user_not_in_group',
+          reason:
+            `Group membership check failed — tool "${toolName}" requires membership in ` +
+            `"${requiredGroup}" but user "${userId}" is in [${userGroups.join(', ') || 'none'}]. ` +
+            `Even with a valid token and the right scope, least-privilege at the authorization ` +
+            `policy blocks access the user's group does not grant.`,
+        },
+      };
+      recordSimulatedDecision(out);
+      return out;
+    }
   }
 
   // ── Entitlement-tier capability guard (NNP-8, UC21) ──────────────────────────
@@ -382,8 +403,8 @@ async function evaluateMcpFirstTool({
   const _tierFlagOn = configStore.get('ff_authorize_group_policy') === 'true'
     || configStore.get('ff_authorize_group_policy') === true;
   if (_tierFlagOn) {
-    const _tierPolicy = getTierPolicy();
-    const _userTier = _resolveUserTierFromGroups(userGroups);
+    const _tierPolicy = getTierPolicy(verticalId);
+    const _userTier = _resolveUserTierFromGroups(userGroups, verticalId);
     const _tierConfig = _tierPolicy[_userTier] || _tierPolicy[NNP8_DEFAULT_TIER];
     // (a) Tool restriction: privateBankingOnlyTools are denied for non-PrivateBanking tiers.
     if (_tierConfig.privateBankingOnlyTools.length > 0 &&
@@ -736,7 +757,9 @@ function getSimulatedRecentDecisions(limit = 20) {
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
-  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey');
+  // Do NOT treat bare "http" as strong — URI-shaped ACRs like "http-only" would
+  // otherwise bypass STEP_UP / HITL_CONSENT. Match MFA / FIDO / passkey only.
+  return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
 // ── NNP-8 tier policy (UC21) — entitlement-tiered capability ──────────────────
@@ -745,23 +768,33 @@ function acrLooksStrong(acr) {
 // Reads tier limits from scope-topology.json policy.authorization.amountLimitsByTier.
 const NNP8_DEFAULT_TIER = 'Standard';
 
-function getTierPolicy() {
+function getTierPolicy(verticalId = 'banking') {
+  const groupPolicy = require('./groupPolicy');
+  const defs = groupPolicy.getTierDefinitions(verticalId);
   const limits = scopeTopology.amountLimitsByTier();
-  return {
-    PrivateBanking: {
-      maxAmountUsd: limits.privatebanking || 50000,
-      privateBankingOnlyTools: [],
-    },
-    Standard: {
+  const out = {};
+  for (const [tierName, def] of Object.entries(defs)) {
+    const key = tierName.toLowerCase().replace(/\s+/g, '');
+    const fallbackLimit = tierName === 'PrivateBanking'
+      ? (limits.privatebanking || 50000)
+      : (limits.standard || 2000);
+    out[tierName] = {
+      maxAmountUsd: def.maxAmountUsd != null ? def.maxAmountUsd : fallbackLimit,
+      privateBankingOnlyTools: def.restrictedTools || [],
+    };
+  }
+  if (!out[NNP8_DEFAULT_TIER]) {
+    out[NNP8_DEFAULT_TIER] = {
       maxAmountUsd: limits.standard || 2000,
       privateBankingOnlyTools: ['create_withdrawal', 'withdraw'],
-    },
-  };
+    };
+  }
+  return out;
 }
 
-function _resolveUserTierFromGroups(userGroups) {
-  if (Array.isArray(userGroups) && userGroups.includes('PrivateBanking')) return 'PrivateBanking';
-  return NNP8_DEFAULT_TIER;
+function _resolveUserTierFromGroups(userGroups, verticalId = 'banking') {
+  const groupPolicy = require('./groupPolicy');
+  return groupPolicy.resolveUserTier(userGroups, verticalId);
 }
 
 /**

@@ -7,7 +7,9 @@ metadata:
     app: ai-demo
     component: mcp-gateway
 spec:
-  replicas: 1
+  # Off by default — mirrors Docker's demo-auth profile. demo-sync scales to 1
+  # when Quick Flag ff_mcp_gateway_pinggateway selects the demo Node gateway.
+  replicas: 0
   # Zero-downtime rollouts: bring new pod healthy before terminating old one.
   # maxSurge:1 transiently adds one pod (100m CPU / 128Mi) during rollouts only —
   # well within the 8 CPU quota (k8s/01-namespace.yaml). maxUnavailable:0 ensures

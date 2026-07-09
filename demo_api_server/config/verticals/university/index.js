@@ -21,7 +21,7 @@ const HEURISTICS = [
   { re: /\bfinancial\s+aid\b|\b(my\s+)?(grants?|loans?|aid\s+package|fafsa\s+status)\b/i, action: 'view_financial_aid' },
   { re: /\b(tuition|bill|billing|balance\s+due|invoice|charges?|fees?)\b/i, action: 'view_billing' },
   { re: /\b(my\s+)?holds?\b|\b(account|registration)\s+hold\b/i, action: 'view_holds' },
-  { re: /\bdegree\s+audit\b|\bdegree\s+progress\b|\bhow\s+many\s+credits\b|\bcredits?\b.*\b(to\s+graduate|remaining|still\s+need|need\s+to\s+graduat)\w*|\bgraduat\w*\s+requirements?\b/i, action: 'view_degree_audit' },
+  { re: /\bdegree\s+audit\b|\bdegree\s+progress\b|\bon\s+track\s+to\s+graduat\w*|\bam i on track\b|\bhow\s+many\s+credits\b|\bcredits?\b.*\b(to\s+graduate|remaining|still\s+need|need\s+to\s+graduat)\w*|\bgraduat\w*\s+requirements?\b/i, action: 'view_degree_audit' },
   { re: /\b(my\s+)?(housing|dorm|residence\s+hall|room\s+assignment)\b/i, action: 'view_housing' },
   { re: /\b(dining|meal\s+plan|dining\s+dollars|cafeteria|swipes?)\b/i, action: 'view_dining' },
   { re: /\b(exam\s+schedule|final\s+exams?|midterm\s+schedule|when\s+is\s+my\s+(exam|final|midterm))\b/i, action: 'view_exam_schedule' },
@@ -33,6 +33,7 @@ const HEURISTICS = [
   { re: /\bcredit\s*standing\b|\bcredits?\s*(earned)?\b|\bhold(s)?\b|\bgpa\b|\bstanding\b/i, action: 'view_standing' },
   { re: /\benrollment\s*(history)?\b|\bregistration\b|\bdrop\b|\bgrades?\b/i, action: 'view_enrollment_history' },
   { re: /\b(courses?|class(?:es)?)\b|\btranscript\b/i, action: 'view_courses' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend|enrollment|grade)|check for unusual|flag any unusual|spot unusual/i, action: 'view_enrollment_history' },
 ];
 
 function systemPrompt(ctx) {

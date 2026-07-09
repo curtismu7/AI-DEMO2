@@ -122,6 +122,7 @@ module.exports = async function decisionHandler(req, res) {
     TokenIss = '',
     TransactionAmount = '',
     HitlApproved = '',
+    HitlChallengeId = '',
     IntentTokenValid = '',
     IntentMatchesTool = '',
     IntentJti = '',
@@ -142,7 +143,39 @@ module.exports = async function decisionHandler(req, res) {
   const asStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
   const grantedScopes = new Set(asStr(TokenScopes).split(/\s+/).filter(Boolean));
-  const hitlApproved = HitlApproved === 'true';
+  // Bare HitlApproved=true is not enough — require a UUID challenge id. When
+  // HITL_SERVICE_URL is set, also confirm the challenge is approved in the HITL
+  // store (defense-in-depth for direct mock-authz callers). Without the URL,
+  // UUID format alone is required (unit tests / local without HITL).
+  const challengeIdRaw = asStr(HitlChallengeId).trim();
+  const challengeIdLooksValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(challengeIdRaw);
+  let hitlApproved = HitlApproved === 'true' && challengeIdLooksValid;
+  if (hitlApproved && process.env.HITL_SERVICE_URL) {
+    try {
+      const base = String(process.env.HITL_SERVICE_URL).replace(/\/$/, '');
+      const secret = process.env.HITL_INTERNAL_SECRET || '';
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000);
+      const hr = await fetch(`${base}/challenges/${encodeURIComponent(challengeIdRaw)}`, {
+        signal: ctrl.signal,
+        headers: secret ? { 'X-HITL-Internal-Secret': secret } : {},
+      });
+      clearTimeout(timer);
+      if (!hr.ok) {
+        hitlApproved = false;
+        warn(`[AuthzServer/decision] HITL lookup failed status=${hr.status} id=${challengeIdRaw}`);
+      } else {
+        const body = await hr.json();
+        if (body?.status !== 'approved') {
+          hitlApproved = false;
+          warn(`[AuthzServer/decision] HITL challenge not approved status=${body?.status} id=${challengeIdRaw}`);
+        }
+      }
+    } catch (err) {
+      hitlApproved = false;
+      warn(`[AuthzServer/decision] HITL lookup error (fail-closed): ${err.message}`);
+    }
+  }
   const nowSec = Math.floor(Date.now() / 1000);
 
   // Bind the structured decision inputs so deny()/indeterminate() can emit a
@@ -249,6 +282,9 @@ module.exports = async function decisionHandler(req, res) {
     if (userInfoList.status === 'NOT_FOUND') {
       return deny(res, 'unknown_sub: user not found in identity provider');
     }
+    if (userInfoList.status === 'LOOKUP_FAILED') {
+      return deny(res, 'user_lookup_failed: unable to verify user status');
+    }
     if (userInfoList.found && !userInfoList.enabled) {
       return deny(res, `user_disabled: sub=${ClientId} status=${userInfoList.status}`);
     }
@@ -292,10 +328,14 @@ module.exports = async function decisionHandler(req, res) {
     warn(`[AuthzServer/decision] CRITICAL: PingOne user lookup failed: ${err.message} — failing closed to prevent unhandled rejection`);
     return deny(res, 'user_lookup_failed: unable to verify user status');
   }
-  // Explicit NOT_FOUND (404 from PingOne) → DENY; network errors already fail-open (found=false, status='UNKNOWN')
+  // Explicit NOT_FOUND (404) or LOOKUP_FAILED (API/network error) → DENY (fail closed).
   if (userInfo.status === 'NOT_FOUND') {
     warn(`[AuthzServer/decision] DENY — sub not found in PingOne: sub=${ClientId}`);
     return deny(res, `unknown_sub: user not found in identity provider`);
+  }
+  if (userInfo.status === 'LOOKUP_FAILED') {
+    warn(`[AuthzServer/decision] DENY — PingOne user lookup failed: sub=${ClientId}`);
+    return deny(res, 'user_lookup_failed: unable to verify user status');
   }
   if (userInfo.found && !userInfo.enabled) {
     warn(`[AuthzServer/decision] DENY — user disabled: sub=${ClientId} status=${userInfo.status}`);
@@ -459,22 +499,37 @@ module.exports = async function decisionHandler(req, res) {
   }
 
   // ── Rule 3.5b: group-membership check (NNP-2, UC9) ───────────────────────
-  // When RequiredGroup is set and UserGroups is a non-empty array, DENY if
-  // the user is not in the required group. Parameters are supplied by the caller
-  // (mcpToolAuthorizationService) only when ff_authorize_group_policy is on;
-  // absent/empty parameters are a no-op (guard skipped).
-  // Parity with simulatedAuthorizeService.js evaluateMcpFirstTool:338-358.
+  // When RequiredGroup is set, UserGroups must be present and include the group.
+  // Absent/empty UserGroups with RequiredGroup set → DENY (fail closed).
+  // Malformed JSON → DENY. Parity with simulatedAuthorizeService when the BFF
+  // always supplies both parameters together under ff_authorize_group_policy.
   if (RequiredGroup) {
     let parsedGroups = null;
-    if (UserGroups) {
-      // Handle both native array (from express.json()) and JSON string
-      if (Array.isArray(UserGroups)) {
-        parsedGroups = UserGroups;
-      } else {
-        try { parsedGroups = JSON.parse(UserGroups); } catch { /* malformed — skip guard */ }
+    if (!UserGroups && UserGroups !== 0) {
+      warn(`[AuthzServer/decision] DENY — missing_user_groups: RequiredGroup="${RequiredGroup}" sub="${ClientId}"`);
+      return deny(res,
+        `missing_user_groups: RequiredGroup "${RequiredGroup}" was set but UserGroups is absent`
+      );
+    }
+    if (Array.isArray(UserGroups)) {
+      parsedGroups = UserGroups;
+    } else {
+      try {
+        parsedGroups = JSON.parse(UserGroups);
+      } catch {
+        warn(`[AuthzServer/decision] DENY — malformed_user_groups: RequiredGroup="${RequiredGroup}" sub="${ClientId}"`);
+        return deny(res,
+          `malformed_user_groups: RequiredGroup "${RequiredGroup}" was set but UserGroups is not valid JSON`
+        );
       }
     }
-    if (Array.isArray(parsedGroups) && !parsedGroups.includes(RequiredGroup)) {
+    if (!Array.isArray(parsedGroups)) {
+      warn(`[AuthzServer/decision] DENY — malformed_user_groups: RequiredGroup="${RequiredGroup}" sub="${ClientId}"`);
+      return deny(res,
+        `malformed_user_groups: RequiredGroup "${RequiredGroup}" was set but UserGroups is not an array`
+      );
+    }
+    if (!parsedGroups.includes(RequiredGroup)) {
       warn(`[AuthzServer/decision] DENY — user_not_in_group: required="${RequiredGroup}" userGroups=[${parsedGroups.join(',')}] sub="${ClientId}"`);
       return deny(res,
         `user_not_in_group: tool "${ToolName}" requires membership in "${RequiredGroup}" ` +
@@ -643,7 +698,9 @@ module.exports = async function decisionHandler(req, res) {
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
-  return s.includes('mfa') || s.includes('multi') || s.includes('http') || s.includes('fido') || s.includes('passkey');
+  // Do NOT treat bare "http" as strong — URI-shaped ACRs like "http-only" would
+  // otherwise bypass STEP_UP / HITL_CONSENT. Match MFA / FIDO / passkey only.
+  return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
 function permit(res, reason) {

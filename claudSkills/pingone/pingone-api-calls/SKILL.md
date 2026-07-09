@@ -1,6 +1,6 @@
 ---
 name: pingone-api-calls
-description: 'Patterns for calling PingOne Management API from demo_api_server. USE FOR: read user, update user attributes, p1:read:user, p1:update:user, list users, create user, delete user, PingOne Management API /v1/environments, /users endpoint, worker app token calls, admin PingOne REST API, new service file, new route calling PingOne, error handling for PingOne responses, existing services (mfaService.js, pingoneManagementService.js, pingOneUserService.js, pingoneBootstrapService.js). DO NOT USE FOR: OAuth login, token exchange, or session flows (use oauth-pingone); MFA device lifecycle (use pingone-mfa); MCP server tools (use mcp-server); session/cookie patterns (use bff-sessions); HITL/consent (use hitl-consent).'
+description: 'Patterns for calling PingOne Management API from demo_api_server. USE FOR: read user, update user attributes, p1:read:user, p1:update:user, list users, create user, delete user, PingOne Management API /v1/environments, /users endpoint, worker app token calls, assign roles to Worker applications, application roleAssignments, Identity Data Admin, Environment Admin, GET /v1/roles, admin PingOne REST API, new service file, new route calling PingOne, error handling for PingOne responses, existing services (mfaService.js, pingoneManagementService.js, pingOneUserService.js, pingoneBootstrapService.js). DO NOT USE FOR: OAuth login, token exchange, or session flows (use oauth-pingone); MFA device lifecycle (use pingone-mfa); MCP server tools (use mcp-server); session/cookie patterns (use bff-sessions); HITL/consent (use hitl-consent).'
 argument-hint: 'Describe the PingOne API call you need to make (e.g. read user, update MFA)'
 ---
 
@@ -11,6 +11,7 @@ argument-hint: 'Describe the PingOne API call you need to make (e.g. read user, 
 - Making calls to the PingOne Management API from `demo_api_server` (read user, update user, list users, create/delete)
 - Adding a new service file or route that calls PingOne's `/v1/environments/{envId}/users` endpoint
 - Working with worker app `client_credentials` tokens for Management API access
+- Assigning / listing / revoking admin roles on a Worker application (`/applications/{appId}/roleAssignments`)
 - Extending existing services: `mfaService.js`, `pingoneManagementService.js`, `pingOneUserService.js`, `pingoneBootstrapService.js`
 - Handling PingOne error responses or debugging `invalid_client` / `INVALID_DATA` errors from Management API calls
 
@@ -150,6 +151,149 @@ governed by the **environment roles** assigned to the Worker app (Identity Data
 Admin, Environment Admin, …), not by OAuth scopes. When debugging a Management API
 **403**, check the Worker app's assigned role in PingOne Console → Identities →
 Services → Workers — don't look for scopes in the introspection response.
+
+### Assigning roles to a Worker application
+
+Worker entitlements come from **application role assignments**, not OAuth scopes.
+Only apps with `type: WORKER` accept these endpoints — non-Worker apps return
+**404** on `/roleAssignments`. Docs:
+[Application Role Assignments](https://developer.pingidentity.com/pingone-api/platform/applications/application-role-assignments.html),
+[Create](https://developer.pingidentity.com/pingone-api/platform/applications/application-role-assignments/create-application-role-assignments.html),
+[Read all built-in roles](https://developer.pingidentity.com/pingone-api/platform/roles/predefined-roles/read-all-roles.html).
+
+**Demo defaults for "Super Banking Worker"** (`PINGONE_WORKER_TOKEN_*`):
+**Identity Data Admin** + **Environment Admin**, scoped to this environment
+(`scope.type: ENVIRONMENT`, `scope.id: {envId}`).
+
+**Privilege rule:** the actor minting the token used for these calls can only
+grant roles it already holds (and only at equal-or-narrower scope). A Worker
+with only Identity Data Admin cannot grant Environment Admin.
+
+**Create-time tip:** when creating a Worker via API, set `assignActorRoles: false`
+so it does not inherit the creator's full role set — then assign the minimum
+roles explicitly (least privilege).
+
+#### 1. Resolve role name → role id
+
+`GET /v1/roles` is **org-level** (not under `/environments/{envId}`). It returns
+built-in roles only (no custom roles).
+
+```javascript
+const region = configStore.getEffective('pingone_region') || 'com';
+const token  = await getManagementToken(); // existing Worker CC token
+
+const { data } = await axios.get(`https://api.pingone.${region}/v1/roles`, {
+  headers: { Authorization: `Bearer ${token}` },
+  timeout: 20000,
+});
+const roleIdsByName = Object.fromEntries(
+  (data._embedded?.roles || []).map((r) => [r.name, r.id])
+);
+const identityDataAdminId = roleIdsByName['Identity Data Admin'];
+const environmentAdminId  = roleIdsByName['Environment Admin'];
+```
+
+Same lookup pattern already exists for **user** role grants in
+`pingOneUserService.ensureAdminRoleAssignments()` /
+`pingoneProvisionService._ensureAdminRoleAssignments()` — those POST to
+`/users/{userId}/roleAssignments`. Worker apps use the **application** path below.
+
+#### 2. List current Worker role assignments
+
+```http
+GET /v1/environments/{envId}/applications/{appId}/roleAssignments
+Authorization: Bearer {accessToken}
+```
+
+Response: `_embedded.roleAssignments[]` with `id`, `role.id`, `scope.{id,type}`.
+
+Hosted PingOne MCP tools: `listApplicationRoleAssignments`,
+`createApplicationRoleAssignment`, `deleteApplicationRoleAssignment`.
+
+#### 3. Grant a role (idempotent recipe)
+
+```http
+POST /v1/environments/{envId}/applications/{appId}/roleAssignments
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "role":  { "id": "{roleId}" },
+  "scope": { "id": "{envId}", "type": "ENVIRONMENT" }
+}
+```
+
+`scope.type` options: `ORGANIZATION` | `ENVIRONMENT` | `POPULATION` | `APPLICATION`.
+For this demo, prefer **ENVIRONMENT** scoped to the current env id.
+
+```javascript
+async function ensureWorkerRoleAssignment(appId, roleName) {
+  const envId  = configStore.getEffective('pingone_environment_id');
+  const region = configStore.getEffective('pingone_region') || 'com';
+  const token  = await getManagementToken();
+  const base   = `https://api.pingone.${region}/v1/environments/${envId}/applications/${appId}`;
+
+  // Resolve role id (cache per process in real code)
+  const { data: roles } = await axios.get(`https://api.pingone.${region}/v1/roles`, {
+    headers: { Authorization: `Bearer ${token}` }, timeout: 20000,
+  });
+  const roleId = (roles._embedded?.roles || []).find((r) => r.name === roleName)?.id;
+  if (!roleId) throw new Error(`Unknown built-in role: ${roleName}`);
+
+  const { data: list } = await axios.get(`${base}/roleAssignments`, {
+    headers: { Authorization: `Bearer ${token}` }, timeout: 20000,
+  });
+  const existing = list._embedded?.roleAssignments || [];
+  if (existing.some((ra) => ra.role?.id === roleId && ra.scope?.id === envId)) {
+    return { status: 'existing', roleName };
+  }
+
+  try {
+    await axios.post(`${base}/roleAssignments`, {
+      role:  { id: roleId },
+      scope: { id: envId, type: 'ENVIRONMENT' },
+    }, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      timeout: 20000,
+    });
+    return { status: 'assigned', roleName };
+  } catch (err) {
+    // Duplicate assignment race → treat as success
+    if (/unique|already|exist|duplicate/i.test(err.response?.data?.message || err.message)) {
+      return { status: 'existing', roleName };
+    }
+    throw err;
+  }
+}
+
+// Demo Worker minimum:
+await ensureWorkerRoleAssignment(workerAppId, 'Identity Data Admin');
+await ensureWorkerRoleAssignment(workerAppId, 'Environment Admin');
+```
+
+After granting roles, **mint a fresh Worker token** — existing CC tokens do not
+pick up new entitlements until re-issued (and any in-process token cache in
+`pingoneManagementService` / `mfaService._getWorkerToken()` must be cleared).
+
+#### 4. Revoke a role
+
+```http
+DELETE /v1/environments/{envId}/applications/{appId}/roleAssignments/{roleAssignmentId}
+Authorization: Bearer {accessToken}
+```
+
+`roleAssignmentId` is the assignment resource `id` from the list response (not
+the role id).
+
+#### Common failures
+
+| Symptom | Cause / fix |
+|---|---|
+| `404` on `/roleAssignments` | App `type` is not `WORKER` |
+| `403` granting a role | Actor lacks that role (or broader scope); use a higher-privileged admin/Worker |
+| CC token request rejected | Worker has **zero** role assignments — assign at least one before token mint |
+| Management API `403` after grant | Stale cached Worker token — clear cache and re-mint |
+| Role name not found | Typo / custom role — `GET /v1/roles` is built-ins only; custom roles use the custom-roles API |
 
 ### `pingone-admin` MCP tool: "User does not have any role assignments"
 

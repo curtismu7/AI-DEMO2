@@ -88,6 +88,56 @@ describe('vertical-aware catalog (all verticals)', () => {
   });
 });
 
+// Live vertical catalogs must quote real chip messages (not invented
+// "show my {terminology}" phrases that never match heuristics).
+describe('live vertical catalog quotes always parse (all verticals)', () => {
+  const VERTICALS = [
+    'banking',
+    'healthcare',
+    'retail',
+    'sporting-goods',
+    'workforce',
+    'government',
+    'university',
+    'manufacturing',
+    'oauth-teaching',
+  ];
+
+  for (const v of VERTICALS) {
+    it(`${v}: every quoted catalog example parses to a non-none kind`, () => {
+      const manifest = require(`../config/verticals/${v}/manifest.json`);
+      // Banking keeps the hand-authored catalog (null ctx). Other verticals
+      // build ctx from the on-disk manifest so the test does not depend on
+      // verticalManifest.init() having loaded every plugin.
+      const ctx =
+        v === 'banking'
+          ? null
+          : {
+              terminology: manifest.terminology,
+              chips: (manifest.dashboard && manifest.dashboard.chips10) || [],
+            };
+      if (v !== 'banking') {
+        expect(ctx.terminology).toBeTruthy();
+        expect(ctx.chips.length).toBeGreaterThan(0);
+      }
+      const msg = buildCatalogMessage(ctx);
+      const examples = [...msg.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+      expect(examples.length).toBeGreaterThan(0);
+      for (const ex of examples) {
+        const res = parseHeuristic(ex, v, ctx);
+        expect({ ex, kind: res.kind }).toEqual({
+          ex,
+          kind: expect.not.stringMatching(/^none$/),
+        });
+        expect(['vertical', 'banking', 'education']).toContain(res.kind);
+      }
+      if (v !== 'banking') {
+        expect(msg).not.toMatch(/checking|savings|mortgage/i);
+      }
+    });
+  }
+});
+
 // Regression: the LIVE path resolves ctx via resolveActiveVerticalCtx() after
 // verticalManifest.init(). Banking's manifest carries a terminology block, so a
 // naive `if (m.terminology)` check would treat banking like a themed vertical and
@@ -168,4 +218,11 @@ describe('chip routing contract — every `both` chip resolves to a heuristic (a
       }
     });
   }
+});
+
+describe('progressive trust Act 1 (UC24)', () => {
+  it('routes "What branches are near me?" to branch_hours without LLM', () => {
+    const res = parseHeuristic('What branches are near me?');
+    expect(res).toEqual({ kind: 'banking', banking: { action: 'branch_hours' } });
+  });
 });

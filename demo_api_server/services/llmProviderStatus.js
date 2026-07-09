@@ -49,7 +49,7 @@ async function getProviderStatus(provider, config = {}) {
   const CLOUD_PROVIDERS = { openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', groq: 'GROQ_API_KEY', google: 'GOOGLE_API_KEY' };
   if (CLOUD_PROVIDERS[provider]) {
     const keyField = provider + '_api_key';
-    const hasKey = !!(config[keyField]);
+    const hasKey = !!(config[keyField] || process.env[CLOUD_PROVIDERS[provider]]);
     return {
       status: hasKey ? 'available' : 'unconfigured',
       reason: hasKey ? `${provider} API key is set` : `Set a ${CLOUD_PROVIDERS[provider]} in the LangChain config to enable ${provider}`,
@@ -100,6 +100,31 @@ async function getProviderStatus(provider, config = {}) {
       return { status: 'unreachable', reason: `llama.cpp returned ${response.status}`, hasKey: true, isReachable: false };
     } catch (err) {
       return { status: 'unreachable', reason: `llama.cpp not reachable at ${origin}: ${err.message} (is 'llama-server' running?)`, hasKey: true, isReachable: false };
+    }
+  }
+
+  // mlx-lm (Apple) — demo agent mode; ping mlx_lm.server on MLX_LM_BASE_URL (:8098).
+  if (provider === 'mlx') {
+    const origin = (process.env.MLX_LM_BASE_URL || 'http://127.0.0.1:8098').replace(/\/+$/, '');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+      let response = await fetch(`${origin}/health`, { signal: controller.signal });
+      if (!response.ok) {
+        response = await fetch(`${origin}/v1/models`, { signal: controller.signal });
+      }
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const models = (data.data || []).map((m) => m.id).filter(Boolean);
+        const reason = models.length > 0
+          ? `mlx-lm running — serving ${models[0]}`
+          : 'mlx-lm server running';
+        return { status: 'available', reason, hasKey: true, isReachable: true };
+      }
+      return { status: 'unreachable', reason: `mlx-lm returned ${response.status}`, hasKey: true, isReachable: false };
+    } catch (err) {
+      return { status: 'unreachable', reason: `mlx-lm not reachable at ${origin}: ${err.message} (run: bash demo_llm_proxy/start-mlx-lm.sh start)`, hasKey: true, isReachable: false };
     }
   }
 

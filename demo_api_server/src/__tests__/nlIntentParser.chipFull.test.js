@@ -322,6 +322,18 @@ describe('nlIntentParser — mortgage chip', () => {
   it('"mortgage" bare word → mortgage_demo', () => {
     expect(bank('mortgage').banking.action).toBe('mortgage_demo');
   });
+
+  it('"show portfolio status" → invest_demo', () => {
+    expect(bank('show portfolio status').banking.action).toBe('invest_demo');
+  });
+
+  it('"show my portfolio" → invest_demo', () => {
+    expect(bank('show my portfolio').banking.action).toBe('invest_demo');
+  });
+
+  it('"portfolio status" → invest_demo', () => {
+    expect(bank('portfolio status').banking.action).toBe('invest_demo');
+  });
 });
 
 // ── Spending / biggest purchase chips ─────────────────────────────────────────
@@ -345,6 +357,32 @@ describe('nlIntentParser — spending_summary and biggest_purchase chips', () =>
 
   it('"most expensive purchase" → biggest_purchase', () => {
     expect(bank('most expensive purchase').banking.action).toBe('biggest_purchase');
+  });
+});
+
+describe('nlIntentParser — unusual_patterns and afford_check chips', () => {
+  it('"Check for unusual patterns" → unusual_patterns', () => {
+    expect(bank('Check for unusual patterns').banking.action).toBe('unusual_patterns');
+  });
+
+  it('"Check for unusual patterns in my recent activity" → unusual_patterns', () => {
+    expect(bank('Check for unusual patterns in my recent activity').banking.action).toBe(
+      'unusual_patterns',
+    );
+  });
+
+  it('"Any unusual transactions?" → unusual_patterns', () => {
+    expect(bank('Any unusual transactions?').banking.action).toBe('unusual_patterns');
+  });
+
+  it('"Could my savings cover a big upcoming expense?" → afford_check', () => {
+    expect(bank('Could my savings cover a big upcoming expense?').banking.action).toBe(
+      'afford_check',
+    );
+  });
+
+  it('"can I afford a big expense" → afford_check', () => {
+    expect(bank('can I afford a big expense').banking.action).toBe('afford_check');
   });
 });
 

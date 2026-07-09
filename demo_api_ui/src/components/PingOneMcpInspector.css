@@ -179,10 +179,18 @@ summary.p1mcp-chip-group__head::before {
   width: 6px;
   height: 6px;
   flex: none;
+  margin-right: 8px;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(-45deg);
   transition: transform 0.15s ease;
+}
+.p1mcp-chip-group__icon {
+  flex: none;
+  line-height: 1;
+}
+.p1mcp-chip-group__label {
+  flex: none;
 }
 .p1mcp-chip-group[open] > summary.p1mcp-chip-group__head::before { transform: rotate(45deg); }
 /* Only reserve the gap below the head when the group is expanded. */

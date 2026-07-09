@@ -48,6 +48,7 @@ import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
+import { validateIntentToken } from './intentTokenValidator';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -367,6 +368,7 @@ async function handleMessage(
   bffActClientId?: string,
   bffMayActSub?: string,
   xTratContext?: string,
+  xIntentToken?: string,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -641,11 +643,15 @@ async function handleMessage(
         send(jsonRpcError(id, -32500, 'Failed to verify HITL challenge'));
         return;
       }
+      const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
       verification = verifyHitlReceipt(
         status,
         decoded.sub,
         decoded.act?.sub,
         toolName,
+        Date.now(),
+        retryArgs.amount as number | string | undefined,
+        retryArgs,
       );
       if (!verification.ok) {
         send(jsonRpcError(id, -32002, verification.message || 'HITL challenge invalid', {
@@ -662,14 +668,31 @@ async function handleMessage(
 
     // WR-02: forward the same transaction params the HTTP path sends so an
     // amount-conditioned PingAuthorize policy fires identically on WS.
-    // TODO(intent-token): WS path does not yet validate X-Intent-Token.
-    // The HTTP path (authorizeMcpRequest.ts) validates it via validateIntentToken()
-    // and passes IntentTokenValid/IntentMatchesTool to PingAuthorize. The WS
-    // handler would need to read the token from the incoming WS message or a
-    // session-scoped store and call validateIntentToken() before guardToolCall.
+    // Intent token: parity with HTTP authorizeMcpRequest — validate X-Intent-Token
+    // when present (or when INTENT_TOKEN_REQUIRED=true) before PingAuthorize.
+    const intentValidation = xIntentToken || process.env.INTENT_TOKEN_REQUIRED === 'true'
+      ? validateIntentToken(xIntentToken, toolName)
+      : null;
+    if (intentValidation && !intentValidation.valid && process.env.INTENT_TOKEN_REQUIRED === 'true') {
+      send(jsonRpcError(id, -32001, intentValidation.error || 'intent token invalid', {
+        error: 'intent_token_invalid',
+        login_required: false,
+      }));
+      return;
+    }
     // Vertical precedence (same as tools/list): token `vertical` claim wins, else header.
     const callVertical = (decoded as { vertical?: string }).vertical || activeVertical;
-    const authz = await guardToolCall(toolName, decoded, config, toolArgs, xTratContext, hitlApproved, callVertical);
+    const authz = await guardToolCall(
+      toolName,
+      decoded,
+      config,
+      toolArgs,
+      xTratContext,
+      hitlApproved,
+      callVertical,
+      hitlChallengeId,
+      intentValidation,
+    );
     if (!authz.permitted) {
       if (authz.reason === 'HITL_REQUIRED') {
         // Anti-loop: if a receipt was verified OK but the policy still returned
@@ -1112,6 +1135,10 @@ wss.on('connection', (ws, req) => {
   const rawTratContext = req.headers['x-trat-context'];
   const wsXTratContext = (Array.isArray(rawTratContext) ? rawTratContext[0] : rawTratContext || '').trim() || undefined;
 
+  // X-Intent-Token: BFF-minted intent binding (parity with HTTP path).
+  const rawIntentToken = req.headers['x-intent-token'];
+  const wsIntentToken = (Array.isArray(rawIntentToken) ? rawIntentToken[0] : rawIntentToken || '').trim() || undefined;
+
   if (!token) {
     ws.close(4001, 'Bearer token required');
     return;
@@ -1125,7 +1152,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));

@@ -12,7 +12,7 @@
  * @typedef {Object} UseCase
  * @property {string} id            e.g. 'UC7'
  * @property {string} useCaseId     slug, e.g. 'step-up-required'
- * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'} track
+ * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'} track
  * @property {string} title
  * @property {string} buyerStory
  * @property {string} pingOneSolution
@@ -369,6 +369,57 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: null,
+  },
+
+  // --- PROGRESSIVE TRUST DEMO (Ping MyHotels pattern on banking agents) ---
+  {
+    id: 'UC23',
+    useCaseId: 'progressive-trust-demo',
+    track: 'demo',
+    title: 'Progressive trust demo — presenter guide',
+    buyerStory: 'Personal agents should move from public access to authenticated access, in-app step-up, out-of-band approval, and hard deny — without collapsing trust into one token.',
+    pingOneSolution: 'PingOne OAuth, Authorize, RFC 8693 token exchange, and CIBA — orchestrated by the BFF and MCP gateway while Helix, llama.cpp, or Google routes tool calls.',
+    trigger: { type: 'link', path: '/use-cases', label: 'Run Acts 1–5 below in order' },
+    expectedOutcome: 'GUIDED_DEMO',
+    evidence: { tokenChain: ['authorize-decision', 'token-exchange', 'tool-dispatched', 'ciba-poll'], activity: ['authorize', 'token', 'mcp', 'hitl', 'ciba'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/services/agentModeResolver.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T10'], sections: ['§3.1.5', '§4.1.1', '§8'] },
+    whatToSay: 'Five acts, one story — progressive trust from public catalog to policy deny, with full delegation visible in the Token Chain panel.',
+    advanced: false,
+    whatLong: 'Guided presenter journey mapped from the Ping Identity MyHotels blog to Super Banking. The act strip on this page references existing use cases: Act 1 (UC24 public catalog); Act 2 → UC1 delegated access; Act 3 → UC8 HITL; Act 4 → UC7 MFA step-up; optional Act 4b → UC22 CIBA when ciba_enabled; Act 5 → UC6 policy DENY. Run Act 1 from here, then Acts 2–5 on the dashboard with Token Chain and Activity panels open.',
+    businessValue: 'One narrated walkthrough that shows buyers how PingOne secures personal agents across trust boundaries — without ChatGPT or a third-party agent host.',
+    productRoles: {
+      idp:   'Authenticates the user and mints delegated tokens when protected tools are invoked.',
+      gw:    'Enforces Authorize on every tool call and performs RFC 8693 re-exchange to the MCP audience.',
+      authz: 'Returns PERMIT, HITL obligation, CIBA requirement, or DENY based on tool and transaction amount.',
+      llm:   'Routes natural-language prompts to tools (Helix, llama.cpp, or Google) — never holds tokens.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC24',
+    useCaseId: 'progressive-trust-public-access',
+    track: 'demo',
+    title: 'Act 1 — Public catalog access',
+    buyerStory: 'Users should explore low-risk information before signing in — auth only when value is clear.',
+    pingOneSolution: 'PingOne Authorize PERMITs a read-only public tool with no token exchange.',
+    trigger: { type: 'chip', text: 'What branches are near me?' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['mcp', 'authorize'] },
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T3'], sections: ['§4.1.1'] },
+    whatToSay: 'Low-friction first — no token exchange for public catalog data.',
+    advanced: false,
+    match: { tool: 'get_branch_hours' },
+    whatLong: 'Act 1 of the progressive trust demo. The agent answers a public branch-catalog question without authentication — mirroring the MyHotels public hotel search. Requires a read-only MCP tool (e.g. get_branch_hours) with Authorize PERMIT for anonymous callers.',
+    businessValue: 'Demonstrates progressive authentication — users are not forced to sign in before seeing non-sensitive catalog data.',
+    productRoles: {
+      authz: 'Returns PERMIT for the public tool without requiring a bearer token.',
+      gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
+    },
+    primaryTool: 'get_branch_hours',
   },
 
   // --- ATTACKS ---
@@ -822,7 +873,7 @@ function resolveUseCase(id, vertical) {
   return rest;
 }
 
-/** All 22 entries resolved for a vertical. @returns {UseCase[]} */
+/** All catalog entries resolved for a vertical. @returns {UseCase[]} */
 function listUseCases(vertical) {
   return USE_CASES.map((u) => resolveUseCase(u.id, vertical));
 }

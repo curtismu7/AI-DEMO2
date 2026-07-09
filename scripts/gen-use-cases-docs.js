@@ -11,7 +11,7 @@ const { USE_CASES } = require(path.join(ROOT, 'demo_api_server/config/useCases')
 const MATURITY_GLYPH = { works: '✅', 'needs-console-import': '📥', 'needs-build': '🏗️' };
 function maturityGlyph(m) { return m.startsWith('flag:') ? '🚩' : (MATURITY_GLYPH[m] || m); }
 
-const TRACK_ORDER = ['foundations', 'controls', 'attacks'];
+const TRACK_ORDER = ['foundations', 'demo', 'controls', 'attacks', 'hitl', 'tools', 'learn'];
 
 function ucDoc(uc) {
   const owasp = uc.owasp && uc.owasp.threats && uc.owasp.threats.length

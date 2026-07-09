@@ -24,15 +24,23 @@ const express = require('express');
 const parsedPort = Number(process.env.MORTGAGE_SERVICE_PORT);
 const PORT = Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : 8082;
 const HOST = process.env.MORTGAGE_SERVICE_HOST || '127.0.0.1';
-const API_KEY = process.env.MORTGAGE_SERVICE_API_KEY || 'demo-mortgage-key-0000';
 
-// Startup env validation
+// Never ship a usable committed default. Production requires an explicit env key;
+// local/dev generates an ephemeral key for the process lifetime when unset.
 const DEFAULT_MORTGAGE_KEY = 'demo-mortgage-key-0000';
-if (API_KEY === DEFAULT_MORTGAGE_KEY) {
+const envKey = (process.env.MORTGAGE_SERVICE_API_KEY || '').trim();
+if (envKey === DEFAULT_MORTGAGE_KEY || (process.env.NODE_ENV === 'production' && !envKey)) {
+  console.error(
+    '[demo-mortgage-service] FATAL: set MORTGAGE_SERVICE_API_KEY to a non-default secret. ' +
+    'The committed demo default is rejected.'
+  );
+  process.exit(1);
+}
+const API_KEY = envKey || crypto.randomBytes(24).toString('hex');
+if (!envKey) {
   console.warn(
-    '[demo-mortgage-service] WARNING: MORTGAGE_SERVICE_API_KEY is using the ' +
-    'insecure default key. Set MORTGAGE_SERVICE_API_KEY in demo_api_server/.env ' +
-    'for a real deployment.'
+    '[demo-mortgage-service] MORTGAGE_SERVICE_API_KEY unset — using ephemeral process key. ' +
+    'Set MORTGAGE_SERVICE_API_KEY so the MCP gateway can call this service.'
   );
 }
 

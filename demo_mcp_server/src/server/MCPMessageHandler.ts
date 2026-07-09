@@ -21,7 +21,7 @@ import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManag
 import { BankingSessionManager, BankingSession } from '../storage/BankingSessionManager';
 import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { AuthenticationError, AuthErrorCodes } from '../interfaces/auth';
-import { AuthenticationIntegration } from './AuthenticationIntegration';
+import { AuthenticationIntegration, AuthenticationResult } from './AuthenticationIntegration';
 import { MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
 import type { BankingToolDefinition } from '../tools/BankingToolRegistry';
 import { AuditLogger } from '../utils/AuditLogger';
@@ -279,29 +279,25 @@ export class MCPMessageHandler {
       console.log(`[MCPMessageHandler] Processing tool call for: "${toolName}"`);
       console.log(`[MCPMessageHandler] Available tools:`, this.toolProvider.getAvailableTools().map(t => t.name));
 
-      // Check if agent token is provided in the tool call params (fallback)
-      const agentTokenFromCall = toolArguments.agent_token as string || 
+      // Reject agent tokens smuggled via tool arguments. The bearer must come from
+      // the Authorization header / connection context only — promoting a token from
+      // JSON-RPC args enables confused-deputy / cross-identity tool execution.
+      const smuggledAgentToken = toolArguments.agent_token as string ||
                                 toolArguments.agentToken as string ||
                                 (message.params as any)?.agentToken as string;
-                                
-      console.log(`[MCPMessageHandler] Looking for agent token in tool call - found:`, !!agentTokenFromCall);
-      console.log(`[MCPMessageHandler] Tool call params:`, message.params);
-      
-      if (agentTokenFromCall && !context.agentToken) {
-        console.log(`[MCPMessageHandler] Agent token found in tool call parameters`);
-        context.agentToken = agentTokenFromCall;
-        
-        // Try to get or create session for this agent token
-        try {
-          let session = await this.sessionManager.getSessionByAgentToken(agentTokenFromCall);
-          if (!session) {
-            await this.authManager.validateAgentToken(agentTokenFromCall);
-            session = await this.sessionManager.createSession(agentTokenFromCall);
-            console.log(`[MCPMessageHandler] Created session ${session.sessionId} for agent token from tool call`);
-          }
-          context.session = session;
-        } catch (error) {
-          console.warn(`[MCPMessageHandler] Failed to create session from tool call agent token:`, error);
+      if (smuggledAgentToken) {
+        console.warn(`[MCPMessageHandler] Rejecting agent_token in tools/call arguments (must use Authorization header)`);
+        delete toolArguments.agent_token;
+        delete toolArguments.agentToken;
+        if ((message.params as any)?.agentToken) {
+          delete (message.params as any).agentToken;
+        }
+        if (!context.agentToken) {
+          return this.createErrorResponse(
+            message.id,
+            -32001,
+            'agent_token in tool arguments is not allowed; pass the bearer via Authorization header'
+          ) as ToolCallResponse;
         }
       }
 
@@ -310,20 +306,24 @@ export class MCPMessageHandler {
         return await this.handleAuthorizationCode(message, context);
       }
 
+      // Resolve tool early — public catalog tools skip auth (progressive trust Act 1).
+      const availableTools = this.toolProvider.getAvailableTools() || [];
+      const tool = availableTools.find(t => t.name === toolName);
+      const isPublicCatalogTool = !!tool
+        && tool.requiresUserAuth === false
+        && (!tool.requiredScopes || tool.requiredScopes.length === 0);
+
       // Auth failure is a protocol error (-32001), not a tool execution error — reject before
       // checking tool validity so the client can obtain a token then retry.
-      if (!context.agentToken && !context.session) {
+      if (!isPublicCatalogTool && !context.agentToken && !context.session) {
         return this.authIntegration.createAuthenticationErrorResponse(
           String(message.id ?? 'unknown'),
           'Authentication required'
         ) as ToolCallResponse;
       }
 
-      // Get tool definition to check required scopes.
       // Unknown tool name is a tool execution error (isError: true), not a protocol error,
       // so the LLM can self-correct and retry with a valid name. (MCP spec input validation MUST)
-      const availableTools = this.toolProvider.getAvailableTools() || [];
-      const tool = availableTools.find(t => t.name === toolName);
       if (!tool) {
         console.warn(`[MCPMessageHandler] Unknown tool requested: "${toolName}"`);
         return {
@@ -339,12 +339,25 @@ export class MCPMessageHandler {
       }
       const requiredScopes = tool.requiredScopes;
 
-      // Validate authentication using integration service
+      if (isPublicCatalogTool && !context.session) {
+        context.session = {
+          sessionId: 'public-catalog',
+          agentTokenHash: 'public-catalog',
+          createdAt: new Date(),
+          lastActivity: new Date(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        };
+      }
+
+      let authResult: AuthenticationResult;
+      if (isPublicCatalogTool) {
+        authResult = { success: true, session: context.session };
+      } else {
       console.log(`[MCPMessageHandler] Validating authentication for scopes:`, requiredScopes);
       console.log(`[MCPMessageHandler] Session exists:`, !!context.session);
       console.log(`[MCPMessageHandler] Agent token exists:`, !!context.agentToken);
       
-      const authResult = await this.authIntegration.validateToolAuthentication(
+      authResult = await this.authIntegration.validateToolAuthentication(
         context.session,
         context.agentToken,
         requiredScopes
@@ -355,6 +368,7 @@ export class MCPMessageHandler {
         error: authResult.error,
         hasAuthChallenge: !!authResult.authChallenge
       });
+      }
 
       if (!authResult.success) {
         // Insufficient scope: valid token present but lacks required scope(s).
@@ -460,8 +474,8 @@ export class MCPMessageHandler {
       // Update context with validated session
       context.session = authResult.session;
 
-      // Update session activity
-      if (context.session) {
+      // Update session activity (skip ephemeral public-catalog stub)
+      if (context.session && context.session.sessionId !== 'public-catalog') {
         await this.sessionManager.updateSessionActivity(context.session.sessionId, 'tool_call');
       }
 
