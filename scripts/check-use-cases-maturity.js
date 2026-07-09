@@ -124,32 +124,16 @@ function pass(probe) {
 {
   const uc18 = USE_CASES.find((u) => u.id === 'UC18');
   if (uc18 && uc18.maturity === 'works') {
-    // (a) Find the middleware file
-    const middlewareDir = path.join(ROOT, 'demo_mcp_gateway/src/middleware');
-    let rateLimiterFile = null;
-    try {
-      const files = fs.readdirSync(middlewareDir);
-      rateLimiterFile = files.find((f) => /rate/i.test(f)) || null;
-    } catch (_) {
-      rateLimiterFile = null;
-    }
-
-    if (!rateLimiterFile) {
+    const rateLimitModule = path.join(ROOT, 'demo_mcp_gateway/src/rateLimit.ts');
+    const authorizeMiddleware = path.join(ROOT, 'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts');
+    const hasRateModule = fs.existsSync(rateLimitModule);
+    const hits429 = rg('429', [authorizeMiddleware]);
+    if (!hasRateModule || hits429 === 0) {
       fail('P3-UC18-rate-limit',
-        'UC18 is marked `works` but no rate-limiter middleware file found in demo_mcp_gateway/src/middleware/. ' +
-        'Expected a file matching /rate/i (e.g. rateLimiter.ts). ' +
-        'UC18 requires gateway rate-limiting to be built from scratch (Plan C, C6).');
+        'UC18 is marked `works` but gateway rate-limiting is incomplete. ' +
+        'Expected demo_mcp_gateway/src/rateLimit.ts and a 429 response in authorizeMcpRequest.ts.');
     } else {
-      // (b) The file must contain a 429 response
-      const rateLimiterPath = path.join('demo_mcp_gateway/src/middleware', rateLimiterFile);
-      const hits429 = rg('429', [rateLimiterPath]);
-      if (hits429 === 0) {
-        fail('P3-UC18-rate-limit',
-          `UC18 is marked \`works\` and ${rateLimiterPath} exists but contains no 429 response. ` +
-          'A real rate-limiter must emit HTTP 429 Too Many Requests.');
-      } else {
-        pass('P3-UC18-rate-limit');
-      }
+      pass('P3-UC18-rate-limit');
     }
   } else {
     pass('P3-UC18-rate-limit (skipped — UC18 not yet works)');

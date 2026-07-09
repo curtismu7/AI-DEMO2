@@ -45,6 +45,43 @@ const P1AZ_ATTR_ROWS = [
   ['TransactionType', 'Transaction type'],
 ];
 
+const METADATA_LABELS = {
+  bff: 'BFF (API server)',
+  mcp_olb: 'MCP OLB Server',
+  mcp_gw: 'Demo Agent Gateway',
+  mcp_invest: 'MCP Invest',
+};
+
+/** Render key RFC 9728 fields for one service in the metadata panel. */
+function MetadataServiceRow({ serviceKey, data }) {
+  const label = METADATA_LABELS[serviceKey] || serviceKey;
+  const status = data?._status || 'unreachable';
+  if (status !== 'ok') {
+    return (
+      <tr>
+        <td className="mgc-env-key">{label}</td>
+        <td className="mgc-env-val">
+          <span className="mgc-badge mgc-badge--error">{status}</span>
+          {data?._error ? ` — ${data._error}` : ''}
+        </td>
+      </tr>
+    );
+  }
+  const resource = data.resource || '(missing)';
+  const asList = Array.isArray(data.authorization_servers)
+    ? data.authorization_servers.join(', ')
+    : '(none)';
+  return (
+    <tr>
+      <td className="mgc-env-key">{label}</td>
+      <td className="mgc-env-val">
+        <div><strong>resource:</strong> <code>{resource}</code></div>
+        <div style={{ marginTop: 4 }}><strong>authorization_servers:</strong> <code>{asList}</code></div>
+      </td>
+    </tr>
+  );
+}
+
 export default function AgentGatewayTester() {
   const [tools, setTools] = useState(FALLBACK_TOOLS);
   const [toolsSource, setToolsSource] = useState('static');
@@ -53,8 +90,15 @@ export default function AgentGatewayTester() {
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
   const [rules, setRules] = useState(null);
-  const [active, setActive] = useState(null); // authoritative gateway state
+  const [active, setActive] = useState(null);
   const [toggling, setToggling] = useState('');
+  const [metadata, setMetadata] = useState(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [rateStatus, setRateStatus] = useState(null);
+  const [uc18Busy, setUc18Busy] = useState(false);
+  const [presetBusy, setPresetBusy] = useState('');
+  const [bursting, setBursting] = useState(false);
+  const [burstResp, setBurstResp] = useState(null);
 
   const fetchActive = useCallback(async () => {
     try {
@@ -62,6 +106,15 @@ export default function AgentGatewayTester() {
       setActive(data);
     } catch (e) {
       notifyError(formatAxiosError(e, 'Failed to load active gateway state'));
+    }
+  }, []);
+
+  const fetchRateStatus = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/api/mcp-gateway/rate-limit-status');
+      setRateStatus(data);
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to load rate-limit status'));
     }
   }, []);
 
@@ -92,7 +145,24 @@ export default function AgentGatewayTester() {
     }
   }, []);
 
-  useEffect(() => { fetchActive(); fetchTools(); fetchRules(); }, [fetchActive, fetchTools, fetchRules]);
+  const fetchMetadata = useCallback(async () => {
+    setMetadataLoading(true);
+    try {
+      const { data } = await apiClient.get('/api/rfc9728/all');
+      setMetadata(data);
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to fetch RFC 9728 metadata'));
+    } finally {
+      setMetadataLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActive();
+    fetchTools();
+    fetchRules();
+    fetchRateStatus();
+  }, [fetchActive, fetchTools, fetchRules, fetchRateStatus]);
 
   const toggleFlag = useCallback(async (id, current) => {
     setToggling(id);
@@ -100,12 +170,46 @@ export default function AgentGatewayTester() {
       await apiClient.patch('/api/admin/feature-flags', { updates: { [id]: !current } });
       await fetchActive();
       await fetchRules();
+      await fetchRateStatus();
     } catch (e) {
       notifyError(formatAxiosError(e, 'Failed to toggle flag'));
     } finally {
       setToggling('');
     }
-  }, [fetchActive, fetchRules]);
+  }, [fetchActive, fetchRules, fetchRateStatus]);
+
+  const toggleUc18Demo = useCallback(async () => {
+    const enable = !(rateStatus?.aligned);
+    setUc18Busy(true);
+    try {
+      await apiClient.post('/api/mcp-gateway/uc18-demo', { enable });
+      await fetchRateStatus();
+      await fetchActive();
+    } catch (e) {
+      notifyError(formatAxiosError(e, enable ? 'Failed to enable UC18 demo mode' : 'Failed to disable UC18 demo mode'));
+    } finally {
+      setUc18Busy(false);
+    }
+  }, [rateStatus, fetchRateStatus, fetchActive]);
+
+  const runPreset = useCallback(async (preset) => {
+    setPresetBusy(preset);
+    try {
+      const { data } = await apiClient.post('/api/mcp-gateway/demo-presets', { preset });
+      await fetchActive();
+      await fetchRateStatus();
+      await fetchRules();
+      if (data.hint) {
+        setBurstResp({ summary: data.hint, results: [] });
+      } else {
+        setBurstResp(null);
+      }
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to apply demo preset'));
+    } finally {
+      setPresetBusy('');
+    }
+  }, [fetchActive, fetchRateStatus, fetchRules]);
 
   const send = useCallback(async () => {
     let args;
@@ -127,12 +231,36 @@ export default function AgentGatewayTester() {
     }
   }, [tool, argsText]);
 
+  const runBurst = useCallback(async () => {
+    let args;
+    try {
+      args = argsText.trim() ? JSON.parse(argsText) : {};
+    } catch {
+      setBurstResp({ clientError: 'Arguments must be valid JSON.' });
+      return;
+    }
+    setBursting(true);
+    setBurstResp(null);
+    try {
+      const { data } = await apiClient.post('/api/mcp-gateway/test/burst', {
+        tool,
+        args,
+        count: 5,
+      });
+      setBurstResp(data);
+    } catch (e) {
+      setBurstResp({ clientError: formatAxiosError(e, 'Burst test failed') });
+    } finally {
+      setBursting(false);
+    }
+  }, [tool, argsText]);
+
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
   const az = resp?.gwAuditTrail?.authorize || null;
   const mcpAudit = resp?.gwAuditTrail?.mcpAudit || null;
   const decision = resp?.decision || az?.decision || null;
-  // Stable fallback object so JsonHighlight doesn't receive a new reference every render.
+  const isRateLimited = resp?.rateLimited || resp?.error === 'rate_limited' || resp?.httpStatus === 429;
   const resultValue = resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null);
   const mcpWhenLabel = mcpAudit?.when
     ? new Date(typeof mcpAudit.when === 'number' ? mcpAudit.when : Number(mcpAudit.when)).toISOString()
@@ -144,8 +272,8 @@ export default function AgentGatewayTester() {
         <div>
           <h2 className="mgc-title">Agent Gateway Tester</h2>
           <p className="mgc-subtitle">
-            Send an MCP tool call through the active gateway and inspect the response, the
-            authorize decision, and the rules the gateway applied.
+            Send an MCP tool call through the active gateway and inspect protected-resource
+            metadata (RFC 9728), rate limiting (UC18), authorize decisions, and audit trails.
           </p>
           <p className="mgc-subtitle" style={{ marginTop: 6 }}>
             Official Ping docs:{' '}
@@ -218,6 +346,140 @@ export default function AgentGatewayTester() {
         </div>
       </div>
 
+      {/* Demo presets */}
+      <div className="mgc-section">
+        <h4>Demo presets</h4>
+        <p className="mgc-field-hint">
+          One-click setup for presenter flows. Open this page at{' '}
+          <code>https://api.ping.demo:4000/setup?tab=mcp-gateway&amp;subtab=tester</code>
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
+            onClick={() => runPreset('uc18-throttle')}>
+            {presetBusy === 'uc18-throttle' ? 'Applying...' : 'UC18 throttling (Demo Gateway)'}
+          </button>
+          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
+            onClick={() => runPreset('real-throttle-ig')}>
+            {presetBusy === 'real-throttle-ig' ? 'Applying...' : 'UC18 throttling (Real IG)'}
+          </button>
+          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
+            onClick={() => runPreset('real-policy')}>
+            {presetBusy === 'real-policy' ? 'Applying...' : 'Real IG policy (simulated authz)'}
+          </button>
+        </div>
+      </div>
+
+      <div className="mgc-section" id="rfc9728-metadata">
+        <h4>Protected resource metadata (RFC 9728)</h4>
+        <p className="mgc-field-hint">
+          Each MCP hop publishes <code>/.well-known/oauth-protected-resource</code>. The gateway
+          owns its own metadata — the <code>resource</code> URI is the gateway audience (RFC 8707),
+          not the upstream MCP server.
+        </p>
+        <button type="button" className="mgc-push-btn" onClick={fetchMetadata} disabled={metadataLoading}>
+          {metadataLoading ? 'Fetching metadata...' : 'Fetch live metadata'}
+        </button>
+        {metadata && (
+          <table className="mgc-env-table" style={{ marginTop: 10 }}>
+            <tbody>
+              {Object.entries(metadata).map(([key, data]) => (
+                <MetadataServiceRow key={key} serviceKey={key} data={data} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* UC18 rate limiting */}
+      <div className="mgc-section" id="uc18">
+        <h4>Rate limiting (UC18)</h4>
+        <p className="mgc-field-hint">
+          Throttled requests return HTTP 429 <strong>before</strong> PingOne Authorize runs —
+          protecting P1AZ API quota. Demo Agent Gateway limits in-process; PingOne Agent Gateway
+          limits in PingGateway (<code>uc18-rate-limit.groovy</code>) when this flag is on.
+        </p>
+        {rateStatus && (
+          <table className="mgc-env-table">
+            <tbody>
+              <tr>
+                <td className="mgc-env-key">Active layer</td>
+                <td className="mgc-env-val">{rateStatus.rateLimitLayer || 'off'}</td>
+              </tr>
+              <tr>
+                <td className="mgc-env-key">BFF flag (ff_mcp_rate_limit)</td>
+                <td className="mgc-env-val">{rateStatus.bffFlag ? 'ON' : 'OFF'}</td>
+              </tr>
+              {rateStatus.usePingGateway && (
+                <tr>
+                  <td className="mgc-env-key">PingGateway UC18 filter</td>
+                  <td className="mgc-env-val">
+                    {rateStatus.bffEnabled
+                      ? `ON — ${rateStatus.bffMaxRequests} calls / ${rateStatus.bffWindowMs}ms (via X-UC18-Rate-Limit)`
+                      : 'OFF'}
+                  </td>
+                </tr>
+              )}
+              {!rateStatus.usePingGateway && (
+                <tr>
+                  <td className="mgc-env-key">Gateway rate limit</td>
+                  <td className="mgc-env-val">
+                    {rateStatus.gatewayEnabled
+                      ? `ON — ${rateStatus.maxRequests} calls / ${rateStatus.windowMs}ms`
+                      : 'OFF'}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td className="mgc-env-key">Aligned</td>
+                <td className="mgc-env-val">
+                  <span className={rateStatus.aligned ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
+                    {rateStatus.aligned ? 'YES' : 'NO'}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="mgc-push-btn" onClick={toggleUc18Demo}
+            disabled={uc18Busy}>
+            {uc18Busy
+              ? 'Updating...'
+              : (rateStatus?.aligned ? 'Disable UC18 demo mode' : 'Enable UC18 demo mode')}
+          </button>
+          <button type="button" className="mgc-push-btn" onClick={runBurst}
+            disabled={bursting || !tool || !rateStatus?.aligned}>
+            {bursting ? 'Running burst...' : 'Burst test (5 calls)'}
+          </button>
+        </div>
+        {burstResp && !burstResp.clientError && (
+          <div style={{ marginTop: 10 }}>
+            <div className="mgc-field-label">{burstResp.summary}</div>
+            <table className="mgc-env-table">
+              <tbody>
+                {(burstResp.results || []).map((r) => (
+                  <tr key={r.index}>
+                    <td className="mgc-env-key">Call {r.index}</td>
+                    <td className="mgc-env-val">
+                      <span className={r.ok ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
+                        {r.ok ? 'SUCCESS' : (r.rateLimited
+                          ? `RATE LIMITED (429${r.rateLimitLayer ? ` @ ${r.rateLimitLayer}` : ''})`
+                          : (r.error || 'ERROR'))}
+                      </span>
+                      {r.retryAfterMs ? ` — retry after ${r.retryAfterMs}ms` : ''}
+                      <code style={{ marginLeft: 8 }}>{r.durationMs}ms</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {burstResp?.clientError && (
+          <div className="mgc-alert mgc-alert--error" style={{ marginTop: 10 }}>{burstResp.clientError}</div>
+        )}
+      </div>
+
       {/* Request composer */}
       <div className="mgc-section">
         <h4>Send a request</h4>
@@ -255,15 +517,21 @@ export default function AgentGatewayTester() {
               <div className="mgc-info-grid">
                 <div className="mgc-info-item">
                   <span className="mgc-info-label">Outcome</span>
-                  <span className={resp.ok ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
-                    {resp.ok ? 'SUCCESS' : (resp.error || 'ERROR')}
+                  <span className={
+                    resp.ok
+                      ? 'mgc-badge mgc-badge--live'
+                      : isRateLimited
+                        ? 'mgc-badge mgc-badge--mock'
+                        : 'mgc-badge mgc-badge--error'
+                  }>
+                    {resp.ok ? 'SUCCESS' : (isRateLimited ? 'RATE LIMITED (429)' : (resp.error || 'ERROR'))}
                   </span>
                 </div>
                 <div className="mgc-info-item">
                   <span className="mgc-info-label">Via</span>
                   <code>{resp.gateway?.name} ({resp.gateway?.url})</code>
                 </div>
-                {decision && (
+                {decision && !isRateLimited && (
                   <div className="mgc-info-item">
                     <span className="mgc-info-label">Authorize decision</span>
                     <span className={decision === 'PERMIT' ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
@@ -275,7 +543,21 @@ export default function AgentGatewayTester() {
                   <span className="mgc-info-label">Duration</span>
                   <code>{resp.durationMs}ms</code>
                 </div>
+                {resp.retryAfterMs > 0 && (
+                  <div className="mgc-info-item">
+                    <span className="mgc-info-label">Retry after</span>
+                    <code>{resp.retryAfterMs}ms</code>
+                  </div>
+                )}
               </div>
+
+              {isRateLimited && (
+                <div className="mgc-alert mgc-alert--info" style={{ marginTop: 10 }}>
+                  Throttled ({resp.rateLimitLayer === 'ig' ? 'PingGateway' : resp.rateLimitLayer === 'bff' ? 'BFF edge' : 'gateway'}, UC18) —
+                  no PingOne Authorize decision was made.
+                  {resp.retryAfterMs ? ` Retry after ${resp.retryAfterMs}ms.` : ''}
+                </div>
+              )}
 
               {(az?.reason || resp.message) && (
                 <div className={`mgc-alert ${resp.ok ? 'mgc-alert--info' : 'mgc-alert--error'}`} style={{ marginTop: 10 }}>
@@ -283,7 +565,7 @@ export default function AgentGatewayTester() {
                 </div>
               )}
 
-              {az && (az.attributes || az.decisionId || az.engine) && (
+              {az && !isRateLimited && (az.attributes || az.decisionId || az.engine) && (
                 <div className="mgc-section" style={{ marginTop: 12 }}>
                   <h4 style={{ marginTop: 0 }}>PingOne Authorize decision</h4>
                   <p className="mgc-field-hint">
@@ -406,7 +688,7 @@ export default function AgentGatewayTester() {
                   </div>
                 </div>
               )}
-              {resp.gateway?.usePingGateway && !resp.gwAuditTrail && (
+              {resp.gateway?.usePingGateway && !resp.gwAuditTrail && !isRateLimited && (
                 <p className="mgc-field-hint">
                   No X-Gw-Audit-Trail on this response. PingGateway (IG) emits it on both PERMIT and
                   DENY from its authorize filter, so an absent trail means the request was rejected

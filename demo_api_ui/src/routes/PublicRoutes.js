@@ -16,6 +16,7 @@ import MFATestPage from "../components/MFATestPage";
 import Onboarding from "../components/Onboarding";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
+import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
 import SetupPage from "../components/SetupPage";
 import SetupWizard from "../components/SetupWizard";
@@ -63,6 +64,14 @@ export function PingOneTestPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PingOneTestPage />
+    </AppShell>
+  );
+}
+
+export function PingOneSetupPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingOneSetup />
     </AppShell>
   );
 }

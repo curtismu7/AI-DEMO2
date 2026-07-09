@@ -117,6 +117,14 @@
           }
         },
         {
+          "name": "Uc18RateLimit",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "uc18-rate-limit.groovy"
+          }
+        },
+        {
           "name": "P1AZDecision",
           "type": "ScriptableFilter",
           "config": {

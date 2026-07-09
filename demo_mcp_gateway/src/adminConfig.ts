@@ -36,6 +36,9 @@ export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'p1azEnabled',
   'hitlServiceUrl',
   'devBypass',
+  'rateLimitEnabled',
+  'rateLimitMaxRequests',
+  'rateLimitWindowMs',
 ];
 
 export interface AdminConfigResult {
@@ -57,6 +60,9 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     p1azEnabled:           config.p1azEnabled,
     hitlServiceUrl:        config.hitlServiceUrl,
     devBypass:             config.devBypass,
+    rateLimitEnabled:      config.rateLimitEnabled,
+    rateLimitMaxRequests:  config.rateLimitMaxRequests,
+    rateLimitWindowMs:     config.rateLimitWindowMs,
     mcpServerPassthrough:  config.mcpServerPassthrough,
     // Phase 266/267 HTTP backend routes — non-secret addresses + logical
     // audiences only (the X-API-Key for the apikey path is NEVER exposed).
@@ -82,6 +88,7 @@ export function applyAdminConfigUpdate(
   nodeEnv: string | undefined,
 ): AdminConfigResult {
   const hasDevBypass = Object.prototype.hasOwnProperty.call(updates, 'devBypass');
+  const hasRateLimitEnabled = Object.prototype.hasOwnProperty.call(updates, 'rateLimitEnabled');
 
   // A — strict-boolean validation (all environments). Reject the whole
   // request on any non-boolean devBypass BEFORE the prod check / assignment.
@@ -94,6 +101,33 @@ export function applyAdminConfigUpdate(
       },
       mutated: false,
     };
+  }
+
+  if (hasRateLimitEnabled && typeof updates.rateLimitEnabled !== 'boolean') {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_config',
+        message: 'rateLimitEnabled must be a JSON boolean (true/false), not a string or number',
+      },
+      mutated: false,
+    };
+  }
+
+  for (const numKey of ['rateLimitMaxRequests', 'rateLimitWindowMs'] as const) {
+    if (Object.prototype.hasOwnProperty.call(updates, numKey)) {
+      const v = updates[numKey];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+        return {
+          status: 400,
+          body: {
+            error: 'invalid_config',
+            message: `${numKey} must be a positive number`,
+          },
+          mutated: false,
+        };
+      }
+    }
   }
 
   // D — production hard-refuse any truthy devBypass. After A, updates.devBypass
@@ -117,6 +151,9 @@ export function applyAdminConfigUpdate(
         // Belt: strict boolean only — never store a truthy non-boolean.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).devBypass = updates.devBypass === true;
+      } else if (key === 'rateLimitEnabled') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key as string];

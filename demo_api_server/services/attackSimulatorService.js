@@ -17,9 +17,15 @@
  */
 
 const oauthService = require('./oauthService');
-const { callToolViaGateway } = require('./mcpGatewayClient');
+const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
 const { buildTokenEvent, decodeJwtClaims } = require('./agentMcpTokenService');
 const configStore = require('./configStore');
+
+const UC18_DEMO_RATE_LIMIT = {
+  rateLimitEnabled: true,
+  rateLimitMaxRequests: 3,
+  rateLimitWindowMs: 10000,
+};
 
 /**
  * Resolve the gateway resource URI — the audience the gateway expects.
@@ -108,8 +114,12 @@ async function runAttackSim(sim, req) {
     };
   }
 
-  // Catalog slugs (useCases.js UC5.useCaseId / UC11.useCaseId)
-  const useCaseId = sim === 'insufficient-scope' ? 'insufficient-scope' : 'bad-client-gateway';
+  // Catalog slugs (useCases.js UC5.useCaseId / UC11.useCaseId / UC18.useCaseId)
+  const useCaseId = sim === 'insufficient-scope'
+    ? 'insufficient-scope'
+    : sim === 'rate-limit-burst'
+      ? 'rate-limit-defense'
+      : 'bad-client-gateway';
   const tokenChainEvents = [];
 
   if (sim === 'insufficient-scope') {
@@ -118,6 +128,10 @@ async function runAttackSim(sim, req) {
 
   if (sim === 'wrong-aud') {
     return _runWrongAud(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'rate-limit-burst') {
+    return _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents);
   }
 
   // Should not be reached — route validates VALID_SIMS before calling here.
@@ -357,6 +371,166 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
     _stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
   }
+}
+
+/**
+ * rate-limit-burst sim (UC18):
+ *   Enable demo rate limits on the Demo Agent Gateway, exchange a valid token,
+ *   then fire a burst of read-only tool calls until the gateway returns 429.
+ */
+async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'rate-limit-burst';
+  const gatewayAud = _gatewayAud();
+  const usePing = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+
+  if (!gatewayAud) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: 'pingone_resource_mcp_gateway_uri is not configured',
+      tokenChainEvents,
+    };
+  }
+
+  try {
+    await configStore.setRaw({ ff_mcp_rate_limit: 'true' });
+  } catch (err) {
+    return {
+      sim, useCaseId,
+      status: 500,
+      errorCode: 'config_store_failed',
+      reason: err.message,
+      tokenChainEvents,
+    };
+  }
+
+  if (usePing) {
+    const { getBffRateLimitConfig } = require('./mcpGatewayRateLimit');
+    const bffCfg = getBffRateLimitConfig();
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rate-limit-armed',
+      'BFF edge rate limit armed (UC18 / PingOne IG)',
+      'active',
+      null,
+      `BFF throttles before IG/P1AZ: max ${bffCfg.maxRequests} calls per ` +
+      `${bffCfg.windowMs}ms per (agent, tool) key.`,
+    ));
+  } else {
+    let gatewayUrl;
+    try {
+      gatewayUrl = getMcpGatewayHttpUrl();
+    } catch (err) {
+      return {
+        sim, useCaseId,
+        status: 503,
+        errorCode: 'gateway_not_configured',
+        reason: err.message,
+        tokenChainEvents,
+      };
+    }
+
+    const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
+    const pushResult = await pushGatewayAdminConfig(gatewayUrl, UC18_DEMO_RATE_LIMIT);
+    if (!pushResult.ok) {
+      return {
+        sim, useCaseId,
+        status: 502,
+        errorCode: 'gateway_push_failed',
+        reason: pushResult.error || 'Could not enable rate limiting on gateway',
+        tokenChainEvents,
+      };
+    }
+
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rate-limit-armed',
+      'Gateway rate limit armed (UC18)',
+      'active',
+      null,
+      `Pushed demo limits to gateway: max ${UC18_DEMO_RATE_LIMIT.rateLimitMaxRequests} calls per ` +
+      `${UC18_DEMO_RATE_LIMIT.rateLimitWindowMs}ms per (agent, tool) key.`,
+    ));
+  }
+
+  let exchangedToken;
+  try {
+    exchangedToken = await oauthService.performTokenExchange(
+      subjectToken,
+      gatewayAud,
+      ['read'],
+    );
+  } catch (err) {
+    const errorCode = err.pingoneError || 'exchange_failed';
+    return {
+      sim, useCaseId,
+      status: 502,
+      errorCode,
+      reason: `Token exchange failed: ${err.message}`,
+      tokenChainEvents,
+    };
+  }
+
+  const burstCount = 5;
+  let rateLimitedHit = null;
+
+  for (let i = 0; i < burstCount; i++) {
+    try {
+      await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
+      tokenChainEvents.push(buildTokenEvent(
+        `sim-burst-${i + 1}`,
+        `Burst call ${i + 1} PERMIT`,
+        'active',
+        null,
+        `Call ${i + 1} of ${burstCount} succeeded.`,
+      ));
+    } catch (err) {
+      const { errorCode, httpStatus, reason } = _parseGatewayError(err, 429);
+      if (errorCode === 'rate_limited' || httpStatus === 429) {
+        rateLimitedHit = { errorCode: 'rate_limited', httpStatus: 429, reason };
+        tokenChainEvents.push(buildTokenEvent(
+          `sim-burst-${i + 1}`,
+          `Burst call ${i + 1} RATE LIMITED (429)`,
+          'error',
+          null,
+          reason,
+          { error: 'rate_limited', httpStatus: 429, retryAfterMs: err.retryAfterMs || null },
+        ));
+        break;
+      }
+      tokenChainEvents.push(buildTokenEvent(
+        `sim-burst-${i + 1}`,
+        `Burst call ${i + 1} ERROR`,
+        'error',
+        null,
+        reason,
+        { error: errorCode, httpStatus },
+      ));
+      _stampUseCaseId(tokenChainEvents, useCaseId);
+      return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+    }
+  }
+
+  _stampUseCaseId(tokenChainEvents, useCaseId);
+
+  if (rateLimitedHit) {
+    return {
+      sim,
+      useCaseId,
+      status: 429,
+      errorCode: 'rate_limited',
+      reason: rateLimitedHit.reason,
+      tokenChainEvents,
+    };
+  }
+
+  return {
+    sim,
+    useCaseId,
+    status: 200,
+    errorCode: 'unexpected_permit',
+    reason: 'Burst completed without a 429 — rate limiting may not be active on the gateway',
+    tokenChainEvents,
+  };
 }
 
 module.exports = { runAttackSim };

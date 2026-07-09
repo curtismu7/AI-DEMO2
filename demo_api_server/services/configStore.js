@@ -324,7 +324,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
-  ff_mcp_rate_limit:               { public: true, default: 'false' }, // UC18: enable per-agent/per-tool sliding-window rate limiting at the MCP gateway (429 on burst). Requires GATEWAY_RATE_LIMIT_ENABLED=true on the gateway process.
+  ff_mcp_rate_limit:               { public: true, default: 'false' }, // UC18: per-agent/per-tool sliding-window rate limiting. Demo Agent Gateway: in-process (before P1AZ). PingOne Agent Gateway (IG): PingGateway uc18-rate-limit.groovy (429 before P1AZ; armed via X-UC18-Rate-Limit from BFF).
   ff_bedrock_agentcore_gateway:    { public: false, default: 'false' }, // EKS: route MCP via AgentCore Gateway (requires AWS_DEPLOYMENT=1)
   ff_bedrock_llm:                  { public: false, default: 'false' }, // EKS: Bedrock Converse LLM (requires AWS_DEPLOYMENT=1)
   // MCP Gateway passthrough mode — when true the gateway forwards MCP requests

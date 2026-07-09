@@ -684,16 +684,14 @@ const FLAG_REGISTRY = [
     name:         'UC18 Gateway Rate Limiting',
     category:     'MCP / Agent',
     description:
-      'When **ON**, enables per-agent/per-tool sliding-window rate limiting at the Demo Agent Gateway. ' +
-      'Requests that exceed the burst limit receive a 429 response with `code: "rate_limited"` and a ' +
-      '`retryAfterMs` value. The limiter runs before PingOne Authorize is called, so throttled requests ' +
-      'do not consume P1AZ quota. The gateway process must also have `GATEWAY_RATE_LIMIT_ENABLED=true` ' +
-      'in its environment — the BFF flag and gateway env var are intentionally independent (the gateway ' +
-      'has no configStore). When **OFF** (default), no rate-limiting occurs.',
+      'When **ON**, enables UC18 per-agent/per-tool sliding-window rate limiting. ' +
+      '**Demo Agent Gateway:** limiter runs in the gateway process (before P1AZ). ' +
+      '**PingOne Agent Gateway (IG):** limiter runs in PingGateway (`uc18-rate-limit.groovy`) ' +
+      'before P1AZ — armed per request via `X-UC18-Rate-Limit` from the BFF (protects 150 TPS P1AZ API quota). ' +
+      'Use Gateway Tester demo presets or **Enable UC18 demo mode** to arm demo-friendly limits (3 calls / 10s).',
     impact:
-      'OFF (default) = no rate-limiting at the gateway; all tool calls proceed normally. ' +
-      'ON = bursts exceeding GATEWAY_RATE_LIMIT_MAX_REQUESTS per GATEWAY_RATE_LIMIT_WINDOW_MS ' +
-      'per (agentSub, toolName) key return 429. Enable for UC18 resource-overload defense demos.',
+      'OFF (default) = no rate-limiting. ON = bursts over the window return 429 with `rate_limited` ' +
+      'and `retryAfterMs`. Throttled calls do not reach PingOne Authorize.',
     type:         'boolean',
     defaultValue: false,
   },

@@ -107,6 +107,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         params:  { name: tool, arguments: params },
     };
 
+    // UC18 on PingOne Agent Gateway (IG): arm uc18-rate-limit.groovy via trusted header
+    // (Demo Agent Gateway enforces limits in-process instead).
+    const { shouldStampIgRateLimitHeader } = require('./mcpGatewayRateLimit');
+
     // PingGateway (IG) ships with an older MCP SDK that validates against
     // 2025-06-18; the Node gateway and MCP server use the current 2025-11-25.
     const mcpVersion = isIgBase ? '2025-06-18' : MCP_PROTOCOL_VERSION;
@@ -196,6 +200,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         if (gwSecret) headers['x-internal-gateway-secret'] = gwSecret;
         const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
+        if (shouldStampIgRateLimitHeader()) {
+            headers['X-UC18-Rate-Limit'] = 'true';
+        }
         // Per-request token-validation mode for the gateway: 'jwks' selects route
         // 00-mcp-olb-jwks.json (local JWT validation, no introspection round-trip);
         // 'introspect' (default) falls through to route 01-mcp-olb.json unchanged.
@@ -354,6 +361,24 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 // P1AZ decision made BEFORE its onward exchange failed) — keep it
                 // so the token chain can show the PERMIT even on this error path.
                 gwAuditTrail: _parseGwAuditTrail(response),
+            },
+        );
+    }
+
+    if (status === 429) {
+        const body429 = response.data || {};
+        const retryAfterMs = body429.retryAfterMs
+            || (parseInt(response.headers?.['retry-after'], 10) || 0) * 1000
+            || 0;
+        throw Object.assign(
+            new Error(body429.message || 'Tool call rate limit exceeded'),
+            {
+                code: 'rate_limited',
+                httpStatus: 429,
+                gatewayErrorCode: body429.error || 'rate_limited',
+                gatewayMessage: body429.message || '',
+                retryAfterMs,
+                rateLimitLayer: body429.rateLimitLayer || (isIgBase ? 'ig' : 'gateway'),
             },
         );
     }

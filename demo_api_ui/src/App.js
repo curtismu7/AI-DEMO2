@@ -57,7 +57,6 @@ import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
 import PingOneMcpInspector from "./components/PingOneMcpInspector";
-import PingOneSetup from "./pages/PingOneSetup";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
@@ -132,6 +131,7 @@ import PublicRoutes, {
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
+  PingOneSetupPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
   SdkLoginCallbackRoute,
@@ -420,6 +420,10 @@ function AppWithAuth() {
                 <Route
                   path="/pingone-test"
                   element={<PingOneTestPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingone-setup"
+                  element={<PingOneSetupPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/mfa-test"
@@ -863,10 +867,6 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize"
                               element={<PingOneAuthorizePage />}
-                            />
-                            <Route
-                              path="/pingone-setup"
-                              element={<PingOneSetup />}
                             />
                             <Route
                               path="/mcp-gateway"

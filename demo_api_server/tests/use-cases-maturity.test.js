@@ -64,23 +64,14 @@ describe('D-A3 maturity probes', () => {
     expect(hits).toBeGreaterThan(0);
   });
 
-  it('P3: rate-limiter middleware file with 429 response exists in gateway before UC18 claims works', () => {
+  it('P3: rate-limiter module + 429 in authorize middleware before UC18 claims works', () => {
     const uc18 = USE_CASES.find((u) => u.id === 'UC18');
     if (!uc18 || uc18.maturity !== 'works') return; // skip
 
-    // (a) middleware file matching /rate/i must exist
-    const middlewareDir = path.join(ROOT, 'demo_mcp_gateway/src/middleware');
-    let rateLimiterFile = null;
-    try {
-      const files = fs.readdirSync(middlewareDir);
-      rateLimiterFile = files.find((f) => (/rate/i).test(f)) || null;
-    } catch (_) {
-      rateLimiterFile = null;
-    }
-    expect(rateLimiterFile).not.toBeNull();
+    const rateLimitModule = path.join(ROOT, 'demo_mcp_gateway/src/rateLimit.ts');
+    expect(fs.existsSync(rateLimitModule)).toBe(true);
 
-    // (b) that file must contain a 429 response
-    const hits = rgCount('429', [path.join('demo_mcp_gateway/src/middleware', rateLimiterFile)]);
+    const hits = rgCount('429', ['demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts']);
     expect(hits).toBeGreaterThan(0);
   });
 

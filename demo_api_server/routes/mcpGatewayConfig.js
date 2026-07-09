@@ -96,6 +96,70 @@ function fetchGatewayLiveConfig(gatewayUrl) {
 }
 
 // ---------------------------------------------------------------------------
+// Push dynamic config updates to the Demo Agent Gateway POST /admin/config.
+// Always sends x-internal-gateway-secret (BL-01). Never throws.
+// ---------------------------------------------------------------------------
+function pushGatewayAdminConfig(gatewayUrl, updates) {
+    return new Promise((resolve) => {
+        const secret = process.env.BFF_INTERNAL_SECRET || '';
+        if (!secret) {
+            resolve({ ok: false, error: 'BFF_INTERNAL_SECRET not set — cannot push gateway config' });
+            return;
+        }
+        if (!updates || Object.keys(updates).length === 0) {
+            resolve({ ok: false, error: 'No fields to push' });
+            return;
+        }
+        const url = new URL(gatewayUrl.replace(/\/$/, '') + '/admin/config');
+        const isHttps = url.protocol === 'https:';
+        const transport = isHttps ? https : http;
+        const body = JSON.stringify(updates);
+        const opts = {
+            hostname: url.hostname,
+            port: parseInt(url.port || (isHttps ? '443' : '80'), 10),
+            path: url.pathname,
+            method: 'POST',
+            timeout: 5000,
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body),
+                'x-internal-gateway-secret': secret,
+            },
+            ...(isHttps && process.env.NODE_ENV !== 'production' ? { rejectUnauthorized: false } : {}),
+        };
+        const req = transport.request(opts, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    let detail = data;
+                    try { detail = JSON.parse(data); } catch { /* raw */ }
+                    resolve({ ok: false, error: `gateway returned HTTP ${res.statusCode}`, detail });
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(data);
+                    resolve({ ok: true, config: parsed.config || parsed });
+                } catch {
+                    resolve({ ok: false, error: 'gateway returned non-JSON response' });
+                }
+            });
+        });
+        req.on('error', (e) => resolve({ ok: false, error: e.message }));
+        req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'gateway config push timed out' }); });
+        req.write(body);
+        req.end();
+    });
+}
+
+// UC18 demo defaults — low enough to trigger 429 in a 5-call burst.
+const UC18_DEMO_RATE_LIMIT = {
+    rateLimitEnabled: true,
+    rateLimitMaxRequests: 3,
+    rateLimitWindowMs: 10000,
+};
+
+// ---------------------------------------------------------------------------
 // Generate a real PingGateway 2025.11.1 mcp.json route configuration.
 //
 // Schema matches the official PingGateway MCP TOI (Feb 2026) and public docs:
@@ -326,6 +390,7 @@ router.post('/config', async (req, res) => {
         'mcpOlbResourceUri', 'mcpInvestResourceUri',
         'pingAuthorizeEndpoint', 'pingAuthorizeWorkerId',
         'hitlServiceUrl', 'devBypass',
+        'rateLimitEnabled', 'rateLimitMaxRequests', 'rateLimitWindowMs',
         'mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope',
     ];
 
@@ -336,40 +401,20 @@ router.post('/config', async (req, res) => {
         }
     }
 
+    // Strip BFF-only persist keys before pushing to gateway.
+    const gatewayUpdates = { ...updates };
+    delete gatewayUpdates.mcp_gw_client_id;
+    delete gatewayUpdates.mcp_gw_public_url;
+    delete gatewayUpdates.mcp_scope;
+
     if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });
     }
 
     try {
-        const target = new URL('/admin/config', gatewayUrl);
-        const body = JSON.stringify(updates);
-
-        const response = await new Promise((resolve, reject) => {
-            const http = require('http');
-            const opts = {
-                hostname: target.hostname,
-                port: parseInt(target.port || '3005', 10),
-                path: target.pathname,
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-                timeout: 5000,
-            };
-            const req2 = http.request(opts, (r) => {
-                let data = '';
-                r.on('data', (c) => { data += c; });
-                r.on('end', () => {
-                    try { resolve({ status: r.statusCode, body: JSON.parse(data) }); }
-                    catch { resolve({ status: r.statusCode, body: data }); }
-                });
-            });
-            req2.on('error', reject);
-            req2.on('timeout', () => { req2.destroy(); reject(new Error('Gateway config push timed out')); });
-            req2.write(body);
-            req2.end();
-        });
-
-        if (response.status !== 200) {
-            return res.status(502).json({ error: 'Gateway returned error', detail: response.body });
+        const pushResult = await pushGatewayAdminConfig(gatewayUrl, gatewayUpdates);
+        if (!pushResult.ok) {
+            return res.status(502).json({ error: 'Could not reach mock gateway', detail: pushResult.error });
         }
 
         const persistKeys = ['mcp_gw_client_id', 'mcp_gw_public_url', 'mcp_scope'];
@@ -383,7 +428,7 @@ router.post('/config', async (req, res) => {
             }
         }
 
-        res.json({ ok: true, pushed: updates, gatewayConfig: response.body.config });
+        res.json({ ok: true, pushed: updates, gatewayConfig: pushResult.config });
     } catch (err) {
         res.status(502).json({ error: 'Could not reach mock gateway', detail: err.message });
     }
@@ -482,6 +527,9 @@ router.post('/test', express.json(), async (req, res) => {
             httpStatus:       e.httpStatus || null,
             gatewayErrorCode: e.gatewayErrorCode || null,
             message:          e.gatewayMessage || e.message,
+            retryAfterMs:     e.retryAfterMs || null,
+            rateLimited:      e.code === 'rate_limited' || e.httpStatus === 429,
+            rateLimitLayer:   e.rateLimitLayer || null,
             decision,
             rpcData:          e.rpcData || null,
             tokenEvents,
@@ -489,4 +537,320 @@ router.post('/test', express.json(), async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// GET /api/admin/mcp-gateway/rate-limit-status
+// BFF flag + live gateway rate-limit config for the Gateway Tester UC18 panel.
+// ---------------------------------------------------------------------------
+router.get('/rate-limit-status', async (req, res) => {
+    const bffFlag = configStore.getEffective('ff_mcp_rate_limit') === 'true';
+    const usePing = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+    const { getBffRateLimitConfig, shouldStampIgRateLimitHeader } = require('../services/mcpGatewayRateLimit');
+    const bffCfg = getBffRateLimitConfig();
+    const igArmed = shouldStampIgRateLimitHeader();
+
+    let gatewayUrl = null;
+    try {
+        gatewayUrl = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl();
+    } catch (e) {
+        return res.json({
+            bffFlag,
+            usePingGateway: usePing,
+            rateLimitLayer: usePing ? (igArmed ? 'ig' : 'off') : 'off',
+            bffEnabled: igArmed,
+            bffMaxRequests: bffCfg.maxRequests,
+            bffWindowMs: bffCfg.windowMs,
+            gatewayReachable: false,
+            gatewayEnabled: false,
+            maxRequests: null,
+            windowMs: null,
+            aligned: bffFlag && (usePing ? igArmed : false),
+            message: e.message,
+        });
+    }
+
+    const live = await fetchGatewayLiveConfig(gatewayUrl);
+    const gw = live.ok ? live.config : null;
+    const gatewayEnabled = !!(gw && gw.rateLimitEnabled);
+    const maxRequests = gw?.rateLimitMaxRequests ?? null;
+    const windowMs = gw?.rateLimitWindowMs ?? null;
+
+    let rateLimitLayer = 'off';
+    if (usePing && igArmed) rateLimitLayer = 'ig';
+    else if (!usePing && gatewayEnabled) rateLimitLayer = 'gateway';
+    else if (!usePing && bffFlag && gatewayEnabled) rateLimitLayer = 'both';
+
+    const aligned = usePing
+        ? (bffFlag && igArmed)
+        : (bffFlag && gatewayEnabled);
+
+    res.json({
+        bffFlag,
+        usePingGateway: usePing,
+        rateLimitLayer,
+        bffEnabled: igArmed,
+        bffMaxRequests: bffCfg.maxRequests,
+        bffWindowMs: bffCfg.windowMs,
+        gatewayReachable: live.ok,
+        gatewayEnabled,
+        maxRequests,
+        windowMs,
+        aligned,
+        demoDefaults: UC18_DEMO_RATE_LIMIT,
+        gatewayError: live.ok ? null : live.error,
+    });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/mcp-gateway/uc18-demo
+// One-click UC18 demo: enable BFF flag + push demo rate limits to Demo Agent Gateway.
+// ---------------------------------------------------------------------------
+router.post('/uc18-demo', express.json(), async (req, res) => {
+    const enable = req.body?.enable !== false;
+    const usePing = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+
+    try {
+        await configStore.setRaw({ ff_mcp_rate_limit: enable ? 'true' : 'false' });
+    } catch (e) {
+        return res.status(500).json({ error: 'config_store_failed', message: e.message });
+    }
+
+    // PingOne Agent Gateway (IG): BFF stamps X-UC18-Rate-Limit; uc18-rate-limit.groovy enforces.
+    if (usePing) {
+        const { shouldStampIgRateLimitHeader, getBffRateLimitConfig } = require('../services/mcpGatewayRateLimit');
+        const bffCfg = getBffRateLimitConfig();
+        return res.json({
+            ok: true,
+            enabled: enable,
+            bffFlag: enable,
+            rateLimitLayer: 'ig',
+            bffEnabled: shouldStampIgRateLimitHeader(),
+            bffMaxRequests: bffCfg.maxRequests,
+            bffWindowMs: bffCfg.windowMs,
+            aligned: enable && shouldStampIgRateLimitHeader(),
+            message: enable
+                ? 'PingGateway UC18 filter armed (429 before P1AZ; P1AZ API not called on throttle).'
+                : 'PingGateway UC18 filter disarmed.',
+        });
+    }
+
+    let gatewayUrl;
+    try {
+        gatewayUrl = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl();
+    } catch (e) {
+        return res.status(500).json({ error: 'gateway_not_configured', message: e.message });
+    }
+
+    const pushUpdates = enable
+        ? UC18_DEMO_RATE_LIMIT
+        : { rateLimitEnabled: false };
+
+    const pushResult = await pushGatewayAdminConfig(gatewayUrl, pushUpdates);
+    if (!pushResult.ok) {
+        return res.status(502).json({
+            error: 'gateway_push_failed',
+            message: pushResult.error,
+            detail: pushResult.detail || null,
+            bffFlag: enable,
+        });
+    }
+
+    res.json({
+        ok: true,
+        enabled: enable,
+        bffFlag: enable,
+        rateLimitLayer: 'gateway',
+        gateway: pushResult.config,
+        aligned: enable && !!(pushResult.config && pushResult.config.rateLimitEnabled),
+    });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/mcp-gateway/demo-presets
+// One-click presenter presets for Gateway Tester demos.
+// ---------------------------------------------------------------------------
+router.post('/demo-presets', express.json(), async (req, res) => {
+    const { preset } = req.body || {};
+
+    if (preset === 'uc18-throttle') {
+        try {
+            await configStore.setRaw({
+                ff_mcp_gateway_pinggateway: 'false',
+                ff_authorize_simulated: 'true',
+                ff_mcp_rate_limit: 'true',
+            });
+        } catch (e) {
+            return res.status(500).json({ error: 'config_store_failed', message: e.message });
+        }
+
+        let gatewayUrl;
+        try {
+            gatewayUrl = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl();
+        } catch (e) {
+            return res.status(500).json({ error: 'gateway_not_configured', message: e.message });
+        }
+
+        const pushResult = await pushGatewayAdminConfig(gatewayUrl, UC18_DEMO_RATE_LIMIT);
+        return res.json({
+            ok: true,
+            preset,
+            activeGateway: 'Demo Agent Gateway',
+            authorizeBackend: 'Simulated (saves P1AZ API quota on permitted calls)',
+            rateLimitLayer: pushResult.ok ? 'gateway' : 'bff',
+            pushOk: pushResult.ok,
+            pushError: pushResult.ok ? null : pushResult.error,
+        });
+    }
+
+    if (preset === 'real-policy') {
+        try {
+            await configStore.setRaw({
+                ff_mcp_gateway_pinggateway: 'true',
+                ff_authorize_simulated: 'true',
+                ff_mcp_rate_limit: 'false',
+            });
+        } catch (e) {
+            return res.status(500).json({ error: 'config_store_failed', message: e.message });
+        }
+
+        return res.json({
+            ok: true,
+            preset,
+            activeGateway: 'PingOne Agent Gateway',
+            authorizeBackend: 'Simulated (no real P1AZ API calls)',
+            rateLimitLayer: 'off',
+            hint: 'Use single tool calls for PERMIT/DENY demos. Enable UC18 demo mode separately to burst-test PingGateway throttling on IG.',
+        });
+    }
+
+    if (preset === 'real-throttle-ig') {
+        try {
+            await configStore.setRaw({
+                ff_mcp_gateway_pinggateway: 'true',
+                ff_authorize_simulated: 'true',
+                ff_mcp_rate_limit: 'true',
+            });
+        } catch (e) {
+            return res.status(500).json({ error: 'config_store_failed', message: e.message });
+        }
+
+        const { getBffRateLimitConfig } = require('../services/mcpGatewayRateLimit');
+        const bffCfg = getBffRateLimitConfig();
+        return res.json({
+            ok: true,
+            preset,
+            activeGateway: 'PingOne Agent Gateway',
+            authorizeBackend: 'Simulated (no real P1AZ API calls)',
+            rateLimitLayer: 'ig',
+            bffMaxRequests: bffCfg.maxRequests,
+            bffWindowMs: bffCfg.windowMs,
+            hint: 'Burst test returns 429 at PingGateway (uc18-rate-limit.groovy) before P1AZ.',
+        });
+    }
+
+    return res.status(400).json({
+        error: 'unknown_preset',
+        validPresets: ['uc18-throttle', 'real-policy', 'real-throttle-ig'],
+    });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/mcp-gateway/test/burst
+// Fire N sequential tool calls through the active gateway for UC18 burst demos.
+// ---------------------------------------------------------------------------
+router.post('/test/burst', express.json(), async (req, res) => {
+    const { tool, args, count } = req.body || {};
+    const burstCount = Math.min(Math.max(parseInt(count, 10) || 5, 2), 20);
+
+    if (!tool || typeof tool !== 'string') {
+        return res.status(400).json({ error: 'bad_request', message: 'tool (string) is required' });
+    }
+
+    const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const gateway = {
+        flag: 'ff_mcp_gateway_pinggateway',
+        usePingGateway: usePing,
+        name: usePing ? 'PingOne Agent Gateway' : 'Demo Agent Gateway',
+        authzBackend: simulated ? 'mock (demo_authz_server)' : 'real (PingOne Authorize)',
+        simulated,
+    };
+
+    const { callToolViaGateway, getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
+    const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
+
+    let url;
+    try {
+        url = getMcpGatewayHttpUrl();
+        gateway.url = url;
+    } catch (e) {
+        return res.status(500).json({ gateway, error: 'gateway_not_configured', message: e.message });
+    }
+
+    let token;
+    try {
+        ({ token } = await resolveMcpAccessTokenWithEvents(req, tool));
+    } catch (e) {
+        return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (!token) {
+        return res.status(401).json({
+            gateway,
+            error: 'no_mcp_token',
+            message: 'No delegated MCP access token for this session.',
+        });
+    }
+
+    const parsedArgs = (args && typeof args === 'object') ? args : {};
+    const results = [];
+    const t0 = Date.now();
+
+    for (let i = 0; i < burstCount; i++) {
+        const callT0 = Date.now();
+        try {
+            const { result } = await callToolViaGateway(
+                url, token, tool, parsedArgs,
+                { correlationId: req.correlationId },
+            );
+            results.push({
+                index: i + 1,
+                ok: true,
+                httpStatus: 200,
+                durationMs: Date.now() - callT0,
+                result,
+            });
+        } catch (e) {
+            results.push({
+                index: i + 1,
+                ok: false,
+                httpStatus: e.httpStatus || null,
+                error: e.code || 'gateway_error',
+                gatewayErrorCode: e.gatewayErrorCode || null,
+                message: e.gatewayMessage || e.message,
+                retryAfterMs: e.retryAfterMs || null,
+                durationMs: Date.now() - callT0,
+                rateLimited: e.code === 'rate_limited' || e.httpStatus === 429,
+                rateLimitLayer: e.rateLimitLayer || null,
+            });
+        }
+    }
+
+    const rateLimitedCount = results.filter((r) => r.rateLimited).length;
+    const successCount = results.filter((r) => r.ok).length;
+
+    return res.json({
+        gateway,
+        tool,
+        count: burstCount,
+        durationMs: Date.now() - t0,
+        successCount,
+        rateLimitedCount,
+        results,
+        summary: rateLimitedCount > 0
+            ? `${successCount} succeeded, ${rateLimitedCount} rate-limited (429)`
+            : `${successCount} succeeded, 0 rate-limited`,
+    });
+});
+
+router.pushGatewayAdminConfig = pushGatewayAdminConfig;
+router.fetchGatewayLiveConfig = fetchGatewayLiveConfig;
 module.exports = router;

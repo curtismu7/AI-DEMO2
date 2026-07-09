@@ -16,6 +16,7 @@
         },
         { "name": "JwksTokenValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "jwks-token-validation.groovy" } },
         { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*", "metricsEnabled": true } },
+        { "name": "Uc18RateLimit", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "uc18-rate-limit.groovy" } },
         { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
       ],
       "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }
