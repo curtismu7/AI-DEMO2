@@ -13,9 +13,10 @@ describe('extractChips (banking manifest chips10 → heuristic/llm partition)', 
     expect(heuristicChips.length + llmChips.length).toBe(chips10.length);
     const heuristicIds = new Set(heuristicChips.map((c) => c.id));
     expect(llmIds.some((id) => heuristicIds.has(id))).toBe(false);
-    // Banking always defines a full chip set: 7+ heuristic + at least one llm chip.
+    // Banking always defines a full chip set. Analysis chips (unusual/afford) are
+    // mode=both so Heuristics-only still answers; llmChips may be empty.
     expect(heuristicChips.length).toBeGreaterThanOrEqual(7);
-    expect(llmChips.length).toBeGreaterThanOrEqual(1);
+    expect(llmChips.length).toBeGreaterThanOrEqual(0);
   });
 
   test('every chip carries id/label/message', () => {

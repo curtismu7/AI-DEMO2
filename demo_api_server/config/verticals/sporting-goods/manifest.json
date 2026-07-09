@@ -124,11 +124,12 @@
       { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status" },
       { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance" },
       { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order" },
+      { "id": "sg-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "sg6", "label": "What's due back?", "message": "what is due back", "mode": "both" },
       { "id": "sg7", "label": "Order history", "message": "order history", "mode": "both", "tool": "gear_order_status" },
-      { "id": "sg8", "label": "What gear matches my buys?", "message": "suggest equipment matching my recent purchases", "mode": "llm" },
+      { "id": "sg8", "label": "What gear matches my buys?", "message": "suggest equipment matching my recent purchases", "mode": "both" },
       { "id": "sg9", "label": "Close to next loyalty tier?", "message": "how close to the next tier am I", "mode": "both" },
-      { "id": "sg10", "label": "Recommend trail-ready gear", "message": "Recommend trail-ready equipment", "mode": "llm" },
+      { "id": "sg10", "label": "Recommend trail-ready gear", "message": "Recommend trail-ready equipment", "mode": "both" },
       { "id": "sg-direct", "label": "🔌 Direct MCP", "message": "show my gear order", "mode": "direct", "tool": "gear_order_status" }
     ],
     "securityShowcase": {
@@ -148,8 +149,8 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
-            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },
         {

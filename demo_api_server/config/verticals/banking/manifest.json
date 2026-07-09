@@ -121,9 +121,10 @@
       { "id": "bk5", "label": "Deposit", "message": "deposit $50 into savings", "mode": "both", "tool": "create_deposit" },
       { "id": "bk6", "label": "Withdraw", "message": "withdraw $40 from checking", "mode": "both", "tool": "create_withdrawal" },
       { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage" },
+      { "id": "bk-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "both" },
-      { "id": "bk9", "label": "Check for unusual patterns", "message": "Check for unusual patterns", "mode": "llm" },
-      { "id": "bk10", "label": "Can I afford a big expense?", "message": "Could my savings cover a big upcoming expense?", "mode": "llm" },
+      { "id": "bk9", "label": "Check for unusual patterns", "message": "Check for unusual patterns", "mode": "both" },
+      { "id": "bk10", "label": "Can I afford a big expense?", "message": "Could my savings cover a big upcoming expense?", "mode": "both" },
       { "id": "bk-direct", "label": "🔌 Direct MCP", "message": "get my accounts", "mode": "direct", "tool": "get_my_accounts" }
     ],
     "hero": {
@@ -167,8 +168,8 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "🧠 Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The LLM reasoning path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
-            { "id": "sec_llm_explain", "label": "🧠 Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },
         {

@@ -29,6 +29,10 @@ const HEURISTICS = [
   { re: /\b(pending|waiting|awaiting|unapproved|sign[\s-]?off|approvals?)\b/, action: 'list_expenses' },
   { re: /\b(check\s+|my\s+|how\s+much\s+)?(pto|time\s+off|vacation|sick\s+leave)\s*(balance|left|remaining)?\b/, action: 'pto_balance' },
   { re: /\b(my\s+)?benefits?\b|\benrollments?\b|\bmedical\b|\bdental\b/, action: 'view_benefits' },
+  // Chips wf8/wf9 — advice fallbacks for Heuristics-only
+  { re: /\bsabbatical\b|\bbest time of year for\b/i, action: 'pto_balance' },
+  { re: /\binsurance\s+plan\b|\bright insurance\b|\binsurance\b.*\b(needs?|plan)\b/i, action: 'view_benefits' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend|expense|claim)|check for unusual|flag any unusual|spot unusual/i, action: 'list_expenses' },
 ];
 
 function getManifest() { return verticalManifest.resolver.resolve('workforce'); }

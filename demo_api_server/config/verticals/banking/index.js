@@ -14,17 +14,25 @@ const HEURISTICS = [
   { re: /\b(sensitive account details|full account|routing number|account number|account details)\b/, action: 'sensitive_account_details' },
   // mortgage_demo (must precede balance check)
   { re: /\b(show|view|see|get|my|whats?|what is)\s*(mortgage|home\s*loan)\b|\b(mortgage|home\s*loan)\s*(data|info|details|balance|summary|payment)\b|^mortgage$|^home\s*loan$/, action: 'mortgage_demo' },
+  // invest_demo — cross-vertical portfolio chip (must precede balance)
+  { re: /\b(show|view|see|get|my)\s*(portfolio\s*status|investment\s*portfolio|investments?|portfolio)\b|\bportfolio\s*status\b|^investments?$|^portfolio$/, action: 'invest_demo' },
+  // branch_hours (public catalog / progressive trust Act 1) — before balance/accounts
+  { re: /\b(branch|branches|atm|atms)\b/, action: 'branch_hours' },
   // balance (must precede accounts check). extractsAccountType pulls the
   // checking/savings qualifier into params (downstream routes consume it).
   { re: /\bbalances?\b/, action: 'balance', extractsAccountType: true },
-  // accounts
-  { re: /\b(accounts?|account\s*(list|overview|summary)|my\s*accounts?|check\s*accounts?|view\s*accounts?)\b/, action: 'accounts' },
+  // accounts — exclude "account history" (transactions catalog phrase)
+  { re: /\b(accounts?|account\s*(list|overview|summary)|my\s*accounts?|check\s*accounts?|view\s*accounts?)\b(?!\s*history)/, action: 'accounts' },
   // biggest_purchase
   { re: /\b(biggest|largest|highest|top)\b.*(purchase|spend|transaction|payment)\b|\b(purchase|spend|transaction|payment).*(biggest|largest|highest)\b|\bmost expensive\b|\bspent the most\b|\bbiggest spend\b/, action: 'biggest_purchase' },
   // spending_summary
   { re: /\b(spending summary|total spend|how much.*(spend|spent)|where.*money|breakdown.*spend\w*|spend\w*.*breakdown|biggest categor\w+|top categor\w+|spending categor\w+)\b/, action: 'spending_summary' },
-  // transactions
-  { re: /\b(transactions?|history|activity|recent)\b/, action: 'transactions' },
+  // unusual_patterns — chip bk9 / seed "Any unusual transactions?" (must precede bare "transactions")
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend)|check for unusual|flag any unusual|spot unusual/i, action: 'unusual_patterns' },
+  // afford_check — chip bk10 (must precede bare "balance"/"savings")
+  { re: /\b(afford|cover)\b.*\b(expense|purchase|cost)|savings?\s+cover|big\s+upcoming\s+expense|can i afford/i, action: 'afford_check' },
+  // transactions (includes catalog phrase "account history")
+  { re: /\b(transactions?|history|activity|recent|account\s+history)\b/, action: 'transactions' },
   // transfer (must precede deposit/withdraw for specificity)
   { re: /\btransfer\b/, action: 'transfer', extractsAmount: true, extractsFromId: true, extractsToId: true },
   // deposit
@@ -121,6 +129,20 @@ function getToolsWithActionAliases() {
       authz: {},
     },
     {
+      name: 'invest_demo',
+      description: 'Show investment portfolio via api_key path.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'branch_hours',
+      description: 'Look up nearby branch or ATM hours.',
+      inputSchema: { type: 'object', properties: { city: { type: 'string' } } },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
       name: 'biggest_purchase',
       description: 'Show biggest purchase information.',
       inputSchema: { type: 'object', properties: {} },
@@ -130,6 +152,20 @@ function getToolsWithActionAliases() {
     {
       name: 'spending_summary',
       description: 'Show spending summary.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'unusual_patterns',
+      description: 'Flag unusual or outlier transactions from recent activity.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'afford_check',
+      description: 'Check whether savings can cover a large upcoming expense.',
       inputSchema: { type: 'object', properties: {} },
       scopes: ['read'],
       authz: {},
@@ -203,7 +239,7 @@ module.exports = {
 
     // Placeholder actions (demos, etc.) return success with empty result
     // These are captured by the heuristic path and handled elsewhere
-    const placeholderActions = ['mcp_tools', 'mortgage_demo', 'biggest_purchase', 'spending_summary', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo'];
+    const placeholderActions = ['mcp_tools', 'mortgage_demo', 'branch_hours', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo'];
     if (placeholderActions.includes(name)) {
       return { result: { data: {} }, render: 'text' };
     }

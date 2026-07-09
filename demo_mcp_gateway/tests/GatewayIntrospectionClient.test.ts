@@ -53,10 +53,13 @@ describe('GatewayIntrospectionClient — cold-start hardening', () => {
     expect(recovered.sub).toBe('u1');
   });
 
-  test('skips introspection (active:true) when no endpoint is configured', async () => {
+  test('fails closed (active:false) when no endpoint is configured', async () => {
+    // Introspection is never skipped — missing GW_INTROSPECTION_ENDPOINT must
+    // reject the token so a misconfigured gateway cannot silently accept traffic.
     const client = new GatewayIntrospectionClient({} as unknown as GatewayConfig);
     const r = await client.introspect('whatever');
-    expect(r).toEqual({ active: true, skipped: true });
+    expect(r.active).toBe(false);
+    expect(r.error).toMatch(/GW_INTROSPECTION_ENDPOINT not configured/);
     expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 });

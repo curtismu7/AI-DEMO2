@@ -394,8 +394,11 @@ try {
     // non-200/empty → outcome parses to DENY below). STRICT_AUTH (not NODE_ENV) is the
     // opt-in signal, matching the BFF/MCP hardening — the demo runs without it and
     // keeps failover. A 200 + DENY is a valid decision and is NOT a failure.
+    // Default OFF: real-backend outages must fail CLOSED (DENY), not silently
+    // switch to the more permissive mock. Opt in with P1AZ_ALLOW_MOCK_FAILOVER=true
+    // for local demo convenience; STRICT_AUTH=true always disables failover.
     def allowMockFailover = (System.getenv('STRICT_AUTH') != 'true') &&
-        ((System.getenv('P1AZ_ALLOW_MOCK_FAILOVER') ?: 'true').toLowerCase() != 'false')
+        ((System.getenv('P1AZ_ALLOW_MOCK_FAILOVER') ?: 'false').toLowerCase() == 'true')
     if (!simulated && (r.code == 0 || r.code >= 500)) {
         if (allowMockFailover && mockBase && mockBase != realBase) {
             logger.warn('[P1AZ] REAL backend unreachable (HTTP ' + r.code + ') — failing over to MOCK (dev only)')

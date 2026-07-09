@@ -35,6 +35,7 @@ describe('AuthenticationIntegration', () => {
     mockAuthManager.validateAgentToken = jest.fn();
     mockAuthManager.generateAuthorizationRequest = jest.fn();
     mockAuthManager.validateBankingScopes = jest.fn();
+    mockAuthManager.validateTokenScopes = jest.fn();
     mockAuthManager.isTokenExpired = jest.fn();
     mockAuthManager.refreshUserToken = jest.fn();
     mockAuthManager.validateAuthorizationState = jest.fn();
@@ -478,6 +479,7 @@ describe('AuthenticationIntegration', () => {
       mockSessionManager.findTokensForScopes.mockReturnValue(mockUserTokens);
       mockSessionManager.getSession.mockResolvedValue(mockSession);
       mockAuthManager.validateBankingScopes.mockReturnValue(true);
+      mockAuthManager.validateTokenScopes.mockResolvedValue(true);
       mockAuthManager.isTokenExpired.mockReturnValue(false);
 
       const result = await authIntegration.validateToolAuthentication(
@@ -488,6 +490,43 @@ describe('AuthenticationIntegration', () => {
 
       expect(result.success).toBe(true);
       expect(result.session).toBe(mockSession);
+      expect(mockAuthManager.validateTokenScopes).toHaveBeenCalledWith(
+        'test-agent-token',
+        ['accounts:read']
+      );
+    });
+
+    it('should reject agentToken missing required scopes', async () => {
+      const mockAgentTokenInfo: AgentTokenInfo = {
+        tokenHash: 'test-hash',
+        clientId: 'test-client',
+        scopes: ['agent:invoke'],
+        expiresAt: new Date(Date.now() + 3600000),
+        isValid: true
+      };
+
+      const mockSession: BankingSession = {
+        sessionId: 'test-session-1',
+        agentTokenHash: 'test-hash',
+        userTokens: [],
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        expiresAt: new Date(Date.now() + 3600000)
+      };
+
+      mockAuthManager.validateAgentToken.mockResolvedValue(mockAgentTokenInfo);
+      mockSessionManager.getSessionByAgentToken.mockResolvedValue(mockSession);
+      mockAuthManager.validateTokenScopes.mockResolvedValue(false);
+
+      const result = await authIntegration.validateToolAuthentication(
+        undefined,
+        'test-agent-token',
+        ['accounts:write']
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.insufficientScope).toBe(true);
+      expect(result.missingScopes).toEqual(['accounts:write']);
     });
   });
 

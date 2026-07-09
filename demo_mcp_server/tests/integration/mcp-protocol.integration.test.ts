@@ -426,12 +426,10 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
   });
 
   // Phase 198+: with an agentToken from the handshake, MCPMessageHandler ->
-  // AuthenticationIntegration.validateToolAuthentication() short-circuits at
-  // `if (agentToken) return { success: true, session }` (AuthenticationIntegration.ts:435–438).
-  // The tool then executes directly via the agent-delegated token path — no
-  // user-token challenge is generated, because in the BFF → MCP Gateway → MCP Server
-  // flow scopes are enforced upstream. Tests below assert tool execution against
-  // the agent-token path, not the legacy authChallenge-then-auth-code flow.
+  // AuthenticationIntegration.validateToolAuthentication() enforces requiredScopes
+  // against the bearer (validateTokenScopes) then executes via the agent-delegated
+  // token path — no user-token challenge is generated. Tests below assert tool
+  // execution against the agent-token path, not the legacy authChallenge flow.
   describe('Tool Execution with Authentication', () => {
     let authenticatedWs: WebSocket;
 

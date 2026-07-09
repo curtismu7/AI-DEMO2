@@ -36,6 +36,7 @@ const HEURISTICS = [
   { re: /\b(inventory|stock|on[\s-]?hand|materials?)\b/i, action: 'view_inventory' },
   { re: /\bproduction\s+history\b|\bproduction\s+runs?\b|\boperations?\b|\brun\s+history\b/i, action: 'view_production_history' },
   { re: /\b(work\s+orders?|jobs?|orders?)\b/i, action: 'view_work_orders' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend|order|defect)|check for unusual|flag any unusual|spot unusual/i, action: 'view_work_orders' },
 ];
 
 function systemPrompt(ctx) {

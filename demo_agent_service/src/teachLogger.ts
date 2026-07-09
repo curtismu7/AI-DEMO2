@@ -19,11 +19,30 @@ export interface TeachLogger {
 }
 
 const RESERVED = new Set(['level', 'time', 'msg', 'service', 'pid', 'hostname', 'correlation_id']);
+// Match bare `token` and common secret suffixes (arrays + nested objects recurse).
+const SENSITIVE_KEY = /(?:^|_)(access_token|refresh_token|id_token|client_secret|authorization|password|api[_-]?key|bearer|secret|token)$/i;
+function redactValue(key: string, value: unknown): unknown {
+  if (SENSITIVE_KEY.test(key)) return '[REDACTED]';
+  if (Array.isArray(value)) {
+    return value.map((item, i) =>
+      item && typeof item === 'object' ? redactValue(String(i), item) : item,
+    );
+  }
+  if (value && typeof value === 'object') {
+    const nested: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      nested[k] = redactValue(k, v);
+    }
+    return nested;
+  }
+  return value;
+}
 function safeFields(fields?: Record<string, unknown>): Record<string, unknown> {
   if (!fields) return {};
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(fields)) {
-    out[RESERVED.has(k) ? `field_${k}` : k] = v;
+    const key = RESERVED.has(k) ? `field_${k}` : k;
+    out[key] = redactValue(k, v);
   }
   return out;
 }

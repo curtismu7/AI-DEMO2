@@ -17,6 +17,8 @@ const HEURISTICS = [
   { re: /\bviolation\b.*\bclos\w*\b|\bclos\w*\b.*\bviolation\b/i, action: 'close_violation', extractsRecordId: true },
   { re: /\bschedule\b.*\binspection\b/i, action: 'schedule_inspection', extractsRecordId: true },
   { re: /\brenew\w*\b.*\bpermit\b|\bpermit\b.*\brenew\w*\b/i, action: 'renew_permit', extractsRecordId: true },
+  // Chip gv8 — before bare "license" → view_permits
+  { re: /\brenew\w*\b.*\b(professional\s+)?licen[cs]e|\b(professional\s+)?licen[cs]e\b.*\brenew\w*/i, action: 'renew_permit', extractsRecordId: true },
   { re: /\bcancel\b.*\bappointment\b/i, action: 'cancel_appointment', extractsRecordId: true },
   { re: /\binspections?\b/i, action: 'view_inspections' },
   { re: /\bviolations?\b|\bcode\s+enforcement\b/i, action: 'view_violations' },
@@ -32,6 +34,7 @@ const HEURISTICS = [
   { re: /\bfees?\s*(owed|due)?\b|\bwhat\s+do\s+i\s+owe\b|\bbalance\b/i, action: 'view_fees' },
   { re: /\b(filing|inspection|renewal)s?\b|\bfiling\s+history\b/i, action: 'view_filings' },
   { re: /\b(permit|license)s?\b/i, action: 'view_permits' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend|filing|fee)|check for unusual|flag any unusual|spot unusual/i, action: 'view_filings' },
 ];
 
 function systemPrompt(ctx) {

@@ -23,13 +23,9 @@ function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
   const model = langchainConfig?.model;
 
-  if (requested === 'openai' || requested === 'anthropic') {
+  if (requested === 'openai' || requested === 'anthropic' || requested === 'google') {
     // Pass-through: :3006 enforces credential presence and fails fast.
     return { provider: requested, model };
-  }
-
-  if (requested === 'google') {
-    return { provider: 'google', model };
   }
 
   if (requested === 'anthropic-lmstudio') {

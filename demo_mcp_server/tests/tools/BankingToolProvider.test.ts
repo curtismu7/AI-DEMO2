@@ -31,6 +31,7 @@ describe('BankingToolProvider', () => {
     mockAuthManager.generateAuthorizationRequest = jest.fn();
     mockAuthManager.isTokenExpired = jest.fn();
     mockAuthManager.validateBankingScopes = jest.fn();
+    mockAuthManager.validateTokenScopes = jest.fn().mockResolvedValue(true);
 
     // Phase 226+: BankingAPIClient grew startTrace/stopTrace for HTTP debug capture.
     // Mock returns an empty trace array so attachTrace() in BankingToolProvider works.

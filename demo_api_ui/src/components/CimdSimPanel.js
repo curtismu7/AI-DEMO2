@@ -10,7 +10,7 @@
  *   3. Doc format     — JSON document structure
  *   4. How AS uses it — step-by-step AS behaviour
  *   5. Flow diagram   — ASCII sequence diagram
- *   6. ▶ Simulate     — interactive animated walkthrough (NEW)
+ *   6. Simulate     — interactive animated walkthrough (NEW)
  *   7. PingOne        — PingOne status and setup guide
  *
  * Listens for window CustomEvent 'education-open-cimd' with optional
@@ -114,7 +114,7 @@ function WhatTab() {
       </p>
       <CodeBlock>{'GET /.well-known/oauth-client/{pingone-app-id}'}</CodeBlock>
       <p>
-        Use the <strong>▶ Simulate</strong> tab to watch the full AS-fetches-CIMD flow
+        Use the <strong>Simulate</strong> tab to watch the full AS-fetches-CIMD flow
         animated step by step.
       </p>
 
@@ -348,7 +348,7 @@ function HowItWorksTab() {
         <strong>PingOne status:</strong> PingOne does not yet natively fetch CIMD
         documents during authorization. This demo pre-registers via the Management API
         and hosts the document so you can observe the complete pattern. Use the{' '}
-        <strong>▶ Simulate</strong> tab to walk through the AS-fetches-CIMD flow.
+        <strong>Simulate</strong> tab to walk through the AS-fetches-CIMD flow.
       </div>
     </>
   );
@@ -462,7 +462,7 @@ const SETUP_STEPS = [
   {
     num: '6',
     title: 'Simulate the AS flow',
-    detail: 'Come back to this panel → ▶ Simulate tab. Enter your PingOne app ID in the "optional real document" field and run the simulation to see your actual document flowing through the AS validation.',
+    detail: 'Come back to this panel → Simulate tab. Enter your PingOne app ID in the "optional real document" field and run the simulation to see your actual document flowing through the AS validation.',
   },
 ];
 
@@ -679,7 +679,7 @@ function SimulateTab() {
             className="cimd-btn cimd-btn--primary cimd-sim-start"
             onClick={startSimulation}
           >
-            ▶ Run Simulation
+            Run Simulation
           </button>
         </>
       )}
@@ -722,7 +722,7 @@ function SimulateTab() {
   &code_challenge_method=S256
   &state=xyz789-secure-random-state         ← CSRF protection`}</CodeBlock>
               <div className="cimd-sim-hint">
-                💡 <strong>The key CIMD innovation:</strong> <code>client_id</code> is a
+                <strong>The key CIMD innovation:</strong> <code>client_id</code> is a
                 URL beginning with <code>https://</code>. This single change is how the AS
                 knows to fetch client metadata dynamically instead of looking it up in a
                 pre-registration database.
@@ -771,7 +771,7 @@ if (client_id.startsWith('https://')) {
   return validateAuthorizeRequest(req, client);
 }`}</CodeBlock>
               <div className="cimd-check cimd-check--info" style={{ marginTop: '10px' }}>
-                <span className="cimd-check-icon">🔍</span>
+                <span className="cimd-check-icon">✓</span>
                 <span>
                   Detected:{' '}
                   <code>
@@ -787,7 +787,7 @@ if (client_id.startsWith('https://')) {
                 <span>Taking CIMD path — will fetch the metadata document next</span>
               </div>
               <div className="cimd-sim-hint" style={{ marginTop: '10px' }}>
-                ⚡ <strong>Why no registration?</strong> Unlike OAuth Dynamic Client
+                <strong>Why no registration?</strong> Unlike OAuth Dynamic Client
                 Registration (DCR), CIMD requires no admin approval, no client_secret
                 bootstrapping, and no write access to the AS database. The AS simply
                 trusts that whoever controls the HTTPS URL controls the client — the
@@ -816,13 +816,13 @@ if (client_id.startsWith('https://')) {
 Host: ${cimdHost}              ← the client's own domain
 Accept: application/json`}</CodeBlock>
               <div className="cimd-sim-hint">
-                🔒 <strong>Security via HTTPS:</strong> TLS ensures the AS is talking to
+                <strong>Security via HTTPS:</strong> TLS ensures the AS is talking to
                 the real <code>{cimdHost}</code> — the same chain of trust that protects
                 every HTTPS website. Only the domain owner can serve a response at this
                 URL, so the AS can trust the content without any shared secret.
               </div>
               <div className="cimd-sim-hint" style={{ marginTop: '8px' }}>
-                ⚡ <strong>Caching matters:</strong> The AS should honour{' '}
+                <strong>Caching matters:</strong> The AS should honour{' '}
                 <code>Cache-Control</code> headers in the response. A well-configured
                 document with <code>max-age=3600</code> means the AS only fetches it once
                 per hour, keeping latency negligible for subsequent authorizations.
@@ -864,7 +864,7 @@ Cache-Control: public, max-age=3600  ← AS may cache for 1 hour
 
 ${JSON.stringify(cimdDoc, null, 2)}`}</CodeBlock>
               <div className="cimd-sim-hint">
-                📋 <strong>Key fields explained:</strong>
+                <strong>Key fields explained:</strong>
               </div>
               <div className="cimd-checks" style={{ marginTop: '6px' }}>
                 <div className="cimd-check cimd-check--info">
@@ -883,7 +883,7 @@ ${JSON.stringify(cimdDoc, null, 2)}`}</CodeBlock>
                   </div>
                 </div>
                 <div className="cimd-check cimd-check--info">
-                  <span className="cimd-check-icon">🔑</span>
+                  <span className="cimd-check-icon">✓</span>
                   <div>
                     <strong>token_endpoint_auth_method</strong> — how the client will
                     authenticate at the token endpoint (e.g.{' '}
@@ -891,7 +891,7 @@ ${JSON.stringify(cimdDoc, null, 2)}`}</CodeBlock>
                   </div>
                 </div>
                 <div className="cimd-check cimd-check--info">
-                  <span className="cimd-check-icon">📦</span>
+                  <span className="cimd-check-icon">✓</span>
                   <div>
                     <strong>scope</strong> — the maximum scopes this client may ever
                     request. The AS will downscope any request that exceeds this.
@@ -905,7 +905,7 @@ ${JSON.stringify(cimdDoc, null, 2)}`}</CodeBlock>
               )}
               {!usedRealDoc && (
                 <div className="cimd-sim-hint" style={{ marginTop: '10px' }}>
-                  ℹ Using the built-in demo document — register a real client via{' '}
+                  Note: Using the built-in demo document — register a real client via{' '}
                   <strong>Admin → Client Registration</strong> and enter its app ID to
                   use your own.
                 </div>
@@ -1046,7 +1046,7 @@ grant_type=authorization_code
                 interception attacks.
               </div>
               <div className="cimd-sim-done">
-                <div className="cimd-sim-done-icon">🎉</div>
+                <div className="cimd-sim-done-icon">✅</div>
                 <div>
                   <strong>CIMD flow complete!</strong>
                   <br />
@@ -1058,7 +1058,7 @@ grant_type=authorization_code
               </div>
               <div className="cimd-checks" style={{ marginTop: '12px' }}>
                 <div className="cimd-check cimd-check--info">
-                  <span className="cimd-check-icon">🏦</span>
+                  <span className="cimd-check-icon">✓</span>
                   <div>
                     <strong>Why this matters for open banking</strong> — any regulated
                     third-party application can onboard to an AS simply by publishing a
@@ -1067,7 +1067,7 @@ grant_type=authorization_code
                   </div>
                 </div>
                 <div className="cimd-check cimd-check--info">
-                  <span className="cimd-check-icon">🔄</span>
+                  <span className="cimd-check-icon">✓</span>
                   <div>
                     <strong>Instant rotation</strong> — to update scopes, redirect URIs,
                     or auth method, the client simply updates the JSON document. The next
@@ -1151,7 +1151,7 @@ export default function CimdSimPanel() {
     { id: 'document',     label: 'Doc format'    },
     { id: 'how-it-works', label: 'How AS uses it'},
     { id: 'flow',         label: 'Flow diagram'  },
-    { id: 'simulate',     label: '▶ Simulate'   },
+    { id: 'simulate',     label: 'Simulate'   },
     { id: 'setup',        label: 'PingOne'       },
   ];
 
@@ -1178,7 +1178,7 @@ export default function CimdSimPanel() {
         {/* Header */}
         <div className="cimd-header">
           <div>
-            <h2 className="cimd-title">📄 Client ID Metadata Document</h2>
+            <h2 className="cimd-title">Client ID Metadata Document</h2>
             <p className="cimd-subtitle">
               draft-ietf-oauth-client-id-metadata-document — the client_id is a URL
             </p>

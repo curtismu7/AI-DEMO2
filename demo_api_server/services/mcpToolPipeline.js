@@ -374,7 +374,10 @@ async function runMcpToolPipeline(ctx) {
                         userId: userSub,
                         agentId,
                         userEmail: req.session?.user?.email,
+                        // Bind tool args (amount, payee/source) so verifyHitlReceipt
+                        // can reject same-amount recipient swaps on retry.
                         context: {
+                            ...(params && typeof params === 'object' ? params : {}),
                             decisionId: mcpAuthz.block.body.decisionId,
                             decisionContext: mcpAuthz.block.body.decisionContext,
                             reason: mcpAuthz.block.body.error_description,

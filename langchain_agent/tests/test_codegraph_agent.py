@@ -71,6 +71,28 @@ class TestCreateCodegraphAgent:
         assert "demo_mcp_server" in SYSTEM_PROMPT
 
 
+    def test_passes_helix_env_to_get_llm(self, monkeypatch):
+        """Helix fallback must forward HELIX_* env vars into get_llm kwargs."""
+        monkeypatch.setenv("HELIX_BASE_URL", "https://helix.example")
+        monkeypatch.setenv("HELIX_API_KEY", "key-123")
+        monkeypatch.setenv("HELIX_ENVIRONMENT_ID", "env-abc")
+        monkeypatch.setenv("HELIX_AGENT_ID", "LLM2")
+        monkeypatch.setenv("HELIX_PROMPT_FIELD_ID", "field-xyz")
+        with patch("src.codegraph.agent._resolve_provider", return_value="helix"), \
+             patch("src.codegraph.agent.get_llm") as mock_llm, \
+             patch("src.codegraph.agent.get_codegraph_tools", return_value=[]), \
+             patch("src.codegraph.agent.create_react_agent", return_value=MagicMock()):
+            create_codegraph_agent(api_key="test-key")
+
+        kwargs = mock_llm.call_args.kwargs
+        assert kwargs["provider"] == "helix"
+        assert kwargs["helix_base_url"] == "https://helix.example"
+        assert kwargs["helix_api_key"] == "key-123"
+        assert kwargs["helix_environment_id"] == "env-abc"
+        assert kwargs["helix_agent_id"] == "LLM2"
+        assert kwargs["helix_prompt_field_id"] == "field-xyz"
+
+
 def test_system_prompt_mentions_grep_and_read_file():
     from src.codegraph.agent import SYSTEM_PROMPT
     lowered = SYSTEM_PROMPT.lower()

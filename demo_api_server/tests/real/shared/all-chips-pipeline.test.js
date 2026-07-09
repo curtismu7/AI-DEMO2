@@ -55,7 +55,7 @@ const MCP_BANKING_ACTIONS = new Set([
   'accounts', 'balance', 'transactions', 'transfer', 'deposit', 'withdraw',
 ]);
 // The `feature` chip routes to vertical_feature_demo → a show_* MCP tool.
-const MCP_FEATURE_ACTIONS = new Set(['vertical_feature_demo', 'mortgage_demo']);
+const MCP_FEATURE_ACTIONS = new Set(['vertical_feature_demo', 'mortgage_demo', 'invest_demo']);
 
 function loadBothChips(verticalId) {
   const manifest = require(path.join(__dirname, `../../../config/verticals/${verticalId}/manifest.json`));

@@ -8,7 +8,11 @@
 const verticalDispatch = require("./verticalDispatch");
 
 const VERTICAL_FEATURE_RE =
-  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|\bshow\s+vertical\s+feature\b/;
+  /\b(show|view|see|get|my)\s*(large\s*purchase|big\s*purchase|recent\s*purchase|health\s*records?|medical\s*records?|gear\s*order|equipment\s*order|sports?\s*order|expense\s*report|expenses?\s*report|permit\s*status|enrollment\s*status|work\s*order\s*status)\b|^(large|big)\s*purchase$|^health\s*record$|^gear\s*order$|^expense\s*report$|^permit\s*status$|^enrollment\s*status$|^work\s*order\s*status$|\bshow\s+vertical\s+feature\b/;
+
+// Cross-vertical invest / portfolio chip — always routes to invest_demo (show_investment).
+const INVEST_FEATURE_RE =
+  /\b(show|view|see|get|my)\s*(portfolio\s*status|investment\s*portfolio|investments?|portfolio)\b|\bportfolio\s*status\b|^investments?$|^portfolio$/;
 
 // Per-vertical feature-demo triggers. The pre-plugin feature check (parseHeuristic)
 // runs ONLY the active vertical's trigger — never another vertical's phrases — so a
@@ -19,7 +23,7 @@ const VERTICAL_FEATURE_RE =
 const PURCHASE_FEATURE_RE =
   /\b(show|view|see|get|my)\s*(large|big|recent)\s*purchases?\b|^(large|big)\s*purchase$/;
 const FEATURE_TRIGGERS = {
-  banking: PURCHASE_FEATURE_RE,
+  // Banking Path A feature is mortgage_demo (handled above); purchase phrases stay retail-only.
   retail: PURCHASE_FEATURE_RE,
   healthcare:
     /\b(show|view|see|get)\s+(my\s+)?(health|medical)\s+records?\b|^health\s*records?$/,
@@ -27,6 +31,13 @@ const FEATURE_TRIGGERS = {
     /\b(show|view|see|get|my)\s*(gear|equipment|sports?)\s*orders?\b|^gear\s*order$/,
   workforce:
     /\b(show|view|see|get|my)\s*expenses?\s*reports?\b|^expense\s*report$/,
+  investment: INVEST_FEATURE_RE,
+  government:
+    /\b(show|view|see|get|my)\s*permit\s*status\b|^permit\s*status$/,
+  university:
+    /\b(show|view|see|get|my)\s*enrollment\s*status\b|^enrollment\s*status$/,
+  manufacturing:
+    /\b(show|view|see|get|my)\s*work\s*order\s*status\b|^work\s*order\s*status$/,
 };
 
 const EDU = {
@@ -77,6 +88,8 @@ const CAPABILITY_CATALOG = [
   'deposit — "deposit $50 into savings"',
   'withdraw — "withdraw $200 from checking"',
   'spending summary — "spending summary" / "how much did I spend" / "biggest purchase"',
+  'unusual patterns — "check for unusual patterns" / "any unusual transactions"',
+  'afford check — "can I afford a big expense" / "could my savings cover a big expense"',
   'mortgage — "show my mortgage" / "home loan details"',
   'branches — "what branches are near me?" / "branch hours in Austin"',
   'MCP tools — "list available tools" / "show mcp tools"',
@@ -108,17 +121,36 @@ function buildCatalogMessage(verticalCtx) {
 /**
  * The catalog item list. Banking (no terminology) returns the original
  * hand-authored CAPABILITY_CATALOG verbatim. For non-banking verticals the
- * items are derived from manifest terminology + chip labels.
+ * items are derived from real `both`-mode chip messages (so every quoted
+ * example is guaranteed to parse) — never invented "show my {term}" phrases.
  */
 function buildCatalogItems(verticalCtx) {
   const term = verticalCtx?.terminology;
   if (!term) return CAPABILITY_CATALOG;
 
-  // Prefer chip labels (already domain phrased) for the example text; fall back
-  // to terminology nouns. Education + MCP tools are cross-vertical infra.
-  const chipByKey = new Map(
-    (verticalCtx?.chips || []).map((c) => [c?.key, c?.label]),
+  const chips = verticalCtx?.chips || [];
+  // chips10 carry message + mode; prefer those so catalog quotes match heuristics.
+  const bothWithMsg = chips.filter(
+    (c) => (c.mode || "both") === "both" && typeof c.message === "string" && c.message.trim(),
   );
+  if (bothWithMsg.length > 0) {
+    // Strip leading non-alphanumeric (HITL lock / MCP plug glyphs) for catalog labels.
+    const stripPrefix = (s) => String(s || "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
+    // Include every both-chip so the catalog never advertises fewer actions
+    // than Heuristics-only can actually run.
+    const items = bothWithMsg.map((c) => {
+      const label = stripPrefix(c.label) || c.id || "action";
+      return `${label} — "${c.message.trim()}"`;
+    });
+    return [
+      ...items,
+      `MCP tools — "list available tools" / "show mcp tools"`,
+      `education — "explain token exchange" / "what is CIBA" / "how does step-up work"`,
+    ];
+  }
+
+  // Legacy key/label chips (unit tests + older manifests without chips10 messages).
+  const chipByKey = new Map(chips.map((c) => [c?.key, c?.label]));
   const chipLabel = (key, fallback) => chipByKey.get(key) || fallback;
   const accounts = term.accounts || "accounts";
   const balance = term.balance || "balance";
@@ -286,9 +318,15 @@ function parseEducation(t) {
       education: { panel: EDU.LOGIN_FLOW, tab: "what" },
     };
   }
+  // MCP protocol education — exclude PingOne Admin chip text that only names
+  // demo apps ("Demo MCP Server") and product lists, not the protocol itself.
   if (
-    /\b(mcp|model context|tools\/list|json-rpc)\b/.test(t) &&
-    !/\b(list|show|get)\b/.test(t)
+    /\b(mcp protocol|model context|tools\/list|json-rpc)\b/.test(t) ||
+    (/\bmcp\b/.test(t) &&
+      !/\b(list|show|get)\b/.test(t) &&
+      !/\bpingone\b/.test(t) &&
+      !/\bmcp\s+(server|gateway|exchanger|proxy|demo)\b/.test(t) &&
+      !/\bdemo\s+apps?\b/.test(t))
   ) {
     return {
       kind: "education",
@@ -528,6 +566,10 @@ function parseBanking(t) {
   ) {
     return { kind: "banking", banking: { action: "mortgage_demo" } };
   }
+  // Cross-vertical invest chip — must precede balance so "portfolio" does not fall through.
+  if (INVEST_FEATURE_RE.test(t)) {
+    return { kind: "banking", banking: { action: "invest_demo" } };
+  }
   // Vertical feature phrases (retail/healthcare/sporting-goods/workforce) plus the generic chip message
   if (VERTICAL_FEATURE_RE.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
@@ -570,11 +612,12 @@ function parseBanking(t) {
     // ceremony; we should answer.
     return { kind: "banking", banking: { action: "balance" } };
   }
-  // Accounts: show/list/get/what accounts
+  // Accounts: show/list/get/what accounts — but not "account history" (transactions)
   if (
     /\b(what|show|list|get|see|view|pull|display).*(accounts?)\b|\bmy accounts?\b(?!\s+balance)|\ball\b.*\baccounts?\b|\bcustomer accounts?\b|^accounts?$/.test(
       t,
-    )
+    ) &&
+    !/\baccount\s+history\b/.test(t)
   ) {
     return { kind: "banking", banking: { action: "accounts" } };
   }
@@ -592,7 +635,24 @@ function parseBanking(t) {
   ) {
     return { kind: "banking", banking: { action: "spending_summary" } };
   }
-  if (/\b(transactions?|history|activity|recent)\b/.test(t)) {
+  // Unusual / anomaly scan — must precede bare "transactions"/"activity"
+  if (
+    /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend)|check for unusual|flag any unusual|spot unusual/.test(
+      t,
+    )
+  ) {
+    return { kind: "banking", banking: { action: "unusual_patterns" } };
+  }
+  // Affordability — chip "Could my savings cover a big upcoming expense?"
+  if (
+    /\b(afford|cover)\b.*\b(expense|purchase|cost)|savings?\s+cover|big\s+upcoming\s+expense|can i afford/.test(
+      t,
+    )
+  ) {
+    return { kind: "banking", banking: { action: "afford_check" } };
+  }
+  // Catalog lists "account history" under transactions
+  if (/\b(transactions?|history|activity|recent|account\s+history)\b/.test(t)) {
     return { kind: "banking", banking: { action: "transactions" } };
   }
   if (/\btransfer\b/.test(t)) {
@@ -801,6 +861,10 @@ function parseHeuristic(
   // swallow the more specific vertical-feature intent first. Scoped to the ACTIVE
   // vertical's own trigger only, so one vertical's feature phrase can never fire in
   // another vertical's context.
+  // Invest / portfolio chip is available on every customer vertical.
+  if (INVEST_FEATURE_RE.test(t)) {
+    return { kind: "banking", banking: { action: "invest_demo" } };
+  }
   const featureTrigger = FEATURE_TRIGGERS[vertical];
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
@@ -812,13 +876,18 @@ function parseHeuristic(
     // Guard: if this message is the exact text of a mode=llm chip, skip heuristic
     // matching entirely. Heuristics must not capture LLM-only chips — they would
     // route to a wrong action instead of returning kind:'none' and letting the LLM path run.
-    const llmOnlyChipMessages = new Set(
-      (verticalCtx?.chips || [])
-        .filter((c) => c.mode === "llm")
-        .map((c) => norm(c.message)),
-    );
-    if (llmOnlyChipMessages.size > 0 && llmOnlyChipMessages.has(t)) {
-      return { kind: "none", message: buildCatalogMessage(verticalCtx) };
+    // Exception: heuristics-only mode has no LLM fallthrough, so allow matching
+    // (education / analysis chips that have a deterministic action still answer).
+    const heuristicsOnly = options.heuristicsOnly === true;
+    if (!heuristicsOnly) {
+      const llmOnlyChipMessages = new Set(
+        (verticalCtx?.chips || [])
+          .filter((c) => c.mode === "llm")
+          .map((c) => norm(c.message)),
+      );
+      if (llmOnlyChipMessages.size > 0 && llmOnlyChipMessages.has(t)) {
+        return { kind: "none", message: buildCatalogMessage(verticalCtx) };
+      }
     }
 
     const heuristics = verticalDispatch.heuristicsFor(vertical, () => [], {

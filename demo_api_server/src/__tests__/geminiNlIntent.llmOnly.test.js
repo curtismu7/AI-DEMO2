@@ -69,6 +69,7 @@ function setHeuristicMode() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  callHelixAgent.mockReset();
 });
 
 describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => {
@@ -97,6 +98,8 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
   // (documented in geminiNlIntent.js:235) is correct. Fix = mock all 3 calls.
   it('falls through to answerWithHelix when JSON router returns kind:none', async () => {
     setLlmOnlyMode();
+    // No heuristic match — open question should get conversational Helix.
+    parseHeuristic.mockReturnValue({ kind: 'none', message: '' });
     callHelixAgent
       .mockResolvedValueOnce('{"kind":"none","message":"I cannot route this"}') // 1: router → kind:none
       .mockResolvedValueOnce('still not json') // 2: refusal-retry → non-JSON, falls through
@@ -110,8 +113,59 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     expect(r.result.message).toBe('Here is my conversational answer');
   });
 
+
+  it('prefers heuristic when LLM JSON action disagrees with chip match', async () => {
+    setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({
+      kind: 'vertical',
+      vertical: 'workforce',
+      action: 'list_expenses',
+      params: {},
+    });
+    callHelixAgent.mockReset();
+    callHelixAgent.mockResolvedValueOnce(
+      '{"kind":"banking","banking":{"action":"unusual_patterns","params":{}}}',
+    );
+
+    const r = await parseNaturalLanguage(
+      'Check for unusual patterns in my recent activity',
+      { role: 'customer', vertical: 'workforce' },
+      'helix',
+      {},
+    );
+
+    expect(r.source).toBe('heuristic');
+    expect(r.result.action).toBe('list_expenses');
+    expect(r.llm_attempted).toBe(true);
+  });
+
+  it('prefers heuristic chip match over conversational when JSON router misses', async () => {
+    // Write-chip phrases (checkout, release records, …) often omit optional
+    // params; if Helix still returns kind:none after the JSON retry, use the
+    // deterministic heuristic action instead of a general-knowledge paragraph.
+    setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({
+      kind: 'vertical',
+      vertical: 'retail',
+      action: 'checkout',
+      params: {},
+    });
+    callHelixAgent
+      .mockResolvedValueOnce('{"kind":"none","message":"need product and amount"}')
+      .mockResolvedValueOnce('{"kind":"none","message":"still need params"}');
+
+    const r = await parseNaturalLanguage('checkout', { vertical: 'retail' }, 'helix', {});
+
+    expect(r.source).toBe('heuristic');
+    expect(r.result.action).toBe('checkout');
+    expect(r.llm_attempted).toBe(true);
+    // Conversational answerWithHelix must NOT run when heuristic matched.
+    expect(callHelixAgent).toHaveBeenCalledTimes(2);
+  });
+
   it('falls through to answerWithHelix when JSON router parse fails', async () => {
     setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({ kind: 'none', message: '' });
     // 3 calls: router (non-JSON) → refusal-retry (non-JSON) → answerWithHelix.
     callHelixAgent
       .mockResolvedValueOnce('not valid json') // 1: router — parse fails
@@ -173,6 +227,7 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     // answerWithHelix should NOT have been called (router matched)
     expect(callHelixAgent).toHaveBeenCalledTimes(1);
   });
+
 });
 
 describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
@@ -181,6 +236,7 @@ describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
     parseHeuristic.mockReturnValue({ kind: 'none', message: '' });
 
     // 3 calls: router (kind:none) → refusal-retry (non-JSON) → answerWithHelix fallback.
+    callHelixAgent.mockReset();
     callHelixAgent
       .mockResolvedValueOnce('{"kind":"none","message":"unknown"}') // 1: router → kind:none
       .mockResolvedValueOnce('still not json') // 2: refusal-retry — parse fails

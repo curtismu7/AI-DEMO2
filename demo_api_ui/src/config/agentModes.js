@@ -27,7 +27,7 @@ export const AGENT_MODES = [
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
 ];
 
-// Picker order for the five core modes.
+// Picker order for the core modes.
 export const CORE_MODE_IDS = AGENT_MODES.map((m) => m.id);
 
 // mode id -> provider string the BFF expects (null for heuristics).

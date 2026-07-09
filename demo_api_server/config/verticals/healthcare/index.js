@@ -34,9 +34,12 @@ const HEURISTICS = [
   { re: /\b(inbox|secure\s+messages?|unread\s+messages?|my\s+messages?|portal\s+messages?|messages?\s+from\s+my\s+(doctor|provider|care\s+team))\b/i, action: 'list_messages' },  // placement: before mark_message_read
   { re: /care\s+team|my\s+(doctor|doctors|provider|providers|physician|physicians|specialist|specialists)|who\s+(is|are)\s+my\s+(doctor|provider|physician)/i, action: 'view_care_team' },  // placement: before book_appointment
   { re: /\bclaims?\b|\bclaim\s+status\b/, action: 'view_claims' },
+  // Chip hc8 — in-network providers (before generic coverage)
+  { re: /\bin[\s-]?network\b|\bwhich providers?\b|\bproviders?\s+(are\s+)?in[\s-]?network\b/i, action: 'view_coverage' },
   { re: /\b(check\s+)?(my\s+)?coverage\b|\binsurance\b|\bdeductible\b|\breferrals?\b/, action: 'view_coverage' },
   { re: /\b(my\s+)?(medical\s+)?records?\b|\bpatient\s+records?\b/, action: 'view_records' },
   { re: /\b(summari[sz]e|recent|past|last)\b.*\bvisits?\b|\bvisit\s+(history|summary)\b/, action: 'view_records' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend|visit|record)|check for unusual|flag any unusual|spot unusual/i, action: 'view_records' },
 ];
 
 function getManifest() {

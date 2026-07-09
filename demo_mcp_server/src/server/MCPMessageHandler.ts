@@ -279,29 +279,25 @@ export class MCPMessageHandler {
       console.log(`[MCPMessageHandler] Processing tool call for: "${toolName}"`);
       console.log(`[MCPMessageHandler] Available tools:`, this.toolProvider.getAvailableTools().map(t => t.name));
 
-      // Check if agent token is provided in the tool call params (fallback)
-      const agentTokenFromCall = toolArguments.agent_token as string || 
+      // Reject agent tokens smuggled via tool arguments. The bearer must come from
+      // the Authorization header / connection context only — promoting a token from
+      // JSON-RPC args enables confused-deputy / cross-identity tool execution.
+      const smuggledAgentToken = toolArguments.agent_token as string ||
                                 toolArguments.agentToken as string ||
                                 (message.params as any)?.agentToken as string;
-                                
-      console.log(`[MCPMessageHandler] Looking for agent token in tool call - found:`, !!agentTokenFromCall);
-      console.log(`[MCPMessageHandler] Tool call params:`, message.params);
-      
-      if (agentTokenFromCall && !context.agentToken) {
-        console.log(`[MCPMessageHandler] Agent token found in tool call parameters`);
-        context.agentToken = agentTokenFromCall;
-        
-        // Try to get or create session for this agent token
-        try {
-          let session = await this.sessionManager.getSessionByAgentToken(agentTokenFromCall);
-          if (!session) {
-            await this.authManager.validateAgentToken(agentTokenFromCall);
-            session = await this.sessionManager.createSession(agentTokenFromCall);
-            console.log(`[MCPMessageHandler] Created session ${session.sessionId} for agent token from tool call`);
-          }
-          context.session = session;
-        } catch (error) {
-          console.warn(`[MCPMessageHandler] Failed to create session from tool call agent token:`, error);
+      if (smuggledAgentToken) {
+        console.warn(`[MCPMessageHandler] Rejecting agent_token in tools/call arguments (must use Authorization header)`);
+        delete toolArguments.agent_token;
+        delete toolArguments.agentToken;
+        if ((message.params as any)?.agentToken) {
+          delete (message.params as any).agentToken;
+        }
+        if (!context.agentToken) {
+          return this.createErrorResponse(
+            message.id,
+            -32001,
+            'agent_token in tool arguments is not allowed; pass the bearer via Authorization header'
+          ) as ToolCallResponse;
         }
       }
 

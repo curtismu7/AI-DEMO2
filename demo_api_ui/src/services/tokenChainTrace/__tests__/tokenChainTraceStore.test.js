@@ -52,3 +52,14 @@ test("ingestAuthorize + ingestMcpResult reach the step model", () => {
   expect(byId.authorize.detail.decision.outcome).toBe("PERMIT");
   expect(byId.api.status).toBe("done");
 });
+
+test("ingestRoutingMode after beginTrace marks llm/reply heuristic-ready", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "my accounts" });
+  tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "get_my_accounts" });
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace.routingMode).toBe("heuristic");
+  const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+  expect(byId.llm.status).toBe("done");
+  expect(byId.llm.lane).toBe("HEURISTICS");
+  expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+});

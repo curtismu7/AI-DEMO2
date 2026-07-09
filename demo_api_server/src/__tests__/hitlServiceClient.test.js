@@ -81,6 +81,78 @@ describe('hitlServiceClient.verifyHitlReceipt — anti-replay binding contract',
     expect(verifyHitlReceipt(null, 'u1', 'a1', 'create_transfer', NOW).ok).toBe(false);
     expect(verifyHitlReceipt(undefined, 'u1', 'a1', 'create_transfer', NOW).ok).toBe(false);
   });
+
+  it('ok when retry amount matches receipt context.amount', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('rejects when retry amount differs from receipt context.amount', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      499,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/different amount/);
+  });
+
+  it('rejects when retry carries amount but receipt has none', () => {
+    const r = verifyHitlReceipt(approved(), 'u1', 'a1', 'create_transfer', NOW, 250);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/no bound amount/);
+  });
+
+  it('rejects when receipt has amount but retry omits it (one-sided)', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      undefined,
+      {},
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/missing amount/);
+  });
+
+  it('rejects same-amount recipient swap (to_account_id mismatch)', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+      { amount: 250, to_account_id: 'acct-attacker', from_account_id: 'acct-from' },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/to_account_id/);
+  });
+
+  it('ok when amount and account ids match', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+      { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' },
+    );
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe('hitlServiceClient wire calls', () => {

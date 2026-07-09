@@ -68,7 +68,14 @@ const CodeExplorerPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`CodeGraph service error: ${response.status}`);
+        let detail = `CodeGraph service error: ${response.status}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.error) detail = errBody.error;
+        } catch {
+          // keep status-based message when body is not JSON
+        }
+        throw new Error(detail);
       }
 
       const reader = response.body.getReader();
@@ -140,11 +147,14 @@ const CodeExplorerPage = () => {
           return updated;
         });
       } else {
+        const message = err?.message
+          ? `Error: ${err.message}`
+          : 'Failed to reach the CodeGraph service. Is the langchain_agent running?';
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = {
             role: 'assistant',
-            content: 'Failed to reach the CodeGraph service. Is the langchain_agent running?',
+            content: message,
             streaming: false,
           };
           return updated;

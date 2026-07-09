@@ -22,6 +22,7 @@ const SWAP_TIMEOUT_MS = 180000;        // cold load of the 11GB gpt-oss can be s
 const SWAP_POLL_MS = 1500;             // health-poll cadence while a swap is loading
 const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unloading
 const IDLE_DECAY_MS = parseInt(process.env.LLM_PROXY_IDLE_DECAY_MS || '300000', 10); // 5 min
+const PIN_TIER_PORT = parseInt(process.env.LLM_PROXY_PIN_TIER || '', 10);
 
 // Two tiers only (US-origin): small (Phi-4-mini, :8091) and big (gpt-oss-20b,
 // :8096). Names/sizes MUST match the processes start-local-models.sh launches
@@ -33,6 +34,19 @@ const TIERS = [
   // On :8096 because mcp-code-search publishes :8095.
   { name: 'gpt-oss-20b',         port: 8096, size: '20B',  host: tierHost('LLAMA_TIER5_HOST') },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
+
+const PIN_TIER_INDEX = Number.isFinite(PIN_TIER_PORT) && PIN_TIER_PORT > 0
+  ? TIERS.findIndex((t) => t.port === PIN_TIER_PORT)
+  : -1;
+if (PIN_TIER_INDEX < 0 && Number.isFinite(PIN_TIER_PORT) && PIN_TIER_PORT > 0) {
+  console.warn(`[llm-proxy] LLM_PROXY_PIN_TIER=${PIN_TIER_PORT} does not match a known tier — pin ignored`);
+}
+
+/** Cap routing class when LLM_PROXY_PIN_TIER locks swap mode to one backend. */
+function effectiveClass(cls) {
+  if (PIN_TIER_INDEX < 0) return Math.min(cls, TIERS.length - 1);
+  return PIN_TIER_INDEX;
+}
 
 // ── Per-agent routing: honor the request's `model` field ───────────────────
 // Each agent pins its class via LLAMACPP_MODEL (BFF → phi-4-mini-instruct,
@@ -318,10 +332,11 @@ const server = http.createServer((req, res) => {
     const bodyBuffer = Buffer.concat(chunks);
     lastRequestAt = Date.now();
     const { cls, via } = requiredClass(bodyBuffer);
+    const routedCls = effectiveClass(cls);
 
     let selectedTier;
     try {
-      selectedTier = await selectTier(Math.min(cls, TIERS.length - 1));
+      selectedTier = await selectTier(routedCls);
     } catch (err) {
       console.error(`[proxy] tier selection failed: ${err.message}`);
       if (!res.headersSent) {
@@ -335,7 +350,7 @@ const server = http.createServer((req, res) => {
     req.bodyBuffer = bodyBuffer;    // re-streamed in proxyReq (body was drained above)
 
     console.log(
-      `[proxy] ${req.method} ${req.url} → ${selectedTier.name} (class ${cls} via ${via}) | load=${selectedTier.load}`,
+      `[proxy] ${req.method} ${req.url} → ${selectedTier.name} (class ${routedCls}${routedCls !== cls ? ` capped from ${cls}` : ''} via ${via}) | load=${selectedTier.load}`,
     );
     proxy.web(req, res, { target: `http://${selectedTier.host}:${selectedTier.port}` });
   });
@@ -353,7 +368,15 @@ server.listen(PORT, '0.0.0.0', () => {
   TIERS.forEach((t, i) => {
     console.log(`  Tier ${i + 1}: ${t.name} (${t.size}) on :${t.port}`);
   });
-  console.log(`[llm-proxy] Routing: request model pin (per agent) → keyword class; serve with smallest loaded tier that covers, swap up via ${TIER_MANAGER}, decay to ${TIERS[0].name} after ${IDLE_DECAY_MS / 1000}s idle`);
+  const pinNote = PIN_TIER_INDEX >= 0
+    ? `, pinned to ${TIERS[PIN_TIER_INDEX].name} (:${TIERS[PIN_TIER_INDEX].port})`
+    : '';
+  console.log(`[llm-proxy] Routing: request model pin (per agent) → keyword class; serve with smallest loaded tier that covers, swap up via ${TIER_MANAGER}, decay to ${TIERS[0].name} after ${IDLE_DECAY_MS / 1000}s idle${pinNote}`);
+  if (PIN_TIER_INDEX >= 0) {
+    swapTo(PIN_TIER_INDEX).catch((err) =>
+      console.error(`[llm-proxy] pin warm-up failed: ${err.message}`),
+    );
+  }
 });
 
 process.on('SIGTERM', () => {
