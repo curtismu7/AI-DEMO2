@@ -53,7 +53,7 @@ describe('loadConfig host default', () => {
 
   it('accepts valid LLM_PROVIDER values', () => {
     withRequiredEnv();
-    for (const p of ['openai', 'anthropic', 'helix', 'llamacpp', 'none']) {
+    for (const p of ['openai', 'anthropic', 'helix', 'llamacpp', 'google', 'none']) {
       process.env.LLM_PROVIDER = p;
       expect(loadConfig().llmProvider).toBe(p);
     }

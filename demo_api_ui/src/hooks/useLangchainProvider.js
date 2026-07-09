@@ -34,12 +34,13 @@ function _broadcastProvider(provider) {
   _providerListeners.forEach((fn) => { fn(provider); });
 }
 
-// The providers we expose in the UI. groq/google exist server-side
-// but are intentionally not surfaced (out of scope for this spec).
+// The providers we expose in the UI. groq exists server-side but is
+// intentionally not surfaced (out of scope for this spec).
 export const PROVIDER_OPTIONS = [
   { id: "helix",              label: "Helix (model-agnostic wrapper)" },
   { id: "anthropic-lmstudio", label: "LM Studio (Anthropic API, local)" },
   { id: "llamacpp",           label: "llama.cpp (local, native tool-calling)" },
+  { id: "google",             label: "Google (Gemini)" },
   { id: "openai",             label: "OpenAI (ChatGPT)" },
   { id: "anthropic",          label: "Anthropic (Claude)" },
 ];

@@ -9,6 +9,15 @@ const configStore = require('./configStore');
 const REASON_URL =
   (process.env.AGENT_SERVICE_URL || 'http://localhost:3006') + '/api/agent/reason';
 
+/** Resolve Google/Gemini API key from configStore or env (never a user token). */
+function resolveGoogleApiKey(override) {
+  return override ||
+    configStore.getEffective('google_api_key') ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    '';
+}
+
 async function runReasonLoop(p) {
   // Prefer configStore (vault-loaded value) over process.env so that the vault
   // secret for BFF_INTERNAL_SECRET reaches :3006 correctly. The vault loads
@@ -35,6 +44,7 @@ async function runReasonLoop(p) {
           helixConfig: p.helixConfig,
           // Anthropic API key forwarded from BFF env; never a user token
           anthropicApiKey: p.anthropicApiKey,
+          googleApiKey: resolveGoogleApiKey(p.googleApiKey),
         },
         { headers: { 'x-internal-gateway-secret': secret }, timeout: 70000 },
       );
@@ -74,4 +84,4 @@ async function runReasonLoop(p) {
   return { ok: false, reason: 'max_iterations' };
 }
 
-module.exports = { runReasonLoop };
+module.exports = { runReasonLoop, resolveGoogleApiKey };

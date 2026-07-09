@@ -23,9 +23,10 @@ export const AGENT_MODES = [
   { id: "llamacpp",     label: "llama.cpp",  provider: "llamacpp",  pure: true  },
   { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
+  { id: "google",       label: "Google",     provider: "google",    pure: true  },
 ];
 
-// Picker order for the four core modes.
+// Picker order for the five core modes.
 export const CORE_MODE_IDS = AGENT_MODES.map((m) => m.id);
 
 // mode id -> provider string the BFF expects (null for heuristics).

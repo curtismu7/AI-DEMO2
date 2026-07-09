@@ -97,6 +97,7 @@ const _SECRET_KEYS_RAW = [
   'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET',
   'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET',
   'helix_api_key',
+  'google_api_key',
   'pingone_introspection_client_secret',
   'posthog_api_key',
   'demo_password',
@@ -381,6 +382,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // Helix LLM Provider Configuration
   // Helix LLM Provider Configuration
   anthropic_api_key:          { public: false, default: '' },
+  google_api_key:             { public: false, default: '' },
   helix_base_url:             { public: true,  default: 'https://openam-helix.forgeblocks.com' },
   helix_api_key:              { public: false, default: '' },
   helix_environment_id:       { public: true,  default: 'fe213c3c-9c1d-4bdb-954a-a22879dad26d' },
@@ -1239,6 +1241,7 @@ class ConfigStore {
 
       // Anthropic / LM Studio LLM providers
       anthropic_api_key:                    ['ANTHROPIC_API_KEY'],
+      google_api_key:                       ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
       lmstudio_base_url:                    ['LMSTUDIO_BASE_URL'],
       lmstudio_model:                       ['LMSTUDIO_MODEL'],
       ff_helix_lmstudio_fallback:           ['FF_HELIX_LMSTUDIO_FALLBACK'],

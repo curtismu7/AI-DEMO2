@@ -94,7 +94,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pingone_session_secret',
   // behavioral / provider config
   'llm_framework', 'agent_mode', 'agent_external_wiring', 'agent_history_limit',
-  'lmstudio_base_url', 'lmstudio_model', 'anthropic_api_key',
+  'lmstudio_base_url', 'lmstudio_model', 'anthropic_api_key', 'google_api_key',
   'ai_agent_token_endpoint_auth_method', 'mcp_exchanger_token_endpoint_auth_method',
   'pingone_token_exchange_auth_method', 'pingone_mcp_token_exchanger_cc_auth_method',
   'pingone_admin_token_endpoint_auth_method', 'pingone_mgmt_token_auth_method',

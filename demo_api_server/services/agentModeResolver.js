@@ -23,6 +23,7 @@ const AGENT_MODES = [
   { id: 'llamacpp',     label: 'llama.cpp only',  provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
+  { id: 'google',       label: 'Google only',     provider: 'google',    heuristicRouting: false, external: true  },
 ];
 
 const DEFAULT_MODE = 'heuristics'; // stable, no-config-safe default (deterministic)

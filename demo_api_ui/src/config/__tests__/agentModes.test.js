@@ -55,9 +55,10 @@ describe("agentModes SSOT — matches the server resolver", () => {
     serverMap[m[1]] = m[2] === "null" ? null : m[3];
   }
 
-  test("parsed at least the four core modes from the server file", () => {
-    expect(Object.keys(serverMap).length).toBeGreaterThanOrEqual(4);
+  test("parsed at least the five core modes from the server file", () => {
+    expect(Object.keys(serverMap).length).toBeGreaterThanOrEqual(5);
     expect(serverMap).toHaveProperty("llamacpp", "llamacpp");
+    expect(serverMap).toHaveProperty("google", "google");
   });
 
   test("client id -> provider mapping equals the server's", () => {

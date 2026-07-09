@@ -17,13 +17,13 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'anthropic-lmstudio'|'llamacpp', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp', model: string|undefined }}
  */
 function resolveLlmProvider(langchainConfig = {}) {
   const requested = langchainConfig?.provider;
   const model = langchainConfig?.model;
 
-  if (requested === 'openai' || requested === 'anthropic') {
+  if (requested === 'openai' || requested === 'anthropic' || requested === 'google') {
     // Pass-through: :3006 enforces credential presence and fails fast.
     return { provider: requested, model };
   }
