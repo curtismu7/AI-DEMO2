@@ -1,5 +1,5 @@
 // QuickFlagsPill — always-visible header pill showing the live token-validation
-// mode (🔐 JWKS / 🔎 Introspect) + a dropdown with the curated demo switches.
+// mode (🔐 JWKS / Introspect) + a dropdown with the curated demo switches.
 // Read AND write paths of /api/admin/feature-flags are intentionally
 // unauthenticated at the server (see server.js — demo posture, do not add a
 // gate silently). Any signed-in user (customer or admin) can flip these here —
@@ -14,7 +14,7 @@ import './QuickFlagsPill.css';
 // control: 'segmented' renders all modes as A/B buttons; 'toggle' renders an
 // on/off switch. For segmented booleans, modes map labels onto true/false.
 const QUICK_FLAGS = [
-  { id: 'ff_mcp_gateway_jwks',          group: 'Token & Gateway', control: 'segmented', label: 'Token Validation',                modes: [{ value: true, label: '🔐 JWKS' }, { value: false, label: '🔎 Introspect' }] },
+  { id: 'ff_mcp_gateway_jwks',          group: 'Token & Gateway', control: 'segmented', label: 'Token Validation',                modes: [{ value: true, label: '🔐 JWKS' }, { value: false, label: 'Introspect' }] },
   { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'PingOne GW' }, { value: false, label: 'Demo GW' }] },
   { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingGateway' }, { value: 'p1az', label: 'P1AZ' }] },
   { id: 'ff_skip_token_exchange',       group: 'Token & Gateway', control: 'toggle',    label: 'Skip Token Exchange' },
@@ -129,10 +129,10 @@ export default function QuickFlagsPill({ user }) {
 
   const pillFlag = flagsById?.[PILL_FLAG];
   const pillLabel = !flagsById
-    ? (loadFailed ? '⚑ Flags –' : '…')
+    ? (loadFailed ? 'Flags –' : '…')
     : pillFlag?.value
       ? '🔐 JWKS'
-      : '🔎 Introspect';
+      : 'Introspect';
 
   const pillTitle = 'Quick feature flags — token validation mode and demo switches';
 
@@ -162,7 +162,7 @@ export default function QuickFlagsPill({ user }) {
               {m.label}
             </button>
           ))}
-          {locked && <span className="qfp-lock" aria-label="pinned" title={lockTitle}>🔒</span>}
+          {locked && <span className="qfp-lock" aria-label="pinned" title={lockTitle}>🔐</span>}
         </span>
       );
     }
@@ -180,7 +180,7 @@ export default function QuickFlagsPill({ user }) {
         >
           <span className="qfp-toggle-knob" />
         </button>
-        {locked && <span className="qfp-lock" aria-label="pinned" title={lockTitle}>🔒</span>}
+        {locked && <span className="qfp-lock" aria-label="pinned" title={lockTitle}>🔐</span>}
       </span>
     );
   };

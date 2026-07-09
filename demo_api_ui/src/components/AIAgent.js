@@ -4952,7 +4952,7 @@ export default function BankingAgent({
             `• The client controls updates: just update the hosted document\n\n` +
             `This demo registers the client in PingOne via the Management API and hosts the document at:\n` +
             `/.well-known/oauth-client/{pingone-app-id}\n\n` +
-            `Panel tabs: What is CIMD · CIMD vs DCR · Doc format · How AS uses it · Flow diagram · ▶ Simulate · PingOne`,
+            `Panel tabs: What is CIMD · CIMD vs DCR · Doc format · How AS uses it · Flow diagram · Simulate · PingOne`,
         );
         return;
       }
@@ -5003,11 +5003,7 @@ export default function BankingAgent({
         );
         return;
       }
-      if (
-        action === "biggest_purchase" ||
-        action === "spending_summary" ||
-        action === "unusual_patterns"
-      ) {
+      if (action === "biggest_purchase" || action === "spending_summary") {
         const txRes = await getMyTransactions(50).catch(() => null);
         const txNorm = txRes ? normalizeAgentToolResult(txRes.result) : null;
         const txList = txNorm?.transactions;
@@ -5036,45 +5032,6 @@ export default function BankingAgent({
             "assistant",
             `Your biggest purchase was $${amt} at ${desc}${when ? ` on ${when}` : ""}.`,
           );
-        } else if (action === "unusual_patterns") {
-          const debits = txList.filter(
-            (tx) =>
-              tx.type === "debit" || tx.type === "purchase" || tx.amount < 0,
-          );
-          const amounts = debits.map((tx) => Math.abs(Number(tx.amount) || 0));
-          const avg =
-            amounts.length > 0
-              ? amounts.reduce((s, a) => s + a, 0) / amounts.length
-              : 0;
-          const threshold = Math.max(avg * 2.5, 200);
-          const outliers = debits
-            .filter((tx) => Math.abs(Number(tx.amount) || 0) >= threshold)
-            .sort(
-              (a, b) =>
-                Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0),
-            )
-            .slice(0, 5);
-          if (outliers.length === 0) {
-            addMessage(
-              "assistant",
-              `No unusual patterns in your recent activity. Average debit is $${avg.toFixed(2)}; nothing stood out above $${threshold.toFixed(2)}.`,
-            );
-          } else {
-            const lines = outliers
-              .map((tx) => {
-                const amt = Math.abs(Number(tx.amount) || 0).toFixed(2);
-                const desc = tx.merchant || tx.description || "Unknown";
-                const when = tx.createdAt
-                  ? new Date(tx.createdAt).toLocaleDateString()
-                  : "";
-                return `- $${amt} at ${desc}${when ? ` on ${when}` : ""}`;
-              })
-              .join("\n");
-            addMessage(
-              "assistant",
-              `Flagged ${outliers.length} unusual transaction(s) (avg debit $${avg.toFixed(2)}, threshold $${threshold.toFixed(2)}):\n${lines}`,
-            );
-          }
         } else {
           const debits = txList.filter(
             (tx) =>
@@ -5104,43 +5061,8 @@ export default function BankingAgent({
           title:
             action === "biggest_purchase"
               ? (terminology?.transactions || "Transactions")
-              : action === "unusual_patterns"
-                ? "Unusual Patterns"
-                : "Spending Breakdown",
+              : "Spending Breakdown",
           data: txList,
-          terminology,
-        });
-        return;
-      }
-      if (action === "afford_check") {
-        const acctRes = await getMyAccounts().catch(() => null);
-        const acctNorm = acctRes ? normalizeAgentToolResult(acctRes.result) : null;
-        const accounts = acctNorm?.accounts || acctNorm?.data?.accounts || [];
-        if (!Array.isArray(accounts) || accounts.length === 0) {
-          addMessage(
-            "assistant",
-            "I couldn't load your accounts to check affordability. Try \"show my accounts\" first.",
-          );
-          return;
-        }
-        const savings = accounts.filter((a) =>
-          /sav/i.test(String(a.accountType || a.type || a.name || "")),
-        );
-        const pool = savings.length > 0 ? savings : accounts;
-        const total = pool.reduce(
-          (sum, a) => sum + (Number(a.balance) || 0),
-          0,
-        );
-        const label =
-          savings.length > 0 ? "savings" : "available account balances";
-        addMessage(
-          "assistant",
-          `You have $${total.toFixed(2)} across ${pool.length} ${label} account(s). A large upcoming expense is affordable if it stays under that amount — leave a buffer for bills and emergencies.`,
-        );
-        setResultPanel({
-          type: "accounts",
-          title: "Affordability Check",
-          data: accounts,
           terminology,
         });
         return;
@@ -6600,23 +6522,6 @@ export default function BankingAgent({
                       addMessage("user", label || message);
                       setNlLoading(true);
 
-                      // Start Token Chain for every Actions-dropdown / showcase chip.
-                      // Non-LLM chips (all verticals' mode:"both"/direct) mark HEURISTICS
-                      // immediately; LLM chips leave steps 4/11 pending until llmDetail/reply.
-                      try {
-                        tokenChainTraceStore.beginTrace({ prompt: message });
-                        // PingOne Admin chips use /api/admin-agent (LLM/MCP hosted), not heuristics.
-                        const chipIsHeuristic =
-                          !requiresLlm &&
-                          agentProviderMode !== "helix_google" &&
-                          !(chipId && PINGONE_ADMIN_CHIP_IDS.has(chipId));
-                        if (chipIsHeuristic) {
-                          tokenChainTraceStore.ingestRoutingMode("heuristic", {
-                            action: chipId || null,
-                          });
-                        }
-                      } catch (_) { /* display-only */ }
-
                       // ── Security Showcase dispatch ─────────────────────────────
                       // Action-typed showcase chips fire a dedicated live harness here;
                       // message-typed ones (MFA/HITL transfers, LLM prompts) fall through
@@ -6663,11 +6568,6 @@ export default function BankingAgent({
                           // bridged actor with a rogue, non-allowlisted client_id (_testActClientId).
                           // PingOne Authorize's HasValidActorChain returns a real DENY.
                           (async () => {
-                            try {
-                              tokenChainTraceStore.ingestRoutingMode("heuristic", {
-                                action: "atk_confused_deputy",
-                              });
-                            } catch (_) { /* display-only */ }
                             const rogue = "rogue-agent-9f2a-not-allowlisted";
                             try {
                               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -6746,11 +6646,6 @@ export default function BankingAgent({
                           // (create_withdrawal). The gateway binds each receipt to the tool it
                           // approved, so the reuse is re-challenged (428), not honored.
                           (async () => {
-                            try {
-                              tokenChainTraceStore.ingestRoutingMode("heuristic", {
-                                action: "atk_hitl_replay",
-                              });
-                            } catch (_) { /* display-only */ }
                             const apiBase = process.env.REACT_APP_API_URL || "";
                             const call = (tool, params) =>
                               fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params }) });
@@ -8406,14 +8301,6 @@ export default function BankingAgent({
                               setNlInput("");
                               addMessage("user", chip.label);
                               setNlLoading(true);
-                              try {
-                                tokenChainTraceStore.beginTrace({ prompt: chip.label });
-                                if ((activeLlmProvider || "heuristic") === "heuristic") {
-                                  tokenChainTraceStore.ingestRoutingMode("heuristic", {
-                                    action: chip.id,
-                                  });
-                                }
-                              } catch (_) { /* display-only */ }
                               (async () => {
                                 try {
                                   const _guestNlRes = await fetch(

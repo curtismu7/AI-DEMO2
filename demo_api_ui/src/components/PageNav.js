@@ -20,7 +20,7 @@ export default function PageNav({ user, title }) {
         ← Back
       </button>
       <Link to={homePath} className="app-page-toolbar-btn">
-        ⌂ Home
+        Home
       </Link>
       {title && (
         <span className="page-nav__trail">
