@@ -247,6 +247,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `call_pingone_operation` | gateway | `read` | — |
 | `api_key_demo` | gateway | `read` | — |
 | `dual_token_demo` | gateway | `read` | — |
+| `user_profile_card` | gateway | `read` | — |
 | `show_work_order` | gateway | `workorders:read` | — |
 | `cancel_appointment` | gateway | `write` | — |
 | `cancel_order` | gateway | `write` | — |
