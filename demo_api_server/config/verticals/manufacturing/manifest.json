@@ -60,15 +60,11 @@
     "chips10": [
       { "id": "mf1", "label": "My work orders", "message": "show my work orders", "mode": "both", "tool": "view_work_orders" },
       { "id": "mf2", "label": "Inventory", "message": "what is my on-hand inventory", "mode": "both", "tool": "view_inventory" },
-      { "id": "mf3", "label": "Production history", "message": "show my production history", "mode": "both", "tool": "view_production_history" },
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
       { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
-      { "id": "mf-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
-      { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "both" },
-      { "id": "mf7", "label": "Inspection status", "message": "what is my latest inspection status", "mode": "both" },
-      { "id": "mf8", "label": "Capacity this week", "message": "do I have capacity to take a rush order this week", "mode": "both", "tool": "view_work_orders" },
-      { "id": "mf-direct", "label": "🔌 Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
+      { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm" },
+      { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
     ],
     "securityShowcase": {
       "tabs": [

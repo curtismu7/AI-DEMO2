@@ -45,14 +45,11 @@ const DEFAULT_CHIPS10 = [
   { id: 'bk1',  label: 'My accounts',                 message: 'show my accounts',                         mode: 'both', tool: 'get_my_accounts' },
   { id: 'bk2',  label: 'Check balance',               message: 'what is my balance',                       mode: 'both', tool: 'get_account_balance' },
   { id: 'bk3',  label: 'Recent transactions',         message: 'recent transactions',                      mode: 'both', tool: 'get_my_transactions' },
-  { id: 'bk4',  label: 'Transfer money',              message: 'transfer $100 from checking to savings',   mode: 'both', tool: 'create_transfer' },
-  { id: 'bk5',  label: 'Deposit',                     message: 'deposit $50 into savings',                 mode: 'both', tool: 'create_deposit' },
-  { id: 'bk6',  label: 'Withdraw',                    message: 'withdraw $40 from checking',               mode: 'both', tool: 'create_withdrawal' },
+  { id: 'bk4',  label: 'Transfer $100',               message: 'transfer $100 from checking to savings',   mode: 'both', tool: 'create_transfer' },
+  { id: 'bk-hitl', label: '🔐 Transfer $500',         message: 'transfer $500 from checking to savings',   mode: 'both', hitlTrigger: true, tool: 'create_transfer' },
   { id: 'bk7',  label: 'My mortgage',                 message: 'show my mortgage',                         mode: 'both', tool: 'show_mortgage' },
-  { id: 'bk-invest', label: 'Portfolio status',       message: 'show portfolio status',                    mode: 'both', tool: 'show_investment' },
-  { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'both' },
-  { id: 'bk9',  label: 'Check for unusual patterns',  message: 'Check for unusual patterns',               mode: 'both' },
-  { id: 'bk10', label: 'Can I afford a big expense?', message: 'Could my savings cover a big upcoming expense?', mode: 'both' },
+  { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'llm' },
+  { id: 'bk-direct', label: 'Direct MCP',             message: 'get my accounts',                          mode: 'direct', tool: 'get_my_accounts' },
 ];
 
 export default function BankingChips({

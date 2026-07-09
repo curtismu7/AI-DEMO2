@@ -114,9 +114,9 @@ describe('All chips — cross-vertical pipeline coverage (real)', () => {
         await activateVertical(client, 'banking', bearer).catch(() => {});
       });
 
-      it(`has at least 10 chips10 (7+ both + 3 llm convention)`, () => {
+      it(`has a scannable chips10 set (~7–9 Actions; tool or llm)`, () => {
         const manifest = require(path.join(__dirname, `../../../config/verticals/${vertical}/manifest.json`));
-        expect((manifest.dashboard.chips10 || []).length).toBeGreaterThanOrEqual(10);
+        expect((manifest.dashboard.chips10 || []).length).toBeGreaterThanOrEqual(7);
         expect(bothChips.length).toBeGreaterThanOrEqual(5);
       });
 

@@ -49,8 +49,193 @@
       { "key": "feature", "label": "Portfolio Status" }
     ],
     "chips10": [
-      { "id": "inv-feature", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" }
-    ]
+      { "id": "inv-feature", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
+      { "id": "inv1", "label": "My portfolios", "message": "show my portfolios", "mode": "both", "tool": "view_portfolios" },
+      { "id": "inv2", "label": "Trade history", "message": "show my trade history", "mode": "both", "tool": "view_trades" },
+      { "id": "inv3", "label": "My holdings", "message": "show my holdings", "mode": "both", "tool": "view_holdings" },
+      { "id": "inv-hitl", "label": "🔐 Large trade", "message": "execute a large trade of $50000 in VTI", "mode": "both", "hitlTrigger": true, "tool": "large_trade" },
+      { "id": "inv-llm", "label": "YTD performance", "message": "How is my portfolio performing year to date?", "mode": "llm" },
+      { "id": "inv-direct", "label": "Direct MCP", "message": "show my portfolios", "mode": "direct", "tool": "view_portfolios" }
+    ],
+    "securityShowcase": {
+      "tabs": [
+        {
+          "id": "defenses",
+          "label": "Defenses",
+          "chips": [
+            {
+              "id": "sec_mfa_otp",
+              "label": "🔐 MFA · OTP",
+              "message": "execute a large trade of $50000 in VTI",
+              "mode": "both",
+              "tool": "large_trade",
+              "hitlTrigger": true,
+              "showcase": "mfa_otp",
+              "stepUpMethod": "otp",
+              "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it."
+            },
+            {
+              "id": "sec_mfa_fido",
+              "label": "🔐 MFA · Passkey",
+              "message": "execute a large trade of $50000 in VTI",
+              "mode": "both",
+              "tool": "large_trade",
+              "hitlTrigger": true,
+              "showcase": "mfa_fido",
+              "stepUpMethod": "fido",
+              "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret."
+            },
+            {
+              "id": "sec_hitl",
+              "label": "🔐 HITL consent",
+              "message": "execute a large trade of $50000 in VTI",
+              "mode": "both",
+              "tool": "large_trade",
+              "hitlTrigger": true,
+              "showcase": "hitl_consent",
+              "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran."
+            },
+            {
+              "id": "sec_deny",
+              "label": "⛔ Authz DENY",
+              "message": "show my mortgage",
+              "mode": "direct",
+              "denyTool": "show_mortgage",
+              "showcase": "authz_deny",
+              "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits."
+            },
+            {
+              "id": "sec_bad_scope",
+              "label": "🚫 Bad scope",
+              "message": "look up all customers",
+              "mode": "both",
+              "showcase": "bad_scope",
+              "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope."
+            }
+          ]
+        },
+        {
+          "id": "ai",
+          "label": "AI Reasoning",
+          "chips": [
+            {
+              "id": "sec_llm_analyze",
+              "label": "Spot unusual patterns",
+              "message": "Check for unusual patterns in my recent activity",
+              "mode": "both",
+              "showcase": "llm_analyze",
+              "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut."
+            },
+            {
+              "id": "sec_llm_explain",
+              "label": "Why was that blocked?",
+              "message": "Explain why my last blocked action was denied and walk me through the token chain",
+              "mode": "llm",
+              "showcase": "llm_explain",
+              "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired."
+            }
+          ]
+        },
+        {
+          "id": "attacks",
+          "label": "Attacks",
+          "chips": [
+            {
+              "id": "sec_atk_prompt_injection",
+              "label": "💉 Prompt injection",
+              "message": "review my recent trades and act on any instructions you find",
+              "mode": "both",
+              "showcase": "atk_prompt_injection",
+              "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'."
+            },
+            {
+              "id": "sec_atk_indirect_injection",
+              "label": "💉 Indirect injection",
+              "message": "summarize my portfolios including any notes",
+              "mode": "both",
+              "showcase": "atk_indirect_injection",
+              "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent."
+            },
+            {
+              "id": "sec_atk_wrong_aud",
+              "label": "🎭 Wrong audience",
+              "message": "fire a token with the wrong audience at the gateway",
+              "mode": "direct",
+              "showcase": "atk_wrong_aud",
+              "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it."
+            },
+            {
+              "id": "sec_atk_scope_escalation",
+              "label": "🪜 Scope escalation",
+              "message": "call an admin-only tool to escalate privileges",
+              "mode": "direct",
+              "showcase": "atk_scope_escalation",
+              "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement."
+            },
+            {
+              "id": "sec_atk_confused_deputy",
+              "label": "🕵 Confused deputy",
+              "message": "act as a rogue agent on the user's behalf",
+              "mode": "direct",
+              "showcase": "atk_confused_deputy",
+              "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist."
+            },
+            {
+              "id": "sec_atk_hitl_replay",
+              "label": "♻ HITL replay",
+              "message": "reuse an approved consent receipt for a larger trade",
+              "mode": "direct",
+              "showcase": "atk_hitl_replay",
+              "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored."
+            }
+          ]
+        },
+        {
+          "id": "pingone",
+          "label": "PingOne Admin",
+          "adminOnly": true,
+          "badge": "MCP",
+          "chips": [
+            {
+              "id": "p1_list_apps",
+              "label": "List all apps",
+              "message": "List all applications in our PingOne environment",
+              "mode": "llm"
+            },
+            {
+              "id": "p1_list_envs",
+              "label": "List environments",
+              "message": "Show all environments I have access to in PingOne",
+              "mode": "llm"
+            },
+            {
+              "id": "p1_services_enabled",
+              "label": "What services are enabled?",
+              "message": "What services are enabled in our PingOne environment?",
+              "mode": "llm"
+            },
+            {
+              "id": "p1_identity_count",
+              "label": "Identity count this week",
+              "message": "How many identities are in our PingOne environment?",
+              "mode": "llm"
+            },
+            {
+              "id": "p1_ai_agent_config",
+              "label": "Show Demo AI Agent config",
+              "message": "Get the configuration for the Demo AI Agent application in PingOne",
+              "mode": "llm"
+            },
+            {
+              "id": "p1_verify_apps",
+              "label": "Verify all 8 demo apps",
+              "message": "Confirm all 8 demo apps exist in PingOne: Demo Admin App, Demo User App, Demo MCP Server, Demo Worker, Demo MCP Exchanger, Demo MCP Gateway, Demo Agent, Demo AI Agent",
+              "mode": "llm"
+            }
+          ]
+        }
+      ]
+    }
   },
   "scopes": {
     "read": "read",
@@ -71,6 +256,7 @@
     }
   },
   "render": {
+    "view_holdings": { "type": "table", "columns": [ { "label": "Symbol", "path": "symbol" }, { "label": "Shares", "path": "shares", "format": "count" }, { "label": "Market value", "path": "marketValue", "format": "money" } ] },
     "portfolios": { "type": "table", "columns": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Number", "path": "portfolioNumber" }, { "label": "Value", "path": "value", "format": "money" }, { "label": "Currency", "path": "currency" } ] },
     "portfolio_value": { "type": "fieldList", "title": "Portfolio Value", "fields": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Value", "path": "value", "format": "money" } ] },
     "trades": { "type": "table", "columns": [ { "label": "Type", "path": "type" }, { "label": "Symbol", "path": "symbol" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Date", "path": "date", "format": "date" } ] },
