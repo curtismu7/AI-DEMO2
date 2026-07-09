@@ -17,7 +17,7 @@ export interface ReasonMessage {
 export interface ReasonRequest {
   messages: ReasonMessage[];
   tools: ReasonToolSchema[];
-  provider: 'helix' | 'anthropic' | 'anthropic-lmstudio' | 'lmstudio' | 'llamacpp' | 'mlx'; // already resolved by the BFF
+  provider: 'helix' | 'anthropic' | 'anthropic-lmstudio' | 'lmstudio' | 'llamacpp' | 'mlx' | 'google'; // already resolved by the BFF
   model?: string;
   // Vertical system prompt injected by the BFF from manifest.agent.systemPromptFlavor
   systemPrompt?: string;
@@ -25,6 +25,8 @@ export interface ReasonRequest {
   helixConfig?: Record<string, string | undefined>;
   // Anthropic — API key passed from BFF env; never a user token
   anthropicApiKey?: string;
+  // Google/Gemini — API key passed from BFF env; never a user token
+  googleApiKey?: string;
 }
 
 export interface ReasoningState {

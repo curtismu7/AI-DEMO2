@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess } from '../utils/appToast';
 import AnthropicPanel from './AnthropicPanel';
+import GooglePanel from './GooglePanel';
 import HelixPanel from './HelixPanel';
 import LmStudioPanel from './LmStudioPanel';
 import LlamaCppPanel from './LlamaCppPanel';
@@ -13,6 +14,7 @@ const PROVIDER_LABELS = {
   helix: 'Helix',
   'anthropic-lmstudio': 'LM Studio',
   llamacpp: 'llama.cpp',
+  google: 'Google',
   anthropic: 'Anthropic',
 };
 
@@ -28,19 +30,22 @@ export default function LlmConfigPage() {
   const [lmstudioStatus, setLmstudioStatus] = useState(null);
   const [llamaCppStatus, setLlamaCppStatus] = useState(null);
   const [anthropicStatus, setAnthropicStatus] = useState(null);
+  const [googleStatus, setGoogleStatus] = useState(null);
 
   const fetchStatuses = useCallback(async () => {
     try {
-      const [helixRes, lmstudioRes, llamaCppRes, anthropicRes] = await Promise.all([
+      const [helixRes, lmstudioRes, llamaCppRes, anthropicRes, googleRes] = await Promise.all([
         apiClient.get('/api/langchain/provider/helix/status'),
         apiClient.get('/api/langchain/provider/anthropic-lmstudio/status'),
         apiClient.get('/api/langchain/provider/llamacpp/status'),
         apiClient.get('/api/langchain/provider/anthropic/status'),
+        apiClient.get('/api/langchain/provider/google/status'),
       ]);
       setHelixStatus(helixRes.data?.status ?? null);
       setLmstudioStatus(lmstudioRes.data?.status ?? null);
       setLlamaCppStatus(llamaCppRes.data?.status ?? null);
       setAnthropicStatus(anthropicRes.data?.status ?? null);
+      setGoogleStatus(googleRes.data?.status ?? null);
     } catch (err) {
       console.warn('[LlmConfigPage] Status fetch failed:', err.message);
     }
@@ -72,11 +77,13 @@ export default function LlmConfigPage() {
 
   const panel = provider === 'helix'
     ? <HelixPanel />
-    : provider === 'anthropic'
-      ? <AnthropicPanel />
-      : provider === 'llamacpp'
-        ? <LlamaCppPanel />
-        : <LmStudioPanel />;
+    : provider === 'google'
+      ? <GooglePanel />
+      : provider === 'anthropic'
+        ? <AnthropicPanel />
+        : provider === 'llamacpp'
+          ? <LlamaCppPanel />
+          : <LmStudioPanel />;
 
   return (
     <div className="page-container">
@@ -91,6 +98,7 @@ export default function LlmConfigPage() {
         lmstudioStatus={lmstudioStatus}
         llamaCppStatus={llamaCppStatus}
         anthropicStatus={anthropicStatus}
+        googleStatus={googleStatus}
       />
       {panel}
     </div>

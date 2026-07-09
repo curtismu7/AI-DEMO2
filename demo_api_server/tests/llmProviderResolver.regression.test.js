@@ -31,6 +31,11 @@ describe('resolveLlmProvider', () => {
       .toEqual({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
   });
 
+  test('honors explicit google (pass-through; :3006 enforces creds)', () => {
+    expect(resolveLlmProvider({ provider: 'google', model: 'gemini-2.0-flash' }))
+      .toEqual({ provider: 'google', model: 'gemini-2.0-flash' });
+  });
+
   test('honors explicit llamacpp (local LLM; no API key)', () => {
     expect(resolveLlmProvider({ provider: 'llamacpp', model: 'qwen3-8b' }))
       .toEqual({ provider: 'llamacpp', model: 'qwen3-8b' });

@@ -123,7 +123,10 @@ router.get('/config/status', (req, res) => {
           configStore.getEffective('anthropic_api_key') ||
           process.env.ANTHROPIC_API_KEY),
         groq: !!(cfg.groq_api_key || process.env.GROQ_API_KEY),
-        google: !!(cfg.google_api_key || process.env.GOOGLE_API_KEY),
+        google: !!(cfg.google_api_key ||
+          configStore.getEffective('google_api_key') ||
+          process.env.GOOGLE_API_KEY ||
+          process.env.GEMINI_API_KEY),
         // LM Studio — no API key needed; always "configured" (local server, no auth)
         'anthropic-lmstudio': true,
       },
@@ -190,6 +193,7 @@ router.post('/config', async (req, res) => {
   // Handle cloud provider API keys (single-field configuration)
   if (key_type && ['openai', 'anthropic', 'google', 'groq'].includes(key_type)) {
     updates[key_type + '_api_key'] = key;
+    dbUpdates[key_type + '_api_key'] = key;
     updates.provider = key_type;
   }
 
@@ -280,6 +284,17 @@ router.delete('/config/key/:keyType', async (req, res) => {
     }
   }
 
+  if (['google', 'anthropic', 'openai', 'groq'].includes(keyType)) {
+    const cfg = getLangchainConfig(req);
+    delete cfg[`${keyType}_api_key`];
+    req.session.langchain_config = cfg;
+    try {
+      await configStore.setConfig({ [`${keyType}_api_key`]: '' });
+    } catch (err) {
+      console.error(`[langchainConfig DELETE] ${keyType} configStore cleanup failed:`, err.message);
+    }
+  }
+
   res.json({ ok: true, key_type: keyType, cleared: true });
 });
 
@@ -334,6 +349,17 @@ router.get('/provider/:providerName/status', async (req, res) => {
         cfg.helix_agent_id = cfg.helix_agent_id || configStore.getEffective('helix_agent_id') || '';
       } catch (dbErr) {
         console.warn('[langchainConfig provider status] configStore error:', dbErr.message);
+      }
+    }
+
+    if (providerName === 'google') {
+      try {
+        cfg.google_api_key = cfg.google_api_key || configStore.getEffective('google_api_key') || '';
+      } catch (dbErr) {
+        console.warn('[langchainConfig provider status] configStore error:', dbErr.message);
+      }
+      if (!cfg.google_api_key) {
+        cfg.google_api_key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
       }
     }
 

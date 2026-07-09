@@ -17,7 +17,7 @@ export interface AgentConfig {
   mcpGatewayWsUrl: string;
   mcpGatewayResourceUri: string;
   // LLM provider
-  llmProvider: 'openai' | 'anthropic' | 'helix' | 'llamacpp' | 'mlx' | 'none';
+  llmProvider: 'openai' | 'anthropic' | 'helix' | 'llamacpp' | 'mlx' | 'google' | 'none';
   llmApiKey: string;
   llmModel: string;
   // Feature flags
@@ -55,6 +55,7 @@ const VALID_LLM_PROVIDERS: ReadonlyArray<AgentConfig['llmProvider']> = [
   'helix',
   'llamacpp',
   'mlx',
+  'google',
   'none',
 ];
 

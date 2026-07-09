@@ -5,8 +5,19 @@
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 
+/** Models to try when the preferred model hits free-tier quota (429). */
+const MODEL_FALLBACKS = [
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-2.0-flash-lite',
+];
+
 function apiKey(config = {}) {
-  return config.google_api_key || process.env.GOOGLE_API_KEY || '';
+  return config.google_api_key
+    || process.env.GOOGLE_API_KEY
+    || process.env.GEMINI_API_KEY
+    || '';
 }
 
 function modelName(config = {}) {
@@ -32,7 +43,26 @@ function toGeminiPayload(messages) {
 }
 
 /**
+ * Call one Gemini model once.
+ * @param {string} key
+ * @param {string} model
+ * @param {object} body
+ */
+async function generateOnce(key, model, body) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+
+/**
  * Call Gemini generateContent and return assistant text.
+ * Retries alternate models on HTTP 429 quota errors.
  * @param {Array} messages
  * @param {object} [config]
  * @returns {Promise<string>}
@@ -41,23 +71,26 @@ async function callGemini(messages, config = {}) {
   const key = apiKey(config);
   if (!key) throw new Error('GOOGLE_API_KEY not configured');
 
-  const model = modelName(config);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toGeminiPayload(messages)),
-    signal: AbortSignal.timeout(60000),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
+  const preferred = modelName(config);
+  const models = [preferred, ...MODEL_FALLBACKS.filter((m) => m !== preferred)];
+  const body = toGeminiPayload(messages);
+  let lastErr = null;
+
+  for (const model of models) {
+    const { res, data } = await generateOnce(key, model, body);
+    if (res.ok) {
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const text = parts.map((p) => p.text || '').join('').trim();
+      if (!text) throw new Error('Gemini returned empty response');
+      return text;
+    }
     const msg = data?.error?.message || res.statusText || String(res.status);
-    throw new Error(`Gemini API ${res.status}: ${msg}`);
+    lastErr = new Error(`Gemini API ${res.status}: ${msg}`);
+    // Only rotate models on quota / rate-limit; other errors fail immediately.
+    if (res.status !== 429) throw lastErr;
+    console.warn(`[googleGemini] ${model} returned 429 — trying next model`);
   }
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map((p) => p.text || '').join('').trim();
-  if (!text) throw new Error('Gemini returned empty response');
-  return text;
+  throw lastErr || new Error('Gemini API unavailable');
 }
 
-module.exports = { callGemini, DEFAULT_MODEL };
+module.exports = { callGemini, DEFAULT_MODEL, MODEL_FALLBACKS };
