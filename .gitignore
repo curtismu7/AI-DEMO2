@@ -78,5 +78,8 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 # Per-machine MCP client config — holds machine-specific paths and must never
 # hold credentials. Copy .air/mcp.json.example to .air/mcp.json to set up.
 .air/mcp.json
+# Per-machine Cursor MCP config — tenant-specific OAuth client id; copy from
+# .cursor/mcp.json.example or let install.sh patch from demo_api_server/.env.
+.cursor/mcp.json
 # Personal Claude Code allowlist/settings — never committed (hygiene check 3).
 .claude/settings.local.json

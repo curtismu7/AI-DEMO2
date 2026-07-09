@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "codegraph": {
+      "command": "codegraph",
+      "args": [
+        "serve",
+        "--mcp",
+        "--path",
+        "${workspaceFolder}"
+      ]
+    },
+    "github": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "exec docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=\"$(gh auth token)\" ghcr.io/github/github-mcp-server"
+      ]
+    },
+    "banking-dev": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/dev_mcp/banking-dev/dist/index.js"
+      ]
+    },
+    "pingone": {
+      "url": "https://api.pingone.com/v1/environments/<PINGONE_ENVIRONMENT_ID>/mcp",
+      "auth": {
+        "CLIENT_ID": "<PINGONE_MCP_OAUTH_CLIENT_ID>"
+      }
+    },
+    "banking-gateway": {
+      "url": "https://api.ping.demo:3005/mcp",
+      "auth": {
+        "CLIENT_ID": "<PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID>"
+      }
+    },
+    "banking-mcp": {
+      "url": "http://localhost:8080/mcp"
+    }
+  }
+}

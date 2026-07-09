@@ -1005,6 +1005,31 @@ _patch_pingone_mcp() {
   ' "$mcp_json" "$env_id" "$client_id"
 }
 
+# Cursor's project `.cursor/mcp.json` uses static OAuth (auth.CLIENT_ID) for the
+# hosted PingOne MCP server. Seed from the example if missing, then patch url + CLIENT_ID.
+_patch_cursor_pingone_mcp() {
+  local dir="$1" env_id="$2" client_id="$3"
+  local cursor_mcp="${dir}/.cursor/mcp.json"
+  local cursor_example="${dir}/.cursor/mcp.json.example"
+  mkdir -p "${dir}/.cursor"
+  if [[ ! -f "$cursor_mcp" && -f "$cursor_example" ]]; then
+    cp "$cursor_example" "$cursor_mcp"
+  fi
+  [[ -f "$cursor_mcp" ]] || return 1
+  node -e '
+    const fs = require("fs");
+    const [file, envId, clientId] = process.argv.slice(1);
+    let j = {};
+    try { j = JSON.parse(fs.readFileSync(file, "utf8")); } catch { j = { mcpServers: {} }; }
+    j.mcpServers = j.mcpServers || {};
+    j.mcpServers.pingone = j.mcpServers.pingone || {};
+    j.mcpServers.pingone.url = "https://api.pingone.com/v1/environments/" + envId + "/mcp";
+    j.mcpServers.pingone.auth = j.mcpServers.pingone.auth || {};
+    j.mcpServers.pingone.auth.CLIENT_ID = clientId;
+    fs.writeFileSync(file, JSON.stringify(j, null, 2) + "\n");
+  ' "$cursor_mcp" "$env_id" "$client_id"
+}
+
 # Claude Code's `pingone` MCP server (PingOne admin / management tools) is
 # tenant-specific: the environment id in its URL and the OAuth clientId must
 # belong to YOUR PingOne environment. Prefer the values bootstrap provisioned
@@ -1052,6 +1077,12 @@ configure_pingone_mcp() {
     else
       warn "Could not patch .mcp.json — edit the 'pingone' entry's url + oauth.clientId by hand."
     fi
+    if _patch_cursor_pingone_mcp "$dir" "$prov_env" "$prov_client"; then
+      ok "Cursor pingone MCP server configured in .cursor/mcp.json."
+      info "In Cursor: Customize → MCP → pingone → Connect (browser OAuth; PingOne admin roles)."
+    else
+      warn "Could not patch .cursor/mcp.json — copy .cursor/mcp.json.example and fill in url + auth.CLIENT_ID."
+    fi
     return 0
   fi
 
@@ -1092,6 +1123,12 @@ configure_pingone_mcp() {
     info "In Claude Code: run /mcp → pingone → Authenticate (browser OAuth; PingOne admin roles)."
   else
     warn "Could not patch .mcp.json — edit the 'pingone' entry's url + oauth.clientId by hand."
+  fi
+  if _patch_cursor_pingone_mcp "$dir" "$env_id" "$client_id"; then
+    ok "Cursor pingone MCP server configured in .cursor/mcp.json."
+    info "In Cursor: Customize → MCP → pingone → Connect (browser OAuth; PingOne admin roles)."
+  else
+    warn "Could not patch .cursor/mcp.json — copy .cursor/mcp.json.example and fill in url + auth.CLIENT_ID."
   fi
 }
 
