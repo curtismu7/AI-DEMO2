@@ -112,6 +112,47 @@ describe('hitlServiceClient.verifyHitlReceipt — anti-replay binding contract',
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/no bound amount/);
   });
+
+  it('rejects when receipt has amount but retry omits it (one-sided)', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250 } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      undefined,
+      {},
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/missing amount/);
+  });
+
+  it('rejects same-amount recipient swap (to_account_id mismatch)', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+      { amount: 250, to_account_id: 'acct-attacker', from_account_id: 'acct-from' },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/to_account_id/);
+  });
+
+  it('ok when amount and account ids match', () => {
+    const r = verifyHitlReceipt(
+      approved({ context: { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' } }),
+      'u1',
+      'a1',
+      'create_transfer',
+      NOW,
+      250,
+      { amount: 250, to_account_id: 'acct-a', from_account_id: 'acct-from' },
+    );
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe('hitlServiceClient wire calls', () => {

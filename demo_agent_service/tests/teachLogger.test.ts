@@ -18,6 +18,17 @@ describe('teachLogger (agent-service)', () => {
     expect(lines[0].service).toBe('agent-service');
     expect(lines[0].access_token).toBe('[REDACTED]');
   });
+  it('redacts bare token keys and nested array objects', () => {
+    const { lines, stream } = capture();
+    const log = createTeachLogger({ service: 'agent-service', level: 'debug', stream });
+    log.info('tokens', {
+      token: 'raw-secret',
+      items: [{ refresh_token: 'r1', ok: true }],
+    });
+    expect(lines[0].token).toBe('[REDACTED]');
+    expect(lines[0].items[0].refresh_token).toBe('[REDACTED]');
+    expect(lines[0].items[0].ok).toBe(true);
+  });
   it('step() narrates', () => {
     const { lines, stream } = capture();
     const log = createTeachLogger({ service: 'agent-service', level: 'debug', stream });

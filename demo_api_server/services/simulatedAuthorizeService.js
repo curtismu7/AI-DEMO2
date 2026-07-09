@@ -344,32 +344,50 @@ async function evaluateMcpFirstTool({
 
   // ── Group-membership guard (Scenario 1 — Denied Access: user not in group).
   //
-  // When the tool is restricted to a group and the requesting user is not a
-  // member, DENY. RequiredGroup / UserGroups are supplied by the caller only
-  // when ff_authorize_group_policy is on, so this guard is a no-op otherwise.
-  // The live PingOne policy + demo_authz_server enforce the same rule on the
-  // same parameters (parity invariant). Proves least-privilege: an authenticated
-  // user with a valid token is still denied a resource their group does not grant.
-  if (requiredGroup && Array.isArray(userGroups) && !userGroups.includes(requiredGroup)) {
-    const out = {
-      decision: 'DENY',
-      stepUpRequired: false,
-      hitlRequired: false,
-      path: 'simulated',
-      decisionId,
-      raw: {
-        ...rawBase,
+  // When the tool is restricted to a group, UserGroups must be supplied and
+  // include RequiredGroup. Absent userGroups with requiredGroup set → DENY
+  // (fail closed; parity with demo_authz_server decision.js Rule 3.5b).
+  if (requiredGroup) {
+    if (!Array.isArray(userGroups)) {
+      const out = {
         decision: 'DENY',
-        deny_reason: 'user_not_in_group',
-        reason:
-          `Group membership check failed — tool "${toolName}" requires membership in ` +
-          `"${requiredGroup}" but user "${userId}" is in [${userGroups.join(', ') || 'none'}]. ` +
-          `Even with a valid token and the right scope, least-privilege at the authorization ` +
-          `policy blocks access the user's group does not grant.`,
-      },
-    };
-    recordSimulatedDecision(out);
-    return out;
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'missing_user_groups',
+          reason:
+            `Group membership check failed — tool "${toolName}" requires membership in ` +
+            `"${requiredGroup}" but UserGroups was not supplied for user "${userId}".`,
+        },
+      };
+      recordSimulatedDecision(out);
+      return out;
+    }
+    if (!userGroups.includes(requiredGroup)) {
+      const out = {
+        decision: 'DENY',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'user_not_in_group',
+          reason:
+            `Group membership check failed — tool "${toolName}" requires membership in ` +
+            `"${requiredGroup}" but user "${userId}" is in [${userGroups.join(', ') || 'none'}]. ` +
+            `Even with a valid token and the right scope, least-privilege at the authorization ` +
+            `policy blocks access the user's group does not grant.`,
+        },
+      };
+      recordSimulatedDecision(out);
+      return out;
+    }
   }
 
   // ── Entitlement-tier capability guard (NNP-8, UC21) ──────────────────────────

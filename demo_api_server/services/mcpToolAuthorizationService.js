@@ -211,6 +211,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
         tool,
         Date.now(),
         toolParams?.amount,
+        toolParams || {},
       );
       hitlApproved = verification.ok === true;
       if (!hitlApproved) {
