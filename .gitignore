@@ -80,3 +80,6 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 .air/mcp.json
 # Personal Claude Code allowlist/settings — never committed (hygiene check 3).
 .claude/settings.local.json
+# SE DevOps kubeconfig backup (credentials — never commit; use install-se-kubeconfig.sh)
+.local/kube/*
+!.local/kube/README.md
