@@ -42,8 +42,15 @@
     "type": "Chain",
     "config": {
       "filters": [
+        {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
         "ApikeyResourceServerFilter",
-        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*" } },
+        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*", "metricsEnabled": true } },
         { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
       ],
       "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }

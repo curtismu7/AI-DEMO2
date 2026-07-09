@@ -6,6 +6,13 @@
     "config": {
       "filters": [
         {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        {
           "name": "StripInvestPrefix",
           "type": "UriPathRewriteFilter",
           "config": {
@@ -19,7 +26,8 @@
           "name": "McpProtocol",
           "type": "McpValidationFilter",
           "config": {
-            "acceptedOrigins": ".*"
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
           }
         },
         {

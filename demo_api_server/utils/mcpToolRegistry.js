@@ -174,6 +174,28 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
               decisionId: az.decisionId || null,
             }));
         }
+        if (gwAuditTrail.mcpAudit) {
+          const a = gwAuditTrail.mcpAudit;
+          const howResult = a.how?.result || a.how?.decision || 'recorded';
+          const whoUser = a.who?.userSub || a.who?.clientId || 'unknown';
+          const whatTool = a.what?.tool || a.what?.mcpMethod || toolName || 'mcp';
+          tokenEvents.push(buildTokenEvent(
+            'gw-mcp-audit',
+            'PingGateway McpAuditFilter — who / what / when / where / how',
+            howResult === 'blocked' ? 'deny' : 'active',
+            null,
+            `MCP audit: ${whoUser} called ${whatTool} → ${howResult} (also written to audit/mcp.audit.json)`,
+            {
+              mcpAudit: a,
+              who: a.who,
+              what: a.what,
+              when: a.when,
+              where: a.where,
+              how: a.how,
+              eventName: a.eventName || 'PING-GATEWAY-MCP',
+            }
+          ));
+        }
         if (gwAuditTrail.mtls) {
           const mt = gwAuditTrail.mtls;
           tokenEvents.push(buildTokenEvent('gw-mtls', 'Gateway → MCP Server mTLS', mt.enabled ? 'active' : 'skipped', null,

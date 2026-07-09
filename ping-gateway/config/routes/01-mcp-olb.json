@@ -85,6 +85,13 @@
     "config": {
       "filters": [
         {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        {
           "name": "McpGatewayProtection",
           "type": "McpProtectionFilter",
           "config": {
@@ -97,7 +104,8 @@
           "name": "McpProtocol",
           "type": "McpValidationFilter",
           "config": {
-            "acceptedOrigins": ".*"
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
           }
         },
         {

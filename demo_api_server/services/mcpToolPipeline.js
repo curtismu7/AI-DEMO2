@@ -654,6 +654,28 @@ async function runMcpToolPipeline(ctx) {
                     }
                 ));
             }
+            if (gwAuditTrail.mcpAudit) {
+                const a = gwAuditTrail.mcpAudit;
+                const howResult = a.how?.result || a.how?.decision || 'recorded';
+                const whoUser = a.who?.userSub || a.who?.clientId || 'unknown';
+                const whatTool = a.what?.tool || a.what?.mcpMethod || 'mcp';
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-mcp-audit',
+                    'PingGateway McpAuditFilter — who / what / when / where / how',
+                    howResult === 'blocked' ? 'deny' : 'active',
+                    null,
+                    `MCP audit: ${whoUser} called ${whatTool} → ${howResult} (also written to audit/mcp.audit.json)`,
+                    {
+                        mcpAudit: a,
+                        who: a.who,
+                        what: a.what,
+                        when: a.when,
+                        where: a.where,
+                        how: a.how,
+                        eventName: a.eventName || 'PING-GATEWAY-MCP',
+                    }
+                ));
+            }
             if (gwAuditTrail.mtls) {
                 const mtlsRes = gwAuditTrail.mtls;
                 const status = mtlsRes.enabled ? 'active' : 'skipped';
@@ -800,6 +822,26 @@ async function runMcpToolPipeline(ctx) {
                     }
                 ));
             }
+            if (err.gwAuditTrail && err.gwAuditTrail.mcpAudit) {
+                const a = err.gwAuditTrail.mcpAudit;
+                const howResult = a.how?.result || a.how?.decision || 'blocked';
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-mcp-audit',
+                    'PingGateway McpAuditFilter — who / what / when / where / how',
+                    howResult === 'forwarded' ? 'active' : 'deny',
+                    null,
+                    `MCP audit: ${a.who?.userSub || 'unknown'} called ${a.what?.tool || a.what?.mcpMethod || tool} → ${howResult}`,
+                    {
+                        mcpAudit: a,
+                        who: a.who,
+                        what: a.what,
+                        when: a.when,
+                        where: a.where,
+                        how: a.how,
+                        eventName: a.eventName || 'PING-GATEWAY-MCP',
+                    }
+                ));
+            }
 
             // HTTP 428 Precondition Required: step-up auth needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
@@ -853,6 +895,26 @@ async function runMcpToolPipeline(ctx) {
                       tool: authzRes.tool, method: authzRes.method, vertical: authzRes.vertical,
                       parameters: authzRes.parameters, rawResponse: authzRes.rawResponse,
                       reason: authzRes.reason, statements: authzRes.statements }
+                ));
+            }
+            if (trail.mcpAudit && !tokenEvents.some((e) => e && e.id === 'gw-mcp-audit')) {
+                const a = trail.mcpAudit;
+                const howResult = a.how?.result || a.how?.decision || 'recorded';
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-mcp-audit',
+                    'PingGateway McpAuditFilter — who / what / when / where / how',
+                    howResult === 'blocked' ? 'deny' : 'active',
+                    null,
+                    `MCP audit: ${a.who?.userSub || 'unknown'} called ${a.what?.tool || a.what?.mcpMethod || 'mcp'} → ${howResult}`,
+                    {
+                        mcpAudit: a,
+                        who: a.who,
+                        what: a.what,
+                        when: a.when,
+                        where: a.where,
+                        how: a.how,
+                        eventName: a.eventName || 'PING-GATEWAY-MCP',
+                    }
                 ));
             }
         }
