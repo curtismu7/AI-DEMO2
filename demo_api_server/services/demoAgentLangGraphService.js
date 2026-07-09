@@ -842,6 +842,32 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
     };
   }
 
+  // Cross-vertical banking MCP: account nickname always routes through dispatchBankingAction.
+  if (action === 'account_nickname') {
+    const bankingResult = await dispatchBankingAction(action, params || {}, userId, {
+      userToken,
+      req,
+      subjectToken: null,
+      isAdmin,
+      terminology: verticalCtx?.terminology || null,
+    });
+    if (bankingResult?.tokenEvents?.length) {
+      tokenEvents.push(...bankingResult.tokenEvents);
+    }
+    if (!bankingResult) {
+      return {
+        reply: buildCatalogMessage(verticalCtx),
+        success: true,
+        toolsCalled: [],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents,
+      };
+    }
+    return bankingResult;
+  }
+
   // Banking plugin heuristics emit action aliases (balance, accounts) — map to real MCP
   // tools via dispatchBankingAction. executePluginToolViaMcp would call Unknown tool: balance.
   if (vertical === 'banking') {

@@ -480,3 +480,21 @@ describe('nlIntentParser — Phase 266 regression guard (existing actions unaffe
   });
 });
 
+describe('nlIntentParser — account nickname (cross-vertical)', () => {
+  const VERTICALS = ['healthcare', 'retail', 'sporting-goods', 'workforce', 'government', 'university', 'manufacturing'];
+
+  for (const vertical of VERTICALS) {
+    it(`routes "Account nickname" on ${vertical} → account_nickname (not accounts)`, () => {
+      const r = parseHeuristic('Account nickname', vertical);
+      expect(r.kind).toBe('banking');
+      expect(r.banking.action).toBe('account_nickname');
+    });
+  }
+
+  it('routes "show my account nickname" on healthcare before view_records', () => {
+    const r = parseHeuristic('show my account nickname', 'healthcare');
+    expect(r.kind).toBe('banking');
+    expect(r.banking.action).toBe('account_nickname');
+  });
+});
+

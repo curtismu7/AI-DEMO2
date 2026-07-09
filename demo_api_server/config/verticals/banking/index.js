@@ -4,6 +4,7 @@ const { verticalManifest } = require('../../../services/verticalManifest');
 const { getBankingToolDefinitions } = require('../../../services/agentBuilder');
 const { dispatchBankingAction } = require('../../../services/demoAgentLangGraphService');
 const { EDUCATION_HEURISTICS } = require('../shared/educationHeuristics');
+const { ACCOUNT_NICKNAME_HEURISTIC } = require('../shared/bankingChipHeuristics');
 
 // Banking heuristics: phrase → action map (mirrors parseBanking() from nlIntentParser.js)
 // Actions must match tool names in getToolsWithActionAliases()
@@ -22,7 +23,7 @@ const HEURISTICS = [
   // checking/savings qualifier into params (downstream routes consume it).
   { re: /\bbalances?\b/, action: 'balance', extractsAccountType: true },
   // account_nickname — narrow read; must precede generic accounts
-  { re: /^account nickname$|\bnickname\b.*\baccount|\baccount\b.*\bnickname\b|\b(display\s+name|account\s+display\s+name)\b/, action: 'account_nickname' },
+  ACCOUNT_NICKNAME_HEURISTIC,
   // accounts — exclude "account history" (transactions catalog phrase)
   { re: /\b(accounts?|account\s*(list|overview|summary)|my\s*accounts?|check\s*accounts?|view\s*accounts?)\b(?!\s*history)/, action: 'accounts' },
   // biggest_purchase
