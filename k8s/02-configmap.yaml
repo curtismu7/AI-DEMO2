@@ -72,7 +72,9 @@ data:
   # (api.pingone.com/v1/environments/{env}), whose /jwks returns 403, so every
   # agent token signature check fails -> 401 -> the user is logged out on the
   # first agent prompt. Must point at the AUTH host's OIDC JWKS (/as/jwks).
-  PINGONE_JWKS_URI: "https://auth.pingone.com/d02d2305-f445-406d-82ee-7cdbf6eeabfd/as/jwks"
+  # Must match PINGONE_ENVIRONMENT_ID (tokens are signed by that env's keys).
+  # Was previously pinned to a different env (d02d2305-…) which returned different kids.
+  PINGONE_JWKS_URI: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/jwks"
 
   # CodeGraph index (hand-managed): baked into the langchain-agent image at
   # build time; not network topology, so it lives outside the generated block.
