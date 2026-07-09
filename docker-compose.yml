@@ -91,11 +91,10 @@ services:
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"
       # Container-to-container MCP (plain HTTP — internal network only)
       MCP_SERVER_URL: "ws://mcp-server:8080"
-      # Route BFF tool calls through the gateway (mcp-gateway:3005), not straight
-      # to the MCP server; passthrough=false so the gateway does the 2nd RFC 8693
-      # exchange (no skipping). Mirrors service-topology.json — run
-      # `node scripts/gen-service-topology.js check` to verify no drift.
-      MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"
+      # Route BFF tool calls through the active MCP gateway. Core stack default is
+      # real PingGateway (ping-gateway:8080); run-docker.sh demo-sync recreates the
+      # BFF with mcp-gateway:3005 when Quick Flags select the demo Node gateway.
+      MCP_GATEWAY_HTTP_URL: "http://ping-gateway:8080"
       # RAG code-search service (Weaviate + embeddings). Must be the compose DNS
       # name — routes/codeSearch.js defaults to localhost:8095, which inside this
       # container is the BFF itself, so the /code-search UI page fails without it.
