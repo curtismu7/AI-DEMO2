@@ -24,12 +24,14 @@
 .pp--mfa   { background: #fef3e2; color: #9a5b09; border-color: #f6d9a8; }
 .pp--gw    { background: #e6f7f4; color: #0a6b62; border-color: #a7e3da; }
 .pp--authz { background: #f1e9fe; color: #6b21a8; border-color: #d9c2f7; }
+.pp--privilege { background: #fce8ec; color: #9f1239; border-color: #f9a8c4; }
 
 /* SVG dot inherits product foreground color */
 .pp--idp   svg circle { fill: #1545b5; }
 .pp--mfa   svg circle { fill: #9a5b09; }
 .pp--gw    svg circle { fill: #0a6b62; }
 .pp--authz svg circle { fill: #6b21a8; }
+.pp--privilege svg circle { fill: #9f1239; }
 
 /* Size modifiers */
 .pp--xs { font-size: 0.6rem; padding: 0.06rem 0.3rem; }

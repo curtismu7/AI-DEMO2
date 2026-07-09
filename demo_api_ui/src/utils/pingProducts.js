@@ -6,6 +6,7 @@ export const PING_PRODUCTS = {
   mfa:   { id: 'mfa',   label: 'PingOne MFA',        cssClass: 'pp--mfa'   },
   gw:    { id: 'gw',    label: 'PingGateway',        cssClass: 'pp--gw'    },
   authz: { id: 'authz', label: 'PingOne Authorize',  cssClass: 'pp--authz' },
+  privilege: { id: 'privilege', label: 'PingOne Privilege', cssClass: 'pp--privilege' },
 };
 
 // Step-id -> product id. Both runtime event IDs and catalog evidence slugs included.

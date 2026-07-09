@@ -206,6 +206,7 @@ const PUBLIC_ROUTES = [
   { path: '/setup',         allowRedirectTo: ['/login', '/'] },
   { path: '/setup/pingone', allowRedirectTo: ['/login', '/'] },
   { path: '/setup/wizard',  allowRedirectTo: ['/login', '/'] },
+  { path: '/privilege-demo', allowRedirectTo: [] },
 ];
 
 /**

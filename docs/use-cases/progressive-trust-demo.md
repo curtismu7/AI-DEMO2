@@ -25,7 +25,7 @@ PingOne OAuth, Authorize, RFC 8693 token exchange, and CIBA — orchestrated by 
 
 ## Evidence
 
-**Token chain steps:**   
+**Token chain steps:** authorize-decision → token-exchange → tool-dispatched → ciba-poll  
 **Activity categories:** authorize, token, mcp, hitl, ciba
 
 ## Code References

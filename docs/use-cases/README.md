@@ -61,3 +61,5 @@ See also: [Audit Table](./audit-table.md)
 - [**UC-LEARN5** — Learning Hub](./learning-hub.md) ✅
 - [**UC-LEARN6** — Token Flow (Interactive)](./token-flow.md) ✅
 - [**UC-LEARN7** — The Ungoverned Agent (OpenCLI)](./ungoverned-agent.md) ✅ 🛡️
+- [**UC-PAM-SETUP** — Privilege Demo — SE Setup](./privilege-demo-setup.md) ✅
+- [**UC-PAM-SCRIPT** — Privilege Demo — Request Access Script](./privilege-demo-script.md) ✅
