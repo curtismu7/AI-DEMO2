@@ -313,7 +313,7 @@ function TryItTab({ cibaStatus }) {
             />
           </label>
           <button className="ciba-btn ciba-btn--primary" onClick={initiate}>
-            📲 Start CIBA request
+            Start CIBA request
           </button>
         </div>
       ) : (
@@ -385,7 +385,7 @@ export default function CIBAPanel() {
     { id: 'fullstack', label: 'Full stack' },
     { id: 'tokenx',    label: 'Token exchange' },
     { id: 'vslogin',   label: 'vs Login Flow' },
-    { id: 'tryit',     label: '▶ Try It' },
+    { id: 'tryit',     label: 'Try It' },
     { id: 'appflow',   label: 'App Flows' },
     { id: 'setup',     label: 'PingOne Setup' },
     { id: 'bffcode',   label: 'BFF code' },
@@ -511,7 +511,7 @@ export default function CIBAPanel() {
               <h3 className="ciba-section-title">CIBA vs Authorization Code (login flow)</h3>
               <div className="ciba-cards" style={{ marginBottom: '1rem' }}>
                 <div className="ciba-card">
-                  <div className="ciba-card-icon">📲</div>
+                  <div className="ciba-card-icon">CIBA</div>
                   <div>
                     <strong>CIBA</strong><br />
                     No browser redirect to PingOne for the approval step. User gets out-of-band approval (email or push per your PingOne config); server polls{' '}
@@ -542,14 +542,14 @@ export default function CIBAPanel() {
               </p>
               <div className="ciba-cards" style={{ marginBottom: '1rem' }}>
                 <div className="ciba-card">
-                  <div className="ciba-card-icon">👑</div>
+                  <div className="ciba-card-icon">Admin</div>
                   <div>
                     <strong>Admin sign-in</strong> — <code>GET /api/auth/oauth/login</code><br />
                     Uses the <strong>admin</strong> PingOne application (admin redirect URI). After PingOne returns, the browser is redirected to the <strong>Admin Dashboard</strong> at <code>/admin</code> (or <code>FRONTEND_ADMIN_URL</code> if set). In this demo, <strong>new</strong> users created through this flow get the <strong>admin</strong> role in the local user store.
                   </div>
                 </div>
                 <div className="ciba-card">
-                  <div className="ciba-card-icon">👤</div>
+                  <div className="ciba-card-icon">User</div>
                   <div>
                     <strong>Customer sign-in</strong> — <code>GET /api/auth/oauth/user/login</code><br />
                     Uses the <strong>end-user</strong> PingOne application (customer redirect URI). New users get the <strong>customer</strong> role and sample accounts, and land at <code>/dashboard</code>. Existing users keep their stored role — if you previously signed in via Admin sign-in (which sets <code>role: admin</code> in the demo store), the customer flow will also route you to <code>/admin</code>. To ensure a fresh customer session, log out fully before switching flows.

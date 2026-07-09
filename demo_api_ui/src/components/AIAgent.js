@@ -4952,7 +4952,7 @@ export default function BankingAgent({
             `• The client controls updates: just update the hosted document\n\n` +
             `This demo registers the client in PingOne via the Management API and hosts the document at:\n` +
             `/.well-known/oauth-client/{pingone-app-id}\n\n` +
-            `Panel tabs: What is CIMD · CIMD vs DCR · Doc format · How AS uses it · Flow diagram · ▶ Simulate · PingOne`,
+            `Panel tabs: What is CIMD · CIMD vs DCR · Doc format · How AS uses it · Flow diagram · Simulate · PingOne`,
         );
         return;
       }
