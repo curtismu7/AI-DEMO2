@@ -4,7 +4,7 @@ This guide walks through the end-to-end banking agent path where a natural-langu
 
 **Last verified:** 2026-07-08 (k8s / OrbStack, port-forwards active)
 
-See also: [HITL transfer flow test](./llm-pinggateway-p1az-hitl-flow-test.md) · [Mortgage app (API-Key path)](./llm-pinggateway-p1az-mortgage-flow-test.md)
+See also: [HITL transfer flow test](./llm-pinggateway-p1az-hitl-flow-test.md) · [Mortgage app (API-Key path)](./llm-pinggateway-p1az-mortgage-flow-test.md) · [Dual-token (Access + ID) path](./llm-pinggateway-p1az-dualtoken-flow-test.md)
 
 ## Test Results (2026-07-08)
 
