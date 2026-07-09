@@ -424,6 +424,23 @@ port_forward() {
   echo
   success "Forwards up for running services. Watching for drops..."
 
+  # Prove the host BFF is reachable before we go quiet. Dual listeners
+  # (Docker Compose via OrbStack on *:3001 + kubectl on 127.0.0.1:3001) are
+  # the usual cause of curl exit 000 / flaky /api/health.
+  local _hc _i
+  _hc=000
+  for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    _hc=$(curl -sk -o /dev/null -w '%{http_code}' --connect-timeout 2 \
+      https://api.ping.demo:3001/api/health 2>/dev/null || echo 000)
+    [ "$_hc" = "200" ] && break
+    sleep 1
+  done
+  if [ "$_hc" = "200" ]; then
+    success "BFF health OK (https://api.ping.demo:3001/api/health → 200)"
+  else
+    warn "BFF health still unreachable (HTTP $_hc). If Docker Compose is also up, run './run-k8.sh kill' then './run-k8.sh forward'."
+  fi
+
   # run-k8.sh hands its final banners (log commands + DONE - SUCCESS) through
   # this env var, pre-rendered, so they print here — the very end of the
   # output before the supervisor goes quiet.
