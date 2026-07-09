@@ -33,6 +33,12 @@ const BFF_RESOURCE_URI =
 // the BFF with the gateway-audience token (aud=mcpgateway.ping.demo) after the
 // gateway's Authorization Server has already made the PERMIT decision.
 const MCP_GW_RESOURCE_URI = process.env.MCP_GW_RESOURCE_URI || 'mcpgateway.ping.demo';
+// PingGateway resource URI (RFC 8707) — accepted alongside MCP_GW_RESOURCE_URI on
+// MCP callback / Path B identity routes when ff_mcp_gateway_pinggateway is ON.
+const PINGGATEWAY_RESOURCE_URI =
+  process.env.PINGONE_RESOURCE_PINGGATEWAY_URI ||
+  process.env.MCP_PINGGATEWAY_RESOURCE_URI ||
+  'https://api.ping.demo:3036/mcp';
 
 // Secondary audience values used only for client-type detection (not for acceptance gating).
 // A token must STILL match BFF_RESOURCE_URI to be accepted; these values are only used
@@ -555,11 +561,18 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       // when TokenResolver falls back to agent-passthrough (no BANKING_API_RESOURCE_URI
       // configured). Gateway tokens are safe here: sub-scoped to the session user,
       // only obtainable via RFC 8693 exchange of a valid user token.
+      // /identity is Path B (dual_token): Node gateway forwards the TX gateway
+      // bearer + id_token to banking_resource_server. Accept gateway audiences.
       const isMcpCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
+        || path === '/identity' || path === '/api/resource-server/identity'
         || path === '/my'                              // GET /api/accounts/my, GET /api/transactions/my
         || /^\/[^/]+(\/balance)?$/.test(path);         // GET /api/accounts/:id, GET /api/accounts/:id/balance
+      const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
+      if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
+        gwAuds.push(PINGGATEWAY_RESOURCE_URI);
+      }
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
-        (isMcpCallback && tokenAuds.includes(MCP_GW_RESOURCE_URI));
+        (isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a)));
       if (!hasMatch) {
         logger.warn(LOG_CATEGORIES.OAUTH_VALIDATION, 'Token audience mismatch — rejecting', {
           method, path,

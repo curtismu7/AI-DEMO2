@@ -82,4 +82,21 @@ describe('vertical-tool callback audience acceptance', () => {
     expect(isAudience401(r)).toBe(false);
     expect(r.outcome).toBe('next');
   });
+
+  test('accepts MCP gateway audience on Path B /identity', async () => {
+    const r = await invoke('/identity', 'mcpgateway.ping.demo');
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  test('accepts PingGateway audience on Path B /identity', async () => {
+    const r = await invoke('/identity', 'https://api.ping.demo:3036/mcp');
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  test('still rejects PingGateway audience on a normal route', async () => {
+    const r = await invoke('/api/accounts/my', 'https://api.ping.demo:3036/mcp');
+    expect(isAudience401(r)).toBe(true);
+  });
 });

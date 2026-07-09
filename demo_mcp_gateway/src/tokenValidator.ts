@@ -231,11 +231,18 @@ export async function validateInboundToken(
     throw new TokenValidationError('Token expired', 'expired_token');
   }
 
-  // Audience check — FAIL CLOSED per RFC 6749
+  // Audience check — FAIL CLOSED per RFC 6749.
+  // expectedAud may be a comma-separated list (Node gateway + PingGateway
+  // resource URIs) so Path B can accept PingGateway-minted tokens when the
+  // BFF routes dual_token tools to this Node gateway.
   const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
-  if (!audList.includes(expectedAud)) {
+  const accepted = String(expectedAud || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!accepted.some((a) => audList.includes(a))) {
     throw new TokenValidationError(
-      `Audience mismatch: got [${audList.join(', ')}], expected ${expectedAud}`,
+      `Audience mismatch: got [${audList.join(', ')}], expected ${accepted.join(' | ')}`,
       'invalid_aud',
     );
   }

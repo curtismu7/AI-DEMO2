@@ -46,7 +46,9 @@ router.get('/vault/service-key', (req, res) => {
   if (!ALLOWED.has(name)) {
     return res.status(404).json({ error: 'not_allowlisted' });
   }
-  const value = configStore.get(name.toLowerCase());
+  // getEffective resolves FIELD_DEFS defaults + env aliases (DEMO_MORTGAGE_SERVICE_KEY)
+  // so the bridge works before vault-migrate has seeded LMDB/vault entries.
+  const value = configStore.getEffective(name.toLowerCase());
   if (value === null || value === undefined || value === '') {
     return res.status(404).json({ error: 'key_unset' });
   }

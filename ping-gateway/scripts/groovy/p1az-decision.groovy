@@ -387,6 +387,17 @@ try {
         bearer = fetchWorkerToken()
         r = callDecision(bearer)
     }
+    // REAL backend: PingOne Authorize rate-limits (HTTP 429 REQUEST_LIMITED).
+    // Treating 429 as DENY (via missing `decision`) falsely blocks demos under
+    // burst traffic. Retry once after a short backoff before failing closed.
+    if (!simulated && r.code == 429) {
+        logger.warn('[P1AZ] REAL backend rate-limited (HTTP 429) — retrying once after 1500ms')
+        try { Thread.sleep(1500L) } catch (InterruptedException ignored) {}
+        r = callDecision(bearer)
+        if (r.code == 429) {
+            logger.warn('[P1AZ] REAL backend still rate-limited after retry — failing CLOSED (DENY)')
+        }
+    }
     // REAL backend connectivity failure (httpPost returns code 0) or 5xx.
     // Failing over to the always-PERMIT mock is a demo convenience that DISABLES
     // the policy while it looks healthy — so it is gated: disabled when STRICT_AUTH=true
@@ -416,7 +427,14 @@ try {
     logger.info('[P1AZ] RESPONSE HTTP ' + r.code + ' ← ' + (failoverUsed ? 'MOCK-FAILOVER' : (simulated ? 'MOCK' : 'REAL')) + ' | body=' + rawResponseBody)
     def parsed = rawResponseBody ? new JsonSlurper().parseText(rawResponseBody) : [:]
     authorizeFullResponse = parsed ?: [:]
-    outcome = parsed?.decision ?: 'DENY'
+    // Rate-limit / error bodies have no `decision` — keep DENY but stamp reason so
+    // the audit trail does not look like a policy DENY.
+    if (r.code == 429 && !parsed?.decision) {
+        authorizeFullResponse = [error: 'REQUEST_LIMITED', code: 'REQUEST_LIMITED', http_status: 429, message: (parsed?.message ?: 'rate limited')]
+        outcome = 'DENY'
+    } else {
+        outcome = parsed?.decision ?: 'DENY'
+    }
 } catch (Exception e) {
     logger.warn('[P1AZ] Decision call failed — failing closed: ' + e.message)
     outcome = 'DENY'

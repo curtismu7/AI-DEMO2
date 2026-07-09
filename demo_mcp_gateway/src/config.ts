@@ -199,6 +199,9 @@ export function loadConfig(): GatewayConfig {
     clientSecret: optional('PINGONE_MCP_GATEWAY_CLIENT_SECRET', '') || required('MCP_GW_CLIENT_SECRET'),
     tokenEndpointAuthMethod: authMethod === 'post' ? 'post' : 'basic',
     tokenEndpoint: resolveTokenEndpoint(),
+    // Comma-separated list is supported by validateInboundToken (Path B accepts
+    // both the Node gateway URI and the PingGateway resource URI when the BFF
+    // routes dual_token tools here while ff_mcp_gateway_pinggateway is ON).
     gatewayResourceUri: required('MCP_GW_RESOURCE_URI'),
     // MCP_GW_*-prefixed names match the rest of the gateway's env (MCP_GW_RESOURCE_URI,
     // MCP_GW_P1AZ_ENABLED, …) and are what docker-compose sets. Fall back to the legacy

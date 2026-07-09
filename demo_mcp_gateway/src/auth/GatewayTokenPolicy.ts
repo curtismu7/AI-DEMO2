@@ -38,8 +38,11 @@ export class GatewayTokenPolicy {
     toolName?: string,
     decisionContext?: string,
   ): void {
-    // sub must be present — every token must carry an identity
-    if (!decoded.sub || decoded.sub.trim() === '') {
+    // sub must be present — every token must carry an identity.
+    // Coerce to string: some issuers mint numeric/UUID-shaped claims that are
+    // not JS strings (calling .trim() would throw and become an HTTP 500).
+    const subStr = decoded.sub == null ? '' : String(decoded.sub).trim();
+    if (!subStr) {
       throw new GatewayTokenPolicyError(
         'Token missing required sub claim',
         'missing_sub',
@@ -49,8 +52,10 @@ export class GatewayTokenPolicy {
     // act chain: if present (non-null), act.sub must be non-empty.
     // Explicit `act: null` is treated as "no act" (same as undefined) — not a
     // malformed chain. The nullish check (act != null) correctly skips null.
+    // PingOne may mint act.sub as a non-string; coerce before trim.
     if (decoded.act != null) {
-      if (!decoded.act.sub || decoded.act.sub.trim() === '') {
+      const actSub = decoded.act.sub == null ? '' : String(decoded.act.sub).trim();
+      if (!actSub) {
         throw new GatewayTokenPolicyError(
           'Malformed delegation chain: act.sub is empty',
           'invalid_act',

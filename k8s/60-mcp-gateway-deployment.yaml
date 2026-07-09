@@ -9,7 +9,7 @@ metadata:
 spec:
   # Off by default — mirrors Docker's demo-auth profile. demo-sync scales to 1
   # when Quick Flag ff_mcp_gateway_pinggateway selects the demo Node gateway.
-  replicas: 0
+  replicas: 1
   # Zero-downtime rollouts: bring new pod healthy before terminating old one.
   # maxSurge:1 transiently adds one pod (100m CPU / 128Mi) during rollouts only —
   # well within the 8 CPU quota (k8s/01-namespace.yaml). maxUnavailable:0 ensures
@@ -54,6 +54,15 @@ spec:
           value: "http://127.0.0.1:9001"
         - name: GW_INTROSPECTION_ENDPOINT
           value: "http://127.0.0.1:9001/as/introspect"
+        # Path B (dual_token): id_token bridge + resource-server base must hit the
+        # in-cluster BFF, not the localhost defaults in config.ts.
+        - name: BFF_INTERNAL_ID_TOKEN_URL
+          value: "https://demo-api-server:3001/internal/id-token"
+        - name: BANKING_RESOURCE_SERVER_BASE_URL
+          value: "https://demo-api-server:3001"
+        # mkcert TLS on demo-api-server — same opt-in as MCP_GATEWAY_REJECT_UNAUTHORIZED.
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
         # gateway-secrets supplies MCP_GW_CLIENT_ID/SECRET, PINGONE_* (from
         # demo_mcp_gateway/.env, same as compose's env_file). configmap last.
         envFrom:

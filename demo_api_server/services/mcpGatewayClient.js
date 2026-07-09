@@ -59,6 +59,14 @@ const APIKEY_TOOLS = new Set([
     'show_investment',
 ]);
 
+// Path B (dual_token) is implemented on the Node gateway only. PingGateway has
+// no dualtoken route yet — when ff_mcp_gateway_pinggateway is ON, still send
+// these tools to the Node gateway so user_profile_card does not fall through
+// to the OLB exchange path ("Unknown tool").
+const DUALTOKEN_TOOLS = new Set([
+    'user_profile_card',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -74,11 +82,17 @@ const APIKEY_TOOLS = new Set([
  * @throws {Error} with `.code` and `.httpStatus` for 401/403/5xx
  */
 async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
-    const base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
+    let base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
     // PingGateway (IG) base — when the gateway IS IG, api-key-disposition tools go
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
+    // Path B is Node-gateway-only: if the caller resolved PingGateway as the
+    // default base but the tool is dual_token, force the Node gateway URL.
+    if (DUALTOKEN_TOOLS.has(tool) && pgUrl && base === pgUrl) {
+        const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
+        if (nodeUrl) base = nodeUrl;
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
 

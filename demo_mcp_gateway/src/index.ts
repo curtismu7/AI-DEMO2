@@ -26,6 +26,7 @@ import { loadConfig, GatewayConfig, assertProductionSecrets, isInternalSecretUsa
 import { validateInboundToken, extractBearerToken, TokenValidationError } from './tokenValidator';
 import { routeTool, backendWsUrl, backendHttpUrl } from './router';
 import { buildApiKeyToolResult } from './apiKeyDispatch';
+import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, JsonRpcRequest, JsonRpcResponse } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
@@ -336,24 +337,6 @@ async function runWsAuthorizationPipeline(
     login_required: true,
   }));
   return false;
-}
-
-// ---------------------------------------------------------------------------
-// BFF id_token retrieval — server-to-server only; never called from browser
-// ---------------------------------------------------------------------------
-
-async function fetchIdTokenFromBff(subjectSub: string, config: GatewayConfig): Promise<string | null> {
-  const resp = await axios.get(config.bffInternalIdTokenUrl, {
-    headers: {
-      'x-internal-gateway-secret': config.bffInternalSecret,
-      'x-subject-sub': subjectSub,
-    },
-    timeout: 3000,
-    validateStatus: (s) => s < 500,
-  });
-  if (resp.status === 404 || resp.status === 412 || resp.status === 503) return null;
-  if (resp.status !== 200) throw new Error(`BFF id_token fetch returned ${resp.status}`);
-  return resp.data?.idToken || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -751,21 +734,6 @@ async function handleMessage(
     // 'bankingdata'→ Path C: RFC 8693 exchange → /api/resource-server/accounts or /transactions
     // 'olb'/'invest' → existing WebSocket proxy path (unchanged)
     if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata') {
-      // Fetch id_token from BFF if dualtoken disposition.
-      // The id_token never crosses the browser — server-to-server from BFF session to gateway.
-      let idToken: string | null = null;
-      if (target === 'dualtoken') {
-        try {
-          idToken = await fetchIdTokenFromBff(decoded.sub, config);
-        } catch (err) {
-          send(jsonRpcError(id, -32500, 'Failed to retrieve id_token from BFF', {
-            credentialPath: 'dual_token',
-            error: 'id_token_fetch_failed',
-          }));
-          return;
-        }
-      }
-
       // Derive the API-key last4 inline (no credentialSwap needed for apikey path).
       const apiKeyLast4 = (() => {
         const k = config.demoApiKeyServiceKey || '';
@@ -795,117 +763,14 @@ async function handleMessage(
         return;
       }
 
-      // ----- dual_token (Path B) — POST to /api/resource-server/identity with id_token in params -----
-      // Gateway forwards the original TX token unchanged (no re-exchange).
-      // id_token travels separately in JSON-RPC body.
+      // ----- dual_token (Path B) — shared with HTTP via dualTokenDispatch -----
       if (target === 'dualtoken') {
-        if (!idToken) {
-          send(jsonRpcError(id, -32412, 'id_token missing — sign in again with openid scope', {
-            credentialPath: 'dual_token',
-            error: 'id_token_missing',
-          }));
-          return;
+        const outcome = await buildDualTokenToolResult(toolName, token, decoded.sub, config);
+        if (outcome.ok) {
+          send(JSON.stringify({ jsonrpc: '2.0', id, result: outcome.result }));
+        } else {
+          send(jsonRpcError(id, outcome.code, outcome.message, outcome.data));
         }
-        const url = backendHttpUrl(target, toolName, config);
-        let identityResp;
-        try {
-          identityResp = await axios.post(
-            url,
-            {
-              jsonrpc: '2.0',
-              method: 'identity.show',
-              params: { idToken },
-              id: 1,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 5000,
-              validateStatus: (s: number) => s < 500,
-            },
-          );
-        } catch (err) {
-          send(jsonRpcError(id, -32500, 'Backend identity route unreachable', { credentialPath: 'dual_token' }));
-          return;
-        }
-        if (identityResp.status === 401) {
-          send(jsonRpcError(id, -32401, 'Access token invalid', { credentialPath: 'dual_token' }));
-          return;
-        }
-        if (identityResp.status === 412) {
-          send(jsonRpcError(id, -32412, 'id_token missing — sign in with openid scope', { credentialPath: 'dual_token', error: 'id_token_missing' }));
-          return;
-        }
-        if (identityResp.status >= 400) {
-          send(jsonRpcError(id, -32500, `Backend returned ${identityResp.status}`, { credentialPath: 'dual_token' }));
-          return;
-        }
-        send(JSON.stringify({
-          jsonrpc: '2.0', id,
-          result: {
-            content: [{ type: 'text', text: JSON.stringify(identityResp.data) }],
-            _meta: {
-              credentialPath: 'dual_token',
-              idTokenAttached: true,
-              accessTokenAttached: true,
-              infoPageHint: '/path/dualtoken-info',
-              backendRoute: '/api/resource-server/identity',
-              note: 'Gateway forwarded bearer (Authorization header) + id_token (JSON-RPC params body) to banking_resource_server /identity.',
-              tokenEvents: [
-                {
-                  id: 'evt-inbound',
-                  label: 'Inbound user bearer received (aud=AI-agent-resource, sub=user, act=upstream-agent)',
-                  tokenType: 'access_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'RFC 6750 §3',
-                },
-                {
-                  id: 'evt-idtoken-fetch',
-                  label: 'id_token fetched from BFF session (server-to-server, OIDC identity assertion)',
-                  tokenType: 'id_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'OIDC Core §3.1.3.7',
-                },
-                {
-                  id: 'gw-passthrough',
-                  label: 'Gateway passthrough: TX token forwarded unchanged to banking_resource_server — no re-exchange (mTLS enforces gateway passage)',
-                  tokenType: 'access_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'RFC 8693 — exchange skipped by design',
-                },
-                {
-                  id: 'evt-forward',
-                  label: 'Outbound POST to banking_resource_server /identity: original bearer (Authorization) + id_token (params.idToken)',
-                  tokenType: 'access_token+id_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'JSON-RPC 2.0 + RFC 6750 §3.1',
-                },
-                {
-                  id: 'evt-bearer-validated',
-                  label: 'banking_resource_server: bearer aud + signature validated (authenticateToken middleware via JWKS)',
-                  tokenType: 'access_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'RFC 7515/7517/8414/7662 + RFC 8707 audience binding',
-                },
-                {
-                  id: 'evt-idtoken-decoded',
-                  label: 'banking_resource_server: id_token sub matched against access_token sub; decoded server-side; sanitized claims returned',
-                  tokenType: 'id_token',
-                  credentialPath: 'dual_token',
-                  status: 'ok',
-                  specRef: 'OIDC Core §3.1.3.7 + custody policy',
-                },
-              ],
-            },
-          },
-        }));
         return;
       }
 

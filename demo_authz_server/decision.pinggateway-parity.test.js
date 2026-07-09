@@ -98,6 +98,52 @@ test('DENY — same payload but aud does not include the gateway resource uri', 
   assert.match(res.body.reason, /invalid_aud/);
 });
 
+test('PERMIT — PingGateway aud accepted when MCP_GW_RESOURCE_URI lists both audiences', async () => {
+  process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
+  delete process.env.MCP_GATEWAY_RESOURCE_URI;
+  fresh();
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: {
+        parameters: groovyParams({
+          ToolName: 'get_my_accounts',
+          TokenScopes: 'gateway:mcp:invoke',
+          TokenAudActual: 'https://api.ping.demo:3036/mcp',
+          TokenAudience: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+          McpResourceUri: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+        }),
+      },
+    },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
+test('PERMIT — user_profile_card (Path B) with PingGateway aud', async () => {
+  process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
+  delete process.env.MCP_GATEWAY_RESOURCE_URI;
+  fresh();
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: {
+        parameters: groovyParams({
+          ToolName: 'user_profile_card',
+          TokenScopes: 'gateway:mcp:invoke',
+          TokenAudActual: 'https://api.ping.demo:3036/mcp',
+          TokenAudience: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+          McpResourceUri: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+        }),
+      },
+    },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
 test('DENY — TokenAudience does not match McpResourceUri (HasValidMcpAudience parity)', async () => {
   const res = makeRes();
   await decisionHandler(

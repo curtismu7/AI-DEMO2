@@ -111,11 +111,16 @@ router.get('/id-token', (req, res) => {
   sessionStore.all((err, sessions) => {
     if (err) return res.status(500).json({ error: 'session_store_error' });
     const all = Array.isArray(sessions) ? sessions : (sessions ? Object.values(sessions) : []);
-    const match = all.find((s) => {
+    // Prefer the freshest matching session. Re-logins leave older rows for the
+    // same subjectSub; picking the first match can hit a stale session and
+    // 404 Path B even when a live session still holds the id_token.
+    const matches = all.filter((s) => {
       const tokens = s && s.oauthTokens;
       if (!tokens) return false;
       return tokens.subjectSub === sub || tokens.sub === sub;
     });
+    matches.sort((a, b) => (b.oauthTokens?.expiresAt || 0) - (a.oauthTokens?.expiresAt || 0));
+    const match = matches[0];
     if (!match) {
       _logIdTokenRetrieval('info', 'id_token request: no session matched sub', {
         sub, gatewayRequestId, toolName: requestedToolName,
@@ -136,6 +141,7 @@ router.get('/id-token', (req, res) => {
         sub, gatewayRequestId, toolName: requestedToolName,
         accessTokenAgeMs: ageMs,
         maxStaleMs: ID_TOKEN_MAX_SESSION_STALE_MS,
+        matchCount: matches.length,
       });
       return res.status(404).json({ error: 'session_not_found', reason: 'session_stale' });
     }

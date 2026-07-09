@@ -472,6 +472,10 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
+    "user_profile_card": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
     "show_work_order": {
       "requiredScopes": ["workorders:read"],
       "surface": "gateway"

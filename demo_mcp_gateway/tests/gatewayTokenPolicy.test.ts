@@ -104,6 +104,19 @@ describe('GatewayTokenPolicy — pre-existing invariants', () => {
     const token = makeToken({ act: { sub: 'agent-client-id' } } as any);
     expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
   });
+
+  test('R-5b: non-string act.sub (PingOne UUID-shaped) coerces without throwing', () => {
+    const config = makeConfig({ requireActForAgentTools: false });
+    // Some PingOne tokens mint act.sub as a non-string; .trim() must not 500.
+    const token = makeToken({ act: { sub: { toString: () => 'agent-uuid' } } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('R-5c: numeric-like act.sub coerces without throwing', () => {
+    const config = makeConfig({ requireActForAgentTools: false });
+    const token = makeToken({ act: { sub: 42 as unknown as string } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
 });
 
 // ── UC16 — new checks ────────────────────────────────────────────────────────
