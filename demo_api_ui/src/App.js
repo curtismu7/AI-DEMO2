@@ -869,7 +869,7 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-gateway"
                               element={
-                                <Navigate to="/setup?tab=mcp-gateway" replace />
+                                <Navigate to="/configure?tab=mcp-gateway" replace />
                               }
                             />
                             <Route

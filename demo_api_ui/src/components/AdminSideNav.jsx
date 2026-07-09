@@ -478,12 +478,12 @@ export default function AdminSideNav({ user }) {
       children: [
         {
           label: "PingGateway Config",
-          path: "/setup?tab=mcp-gateway",
+          path: "/configure?tab=mcp-gateway",
           icon: "rte",
         },
         {
           label: "Gateway Tester",
-          path: "/setup?tab=mcp-gateway&subtab=tester",
+          path: "/configure?tab=mcp-gateway&subtab=tester",
           icon: "tst",
         },
         {
