@@ -41,6 +41,25 @@ happened — an unrelated commit swept up another session's staged files).
 - A global hard-block hook denies `Write`/`Edit` in any repo's main checkout to
   enforce this — set up a worktree first.
 
+## AI-DLC (opt-in)
+
+AWS AI-DLC phase gates live as a **sidecar** — they do **not** replace this
+file. See [`.aidlc/README.md`](.aidlc/README.md).
+
+- **Activate** only when the user prefixes with `Using AI-DLC,`. Then follow
+  [`.aidlc/CORE-WORKFLOW.md`](.aidlc/CORE-WORKFLOW.md) and load details from
+  [`.aidlc-rule-details/`](.aidlc-rule-details/). Write stage artifacts under
+  `aidlc-docs/` and wait for explicit human approval between stages.
+- **Without** that phrase: do not run AI-DLC ceremony; use normal
+  CLAUDE.md / REGRESSION_PLAN behavior.
+- **Priority:** `REGRESSION_PLAN.md` §0–§1, worktrees, and the emoji allowlist
+  always win over AI-DLC (including any upstream “overrides all workflows”
+  wording in `CORE-WORKFLOW.md`).
+- **Construction** code changes still require a git worktree. Prefer AI-DLC for
+  multi-file / new-vertical features; skip it for one-line fixes and hygiene.
+- **Resume:** `Continue AI-DLC. Check aidlc-docs/aidlc-state.md for current status.`
+- Do not use AI-DLC and GSD/plan-phase ceremony on the same feature in parallel.
+
 ## Running the stack
 
 - `./run.sh` — primary local launcher (native Node/Python). API at

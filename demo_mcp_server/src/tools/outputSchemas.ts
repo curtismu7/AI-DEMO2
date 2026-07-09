@@ -43,6 +43,17 @@ export const GET_ACCOUNT_BALANCE_OUTPUT: JSONSchema = {
   required: ['success', 'accountId', 'balance'],
 };
 
+export const GET_ACCOUNT_NICKNAME_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    accountId: { type: 'string' },
+    nickname: { type: 'string' },
+    fallbackUsed: { type: 'boolean' },
+  },
+  required: ['success', 'accountId', 'nickname'],
+};
+
 export const GET_SENSITIVE_ACCOUNT_DETAILS_OUTPUT: JSONSchema = {
   type: 'object',
   properties: {

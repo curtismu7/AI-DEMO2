@@ -359,6 +359,10 @@ export function formatResult(result, terminology) {
   if (r.balance !== undefined) {
     return `${termBalance}: ${formatCurrency(r.balance)}`;
   }
+  // Account nickname (get_account_nickname)
+  if (r.nickname !== undefined) {
+    return `${termAccount} nickname: ${r.nickname}`;
+  }
   // Transaction confirmation (single transaction)
   if (r.transaction_id || r.transactionId || r.id) {
     return `Transaction confirmed\nTransaction ID: ${r.transaction_id || r.transactionId || r.id}\nAmount: ${formatCurrency(r.amount)}`;

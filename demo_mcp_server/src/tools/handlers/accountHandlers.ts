@@ -2,6 +2,43 @@ import type { Account } from '../../interfaces/banking';
 import type { HandlerFn } from './types';
 import { createSuccessResult, createErrorResult } from './results';
 
+/** Pick account for nickname: explicit id, else first checking account. */
+export function pickAccountForNickname(
+  accounts: Account[],
+  accountId?: string,
+): Account | null {
+  if (!accounts.length) return null;
+  if (accountId) {
+    const byId = accounts.find((a) => a.id === accountId);
+    if (byId) return byId;
+    const byType = accounts.find(
+      (a) => a.accountType?.toLowerCase() === accountId.toLowerCase(),
+    );
+    if (byType) return byType;
+    return null;
+  }
+  const checking = accounts.find(
+    (a) => a.accountType?.toLowerCase() === 'checking',
+  );
+  return checking ?? null;
+}
+
+/** Display nickname from account name, or type + masked last four digits. */
+export function formatAccountNickname(account: Account): {
+  nickname: string;
+  fallbackUsed: boolean;
+} {
+  const trimmed = account.name?.trim();
+  if (trimmed) {
+    return { nickname: trimmed, fallbackUsed: false };
+  }
+  const digits = (account.accountNumber || '').replace(/\D/g, '');
+  const last4 = digits.slice(-4) || '????';
+  const typeRaw = account.accountType || 'Account';
+  const typeLabel = typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1);
+  return { nickname: `${typeLabel} …${last4}`, fallbackUsed: true };
+}
+
 export const executeGetMyAccounts: HandlerFn = async (deps, token, params) => {
   const { account_type } = params as { account_type?: string };
   deps.logger.debug(`[BankingToolProvider] Calling Banking API: getMyAccounts`);
@@ -34,6 +71,27 @@ export const executeGetMyAccounts: HandlerFn = async (deps, token, params) => {
   }));
 
   const data = { success: true, count: accounts.length, accounts: mappedAccounts };
+  return createSuccessResult(JSON.stringify(data, null, 2), data);
+};
+
+export const executeGetAccountNickname: HandlerFn = async (deps, token, params) => {
+  const { account_id } = params as { account_id?: string };
+  deps.logger.debug('[BankingToolProvider] Calling Banking API: getAccountNickname');
+  const accounts = await deps.apiClient.getMyAccounts(token);
+  const account = pickAccountForNickname(accounts, account_id);
+  if (!account) {
+    const msg = account_id
+      ? `Account not found: ${account_id}`
+      : 'No checking account found for this user';
+    return createErrorResult(msg);
+  }
+  const { nickname, fallbackUsed } = formatAccountNickname(account);
+  const data = {
+    success: true,
+    accountId: account.id,
+    nickname,
+    fallbackUsed,
+  };
   return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 

@@ -168,6 +168,10 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
+    "get_account_nickname": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
     "get_my_transactions": {
       "requiredScopes": ["read"],
       "surface": "gateway"
