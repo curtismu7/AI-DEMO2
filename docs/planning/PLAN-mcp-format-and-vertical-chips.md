@@ -1,8 +1,8 @@
 # Plan: Format Direct MCP results + restore must-have Actions chips per vertical
 
-**Status:** implemented (slices A–C)  
+**Status:** draft  
 **Date:** 2026-07-08  
-**Branch:** `fix/mcp-format-and-vertical-chips`  
+**Branch intent:** `docs/mcp-format-and-vertical-chips`  
 **Related:** Actions dropdown `chips10`, Direct MCP (`mode: "direct"`), Security Showcase (separate)
 
 ---
