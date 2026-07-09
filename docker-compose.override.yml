@@ -19,6 +19,9 @@
 # Subsequent runs:
 #   docker compose up
 #
+# Prefer ./run-docker.sh restart ui (not raw docker compose) — it runs
+# scripts/ensure-dev-certs.sh so https://api.ping.demo:4000 keeps working.
+#
 # To run the production-equivalent stack (nginx UI, no watch), bypass the override:
 #   docker compose -f docker-compose.yml up
 #
@@ -46,6 +49,8 @@ services:
       # the target from REACT_APP_API_HOST). secure:false there tolerates the cert
       # CN mismatch on demo-api-server.
       REACT_APP_API_HOST: demo-api-server
+      # Exit at boot if mkcert files are missing — never serve HTTP-only on :4000 silently.
+      REQUIRE_DEV_TLS: "1"
     volumes:
       # Whole UI tree mounted so src/, vite.config.js, index.html and public/ are all
       # live; node_modules kept from the image (anonymous volume shadows the mount).

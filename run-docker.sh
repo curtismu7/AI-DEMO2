@@ -165,31 +165,9 @@ err()  { echo -e "  ${RED}✗${RESET}  $*" >&2; }
 # whole stack is gated unhealthy) and the Helix key mount becomes a bogus dir.
 # Guarantee both exist as the correct TYPE before every `up` (start + restart).
 ensure_bind_mounts() {
-  local certs_dir="${BASEDIR}/certs"
-  local cert_file="${certs_dir}/api.ping.demo+2.pem"
-  local key_file="${certs_dir}/api.ping.demo+2-key.pem"
   local llm2="${BASEDIR}/LLM2.json"
 
-  # certs/ — generate with mkcert if missing; abort if we can't (an HTTPS stack
-  # cannot come up healthy without them).
-  if [[ ! -f "$cert_file" || ! -f "$key_file" ]]; then
-    if command -v mkcert >/dev/null 2>&1; then
-      warn "TLS certs missing — generating with mkcert..."
-      mkdir -p "$certs_dir"
-      local ca_root; ca_root="$(mkcert -CAROOT 2>/dev/null)" || ca_root=""
-      [[ -n "$ca_root" && -f "$ca_root/rootCA.pem" && ! -f "$certs_dir/rootCA.pem" ]] \
-        && cp "$ca_root/rootCA.pem" "$certs_dir/rootCA.pem"
-      ( cd "$certs_dir" && mkcert api.ping.demo localhost 127.0.0.1 ) \
-        && ok "TLS certs generated in certs/." \
-        || { err "mkcert cert generation failed — run: cd ${certs_dir} && mkcert api.ping.demo localhost 127.0.0.1"; exit 1; }
-    else
-      err "Missing ${cert_file} and mkcert is not installed."
-      err "Run ./install.sh once, or: brew install mkcert && mkcert -install && cd certs && mkcert api.ping.demo localhost 127.0.0.1"
-      exit 1
-    fi
-  else
-    ok "TLS certs present in certs/."
-  fi
+  bash "${BASEDIR}/scripts/ensure-dev-certs.sh"
 
   # LLM2.json — must be a FILE. Replace a stray Docker-created directory, and
   # placeholder a missing key so the mount is a file (Helix stays unconfigured
@@ -736,8 +714,15 @@ _require_services() {
   done
 }
 
-# True if "demo-api-server" is among the given service names (its HTTPS health
-# depends on the gitignored bind mounts existing as the right type).
+# True when a service needs the gitignored TLS bind mount (UI dev HTTPS or BFF).
+_needs_tls_bind_mounts() {
+  for svc in "$@"; do
+    [[ "${svc}" == "demo-api-server" || "${svc}" == "ui" ]] && return 0
+  done
+  return 1
+}
+
+# True if "demo-api-server" is among the given service names (vault + demo-sync).
 _includes_bff() {
   for svc in "$@"; do [[ "${svc}" == "demo-api-server" ]] && return 0; done
   return 1
@@ -762,7 +747,8 @@ cmd_restart_one() {
   echo -e "${CYAN}${BOLD}   [DOCKER]  Restarting ${*} (others untouched)${RESET}"
   echo ""
   git_sync_check; echo ""
-  _includes_bff "$@" && { ensure_bind_mounts; vault_preflight; echo ""; }
+  _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
+  _includes_bff "$@" && { vault_preflight; echo ""; }
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   if _includes_bff "$@"; then
@@ -788,7 +774,8 @@ cmd_build_one() {
   echo -e "${CYAN}${BOLD}   [DOCKER]  Rebuilding + restarting ${services[@]} (others untouched)${RESET}"
   echo ""
   git_sync_check; echo ""
-  _includes_bff "${services[@]}" && { ensure_bind_mounts; vault_preflight; echo ""; }
+  _needs_tls_bind_mounts "${services[@]}" && { ensure_bind_mounts; echo ""; }
+  _includes_bff "${services[@]}" && { vault_preflight; echo ""; }
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   echo ""
