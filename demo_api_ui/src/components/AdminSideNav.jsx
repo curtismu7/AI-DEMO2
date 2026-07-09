@@ -482,16 +482,8 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         {
-          label: "Gateway Tester",
-          path: "/configure?tab=mcp-gateway&subtab=tester",
-          icon: "tst",
-        },
-        {
-          label: "Token Lab",
-          // Static HTML page (BFF public/) — full navigation avoids SPA catch-all.
-          action: () => {
-            window.location.href = "/pinggateway-test.html";
-          },
+          label: "PingGateway Test",
+          path: "/pinggateway-test.html",
           icon: "tst",
         },
       ],
@@ -690,7 +682,6 @@ export default function AdminSideNav({ user }) {
     },
     { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
     { label: "Code Search", path: "/code-search", icon: "srch" },
-    { label: "Graphify", path: "/graphify", icon: "doc" },
     { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
     { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
     { label: "Learning Hub", path: "/learning", icon: "doc" },

@@ -1,0 +1,299 @@
+[
+  {
+    "vertical": "healthcare",
+    "name": "CareConnect",
+    "ok": true,
+    "chip": "first-heuristic",
+    "steps": [
+      {
+        "title": "1. Sign-in — User Token acquired",
+        "lane": "PINGONE",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "2. Chatbot — prompt sent",
+        "lane": "CHAT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "3. Agent service receives request",
+        "lane": "AGENT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "4. Heuristics — intent match & tool choice",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "5. Agent identity token",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "6. Token exchange — delegation",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "7. PingOne Authorize — policy decision",
+        "lane": "AUTHZ",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "8. Agent Gateway — token validated",
+        "lane": "GATEWAY",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "9. MCP server — tool executes",
+        "lane": "MCP",
+        "status": "active",
+        "icon": "⏳"
+      },
+      {
+        "title": "10. Resource server — API call",
+        "lane": "API",
+        "status": "pending",
+        "icon": "·"
+      },
+      {
+        "title": "11. Heuristics composes reply → chat",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      }
+    ],
+    "notes": [
+      "activateVertical HTTP 204",
+      "clicked Actions chip: first-heuristic",
+      "invoke {\"status\":200,\"reply\":\"❌ Gateway policy denied the tool call\",\"error\":null}",
+      "HEURISTICS labels verified"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-03-after-chip.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-04-step4.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-05-step11.png"
+    ],
+    "step4": {
+      "title": "4. Heuristics — intent match & tool choice",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    },
+    "step11": {
+      "title": "11. Heuristics composes reply → chat",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    }
+  },
+  {
+    "vertical": "government",
+    "name": "CivicPermit",
+    "ok": true,
+    "chip": "first-heuristic",
+    "steps": [
+      {
+        "title": "1. Sign-in — User Token acquired",
+        "lane": "PINGONE",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "2. Chatbot — prompt sent",
+        "lane": "CHAT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "3. Agent service receives request",
+        "lane": "AGENT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "4. Heuristics — intent match & tool choice",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "5. Agent identity token",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "6. Token exchange — delegation",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "7. PingOne Authorize — policy decision",
+        "lane": "AUTHZ",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "8. Agent Gateway — token validated",
+        "lane": "GATEWAY",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "9. MCP server — tool executes",
+        "lane": "MCP",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "10. Resource server — API call",
+        "lane": "API",
+        "status": "pending",
+        "icon": "·"
+      },
+      {
+        "title": "11. Heuristics composes reply → chat",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      }
+    ],
+    "notes": [
+      "activateVertical HTTP 204",
+      "clicked Actions chip: first-heuristic",
+      "invoke {\"status\":200,\"reply\":\"❌ mcp_authorize_unavailable\",\"error\":null}",
+      "HEURISTICS labels verified"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-03-after-chip.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-04-step4.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-05-step11.png"
+    ],
+    "step4": {
+      "title": "4. Heuristics — intent match & tool choice",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    },
+    "step11": {
+      "title": "11. Heuristics composes reply → chat",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    }
+  },
+  {
+    "vertical": "banking",
+    "name": "Super Banking",
+    "ok": true,
+    "chip": "My accounts",
+    "steps": [
+      {
+        "title": "1. Sign-in — User Token acquired",
+        "lane": "PINGONE",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "2. Chatbot — prompt sent",
+        "lane": "CHAT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "3. Agent service receives request",
+        "lane": "AGENT",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "4. Heuristics — intent match & tool choice",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "5. Agent identity token",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "6. Token exchange — delegation",
+        "lane": "BFF",
+        "status": "done",
+        "icon": "✓"
+      },
+      {
+        "title": "7. PingOne Authorize — policy decision",
+        "lane": "AUTHZ",
+        "status": "active",
+        "icon": "⏳"
+      },
+      {
+        "title": "8. Agent Gateway — token validated",
+        "lane": "GATEWAY",
+        "status": "pending",
+        "icon": "·"
+      },
+      {
+        "title": "9. MCP server — tool executes",
+        "lane": "MCP",
+        "status": "pending",
+        "icon": "·"
+      },
+      {
+        "title": "10. Resource server — API call",
+        "lane": "API",
+        "status": "pending",
+        "icon": "·"
+      },
+      {
+        "title": "11. Heuristics composes reply → chat",
+        "lane": "HEURISTICS",
+        "status": "done",
+        "icon": "✓"
+      }
+    ],
+    "notes": [
+      "activateVertical HTTP 204",
+      "clicked Actions chip: My accounts",
+      "invoke {\"status\":200,\"reply\":\"❌ Gateway policy denied the tool call\",\"error\":null}",
+      "HEURISTICS labels verified"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-03-after-chip.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-04-step4.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-05-step11.png"
+    ],
+    "step4": {
+      "title": "4. Heuristics — intent match & tool choice",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    },
+    "step11": {
+      "title": "11. Heuristics composes reply → chat",
+      "lane": "HEURISTICS",
+      "status": "done",
+      "icon": "✓"
+    }
+  }
+]

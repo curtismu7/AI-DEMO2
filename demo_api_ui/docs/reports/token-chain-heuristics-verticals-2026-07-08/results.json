@@ -1,0 +1,50 @@
+[
+  {
+    "vertical": "healthcare",
+    "name": "CareConnect",
+    "ok": false,
+    "chip": null,
+    "steps": [],
+    "notes": [
+      "activateVertical HTTP 204",
+      "ERROR: No heuristic chip found"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/healthcare-error.png"
+    ]
+  },
+  {
+    "vertical": "government",
+    "name": "CivicPermit",
+    "ok": false,
+    "chip": null,
+    "steps": [],
+    "notes": [
+      "activateVertical HTTP 204",
+      "ERROR: No heuristic chip found"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/government-error.png"
+    ]
+  },
+  {
+    "vertical": "banking",
+    "name": "Super Banking",
+    "ok": false,
+    "chip": null,
+    "steps": [],
+    "notes": [
+      "activateVertical HTTP 204",
+      "ERROR: No heuristic chip found"
+    ],
+    "screenshots": [
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-02-actions-open.png",
+      "/Users/curtismuir/Development/AI-DEMO2-fix-token-chain-heuristics-all-verticals/demo_api_ui/docs/reports/token-chain-heuristics-verticals-2026-07-08/banking-error.png"
+    ]
+  }
+]
