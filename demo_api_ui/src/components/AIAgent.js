@@ -426,6 +426,8 @@ export default function BankingAgent({
   const [p1mfaDaId, setP1mfaDaId] = useState(null);
   const [p1mfaDevices, setP1mfaDevices] = useState([]);
   const [consentBlocked, setConsentBlocked] = useState(false);
+  /** MCP auth mode from oauth status — consumer vs enterprise-managed. */
+  const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   const [txErrorModal, setTxErrorModal] = useState(null); // { title, message } or null
   const [complianceStripState, setComplianceStripState] = useState(() => {
     try {
@@ -1401,6 +1403,11 @@ export default function BankingAgent({
         setSessionUser(found);
         // Clear any stale consent-decline block — user has a fresh session.
         setAgentBlockedByConsentDecline(false);
+      }
+      if (endUser?.enterpriseManagedMode) {
+        setMcpAuthMode("enterprise-managed");
+      } else {
+        setMcpAuthMode("consumer");
       }
     });
   }, []);
@@ -6220,12 +6227,12 @@ export default function BankingAgent({
                         : "Sign in to get started"
                       : splitChrome
                         ? isLoggedIn
-                          ? `${effectiveUser.role === "admin" ? "Admin" : "Customer"} · ${effectiveUser.firstName || effectiveUser.name?.split(" ")[0] || "Signed in"}`
+                          ? `${effectiveUser.role === "admin" ? "Admin" : "Customer"} · ${effectiveUser.firstName || effectiveUser.name?.split(" ")[0] || "Signed in"}${mcpAuthMode === "enterprise-managed" ? " · Enterprise-managed MCP" : ""}`
                           : marketingGuestChatEnabled
                             ? "Chat here — PingOne when you use banking"
                             : "Sign in to get started"
                         : isLoggedIn
-                          ? `${effectiveUser.firstName || effectiveUser.name?.split(" ")[0] || "Signed in"} · ${effectiveUser.role === "admin" ? " Admin" : " Customer"}`
+                          ? `${effectiveUser.firstName || effectiveUser.name?.split(" ")[0] || "Signed in"} · ${effectiveUser.role === "admin" ? " Admin" : " Customer"}${mcpAuthMode === "enterprise-managed" ? " · Enterprise-managed MCP" : ""}`
                           : marketingGuestChatEnabled
                             ? "Chat here — PingOne when you use banking"
                             : "Sign in to get started"}

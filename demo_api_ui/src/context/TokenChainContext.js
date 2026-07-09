@@ -83,6 +83,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
   });
   // Current BFF token validation mode ('introspection' | 'jwt' | null)
   const [validationMode, setValidationMode] = useState(null);
+  const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   // Resolved identity — friendly user/actor names derived from current BFF session.
   // { currentUser: { sub, name, email } | null, knownClients: { [clientId]: label } }
   const [resolvedIdentity, setResolvedIdentity] = useState(null);
@@ -293,6 +294,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
             );
           }
           if (data.validationMode) setValidationMode(data.validationMode);
+          if (data.metadata?.mcpAuthMode) setMcpAuthMode(data.metadata.mcpAuthMode);
         }
       } catch (err) {
         if (recordFailure()) return;
@@ -527,6 +529,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
       history,
       mcpToolCalls,
       validationMode,
+      mcpAuthMode,
       resolvedIdentity,
       setTokenEvents,
       clearEvents,
@@ -543,6 +546,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
     mcpToolCallsHistory,
     liveMcpToolCalls,
     validationMode,
+    mcpAuthMode,
     resolvedIdentity,
     setTokenEvents,
     clearEvents,

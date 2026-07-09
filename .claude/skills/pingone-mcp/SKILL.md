@@ -45,6 +45,7 @@ Management API rather than retrying MCP in a loop.
 |---|---|---|
 | Claude Code session | `.air/mcp.json` (per-machine, gitignored; template `.air/mcp.json.example`) | Interactive OAuth — run `/mcp` in an interactive session to authorize; per-user, not shareable |
 | Cursor (project) | `.cursor/mcp.json` (per-machine, gitignored; template `.cursor/mcp.json.example`; `npm run patch:cursor-mcp`) | Hosted HTTP MCP at `api.pingone.{region}/.../mcp` with static OAuth `auth.CLIENT_ID` from bootstrap; Customize → MCP → Connect. Stdio entries: `github`, `codegraph`, `banking-dev`. |
+| IDE OAuth setup (7474) | Worker app + client ID | Step-by-step: [pingone-remote-mcp-connect](../pingone-remote-mcp-connect/SKILL.md) |
 | BFF (runtime) | `demo_api_server/services/mcpPingOneHttpAdapter.js` | Worker `client_credentials` Bearer token; stateless JSON-RPC (no initialize handshake, no session id); `tools/list` cached for process lifetime |
 | Scripts / smoke | `scripts/smoke-pingone-mcp.js` | Same worker Bearer pattern as the BFF |
 

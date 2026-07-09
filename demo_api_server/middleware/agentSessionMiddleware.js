@@ -133,6 +133,21 @@ async function agentSessionMiddleware(req, res, next) {
     console.log('[agentSessionMiddleware] agentContext.email:', req.agentContext.email);
     console.log('[agentSessionMiddleware] agentContext.accessToken present:', !!req.agentContext.accessToken);
 
+    // Enterprise-managed MCP: auto-establish agent consent when IT policy passes.
+    try {
+      const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
+      if (enterpriseMcpPolicy.isEnabled()) {
+        req.enterpriseManagedMode = true;
+        const policy = await enterpriseMcpPolicy.establishEnterpriseSession(req);
+        req.enterpriseMcpPolicy = policy;
+        if (!policy.allowed && policy.code === 'enterprise_mcp_policy_denied') {
+          req.enterpriseMcpPolicyDenied = true;
+        }
+      }
+    } catch (e) {
+      console.warn('[agentSessionMiddleware] enterprise MCP policy skipped:', e.message);
+    }
+
     // Step 4: Initialize token events tracking for this request
     // Events will be collected during MCP tool calls and returned in response
     req.tokenEvents = req.agentContext.tokenEvents;

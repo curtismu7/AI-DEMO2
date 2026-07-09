@@ -37,6 +37,7 @@ import { adminConfigSafeView } from '../adminConfig';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
 import { selfBaseUrl } from '../selfBaseUrl';
+import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
@@ -261,6 +262,10 @@ export class GatewayServer {
       metadata.authorization_servers = [
         `https://auth.pingone.${pingOneRegion}/${pingOneEnvId}/as`,
       ];
+    }
+
+    if (isEnterpriseManagedMcpAuthEnabled()) {
+      metadata.extensions = buildEnterpriseExtensionBlock();
     }
 
     res.writeHead(200, {
@@ -650,12 +655,12 @@ export class GatewayServer {
     const safeDesc = description.replace(/"/g, "'");
     res.writeHead(401, {
       'Content-Type': 'application/json',
-      'WWW-Authenticate': [
+      'WWW-Authenticate': appendEnterpriseWwwAuthHint([
         `Bearer realm="${realm}"`,
         `resource_metadata="${metadataUrl}"`,
         `error="${errorCode}"`,
         `error_description="${safeDesc}"`,
-      ].join(', '),
+      ].join(', ')),
     });
     res.end(JSON.stringify({ error: errorCode, message: description }));
   }

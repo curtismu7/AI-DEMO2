@@ -409,4 +409,40 @@ describe('RFC 9728 Integration Tests', () => {
       process.env.NODE_ENV = originalNodeEnv;
     });
   });
+
+  describe('Enterprise-Managed Authorization extension (Phase 1)', () => {
+    test('should omit extensions when ff_enterprise_managed_mcp_auth is off', async () => {
+      jest.resetModules();
+      jest.doMock('../../services/configStore', () => ({
+        getEffective: jest.fn(() => 'false'),
+      }));
+      const routeOff = require('../../routes/protectedResourceMetadata');
+      const offApp = express();
+      offApp.use('/.well-known/oauth-protected-resource', routeOff);
+
+      const response = await request(offApp)
+        .get('/.well-known/oauth-protected-resource')
+        .expect(200);
+
+      expect(response.body.extensions).toBeUndefined();
+    });
+
+    test('should include enterprise-managed extension when flag is on', async () => {
+      jest.resetModules();
+      jest.doMock('../../services/configStore', () => ({
+        getEffective: jest.fn((key) => (key === 'ff_enterprise_managed_mcp_auth' ? 'true' : 'false')),
+      }));
+      const routeOn = require('../../routes/protectedResourceMetadata');
+      const onApp = express();
+      onApp.use('/.well-known/oauth-protected-resource', routeOn);
+
+      const response = await request(onApp)
+        .get('/.well-known/oauth-protected-resource')
+        .expect(200);
+
+      expect(response.body.extensions).toEqual({
+        'io.modelcontextprotocol/enterprise-managed-authorization': {},
+      });
+    });
+  });
 });

@@ -176,12 +176,24 @@ function PingOneContent() {
 function InThisDemoContent() {
   return (
     <>
-      <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderLeft: '3px solid #ea580c', borderRadius: 6, padding: '10px 14px', margin: '0 0 1rem', fontSize: '0.84rem', color: '#7c2d12', lineHeight: 1.55 }}>
-        <strong>⚠️ This demo does not enable the enterprise-managed authorization extension today.</strong>{' '}
-        It demonstrates the <em>user-consent + RFC 8693 token exchange</em> path that consumer and hybrid deployments use.
+      <div style={{ background: '#ecfdf5', border: '1px solid #86efac', borderLeft: '3px solid #16a34a', borderRadius: 6, padding: '10px 14px', margin: '0 0 1rem', fontSize: '0.84rem', color: '#14532d', lineHeight: 1.55 }}>
+        <strong>✅ Phase 2 demo behavior is available</strong> when Quick Flag{' '}
+        <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>Enterprise-Managed MCP Auth</code>{' '}
+        is ON. Native PingOne ID-JAG is still on the roadmap — RFC 8693 stands in for ID-JAG today.
       </div>
 
-      <Section title="What this demo does today">
+      <Section title="When Enterprise-Managed MCP Auth is ON">
+        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.65 }}>
+          <li>Employee logs in via PingOne SSO (unchanged).</li>
+          <li>IT policy checks PingOne group/population (<code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>ENTERPRISE_MCP_ALLOWED_GROUPS</code>) before token exchange.</li>
+          <li>No separate &ldquo;Connect MCP&rdquo; consent step when policy passes — agent MCP session is auto-established.</li>
+          <li>BFF performs <strong>RFC 8693 token exchange</strong> labeled as <strong>ID-JAG equivalent (stand-in)</strong> in the Token Chain.</li>
+          <li>Users outside allowed groups receive <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>enterprise_mcp_policy_denied</code> (403) before exchange.</li>
+          <li>RFC 9728 metadata and the MCP gateway advertise <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>{EXT_ID}</code>.</li>
+        </ul>
+      </Section>
+
+      <Section title="When the flag is OFF (default)">
         <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.65 }}>
           <li>User logs in via PingOne OAuth (Auth Code + PKCE) to the BFF.</li>
           <li>User explicitly connects the AI agent / MCP path (consent-oriented flow).</li>
@@ -190,12 +202,11 @@ function InThisDemoContent() {
         </ul>
       </Section>
 
-      <Section title="What enterprise-managed auth would add">
+      <Section title="Roadmap (Phase 3 — blocked on PingOne product)">
         <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.65 }}>
-          <li>MCP client declares <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>{EXT_ID}</code> in <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>initialize</code> capabilities.</li>
-          <li>Org admin configures IdP endpoints; employees skip per-server MCP AS redirects.</li>
-          <li>Client obtains ID-JAG from PingOne and exchanges it at the MCP AS — no browser hop to MCP consent.</li>
-          <li>IT revokes MCP access centrally when offboarding users.</li>
+          <li>Native ID-JAG issuance at PingOne and token-endpoint-only MCP AS exchange.</li>
+          <li>MCP client declares the extension in <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3, fontSize: '0.82rem' }}>initialize</code> capabilities.</li>
+          <li>Token Chain label switches from stand-in to native ID-JAG.</li>
         </ul>
       </Section>
 

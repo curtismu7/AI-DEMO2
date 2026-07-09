@@ -320,6 +320,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
   ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
+  ff_enterprise_managed_mcp_auth:  { public: true, default: 'false' }, // MCP Enterprise-Managed Authorization — IT policy gate + RFC 8693 ID-JAG stand-in (Phase 1–2)
+  enterprise_mcp_allowed_groups:    { public: true, default: 'banking-agents,employees' }, // Comma-separated PingOne group names or population IDs
+  enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)

@@ -4283,6 +4283,26 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
             <div className="tcd-header-title-row">
               <div className="tcd-header-title">
                 Token Chain
+                {(ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise") && (
+                  <span
+                    className="tcd-badge tcd-badge--exchanged"
+                    title="Enterprise-managed MCP authorization — RFC 8693 is an ID-JAG stand-in"
+                    style={{ marginLeft: "8px", fontSize: "0.72rem", verticalAlign: "middle" }}
+                  >
+                    Enterprise-managed
+                  </span>
+                )}
+                {ctx?.mcpAuthMode &&
+                  ctx.mcpAuthMode !== "enterprise-managed" &&
+                  ctx.mcpAuthMode !== "enterprise" && (
+                  <span
+                    className="tcd-badge tcd-badge--waiting"
+                    title="Consumer MCP authorization — user consent + RFC 8693 delegation"
+                    style={{ marginLeft: "8px", fontSize: "0.72rem", verticalAlign: "middle" }}
+                  >
+                    Consumer
+                  </span>
+                )}
                 {isLive && (
                   <span
                     className="tcd-live-dot"
@@ -4353,7 +4373,9 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
               </div>
             )}
             <p className="tcd-header-sub">
-              {idTokenMode
+              {ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise"
+                ? "Enterprise-managed mode — SSO once, IT policy gate, RFC 8693 as ID-JAG equivalent (stand-in) → MCP access token → MCP server"
+                : idTokenMode
                 ? "ID Token 2-Token Exchange Flow — ID token → RFC 8693 exchange → MCP access token → MCP server → Banking API"
                 : "2-Token Exchange Flow — User access token stays in BFF → RFC 8693 exchange → MCP access token → MCP server → Banking API"}
             </p>
