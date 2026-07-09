@@ -366,6 +366,25 @@ const CONFIGURATION_TABS: Array<{
   },
 ];
 
+/** Resolve top-level configure tab + first section from ?tab= deep-link. */
+function resolveConfigurationTab(searchParams: URLSearchParams): {
+  tabId: string;
+  sectionId: string;
+} {
+  const tabParam = searchParams.get("tab");
+  const tab = CONFIGURATION_TABS.find((t) => t.id === tabParam);
+  if (tab) {
+    return {
+      tabId: tab.id,
+      sectionId: tab.sections[0] ?? getDefaultState().activeSection,
+    };
+  }
+  return {
+    tabId: "quick-start",
+    sectionId: getDefaultState().activeSection,
+  };
+}
+
 // Shape of lastEnvReconcile returned by GET /api/admin/config
 type EnvReconcile = {
   verdict: 'noop' | 'reconcile' | 'skip-warn' | 'stamp-only';
@@ -1826,8 +1845,12 @@ const UnifiedConfigurationPage: FC<{
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [state, setState] = useState<ConfigurationState>(getDefaultState);
-  const [activeTab, setActiveTab] = useState("quick-start");
+  const initialUrlTab = resolveConfigurationTab(searchParams);
+  const [state, setState] = useState<ConfigurationState>(() => ({
+    ...getDefaultState(),
+    activeSection: initialUrlTab.sectionId,
+  }));
+  const [activeTab, setActiveTab] = useState(initialUrlTab.tabId);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlag[]>([]);
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [flagsError, setFlagsError] = useState<string | null>(null);
@@ -1956,15 +1979,12 @@ const UnifiedConfigurationPage: FC<{
     loadConfiguration();
   }, [ctxAgentUiMode, ctxIndustryId, isAdminUser]);
 
-  // Handle initial tab from URL params
+  // Handle tab (+ section) from URL params — initial load and in-app navigation
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam && CONFIGURATION_TABS.find((tab) => tab.id === tabParam)) {
-      setActiveTab(tabParam);
-      const tab = CONFIGURATION_TABS.find((t) => t.id === tabParam);
-      if (tab && tab.sections.length > 0) {
-        setState((prev) => ({ ...prev, activeSection: tab.sections[0] }));
-      }
+    const { tabId, sectionId } = resolveConfigurationTab(searchParams);
+    if (searchParams.get("tab")) {
+      setActiveTab(tabId);
+      setState((prev) => ({ ...prev, activeSection: sectionId }));
     }
   }, [searchParams]);
 
@@ -2301,9 +2321,13 @@ const UnifiedConfigurationPage: FC<{
       if (tab && tab.sections.length > 0) {
         setState((prev) => ({ ...prev, activeSection: tab.sections[0] }));
       }
-      navigate(`/configure?tab=${tabId}`, { replace: true });
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", tabId);
+      if (tabId !== "mcp-gateway") params.delete("subtab");
+      const qs = params.toString();
+      navigate(qs ? `/configure?${qs}` : "/configure", { replace: true });
     },
-    [navigate],
+    [navigate, searchParams],
   );
 
   const handleSectionChange = useCallback((sectionId: string) => {

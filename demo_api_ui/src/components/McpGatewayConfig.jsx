@@ -74,7 +74,10 @@ function McpGatewayConfigInner() {
 	const [data, setData] = useState(null);
 	const [error, setError] = useState(null);
 	const [loading, setLoading] = useState(true);
-	const [activeTab, setActiveTab] = useState("mock");
+	const initialSubtab = searchParams.get("subtab");
+	const [activeTab, setActiveTab] = useState(() =>
+		initialSubtab && MGC_TABS.includes(initialSubtab) ? initialSubtab : "mock",
+	);
 
 	// Deep-link from AdminSideNav "Gateway Tester" → /configure?tab=mcp-gateway&subtab=tester
 	useEffect(() => {
