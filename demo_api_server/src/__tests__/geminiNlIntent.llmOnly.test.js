@@ -69,6 +69,7 @@ function setHeuristicMode() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  callHelixAgent.mockReset();
 });
 
 describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => {
@@ -173,6 +174,31 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     // answerWithHelix should NOT have been called (router matched)
     expect(callHelixAgent).toHaveBeenCalledTimes(1);
   });
+
+  it('prefers structured heuristic match over conversational helix_fallback when JSON router misses', async () => {
+    // Pure LLM modes try Helix first; if Helix returns kind:none / non-JSON, a
+    // chip phrase that the heuristic already mapped (e.g. retail "order status")
+    // must NOT become edu:general-knowledge — that skips the vertical tool.
+    setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({
+      kind: 'vertical',
+      vertical: 'retail',
+      action: 'order_status',
+      params: {},
+    });
+    callHelixAgent.mockReset();
+    callHelixAgent
+      .mockResolvedValueOnce('{"kind":"none","message":"I cannot route this"}')
+      .mockResolvedValueOnce('still not json')
+      .mockResolvedValueOnce('Here is my conversational answer');
+
+    const r = await parseNaturalLanguage('order status', { role: 'customer', vertical: 'retail' }, 'helix', {});
+
+    expect(r.source).toBe('heuristic');
+    expect(r.result.kind).toBe('vertical');
+    expect(r.result.action).toBe('order_status');
+    expect(r.llm_attempted).toBe(true);
+  });
 });
 
 describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
@@ -181,6 +207,7 @@ describe('geminiNlIntent — heuristic mode kind:none fallthrough', () => {
     parseHeuristic.mockReturnValue({ kind: 'none', message: '' });
 
     // 3 calls: router (kind:none) → refusal-retry (non-JSON) → answerWithHelix fallback.
+    callHelixAgent.mockReset();
     callHelixAgent
       .mockResolvedValueOnce('{"kind":"none","message":"unknown"}') // 1: router → kind:none
       .mockResolvedValueOnce('still not json') // 2: refusal-retry — parse fails

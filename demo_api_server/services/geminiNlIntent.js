@@ -585,6 +585,23 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     }
   }
 
+  // Prefer a structured heuristic match over conversational "general knowledge"
+  // when the JSON router did not produce a tool intent. Pure LLM modes
+  // (heuristicRouting:false) still try the LLM first above; if Helix/llama/etc.
+  // return kind:none / non-JSON, chip phrases must not become edu:general-knowledge
+  // and skip the vertical tool. Same for the ff_heuristic_enabled=false path.
+  if (heuristicResult && heuristicResult.kind !== 'none') {
+    if (llmAttempted || !heuristicRoutingEnabled) {
+      console.warn(
+        '[nlIntent] LLM JSON intent missed — using structured heuristic match (%s)',
+        heuristicResult.kind === 'banking'
+          ? heuristicResult.banking?.action
+          : heuristicResult.action || heuristicResult.kind,
+      );
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: llmAttempted };
+    }
+  }
+
   // In LLM-only mode go straight to the conversational answer
   // from whichever LLM the mode selected (Helix or LM Studio).
   if (!heuristicEnabled) {
