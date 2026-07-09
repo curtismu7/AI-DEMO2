@@ -113,6 +113,32 @@ describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => 
     expect(r.result.message).toBe('Here is my conversational answer');
   });
 
+
+  it('prefers heuristic when LLM JSON action disagrees with chip match', async () => {
+    setLlmOnlyMode();
+    parseHeuristic.mockReturnValue({
+      kind: 'vertical',
+      vertical: 'workforce',
+      action: 'list_expenses',
+      params: {},
+    });
+    callHelixAgent.mockReset();
+    callHelixAgent.mockResolvedValueOnce(
+      '{"kind":"banking","banking":{"action":"unusual_patterns","params":{}}}',
+    );
+
+    const r = await parseNaturalLanguage(
+      'Check for unusual patterns in my recent activity',
+      { role: 'customer', vertical: 'workforce' },
+      'helix',
+      {},
+    );
+
+    expect(r.source).toBe('heuristic');
+    expect(r.result.action).toBe('list_expenses');
+    expect(r.llm_attempted).toBe(true);
+  });
+
   it('prefers heuristic chip match over conversational when JSON router misses', async () => {
     // Write-chip phrases (checkout, release records, …) often omit optional
     // params; if Helix still returns kind:none after the JSON retry, use the

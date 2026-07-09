@@ -111,11 +111,21 @@ const MLX_PROVIDERS = new Set(['mlx']);
 /** Parse a non-none intent JSON object from an LLM reply (strips markdown fences). */
 function tryParseIntentJson(text) {
   if (!text) return null;
-  const cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-  } catch (_) {}
+  let cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
+  // Small local models often wrap JSON in prose or emit trailing commentary.
+  // Prefer a direct parse, then extract the first {...} object that has kind.
+  const candidates = [cleaned];
+  const brace = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (brace >= 0 && end > brace) {
+    candidates.push(cleaned.slice(brace, end + 1));
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
+    } catch (_) { /* try next */ }
+  }
   return null;
 }
 
@@ -303,11 +313,41 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // Surfaces in /tmp/demo-api.log for post-hoc diagnosis of routing decisions.
   const msgPreview = String(message || '').slice(0, 60).replace(/\s+/g, ' ');
   const startedAt = Date.now();
-  /** Internal: log + return the resolved decision in one line. */
+  /** Resolve the tool/action name from an NL result (banking or vertical). */
+  function actionName(result) {
+    if (!result || typeof result !== 'object') return null;
+    if (result.kind === 'banking') return result.banking?.action || null;
+    if (result.kind === 'vertical') return result.action || null;
+    if (result.kind === 'education') return `edu:${result.education?.panel || 'unknown'}`;
+    return result.action || null;
+  }
+
+  /**
+   * Internal: log + return the resolved decision in one line.
+   * When the LLM JSON router returns a structured action that disagrees with a
+   * heuristic chip match, prefer the heuristic — small local models often emit
+   * a plausible-but-wrong action (e.g. banking unusual_patterns on workforce).
+   */
   function logAndReturn(out) {
-    const action = out?.result?.banking?.action
-      || (out?.result?.kind === 'education' ? `edu:${out.result.education?.panel || 'unknown'}` : null)
-      || out?.result?.kind || 'unknown';
+    if (
+      out
+      && out.source !== 'heuristic'
+      && heuristicResult
+      && heuristicResult.kind !== 'none'
+    ) {
+      const heurAction = actionName(heuristicResult);
+      const llmAction = actionName(out.result);
+      const llmIsEducation = out.result?.kind === 'education';
+      if (heurAction && (llmIsEducation || (llmAction && llmAction !== heurAction))) {
+        console.warn(
+          '[nlIntent] LLM action %s disagrees with heuristic %s — using heuristic chip match',
+          llmAction || out.result?.kind || 'unknown',
+          heurAction,
+        );
+        out = { source: 'heuristic', result: heuristicResult, llm_attempted: true };
+      }
+    }
+    const action = actionName(out?.result) || out?.result?.kind || 'unknown';
     const ms = Date.now() - startedAt;
     console.log(
       `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${out.source} `
@@ -659,5 +699,5 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 module.exports = {
   parseNaturalLanguage,
   EDU,
-  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer },
+  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson },
 };
