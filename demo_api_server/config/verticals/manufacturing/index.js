@@ -12,7 +12,7 @@ const HEURISTICS = [
   { re: /\b(close|resolve|complete)\b.*\bmaintenance\b.*\bticket\b|\bmaintenance\b.*\bticket\b.*\b(clos\w*|resolv\w*|complet\w*)\b/i, action: 'close_maintenance_ticket', extractsRecordId: true },
   { re: /\b(complete|pass|sign[\s-]off)\b.*\b(quality|QC|QA)\b.*\binspection\b|\b(quality|QC|QA)\b.*\binspection\b.*\b(complet\w*|pass\w*|sign[\s-]?off)\b/i, action: 'complete_quality_inspection', extractsRecordId: true },
   { re: /\b(receive|confirm\s+receipt|accept)\b.*\bshipment\b|\bshipment\b.*\b(receiv\w*|confirm\w*)\b/i, action: 'receive_shipment', extractsRecordId: true },
-  { re: /\bapprov\w*\b.*\b(purchase\s+order|po)\b|\b(purchase\s+order|po)\b.*\bapprov\w*\b/i, action: 'approve_purchase_order', extractsRecordId: true },
+  { re: /\bapprov\w*\b.*\b(purchase\s+order|po)\b|\b(purchase\s+order|po)\b.*\bapprov\w*\b/i, action: 'approve_purchase_order', extractsAmount: true, extractsRecordId: true },
   { re: /\breject\b.*\b(purchase\s+order|po)\b|\b(purchase\s+order|po)\b.*\breject\b/i, action: 'reject_purchase_order', extractsRecordId: true },
   { re: /\bvoid\b.*\b(purchase\s+order|po)\b|\b(purchase\s+order|po)\b.*\bvoid\b/i, action: 'void_purchase_order', extractsRecordId: true },
   { re: /\b(flag|log|report)\b.*\bdefect\b|\bdefect\b.*\b(flagg\w*|logg\w*|report\w*)\b/i, action: 'flag_defect', extractsRecordId: true },

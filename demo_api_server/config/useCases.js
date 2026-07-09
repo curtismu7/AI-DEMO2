@@ -32,6 +32,47 @@ const VERTICALS = [
   'university', 'workforce', 'sporting-goods', 'manufacturing',
 ];
 
+
+/** Per-vertical chip triggers so Heuristics mode matches each vertical's phrases. */
+const READ_TRIGGER_BY_VERTICAL = {
+  healthcare: 'check my coverage',
+  retail: 'list my orders',
+  government: 'show my permits',
+  university: 'show my enrolled courses',
+  workforce: 'my benefits',
+  'sporting-goods': 'my gear',
+  manufacturing: 'show my work orders',
+};
+
+/** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
+function amountTriggerByVertical(amount) {
+  const n = String(amount);
+  return {
+    healthcare: `pay my $${n} bill`,
+    retail: `checkout headphones for $${n}`,
+    government: `pay the $${n} fee`,
+    university: `pay $${n} tuition`,
+    workforce: `submit a $${n} expense`,
+    'sporting-goods': `extend my rental $${n}`,
+    manufacturing: `approve a $${n} purchase order`,
+  };
+}
+
+function chipOverrides(textByVertical, extraByVertical = {}) {
+  const out = {};
+  for (const [v, text] of Object.entries(textByVertical)) {
+    out[v] = { trigger: { type: 'chip', text }, ...(extraByVertical[v] || {}) };
+  }
+  return out;
+}
+
+const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL);
+const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
+  chipOverrides(amountTriggerByVertical(amount), Object.fromEntries(
+    Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
+  ));
+
+
 /** @type {UseCase[]} */
 const RAW_USE_CASES = [
   // --- FOUNDATIONS ---
@@ -59,6 +100,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the act claim and delegation chain; returns PERMIT for a valid actor.',
     },
     primaryTool: 'get_account_balance',
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC2',
@@ -82,6 +124,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the full act chain at each hop; denies if any link is unauthorized.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC2.5',
@@ -130,6 +173,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates delegation eligibility as a policy step before the tool call is allowed.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC19',
@@ -202,6 +246,7 @@ const RAW_USE_CASES = [
       gw:    'Enforces the required scopes at the gateway boundary — excess scope is harmless here but the mismatch is visible.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC6',
@@ -227,12 +272,15 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the transaction amount against the ceiling rule and returns DENY.',
     },
     primaryTool: 'create_transfer',
-    perVertical: {
-      healthcare: {
-        trigger: { type: 'chip', text: 'pay my $2500 specialist claim' },
-        whatToSay: '$2500 claim payment exceeds the policy ceiling — Authorize returns DENY.',
-      },
-    },
+    perVertical: AMOUNT_PER_VERTICAL(2500, {
+      healthcare: '$2500 bill payment exceeds the policy ceiling — Authorize returns DENY.',
+      retail: '$2500 checkout exceeds the policy ceiling — Authorize returns DENY.',
+      government: '$2500 fee payment exceeds the policy ceiling — Authorize returns DENY.',
+      university: '$2500 tuition payment exceeds the policy ceiling — Authorize returns DENY.',
+      workforce: '$2500 expense exceeds the policy ceiling — Authorize returns DENY.',
+      'sporting-goods': '$2500 rental extension exceeds the policy ceiling — Authorize returns DENY.',
+      manufacturing: '$2500 purchase-order approval exceeds the policy ceiling — Authorize returns DENY.',
+    }),
   },
   {
     id: 'UC7',
@@ -259,12 +307,15 @@ const RAW_USE_CASES = [
       mfa:   'Delivers the step-up challenge; the success receipt is presented back to the policy for re-evaluation.',
     },
     primaryTool: 'create_transfer',
-    perVertical: {
-      healthcare: {
-        trigger: { type: 'chip', text: 'pay my $600 specialist claim' },
-        whatToSay: '$600 claim payment >= the step-up bar → MFA required first.',
-      },
-    },
+    perVertical: AMOUNT_PER_VERTICAL(600, {
+      healthcare: '$600 bill payment >= the step-up bar → MFA required first.',
+      retail: '$600 checkout >= the step-up bar → MFA required first.',
+      government: '$600 fee payment >= the step-up bar → MFA required first.',
+      university: '$600 tuition payment >= the step-up bar → MFA required first.',
+      workforce: '$600 expense >= the step-up bar → MFA required first.',
+      'sporting-goods': '$600 rental extension >= the step-up bar → MFA required first.',
+      manufacturing: '$600 purchase-order approval >= the step-up bar → MFA required first.',
+    }),
   },
   {
     id: 'UC8',
@@ -290,12 +341,15 @@ const RAW_USE_CASES = [
       authz: 'Returns the HITL obligation; re-evaluates to PERMIT only when HitlApproved=true is presented.',
     },
     primaryTool: 'create_transfer',
-    perVertical: {
-      healthcare: {
-        trigger: { type: 'chip', text: 'pay my $300 specialist claim' },
-        whatToSay: '$300 claim payment requires human consent before it runs.',
-      },
-    },
+    perVertical: AMOUNT_PER_VERTICAL(300, {
+      healthcare: '$300 bill payment requires human consent before it runs.',
+      retail: '$300 checkout requires human consent before it runs.',
+      government: '$300 fee payment requires human consent before it runs.',
+      university: '$300 tuition payment requires human consent before it runs.',
+      workforce: '$300 expense requires human consent before it runs.',
+      'sporting-goods': '$300 rental extension requires human consent before it runs.',
+      manufacturing: '$300 purchase-order approval requires human consent before it runs.',
+    }),
   },
   {
     id: 'UC9',
@@ -320,6 +374,7 @@ const RAW_USE_CASES = [
       gw:    'Enforces the DENY returned by Authorize before any tool is dispatched.',
     },
     primaryTool: null,
+    perVertical: AMOUNT_PER_VERTICAL(600),
   },
   {
     id: 'UC21',
@@ -369,6 +424,7 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: null,
+    perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
   // --- PROGRESSIVE TRUST DEMO (Ping MyHotels pattern on banking agents) ---
@@ -420,6 +476,15 @@ const RAW_USE_CASES = [
       gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
     },
     primaryTool: 'get_branch_hours',
+    perVertical: chipOverrides({
+      healthcare: 'What clinics are near me?',
+      retail: 'What stores are near me?',
+      government: 'What city offices are near me?',
+      university: 'What campus locations are near me?',
+      workforce: 'What office locations are near me?',
+      'sporting-goods': 'What stores are near me?',
+      manufacturing: 'What plant locations are near me?',
+    }),
   },
 
   // --- ATTACKS ---

@@ -806,6 +806,27 @@ function parseHeuristic(
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
   }
 
+  // Progressive-trust Act 1 / UC24 — public catalog (cross-vertical). Must run
+  // before plugin heuristics so non-banking verticals still reach get_branch_hours
+  // instead of falling through to the capability catalog.
+  if (
+    /\b(branch|branches|atm|atms|clinic|clinics|store|stores|office|offices|campus|plant|plants|location|locations)\b/.test(
+      t,
+    ) &&
+    /\b(near|hours|location|locations|find|where|what|open)\b/.test(t)
+  ) {
+    const cityMatch = t.match(
+      /\b(?:in|near)\s+(?!me\b)([a-z][a-z\s-]{1,30}?)(?:\?|$)/i,
+    );
+    const params = cityMatch?.[1]
+      ? { city: cityMatch[1].trim() }
+      : undefined;
+    return {
+      kind: "banking",
+      banking: { action: "branch_hours", ...(params ? { params } : {}) },
+    };
+  }
+
   // Plugin-first: a vertical with a plugin matches its OWN heuristics/actions.
   // No banking fallback — a non-match returns kind:'none', never a banking action.
   if (verticalDispatch.hasPlugin(vertical)) {

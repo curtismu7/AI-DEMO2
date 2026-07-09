@@ -26,7 +26,7 @@ const HEURISTICS = [
   { re: /\bcoaching\b|\blessons?\b|\bclinics?\b|\btraining\s+sessions?\b/i, action: 'list_coaching_sessions' },
   /* PACK:heuristics:end */
   { re: /\bsensitive\b.*\bmember\b|\bmember\b.*\bsensitive\b/i, action: 'sensitive_membership_details' },
-  { re: /\bextend\b.*\brental\b|\brenew\b.*\brental\b/, action: 'extend_rental', extractsRentalId: true, paramHint: 'e.g. "extend rental r1" — find your rental ID in the rentals list' },
+  { re: /\bextend\b.*\brental\b|\brenew\b.*\brental\b/, action: 'extend_rental', extractsAmount: true, extractsRentalId: true, paramHint: 'e.g. "extend rental r1" — find your rental ID in the rentals list' },
   { re: /\b(my\s+)?rentals?\b|\bgear\s+rentals?\b|\bdue\s+back\b/, action: 'list_rentals' },
   { re: /\border\s+status\b|\btrack\s+(my\s+)?order\b/, action: 'gear_order_status', extractsOrderId: true, paramHint: 'e.g. "order status 1003" — find your order ID in the gear list' },
   { re: /\b(my\s+)?gear\b|\bmy\s+equipment\b|\border\s+history\b/, action: 'list_gear' },

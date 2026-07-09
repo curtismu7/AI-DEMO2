@@ -41,7 +41,11 @@ router.get('/:id', (req, res) => {
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
 router.post('/demo/run', authenticateToken, (req, res) => {
   const { useCaseId, triggerId } = req.body;
-  const vertical = req.query.vertical || 'banking';
+  const vertical = req.body?.vertical || req.query.vertical || 'banking';
+
+  if (!VERTICALS.includes(vertical)) {
+    return res.status(400).json({ success: false, error: 'unknown_vertical', vertical });
+  }
 
   if (!useCaseId) {
     return res.status(400).json({ success: false, error: 'useCaseId is required' });
@@ -71,6 +75,7 @@ router.post('/demo/run', authenticateToken, (req, res) => {
     useCaseId: useCase.useCaseId,
     triggerText: useCase.trigger?.text || '',
     type: useCase.type || 'chip',
+    vertical,
     message: 'Use case queued for execution',
   });
 });

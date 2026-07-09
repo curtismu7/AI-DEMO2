@@ -56,9 +56,9 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
 
   if (verticals.length < 2) return null;
 
-  if (variant === 'config') {
+  if (variant === 'config' || variant === 'pills') {
     return (
-      <div className="vertical-switcher vertical-switcher--config">
+      <div className={`vertical-switcher vertical-switcher--config${variant === 'pills' ? ' vertical-switcher--pills' : ''}`}>
         <div className="vertical-switcher__pills">
           {verticals.map(v => {
             const primaryColor = getPrimaryColor(v);
@@ -76,12 +76,14 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
                   style={{ background: primaryColor }}
                 />
                 <span className="vertical-switcher__label">{v.displayName}</span>
-                <span className="vertical-switcher__tagline">{v.tagline}</span>
+                {variant === 'config' && (
+                  <span className="vertical-switcher__tagline">{v.tagline}</span>
+                )}
               </button>
             );
           })}
         </div>
-        {activeId && (
+        {variant === 'config' && activeId && (
           <div className="vertical-switcher__themes">
             <div className="vertical-switcher__themes-title">Theme — {activeId}</div>
             <ThemeZonePanel verticalId={activeId} />

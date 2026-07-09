@@ -23,6 +23,21 @@
   margin: 0;
 }
 
+.uc-launcher__vertical-picker {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.uc-launcher__vertical-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #555);
+}
+
 .uc-launcher__loading,
 .uc-launcher__error {
   padding: 2rem;
