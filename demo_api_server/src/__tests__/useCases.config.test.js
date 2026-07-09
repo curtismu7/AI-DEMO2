@@ -11,14 +11,15 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 34 use cases including UC1..UC22 and UC23..UC24', () => {
-    expect(USE_CASES).toHaveLength(34);
+  test('contains all 39 use cases including UC1..UC25 and UC23..UC24', () => {
+    expect(USE_CASES).toHaveLength(39);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(34);
+    expect(new Set(ids).size).toBe(39);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
-    expect(ids).not.toContain('UC25');
+    expect(ids).toContain('UC25');
+    expect(ids).not.toContain('UC26');
   });
 
   test('every entry is schema-valid', () => {
@@ -29,10 +30,12 @@ describe('useCases catalog SoT', () => {
       expect(typeof u.title).toBe('string');
       expect(typeof u.buyerStory).toBe('string');
       expect(typeof u.pingOneSolution).toBe('string');
-      expect(['chip', 'attack', 'link']).toContain(u.trigger.type);
+      expect(['chip', 'attack', 'link', 'edu']).toContain(u.trigger.type);
       if (u.trigger.type === 'chip') expect(typeof u.trigger.text).toBe('string');
       else if (u.trigger.type === 'attack') expect(typeof u.trigger.sim).toBe('string');
-      else expect(typeof u.trigger.path).toBe('string');
+      else if (u.trigger.type === 'edu') {
+        expect(typeof u.trigger.panel).toBe('string');
+      } else expect(typeof u.trigger.path).toBe('string');
       expect(typeof u.expectedOutcome).toBe('string');
       expect(Array.isArray(u.evidence.tokenChain)).toBe(true);
       expect(Array.isArray(u.evidence.activity)).toBe(true);
@@ -154,8 +157,8 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all 34 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(34);
-    expect(listUseCases()).toHaveLength(34);
+    expect(listUseCases('healthcare')).toHaveLength(39);
+    expect(listUseCases()).toHaveLength(39);
   });
 
   test('only UC14 and UC15 are advanced', () => {

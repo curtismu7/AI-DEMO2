@@ -6,7 +6,7 @@
  * all derive from this file. Content is transcribed from the design spec
  * docs/superpowers/specs/2026-06-20-ai-agent-security-use-cases-design.md.
  *
- * @typedef {{type:'chip',text:string}|{type:'attack',sim:string}|{type:'link',path:string,label?:string}} Trigger
+ * @typedef {{type:'chip',text:string}|{type:'attack',sim:string}|{type:'link',path:string,label?:string}|{type:'edu',panel:string,tab?:string,label?:string}} Trigger
  * @typedef {{tokenChain:string[],activity:string[]}} Evidence
  * @typedef {{threats:string[],sections:string[]}} Owasp
  * @typedef {Object} UseCase
@@ -941,6 +941,79 @@ const RAW_USE_CASES = [
     businessValue: 'Shows lifecycle governance for privileged access without standing elevated accounts.',
     productRoles: { privilege: 'Request, approve, broker, record, and revoke privileged sessions across cloud and on-prem targets.' },
     primaryTool: null,
+  },
+  {
+    id: 'UC-LEARN8',
+    useCaseId: 'enterprise-managed-mcp-auth',
+    track: 'learn',
+    title: 'Enterprise-Managed MCP Authorization',
+    buyerStory: 'IT should control which MCP servers employees can use — without per-server OAuth consent for every agent.',
+    pingOneSolution: 'MCP extension io.modelcontextprotocol/enterprise-managed-authorization: PingOne as IdP gates MCP access by group; this demo uses RFC 8693 as an ID-JAG stand-in until native ID-JAG ships.',
+    trigger: { type: 'edu', panel: 'enterprise-managed-auth', tab: 'overview', label: 'Open EMA panel' },
+    expectedOutcome: 'GUIDED_LEARNING',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_ui/src/components/education/EnterpriseManagedAuthPanel.js',
+      'demo_api_server/services/enterpriseMcpMetadata.js',
+      'demo_api_server/services/enterpriseMcpPolicyService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Walk the MCP enterprise-managed flow in the panel, then enable Enterprise-Managed MCP Auth in Quick Flags and run UC25 to see the RFC 8693 ID-JAG stand-in on the Token Chain.',
+    advanced: false,
+    whatLong: 'A learning surface (not a single identity scenario): explains the MCP Enterprise-Managed Authorization extension — IdP-centralized policy, ID-JAG exchange, and why employees skip per-server MCP AS redirects. The "In This Demo" tab documents what is live today (metadata + group gate + RFC 8693 stand-in) versus full spec compliance.',
+    businessValue: 'Gives IT and security teams a spec-aligned story for central MCP access control — the enterprise counterpart to consumer per-server consent.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC-LEARN9',
+    useCaseId: 'id-jag-cross-app-access',
+    track: 'learn',
+    title: 'ID-JAG / Cross-App Access',
+    buyerStory: 'Cross-app agent access needs a portable identity assertion — not a full federation hop for every resource server.',
+    pingOneSolution: 'Identity Assertion JWT Authorization Grant (ID-JAG): the enterprise IdP issues a grant the MCP Authorization Server exchanges for an MCP access token — the token enterprise-managed auth builds on.',
+    trigger: { type: 'edu', panel: 'id-jag', tab: 'how-it-works', label: 'Open ID-JAG panel' },
+    expectedOutcome: 'GUIDED_LEARNING',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: ['demo_api_ui/src/components/education/IdJagPanel.js'],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'ID-JAG is the grant enterprise-managed MCP auth exchanges — open this panel for the mechanics before running UC25.',
+    advanced: false,
+    whatLong: 'A learning surface (not a single identity scenario): covers the ID-JAG grant, PingOne SSO integration patterns, and current product limitations. Enterprise-managed MCP authorization uses ID-JAG (or an RFC 8693 stand-in in this demo) instead of redirecting users to each MCP Authorization Server.',
+    businessValue: 'Connects the IETF cross-app access draft to the MCP enterprise extension so teams understand the token grant, not just the policy story.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC25',
+    useCaseId: 'enterprise-managed-mcp-access',
+    track: 'controls',
+    title: 'Enterprise-managed MCP access',
+    buyerStory: 'Employees sign in once with corporate SSO; IT pre-approves MCP servers — no separate Connect-to-MCP OAuth step for every agent session.',
+    pingOneSolution: 'When Enterprise-Managed MCP Auth is on, PingOne group policy gates token issuance; the BFF mints MCP tokens via RFC 8693 as an ID-JAG stand-in and auto-connects the agent when policy passes.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/agentMcpTokenService.js',
+      'demo_api_server/services/enterpriseMcpPolicyService.js',
+      'demo_api_server/services/enterpriseMcpMetadata.js',
+    ],
+    maturity: 'flag:ff_enterprise_managed_mcp_auth',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3', '§8'] },
+    whatToSay: 'Enable Enterprise-Managed MCP Auth, run this scenario — group gate passes, no agent connect click, Token Chain shows enterprise-managed mode with ID-JAG stand-in.',
+    advanced: false,
+    match: { tool: 'get_balance' },
+    whatLong: 'Demonstrates Phase 2 enterprise-managed MCP access in the demo: after PingOne SSO, IT group membership is checked before the BFF performs RFC 8693 token exchange (labeled as ID-JAG stand-in). Users in allowed groups get MCP tool access without a separate per-server OAuth consent redirect; denied users receive enterprise_mcp_policy_denied.',
+    businessValue: 'Shows how IT can centralize MCP server access in PingOne — one SSO login, policy at the IdP, and immediate agent tool access for authorized employees.',
+    productRoles: {
+      idp:   'Evaluates group/population policy and issues delegated MCP tokens via RFC 8693 stand-in for ID-JAG.',
+      gw:    'Validates MCP access tokens and routes tool calls after gateway introspection.',
+    },
+    primaryTool: 'get_account_balance',
+    perVertical: READ_PER_VERTICAL,
   },
 ];
 

@@ -15,6 +15,7 @@ import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
+import { useEducationUI } from '../context/EducationUIContext';
 import { MODE_PROVIDER } from '../config/agentModes';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import './UseCaseLauncherPage.css';
@@ -314,6 +315,7 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, c
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
+  const isEdu    = uc.trigger?.type === 'edu';
   const mat = maturityLabel(uc.maturity);
 
   const simId = uc.trigger?.sim;
@@ -417,7 +419,16 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, c
             {uc.trigger.label || 'Open'}
           </button>
         )}
-        {!isChip && !isAttack && !isLink && (
+        {isEdu && (
+          <button
+            type="button"
+            className="uc-run-btn"
+            onClick={() => onOpen(uc)}
+          >
+            {uc.trigger.label || 'Open panel'}
+          </button>
+        )}
+        {!isChip && !isAttack && !isLink && !isEdu && (
           <span className="uc-card__no-trigger">No trigger defined</span>
         )}
       </div>
@@ -627,6 +638,7 @@ function ProgressiveTrustLlmShowcase() {
 export default function UseCaseLauncherPage() {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
+  const { open: openEdu } = useEducationUI();
 
   const [useCases, setUseCases] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -704,10 +716,14 @@ export default function UseCaseLauncherPage() {
       });
   }, [navigate, vertical]);
 
-  // Link-type use cases (developer tools) just navigate to their page.
+  // Link-type use cases navigate to their page; edu-type opens a learning panel.
   const handleOpen = useCallback((uc) => {
+    if (uc.trigger?.type === 'edu') {
+      openEdu(uc.trigger.panel, uc.trigger.tab || 'overview');
+      return;
+    }
     if (uc.trigger?.path) navigate(uc.trigger.path);
-  }, [navigate]);
+  }, [navigate, openEdu]);
 
   const handleRunAttack = useCallback((uc, sim) => {
     // Clear anatomy explainer while a new run is in flight
