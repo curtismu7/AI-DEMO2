@@ -43,6 +43,12 @@
 # Core default: real PingOne Authorize + PingGateway (IG). Flip FF in admin, then
 #   ./run-docker.sh demo-sync   (or restart the stack) to start/stop demo-auth.
 
+# Pin the Compose project name so bare `docker compose` from this directory
+# matches run-docker.sh (COMPOSE_PROJECT_NAME=ai-demo). Without this, the
+# default is the directory basename (e.g. ai-demo2), which splits the stack
+# and makes stop/restart appear to hang.
+name: ai-demo
+
 services:
 
   # ── Jaeger UI + OTLP collector (free local tracing backend) ────────────────

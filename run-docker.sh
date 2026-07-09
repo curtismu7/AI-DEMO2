@@ -529,16 +529,11 @@ tail_logs() {
 
 # ── Docker helpers ────────────────────────────────────────────────────────────
 
-# True when the Docker daemon answers (OrbStack / Docker Desktop running).
-_docker_daemon_ready() {
-  docker info >/dev/null 2>&1
-}
-
-# Run `docker compose …` with a wall-clock cap so a hung daemon does not block stop.
-_compose_with_timeout() {
+# Run any command with a wall-clock cap (used for docker info and compose).
+_cmd_with_timeout() {
   local secs="$1"
   shift
-  docker compose "${COMPOSE_FILES[@]}" "$@" &
+  "$@" &
   local pid=$!
   local waited=0
   while kill -0 "${pid}" 2>/dev/null && (( waited < secs )); do
@@ -553,23 +548,67 @@ _compose_with_timeout() {
   wait "${pid}"
 }
 
+# True when the Docker daemon answers within a few seconds.
+_docker_daemon_ready() {
+  _cmd_with_timeout 8 docker info >/dev/null 2>&1
+}
+
+# Run `docker compose …` with a wall-clock cap so a hung daemon does not block stop.
+_compose_with_timeout() {
+  local secs="$1"
+  shift
+  docker compose "${COMPOSE_FILES[@]}" "$@" &
+  local pid=$!
+  local waited=0
+  while kill -0 "${pid}" 2>/dev/null && (( waited < secs )); do
+    if (( waited > 0 && waited % 5 == 0 )); then
+      echo -e "${DIM}  … still stopping (${waited}s)${RESET}"
+    fi
+    sleep 1
+    ((waited++)) || true
+  done
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill "${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+    return 124
+  fi
+  wait "${pid}"
+}
+
+# Force-remove containers/network left when profiled services keep ai-demo_ai-demo alive.
+_purge_leftover_stack() {
+  local ids cnt
+  ids="$(docker ps -aq --filter "name=ai-demo-" 2>/dev/null || true)"
+  if [[ -n "${ids}" ]]; then
+    cnt="$(wc -w <<< "${ids}" | tr -d ' ')"
+    warn "Purging ${cnt} leftover ai-demo container(s)..."
+    # shellcheck disable=SC2086
+    docker rm -f ${ids} 2>/dev/null || true
+  fi
+  docker network rm ai-demo_ai-demo 2>/dev/null || true
+}
+
 _compose_down() {
   if ! _docker_daemon_ready; then
     warn "Docker daemon not running — skipping compose down (start OrbStack or Docker Desktop)"
     return 0
   fi
-  echo "Stopping containers..."
+  echo "Stopping containers (all profiles)..."
   local down_rc=0
+  # Pass every compose profile so optional-group containers (rag, tracing,
+  # agents, demo-auth) stop too — otherwise the shared network stays in use
+  # and `down` blocks at "Network ai-demo_ai-demo Removing".
   if [[ $# -gt 0 ]]; then
-    _compose_with_timeout 120 down --timeout 10 "$@" --remove-orphans 2>/dev/null || down_rc=$?
+    _compose_with_timeout 90 "${FULL_STACK_PROFILE_ARGS[@]}" down --timeout 5 "$@" --remove-orphans || down_rc=$?
   else
-    _compose_with_timeout 120 down --timeout 10 --remove-orphans 2>/dev/null || down_rc=$?
+    _compose_with_timeout 90 "${FULL_STACK_PROFILE_ARGS[@]}" down --timeout 5 --remove-orphans || down_rc=$?
   fi
   if [[ "${down_rc}" -ne 0 ]]; then
     warn "compose down timed out — forcing stop"
-    docker compose "${COMPOSE_FILES[@]}" kill 2>/dev/null || true
-    docker compose "${COMPOSE_FILES[@]}" rm -f 2>/dev/null || true
+    _compose_with_timeout 30 "${FULL_STACK_PROFILE_ARGS[@]}" kill 2>/dev/null || true
+    _compose_with_timeout 30 "${FULL_STACK_PROFILE_ARGS[@]}" rm -f 2>/dev/null || true
   fi
+  _purge_leftover_stack
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -644,7 +683,10 @@ cmd_stop_one() {
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Stopping ${*} (others untouched)${RESET}"
   echo ""
-  docker compose "${COMPOSE_FILES[@]}" stop "$@"
+  if ! _compose_with_timeout 60 stop --timeout 5 "$@"; then
+    warn "compose stop timed out — killing ${*}"
+    docker compose "${COMPOSE_FILES[@]}" kill "$@" 2>/dev/null || true
+  fi
   ok "Stopped: ${*}."
   echo ""
 }
