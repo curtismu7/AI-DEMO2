@@ -25,8 +25,8 @@ PingOne Authorize PERMITs a read-only public tool with no token exchange.
 
 ## Evidence
 
-**Token chain steps:**   
-**Activity categories:** mcp
+**Token chain steps:** authorize-decision → tool-dispatched  
+**Activity categories:** mcp, authorize
 
 ## Code References
 

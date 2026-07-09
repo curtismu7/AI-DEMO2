@@ -153,6 +153,16 @@ export default function Onboarding() {
           </ul>
         </div>
 
+        <div style={{ ...cardStyle, borderColor: '#fbcfe8', background: '#fdf2f8' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0', color: '#9f1239' }}>PingOne Privilege (SE)</h2>
+          <p style={{ margin: '0 0 0.75rem 0', color: '#831843', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+            Running the shared Privilege demo? Use the SE presenter hub for VM setup and the Request Access script.
+          </p>
+          <Link to="/privilege-demo" style={{ fontWeight: 600, color: '#9f1239', fontSize: '0.9375rem' }}>
+            Open Privilege SE Demo Hub
+          </Link>
+        </div>
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', marginTop: '1.5rem' }}>
           <Link
             to="/config"

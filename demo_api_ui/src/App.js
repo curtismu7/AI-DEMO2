@@ -105,6 +105,7 @@ import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
+import PrivilegeDemoPage from "./pages/PrivilegeDemoPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
@@ -546,6 +547,7 @@ function AppWithAuth() {
                   path="/onboarding"
                   element={<OnboardingRoute user={user} />}
                 />
+                <Route path="/privilege-demo" element={<PrivilegeDemoPage />} />
                 <Route
                   path="/snapshot-import"
                   element={
