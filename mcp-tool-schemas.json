@@ -93,6 +93,9 @@
         "properties": {
           "poId": {
             "type": "string"
+          },
+          "amount": {
+            "type": "number"
           }
         },
         "required": [
@@ -679,6 +682,9 @@
           },
           "days": {
             "type": "number"
+          },
+          "amount": {
+            "type": "number"
           }
         },
         "required": [
@@ -750,6 +756,35 @@
         "required": [
           "account_id"
         ],
+        "additionalProperties": false
+      }
+    },
+    "get_account_nickname": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Optional account ID (UUID) from get_my_accounts. Omit to use primary checking account."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "get_branch_hours": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "Optional city name to filter branches (e.g. Austin, Dallas)",
+            "maxLength": 80
+          }
+        },
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1256,6 +1291,9 @@
         "properties": {
           "billId": {
             "type": "string"
+          },
+          "amount": {
+            "type": "number"
           }
         },
         "required": [
