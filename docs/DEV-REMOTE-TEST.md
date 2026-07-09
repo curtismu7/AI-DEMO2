@@ -2,6 +2,20 @@
 
 Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same network. The test Mac always runs the **full Docker stack** — every compose service, RAG, alternate agents, tracing, and demo-auth.
 
+## Your environment
+
+| | |
+| --- | --- |
+| Dev Mac | `Curtiss-MacBook-Air.local` |
+| Test Mac (64GB) | `mac-Y4JYJ03X.local` |
+| Dev repo | `~/Development/AI-DEMO2` |
+| Test repo | `~/AI-demo-test` |
+| GitHub | `https://github.com/curtismu7/AI-demo` |
+| SSH alias | `testmac` → test Mac |
+| User | `curtismuir` |
+
+All commands below assume you run deploy/test scripts from `~/Development/AI-DEMO2`.
+
 ## Prerequisites
 
 ### Test Mac (one time)
@@ -12,18 +26,20 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
    curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
    ```
 
-2. Clone the repo:
+2. Clone the repo on **mac-Y4JYJ03X**:
 
    ```bash
-   git clone <your-remote-url> ~/AI-demo-test
+   git clone https://github.com/curtismu7/AI-demo.git ~/AI-demo-test
+   cd ~/AI-demo-test
+   git checkout feat/dev-remote-test-workflow
    ```
 
 3. Enable **Remote Login** (System Settings → General → Sharing).
 
-4. Copy secrets from your dev Mac (not via git):
+4. Copy secrets from **Curtiss-MacBook-Air** (not via git):
 
    ```bash
-   # Run on dev Mac
+   cd ~/Development/AI-DEMO2
    scp demo_api_server/.env testmac:~/AI-demo-test/demo_api_server/.env
    scp -r certs/ testmac:~/AI-demo-test/
    ```
@@ -36,12 +52,12 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
    echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts
    ```
 
-2. Configure SSH (`~/.ssh/config`):
+2. Configure SSH on **Curtiss-MacBook-Air** (`~/.ssh/config`):
 
    ```
    Host testmac
-     HostName Studio-Mac.local
-     User your-username
+     HostName mac-Y4JYJ03X.local
+     User curtismuir
      IdentityFile ~/.ssh/id_ed25519
    ```
 
@@ -59,27 +75,45 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
 
 ## Daily workflow
 
+Run everything from **Curtiss-MacBook-Air**:
+
+```bash
+cd ~/Development/AI-DEMO2
+```
+
 ### Committed work (recommended)
 
 ```bash
-# Fast gate on dev Mac
+cd ~/Development/AI-DEMO2
+
 ./run-tests.sh unit
-
-# Push branch and deploy full Docker stack on test Mac
 ./scripts/push-to-test.sh
-
-# Run heavy tests remotely
 ./scripts/run-remote-tests.sh all
-
-# Browse the remote stack from dev Mac
 ./scripts/open-test-ui.sh
 ```
 
 ### Uncommitted WIP (LAN rsync)
 
 ```bash
+cd ~/Development/AI-DEMO2
+
 ./scripts/sync-wip-to-test.sh
 ./scripts/open-test-ui.sh
+```
+
+### Sync latest Docker files to mac-Y4JYJ03X
+
+After docker-compose or Dockerfile changes on dev, push and rebuild on the test Mac:
+
+```bash
+cd ~/Development/AI-DEMO2
+./scripts/push-to-test.sh
+```
+
+Or manually on the test Mac:
+
+```bash
+ssh testmac 'cd ~/AI-demo-test && git fetch origin && git pull --ff-only && ./run-docker.sh build && ./run-docker.sh start full && ./run-docker.sh demo-sync && ./run-docker.sh status'
 ```
 
 Prefer git push for anything you want to keep — rsync is for quick experiments only.
