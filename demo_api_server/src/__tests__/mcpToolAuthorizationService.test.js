@@ -409,7 +409,7 @@ describe('mcpToolAuthorizationService', () => {
       await evaluateMcpFirstToolGate({ ...baseReq, hitlChallengeId: 'c1' });
       expect(hitlServiceClient.getChallengeStatus).toHaveBeenCalledWith('c1');
       expect(hitlServiceClient.verifyHitlReceipt).toHaveBeenCalledWith(
-        expect.any(Object), 'u1', 'agent-1', 'create_transfer', expect.any(Number), undefined);
+        expect.any(Object), 'u1', 'agent-1', 'create_transfer', expect.any(Number), undefined, {});
       expect(SIM()).toHaveBeenCalledWith(expect.objectContaining({ hitlApproved: true }));
     });
 

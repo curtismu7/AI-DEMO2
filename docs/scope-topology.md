@@ -180,6 +180,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `list_codebases` | gateway | `code:search` | — |
 | `get_my_accounts` | gateway | `read` | — |
 | `get_account_balance` | gateway | `read` | — |
+| `get_account_nickname` | gateway | `read` | — |
 | `get_my_transactions` | gateway | `read` | — |
 | `get_sensitive_account_details` | gateway | `read` `sensitive:read` | consent |
 | `sequential_think` | gateway | `read` | — |
