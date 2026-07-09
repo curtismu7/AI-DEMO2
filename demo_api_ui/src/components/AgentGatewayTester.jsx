@@ -130,9 +130,13 @@ export default function AgentGatewayTester() {
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
   const az = resp?.gwAuditTrail?.authorize || null;
+  const mcpAudit = resp?.gwAuditTrail?.mcpAudit || null;
   const decision = resp?.decision || az?.decision || null;
   // Stable fallback object so JsonHighlight doesn't receive a new reference every render.
   const resultValue = resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null);
+  const mcpWhenLabel = mcpAudit?.when
+    ? new Date(typeof mcpAudit.when === 'number' ? mcpAudit.when : Number(mcpAudit.when)).toISOString()
+    : null;
 
   return (
     <div className="mgc-root">
@@ -152,6 +156,37 @@ export default function AgentGatewayTester() {
             Authorize, and token transformation.
           </p>
         </div>
+      </div>
+
+      {/* What McpAuditFilter records — visible before any request so demos can point at it */}
+      <div className="mgc-section">
+        <h4 style={{ marginTop: 0 }}>McpAuditFilter — who / what / when / where / how</h4>
+        <p className="mgc-field-hint">
+          Real PingOne Agent Gateway runs <code>McpAuditFilter</code> on every MCP route. It emits
+          MCP-specific audit events for <em>who called which tool, where, and with what result</em>,
+          writes them to <code>audit/mcp.audit.json</code>, and mirrors the same payload on{' '}
+          <code>X-Gw-Audit-Trail.mcpAudit</code> (shown below after you send a request; also on Token Chain).
+        </p>
+        <table className="mgc-env-table">
+          <tbody>
+            <tr><td className="mgc-env-key">Who</td><td className="mgc-env-val">User <code>sub</code> + acting agent (<code>act.sub</code> / client) and delegation depth</td></tr>
+            <tr><td className="mgc-env-key">What</td><td className="mgc-env-val">MCP method (e.g. <code>tools/call</code>) and tool name</td></tr>
+            <tr><td className="mgc-env-key">When</td><td className="mgc-env-val">Event timestamp (latency also via Prometheus <code>ig_mcp_*</code> metrics)</td></tr>
+            <tr><td className="mgc-env-key">Where</td><td className="mgc-env-val">Gateway resource / route and target MCP service</td></tr>
+            <tr><td className="mgc-env-key">How / result</td><td className="mgc-env-val">Forwarded vs blocked; Authorize PERMIT / DENY / INDETERMINATE</td></tr>
+          </tbody>
+        </table>
+        <p className="mgc-field-hint" style={{ marginTop: 8 }}>
+          Switch to <strong>Real PingOne Agent Gateway</strong> below, send a tool call, then expand the live
+          5W1H table in the response. Docs:{' '}
+          <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
+            MCP security gateway
+          </a>
+          {' · '}
+          <a href="https://docs.pingidentity.com/pinggateway/2026/reference/McpAuditFilter.html" target="_blank" rel="noopener noreferrer">
+            McpAuditFilter
+          </a>
+        </p>
       </div>
 
       {/* Active gateway + authz backend, with inline toggles */}
@@ -262,7 +297,7 @@ export default function AgentGatewayTester() {
                       <tr><td className="mgc-env-key">Decision</td><td className="mgc-env-val">{az.decision}</td></tr>
                       {az.engine && <tr><td className="mgc-env-key">Engine</td><td className="mgc-env-val">{az.engine}</td></tr>}
                       {az.decisionId && <tr><td className="mgc-env-key">Decision ID</td><td className="mgc-env-val"><code>{az.decisionId}</code></td></tr>}
-                      {az.policyVersion && <tr><td className="mgc-env-key">Policy version</td><td className="mgc-env-val">{az.policyVersion}</td></tr>}
+                      {az.policyVersion && <tr><td className="mgc-env-key">Policy version</td><td className="mgc-env-val"><code>{az.policyVersion}</code></td></tr>}
                       {az.traceId && <tr><td className="mgc-env-key">Trace ID</td><td className="mgc-env-val"><code>{az.traceId}</code></td></tr>}
                     </tbody>
                   </table>
@@ -286,9 +321,86 @@ export default function AgentGatewayTester() {
                 </div>
               )}
 
+              {mcpAudit && (
+                <div className="mgc-section" style={{ marginTop: 12 }}>
+                  <h4 style={{ marginTop: 0 }}>Live McpAuditFilter event (5W1H)</h4>
+                  <p className="mgc-field-hint">
+                    From <code>X-Gw-Audit-Trail.mcpAudit</code> on this response — the same story
+                    PingGateway writes to <code>audit/mcp.audit.json</code>.
+                  </p>
+                  <table className="mgc-env-table">
+                    <tbody>
+                      <tr>
+                        <td className="mgc-env-key">Who</td>
+                        <td className="mgc-env-val">
+                          user <code>{mcpAudit.who?.userSub || '—'}</code>
+                          {mcpAudit.who?.agentSub ? (
+                            <> via agent <code>{mcpAudit.who.agentSub}</code></>
+                          ) : null}
+                          {mcpAudit.who?.actDepth != null ? (
+                            <> (depth {String(mcpAudit.who.actDepth)})</>
+                          ) : null}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="mgc-env-key">What</td>
+                        <td className="mgc-env-val">
+                          <code>{mcpAudit.what?.mcpMethod || '—'}</code>
+                          {mcpAudit.what?.tool ? <> → <code>{mcpAudit.what.tool}</code></> : null}
+                        </td>
+                      </tr>
+                      {mcpWhenLabel && (
+                        <tr>
+                          <td className="mgc-env-key">When</td>
+                          <td className="mgc-env-val"><code>{mcpWhenLabel}</code></td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td className="mgc-env-key">Where</td>
+                        <td className="mgc-env-val">
+                          <code>{mcpAudit.where?.resourceId || mcpAudit.where?.routePath || '—'}</code>
+                          {mcpAudit.where?.vertical ? <> ({mcpAudit.where.vertical})</> : null}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="mgc-env-key">How</td>
+                        <td className="mgc-env-val">
+                          <span className={
+                            mcpAudit.how?.decision === 'PERMIT' || mcpAudit.how?.result === 'forwarded'
+                              ? 'mgc-badge mgc-badge--live'
+                              : 'mgc-badge mgc-badge--error'
+                          }>
+                            {mcpAudit.how?.decision || '—'}
+                          </span>
+                          {mcpAudit.how?.result ? ` → ${mcpAudit.how.result}` : ''}
+                          {mcpAudit.how?.backend ? ` (${mcpAudit.how.backend})` : ''}
+                        </td>
+                      </tr>
+                      {mcpAudit.eventName && (
+                        <tr>
+                          <td className="mgc-env-key">Event</td>
+                          <td className="mgc-env-val"><code>{mcpAudit.eventName}</code></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="mgc-field-label" style={{ marginTop: 10 }}>mcpAudit (JSON)</div>
+                  <div className="mgc-code-block">
+                    <pre className="mgc-pre mgc-pre--code jh-dark"><JsonHighlight value={mcpAudit} /></pre>
+                  </div>
+                </div>
+              )}
+              {resp.gateway?.usePingGateway && resp.gwAuditTrail && !mcpAudit && (
+                <p className="mgc-field-hint" style={{ marginTop: 10 }}>
+                  Gateway returned an audit trail but no <code>mcpAudit</code> block. Restart PingGateway
+                  after enabling <code>McpAuditFilter</code> so <code>p1az-decision.groovy</code> emits the
+                  5W1H payload on <code>X-Gw-Audit-Trail</code>.
+                </p>
+              )}
+
               {resp.gwAuditTrail && (
                 <div style={{ marginTop: 10 }}>
-                  <div className="mgc-field-label">Gateway audit trail</div>
+                  <div className="mgc-field-label">Full gateway audit trail</div>
                   <div className="mgc-code-block">
                     <pre className="mgc-pre mgc-pre--code jh-dark"><JsonHighlight value={resp.gwAuditTrail} /></pre>
                   </div>
