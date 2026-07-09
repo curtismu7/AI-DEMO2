@@ -208,6 +208,7 @@ async function runChip(api, chip, provider, options = {}) {
     sensitive_account_details: 'get_my_accounts',
     mcp_tools: 'list_tools',
     mortgage_demo: 'show_mortgage',
+    invest_demo: 'show_investment',
   };
   const action = result.banking.action;
   let tool = mcpToolOverride || toolByAction[action];

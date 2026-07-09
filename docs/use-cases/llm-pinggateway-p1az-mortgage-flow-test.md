@@ -2,7 +2,7 @@
 
 This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **mortgage app** path (`/path/mortgage`). The agent calls `show_mortgage` through PingGateway; P1AZ checks `mortgage:read`; the gateway **swaps** the user's OAuth bearer for a service API key before calling `banking_mortgage_service`.
 
-**Last verified:** 2026-07-08 (k8s / OrbStack, port-forwards active)
+**Last verified:** 2026-07-09 (k8s / OrbStack; live `show_mortgage` → `credentialPath=api_key`)
 
 ## Test Results (2026-07-08)
 

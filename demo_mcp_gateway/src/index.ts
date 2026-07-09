@@ -21,12 +21,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as crypto from 'node:crypto';
 import WebSocket from 'ws';
-import axios from 'axios';
 import { loadConfig, GatewayConfig, assertProductionSecrets, isInternalSecretUsable, checkInternalSecret } from './config';
 import { validateInboundToken, extractBearerToken, TokenValidationError } from './tokenValidator';
-import { routeTool, backendWsUrl, backendHttpUrl } from './router';
+import { routeTool, backendWsUrl } from './router';
 import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
+import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, JsonRpcRequest, JsonRpcResponse } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
@@ -774,38 +774,14 @@ async function handleMessage(
         return;
       }
 
-      // ----- oauth_bearer / bankingdata (Path C) — GET to /api/resource-server/accounts or /transactions -----
-      {
-        const url = backendHttpUrl(target, toolName, config);
-        let resp;
-        try {
-          resp = await axios.get(url, {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 5000,
-            validateStatus: (s: number) => s < 500,
-          });
-        } catch (err) {
-          send(jsonRpcError(id, -32500, 'Backend route unreachable', { credentialPath: 'oauth_bearer' }));
-          return;
+      // ----- oauth_bearer / bankingdata (Path C) — shared with HTTP via bankingDataDispatch -----
+      if (target === 'bankingdata') {
+        const outcome = await buildBankingDataToolResult(toolName, token, config);
+        if (outcome.ok) {
+          send(JSON.stringify({ jsonrpc: '2.0', id, result: outcome.result }));
+        } else {
+          send(jsonRpcError(id, outcome.code, outcome.message, outcome.data));
         }
-        if (resp.status === 401) {
-          send(jsonRpcError(id, -32401, 'Access token invalid', { credentialPath: 'oauth_bearer' }));
-          return;
-        }
-        if (resp.status >= 400) {
-          send(jsonRpcError(id, -32500, `Backend returned ${resp.status}`, { credentialPath: 'oauth_bearer' }));
-          return;
-        }
-        send(JSON.stringify({
-          jsonrpc: '2.0', id,
-          result: {
-            content: [{ type: 'text', text: JSON.stringify(resp.data) }],
-            _meta: {
-              credentialPath: 'oauth_bearer',
-              backendRoute: url.replace(config.bankingResourceServerBaseUrl, ''),
-            },
-          },
-        }));
         return;
       }
     }

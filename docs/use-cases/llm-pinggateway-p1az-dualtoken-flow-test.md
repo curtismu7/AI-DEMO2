@@ -1,16 +1,17 @@
 # How To Test: Prompt → LLM → PingGateway → P1AZ → Dual-Token (Access + ID) Path
 
-This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **dual-token** disposition (`dual_token`). The agent calls `user_profile_card`; PingGateway forwards **access token + id_token** to `banking_resource_server`, which decodes claims server-side (no raw JWT crosses the UI boundary).
+This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **dual-token** disposition (`dual_token`). The agent calls `user_profile_card`; the Node MCP gateway (Path B) forwards **access token + id_token** to `banking_resource_server`, which decodes claims server-side (no raw JWT crosses the UI boundary). When PingGateway is the default gateway, the BFF still routes Path B tools to the Node gateway.
 
-**Last verified:** 2026-07-08 (k8s / OrbStack, port-forwards active)
+**Last verified:** 2026-07-09 (k8s / OrbStack; live `user_profile_card` → `credentialPath=dual_token`)
 
-## Test Results (2026-07-08)
+## Test Results (2026-07-09)
 
 | Verification | Result |
 |--------------|--------|
 | UI SPA | ✅ |
 | BFF health | ✅ `healthy` |
 | MCP gateway in-cluster | ✅ `ok` |
+| Live `user_profile_card` | ✅ `credentialPath=dual_token` |
 | LLM proxy | ✅ `healthy` |
 | Screenshot capture script | ⚠️ 1/4 (run regenerate when UI port-forward active) |
 

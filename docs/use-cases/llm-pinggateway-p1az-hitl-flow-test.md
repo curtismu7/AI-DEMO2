@@ -2,7 +2,7 @@
 
 This guide extends the [read-only flow test](./llm-pinggateway-p1az-flow-test.md) with **Human-in-the-Loop (HITL)** consent. A consequential write (`create_transfer`) pauses the agent until PingOne Authorize returns a HITL obligation and the user approves via the consent modal.
 
-**Last verified:** 2026-07-08 (k8s / OrbStack, port-forwards active)
+**Last verified:** 2026-07-09 (k8s / OrbStack; live `$500` transfer → HITL consent)
 
 ## Test Results (2026-07-08)
 
