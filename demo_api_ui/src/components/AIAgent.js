@@ -2659,6 +2659,13 @@ export default function BankingAgent({
           toast.update(toastId, { render: " Calling get_account_balance…" });
           response = await getAccountBalance(form.accountId);
           break;
+        case "account_nickname":
+          toast.update(toastId, { render: " Calling get_account_nickname…" });
+          response = await callMcpTool(
+            "get_account_nickname",
+            form.accountId ? { account_id: form.accountId } : {},
+          );
+          break;
         case "deposit":
           toast.update(toastId, { render: "⬇️ Calling create_deposit…" });
           response = await createDeposit(

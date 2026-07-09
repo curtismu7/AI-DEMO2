@@ -12,6 +12,7 @@ export const TOOL_SCOPES: Record<string, string[]> = {
   // Read-only tools
   get_my_accounts: ['read'],
   get_account_balance: ['read'],
+  get_account_nickname: ['read'],
   get_sensitive_account_details: ['sensitive:read'],
   get_my_transactions: ['read'],
   search_transactions: ['read'],

@@ -52,6 +52,7 @@ describe('filterToolsByScope — privilege isolation', () => {
     const visible = filterToolsByScope(allTools, ['read']);
     expect(visible.find(t => t.name === 'get_my_accounts')).toBeDefined();
     expect(visible.find(t => t.name === 'get_my_transactions')).toBeDefined();
+    expect(visible.find(t => t.name === 'get_account_nickname')).toBeDefined();
   });
 
   it('wildcard * exposes all tools including freeze_account', () => {

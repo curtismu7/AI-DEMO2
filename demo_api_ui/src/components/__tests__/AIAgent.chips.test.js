@@ -794,6 +794,19 @@ describe("Action chip dispatch — MCP tool calls", () => {
     await waitFor(() => expect(svcMock.getAccountBalance).toHaveBeenCalled());
   });
 
+  it("'Account nickname' chip dispatches get_account_nickname via callMcpTool", async () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Account nickname"));
+    });
+    await waitFor(() =>
+      expect(svcMock.callMcpTool).toHaveBeenCalledWith(
+        "get_account_nickname",
+        {},
+      ),
+    );
+  });
+
   it("'Deposit' chip dispatches createDeposit via runAction", async () => {
     renderAgent({ user: customerUser, mode: "inline" });
     await act(async () => {

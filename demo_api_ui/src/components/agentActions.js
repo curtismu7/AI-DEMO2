@@ -19,6 +19,12 @@ export const ACTION_GROUPS = {
       rfcs: ["8693", "7515"],
     },
     {
+      id: "account_nickname",
+      label: "Account nickname",
+      desc: "Display nickname for your checking account",
+      rfcs: ["8693", "7515"],
+    },
+    {
       id: "sensitive-account-details",
       label: "View Sensitive Account Details",
       desc: "View full account number and routing number (requires consent)",
@@ -220,6 +226,14 @@ export const CHIP_APPLICABLE_STEPS = {
     "claim-diagnostics",
   ],
   balance: [
+    "agent-llm-reasoning",
+    "agent-token-init",
+    "gw-scope-map",
+    "agent-scope-aware-cache",
+    "olb-resource-token",
+    "claim-diagnostics",
+  ],
+  account_nickname: [
     "agent-llm-reasoning",
     "agent-token-init",
     "gw-scope-map",
@@ -469,6 +483,16 @@ export function getStepSkipExplanation(actionId, stepId) {
       "ui-gateway-consent": "No HITL consent dialog needed",
       "ui-auto-refire": "No re-fire after successful auth",
     },
+    account_nickname: {
+      "gw-denial-metadata": "Read-only operation, no gateway denial needed",
+      "bff-response-shape": "No 401/403 JSON-RPC error response",
+      "gw-hitl-challenge-type": "No HITL required",
+      "agent-error-propagation": "No error branch",
+      "agent-recovery-branch": "No error recovery",
+      "bff-login-resume": "No pending intent storage",
+      "ui-gateway-consent": "No HITL consent dialog",
+      "ui-auto-refire": "No re-fire after successful auth",
+    },
     transactions: {
       "gw-denial-metadata": "Read-only operation, no gateway denial needed",
       "bff-response-shape": "No 401/403 JSON-RPC error response",
@@ -606,7 +630,7 @@ export const TOPIC_MESSAGES = {
 // Chips that always call the real API regardless of LLM mode.
 // Helix has no account data access and would hallucinate if sent as NL prompts.
 export const API_DIRECT_CHIPS = new Set([
-  "accounts", "transactions", "balance", "transfer", "deposit", "withdraw", "feature",
+  "accounts", "transactions", "balance", "account_nickname", "transfer", "deposit", "withdraw", "feature",
   "mcp_tools", "sensitive-account-details",
   "test_wrong_scope", "test_wrong_audience", "test_hitl_required",
   "transfer_600_test", "test_otp_required",

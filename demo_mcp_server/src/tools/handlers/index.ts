@@ -1,4 +1,10 @@
-import { executeGetMyAccounts, executeGetAccountBalance, executeGetSensitiveAccountDetails, executeUpdateContactEmail } from './accountHandlers';
+import {
+  executeGetMyAccounts,
+  executeGetAccountNickname,
+  executeGetAccountBalance,
+  executeGetSensitiveAccountDetails,
+  executeUpdateContactEmail,
+} from './accountHandlers';
 import { executeGetMyTransactions, executeCreateDeposit, executeCreateWithdrawal, executeCreateTransfer } from './transactionHandlers';
 import { executeQueryUserByEmail } from './identityHandlers';
 import { executeSequentialThink } from './reasoningHandlers';
@@ -21,6 +27,7 @@ import type { HandlerFn } from './types';
 
 export const handlerMap: Record<string, HandlerFn> = {
   executeGetMyAccounts,
+  executeGetAccountNickname,
   executeGetAccountBalance,
   executeUpdateContactEmail,
   executeGetMyTransactions,

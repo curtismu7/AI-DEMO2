@@ -8,6 +8,7 @@ import { VERTICAL_TOOLS, verticalHandlerName } from './handlers/verticalHandlers
 import {
   GET_MY_ACCOUNTS_OUTPUT,
   GET_ACCOUNT_BALANCE_OUTPUT,
+  GET_ACCOUNT_NICKNAME_OUTPUT,
   GET_SENSITIVE_ACCOUNT_DETAILS_OUTPUT,
   GET_MY_TRANSACTIONS_OUTPUT,
   WRITE_TRANSACTION_OUTPUT,
@@ -150,6 +151,36 @@ export class BankingToolRegistry {
       }
     },
 
+    get_account_nickname: {
+      name: 'get_account_nickname',
+      title: 'Account Nickname',
+      description: 'Return the display nickname for one account. Omit account_id to use the user\'s primary checking account. Falls back to account type and masked number when no nickname is set.',
+      requiresUserAuth: true,
+      requiredScopes: ['read'],
+      handler: 'executeGetAccountNickname',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false,
+        },
+      },
+      outputSchema: GET_ACCOUNT_NICKNAME_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          account_id: {
+            type: 'string',
+            description: 'Optional account ID (UUID) from get_my_accounts. Omit to use primary checking account.',
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
 
     get_sensitive_account_details: {
       name: 'get_sensitive_account_details',
