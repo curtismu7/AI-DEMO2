@@ -7,14 +7,14 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 11 happy-path steps, all pending", () => {
+  test("returns the 12 happy-path steps, all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
       "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "mcp", "api", "reply",
+      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
   });
 });
 
@@ -254,14 +254,18 @@ describe("buildTraceSteps — statuses from evidence", () => {
   test("api step surfaces the api-key call + masked key when the swap ran", () => {
     const trace = { ...EMPTY_TRACE,
       tokenEvents: [
-        { id: 'evt-swap', tokenType: 'api_key', maskedValue: '...0000', status: 'ok' },
-        { id: 'evt-backend', tokenType: 'api_key', status: 'ok' },
+        { id: 'evt-inbound', tokenType: 'access_token', credentialPath: 'api_key', status: 'ok', label: 'Inbound user bearer received' },
+        { id: 'evt-swap', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Gateway swap: OAuth bearer dropped, service API key attached' },
+        { id: 'evt-backend', tokenType: 'api_key', credentialPath: 'api_key', status: 'ok', label: 'Outbound GET demo_data_service /invest' },
       ],
-      mcpResult: { _meta: { credentialPath: 'api_key', apiKeyMaskedLast4: '0000', apiCall: 'GET /invest' } },
+      mcpResult: { _meta: { credentialPath: 'api_key', apiKeyMaskedLast4: '0000', apiCall: 'GET /invest' }, result: { invest: { portfolioId: 'INV-1' } } },
     };
-    const step = buildTraceSteps(trace).find((s) => s.id === 'api');
-    expect(step.status).toBe('done');
-    const flat = JSON.stringify(step.detail);
+    const steps = buildTraceSteps(trace);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId['api-key-swap'].status).toBe('done');
+    expect(JSON.stringify(byId['api-key-swap'].detail)).toContain('0000');
+    expect(byId.api.status).toBe('done');
+    const flat = JSON.stringify(byId.api.detail);
     expect(flat).toContain('GET /invest');
     expect(flat).toContain('0000');
   });

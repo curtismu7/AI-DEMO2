@@ -322,6 +322,18 @@ describe('nlIntentParser — mortgage chip', () => {
   it('"mortgage" bare word → mortgage_demo', () => {
     expect(bank('mortgage').banking.action).toBe('mortgage_demo');
   });
+
+  it('"show portfolio status" → invest_demo', () => {
+    expect(bank('show portfolio status').banking.action).toBe('invest_demo');
+  });
+
+  it('"show my portfolio" → invest_demo', () => {
+    expect(bank('show my portfolio').banking.action).toBe('invest_demo');
+  });
+
+  it('"portfolio status" → invest_demo', () => {
+    expect(bank('portfolio status').banking.action).toBe('invest_demo');
+  });
 });
 
 // ── Spending / biggest purchase chips ─────────────────────────────────────────

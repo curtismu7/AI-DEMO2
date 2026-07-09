@@ -9,7 +9,7 @@ const { parseHeuristic } = require('./nlIntentParser');
 
 const VALID_BANKING_ACTIONS = new Set([
   'accounts', 'transactions', 'balance', 'deposit', 'withdraw', 'transfer', 'logout', 'mcp_tools',
-  'mortgage_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'web_search',
+  'mortgage_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'web_search',
 ]);
 
 const VALID_EDU_PANELS = new Set([
