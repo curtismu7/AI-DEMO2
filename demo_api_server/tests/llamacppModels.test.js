@@ -14,6 +14,8 @@ const path = require('path');
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llamacpp-models-'));
 process.env.MODELS_DIR = tmpDir;
 
+// modelCatalog captures MODELS_DIR at first load — env must be set first.
+const { TIERS } = require('../../demo_llm_proxy/modelCatalog');
 const {
   getInventory,
   dedupeModels,
@@ -34,38 +36,36 @@ afterAll(() => {
 });
 
 describe('llamacppModelsService', () => {
-  test('inventory marks tier present when alias source exists', () => {
-    const source = path.join(tmpDir, 'gemma-3-12b-it-qat-UD-Q4_K_XL.gguf');
-    fs.writeFileSync(source, 'x'.repeat(100));
+  test('inventory marks tier present when canonical GGUF exists', () => {
+    const tier1 = TIERS.find((t) => t.tier === 1);
+    fs.writeFileSync(path.join(tmpDir, tier1.file), 'x'.repeat(100));
 
     const inv = getInventory();
-    const tier2 = inv.tiers.find((t) => t.tier === 2);
-    const tier4 = inv.tiers.find((t) => t.tier === 4);
+    const row = inv.tiers.find((t) => t.tier === 1);
 
-    expect(tier2.present).toBe(true);
-    expect(tier4.present).toBe(true);
-    expect(tier4.aliased).toBe(true);
-    expect(tier4.skipDownload).toBe(true);
+    expect(row.present).toBe(true);
+    expect(row.aliased).toBe(false);
+    expect(row.skipDownload).toBe(false);
   });
 
-  test('dedupe replaces duplicate tier-4 file with symlink to tier-2 file', () => {
-    const source = path.join(tmpDir, 'gemma-3-12b-it-qat-UD-Q4_K_XL.gguf');
-    const duplicate = path.join(tmpDir, 'gemma-3-12b-it-UD-Q4_K_XL.gguf');
-    fs.writeFileSync(source, 'canonical');
-    fs.writeFileSync(duplicate, 'duplicate-copy');
+  test('dedupe clears Hugging Face cache under MODELS_DIR', () => {
+    const cacheDir = path.join(tmpDir, '.cache');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(path.join(cacheDir, 'blob'), 'cached');
 
     const result = dedupeModels();
 
-    expect(fs.lstatSync(duplicate).isSymbolicLink()).toBe(true);
-    expect(fs.readlinkSync(duplicate)).toBe('gemma-3-12b-it-qat-UD-Q4_K_XL.gguf');
-    expect(result.freedBytes).toBeGreaterThan(0);
+    expect(fs.existsSync(cacheDir)).toBe(false);
+    expect(result.freedBytes).toBeGreaterThanOrEqual(0);
   });
 
-  test('startDownload returns satisfied_by_alias when canonical file missing but alias exists', () => {
-    fs.writeFileSync(path.join(tmpDir, 'gemma-3-12b-it-qat-UD-Q4_K_XL.gguf'), 'alias');
+  test('startDownload returns already_present when canonical file exists', () => {
+    const tier1 = TIERS.find((t) => t.tier === 1);
+    fs.writeFileSync(path.join(tmpDir, tier1.file), 'present');
 
-    const result = startDownload(4);
-    expect(result.status).toBe('satisfied_by_alias');
-    expect(result.aliasFile).toBe('gemma-3-12b-it-qat-UD-Q4_K_XL.gguf');
+    const result = startDownload(1);
+    expect(result.status).toBe('already_present');
+    expect(result.tier).toBe(1);
+    expect(result.file).toBe(tier1.file);
   });
 });

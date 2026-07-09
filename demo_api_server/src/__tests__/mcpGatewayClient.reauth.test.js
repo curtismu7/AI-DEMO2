@@ -8,7 +8,11 @@
 
 jest.mock('axios');
 jest.mock('../../services/configStore', () => ({
+  get: jest.fn(() => null),
   getEffective: jest.fn(() => null),
+}));
+jest.mock('../../services/mcpToolAuthorizationService', () => ({
+  resolveExpectedMcpResourceUri: jest.fn(() => process.env.MCP_GW_RESOURCE_URI || null),
 }));
 
 const axios = require('axios');
