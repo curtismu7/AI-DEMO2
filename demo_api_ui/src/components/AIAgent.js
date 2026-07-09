@@ -58,6 +58,7 @@ import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility"
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
+import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
@@ -6950,12 +6951,60 @@ export default function BankingAgent({
                             }
                             const normalized = normalizeAgentToolResult(mcpResp?.result);
                             const isErr = isAgentToolErrorResult(normalized);
-                            const text = isErr
-                              ? `MCP returned an error: ${normalized?.error || normalized?.message || "unknown error"}`
-                              : (typeof normalized === "object"
-                                  ? JSON.stringify(normalized, null, 2)
-                                  : String(normalized ?? ""));
-                            addMessage("assistant", text, resolvedTool);
+                            if (isErr) {
+                              addMessage(
+                                "assistant",
+                                `MCP returned an error: ${normalized?.error || normalized?.message || "unknown error"}`,
+                                resolvedTool,
+                                { source: "direct-mcp" },
+                              );
+                              return;
+                            }
+                            // Same human-readable path as heuristic runAction — not a raw JSON wall.
+                            let text = formatResult(normalized, terminology);
+                            const looksLikeJson =
+                              typeof text === "string" &&
+                              /^\s*[\[{]/.test(text);
+                            const descriptor =
+                              pageManifest?.render?.[resolvedTool] || null;
+                            if (descriptor && looksLikeJson) {
+                              text = `Direct MCP · ${resolvedTool}`;
+                            }
+                            const { resultType, resultData } =
+                              inferAgentResultTypeAndData(normalized);
+                            if (resultType) {
+                              const titleMap = {
+                                accounts: terminology?.accounts || "Accounts",
+                                transactions:
+                                  terminology?.transactions ||
+                                  "Recent Transactions",
+                                balance: terminology?.balance || "Balance",
+                                confirm: `${resolvedTool} confirmed`,
+                              };
+                              setResultPanel({
+                                type: resultType,
+                                title: titleMap[resultType] || resolvedTool,
+                                data: resultData,
+                                terminology,
+                              });
+                            }
+                            const directExtra = {
+                              source: "direct-mcp",
+                              rawMcpResult: normalized,
+                            };
+                            if (descriptor) {
+                              directExtra.verticalResult = {
+                                descriptor,
+                                data: normalized,
+                                terminology,
+                              };
+                            }
+                            addMessage(
+                              "assistant",
+                              text,
+                              resolvedTool,
+                              directExtra,
+                            );
                           } catch (err) {
                             reportNlFailure(err);
                           } finally {
@@ -8815,7 +8864,9 @@ export default function BankingAgent({
                                 ? "Heuristic"
                                 : msg.source === "helix"
                                   ? "Helix LLM"
-                                  : msg.source}
+                                  : msg.source === "direct-mcp"
+                                    ? "Direct MCP"
+                                    : msg.source}
                             </div>
                           )}
                           <div
@@ -8827,6 +8878,13 @@ export default function BankingAgent({
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
                                 data={msg.verticalResult.data}
+                              />
+                            )}
+                            {msg.rawMcpResult != null && (
+                              <JsonField
+                                label="Raw MCP response"
+                                value={msg.rawMcpResult}
+                                defaultOpen={false}
                               />
                             )}
                             {msg.tool && (

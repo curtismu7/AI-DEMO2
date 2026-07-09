@@ -47,14 +47,11 @@
     ],
     "chips10": [
       { "id": "ot1", "label": "What is OAuth?", "message": "what is oauth", "mode": "both" },
-      { "id": "ot2", "label": "Explain scopes", "message": "explain scopes", "mode": "both" },
       { "id": "ot3", "label": "What is PKCE?", "message": "what is pkce", "mode": "both" },
       { "id": "ot4", "label": "Show token exchange", "message": "explain token exchange", "mode": "both" },
-      { "id": "ot5", "label": "What is OIDC?", "message": "what is oidc", "mode": "both" },
       { "id": "ot6", "label": "Explain act/may_act", "message": "explain act and may_act delegation", "mode": "both" },
       { "id": "ot7", "label": "Show token chain", "message": "show token chain", "mode": "both" },
       { "id": "ot8", "label": "What is HITL?", "message": "what is human in the loop", "mode": "both" },
-      { "id": "ot9", "label": "Explain audience narrowing", "message": "explain audience narrowing rfc 8707", "mode": "both" },
       { "id": "ot10", "label": "What is RFC 8693?", "message": "what is rfc 8693 token exchange", "mode": "both" }
     ]
   },

@@ -85,9 +85,9 @@ const CARECONNECT_CHIPS = {
     expectedAction: 'view_coverage',
   },
   helix: {
-    id: 'hc8',
-    label: 'Which providers are in-network?',
-    message: 'Which providers are in-network?',
+    id: 'hc9',
+    label: 'Summarize my recent visits',
+    message: 'Summarize my recent visits',
   },
   apiMcp: {
     id: 'feature-health',
