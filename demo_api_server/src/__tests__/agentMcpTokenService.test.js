@@ -345,7 +345,8 @@ describe('resolveMcpAccessTokenWithEvents — RFC 8693 exchange, subject-only (P
     expect(mockPerformTokenExchange).toHaveBeenCalledWith(
       sampleJwtUserAccessToken,
       'https://mcp.example.com/api',
-      expect.arrayContaining(['read'])
+      expect.arrayContaining(['read']),
+      expect.any(Object) // JIT exchangeOptions (buildJitExchangeOptions)
     );
   });
 
@@ -461,7 +462,8 @@ describe('resolveMcpAccessTokenWithEvents — on_behalf_of (PINGONE_MCP_TOKEN_EX
       sampleJwtUserAccessToken,
       sampleJwtAgentAccessToken,
       'https://mcp.example.com/api',
-      expect.arrayContaining(['read'])
+      expect.arrayContaining(['read']),
+      expect.any(Object) // JIT exchangeOptions (buildJitExchangeOptions)
     );
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();
   });
@@ -651,7 +653,8 @@ describe('resolveMcpAccessTokenWithEvents — read/write broad scope in token', 
     expect(mockPerformTokenExchange).toHaveBeenCalledWith(
       sampleJwtUserAccessBroadRead,
       'https://mcp.example.com/api',
-      expect.arrayContaining(['read'])
+      expect.arrayContaining(['read']),
+      expect.any(Object) // JIT exchangeOptions (buildJitExchangeOptions)
     );
   });
 
@@ -660,7 +663,8 @@ describe('resolveMcpAccessTokenWithEvents — read/write broad scope in token', 
     expect(mockPerformTokenExchange).toHaveBeenCalledWith(
       sampleJwtUserAccessBroadRead,
       'https://mcp.example.com/api',
-      expect.arrayContaining(['write'])
+      expect.arrayContaining(['write']),
+      expect.any(Object) // JIT exchangeOptions (buildJitExchangeOptions)
     );
   });
 
