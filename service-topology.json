@@ -65,7 +65,8 @@
     "MCP_GW_RESOURCE_URI": "literal:mcpgateway.ping.demo,https://api.ping.demo:3036/mcp",
     "PINGONE_RESOURCE_MCP_GATEWAY_URI": "aud:mcpGateway",
     "PINGONE_RESOURCE_AGENT_GATEWAY_URI": "aud:agentGateway",
-    "PINGONE_RESOURCE_TWO_EXCHANGE_URI": "aud:mcpGateway"
+    "PINGONE_RESOURCE_TWO_EXCHANGE_URI": "aud:mcpGateway",
+    "PINGONE_RESOURCE_PINGGATEWAY_URI": "literal:https://api.ping.demo:3036/mcp"
   },
   "dotenv": {
     "_comment": "Local-dev (.env) URL keys -> the service whose PORT the value must use, validated against demo_api_server/.env.example. Local addressing legitimately differs from in-cluster (127.0.0.1 / api.ping.demo + mkcert HTTPS), so only the port is checked, not host/scheme. Note MCP_SERVER_URL routes through the gateway locally (port 3005), unlike in-cluster where it hits the MCP server (8080) — hence a per-key target service rather than reusing the configmap map.",

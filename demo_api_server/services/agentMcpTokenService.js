@@ -2390,9 +2390,18 @@ async function _performTwoExchangeDelegation(
     ? (process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || configStore.getEffective('pingone_resource_pinggateway_uri') || twoExFinalAud)
     : null;
   const finalAudTarget = pingGatewayResourceAud || twoExFinalAud;
+  // PingGateway requires the token aud to EXACTLY match its McpProtectionFilter
+  // resourceId (an HTTPS URL). PingOne honors RFC 8707 `resource=` but SILENTLY
+  // IGNORES `audience=` — and applyAudienceParam() maps a string->`audience=`,
+  // an array->repeated `resource=`. So a single-string finalAudiences left the
+  // exchanged token carrying the subject/actor aud (mcpgateway.ping.demo), and the
+  // IG rejected it (400, before olb-token-exchange.groovy even runs). Pass the
+  // gateway audience as a one-element ARRAY so it goes out as `resource=` and the
+  // token actually carries aud=<PG_GATEWAY_RESOURCE_ID>. Verified live: requesting
+  // resource=https://api.ping.demo:3036/mcp yields aud=[that] scope=gateway:mcp:invoke.
   const finalAudiences = !usePingGatewayForExchange && mcpServerAudForFallback && mcpServerAudForFallback !== twoExFinalAud
     ? [twoExFinalAud, mcpServerAudForFallback]
-    : finalAudTarget;
+    : (usePingGatewayForExchange ? [finalAudTarget] : finalAudTarget);
   const finalAudDisplay = Array.isArray(finalAudiences) ? JSON.stringify(finalAudiences) : finalAudiences;
 
   tokenEvents.push(buildTokenEvent(
