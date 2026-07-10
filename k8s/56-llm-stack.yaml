@@ -91,14 +91,16 @@ spec:
             - "4096"
             - "--parallel"
             - "1"
-            - "-m"
-            - "/models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+            # HuggingFace GGUF download into PVC cache (SE/AWS has no hostPath).
+            # Quant shorthand :Q4_K_M — not the full .gguf filename (llama.cpp 2026+).
+            - "-hf"
+            - "bartowski/microsoft_Phi-4-mini-instruct-GGUF:Q4_K_M"
           ports:
             - containerPort: 8091
               name: http
           volumeMounts:
             - name: models
-              mountPath: /models
+              mountPath: /root/.cache/llama.cpp
           resources:
             requests:
               memory: "2Gi"

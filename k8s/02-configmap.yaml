@@ -110,6 +110,9 @@ data:
   HELIX_ENVIRONMENT_ID: "fe213c3c-9c1d-4bdb-954a-a22879dad26d"
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
+  # LangChain agent default LLM on cluster (Helix is pre-provisioned for SE/AWS).
+  # HELIX_API_KEY stays in secrets — see create-secrets.sh inject_helix_api_key.
+  LANGCHAIN_LLM_PROVIDER: "helix"
 
   # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
   # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
