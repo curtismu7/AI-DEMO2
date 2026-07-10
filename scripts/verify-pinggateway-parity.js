@@ -134,9 +134,14 @@ for (const c of SCOPE_CHECKS) {
     problems.push(`${c.file}: ${c.key} missing (expected a scope declared in scope-topology.json)`);
     continue;
   }
-  const norm = topo.normalizeScope(val);
-  if (!declared.has(norm)) {
-    problems.push(`${c.file}: ${c.key}=${val} normalizes to "${norm}", which is NOT a declared scope (add it to scopes{} or fix aliases{})`);
+  // PG_*_SCOPE is an OAuth scope value — a space-delimited LIST (e.g. the
+  // generator emits "read mcp:invoke invest:read"). Validate that EVERY token
+  // normalizes (via aliases{}) to a declared scope, not the value as one string.
+  for (const tok of String(val).trim().split(/\s+/).filter(Boolean)) {
+    const norm = topo.normalizeScope(tok);
+    if (!declared.has(norm)) {
+      problems.push(`${c.file}: ${c.key}=${val} contains "${tok}" which normalizes to "${norm}", NOT a declared scope (add it to scopes{} or fix aliases{})`);
+    }
   }
 }
 
@@ -153,9 +158,12 @@ for (const c of SCOPE_CHECKS) {
   if (!fs.existsSync(abs)) continue;
   const val = parseEnv(abs).get(c.key);
   if (val === undefined) continue; // key not overridden in the real .env — fine
-  const norm = topo.normalizeScope(val);
-  if (!declared.has(norm)) {
-    problems.push(`${realFile}: ${c.key}=${val} normalizes to "${norm}", which is NOT a declared scope (real .env drifted from ${c.file}; fix the value or add an alias in scope-topology.json)`);
+  // Same space-delimited scope-list rule as the .env.example loop above.
+  for (const tok of String(val).trim().split(/\s+/).filter(Boolean)) {
+    const norm = topo.normalizeScope(tok);
+    if (!declared.has(norm)) {
+      problems.push(`${realFile}: ${c.key}=${val} contains "${tok}" which normalizes to "${norm}", NOT a declared scope (real .env drifted from ${c.file}; fix the value or add an alias in scope-topology.json)`);
+    }
   }
 }
 
