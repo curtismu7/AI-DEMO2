@@ -6,11 +6,13 @@ Smart routing proxy for managing 2 local language models through a single endpoi
 
 | Context | Backend | How |
 |---------|---------|-----|
-| **Default** — Docker, K8s, CI, Linux | **llama.cpp** | Omit `LLM_BACKEND` (GGUF tiers + this router) |
-| **Mac daily dev** — agent chips, tool loops | **oMLX** | `LLM_BACKEND=omlx ./run.sh` or `./run-docker.sh start` |
+| **Apple Silicon Mac** — daily dev | **oMLX** (auto) | Omit `LLM_BACKEND` or set `LLM_BACKEND=omlx` |
+| **Linux / AWS / CI / Docker on Linux** | **llama.cpp** (auto) | Omit `LLM_BACKEND` (GGUF tiers + this router) |
+| **Force llama.cpp on Mac** | **llama.cpp** | `LLM_BACKEND=llamacpp ./run.sh` |
 
+Platform detection lives in `demo_llm_proxy/resolve-llm-backend.sh` (darwin + arm64 → omlx).
 Provider id stays `llamacpp` in the UI for all backends (OpenAI-compatible `/v1` on `:8090`).
-Docker/K8s clusters always use llama.cpp in-cluster; oMLX is a host-only Mac fast path.
+K8s/AWS agent LLM uses in-cluster llama.cpp or Helix — never oMLX.
 
 See [oMLX Mac fast path](#omlx-mac-fast-path-recommended-on-apple-silicon) below.
 
@@ -203,11 +205,11 @@ brew tap jundot/omlx https://github.com/jundot/omlx
 brew trust jundot/omlx   # required on Homebrew 6.0+
 brew install omlx
 bash demo_llm_proxy/download-omlx-models.sh fetch
-LLM_BACKEND=omlx ./run.sh                    # native
-LLM_BACKEND=omlx ./run-docker.sh start       # containers → host.docker.internal:8090
+./run.sh                              # auto oMLX on Apple Silicon
+LLM_BACKEND=omlx ./run-docker.sh start
 ```
 
-After first start, open http://127.0.0.1:8090/admin — pin Phi-4 and alias models
-to `phi-4-mini-instruct` (BFF) and `gpt-oss-20b` (agent-service).
+Model aliases `phi-4-mini-instruct` and `gpt-oss-20b` are symlinked automatically
+by `start-omlx.sh`; pin Phi-4 in admin for lowest BFF latency.
 
 Design spec: `docs/superpowers/specs/2026-07-07-omlx-mac-fast-path-design.md`

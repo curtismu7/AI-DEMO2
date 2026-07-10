@@ -2,7 +2,8 @@
 # start-omlx.sh — optional Mac-native LLM backend (oMLX on Apple Silicon)
 #
 # Serves OpenAI-compatible /v1 on :8090 so BFF + agent-service need no URL changes.
-# Use when LLM_BACKEND=omlx; Docker/K8s keep llama.cpp.
+# Auto-selected on Apple Silicon when LLM_BACKEND is unset; explicit: LLM_BACKEND=omlx.
+# Docker/K8s/Linux keep llama.cpp.
 #
 # Usage: bash demo_llm_proxy/start-omlx.sh [start|stop|status]
 #
@@ -13,6 +14,10 @@
 #   bash demo_llm_proxy/download-omlx-models.sh fetch
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=resolve-llm-backend.sh
+source "${SCRIPT_DIR}/resolve-llm-backend.sh"
 
 OMLX_PORT="${OMLX_PORT:-8090}"
 OMLX_MODEL_DIR="${OMLX_MODEL_DIR:-$HOME/.omlx/models}"
@@ -27,6 +32,19 @@ omlx_url() { echo "http://127.0.0.1:${OMLX_PORT}"; }
 
 omlx_ready() {
   curl -sf --max-time 3 "$(omlx_url)/v1/models" >/dev/null 2>&1
+}
+
+# Symlink demo model ids to MLX dirs so /v1/models exposes phi-4-mini-instruct etc.
+# without manual oMLX admin alias setup (admin pin still recommended for latency).
+ensure_omlx_aliases() {
+  local phi_dir="${OMLX_MODEL_DIR}/Phi-4-mini-instruct-4bit"
+  local oss_dir="${OMLX_MODEL_DIR}/gpt-oss-20b-MXFP4-Q4"
+  if [[ -d "$phi_dir" && -f "$phi_dir/config.json" ]]; then
+    ln -sfn "$phi_dir" "${OMLX_MODEL_DIR}/phi-4-mini-instruct"
+  fi
+  if [[ -d "$oss_dir" && -f "$oss_dir/config.json" ]]; then
+    ln -sfn "$oss_dir" "${OMLX_MODEL_DIR}/gpt-oss-20b"
+  fi
 }
 
 # Homebrew oMLX 0.4.4 ships mlx-lm + transformers 5.13 with a known import bug.
@@ -63,8 +81,8 @@ stop_llamacpp_stack() {
 }
 
 start_omlx() {
-  if [[ "$(uname)" != "Darwin" ]]; then
-    echo "❌ oMLX requires macOS + Apple Silicon"
+  if ! is_apple_silicon_mac; then
+    echo "❌ oMLX requires macOS Apple Silicon (darwin + arm64)"
     exit 1
   fi
   if ! command -v omlx >/dev/null 2>&1; then
@@ -91,6 +109,7 @@ start_omlx() {
 
   stop_llamacpp_stack
 
+  ensure_omlx_aliases
   patch_omlx_transformers_compat
 
   echo "🚀 Starting oMLX on :${OMLX_PORT} (model-dir: ${OMLX_MODEL_DIR})"
@@ -112,7 +131,8 @@ start_omlx() {
     if omlx_ready; then
       echo "✅ oMLX ready on :${OMLX_PORT}"
       echo "   Admin: $(omlx_url)/admin"
-      echo "   Pin phi-4-mini for BFF; alias ids to match LLAMACPP_MODEL"
+      echo "   Model aliases: phi-4-mini-instruct, gpt-oss-20b (symlinked under ${OMLX_MODEL_DIR})"
+      echo "   Pin Phi-4 in admin for lowest BFF latency"
       return 0
     fi
     if ! kill -0 "$new_pid" 2>/dev/null; then

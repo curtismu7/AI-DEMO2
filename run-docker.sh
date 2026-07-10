@@ -305,7 +305,8 @@ git_sync_check() {
 }
 
 # ── Local LLM (host) lifecycle ───────────────────────────────────────────────
-# LLM_BACKEND selects the Mac host backend (default: llamacpp):
+# LLM_BACKEND selects the host LLM backend (platform-aware default via resolve-llm-backend.sh):
+#   unset    — omlx on Apple Silicon Mac; llamacpp elsewhere (never omlx on Linux)
 #   llamacpp — 2-tier llama.cpp proxy; llm-proxy container on :8090 routes to
 #              host tiers :8091 (small) / :8096 (big) via tier-manager :8097
 #   omlx     — oMLX on host :8090; llm-proxy container is skipped (port clash);
@@ -313,7 +314,14 @@ git_sync_check() {
 #   mlx      — Apple mlx-lm on host :8090 (fallback); same skip as omlx
 #
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
-_LLM_BACKEND="${LLM_BACKEND:-llamacpp}"
+# shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
+source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
+_LLM_BACKEND="$(resolve_llm_backend)"
+if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
+  warn "${LLM_BACKEND_RESOLVE_WARN}"
+elif [[ -z "${LLM_BACKEND:-}" && "${_LLM_BACKEND}" == "omlx" ]]; then
+  ok "Apple Silicon Mac — defaulting to oMLX (override: LLM_BACKEND=llamacpp)"
+fi
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
 _TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
@@ -376,7 +384,7 @@ _start_tier_manager() {
 
 start_llamacpp() {
   if [[ "${_LLM_BACKEND}" == "mlx" ]]; then
-    if [[ "$(uname)" != "Darwin" ]]; then
+    if ! is_macos; then
       warn "LLM_BACKEND=mlx requires macOS — starting llama.cpp tiers instead"
     elif [[ -x "${_MLX_SCRIPT}" ]] || [[ -f "${_MLX_SCRIPT}" ]]; then
       docker compose "${COMPOSE_FILES[@]}" stop llm-proxy 2>/dev/null || true
@@ -385,15 +393,16 @@ start_llamacpp() {
         return 0
       fi
       warn "mlx-lm failed to start — see /tmp/mlx-models/ (log: mlx-8090.log)"
-      return 0
+      _LLM_BACKEND="llamacpp"
     else
       warn "start-mlx.sh not found — bash demo_llm_proxy/setup-mlx-venv.sh"
-      return 0
+      _LLM_BACKEND="llamacpp"
     fi
   fi
   if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
-    if [[ "$(uname)" != "Darwin" ]]; then
-      warn "LLM_BACKEND=omlx requires macOS — starting llama.cpp tiers instead"
+    if ! is_apple_silicon_mac; then
+      warn "oMLX requires Apple Silicon Mac — starting llama.cpp tiers instead"
+      _LLM_BACKEND="llamacpp"
     elif command -v omlx >/dev/null 2>&1; then
       docker compose "${COMPOSE_FILES[@]}" stop llm-proxy 2>/dev/null || true
       if bash "$_OMLX_SCRIPT" start; then
@@ -401,11 +410,21 @@ start_llamacpp() {
         return 0
       fi
       warn "oMLX failed to start — see /tmp/omlx-models/ (log: omlx-8090.log)"
-      return 0
+      if [[ -z "${LLM_BACKEND:-}" ]]; then
+        warn "Auto-falling back to llama.cpp tiers"
+        _LLM_BACKEND="llamacpp"
+      else
+        return 0
+      fi
     else
       warn "omlx not installed — brew tap jundot/omlx && brew install omlx"
       warn "  models: bash demo_llm_proxy/download-omlx-models.sh fetch"
-      return 0
+      if [[ -z "${LLM_BACKEND:-}" ]]; then
+        warn "Auto-falling back to llama.cpp tiers"
+        _LLM_BACKEND="llamacpp"
+      else
+        return 0
+      fi
     fi
   fi
   command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
