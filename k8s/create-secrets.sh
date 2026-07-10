@@ -122,6 +122,18 @@ inject_helix_api_key() {
   local bff_env="$ASSET_ROOT/demo_api_server/.env"
   if grep -qE '^HELIX_API_KEY=.+' "$bff_env" 2>/dev/null; then
     info "  HELIX_API_KEY already set in .env — keyfile lookup skipped"
+    # Still mirror into langchain-secrets when the BFF .env has the key but
+    # langchain_agent/.env does not (typical on SE/AWS deploys).
+    local helix_key
+    helix_key=$(grep -E '^HELIX_API_KEY=.+' "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+    if [ -n "$helix_key" ]; then
+      export HELIX_KEY="$helix_key"
+      python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {"HELIX_API_KEY": os.environ["HELIX_KEY"], "LANGCHAIN_LLM_PROVIDER": "helix"}}))
+PY
+      info "  HELIX_API_KEY mirrored into langchain-secrets from BFF .env"
+    fi
     return
   fi
 
@@ -160,12 +172,42 @@ PY
   fi
   printf '%s' "$patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
   info "  HELIX_API_KEY injected into ai-demo-secrets from $(basename "$keyfile")"
+  # LangChain agent mounts langchain-secrets (not ai-demo-secrets) — mirror the key
+  # and default provider so in-cluster /run and WebSocket chat use Helix on SE/AWS.
+  printf '%s' "$patch" | python3 -c "
+import json, sys
+p = json.load(sys.stdin)
+p['stringData']['LANGCHAIN_LLM_PROVIDER'] = 'helix'
+print(json.dumps(p))
+" | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  info "  HELIX_API_KEY + LANGCHAIN_LLM_PROVIDER=helix mirrored into langchain-secrets"
+}
+
+# Mirror GOOGLE_API_KEY from the BFF .env into langchain-secrets so the agent
+# can honor an explicit Google/Gemini provider selection in the LLM config UI.
+mirror_google_api_key() {
+  local bff_env="$ASSET_ROOT/demo_api_server/.env"
+  local google_key
+  google_key=$(grep -E '^GOOGLE_API_KEY=.+' "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  if [ -z "$google_key" ]; then
+    google_key=$(grep -E '^GEMINI_API_KEY=.+' "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  fi
+  if [ -z "$google_key" ]; then
+    return
+  fi
+  export GOOGLE_KEY="$google_key"
+  python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {"GOOGLE_API_KEY": os.environ["GOOGLE_KEY"]}}))
+PY
+  info "  GOOGLE_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile
+mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway

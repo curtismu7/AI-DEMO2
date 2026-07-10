@@ -1,8 +1,10 @@
 FROM node:20-alpine
 
+# TARGETARCH is set by buildx (arm64 on Graviton nodes, amd64 on x86).
+ARG TARGETARCH=amd64
 RUN apk add --no-cache curl \
   && KVER="$(curl -L -s https://dl.k8s.io/release/stable.txt)" \
-  && curl -LO "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl" \
+  && curl -LO "https://dl.k8s.io/release/${KVER}/bin/linux/${TARGETARCH}/kubectl" \
   && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
   && rm kubectl
 

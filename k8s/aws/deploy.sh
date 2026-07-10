@@ -70,6 +70,8 @@ IMAGE_MAP=(
   "ai-demo-openai-agent:ai-demo-openai-agent"
   "ai-demo-mastra-agent:ai-demo-mastra-agent"
   "ai-demo-pydantic-agent:ai-demo-pydantic-agent"
+  "ai-demo-llm-proxy:ai-demo-llm-proxy"
+  "ai-demo-tier-manager:ai-demo-tier-manager"
 )
 
 # Rewrite image refs in a YAML: local name → GHCR URI
@@ -128,6 +130,8 @@ if command -v gh &>/dev/null; then
     -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
   kubectl patch serviceaccount default -n "$NS" \
     -p '{"imagePullSecrets": [{"name": "ghcr-pull-secret"}]}' || true
+  kubectl patch serviceaccount llm-tier-manager -n "$NS" \
+    -p '{"imagePullSecrets": [{"name": "ghcr-pull-secret"}]}' 2>/dev/null || true
 fi
 
 info "Creating secrets from demo_api_server/.env..."
@@ -183,6 +187,7 @@ for manifest in \
   63-mcp-invest-deployment.yaml \
   64-mortgage-service-deployment.yaml \
   62-hitl-service-deployment.yaml \
+  56-llm-stack.yaml \
   20-api-server-deployment.yaml \
   60-mcp-gateway-deployment.yaml \
   61-agent-service-deployment.yaml \
@@ -214,10 +219,12 @@ fi
 
 info "Waiting for rollouts (timeout 3m each)..."
 for dep in mcp-server mcp-invest mortgage-service hitl-service \
-           demo-api-server mcp-gateway agent-service langchain-agent \
+           llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            mastra-agent openai-agent pydantic-agent frontend; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
 done
+kubectl rollout status "deployment/llama-tier1" -n "$NS" --timeout=900s \
+  || info "WARNING: llama-tier1 not ready yet — model may still be downloading from HuggingFace"
 
 success "Deploy complete."
 echo
