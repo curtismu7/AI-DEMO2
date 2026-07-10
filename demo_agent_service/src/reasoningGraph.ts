@@ -7,6 +7,7 @@
 import * as crypto from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { ChatOpenAI } from '@langchain/openai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, AIMessage, ToolMessage, SystemMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import type { ReasonRequest, ReasonResponse, ReasonMessage, ReasoningState } from './reasonContract';
@@ -58,6 +59,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   // llama-server serves whatever model it was launched with; this is only a
   // last-resort fallback when /v1/models can't be reached and no env override.
   llamacpp: 'local-model',
+  google: 'gemini-2.0-flash',
 };
 
 // Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.
@@ -309,6 +311,53 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
       };
     } catch (err) {
       teachLog.error('llama.cpp reasoning step failed', err, { operation: 'reasonOnce' });
+      return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
+    }
+  }
+
+  if (req.provider === 'google') {
+    // Google Gemini via @langchain/google-genai. Same bindTools/invoke shape as
+    // the llama.cpp (ChatOpenAI) path. Key comes from the BFF/agent env, never a
+    // user token. Missing key → reasoningUnavailable (BFF applies heuristic floor).
+    const apiKey = req.googleApiKey || process.env.GOOGLE_API_KEY || '';
+    if (!apiKey) {
+      teachLog.error('Google API key missing', null, { operation: 'reasonOnce' });
+      return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
+    }
+    try {
+      const model = req.model || process.env.GOOGLE_MODEL || DEFAULT_MODELS.google;
+      const llm = new ChatGoogleGenerativeAI({ model, temperature: 0, apiKey });
+      const withTools = req.tools.length > 0
+        ? llm.bindTools(req.tools.map((t) => ({
+            type: 'function' as const,
+            function: { name: t.name, description: t.description, parameters: t.inputSchema },
+          })))
+        : llm;
+      const response = await withTools.invoke(toLangChainMessages(req.messages, req.systemPrompt));
+      const text = stripThink(extractTextContent(response.content));
+      const toolCalls = response.tool_calls ?? [];
+      if (toolCalls.length > 0) {
+        const calls = toolCalls.map((tc) => ({
+          id: tc.id ?? `google-${crypto.randomUUID()}`,
+          name: tc.name,
+          args: (tc.args ?? {}) as Record<string, unknown>,
+        }));
+        const assistantMsg: ReasonMessage = {
+          role: 'assistant',
+          content: text,
+          tool_calls: calls,
+        };
+        return { type: 'tool_calls', calls, messages: [...req.messages, assistantMsg] };
+      }
+      return {
+        type: 'final',
+        answer: text,
+        messages: [...req.messages, { role: 'assistant', content: text }],
+        inputTokens: response.usage_metadata?.input_tokens,
+        outputTokens: response.usage_metadata?.output_tokens,
+      };
+    } catch (err) {
+      teachLog.error('Google (Gemini) reasoning step failed', err, { operation: 'reasonOnce' });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
   }
