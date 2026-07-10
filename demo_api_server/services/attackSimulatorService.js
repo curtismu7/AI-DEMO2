@@ -1,13 +1,12 @@
 'use strict';
 
 /**
- * Attack Simulator Service — A6.1
+ * Attack Simulator Service — A6.1 + A6.2
  *
  * Runs REAL deficient-token attacks against the live MCP gateway.
  * No local signing. The token PingOne mints is structurally valid;
- * the deficiency is in the claim values (wrong scope or wrong aud).
- *
- * A6.2 (crafted/forged tokens) is deferred until Plan C phase C4 lands.
+ * the deficiency is in the claim values (wrong scope, wrong aud, cross-owner
+ * resource, rogue actor, RAR overage, tampered intent, missing act, replay).
  *
  * Gateway error contract (from mcpGatewayClient.js):
  *   - 401 wrong-aud → throws { code: 'GATEWAY_AUDIENCE_MISMATCH', httpStatus: 401, message }
@@ -18,7 +17,9 @@
 
 const oauthService = require('./oauthService');
 const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
-const { buildTokenEvent, decodeJwtClaims } = require('./agentMcpTokenService');
+const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails } = require('./agentMcpTokenService');
+const { mintIntentToken } = require('./intentTokenService');
+const dataStore = require('../data/store');
 const configStore = require('./configStore');
 
 const UC18_DEMO_RATE_LIMIT = {
@@ -26,6 +27,25 @@ const UC18_DEMO_RATE_LIMIT = {
   rateLimitMaxRequests: 3,
   rateLimitWindowMs: 10000,
 };
+
+/** Catalog slug per sim id (useCases.js useCaseId fields). */
+const SIM_USE_CASE_IDS = {
+  'insufficient-scope': 'insufficient-scope',
+  'wrong-aud': 'bad-client-gateway',
+  'cross-owner-account': 'cross-owner-account',
+  'replayed-token': 'token-theft-replay',
+  'rogue-actor': 'confused-deputy-actor-injection',
+  'rar-exceeded': 'rar-intent-violation',
+  'tampered-intent-token': 'intent-token-tampering',
+  'impersonation-no-act': 'impersonation-blocked',
+  'rate-limit-burst': 'rate-limit-defense',
+};
+
+/** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
+const ROGUE_ACTOR_CLIENT_ID = 'rogue-agent-9f2a-not-allowlisted';
+
+/** Sample-data account owned by user id "2" (not the demo customer). */
+const FOREIGN_ACCOUNT_ID = '3';
 
 /**
  * Resolve the gateway resource URI — the audience the gateway expects.
@@ -95,6 +115,120 @@ function _stampUseCaseId(events, useCaseId) {
 }
 
 /**
+ * Resolve catalog useCaseId slug for a sim id.
+ * @param {string} sim
+ * @returns {string}
+ */
+function _useCaseIdForSim(sim) {
+  return SIM_USE_CASE_IDS[sim] || sim;
+}
+
+/**
+ * Push runtime gateway flags for UC14/15/16 demo arming (Demo Agent Gateway only).
+ * @param {Record<string, boolean>} flags
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+async function _pushGatewayFlags(flags) {
+  if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+    return { ok: true };
+  }
+  let gatewayUrl;
+  try {
+    gatewayUrl = getMcpGatewayHttpUrl();
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
+  return pushGatewayAdminConfig(gatewayUrl, flags);
+}
+
+/**
+ * Exchange the session token to the gateway audience and record token-chain events.
+ * @returns {Promise<{ ok: true, token: string } | { ok: false, result: object }>}
+ */
+async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChainEvents, label) {
+  const gatewayAud = _gatewayAud();
+  if (!gatewayAud) {
+    return {
+      ok: false,
+      result: {
+        sim: label,
+        useCaseId,
+        status: 503,
+        errorCode: 'gateway_not_configured',
+        reason: 'pingone_resource_mcp_gateway_uri is not configured',
+        tokenChainEvents,
+      },
+    };
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-exchange-start',
+    `Token Exchange (${label})`,
+    'active',
+    null,
+    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
+  ));
+
+  let exchangedToken;
+  try {
+    exchangedToken = await oauthService.performTokenExchange(subjectToken, gatewayAud, scopes);
+  } catch (err) {
+    const errorCode = err.pingoneError || 'exchange_failed';
+    const reason = `Token exchange failed: ${err.message}`;
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-exchange-error',
+      'Token Exchange FAILED',
+      'error',
+      null,
+      reason,
+      { error: errorCode },
+    ));
+    return {
+      ok: false,
+      result: {
+        sim: label,
+        useCaseId,
+        status: 502,
+        errorCode,
+        reason,
+        tokenChainEvents,
+      },
+    };
+  }
+
+  const decoded = decodeJwtClaims(exchangedToken);
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-exchange-ok',
+    'Exchanged Token',
+    'active',
+    decoded,
+    'PingOne minted a delegated gateway token for the attack scenario.',
+    { exchangeDetails: { audience: gatewayAud, scopes: scopes.join(' ') } },
+  ));
+  return { ok: true, token: exchangedToken };
+}
+
+/**
+ * Build a deny result from a gateway error with optional canonical error code.
+ */
+function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel) {
+  const { errorCode: rawCode, httpStatus: rawStatus, reason } = _parseGatewayError(err, fallbackStatus);
+  const errorCode = canonicalCode || rawCode;
+  const httpStatus = canonicalCode ? fallbackStatus : rawStatus;
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-gateway-deny',
+    eventLabel || `Gateway DENY (${errorCode})`,
+    'error',
+    null,
+    `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
+    { error: errorCode, httpStatus },
+  ));
+  _stampUseCaseId(tokenChainEvents, useCaseId);
+  return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+}
+
+/**
  * Run an attack simulation against the real gateway with a real-deficient token.
  *
  * @param {string} sim - The attack sim id ('insufficient-scope' or 'wrong-aud')
@@ -114,12 +248,8 @@ async function runAttackSim(sim, req) {
     };
   }
 
-  // Catalog slugs (useCases.js UC5.useCaseId / UC11.useCaseId / UC18.useCaseId)
-  const useCaseId = sim === 'insufficient-scope'
-    ? 'insufficient-scope'
-    : sim === 'rate-limit-burst'
-      ? 'rate-limit-defense'
-      : 'bad-client-gateway';
+  // Catalog slugs (useCases.js useCaseId per sim)
+  const useCaseId = _useCaseIdForSim(sim);
   const tokenChainEvents = [];
 
   if (sim === 'insufficient-scope') {
@@ -132,6 +262,30 @@ async function runAttackSim(sim, req) {
 
   if (sim === 'rate-limit-burst') {
     return _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'cross-owner-account') {
+    return _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req);
+  }
+
+  if (sim === 'replayed-token') {
+    return _runReplayedToken(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'rogue-actor') {
+    return _runRogueActor(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'rar-exceeded') {
+    return _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req);
+  }
+
+  if (sim === 'tampered-intent-token') {
+    return _runTamperedIntentToken(subjectToken, useCaseId, tokenChainEvents, req);
+  }
+
+  if (sim === 'impersonation-no-act') {
+    return _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents);
   }
 
   // Should not be reached — route validates VALID_SIMS before calling here.
@@ -531,6 +685,359 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
     reason: 'Burst completed without a 429 — rate limiting may not be active on the gateway',
     tokenChainEvents,
   };
+}
+
+/**
+ * UC10 cross-owner-account: read another user's account with a valid delegated token.
+ */
+async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req) {
+  const sim = 'cross-owner-account';
+  const exchanged = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim);
+  if (!exchanged.ok) return exchanged.result;
+
+  const foreign = dataStore.getAccountById(FOREIGN_ACCOUNT_ID);
+  const foreignOwner = foreign?.userId || 'another user';
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-attack-setup',
+    'Cross-owner target selected',
+    'active',
+    null,
+    `Attempting get_account_balance for account ${FOREIGN_ACCOUNT_ID} owned by user "${foreignOwner}" ` +
+    `while authenticated as "${req?.session?.user?.sub || req?.user?.sub || 'current user'}".`,
+  ));
+
+  try {
+    await callToolViaGateway(null, exchanged.token, 'get_account_balance', { account_id: FOREIGN_ACCOUNT_ID });
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway permitted a cross-owner balance read — resource-ownership enforcement may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — resource-ownership enforcement may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 403, 'resource_owner_mismatch',
+      'Gateway DENY (resource_owner_mismatch)',
+    );
+  }
+}
+
+/**
+ * UC12 replayed-token: present the BFF/session token (wrong audience) directly to the gateway.
+ */
+async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'replayed-token';
+  const gatewayAud = _gatewayAud();
+  const decoded = decodeJwtClaims(subjectToken);
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-replay-start',
+    'Replay stolen session token (wrong audience)',
+    'active',
+    decoded,
+    `Presenting the user's session token directly to the gateway without RFC 8693 exchange. ` +
+    `Audience binding requires aud="${gatewayAud}" — a token minted for the BFF/API audience must be rejected.`,
+  ));
+
+  try {
+    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {});
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway accepted a replayed session token — audience binding may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — audience binding may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(sim, useCaseId, tokenChainEvents, err, 401, 'invalid_aud', 'Gateway DENY (invalid_aud)');
+  }
+}
+
+/**
+ * UC13 rogue-actor: inject a non-allowlisted ActClientId (confused-deputy pattern).
+ */
+async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'rogue-actor';
+  const exchanged = await _exchangeGatewayToken(subjectToken, ['read', 'write'], useCaseId, tokenChainEvents, sim);
+  if (!exchanged.ok) return exchanged.result;
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-rogue-actor',
+    'Rogue actor injected into act chain',
+    'active',
+    null,
+    `Overriding X-Act-Client-Id with rogue actor "${ROGUE_ACTOR_CLIENT_ID}" — ` +
+    'Authorize must DENY via HasValidActorChain.',
+  ));
+
+  try {
+    await callToolViaGateway(null, exchanged.token, 'get_my_accounts', {}, {
+      testActClientId: ROGUE_ACTOR_CLIENT_ID,
+    });
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway permitted a rogue actor — authorized-actor enforcement may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — authorized-actor enforcement may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 403, 'mcp_invalid_actor',
+      'Gateway DENY (mcp_invalid_actor)',
+    );
+  }
+}
+
+/**
+ * UC14 rar-exceeded: TraT/RAR grants $100 but the agent attempts a larger transfer.
+ */
+async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
+  const sim = 'rar-exceeded';
+  const grantedAmount = 100;
+  const attackAmount = 500;
+
+  try {
+    await configStore.setRaw({ ff_rar: 'true' });
+  } catch (err) {
+    return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
+  }
+
+  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  if (!pushResult.ok) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-arm-failed',
+      'Gateway RAR arm failed (non-fatal)',
+      'warning',
+      null,
+      pushResult.error || 'Could not arm requireRarIntent on gateway',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'Gateway RAR enforcement armed (UC14)',
+      'active',
+      null,
+      'requireRarIntent enabled on Demo Agent Gateway for this burst.',
+    ));
+  }
+
+  const exchanged = await _exchangeGatewayToken(
+    subjectToken, ['read', 'write', 'transfer'], useCaseId, tokenChainEvents, sim,
+  );
+  if (!exchanged.ok) return exchanged.result;
+
+  const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+  const rarDetails = buildRarAuthorizationDetails(
+    'create_transfer',
+    { amount: grantedAmount, to_account_id: 'sim-acc-001' },
+    userSub,
+  );
+  const tratCtx = buildTratContext(
+    req,
+    'create_transfer',
+    userSub,
+    configStore.getEffective('pingone_ai_agent_actor_client_id') || '',
+    configStore.getEffective('admin_client_id') || '',
+    { rarDetails },
+  );
+  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-rar-grant',
+    `RAR grant ($${grantedAmount})`,
+    'active',
+    null,
+    `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
+    `Attack attempts create_transfer for $${attackAmount}.`,
+    { authorization_details: rarDetails },
+  ));
+
+  try {
+    await callToolViaGateway(
+      null,
+      exchanged.token,
+      'create_transfer',
+      { amount: attackAmount, to_account_id: 'sim-acc-001' },
+      { tratContextHeader },
+    );
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway permitted a RAR-overlimit transfer — RAR enforcement may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — RAR enforcement may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 403, 'rar_amount_exceeded',
+      'Gateway DENY (rar_amount_exceeded)',
+    );
+  }
+}
+
+/**
+ * UC15 tampered-intent-token: valid intent JWT with a corrupted signature.
+ */
+async function _runTamperedIntentToken(subjectToken, useCaseId, tokenChainEvents, req) {
+  const sim = 'tampered-intent-token';
+  const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+
+  const pushResult = await _pushGatewayFlags({ intentTokenRequired: true });
+  if (!pushResult.ok) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-intent-arm-failed',
+      'Gateway intent-token arm failed (non-fatal)',
+      'warning',
+      null,
+      pushResult.error || 'Could not arm intentTokenRequired on gateway',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-intent-armed',
+      'Gateway intent-token validation armed (UC15)',
+      'active',
+      null,
+      'intentTokenRequired enabled — tampered X-Intent-Token must be rejected.',
+    ));
+  }
+
+  const exchanged = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim);
+  if (!exchanged.ok) return exchanged.result;
+
+  const { token: intentToken } = mintIntentToken({
+    userId: userSub,
+    sessionId: req?.sessionID || '',
+    prompt: 'show my accounts',
+    intent: 'view_accounts',
+    confidence: 0.95,
+    vertical: 'banking',
+  });
+  const parts = intentToken.split('.');
+  const tamperedIntent = `${parts[0]}.${parts[1]}.${parts[2].slice(0, -1)}X`;
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-intent-tamper',
+    'Intent token tampered (signature corrupt)',
+    'active',
+    null,
+    'Minted a valid intent token then flipped the HMAC signature — gateway must reject before Authorize.',
+  ));
+
+  try {
+    await callToolViaGateway(null, exchanged.token, 'get_my_accounts', {}, { intentToken: tamperedIntent });
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway accepted a tampered intent token — signature validation may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — intent-token validation may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    const canonical = err.gatewayErrorCode === 'intent_token_invalid' ? 'intent_token_invalid' : 'invalid_signature';
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 401, canonical,
+      'Gateway DENY (intent_token_invalid)',
+    );
+  }
+}
+
+/**
+ * UC16 impersonation-no-act: gateway token without act claim on an agent-mediated tool.
+ */
+async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'impersonation-no-act';
+
+  const pushResult = await _pushGatewayFlags({ requireActForAgentTools: true });
+  if (!pushResult.ok) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-act-arm-failed',
+      'Gateway UC16 arm failed (non-fatal)',
+      'warning',
+      null,
+      pushResult.error || 'Could not arm requireActForAgentTools on gateway',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-act-armed',
+      'Impersonation block armed (UC16)',
+      'active',
+      null,
+      'requireActForAgentTools enabled — agent-mediated tools require an act claim.',
+    ));
+  }
+
+  const exchanged = await _exchangeGatewayToken(
+    subjectToken, ['read', 'write', 'transfer'], useCaseId, tokenChainEvents, sim,
+  );
+  if (!exchanged.ok) return exchanged.result;
+
+  const decoded = decodeJwtClaims(exchanged.token);
+  if (decoded?.claims?.act) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-act-present',
+      'Exchanged token carries act (unexpected for impersonation sim)',
+      'warning',
+      decoded,
+      'PingOne included an act claim on the exchanged token — UC16 may not fire unless REQUIRE_ACT is enforced upstream.',
+    ));
+  }
+
+  try {
+    await callToolViaGateway(null, exchanged.token, 'create_transfer', {
+      amount: 1,
+      to_account_id: 'sim-acc-001',
+    });
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway permitted an act-less impersonation call — UC16 enforcement may not be active.',
+    ));
+    _stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway permitted the call — impersonation block may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 401, 'missing_act',
+      'Gateway DENY (missing_act)',
+    );
+  }
 }
 
 module.exports = { runAttackSim };

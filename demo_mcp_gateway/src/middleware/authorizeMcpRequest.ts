@@ -461,7 +461,7 @@ export function buildAuthorizeMcpRequest(
 
     // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
-    const intentRequired = process.env.INTENT_TOKEN_REQUIRED === 'true';
+    const intentRequired = config.intentTokenRequired === true;
     const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
       : null;
@@ -619,7 +619,7 @@ export function buildAuthorizeMcpRequest(
     // Enforce that the actual tool-call params are a subset of the granted
     // authorization_details (action match, amount <= granted, payee match). Hard only
     // when REQUIRE_RAR_INTENT=true; fail-closed if intent is required but none declared.
-    if (process.env.REQUIRE_RAR_INTENT === 'true') {
+    if (config.requireRarIntent === true) {
       if (!_rarDetails) {
         _audCtx.rar = 'required-missing';
         setAuditHeader(res);
