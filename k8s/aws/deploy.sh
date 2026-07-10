@@ -58,7 +58,7 @@ die()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
 IMAGE_MAP=(
   "ai-demo-ui:ai-demo-frontend"
-  "ai-demo-api-server:ai-demo-api-server"
+  "ai-demo-api-server:ai-demo-demo-api-server"
   "ai-demo-mcp-server:ai-demo-mcp-server"
   "ai-demo-mcp-gateway:ai-demo-mcp-gateway"
   "ai-demo-authz-server:ai-demo-authz-server"
