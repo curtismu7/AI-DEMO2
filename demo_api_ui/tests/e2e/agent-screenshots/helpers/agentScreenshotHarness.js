@@ -107,7 +107,19 @@ async function clickChip(page, chipLabel) {
     const reason = (await chip.first().getAttribute('title')) || 'chip disabled (authorize unverified)';
     throw new ChipDisabledError(reason);
   }
-  await chip.first().click();
+  // Bound the click: a tool-backed chip can flip to disabled mid-click when the
+  // Authorize/tools fetch resolves after load (TOCTOU). Without a timeout,
+  // Playwright retries the click on the now-disabled element for the full test
+  // timeout. On failure, re-check disabled state and record a blocked skip.
+  try {
+    await chip.first().click({ timeout: 8000 });
+  } catch (err) {
+    if (await chip.first().isDisabled().catch(() => false)) {
+      const reason = (await chip.first().getAttribute('title')) || 'chip disabled (authorize unverified)';
+      throw new ChipDisabledError(reason);
+    }
+    throw err;
+  }
 }
 
 async function captureChip(page, { vertical, chipId, chipLabel, modeId }) {
