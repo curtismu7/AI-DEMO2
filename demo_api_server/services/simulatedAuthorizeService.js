@@ -214,6 +214,7 @@ async function evaluateMcpFirstTool({
   rarMaxAmount = null,       // granted ceiling from RAR intent (azd.authorization_details[0].amount)
   rarPermittedPayees = null, // allowed payee list from RAR intent (azd.authorization_details[0].payee, normalised to array)
   toAccountId = null,        // payee from the tool call params (checked against rarPermittedPayees)
+  useCaseId = null,          // launcher-supplied catalog slug (UC21 tier demo, etc.)
 }) {
   const decisionId = `sim-mcp-${Date.now()}-${++_seq}`;
   const parameters = {
@@ -401,7 +402,8 @@ async function evaluateMcpFirstTool({
   //
   // Parity: decision.js Rule 3d mirrors this block exactly.
   const _tierFlagOn = configStore.get('ff_authorize_group_policy') === 'true'
-    || configStore.get('ff_authorize_group_policy') === true;
+    || configStore.get('ff_authorize_group_policy') === true
+    || useCaseId === 'entitlement-tiered-capability';
   if (_tierFlagOn) {
     const _tierPolicy = getTierPolicy(verticalId);
     const _userTier = _resolveUserTierFromGroups(userGroups, verticalId);
@@ -448,6 +450,33 @@ async function evaluateMcpFirstTool({
       };
       recordSimulatedDecision(tierAmtOut);
       return tierAmtOut;
+    }
+
+    // UC21 — PrivateBanking tier expands the permitted amount band (PERMIT without step-up).
+    if (useCaseId === 'entitlement-tiered-capability' && transactionType && amount != null) {
+      const _uc21Tier = 'PrivateBanking';
+      const _uc21Config = _tierPolicy[_uc21Tier] || _tierPolicy[NNP8_DEFAULT_TIER];
+      if (amount <= _uc21Config.maxAmountUsd) {
+        const uc21Permit = {
+          decision: 'PERMIT',
+          stepUpRequired: false,
+          hitlRequired: false,
+          path: 'simulated',
+          decisionId,
+          raw: {
+            ...rawBase,
+            decision: 'PERMIT',
+            obligations: [],
+            reason:
+              `UC21 entitlement-tier capability — PrivateBanking tier covers $${amount} ` +
+              `(ceiling $${_uc21Config.maxAmountUsd}). Group membership expands capability; ` +
+              'premium-tier users proceed without the Standard-tier step-up gate.',
+            userTier: _uc21Tier,
+          },
+        };
+        recordSimulatedDecision(uc21Permit);
+        return uc21Permit;
+      }
     }
   }
 

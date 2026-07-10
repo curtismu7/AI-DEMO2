@@ -16,6 +16,11 @@ const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
+const {
+  resolveActiveUseCaseId,
+  resolveDemoUserGroupsForUseCase,
+  shouldApplyEntitlementTierDemo,
+} = require('./useCaseDemoBehaviors');
 const { verticalManifest } = require('./verticalManifest');
 
 /**
@@ -252,12 +257,14 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   let userTier = null;
   let inRequiredGroup = null;
   const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
-  if (groupPolicy.isEnabled(configStore)) {
+  const useCaseId = resolveActiveUseCaseId(req);
+  if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       verticalId,
       { pingOneUserId: subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
     );
+    userGroups = resolveDemoUserGroupsForUseCase(useCaseId, userGroups);
     userTier = groupPolicy.resolveUserTier(userGroups, verticalId);
     requiredGroup = groupPolicy.requiredGroupForTool(tool, verticalId);
     if (requiredGroup) {
@@ -305,6 +312,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     rarMaxAmount,
     rarPermittedPayees,
     toAccountId,
+    useCaseId,
   };
 
   // Live PingOne selected but no MCP decision endpoint is configured. Honor the
@@ -349,6 +357,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     rarMaxAmount,
     rarPermittedPayees,
     toAccountId,
+    useCaseId,
   };
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {

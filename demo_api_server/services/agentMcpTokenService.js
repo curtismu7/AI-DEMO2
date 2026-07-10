@@ -58,6 +58,15 @@ const { getSessionDpopKey } = require('./dpopKeyService');
 const scopeTopology = require('./scopeTopology');
 const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
+const {
+  resolveActiveUseCaseId,
+  shouldSimulateRetiredAgentExchange,
+  buildJitExchangeOptions,
+  stampTokenEventsForUseCase,
+  buildEventMetadata,
+  JIT_TOKEN_LIFETIME_SEC,
+  JIT_EPHEMERAL,
+} = require('./useCaseDemoBehaviors');
 
 /** Read a boolean feature flag from configStore (accepts true | 'true'). */
 function _flagOn(key) {
@@ -945,6 +954,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   logger.debug(_CAT, `[AGENT_MCP] resolveAccessToken tool=${tool} session=${req.sessionID}`);
 
   const tokenEvents = [];
+  const activeUseCaseId = resolveActiveUseCaseId(req);
   let userToken = getSessionBearerForMcp(req);
 
   if (!userToken) {
@@ -1544,6 +1554,38 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     }
   ));
 
+  // UC19 — retired agent identity: block exchange before contacting PingOne.
+  if (shouldSimulateRetiredAgentExchange(activeUseCaseId)) {
+    const inProgressIdx = tokenEvents.findIndex((e) => e.id === 'exchange-in-progress');
+    if (inProgressIdx !== -1) tokenEvents.splice(inProgressIdx, 1);
+    tokenEvents.push(buildTokenEvent(
+      'exchange-failed',
+      'Token Exchange (RFC 8693) — Agent identity retired',
+      'failed',
+      null,
+      'The agent application credential was retired in PingOne — token exchange is denied (401). ' +
+        'Non-human identities need the same lifecycle as human ones; a revoked client credential ' +
+        'cannot mint delegated tokens.',
+      {
+        rfc: 'RFC 8693',
+        httpStatus: 401,
+        useCaseId: activeUseCaseId,
+        agentIdentityRetired: true,
+      },
+    ));
+    stampTokenEventsForUseCase(tokenEvents, activeUseCaseId);
+    logAppEvent('token_exchange', 'error',
+      'UC19 agent identity lifecycle — exchange blocked (retired credential)',
+      { tag: 'token-exchange/retired-agent', useCaseId: activeUseCaseId });
+    const retiredErr = new Error('Agent identity retired — credential no longer mints tokens');
+    retiredErr.httpStatus = 401;
+    retiredErr.code = 'AGENT_IDENTITY_RETIRED';
+    retiredErr.tokenEvents = tokenEvents;
+    throw retiredErr;
+  }
+
+  const exchangeOptions = buildJitExchangeOptions(activeUseCaseId);
+
   // ── Perform exchange ─────────────────────────────────────────────────────────
   let exchangedToken = null;
   let exchangeMethod = 'subject-only';
@@ -1568,7 +1610,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     if (isDedicatedExchangerEnabled && dedicatedExchangerId) {
       // Use dedicated private_key_jwt app (supports both with and without actor)
       exchangedToken = await oauthService.performTokenExchangeWithDedicatedApp(
-        userToken, mcpResourceUri, finalScopes, actorToken || null
+        userToken, mcpResourceUri, finalScopes, actorToken || null, exchangeOptions
       );
       exchangeClientAuthMethod = 'private_key_jwt';
       exchangeMethod = actorToken ? 'with-actor-dedicated' : 'dedicated';
@@ -1581,19 +1623,19 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
           'post'
         ).toLowerCase();
         exchangedToken = await oauthService.performTokenExchangeAs(
-          userToken, actorToken, ccExchangerId, ccExchangerSecret, mcpResourceUri, finalScopes, exchangerAuthMethod
+          userToken, actorToken, ccExchangerId, ccExchangerSecret, mcpResourceUri, finalScopes, exchangerAuthMethod, exchangeOptions
         );
         exchangeClientAuthMethod = exchangerAuthMethod;
       } else {
         exchangedToken = await oauthService.performTokenExchangeWithActor(
-          userToken, actorToken, mcpResourceUri, finalScopes
+          userToken, actorToken, mcpResourceUri, finalScopes, exchangeOptions
         );
         exchangeClientAuthMethod = adminExchangeAuthMethod();
       }
       exchangeMethod = 'with-actor';
     } else {
       exchangedToken = await oauthService.performTokenExchange(
-        userToken, mcpResourceUri, finalScopes
+        userToken, mcpResourceUri, finalScopes, exchangeOptions
       );
       exchangeClientAuthMethod = adminExchangeAuthMethod();
     }
@@ -1639,6 +1681,9 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     const standInNote = enterpriseStandIn
       ? ' ID-JAG equivalent (RFC 8693 stand-in) — native ID-JAG pending PingOne product support.'
       : '';
+    const jitNote = activeUseCaseId === JIT_EPHEMERAL
+      ? ` UC17 JIT credential — token_lifetime=${JIT_TOKEN_LIFETIME_SEC}s (expires in minutes, not days).`
+      : '';
 
     tokenEvents.push(buildTokenEvent(
       'exchanged-token',
@@ -1647,7 +1692,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
         : 'MCP access token (delegated) → MCP server',
       'exchanged',
       mcpAccessTokenDecoded,
-      'PingOne issued the MCP access token.' + standInNote + ' ' +
+      'PingOne issued the MCP access token.' + standInNote + jitNote + ' ' +
       (mcpAccessTokenClaims?.act
         ? `act: ${JSON.stringify(mcpAccessTokenClaims.act)} — the Backend-for-Frontend (BFF) is acting on behalf of the user. ` +
           'Resource servers use act to identify the current actor for audit and policy decisions.'
@@ -1674,7 +1719,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
           requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
           scope: Array.isArray(effectiveToolScopes) ? effectiveToolScopes.join(' ') : String(effectiveToolScopes || ''),
           audience: mcpResourceUri || null,
+          ...(exchangeOptions.tokenLifetime != null ? { token_lifetime: exchangeOptions.tokenLifetime } : {}),
         },
+        ...(activeUseCaseId ? { useCaseId: activeUseCaseId } : {}),
+        ...(exchangeOptions.tokenLifetime != null ? { tokenLifetime: exchangeOptions.tokenLifetime } : {}),
       }
     ));
 
@@ -1841,6 +1889,8 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       exchangeMethod,
       userSub,
     });
+
+    stampTokenEventsForUseCase(tokenEvents, activeUseCaseId);
 
     return { token: exchangedToken, tokenEvents, userSub, tratContextHeader };
 
