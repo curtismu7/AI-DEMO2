@@ -8,7 +8,7 @@
  * Required env variables (set in .env.e2e or shell — never commit values):
  *
  *   E2E_BASE_URL          Base URL of the running app
- *                         e.g. https://banking-demo-puce.vercel.app  (Vercel)
+ *                         e.g. https://ai-demo.ping-devops.com  (AWS deployment)
  *                         or   http://localhost:3000               (local)
  *
  *   E2E_CUSTOMER_USERNAME PingOne username of the test customer account
@@ -81,7 +81,7 @@ function getE2eBaseUrl() {
   return (
     process.env.E2E_BASE_URL ||
     process.env.PLAYWRIGHT_BASE_URL ||
-    'https://banking-demo-puce.vercel.app'
+    'https://ai-demo.ping-devops.com'
   );
 }
 

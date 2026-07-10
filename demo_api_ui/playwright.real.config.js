@@ -33,7 +33,7 @@ const { defineConfig, devices } = require('@playwright/test');
 const BASE_URL =
   process.env.E2E_BASE_URL ||
   process.env.PLAYWRIGHT_BASE_URL ||
-  'https://banking-demo-puce.vercel.app';
+  'https://ai-demo.ping-devops.com';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',

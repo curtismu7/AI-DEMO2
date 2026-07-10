@@ -77,11 +77,11 @@ export default function Onboarding() {
         </div>
 
         <div style={{ ...cardStyle, borderColor: '#a7f3d0', background: '#f0fdf4' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0', color: '#166534' }}>Hosted demo (Vercel, Replit, …)</h2>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0', color: '#166534' }}>Hosted demo (Replit, …)</h2>
           <p style={{ margin: '0 0 0.75rem 0', color: '#166534', fontSize: '0.9375rem', lineHeight: 1.6 }}>
-            <strong>Vercel:</strong> run the env wizard from the repo root — open the{' '}
+            Open the{' '}
             <Link to="/setup" style={{ color: '#15803d', fontWeight: 600 }}>Deployment setup</Link>{' '}
-            page for copy-paste commands (<code>npm run setup:vercel</code>).
+            page for the PingOne bootstrap plan and copy-paste commands.
           </p>
           <ol style={olStyle}>
             <li>

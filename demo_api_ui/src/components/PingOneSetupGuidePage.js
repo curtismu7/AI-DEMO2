@@ -7,7 +7,7 @@ const REPO_ROOT = 'path/to/Banking';
 
 /**
  * Full reference: PingOne objects, redirect URIs, repo scripts, and env vars needed for the demo.
- * For a shorter checklist, use /onboarding; for Vercel wizard + bootstrap UI, use /setup.
+ * For a shorter checklist, use /onboarding; for the bootstrap UI, use /setup.
  */
 export default function PingOneSetupGuidePage() {
   const copy = useCallback((text, label) => {
@@ -101,7 +101,7 @@ export default function PingOneSetupGuidePage() {
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--brand-navy)' }}>How to use this page</h2>
           <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--brand-navy)', fontSize: '0.9375rem', lineHeight: 1.65 }}>
             <li><strong>/onboarding</strong> — short checklist (roles, hosted vs localhost).</li>
-            <li><strong>/setup</strong> — copy-paste <code>npm run setup:vercel</code>, PingOne bootstrap plan from the API, and (as admin) probe / run bootstrap.</li>
+            <li><strong>/setup</strong> — PingOne bootstrap plan from the API, and (as admin) probe / run bootstrap.</li>
             <li><strong>/config</strong> — enter or review PingOne environment, OAuth apps, and advanced options (localhost LMDB or deployment-managed).</li>
             <li>This page is the <strong>full map</strong>: PingOne objects, exact callback paths, scripts, and env var names.</li>
           </ul>
@@ -189,14 +189,11 @@ export default function PingOneSetupGuidePage() {
           <div style={{ marginBottom: '0.75rem' }}>
             <button type="button" style={btnStyle} onClick={() => copy('npm run pingone:bootstrap', 'npm run pingone:bootstrap')}>Copy: npm run pingone:bootstrap</button>
             <button type="button" style={btnStyle} onClick={() => copy('npm run pingone:bootstrap:probe', 'probe')}>Copy: npm run pingone:bootstrap:probe</button>
-            <button type="button" style={btnStyle} onClick={() => copy('npm run setup:vercel', 'setup:vercel')}>Copy: npm run setup:vercel</button>
-            <button type="button" style={btnStyle} onClick={() => copy('npm run setup:vercel:check', 'setup:vercel:check')}>Copy: npm run setup:vercel:check</button>
             <button type="button" style={btnStyle} onClick={() => copy(`cd ${REPO_ROOT}\n./run-demo.sh`, 'run-demo.sh')}>Copy: cd + ./run-demo.sh</button>
           </div>
           <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#374151', fontSize: '0.875rem', lineHeight: 1.65 }}>
             <li><code>npm run pingone:bootstrap</code> — prints ordered steps from <code>config/pingone-bootstrap.manifest.example.json</code>.</li>
             <li><code>npm run pingone:bootstrap:probe</code> — same + tests Management API token (needs worker credentials in env/config).</li>
-            <li><code>npm run setup:vercel</code> — interactive env wizard; see <code>.env.vercel.example</code> at repo root.</li>
             <li><code>./run-demo.sh</code> — local HTTPS stack (API/UI ports documented in the script); requires one-time hosts + certs per script header.</li>
             <li>Implementation file: <code>scripts/pingone-bootstrap.js</code>.</li>
           </ul>

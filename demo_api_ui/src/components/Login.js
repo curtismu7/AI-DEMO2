@@ -150,7 +150,7 @@ const Login = () => {
             <span style={{ fontSize: '0.8rem', color: '#374151' }}>
               <Link to="/onboarding">Setup checklist</Link>
               {' · '}
-              <Link to="/setup">Vercel setup</Link>
+              <Link to="/setup">Deployment setup</Link>
               {' · '}
               <Link to="/setup/pingone">PingOne reference</Link>
               {' · '}

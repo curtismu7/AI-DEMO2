@@ -21,8 +21,8 @@
  *   npm run test:e2e:landing      # landing-marketing.spec.js (unauthenticated marketing)
  *   npm run test:e2e:ui:smoke    # customer + landing (fast UI smoke)
  *
- * Remote UI (e.g. Vercel):
- *   CI=true PLAYWRIGHT_BASE_URL=https://your-app.vercel.app npm run test:e2e:ci
+ * Remote UI (e.g. the AWS deployment):
+ *   CI=true PLAYWRIGHT_BASE_URL=https://ai-demo.ping-devops.com npm run test:e2e:ci
  *   (webServer is omitted for non-localhost URLs; no npm start.)
  *
  * Port layouts:
