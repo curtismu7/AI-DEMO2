@@ -358,10 +358,11 @@ preflight_checks() {
   # If LLAMACPP_BASE_URL points to a remote host we skip the local start attempt
   # and just verify reachability. If unset, default to localhost:8090.
   #
-  # LLM_BACKEND selects the Mac host backend (default: llamacpp):
+  # LLM_BACKEND selects the host LLM backend (platform-aware default via resolve-llm-backend.sh):
+  #   unset    — omlx on Apple Silicon Mac; llamacpp elsewhere
   #   llamacpp — 2-tier llama.cpp proxy (router :8090 → tiers :8091/:8096)
-  #   omlx     — oMLX on :8090 (Apple Silicon; see demo_llm_proxy/start-omlx.sh)
-  #   mlx      — Apple mlx-lm on :8090 (fallback; see demo_llm_proxy/start-mlx.sh)
+  #   omlx     — oMLX on :8090 (Apple Silicon only; see demo_llm_proxy/start-omlx.sh)
+  #   mlx      — Apple mlx-lm on :8090 (macOS fallback; see demo_llm_proxy/start-mlx.sh)
   #
   # Architecture note (llamacpp): :8090 is the 2-tier LLM proxy (router.js).
   # It classifies each request and routes it to a llama-server backend on
@@ -374,7 +375,15 @@ preflight_checks() {
   #
   # LLAMACPP_BASE_URL is the ORIGIN only (no /v1 suffix); default http://localhost:8090
   # (8090 avoids the MCP server's :8080).
-  local llm_backend="${LLM_BACKEND:-llamacpp}"
+  # shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
+  source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
+  local llm_backend
+  llm_backend="$(resolve_llm_backend)"
+  if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
+    warn "${LLM_BACKEND_RESOLVE_WARN}"
+  elif [[ -z "${LLM_BACKEND:-}" && "$llm_backend" == "omlx" ]]; then
+    ok "Apple Silicon Mac — defaulting to oMLX (override: LLM_BACKEND=llamacpp)"
+  fi
   local llamacpp_model="${LLAMACPP_MODEL:-phi-4-mini-instruct}"
   local llamacpp_base="${LLAMACPP_BASE_URL:-http://localhost:8090}"
   # Extract host and port from the URL (handles http://host:port and http://host)
@@ -416,7 +425,7 @@ preflight_checks() {
   }
 
   _start_mlx_stack() {
-    if [[ "$(uname)" != "Darwin" ]]; then
+    if ! is_macos; then
       warn "LLM_BACKEND=mlx requires macOS — falling back to llama.cpp"
       _start_llm_proxy_stack
       return $?
@@ -425,15 +434,17 @@ preflight_checks() {
   }
 
   _start_omlx_stack() {
-    if [[ "$(uname)" != "Darwin" ]]; then
-      warn "LLM_BACKEND=omlx requires macOS — falling back to llama.cpp"
+    if ! is_apple_silicon_mac; then
+      warn "oMLX requires Apple Silicon Mac — falling back to llama.cpp"
       _start_llm_proxy_stack
       return $?
     fi
     if ! command -v omlx >/dev/null 2>&1; then
       warn "omlx not found — brew tap jundot/omlx && brew install omlx"
       warn "  models: bash demo_llm_proxy/download-omlx-models.sh fetch"
-      return 1
+      warn "  falling back to llama.cpp tiers"
+      _start_llm_proxy_stack
+      return $?
     fi
     bash "${BASEDIR}/demo_llm_proxy/start-omlx.sh" start
   }
@@ -467,6 +478,12 @@ preflight_checks() {
       ok "oMLX ready on :${llamacpp_port}"
     else
       warn "oMLX did not become ready — check /tmp/omlx-models/ and demo_llm_proxy/start-omlx.sh"
+      if [[ -z "${LLM_BACKEND:-}" ]]; then
+        echo -e "  ${CYAN}[SPIN]${RESET}  Falling back to llama.cpp proxy stack…"
+        _start_llm_proxy_stack \
+          && ok "LLM proxy ready on :8090 (oMLX auto-fallback)" \
+          || warn "LLM proxy fallback did not become ready"
+      fi
     fi
   elif ! command -v llama-server >/dev/null 2>&1; then
     warn "llama-server not found — NL fallback LLM disabled."
