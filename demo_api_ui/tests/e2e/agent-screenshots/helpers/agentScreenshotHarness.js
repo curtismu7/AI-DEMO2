@@ -49,6 +49,19 @@ async function setAgentMode(page, modeId) {
   return body.agent_mode || modeId;
 }
 
+// Switch the session's active vertical (banking -> retail/healthcare/etc.).
+// Mirrors the admin UI's handleSwitchVertical: POST /api/verticals/active then
+// reload so the new vertical's manifest + chips hydrate. Best-effort — returns
+// false if the switch is rejected (e.g. not permitted for this user) so the
+// caller can record the vertical as unavailable rather than crash. NOTE: this
+// path is unverified against a live multi-vertical stack; confirm when running.
+async function setVertical(page, verticalId) {
+  const res = await page.request.post('/api/verticals/active', { data: { id: verticalId } });
+  if (!res.ok()) return false;
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  return true;
+}
+
 async function modeAvailable(page, modeId) {
   const res = await page.request.get('/api/langchain/config/status');
   if (!res.ok()) return false;
@@ -156,4 +169,4 @@ function writeManifest(vertical, rows) {
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ vertical, rows }, null, 2));
 }
 
-module.exports = { MODES, SHOT_ROOT, setAgentMode, modeAvailable, ensureAgentReady, clickChip, captureChip, assertInDomain, writeManifest };
+module.exports = { MODES, SHOT_ROOT, setAgentMode, setVertical, modeAvailable, ensureAgentReady, clickChip, captureChip, assertInDomain, writeManifest };
