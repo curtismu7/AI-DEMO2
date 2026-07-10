@@ -59,6 +59,7 @@ data:
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
   PINGONE_RESOURCE_TWO_EXCHANGE_URI: "mcpgateway.ping.demo"
+  PINGONE_RESOURCE_PINGGATEWAY_URI: "https://api.ping.demo:3036/mcp"
   # <<< END generated
 
   # Session persistence across restarts (hand-managed): the BFF wipes ALL
