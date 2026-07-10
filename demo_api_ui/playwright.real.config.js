@@ -5,7 +5,7 @@
  * Unlike playwright.config.js (all mocks, CI-safe), this config:
  *  - Only runs *.real.spec.js files
  *  - Requires E2E_CUSTOMER_USERNAME + E2E_CUSTOMER_PASSWORD to be set
- *  - Defaults to targeting Vercel production (set E2E_BASE_URL to override)
+ *  - Defaults to targeting the AWS deployment (set E2E_BASE_URL to override)
  *  - Never starts a local web server (real tests target running deployments)
  *  - Loads .env.e2e automatically if present (dotenv)
  *
@@ -33,7 +33,7 @@ const { defineConfig, devices } = require('@playwright/test');
 const BASE_URL =
   process.env.E2E_BASE_URL ||
   process.env.PLAYWRIGHT_BASE_URL ||
-  'https://banking-demo-puce.vercel.app';
+  'https://ai-demo.ping-devops.com';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
