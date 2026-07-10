@@ -677,16 +677,15 @@ class PingOneProvisionService {
       tokenEndpointAuthMethod: desiredAuthMethod,
     };
 
-    // WEB_APP / NATIVE_APP / SINGLE_PAGE_APP need responseTypes + redirectUris
-    // setup later via updateApplication. WORKER doesn't.
-    //
     // responseTypes:['CODE'] is only valid when the app actually uses the
     // authorization-code flow — PingOne rejects (HTTP 400 INVALID_DATA) a
     // create where responseTypes contains CODE but grantTypes lacks
-    // AUTHORIZATION_CODE (e.g. a client-credentials-only WEB_APP like the
-    // MCP Server app). Gate the code-flow fields on the grant actually
-    // being requested so CC-only non-WORKER apps provision cleanly.
-    if (type !== 'WORKER' && desiredGrants.has('AUTHORIZATION_CODE')) {
+    // AUTHORIZATION_CODE (e.g. a client-credentials-only WEB_APP or WORKER).
+    // Gate the code-flow fields on the grant actually being requested so
+    // CC-only apps provision cleanly. This applies to WORKER apps too: a
+    // WORKER + authorization_code app (the hosted-PingOne-MCP OAuth client)
+    // needs responseTypes/PKCE on create just like a NATIVE_APP.
+    if (desiredGrants.has('AUTHORIZATION_CODE')) {
       data.responseTypes = ['CODE'];
       data.pkceEnforcement = 'S256_REQUIRED';
       data.refreshToken = { rotating: true, reuseTokens: false };
@@ -2797,17 +2796,24 @@ class PingOneProvisionService {
       // This app is the OAuth client that AI assistants (Claude Code, Cursor, etc.) use to connect
       // to the HOSTED PingOne MCP server (https://api.pingone.{region}/v1/environments/{envId}/mcp)
       // so developers can administer the PingOne tenant via natural language.
-      // Auth method must be NONE (PKCE, no client secret); createApplication sets that
-      // and (for a NATIVE_APP with authorization_code) responseTypes=['CODE'] +
-      // pkceEnforcement='S256_REQUIRED'. It does NOT set redirectUris, so we register
-      // the loopback callback (http://localhost:7464/callback — Claude Code's callbackPort)
-      // via updateApplication (a GET+merge+PUT, which CAN set redirectUris on a NATIVE_APP).
+      //
+      // Type MUST be WORKER (admin plane). A NATIVE_APP token only ever carries
+      // self-service PingOne API scopes (p1:read:user, devices, sessions), so the
+      // hosted MCP exposes ~6 user tools and denies everything else with
+      // `dir:read:user` regardless of the signed-in user's admin roles — app type
+      // is immutable, so getting this wrong means delete + recreate (2026-07-10).
+      // Only a WORKER + authorization_code token carries the user's admin role
+      // permissions (healthy = ~73 tools for an Environment Admin).
+      // Auth method must be NONE (PKCE, no client secret); createApplication sets
+      // responseTypes=['CODE'] + pkceEnforcement='S256_REQUIRED' for any app with
+      // the authorization_code grant. It does NOT set redirectUris, so we register
+      // the loopback callbacks via updateApplication (a GET+merge+PUT).
       steps.push({ step: 'pingone-mcp-server-app', icon: '🔧', message: 'Creating PingOne MCP Server app (dev tooling)...' });
       onStep(steps[steps.length - 1]);
       const pingOneMcpServerAppResult = await this.createApplication(
         'PingOne MCP Server',
         'OAuth client for AI assistants to reach the hosted PingOne MCP server (PKCE, no secret, no app roles)',
-        'NATIVE_APP',
+        'WORKER',
         ['authorization_code', 'refresh_token'],
         'none'
       );
@@ -2821,9 +2827,13 @@ class PingOneProvisionService {
           const updatedMcpApp = await this.updateApplication(pingOneMcpAppId, {
             // Register both loopback hosts — different MCP clients use localhost vs
             // 127.0.0.1, and PingOne requires an exact redirect_uri match.
+            // 7464 = this repo's Claude Code callbackPort; 7474 = the port in
+            // Ping's published Remote MCP onboarding doc (some clients default to it).
             redirectUris: [
               'http://localhost:7464/callback',
               'http://127.0.0.1:7464/callback',
+              'http://localhost:7474/callback',
+              'http://127.0.0.1:7474/callback',
               'cursor://anysphere.cursor-mcp/oauth/callback',
               'https://www.cursor.com/agents/mcp/oauth/callback',
             ],

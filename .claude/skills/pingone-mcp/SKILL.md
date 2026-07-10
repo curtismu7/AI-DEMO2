@@ -43,7 +43,7 @@ Management API rather than retrying MCP in a loop.
 
 | Consumer | Config | Auth |
 |---|---|---|
-| Claude Code session | `.air/mcp.json` (per-machine, gitignored; template `.air/mcp.json.example`) | Interactive OAuth — run `/mcp` in an interactive session to authorize; per-user, not shareable |
+| Claude Code session | `claude mcp add --transport http --client-id $PINGONE_MCP_OAUTH_CLIENT_ID --callback-port 7464 pingone <mcp-url>` (stored per-project in `~/.claude.json`) | Interactive OAuth — run `/mcp` in an interactive terminal session to authorize; per-user, not shareable. The client app MUST be WORKER type (see pingone-remote-mcp-connect troubleshooting) |
 | Cursor (project) | `.cursor/mcp.json` (per-machine, gitignored; template `.cursor/mcp.json.example`) | Static OAuth `auth.CLIENT_ID` from bootstrap; Customize → MCP → pingone → Connect (browser OAuth) |
 | BFF (runtime) | `demo_api_server/services/mcpPingOneHttpAdapter.js` | Worker `client_credentials` Bearer token; stateless JSON-RPC (no initialize handshake, no session id); `tools/list` cached for process lifetime |
 | Scripts / smoke | `scripts/smoke-pingone-mcp.js` | Same worker Bearer pattern as the BFF |
@@ -55,8 +55,11 @@ endpoint auth method used to MINT the worker token.
 
     npm run smoke:pingone-mcp
 
-Mints a worker token and calls `tools/list` (needs `demo_api_server/.env`
-credentials; deliberately not in CI). Success prints the live tool count.
+Mints a worker token and calls `tools/list`, then verifies the IDE OAuth
+client (`PINGONE_MCP_OAUTH_CLIENT_ID`) is a WORKER-type public PKCE app with
+a loopback callback — the misconfiguration that silently limits Claude/Cursor
+to ~6 tools. Needs `demo_api_server/.env` credentials; deliberately not in CI.
+Success prints the live tool count plus an IDE-client healthy line.
 
 ## Install / repair (Cursor)
 

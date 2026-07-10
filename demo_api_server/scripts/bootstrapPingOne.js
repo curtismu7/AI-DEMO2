@@ -81,7 +81,7 @@ Provisions a complete PingOne environment for the demo:
   - Scopes:           banking:*, admin:*, users:*, p1:*, mcp:invoke (derived from scope-topology.json)
   - Applications:     Admin (WEB_APP), User (WEB_APP), MCP Server (WEB_APP),
                       Worker (WORKER), MCP Exchanger (WEB_APP), MCP Gateway (WEB_APP),
-                      Agent (WORKER), AI Agent (WEB_APP), PingOne MCP Server (NATIVE_APP)
+                      Agent (WORKER), AI Agent (WEB_APP), PingOne MCP Server (WORKER, auth-code PKCE)
   - Users:            demoUser, demoAdmin, demoDelegate (all with password 'Baseball123!')
   - Schema attributes: bankingPrincipalUserId, isDelegate, mayAct, delegatedTo, agentRestrictions
   - Token claims:     bankingPrincipalUserId (User app), may_act + is_delegate + delegated_to

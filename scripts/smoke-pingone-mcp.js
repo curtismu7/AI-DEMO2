@@ -4,10 +4,20 @@
  * server (the admin-plane MCP at api.pingone.{region}/v1/environments/{envId}/mcp,
  * NOT the repo's own banking MCP servers).
  *
- * Mints a worker client_credentials token and calls `tools/list`, exactly like
- * the BFF adapter (demo_api_server/services/mcpPingOneHttpAdapter.js): Bearer
- * auth, stateless JSON-RPC, answers may arrive as JSON or as a single SSE
- * frame. Exit 0 with a tool count on success; exit 1 with the failure reason.
+ * Two checks, both must pass (exit 0) or the script exits 1 with the reason:
+ *
+ * 1. Worker path — mints a worker client_credentials token and calls
+ *    `tools/list`, exactly like the BFF adapter
+ *    (demo_api_server/services/mcpPingOneHttpAdapter.js): Bearer auth,
+ *    stateless JSON-RPC, answers may arrive as JSON or as a single SSE frame.
+ *
+ * 2. IDE OAuth client shape — verifies the app behind
+ *    PINGONE_MCP_OAUTH_CLIENT_ID (what Claude Code / Cursor authenticate
+ *    with) is a WORKER-type public PKCE client. A NATIVE_APP here only ever
+ *    carries self-service scopes, so the IDE sees ~6 user tools and every
+ *    call fails with `dir:read:user` — even when the signed-in user has all
+ *    admin roles (root cause of the 2026-07-10 outage; app type is
+ *    immutable, so a wrong type means delete + re-provision).
  *
  * Needs live worker credentials — reads demo_api_server/.env (or the same
  * PINGONE_* vars from the environment). Run: npm run smoke:pingone-mcp
@@ -107,6 +117,46 @@ async function main() {
 
   console.log(`✓ Hosted PingOne MCP healthy: ${tools.length} tools (env ${envId}, region ${region}).`);
   console.log('  Sample:', tools.slice(0, 5).map((t) => t.name).join(', '));
+
+  // 3. IDE OAuth client shape (the app Claude Code / Cursor log in with).
+  const ideClientId = cfg('PINGONE_MCP_OAUTH_CLIENT_ID');
+  if (!ideClientId) {
+    console.log('⚠️ PINGONE_MCP_OAUTH_CLIENT_ID not set — skipping IDE OAuth client check.');
+    return;
+  }
+  const appRes = await fetch(
+    `https://api.pingone.${region}/v1/environments/${envId}/applications/${ideClientId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const app = await appRes.json().catch(() => ({}));
+  if (!appRes.ok || app.code) {
+    console.error(`✗ IDE OAuth client ${ideClientId} not found in env ${envId} (${app.code || appRes.status}).`);
+    console.error('  Fix: re-run provisioning (creates "PingOne MCP Server" as a WORKER app) or update PINGONE_MCP_OAUTH_CLIENT_ID.');
+    process.exit(1);
+  }
+  const problems = [];
+  if (app.type !== 'WORKER') {
+    problems.push(`type is ${app.type}, must be WORKER — non-WORKER tokens carry only self-service scopes; ` +
+      'symptom: IDE sees ~6 user tools and every call is denied with dir:read:user. ' +
+      'App type is immutable: delete the app and re-provision.');
+  }
+  const grants = (app.grantTypes || []).map((g) => String(g).toUpperCase());
+  if (!grants.includes('AUTHORIZATION_CODE')) problems.push('grantTypes missing AUTHORIZATION_CODE');
+  if (String(app.tokenEndpointAuthMethod).toUpperCase() !== 'NONE') {
+    problems.push(`tokenEndpointAuthMethod is ${app.tokenEndpointAuthMethod}, must be NONE (public PKCE client)`);
+  }
+  if (app.pkceEnforcement !== 'S256_REQUIRED') problems.push(`pkceEnforcement is ${app.pkceEnforcement}, must be S256_REQUIRED`);
+  const redirects = app.redirectUris || [];
+  if (!redirects.some((u) => /^http:\/\/(127\.0\.0\.1|localhost):74(6|7)4\/callback$/.test(u))) {
+    problems.push('redirectUris missing the loopback callback (http://127.0.0.1:7464/callback or :7474)');
+  }
+  if (app.enabled !== true) problems.push('app is disabled');
+  if (problems.length) {
+    console.error(`✗ IDE OAuth client "${app.name}" (${ideClientId}) is misconfigured:`);
+    for (const p of problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+  console.log(`✓ IDE OAuth client "${app.name}" healthy: WORKER, auth-code PKCE, public, loopback callback registered.`);
 }
 
 main().catch((err) => {
