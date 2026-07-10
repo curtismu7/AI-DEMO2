@@ -112,13 +112,23 @@ After changing a user's admin roles, **disconnect and reconnect** the MCP client
 
 ## Troubleshooting
 
+Check in this order — app type first (2026-07-10 outage: roles and tokens were
+re-checked repeatedly while the app type was the actual root cause):
+
 | Symptom | Check |
 |---------|--------|
+| ~6 tools only + every call denied `dir:read:user` | **App type must be WORKER.** A NATIVE_APP (or WEB_APP) token carries only self-service scopes (p1:read:user, devices, sessions) no matter what admin roles the user has. Type is immutable — delete the app and recreate as Worker. `npm run smoke:pingone-mcp` validates this. |
+| Role/app fix applied but same denial persists | Stale cached token: `/mcp reconnect` silently reuses the Keychain token (keyed by server URL). Terminal `claude` → `/mcp` → server → **Clear authentication** → Authenticate. |
+| Re-auth "succeeds" but no login form appeared | Silent SSO hijack: the browser holds another user's PingOne session in the same env (e.g. the banking demo's `demoUser`, no admin roles). Use an incognito window or "sign in as a different user"; a credential prompt is the success signal. |
 | MCP server missing / 404 | Feature flag enabled for your tenant? |
-| Few tools (~not 67) | Worker app roles; user roles; reconnect after role change |
-| Auth redirect error | Redirect URI on Worker app matches client (7474 vs `127.0.0.1/*`) |
+| Few tools (~not 73) after the above | User roles (table above); Clear authentication + re-auth after role change |
+| Auth redirect error | Redirect URI on Worker app matches client (7464/7474 vs `127.0.0.1/*`) |
 | Duplicate/conflicting tools | Disable local PingOne/DaVinci MCP entries |
 | BFF smoke works but IDE fails | IDE uses interactive OAuth app; BFF uses `client_credentials` worker |
+
+To confirm which identity/client an OAuth login actually used, query the audit
+API with a worker token (`GET /environments/{envId}/activities?filter=recordedat
+gt "<iso8601>"`) — if no login-flow events appear, no real re-auth happened.
 
 ## Related
 
