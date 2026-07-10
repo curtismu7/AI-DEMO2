@@ -87,6 +87,9 @@ set -euo pipefail
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 K8S_DIR="$BASEDIR/k8s"
+# shellcheck source=scripts/demo-terminal.sh
+source "${BASEDIR}/scripts/demo-terminal.sh"
+demo_init_terminal
 # shellcheck source=scripts/ping-email.sh
 source "$BASEDIR/scripts/ping-email.sh"
 
@@ -111,11 +114,9 @@ export RUNK8=1
 # kill_all sweeps any process still listening on these before we (re)bind.
 DEMO_PORTS="3001 4000 8080 8081 8082 3005 3006 3009 3016 8888 8889 8890 8891 8892 8893"
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
-
-info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
-success() { echo -e "${GREEN}[OK]${NC} $1"; }
-die()     { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+info()    { demo_info "$@"; }
+success() { demo_success "$@"; }
+die()     { demo_err "$@"; exit 1; }
 
 # Check Docker daemon is available and running — works with Docker Desktop or OrbStack.
 # For SE/AWS deploy you only need Docker (not OrbStack K8s).
@@ -275,51 +276,20 @@ deploy() {
 }
 
 forward() {
-  # 'forward' never returns (deploy.sh supervises the port-forwards), so hand
-  # it the final banners pre-rendered — it prints them once the forwards are
-  # up, at the very end of the output.
-  RUNK8_POST_FORWARD_BANNER="$(logs_banner; done_banner)" \
-    bash "$K8S_DIR/deploy.sh" forward
+  bash "$K8S_DIR/deploy.sh" forward
 }
 
 forward_api() {
-  RUNK8_POST_FORWARD_BANNER="$(logs_banner; done_banner)" \
-    FORWARD_PROFILE=api bash "$K8S_DIR/deploy.sh" forward
+  FORWARD_PROFILE=api bash "$K8S_DIR/deploy.sh" forward
 }
 
 forward_bg() {
   bash "$K8S_DIR/deploy.sh" forward-bg "${1:-api}"
 }
 
-# How to see each service's logs. Printed at the end of every run that leaves
-# the stack deployed (all/forward/deploy/restart/sim/sim-deploy/aws-deploy/
-# aws-all — on the aws paths kubectl is already pointed at the EKS cluster).
-logs_banner() {
-  echo
-  echo -e "${BLUE}================================= LOGS =================================${NC}"
-  echo "  Follow one service:  kubectl logs -n ai-demo deploy/<name> -f"
-  echo "      BFF:             kubectl logs -n ai-demo deploy/demo-api-server -f"
-  echo "      MCP gateway:     kubectl logs -n ai-demo deploy/mcp-gateway -f"
-  echo "      Authz sidecar:   kubectl logs -n ai-demo deploy/mcp-gateway -c authz-server -f"
-  echo "      Agent:           kubectl logs -n ai-demo deploy/langchain-agent -f"
-  echo "  List services:       kubectl get deploy -n ai-demo"
-  echo "  Follow everything:   kubectl logs -n ai-demo -l app=ai-demo --all-containers --prefix -f"
-  echo "  After a crash:       kubectl logs -n ai-demo deploy/<name> --previous"
-  echo -e "${BLUE}========================================================================${NC}"
-}
-
-done_banner() {
-  echo
-  echo -e "${GREEN}========================================================================${NC}"
-  echo -e "${GREEN}  DONE - SUCCESS${NC}"
-  echo -e "${GREEN}========================================================================${NC}"
-}
-
-# EKS epilogue: same banners, but no port-forwarding — that's a local-cluster
-# concept; the ALB serves the EKS deployment.
+# EKS epilogue: log commands + success banner (no port-forward on EKS).
 aws_finish() {
-  logs_banner
-  done_banner
+  demo_k8_forward_epilogue "ai-demo"
 }
 
 status() {
@@ -519,40 +489,23 @@ se_deploy() {
 se_deploy_banner() {
   local ns="$1"
   echo ""
-  echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
-  echo -e "${GREEN}║              SE CLUSTER DEPLOY COMPLETE ✓                       ║${NC}"
-  echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"
+  demo_banner_title "[SE]" "CLUSTER DEPLOY COMPLETE ✓"
   echo ""
-  echo -e "  ${GREEN}App URL:${NC}      https://ai-demo.ping-devops.com"
-  echo -e "  ${GREEN}Namespace:${NC}    $ns"
+  demo_box_open "${GREEN}" "ACCESS"
+  demo_box_row "${GREEN}" "App URL     ${YELLOW}${BOLD}https://ai-demo.ping-devops.com${RESET}"
+  demo_box_row "${GREEN}" "Namespace   ${YELLOW}${BOLD}${ns}${RESET}"
+  demo_box_row "${GREEN}" "BFF health  ${YELLOW}${BOLD}https://ai-demo.ping-devops.com/api/health${RESET}"
+  demo_box_close "${GREEN}"
   echo ""
-  echo -e "${BLUE}──── Access ─────────────────────────────────────────────────────────${NC}"
-  echo "  Open in browser:  https://ai-demo.ping-devops.com"
-  echo "  BFF API:          https://ai-demo.ping-devops.com/api/health"
+  demo_box_open "${WHITE}" "LOGS"
+  demo_box_row "${WHITE}" "All pods:      kubectl logs -n ${ns} -l app=ai-demo --all-containers --prefix -f"
+  demo_box_row "${WHITE}" "Frontend:      kubectl logs -n ${ns} deploy/frontend -f"
+  demo_box_row "${WHITE}" "BFF:           kubectl logs -n ${ns} deploy/demo-api-server -f"
+  demo_box_row "${WHITE}" "MCP Gateway:   kubectl logs -n ${ns} deploy/mcp-gateway -f"
+  demo_box_close "${WHITE}"
   echo ""
-  echo -e "${BLUE}──── Logs ───────────────────────────────────────────────────────────${NC}"
-  echo "  All pods:         kubectl logs -n $ns -l app=ai-demo --all-containers --prefix -f"
-  echo "  Frontend:         kubectl logs -n $ns deploy/frontend -f"
-  echo "  BFF:              kubectl logs -n $ns deploy/demo-api-server -f"
-  echo "  MCP Gateway:      kubectl logs -n $ns deploy/mcp-gateway -f"
-  echo "  Authz sidecar:    kubectl logs -n $ns deploy/mcp-gateway -c authz-server -f"
-  echo "  Agent:            kubectl logs -n $ns deploy/langchain-agent -f"
-  echo ""
-  echo -e "${BLUE}──── Pod status ─────────────────────────────────────────────────────${NC}"
-  kubectl get pods -n "$ns" 2>/dev/null || true
-  echo ""
-  echo -e "${BLUE}──── Switch agent ───────────────────────────────────────────────────${NC}"
-  echo "  Use a different AI agent (no rebuild needed):"
-  echo "    langchain:  kubectl scale deploy/langchain-agent --replicas=1 -n $ns && kubectl scale deploy/mastra-agent --replicas=0 -n $ns"
-  echo "    mastra:     kubectl scale deploy/mastra-agent --replicas=1 -n $ns && kubectl scale deploy/langchain-agent --replicas=0 -n $ns"
-  echo "    openai:     kubectl scale deploy/openai-agent --replicas=1 -n $ns && kubectl scale deploy/langchain-agent --replicas=0 -n $ns"
-  echo "    pydantic:   kubectl scale deploy/pydantic-agent --replicas=1 -n $ns && kubectl scale deploy/langchain-agent --replicas=0 -n $ns"
-  echo ""
-  echo -e "${YELLOW}──── ⚠  IMPORTANT — Undeploy when done ──────────────────────────────${NC}"
-  echo -e "${YELLOW}  The SE cluster is shared. Leaving the app running may result in${NC}"
-  echo -e "${YELLOW}  loss of your publishing rights.${NC}"
-  echo ""
-  echo "  To undeploy:      ./run-k8.sh se-undeploy"
+  echo -e "${YELLOW}${BOLD}  ⚠️  IMPORTANT — Undeploy when done (shared cluster)${RESET}"
+  echo -e "${YELLOW}  Run: ${BOLD}./run-k8.sh se-undeploy${RESET}"
   echo ""
 }
 

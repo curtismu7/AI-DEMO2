@@ -36,6 +36,9 @@
 set -euo pipefail
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/demo-terminal.sh
+source "${BASEDIR}/scripts/demo-terminal.sh"
+demo_init_terminal
 
 # ── Auto-load VAULT_PASSWORD from .env files ──────────────────────────────────
 # If VAULT_PASSWORD is not already set in the shell environment, try to source
@@ -253,17 +256,10 @@ else
         "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" 2>/dev/null || true
 fi
 
-# Terminal colors (global — used by banner, status, and tail_demo_logs)
-BOLD='\033[1m'
-CYAN='\033[1;36m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-MAGENTA='\033[1;35m'
-BLUE='\033[1;34m'
-WHITE='\033[1;37m'
-RED='\033[1;31m'
-DIM='\033[2m'
-RESET='\033[0m'
+# Terminal colors (scripts/demo-terminal.sh — used by banner, status, tail_demo_logs)
+ok()   { demo_ok "$@"; }
+warn() { demo_warn "$@"; }
+err()  { demo_err "$@"; }
 
 # Floor for the running Node major. Must match root package.json#engines.node
 # (currently ">=20"). The runtime accepts any major at or above this floor —
@@ -271,11 +267,6 @@ RESET='\033[0m'
 NODE_MIN_VERSION=20
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-ok()   { echo -e "  ${GREEN}✓${RESET}  $1"; }
-warn() { echo -e "  ${YELLOW}!${RESET}  $1"; }
-err()  { echo -e "  ${RED}✗${RESET}  $1" >&2; }
-
-# Return the running Node major (empty string if node missing).
 _node_major() {
   command -v node >/dev/null 2>&1 || { echo ''; return; }
   node -e "process.stdout.write(process.version.replace('v','').split('.')[0])" 2>/dev/null
