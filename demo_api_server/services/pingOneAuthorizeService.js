@@ -636,6 +636,64 @@ async function getAuthorizationPolicies() {
 }
 
 /**
+ * Build the policy tree from the repo's P1AZ snapshot file — the import
+ * source of truth (see pingone/pingone-authorize-configure/SKILL.md: policies
+ * are configured by editing this snapshot and importing it in the console;
+ * PingOne's policy-editor API rejects worker client_credentials tokens, so a
+ * live GET /authorizationPolicies is not possible with our credentials).
+ *
+ * Snapshot entries carry `type: PolicySet|Policy|Rule` with `children` as
+ * {id, type} refs; this resolves the refs into the same normalized node shape
+ * _normalizePolicyNode produces so the UI renders identically.
+ *
+ * @returns {Array|null} normalized root policy-set nodes, or null when the
+ *   snapshot cannot be read (missing from the image, malformed, etc.)
+ */
+function getAuthorizationPoliciesFromSnapshot() {
+  const fs = require('fs');
+  const path = require('path');
+  const candidates = [
+    // Native run: demo_api_server/services → repo root snapshots/
+    path.join(__dirname, '..', '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
+    // Docker image: COPY snapshots/ ./snapshots/ lands beside the app code
+    path.join(__dirname, '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
+  ];
+  const file = candidates.find((p) => { try { return fs.existsSync(p); } catch (_) { return false; } });
+  if (!file) return null;
+
+  let entries;
+  try { entries = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (_) { return null; }
+  if (!Array.isArray(entries)) return null;
+
+  const byId = new Map();
+  for (const e of entries) {
+    if (e && e.id && (e.type === 'PolicySet' || e.type === 'Policy' || e.type === 'Rule')) byId.set(e.id, e);
+  }
+  if (byId.size === 0) return null;
+
+  const toNode = (entry, depth) => {
+    if (!entry) return null;
+    const isRule = entry.type === 'Rule';
+    const childRefs = Array.isArray(entry.children) ? entry.children : [];
+    return {
+      id: entry.id,
+      kind: isRule ? 'RULE' : (depth === 0 ? 'POLICY_SET' : 'POLICY'),
+      name: entry.name || '(unnamed)',
+      description: entry.description || '',
+      enabled: entry.disabled !== true,
+      algorithm: entry.combiningAlgorithm?.algorithm || null,
+      effect: entry.effectSettings?.type || null,
+      children: childRefs.map((c) => toNode(byId.get(c.id), depth + 1)).filter(Boolean),
+    };
+  };
+
+  // Roots are the PolicySets; everything else is reachable through children refs.
+  const roots = [...byId.values()].filter((e) => e.type === 'PolicySet');
+  return roots.map((r) => toNode(r, 0)).filter(Boolean);
+}
+
+/**
  * Returns true if all required credentials are available (configStore or env).
  * Accepts either decision endpoint ID (Phase 2) or policy ID (Phase 1).
  */
@@ -957,6 +1015,7 @@ module.exports = {
   getRecentDecisions,
   getDecisionEndpoints,
   getAuthorizationPolicies,
+  getAuthorizationPoliciesFromSnapshot,
   setEndpointRecording,
   isConfigured,
   isMcpDelegationDecisionReady,
