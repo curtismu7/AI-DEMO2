@@ -33,6 +33,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_NAME="$(basename "$0")"
 NS="ai-demo"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=scripts/demo-terminal.sh
+source "${REPO_ROOT}/scripts/demo-terminal.sh"
+demo_init_terminal
 
 # Which AI agent to start (replicas:1). All others are scaled to 0.
 # Inherited from run-k8.sh via --agent=<name>, or set directly. Default: langchain.
@@ -46,12 +50,10 @@ EXTRA_SERVICES="mcp-invest mortgage-service"
 RAG_SERVICES="weaviate embeddings mcp-code-search llamaindex-agent"
 DEFAULT_YOTUO_PATH="${LLM_MODELS_HOST_PATH:-$(cd "$SCRIPT_DIR/.." && pwd)/.local/models}"
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
-
-info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
-success() { echo -e "${GREEN}[OK]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
-die()     { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
+info()    { demo_info "$@"; }
+success() { demo_success "$@"; }
+warn()    { demo_warn "$@"; }
+die()     { demo_err "$@"; exit 1; }
 
 check_prereqs() {
   command -v kubectl &>/dev/null || die "kubectl not found"
@@ -174,34 +176,35 @@ deploy() {
 }
 
 show_commands() {
-  echo
-  echo -e "${BLUE}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${BLUE}  🛠  Commands${NC}"
-  echo -e "${BLUE}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh"                   "full deploy"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh status"            "pod & agent health"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward"           "port-forward to localhost"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward-api"       "BFF :3001 only (auto-respawn)"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh forward-bg [api]"  "detached forward supervisor"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh stop-forward"      "stop a running port-forward session"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh extras [on|off]"   "stop/start investment + mortgage backends (frees memory)"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh rag [on|off]"      "start/stop Code Search / RAG stack"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh yotuo [on|off]"    "mount host GGUFs from .local/models (internal HD)"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh stop"              "scale all workloads to 0 (keep config; frees memory)"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh agent <name>"      "switch agent  [langchain|mastra|openai|pydantic]"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh agent <name> off"  "stop agent, free quota"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh demo-sync"         "align gateways with Quick Flags"
-  printf "  ${GREEN}%-38s${NC} %s\n" "./k8s/deploy.sh destroy"           "delete namespace & all resources"
-  echo -e "${BLUE}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  printf "  🌐  %-10s ${BLUE}%s${NC}\n" "UI:"  "https://api.ping.demo:4000"
-  printf "  🔗  %-10s ${BLUE}%s${NC}\n" "BFF:" "https://api.ping.demo:3001"
-  echo -e "${BLUE}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo
+  echo ""
+  demo_banner_title "[K8S]" "AI DEMO — deploy.sh"
+  echo ""
+  demo_box_open "${WHITE}" "COMMANDS"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh${RESET}                       full deploy"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh status${RESET}            pod and agent health"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward${RESET}           port-forward to localhost"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-api${RESET}       BFF :3001 only (auto-respawn)"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-bg [api]${RESET}  detached forward supervisor"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh stop-forward${RESET}      stop a running port-forward session"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh extras [on|off]${RESET}   stop/start investment + mortgage backends"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh rag [on|off]${RESET}      start/stop Code Search / RAG stack"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh yotuo [on|off]${RESET}    mount host GGUFs from .local/models"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh stop${RESET}              scale all workloads to 0"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh agent <name>${RESET}      switch agent [langchain|mastra|openai|pydantic]"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh demo-sync${RESET}         align gateways with Quick Flags"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh destroy${RESET}           delete namespace and all resources"
+  demo_box_close "${WHITE}"
+  echo ""
+  demo_box_open "${GREEN}" "URLS"
+  demo_box_row "${GREEN}" "[WEB]  App   ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+  demo_box_row "${GREEN}" "[BFF]  API   ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
+  demo_box_close "${GREEN}"
+  echo ""
 }
 
 show_status() {
   echo
-  echo -e "${BLUE}▶ Pods — namespace: ${NS}${NC}"
+  echo -e "${CYAN}${BOLD}  Pods — namespace: ${NS}${RESET}"
   echo
 
   # awk normalises "2 (50s ago)" restarts → "2" so read gets exactly 5 fields.
@@ -215,70 +218,64 @@ show_status() {
         if [ "$current" = "$total" ]; then
           icon="✅"; color="$GREEN"
         else
-          icon="⏳"; color="$YELLOW"
+          icon="⚠️"; color="$YELLOW"
         fi ;;
-      ContainerCreating|Init:*|PodInitializing)
-        icon="⏳"; color="$YELLOW" ;;
-      Pending)
-        icon="⌛"; color="$YELLOW" ;;
-      CrashLoopBackOff|Error|OOMKilled)
+      ContainerCreating|Init:*|PodInitializing|Pending|Terminating)
+        icon="⚠️"; color="$YELLOW" ;;
+      CrashLoopBackOff|Error|OOMKilled|ImagePullBackOff|ErrImagePull)
         icon="❌"; color="$RED" ;;
-      ImagePullBackOff|ErrImagePull)
-        icon="🚫"; color="$RED" ;;
-      Terminating)
-        icon="🔄"; color="$YELLOW" ;;
       *)
-        icon="❓"; color="$YELLOW" ;;
+        icon="⚠️"; color="$YELLOW" ;;
     esac
 
     restart_tag=""
-    [ "${restarts:-0}" -gt 0 ] 2>/dev/null && restart_tag=" ${RED}↺${restarts}${NC}"
+    [ "${restarts:-0}" -gt 0 ] 2>/dev/null && restart_tag=" ${RED}↺${restarts}${RESET}"
 
-    printf "  %s  ${color}%-48s${NC}  %s  %-22s  age:%-4s%b\n" \
+    printf "  %s  ${color}%-48s${RESET}  %s  %-22s  age:%-4s%b\n" \
       "$icon" "$name" "$ready" "$status" "$age" "$restart_tag"
   done || echo "  (no pods found)"
 
   echo
-  echo -e "${BLUE}▶ Agent selection${NC}"
+  echo -e "${CYAN}${BOLD}  Agent selection${RESET}"
   echo
   for _agent in $ALL_AGENTS; do
     local dep="${_agent}-agent"
     local replicas
     replicas=$(kubectl get deploy "$dep" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
     if [ "${replicas:-0}" -ge 1 ]; then
-      printf "  🟢  ${GREEN}%-28s on${NC}\n" "$dep"
+      printf "  ${GREEN}✓${RESET}  ${GREEN}%-28s on${RESET}\n" "$dep"
     else
-      printf "  ⚫  %-28s off\n" "$dep"
+      printf "  ${DIM}%-30s off${RESET}\n" "$dep"
     fi
   done
 
   echo
-  echo -e "${BLUE}▶ Gateway selection (demo-sync)${NC}"
+  echo -e "${CYAN}${BOLD}  Gateway selection (demo-sync)${RESET}"
   echo
   for _gw in ping-gateway mcp-gateway mcp-proxy llm-proxy; do
     local replicas
     replicas=$(kubectl get deploy "$_gw" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
     if [ "${replicas:-}" = "" ]; then
-      printf "  ⚪  %-28s not deployed\n" "$_gw"
+      printf "  ${DIM}%-30s not deployed${RESET}\n" "$_gw"
     elif [ "${replicas:-0}" -ge 1 ]; then
-      printf "  🟢  ${GREEN}%-28s on${NC}\n" "$_gw"
+      printf "  ${GREEN}✓${RESET}  ${GREEN}%-28s on${RESET}\n" "$_gw"
     else
-      printf "  ⚫  %-28s off\n" "$_gw"
+      printf "  ${DIM}%-30s off${RESET}\n" "$_gw"
     fi
   done
 
   echo
-  echo -e "${BLUE}▶ RAG stack (rag on/off)${NC}"
+  echo -e "${CYAN}${BOLD}  RAG stack (rag on/off)${RESET}"
   echo
   for _rag in $RAG_SERVICES; do
     local replicas
     replicas=$(kubectl get deploy "$_rag" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
     if [ "${replicas:-}" = "" ]; then
-      printf "  ⚪  %-28s not deployed\n" "$_rag"
+      printf "  ${DIM}%-30s not deployed${RESET}\n" "$_rag"
     elif [ "${replicas:-0}" -ge 1 ]; then
-      printf "  🟢  ${GREEN}%-28s on${NC}\n" "$_rag"
+      printf "  ${GREEN}✓${RESET}  ${GREEN}%-28s on${RESET}\n" "$_rag"
     else
-      printf "  ⚫  %-28s off\n" "$_rag"
+      printf "  ${DIM}%-30s off${RESET}\n" "$_rag"
     fi
   done
 
@@ -410,15 +407,21 @@ port_forward() {
   echo
   case "${FORWARD_PROFILE:-all}" in
     api)
-      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      demo_box_open "${GREEN}" "FORWARD"
+      demo_box_row "${GREEN}" "[BFF]  ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
+      demo_box_close "${GREEN}"
       ;;
     core)
-      echo -e "  🌐  ${BLUE}https://api.ping.demo:4000${NC}  (UI)"
-      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      demo_box_open "${GREEN}" "FORWARD"
+      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+      demo_box_row "${GREEN}" "[BFF]  ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
+      demo_box_close "${GREEN}"
       ;;
     *)
-      echo -e "  🌐  ${BLUE}https://api.ping.demo:4000${NC}  (UI)"
-      echo -e "  🔗  ${BLUE}https://api.ping.demo:3001${NC}  (BFF)"
+      demo_box_open "${GREEN}" "FORWARD"
+      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+      demo_box_row "${GREEN}" "[BFF]  ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
+      demo_box_close "${GREEN}"
       ;;
   esac
   echo
@@ -441,10 +444,12 @@ port_forward() {
     warn "BFF health still unreachable (HTTP $_hc). If Docker Compose is also up, run './run-k8.sh kill' then './run-k8.sh forward'."
   fi
 
-  # run-k8.sh hands its final banners (log commands + DONE - SUCCESS) through
-  # this env var, pre-rendered, so they print here — the very end of the
-  # output before the supervisor goes quiet.
-  [ -z "${RUNK8_POST_FORWARD_BANNER:-}" ] || printf '%s\n' "$RUNK8_POST_FORWARD_BANNER"
+  # run-k8.sh sets RUNK8=1 — print the full status epilogue once forwards bind.
+  if [ -n "${RUNK8:-}" ]; then
+    demo_k8_forward_epilogue "$NS"
+  elif [ -n "${RUNK8_POST_FORWARD_BANNER:-}" ]; then
+    demo_print_block "$RUNK8_POST_FORWARD_BANNER"
+  fi
 
   # Supervisor: every few seconds, respawn any forward whose process exited
   # (e.g. after a pod restart). The trap tears everything down on Ctrl-C/SIGTERM.
@@ -719,7 +724,7 @@ _read_demo_stack_flags_k8() {
 # authz-server deployment in k8s — unlike Docker's demo-auth profile).
 demo_sync_cmd() {
   echo ""
-  echo -e "${BLUE}   [K8]  Demo stack sync (Quick Flags → deployments)${NC}"
+  echo -e "${CYAN}${BOLD}   [K8]  Demo stack sync (Quick Flags → deployments)${RESET}"
   echo ""
 
   if ! _wait_bff_healthy_k8; then
@@ -791,7 +796,7 @@ case "${1:-deploy}" in
   destroy)       destroy ;;
   help|--help|-h) show_commands ;;
   *)
-    echo -e "${RED}Unknown command: ${1}${NC}"
+    echo -e "${RED}Unknown command: ${1}${RESET}"
     show_commands
     exit 1
     ;;

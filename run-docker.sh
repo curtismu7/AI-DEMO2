@@ -41,6 +41,9 @@ set -euo pipefail
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="${BASEDIR}/docker-compose.yml"
 OVERRIDE_FILE="${BASEDIR}/docker-compose.override.yml"
+# shellcheck source=scripts/demo-terminal.sh
+source "${BASEDIR}/scripts/demo-terminal.sh"
+demo_init_terminal
 
 # Pin the Compose project name so the stack is reachable by the same DNS
 # namespace regardless of which directory (main checkout or a git worktree)
@@ -141,20 +144,10 @@ _optional_resolve_groups() {
   echo "${resolved# }"
 }
 
-# ── Colours ───────────────────────────────────────────────────────────────────
-BOLD='\033[1m'
-CYAN='\033[1;36m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-MAGENTA='\033[1;35m'
-WHITE='\033[1;37m'
-RED='\033[1;31m'
-DIM='\033[2m'
-RESET='\033[0m'
-
-ok()   { echo -e "  ${GREEN}✓${RESET}  $*"; }
-warn() { echo -e "  ${YELLOW}!${RESET}  $*"; }
-err()  { echo -e "  ${RED}✗${RESET}  $*" >&2; }
+# ── Colours (from scripts/demo-terminal.sh) ───────────────────────────────────
+ok()   { demo_ok "$@"; }
+warn() { demo_warn "$@"; }
+err()  { demo_err "$@"; }
 
 # ── Bind-mount preflight ──────────────────────────────────────────────────────
 # docker-compose.yml bind-mounts two gitignored HOST paths into the BFF:
