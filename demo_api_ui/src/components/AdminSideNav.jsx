@@ -447,6 +447,11 @@ export default function AdminSideNav({ user }) {
       icon: "mcp",
       children: [
         {
+          label: "Ping AI Test Lab",
+          path: "/ping-ai-test-lab",
+          icon: "tst",
+        },
+        {
           label: "Demo MCP Inspector",
           path: "/mcp-inspector",
           icon: "dbg",

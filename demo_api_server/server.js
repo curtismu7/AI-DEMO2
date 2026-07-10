@@ -106,6 +106,7 @@ const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
+const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
 const opsAgentRoutes = require('./routes/opsAgentRoutes');
@@ -950,6 +951,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
 // PingOne MCP setup — isolated endpoint with its own authenticateToken guard
