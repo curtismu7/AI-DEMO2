@@ -400,7 +400,6 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the tier claim against the entitlement rule; adjusts the permitted tool set and limits.',
       gw:    'Enforces the per-tier decision from Authorize before dispatching tool calls.',
     },
-    primaryTool: null,
   },
   {
     id: 'UC22',
