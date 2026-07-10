@@ -51,6 +51,17 @@ spec:
         # inside the pod. This env var must be set before the BFF starts.
         - name: AGENT_SERVICE_URL
           value: "http://agent-service:3006"
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "demo-api-server"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
+        - name: JAEGER_QUERY_URL
+          value: "http://jaeger:16686"
         # secret first, configmap last → cluster URLs in the configmap win
         envFrom:
         - secretRef:
@@ -68,6 +79,9 @@ spec:
         # filesystem and every restart wiped the past-reports list.
         - name: lmdb-data
           mountPath: /app/data/persistent/lmdb
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -99,6 +113,9 @@ spec:
       - name: lmdb-data
         persistentVolumeClaim:
           claimName: lmdb-data
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
       restartPolicy: Always
       securityContext:
         runAsNonRoot: true

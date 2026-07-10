@@ -45,6 +45,15 @@ spec:
           value: "http://mcp-gateway:3005"
         - name: LLAMACPP_MODEL
           value: "gpt-oss-20b"
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "agent-service"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
         # agent-secrets supplies AGENT_CLIENT_ID/SECRET, PINGONE_TOKEN_ENDPOINT,
         # PINGONE_* (from demo_agent_service/.env, same as compose's env_file).
         envFrom:
@@ -52,6 +61,10 @@ spec:
             name: agent-secrets
         - configMapRef:
             name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "256Mi"
@@ -78,6 +91,10 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
       restartPolicy: Always
 ---
 apiVersion: v1

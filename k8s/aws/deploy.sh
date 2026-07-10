@@ -137,6 +137,13 @@ fi
 info "Creating secrets from demo_api_server/.env..."
 K8S_NAMESPACE="$NS" bash "$K8S_DIR/create-secrets.sh"
 
+# OTel bootstrap script mounted at /otel in every instrumented Node service
+# (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
+info "Creating otel-instrument ConfigMap..."
+kubectl create configmap otel-instrument \
+  --from-file=otel-instrument.js="$K8S_DIR/../scripts/otel-instrument.js" \
+  -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
+
 # Read the origin currently live in the cluster BEFORE the apply below resets
 # it to the local default — decides whether pods must be rolled further down.
 prev_public_origin="$(kubectl get configmap ai-demo-config -n "$NS" -o jsonpath='{.data.PUBLIC_APP_URL}' 2>/dev/null || true)"
@@ -181,8 +188,10 @@ fi
 # deployment), so we apply it explicitly here.
 apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
 
-# Deploy in dependency order
+# Deploy in dependency order (jaeger first so the OTLP collector is up before
+# the instrumented services start exporting spans)
 for manifest in \
+  73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
   63-mcp-invest-deployment.yaml \
   64-mortgage-service-deployment.yaml \
@@ -219,7 +228,7 @@ else
 fi
 
 info "Waiting for rollouts (timeout 3m each)..."
-for dep in mcp-server mcp-invest mortgage-service hitl-service \
+for dep in jaeger mcp-server mcp-invest mortgage-service hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            mastra-agent openai-agent pydantic-agent frontend; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
