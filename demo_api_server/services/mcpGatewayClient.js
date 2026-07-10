@@ -208,6 +208,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // 'introspect' (default) falls through to route 01-mcp-olb.json unchanged.
         const jwksMode = configStore.getEffective('ff_mcp_gateway_jwks') === 'true';
         headers['X-Token-Validation'] = jwksMode ? 'jwks' : 'introspect';
+        // ff_gateway_brokered_exchange (default true): the IG performs the final
+        // RFC 8693 exchange (olb-token-exchange.groovy). When set false, the BFF
+        // already minted the mcp-server-audience token, so tell the IG to SKIP its
+        // exchange and forward this token as-is. Absent header => gateway-brokered.
+        if (configStore.getEffective('ff_gateway_brokered_exchange') === 'false') {
+            headers['X-BFF-Exchanged'] = 'true';
+        }
     }
 
     const rawTimeout = parseInt(

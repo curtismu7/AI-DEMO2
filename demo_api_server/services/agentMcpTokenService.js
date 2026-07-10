@@ -2376,7 +2376,16 @@ async function _performTwoExchangeDelegation(
   // introspection rejects as inactive (active: false).
   // PingGateway also requires the token aud to be an HTTPS URL matching McpProtectionFilter.resourceId
   // (bare audience strings like mcpgateway.ping.demo are rejected with URI scheme null error).
-  const usePingGatewayForExchange = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  // ff_gateway_brokered_exchange (default true) decouples WHO performs the final
+  // RFC 8693 hop from routing. Gateway-brokered (default): the BFF stops at the
+  // coarse gateway audience and the IG runs olb-token-exchange.groovy to mint the
+  // mcpserver.ping.demo token at the edge. BFF-brokered (flag false): the BFF
+  // completes the exchange to the mcp-server audience itself and the IG skips its
+  // exchange (signaled by X-BFF-Exchanged; see mcpGatewayClient). Only meaningful
+  // when routing through PingGateway; unset/true preserves today's behavior exactly.
+  const routeViaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const gatewayBrokeredExchange = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
+  const usePingGatewayForExchange = routeViaPingGateway && gatewayBrokeredExchange;
   const pingGatewayResourceAud = usePingGatewayForExchange
     ? (process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || configStore.getEffective('pingone_resource_pinggateway_uri') || twoExFinalAud)
     : null;

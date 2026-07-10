@@ -81,6 +81,31 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-10 — Dual token-exchange broker flag (`ff_gateway_brokered_exchange`)
+
+**Files changed:** `demo_api_server/routes/featureFlags.js` (new flag + pin-alias),
+`demo_api_server/services/agentMcpTokenService.js` (`usePingGatewayForExchange`),
+`demo_api_server/services/mcpGatewayClient.js` (`X-BFF-Exchanged` header),
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy` (skip on header),
+`docs/dual-exchange-broker.md`.
+
+**What was added:** a flag choosing WHO performs the final RFC 8693 exchange to
+`mcpserver.ping.demo` when routing via PingGateway — the IG (gateway-brokered,
+default) or the BFF (bff-brokered). See `docs/dual-exchange-broker.md`.
+
+**Do not break:** with the flag unset or `true`, `usePingGatewayForExchange` MUST
+resolve exactly as `ff_mcp_gateway_pinggateway === 'true'` (gateway-brokered
+default) — the Exchange #2 `gateway:mcp:invoke` scope, the pinggateway audience
+handling, and the two-exchange delegation structure are unchanged. The bff path
+only activates when the flag is explicitly `false` and reuses the existing
+`!usePingGatewayForExchange` branch. `viaPingGateway` dual-spelling
+(`gateway:mcp:invoke` + legacy `pinggateway:invoke`) is untouched.
+
+**Verify:** `node --check` on the four files; toggle the flag on `/config` with
+`ff_mcp_gateway_pinggateway` ON and confirm the Token Chain shows the final
+exchange at the IG (on) vs. the BFF (off). Two IG/PingOne live-verify items
+remain — see `docs/dual-exchange-broker.md` "Live-verify checklist".
+
 ### 2026-07-07 — AG-UI agent: multi-turn memory, per-run provider on MCP path, tool timeout
 
 **Files changed:**
