@@ -44,6 +44,23 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
       } else {
         window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail: { message: run.message, autoSend: true } }));
       }
+      // No agent instance mounted on this route (most admin sub-pages) — the
+      // events above were dropped. Persist the pending run and navigate to
+      // /admin, where the mounting agent replays it (see AIAgent.js
+      // 'banking-agent-pending-attack' / window.__bankingAgentMounted).
+      if (!window.__bankingAgentMounted) {
+        const pending = run.kind === 'showcase'
+          ? { type: 'showcase', payload: { showcase: run.showcase, label: run.label } }
+          : { type: 'prefill', payload: { message: run.message, autoSend: true } };
+        try {
+          sessionStorage.setItem('banking-agent-pending-attack', JSON.stringify(pending));
+        } catch (_) {
+          // sessionStorage unavailable — navigation alone still lands on a working agent
+        }
+        if (onClose) onClose();
+        window.location.assign('/admin');
+        return;
+      }
       if (onClose) onClose();
     };
     return (

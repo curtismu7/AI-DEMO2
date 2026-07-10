@@ -625,7 +625,9 @@ async function getAuthorizationPolicies() {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Authorization policies list failed (${response.status}): ${text}`);
+    const err = new Error(`Authorization policies list failed (${response.status}): ${text}`);
+    err.status = response.status;
+    throw err;
   }
 
   const data = await response.json();

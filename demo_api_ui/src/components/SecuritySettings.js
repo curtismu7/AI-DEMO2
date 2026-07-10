@@ -70,8 +70,8 @@ const FIELD_META = {
   },
   authorizeEnabled: {
     label: 'PingOne Authorize Integration',
-    type: 'toggle',
-    description: 'Route authorization decisions through PingOne Authorize. When enabled, every non-admin transaction is evaluated against the policy below. Works alongside (not instead of) the step-up threshold above.',
+    type: 'status',
+    description: 'Authorization decisions are routed through the PingOne Authorize engine. Always on by design — the effective state below is computed by the server and is read-only.',
   },
   authorizePolicyId: {
     label: 'Authorize Policy ID',
@@ -159,17 +159,26 @@ const SecuritySettings = ({ user, onLogout }) => {
   const { open } = useEducationUI();
   const [settings, setSettings] = useState(null);
   const [form, setForm] = useState(null);
+  const [authorizeStatus, setAuthorizeStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // authorizeEnabled is read-only status (engine is always-on by design) —
+  // keep it out of the editable form so it is never sent in the PUT payload.
+  const toEditableForm = (s) => {
+    const { authorizeEnabled: _readOnly, ...editable } = s || {};
+    return editable;
+  };
 
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/api/admin/settings');
       setSettings(res.data.settings);
-      setForm({ ...res.data.settings });
+      setForm(toEditableForm(res.data.settings));
+      setAuthorizeStatus(res.data.authorizeStatus || null);
       setHistory(res.data.history || []);
       setDirty(false);
     } catch (err) {
@@ -197,12 +206,13 @@ const SecuritySettings = ({ user, onLogout }) => {
       setSaving(true);
       const res = await apiClient.put('/api/admin/settings', form);
       setSettings(res.data.settings);
-      setForm({ ...res.data.settings });
+      setForm(toEditableForm(res.data.settings));
       setDirty(false);
       notifySuccess('Settings saved successfully.');
       // Re-fetch history
       const full = await apiClient.get('/api/admin/settings');
       setHistory(full.data.history || []);
+      setAuthorizeStatus(full.data.authorizeStatus || null);
     } catch (err) {
       notifyError(
         err.response?.data?.error_description ||
@@ -215,7 +225,7 @@ const SecuritySettings = ({ user, onLogout }) => {
   };
 
   const handleReset = () => {
-    setForm({ ...settings });
+    setForm(toEditableForm(settings));
     setDirty(false);
   };
 
@@ -285,7 +295,9 @@ const SecuritySettings = ({ user, onLogout }) => {
           <div style={{ padding: '24px' }}>
             {fieldOrder.map((key) => {
               const meta = FIELD_META[key];
-              if (!meta || form[key] === undefined) return null;
+              // 'status' rows are read-only server-computed values — they are
+              // intentionally absent from the editable form state.
+              if (!meta || (meta.type !== 'status' && form[key] === undefined)) return null;
               return (
                 <div key={key} style={{ marginBottom: '28px', paddingBottom: '28px', borderBottom: '1px solid #f3f4f6' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -300,6 +312,16 @@ const SecuritySettings = ({ user, onLogout }) => {
 
                   {meta.type === 'toggle' && (
                     <Toggle value={form[key]} onChange={(v) => set(key, v)} disabled={meta.disabled} />
+                  )}
+
+                  {meta.type === 'status' && (
+                    <div style={{ display: 'inline-block', padding: '6px 12px', borderRadius: '6px', background: '#f3f4f6', color: '#111827', fontSize: '0.875rem', fontWeight: '600' }}>
+                      {authorizeStatus
+                        ? (authorizeStatus.authorizeEnabledConfig
+                            ? `✅ Active (mode: ${authorizeStatus.activeEngine})`
+                            : '❌ Inactive')
+                        : 'Status unavailable'}
+                    </div>
                   )}
 
                   {meta.type === 'number' && (
@@ -446,9 +468,11 @@ const SecuritySettings = ({ user, onLogout }) => {
               <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                 <th style={{ padding: '10px 20px', textAlign: 'left', color: '#374151', fontWeight: '600' }}>PingOne Authorize gate</th>
                 <td style={{ padding: '10px 20px', color: '#374151' }}>
-                  {settings.authorizeEnabled
-                    ? `✅ Enabled (policy: ${settings.authorizePolicyId || 'not set'})`
-                    : '❌ Disabled'}
+                  {authorizeStatus
+                    ? (authorizeStatus.authorizeEnabledConfig
+                        ? `✅ Active (mode: ${authorizeStatus.activeEngine}, policy: ${settings.authorizePolicyId || 'not set'})`
+                        : '❌ Inactive')
+                    : 'Status unavailable'}
                 </td>
               </tr>
               <tr>

@@ -1,6 +1,13 @@
 .code-search-page {
+  /* Page-local accent (code-search emerald), same pattern as OAuthAcademyPage's
+     --oa-accent. Shared --v2-* tokens with fallbacks keep the page visually
+     consistent with OAuth Academy. */
+  --cs-accent: #059669;
+  --cs-accent-hover: #047857;
+  --cs-accent-muted: rgba(5, 150, 105, 0.1);
   padding: 20px;
-  background: #f9fafb;
+  background: var(--v2-bg, #f7f7f5);
+  font-family: var(--v2-font-body, sans-serif);
   min-height: 100vh;
 }
 
@@ -159,6 +166,401 @@
   color: #9ca3af;
 }
 
+/* ── Ask/Search tab strip ─────────────────────────────────────────────────
+   Segmented control for the right panel's Ask/Search toggle. */
+.code-search-page .cs-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  width: fit-content;
+  background: var(--v2-surface-3, #ebebea);
+  border-radius: var(--v2-r-md, 8px);
+}
+
+.code-search-page .cs-tabs button {
+  padding: 8px 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-family: var(--v2-font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-ink-2, #4c4c48);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.code-search-page .cs-tabs button:hover:not(.active) {
+  color: var(--v2-ink-1, #111110);
+}
+
+.code-search-page .cs-tabs button.active {
+  background: var(--v2-surface, #ffffff);
+  color: var(--cs-accent);
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.08));
+}
+
+/* ── Ask the agent — chat panel ───────────────────────────────────────────
+   Modeled on OAuthAcademyPage.css: message rows (avatar + bubble, user rows
+   reversed), typing dots, pinned input area, starter chips. Scoped under
+   .code-search-ask so nothing leaks into other pages. */
+.code-search-page .code-search-ask {
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+  max-height: calc(100vh - 140px);
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-lg, 12px);
+  overflow: hidden;
+}
+
+/* Empty state: heading + starter chips */
+.code-search-page .code-search-ask .ask-empty {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.code-search-page .code-search-ask .ask-empty h2 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--v2-ink-1, #1f2937);
+}
+
+.code-search-page .code-search-ask .ask-empty p {
+  margin: 0 0 16px 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--v2-ink-2, #4c4c48);
+}
+
+.code-search-page .code-search-ask .starter-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.code-search-page .code-search-ask .starter-chip {
+  padding: 0.55rem 0.85rem;
+  background: var(--v2-surface, #fff);
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-md, 8px);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.78rem;
+  font-family: var(--v2-font-body, sans-serif);
+  color: var(--v2-ink-2, #4c4c48);
+  line-height: 1.4;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.code-search-page .code-search-ask .starter-chip:hover:not(:disabled) {
+  background: var(--cs-accent-muted);
+  border-color: var(--cs-accent);
+  color: var(--cs-accent);
+}
+
+.code-search-page .code-search-ask .starter-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Messages — scrollable, fills the panel */
+.code-search-page .code-search-ask .messages-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.25rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--v2-line-2, #d5d5d0) transparent;
+}
+
+.code-search-page .code-search-ask .messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.code-search-page .code-search-ask .messages-container::-webkit-scrollbar-thumb {
+  background: var(--v2-line-2, #d5d5d0);
+  border-radius: 3px;
+}
+
+.code-search-page .code-search-ask .message-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.code-search-page .code-search-ask .message-row.user {
+  flex-direction: row-reverse;
+}
+
+.code-search-page .code-search-ask .msg-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--v2-r-md, 8px);
+  background: var(--cs-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.code-search-page .code-search-ask .message-row.user .msg-avatar {
+  background: var(--v2-surface-3, #ebebea);
+  color: var(--v2-ink-2, #4c4c48);
+}
+
+.code-search-page .code-search-ask .msg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: calc(100% - 44px);
+  min-width: 0;
+}
+
+.code-search-page .code-search-ask .message-row.user .msg-body {
+  align-items: flex-end;
+}
+
+.code-search-page .code-search-ask .message-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: var(--v2-r-lg, 12px);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--v2-ink-1, #111110);
+}
+
+.code-search-page .code-search-ask .message-row.assistant .message-bubble {
+  background: var(--v2-surface, #ffffff);
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
+  border-top-left-radius: var(--v2-r-sm, 4px);
+}
+
+.code-search-page .code-search-ask .message-row.user .message-bubble {
+  background: var(--cs-accent);
+  color: #ffffff;
+  border-top-right-radius: var(--v2-r-sm, 4px);
+}
+
+/* Error answers keep assistant styling but read clearly as failures. */
+.code-search-page .code-search-ask .message-bubble.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+/* Meta line under an answer (mode / tool calls) */
+.code-search-page .code-search-ask .ask-meta {
+  font-size: 0.72rem;
+  color: var(--v2-ink-2, #4c4c48);
+  padding-left: 0.25rem;
+}
+
+/* Sources under an answer */
+.code-search-page .code-search-ask .ask-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.code-search-page .code-search-ask .ask-sources h4 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--v2-ink-2, #4c4c48);
+}
+
+.code-search-page .code-search-ask .ask-source {
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-md, 8px);
+  overflow: hidden;
+}
+
+.code-search-page .code-search-ask .ask-source code {
+  display: block;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cs-accent);
+  background: var(--cs-accent-muted);
+  word-break: break-all;
+}
+
+.code-search-page .code-search-ask .ask-source pre {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--v2-ink-1, #111110);
+  background: var(--v2-surface-2, #f4f4f2);
+  overflow-x: auto;
+}
+
+/* Typing indicator */
+.code-search-page .code-search-ask .typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.7rem 1rem;
+  background: var(--v2-surface, #fff);
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  border-radius: var(--v2-r-lg, 12px);
+  border-top-left-radius: var(--v2-r-sm, 4px);
+  box-shadow: var(--v2-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
+  max-width: calc(100% - 44px);
+}
+
+.code-search-page .code-search-ask .typing-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--v2-ink-3, #8c8c88);
+  border-radius: 50%;
+  animation: cs-bounce 1.2s infinite;
+}
+
+.code-search-page .code-search-ask .typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.code-search-page .code-search-ask .typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes cs-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Input area — pinned at the bottom of the panel */
+.code-search-page .code-search-ask .input-area {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0.75rem 1rem 1rem;
+  flex-shrink: 0;
+  background: var(--v2-surface, #fff);
+  border: 1px solid var(--v2-line-2, #d5d5d0);
+  border-radius: var(--v2-r-xl, 16px);
+  box-shadow: var(--v2-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.06));
+  overflow: hidden;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.code-search-page .code-search-ask .input-area:focus-within {
+  border-color: var(--cs-accent);
+  box-shadow:
+    0 0 0 3px var(--cs-accent-muted),
+    var(--v2-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.06));
+}
+
+.code-search-page .code-search-ask .input-area input {
+  flex: 1;
+  padding: 0.85rem 1.1rem;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-family: var(--v2-font-body, sans-serif);
+  color: var(--v2-ink-1, #111110);
+  outline: none;
+  min-width: 0;
+}
+
+.code-search-page .code-search-ask .input-area input::placeholder {
+  color: var(--v2-ink-3, #8c8c88);
+}
+
+.code-search-page .code-search-ask .input-area input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.code-search-page .code-search-ask .clear-btn {
+  flex-shrink: 0;
+  margin: 6px 0;
+  padding: 0 0.85rem;
+  height: 36px;
+  border-radius: var(--v2-r-lg, 12px);
+  background: var(--cs-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--v2-font-body, sans-serif);
+  letter-spacing: 0.02em;
+  transition: background 0.12s;
+}
+
+.code-search-page .code-search-ask .clear-btn:hover {
+  background: var(--cs-accent-hover);
+}
+
+.code-search-page .code-search-ask .send-btn {
+  flex-shrink: 0;
+  margin: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--v2-r-lg, 12px);
+  background: var(--cs-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.12s,
+    transform 0.1s;
+}
+
+.code-search-page .code-search-ask .send-btn:hover:not(:disabled) {
+  background: var(--cs-accent-hover);
+  transform: scale(1.05);
+}
+
+.code-search-page .code-search-ask .send-btn:disabled {
+  background: var(--v2-surface-3, #ebebea);
+  color: var(--v2-ink-3, #8c8c88);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.code-search-page .code-search-ask .stop-btn {
+  background: var(--v2-negative, #a33020);
+}
+
+.code-search-page .code-search-ask .stop-btn:hover {
+  background: #7f2518;
+  transform: scale(1.05);
+}
+
 @media (max-width: 1024px) {
   .search-container {
     grid-template-columns: 1fr;
@@ -188,5 +590,9 @@
 
   .codebase-items {
     max-height: none;
+  }
+
+  .code-search-page .code-search-ask .starter-chips {
+    grid-template-columns: 1fr;
   }
 }

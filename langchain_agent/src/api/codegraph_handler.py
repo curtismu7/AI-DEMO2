@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import time
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Response
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.messages import AIMessageChunk, HumanMessage, AIMessage
 
 from codegraph.agent import create_codegraph_agent
+from codegraph.db import CODEGRAPH_DB_PATH
 from codegraph.repo import repo_src_root
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,15 @@ _graph_cache: object = None
 # Explorer page is public) and the indexer is CPU-heavy, so serialize to avoid
 # piling up concurrent scans.
 _reindex_lock = asyncio.Lock()
+
+
+def _index_available() -> bool:
+    """True if the CodeGraph DB exists and is non-empty."""
+    try:
+        db_file = Path(CODEGRAPH_DB_PATH)
+        return db_file.is_file() and db_file.stat().st_size > 0
+    except OSError:
+        return False
 
 
 def _get_graph():
@@ -61,11 +72,25 @@ async def codegraph_query(request: Request) -> Response:
 
     history: list[dict] = body.get("history") or []
 
+    # Check both failure classes independently so the user sees the real
+    # blocker(s): a missing/empty index and an unreachable LLM backend are
+    # separate problems — agent creation never touches the index.
+    problems: list[str] = []
+    if not _index_available():
+        problems.append(
+            f"CodeGraph index not available (missing or empty at {CODEGRAPH_DB_PATH}) "
+            "— use Refresh index to rebuild it"
+        )
+    graph = None
     try:
         graph = _get_graph()
     except Exception as exc:
         logger.error("Failed to create CodeGraph agent: %s", exc)
-        return JSONResponse({"error": "CodeGraph index not available"}, status_code=503)
+        problems.append(
+            f"CodeGraph LLM backend unavailable ({exc}) — check the llama.cpp/Helix service"
+        )
+    if problems:
+        return JSONResponse({"error": "; ".join(problems)}, status_code=503)
 
     messages = _build_messages(question, history)
 
@@ -113,9 +138,9 @@ async def _stream(graph, messages: list) -> AsyncGenerator[str, None]:
 async def codegraph_reindex() -> Response:
     """Rebuild the symbol index from the live source tree.
 
-    The repo is bind-mounted at REPO_SRC_ROOT (/app/live-repo) and the indexer
-    derives its output DB path from its own location, so running it in-place
-    refreshes the DB the query tools read — no image rebuild or re-stage needed.
+    The repo is bind-mounted at REPO_SRC_ROOT (/app/live-repo); the indexer is
+    told to write to CODEGRAPH_DB_PATH (via --out) — the exact DB the query
+    tools read — so no image rebuild or re-stage is needed.
     """
     root = repo_src_root()
     script = root / "scripts" / "build-codegraph.py"
@@ -135,7 +160,7 @@ async def codegraph_reindex() -> Response:
         started = time.monotonic()
         try:
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, str(script),
+                sys.executable, str(script), "--out", CODEGRAPH_DB_PATH,
                 cwd=str(root),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
@@ -164,6 +189,11 @@ async def codegraph_reindex() -> Response:
     m = re.search(r"Indexing\s+(\d+)\s+files", out)
     if m:
         files = int(m.group(1))
+
+    # Drop the cached agent so the next query rebuilds against the fresh DB
+    # (and re-probes the LLM provider).
+    global _graph_cache
+    _graph_cache = None
 
     logger.info("CodeGraph reindex OK in %sms (nodes=%s)", elapsed_ms, nodes)
     return JSONResponse({"ok": True, "nodes": nodes, "files": files,

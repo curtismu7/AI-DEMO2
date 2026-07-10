@@ -82,8 +82,9 @@ const FOLDER_ALLOW_EXT = new Set([
   'go', 'java', 'rb', 'rs', 'txt', 'html',
 ]);
 const FOLDER_IGNORE_RE = /(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/i;
-const FOLDER_MAX_FILE_BYTES = 256 * 1024;
-const FOLDER_MAX_FILES = 2000;
+// Exported so the uploader's skip warning can state the actual limits.
+export const FOLDER_MAX_FILE_BYTES = 256 * 1024;
+export const FOLDER_MAX_FILES = 2000;
 
 /** Pure: split a picked folder's FileList into accepted code files + skipped count. */
 export function filterFolderFiles(fileList) {
