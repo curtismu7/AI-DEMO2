@@ -81,6 +81,48 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-10 — Admin agent chips silently no-op ("Look Up Customer" no response)
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (transcript render
+filter), `demo_api_server/services/customerTokenGuard.js` (new
+`isVerticalExemptFromAdminTokenGuard` helper + export),
+`demo_api_server/services/demoAgentLangGraphService.js` (guard uses the helper),
+plus tests `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js` and
+`demo_api_server/src/__tests__/customerTokenGuard.test.js`.
+
+**What was broken:** on the admin dashboard, clicking a floating-agent admin chip
+(e.g. "Look Up Customer") produced NO visible response. Two stacked bugs: (1) the
+BFF's admin-token guard in `processAgentMessage` fired for every vertical except
+`oauth-teaching`, so the `admin` vertical — whose chips ARE admin-only tools
+(`lookup_customer`, `freeze_account`, …) — was wrongly bounced with a "log in as
+a customer" envelope. (2) The SPA turned that envelope into a `role:"error"` chat
+card via `maybeHandleCustomerLogin`, but the transcript render filter only passed
+`user`/`assistant`/`token-event`, so the card (and every other error-role card:
+re-auth, session-fix) was added to state and never rendered — the agent looked
+silent.
+
+**What was fixed:** (1) extracted the exempt-vertical list into
+`isVerticalExemptFromAdminTokenGuard` (now `{admin, oauth-teaching}`) in
+`customerTokenGuard.js` and switched the guard to use it — admin chips run under
+the admin token; customer verticals (banking, healthcare, …) still require
+customer sign-in. (2) added `msg.role === "error"` to the transcript filter so
+the three error-card render branches (customer-login, re-auth, session-fix) are
+reachable.
+
+**Do not break:** the per-tool guard in `bffMcpToolExecutor`
+(`isCustomerBankingTool` + `isAdminClientToken`) still protects money-moving
+tools regardless of vertical — the vertical exemption only bypasses the blanket
+short-circuit, not the tool-level check. Customer verticals must still return the
+`requiresCustomerLogin` envelope for an admin token. The transcript filter still
+gates `token-event` behind `showRfcInfo`; only `error` was added.
+
+**Verify:** `demo_api_server` jest `customerTokenGuard` (12 pass, incl. admin/
+oauth-teaching exempt, banking/healthcare not) + real module load of
+`demoAgentLangGraphService`; `demo_api_ui` vitest `AIAgent.chips` (57 pass, incl.
+the new "login-as-customer error card renders" case that fails without the filter
+fix); `cd demo_api_ui && npm run build` exits 0. Live click-through pending deploy
+(the running containers bind-mount the main checkout).
+
 ### 2026-07-10 — Authorize policies card: render tree from repo snapshot on 403
 
 **Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`

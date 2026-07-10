@@ -50,6 +50,25 @@ describe('customerTokenGuard.isCustomerBankingTool', () => {
   });
 });
 
+describe('customerTokenGuard.isVerticalExemptFromAdminTokenGuard', () => {
+  const { isVerticalExemptFromAdminTokenGuard } = require('../../services/customerTokenGuard');
+
+  it('exempts the admin vertical (its chips are admin-only tools)', () => {
+    expect(isVerticalExemptFromAdminTokenGuard('admin')).toBe(true);
+  });
+
+  it('exempts the oauth-teaching vertical (OAuth Academy)', () => {
+    expect(isVerticalExemptFromAdminTokenGuard('oauth-teaching')).toBe(true);
+  });
+
+  it('does not exempt customer verticals', () => {
+    expect(isVerticalExemptFromAdminTokenGuard('banking')).toBe(false);
+    expect(isVerticalExemptFromAdminTokenGuard('healthcare')).toBe(false);
+    expect(isVerticalExemptFromAdminTokenGuard(null)).toBe(false);
+    expect(isVerticalExemptFromAdminTokenGuard(undefined)).toBe(false);
+  });
+});
+
 describe('customerTokenGuard.adminTokenAgentResponse', () => {
   it('is a terminal, no-tool envelope flagged for customer login', () => {
     const r = adminTokenAgentResponse();

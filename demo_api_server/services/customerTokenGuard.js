@@ -65,6 +65,23 @@ function isCustomerBankingTool(name) {
 }
 
 /**
+ * Verticals whose agent must NOT be blocked by the admin-token guard, because
+ * an admin token is the CORRECT credential for them:
+ *  - `admin` — the admin console: its chips (lookup_customer, freeze_account,
+ *    …) are admin-only tools, so an admin token is required, not customer login.
+ *  - `oauth-teaching` — OAuth Academy: pure teaching surface whose explain/show
+ *    tools never read customer banking data (the one money-moving demo tool
+ *    stays protected by the per-tool guard in bffMcpToolExecutor).
+ * Customer verticals (banking, healthcare, …) are NOT exempt: an admin token
+ * there returns wrong-identity data and must trigger customer sign-in.
+ */
+const ADMIN_TOKEN_GUARD_EXEMPT_VERTICALS = new Set(['admin', 'oauth-teaching']);
+
+function isVerticalExemptFromAdminTokenGuard(vertical) {
+  return ADMIN_TOKEN_GUARD_EXEMPT_VERTICALS.has(vertical);
+}
+
+/**
  * Canonical terminal envelope. `terminal: true` stops the reason loop (no
  * retry); `requiresCustomerLogin: true` tells the SPA to render the
  * login-as-customer / cancel action card.
@@ -99,6 +116,8 @@ function adminTokenAgentResponse(tokenEvents = []) {
 module.exports = {
   isAdminClientToken,
   isCustomerBankingTool,
+  isVerticalExemptFromAdminTokenGuard,
+  ADMIN_TOKEN_GUARD_EXEMPT_VERTICALS,
   CUSTOMER_BANKING_TOOLS,
   ADMIN_TOKEN_ON_CUSTOMER,
   adminTokenAgentResponse,

@@ -8623,6 +8623,7 @@ export default function BankingAgent({
                     (msg) =>
                       msg.role === "user" ||
                       msg.role === "assistant" ||
+                      msg.role === "error" ||
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg) => {
