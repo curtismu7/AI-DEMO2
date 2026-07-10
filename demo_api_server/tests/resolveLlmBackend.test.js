@@ -3,7 +3,7 @@
 // Platform-aware LLM_BACKEND resolution guard. Ensures resolve-llm-backend.sh
 // picks omlx on Apple Silicon Mac and llamacpp elsewhere, and rejects omlx on Linux.
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,11 +11,23 @@ const RESOLVER = path.resolve(__dirname, '../../demo_llm_proxy/resolve-llm-backe
 
 function resolveBackend(env = {}) {
   const merged = { ...process.env, ...env };
-  const envPairs = Object.entries(merged)
-    .map(([k, v]) => `${k}=${JSON.stringify(String(v))}`)
-    .join(' ');
-  const cmd = `${envPairs} bash -c 'source "${RESOLVER}" && resolve_llm_backend && printf "|%s" "${LLM_BACKEND_RESOLVE_WARN:-}"'`;
-  const out = execSync(cmd, { encoding: 'utf8', shell: '/bin/bash' }).trim();
+  delete merged.LLM_BACKEND_RESOLVE_WARN;
+  if (env.LLM_BACKEND === '') {
+    delete merged.LLM_BACKEND;
+  }
+  const bashScript = [
+    `source ${JSON.stringify(RESOLVER)}`,
+    'resolve_llm_backend',
+    'printf "|%s" "${LLM_BACKEND_RESOLVE_WARN:-}"',
+  ].join(' && ');
+  const result = spawnSync('bash', ['-c', bashScript], {
+    env: merged,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || `bash exited ${result.status}`);
+  }
+  const out = (result.stdout || '').trim();
   const [backend, warn] = out.split('|');
   return { backend, warn: warn || '' };
 }
