@@ -15,6 +15,7 @@ Only stdlib is required (ast, sqlite3, pathlib, re). No pip installs needed.
 Usage (from repo root):
   python3 scripts/build-codegraph.py           # indexes into .codegraph/codegraph.db
   python3 scripts/build-codegraph.py --dry-run # print stats, don't write db
+  python3 scripts/build-codegraph.py --out /path/to/codegraph.db  # custom db path
   python3 scripts/build-codegraph.py --help
 """
 
@@ -320,7 +321,8 @@ def write_metadata(conn, root):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def build(dry_run: bool = False):
+def build(dry_run: bool = False, out: Optional[Path] = None):
+    db_path = out if out is not None else DB_PATH
     files = collect_files(REPO_ROOT)
     print(f'  Indexing {len(files)} files from {REPO_ROOT}')
 
@@ -342,12 +344,12 @@ def build(dry_run: bool = False):
         print('  (dry-run — not writing database)')
         return
 
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     # Build into a temp file, then atomically swap it into place. Concurrent
     # readers (the live Code Explorer agent) open the db read-only per query, so
     # an unlink-then-rebuild would expose a missing/half-written file mid-run;
     # os.replace() makes the cutover atomic on the same filesystem.
-    tmp_path = DB_PATH.with_name(DB_PATH.name + '.tmp')
+    tmp_path = db_path.with_name(db_path.name + '.tmp')
     if tmp_path.exists():
         tmp_path.unlink()
 
@@ -390,10 +392,10 @@ def build(dry_run: bool = False):
     finally:
         conn.close()
 
-    os.replace(tmp_path, DB_PATH)
+    os.replace(tmp_path, db_path)
 
     print(f'  Wrote {edges_inserted} edges')
-    print(f'  Database: {DB_PATH}')
+    print(f'  Database: {db_path}')
 
 
 def stage_source(root: Path, dest: Path) -> int:
@@ -434,7 +436,7 @@ def main():
     # Skip value tokens so `--stage-src langchain_agent/repo-src` doesn't
     # accidentally override root.
     _flag_value_tokens: set = set()
-    for flag in ('--stage-src',):
+    for flag in ('--stage-src', '--out'):
         _fi = args.index(flag) if flag in args else -1
         if _fi >= 0 and _fi + 1 < len(args):
             _flag_value_tokens.add(args[_fi + 1])
@@ -456,7 +458,14 @@ def main():
         print(f'  Staged {count} source files into {stage_dir}')
         sys.exit(0)
 
-    build(dry_run=dry_run)
+    # --out <PATH> — override the output db path (default: REPO_ROOT/.codegraph/codegraph.db)
+    out_path = None
+    if '--out' in args:
+        idx = args.index('--out')
+        if idx + 1 < len(args):
+            out_path = Path(args[idx + 1]).resolve()
+
+    build(dry_run=dry_run, out=out_path)
 
 
 if __name__ == '__main__':

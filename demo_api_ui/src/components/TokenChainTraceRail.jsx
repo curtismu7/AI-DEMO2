@@ -17,16 +17,27 @@ const CHAIN_DOTS = [
   { cls: "mcp", label: "MCP" },
 ];
 
-export default function TokenChainTraceRail() {
+// mcpRouteOnly mode (vertical ops consoles): same trace data, but only the
+// delegation-to-MCP hops, with the dots relabelled for the MCP route.
+const MCP_ROUTE_DOTS = [
+  { cls: "agent", label: "Agent (MCP Client)" },
+  { cls: "mcp", label: "MCP Server" },
+];
+
+export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [legendOpen, setLegendOpen] = useState(false);
   const [inspectType, setInspectType] = useState(null);
-  const [tab, setTab] = useState("chain");
+  const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   const onInspect = useCallback((tokenType) => setInspectType(tokenType), []);
 
-  const { steps, trace } = snap;
+  const { trace } = snap;
+  const steps = mcpRouteOnly
+    ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id))
+    : snap.steps;
+  const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   const mcpDone = steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
 
   return (
@@ -39,7 +50,7 @@ export default function TokenChainTraceRail() {
       </div>
 
       <div className="tctr-chain-line">
-        {CHAIN_DOTS.map((d, i) => (
+        {dots.map((d, i) => (
           <React.Fragment key={d.cls}>
             {i > 0 && <span className="tctr-arrow">→</span>}
             <span className={`tctr-dot tctr-dot--${d.cls}`} /> {d.label}

@@ -680,6 +680,24 @@ router.get('/pingone-policies', authenticateToken, async (_req, res) => {
     return res.json({ ok: true, policies, environmentId });
   } catch (err) {
     console.error('[authorize/pingone-policies] Error:', err.message);
+    // PingOne rejects GET /authorizationPolicies for worker (client_credentials)
+    // tokens with 403 INSUFFICIENT_PERMISSIONS even when the worker app holds
+    // Environment Admin + Identity Data Admin (correctly env-scoped), the
+    // Authorize Gateway Policy Evaluator role, and the license includes
+    // Dynamic Authorization (verified live 2026-07-10: /decisionEndpoints and
+    // /authorizationVersions return 200 with the same token; /authorizationPolicies,
+    // /trustFramework/* and /deploymentPackages all 403). The policy-editor API
+    // appears to accept only admin *user* (console) tokens. Surface that as
+    // guidance (same note channel as the missing-credentials branch) instead of
+    // a raw upstream error dump.
+    if (err.status === 403) {
+      return res.json({
+        ok: true,
+        policies: [],
+        environmentId,
+        note: 'PingOne returned 403 for the Authorize policy list. This endpoint currently rejects worker (client_credentials) tokens regardless of admin roles or license — policy evaluation and decision endpoints still work. View the policy tree in the PingOne console under Authorize → Policies.',
+      });
+    }
     return res.status(502).json({ ok: false, policies: [], environmentId, error: err.message });
   }
 });

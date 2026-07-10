@@ -4,8 +4,26 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PINGCLI_BIN = '/app/bin/pingcli';
+const PINGCLI_BIN = process.env.PINGCLI_BIN || '/app/bin/pingcli';
 const TIMEOUT_MS = 15000;
+
+// pingcli persists its token store under $HOME/.pingcli. The container user
+// (Dockerfile USER appuser, no ENV HOME) has no usable HOME, so every PingOne
+// command fails with "token store is not configured" / "Authentication is not
+// configured for this profile". Point HOME at a writable directory for every
+// pingcli child process.
+const PINGCLI_HOME = process.env.PINGCLI_HOME || os.tmpdir();
+
+// Child env for every pingcli invocation: writable HOME, and PINGONE_* vars
+// stripped so pingcli uses only our --config file, not the ambient container
+// credentials (env vars take priority over the config file and conflict).
+function pingcliEnv() {
+  const env = { ...process.env, HOME: PINGCLI_HOME };
+  delete env.PINGONE_ENVIRONMENT_ID;
+  delete env.PINGONE_WORKER_CLIENT_ID;
+  delete env.PINGONE_WORKER_CLIENT_SECRET;
+  return env;
+}
 
 // Write a minimal pingcli config from env vars so the binary doesn't conflict
 // with any host-mounted config or ambient env var credentials.
@@ -44,6 +62,35 @@ default:
 const PINGCLI_CONFIG = getPingcliConfigPath();
 const configFlag = PINGCLI_CONFIG ? ['--config', PINGCLI_CONFIG] : [];
 
+// Lazy one-time auth bootstrap. `pingcli pingone auth login` with a
+// client_credentials config is fully non-interactive (verified locally:
+// "Successfully authenticated with client credentials") and persists a token
+// under $HOME/.pingcli/credentials, so subsequent PingOne commands succeed.
+// A shared module-level promise means concurrent requests bootstrap once; it
+// is reset on failure so a later request can retry.
+let authBootstrapPromise = null;
+function ensureAuthBootstrap() {
+  if (!PINGCLI_CONFIG) return Promise.resolve({ ok: true });
+  if (!authBootstrapPromise) {
+    authBootstrapPromise = new Promise((resolve) => {
+      execFile(
+        PINGCLI_BIN,
+        [...configFlag, 'pingone', 'auth', 'login'],
+        { timeout: TIMEOUT_MS, env: pingcliEnv() },
+        (err, stdout, stderr) => {
+          if (err) {
+            authBootstrapPromise = null;
+            resolve({ ok: false, error: (stderr || stdout || err.message || '').trim() });
+          } else {
+            resolve({ ok: true });
+          }
+        }
+      );
+    });
+  }
+  return authBootstrapPromise;
+}
+
 const ENV_ID = process.env.PINGONE_ENVIRONMENT_ID || '<environment-id>';
 const envFlag = ['--environment-id', ENV_ID];
 
@@ -70,14 +117,14 @@ const COMMANDS = {
   pingone_policies_list:     { label: `pingcli pingone sign-on-policies list --environment-id ${ENV_ID} -O json`,    args: [...configFlag, 'pingone', 'sign-on-policies', 'list', ...envFlag, '-O', 'json'],   runnable: false },
   pingone_mfa_policies_list: { label: `pingcli mfa mfa-device-policies list --environment-id ${ENV_ID} -O json`,     args: [...configFlag, 'mfa', 'mfa-device-policies', 'list', ...envFlag, '-O', 'json'],    runnable: false },
 
-  pingone_envs_list:         { label: 'pingcli pingone environments list -O json',                                   args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'],                   runnable: true },
+  pingone_envs_list:         { label: 'pingcli pingone environments list -O json',                                   args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'],                   runnable: true, auth: true },
   config_list_keys:          { label: 'pingcli config list-keys',                                                    args: [...configFlag, 'config', 'list-keys'],                                            runnable: true },
   version:                   { label: 'pingcli --version',                                                           args: ['--version'],                                                                     runnable: true },
 };
 
 const router = Router();
 
-router.post('/run', (req, res) => {
+router.post('/run', async (req, res) => {
   const { commandKey } = req.body;
   if (!commandKey) {
     return res.status(400).json({ error: 'missing_command_key' });
@@ -90,7 +137,18 @@ router.post('/run', (req, res) => {
     return res.status(400).json({ error: 'copy_only_command', commandKey, command: cmd.label });
   }
 
-  execFile(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS }, (err, stdout, stderr) => {
+  if (cmd.auth) {
+    const boot = await ensureAuthBootstrap();
+    if (!boot.ok) {
+      return res.json({
+        command: cmd.label,
+        output: `⚠️ pingcli auth bootstrap failed:\n${boot.error}`,
+        exitCode: 1,
+      });
+    }
+  }
+
+  execFile(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
     const exitCode = err?.code ?? 0;
     const raw = stdout || stderr || '';
     let output;
@@ -103,7 +161,7 @@ router.post('/run', (req, res) => {
   });
 });
 
-router.get('/stream', (req, res) => {
+router.get('/stream', async (req, res) => {
   const { commandKey } = req.query;
   if (!commandKey) {
     res.status(400).json({ error: 'missing_command_key' });
@@ -132,14 +190,17 @@ router.get('/stream', (req, res) => {
 
   send('meta', { command: cmd.label });
 
-  // Strip PINGONE_* env vars so pingcli uses only our --config file,
-  // not the ambient container credentials (which cause a conflict).
-  const spawnEnv = Object.assign({}, process.env);
-  delete spawnEnv.PINGONE_ENVIRONMENT_ID;
-  delete spawnEnv.PINGONE_WORKER_CLIENT_ID;
-  delete spawnEnv.PINGONE_WORKER_CLIENT_SECRET;
+  if (cmd.auth) {
+    const boot = await ensureAuthBootstrap();
+    if (!boot.ok) {
+      send('chunk', { text: `⚠️ pingcli auth bootstrap failed:\n${boot.error}\n` });
+      send('done', { exitCode: 1 });
+      res.end();
+      return;
+    }
+  }
 
-  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: spawnEnv });
+  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: pingcliEnv() });
 
   child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
   child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
@@ -155,6 +216,22 @@ router.get('/stream', (req, res) => {
   });
 
   req.on('close', () => child.kill());
+});
+
+// Installed pingcli version, e.g. { version: "1.1.0" }. Output line looks like
+// "pingcli version 1.1.0 (commit: 80fe2c6...)" — possibly preceded by config
+// bootstrap notices, so match anywhere in stdout rather than the first line.
+router.get('/version', (_req, res) => {
+  execFile(PINGCLI_BIN, ['--version'], { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout) => {
+    const match = /pingcli version (\S+)/.exec(stdout || '');
+    if (match) {
+      return res.json({ version: match[1] });
+    }
+    if (err && err.code === 'ENOENT') {
+      return res.status(503).json({ error: 'pingcli binary not installed' });
+    }
+    res.status(503).json({ error: 'unable to determine pingcli version' });
+  });
 });
 
 router.get('/commands', (_req, res) => {

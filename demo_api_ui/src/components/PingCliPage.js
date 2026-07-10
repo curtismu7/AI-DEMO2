@@ -7,6 +7,9 @@ import './PingCliPage.css';
 // the source of truth.
 const RUNNABLE = new Set(['pingone_envs_list', 'config_list_keys', 'version']);
 
+// Client-side cap on how long a streamed run may take before it is aborted.
+const RUN_TIMEOUT_MS = 30000;
+
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON
 // (e.g. mid-stream or plain-text output), so the caller falls back to raw text.
@@ -84,6 +87,7 @@ function InstallSection() {
   const trustCmd = 'brew trust pingidentity/tap';
   const brewCmd = 'brew install pingidentity/tap/pingcli';
   const verifyCmd = 'pingcli --version';
+  const upgradeCmd = 'brew upgrade pingidentity/tap/pingcli';
 
   return (
     <div className="pingcli-install">
@@ -117,6 +121,14 @@ function InstallSection() {
         </button>
       </div>
 
+      <p><strong>Already installed? Upgrade to the latest version</strong></p>
+      <div className="pingcli-code-block">
+        <code>{upgradeCmd}</code>
+        <button className="pingcli-copy-btn" onClick={() => copy(upgradeCmd, 'upgrade')}>
+          {copied === 'upgrade' ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+
       <p style={{ marginTop: 12 }}>
         After installing, run{' '}
         <code style={{ background: '#e2e8f0', padding: '1px 5px', borderRadius: 3 }}>
@@ -137,7 +149,18 @@ export default function PingCliPage() {
   const [exitCode, setExitCode]   = useState(null);
   const [cmdMeta, setCmdMeta]     = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
+  const [installedVersion, setInstalledVersion] = useState(null);
   const abortRef = useRef(null);
+
+  // Show the installed pingcli version in the page header.
+  useEffect(() => {
+    fetch('/api/admin/pingcli/version', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.version) setInstalledVersion(data.version);
+      })
+      .catch(() => {});
+  }, []);
 
   // Load the server's command catalog (full copyable command strings + which
   // commands run live). Falls back to the hardcoded cards if this fails.
@@ -170,6 +193,14 @@ export default function PingCliPage() {
     setCmdLabel('');
     setOutput('');
     setExitCode(null);
+
+    // Overall client-side timeout: abort a hung/buffered stream so the Run
+    // buttons are never left permanently disabled.
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, RUN_TIMEOUT_MS);
 
     try {
       const res = await fetch(
@@ -204,16 +235,22 @@ export default function PingCliPage() {
           } else if (type === 'done') {
             if (payload.error) setOutput((prev) => prev || payload.error);
             setExitCode(payload.exitCode);
-            setRunning(null);
           }
         }
       }
     } catch (err) {
-      if (err.name !== 'AbortError') {
+      if (err.name === 'AbortError') {
+        if (timedOut) {
+          setOutput((prev) => `${prev}${prev ? '\n' : ''}⚠️ Command timed out after ${RUN_TIMEOUT_MS / 1000} seconds.`);
+          setExitCode(1);
+        }
+      } else {
         setOutput(err.message);
         setExitCode(1);
-        setRunning(null);
       }
+    } finally {
+      clearTimeout(timer);
+      setRunning((r) => (r === commandKey ? null : r));
     }
   };
 
@@ -225,6 +262,11 @@ export default function PingCliPage() {
       <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>
         PingCLI
       </h1>
+      {installedVersion && (
+        <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', margin: '0 0 6px' }}>
+          Installed: v{installedVersion}
+        </p>
+      )}
       <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 28px' }}>
         The official CLI for PingOne administration. Click any command to run it live against
         your configured environment.
