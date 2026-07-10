@@ -18,6 +18,21 @@ brokering + exchange credentials at the enforcement edge; bff-brokered performs
 the exchange where the user+agent delegation context is richest. This toggle
 demonstrates the tradeoff side by side.
 
+## Using both flags together (the full matrix)
+
+The demo has **two** flags in play — one for routing, one for who brokers the
+final exchange. Set both to pick the architecture you want to show:
+
+| `ff_mcp_gateway_pinggateway` (routing) | `ff_gateway_brokered_exchange` (broker) | Result |
+|---|---|---|
+| **ON** (real PingGateway) | **ON** (default) | Real IG enforces + **IG** mints the backend token (edge token-exchange). The headline "real gateway does it all" demo. |
+| **ON** (real PingGateway) | **OFF** | Real IG enforces + **BFF** mints the backend token; IG validates + proxies. Same real gateway, delegation owned by the BFF. |
+| **OFF** (Demo Node gateway) | *(ignored)* | Node Demo Agent Gateway path; the BFF always brokers. `ff_gateway_brokered_exchange` has no effect here. |
+
+To showcase the delegation-ownership contrast, hold `ff_mcp_gateway_pinggateway`
+**ON** and flip `ff_gateway_brokered_exchange` between runs — the Token Chain
+view shows the final RFC 8693 hop landing at the IG (ON) vs. the BFF (OFF).
+
 ## What changed
 
 - `demo_api_server/routes/featureFlags.js` — new flag `ff_gateway_brokered_exchange`
