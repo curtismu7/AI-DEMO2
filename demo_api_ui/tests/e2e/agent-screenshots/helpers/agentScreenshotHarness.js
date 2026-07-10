@@ -62,14 +62,19 @@ async function setVertical(page, verticalId) {
   return true;
 }
 
+// Map mode id -> the low-level provider name the BFF resolves it to.
+const PROVIDER_BY_MODE = { llamacpp: 'llamacpp', claude: 'anthropic', helix_google: 'helix', google: 'google' };
+
 async function modeAvailable(page, modeId) {
-  const res = await page.request.get('/api/langchain/config/status');
+  // Use the per-provider status endpoint (not /config/status). /config/status
+  // only emits key_set flags for helix/openai/anthropic/anthropic-lmstudio, so
+  // it would wrongly report google and llamacpp as always-unconfigured. The
+  // per-provider endpoint runs getProviderStatus, which covers all four.
+  const provider = PROVIDER_BY_MODE[modeId] || modeId;
+  const res = await page.request.get(`/api/langchain/provider/${provider}/status`);
   if (!res.ok()) return false;
   const body = await res.json();
-  // Map mode id -> provider key used by key_set (helix_google -> helix).
-  const providerByMode = { llamacpp: 'llamacpp', claude: 'anthropic', helix_google: 'helix', google: 'google' };
-  const provider = providerByMode[modeId] || modeId;
-  return !!(body.key_set && body.key_set[provider] === true);
+  return body.configured === true;
 }
 
 async function ensureAgentReady(page) {

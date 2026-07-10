@@ -17,10 +17,16 @@ function loadManifests() {
     .map((p) => JSON.parse(fs.readFileSync(p, 'utf8')));
 }
 
+// Skip reasons can include a chip's `title` attribute (uncontrolled text); a
+// stray `|` or newline would corrupt the markdown table row, so neutralize them.
+function safeReason(reason) {
+  return String(reason || 'unavailable').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
+}
+
 function cellFor(row, modeId) {
   const cell = row.cells.find((c) => c.modeId === modeId);
   if (!cell) return '_no data_';
-  if (cell.skipped) return `_skipped: ${cell.reason || 'unavailable'}_`;
+  if (cell.skipped) return `_skipped: ${safeReason(cell.reason)}_`;
   return `![${modeId}](__screenshots__/${cell.file.split(path.sep).join('/')})`;
 }
 

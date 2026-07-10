@@ -19,8 +19,11 @@ test.describe('healthcare agent — 4-mode screenshots', () => {
 
   test('capture all chips across all modes', async ({ page }) => {
     await loginAsCustomer(page);
-    // The session must be on the healthcare vertical for its chips to render.
-    await setVertical(page, VERTICAL);
+    // The session must be on the healthcare vertical for its chips to render. If the
+    // switch is rejected (e.g. not permitted for this user), skip rather than
+    // timing out on banking chips that do not match.
+    const switched = await setVertical(page, VERTICAL);
+    test.skip(!switched, 'could not switch to the healthcare vertical');
 
     const rows = [];
     for (const chip of CHIPS) {

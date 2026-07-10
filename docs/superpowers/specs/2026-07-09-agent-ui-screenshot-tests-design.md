@@ -27,10 +27,16 @@ vs Google, answering the same question").
 - **Real UI** (Playwright driving the actual React app against a live BFF
   session). No mocked API responses.
 - **Output format:** one markdown row per chip, showing the 4 mode screenshots
-  side by side (a comparison grid), plus golden baseline PNGs for visual
-  regression.
-- **Validation:** visual (`toHaveScreenshot` golden baselines) **and** content
-  (in-domain keyword assertions).
+  side by side (a comparison grid). The screenshot PNGs, per-vertical
+  `manifest.json`, and the master `README.md` are **generated at live-capture
+  time**, not committed — a capture run requires a stack that runs this branch
+  with the providers configured (see Implementation status below).
+- **Validation:** content correctness (in-domain keyword assertions) as the
+  enforced gate, plus the captured PNGs as a visual record. The primary
+  deliverable is the side-by-side comparison doc so a reader can *see* each
+  provider's response; pixel-diff golden regression (`toHaveScreenshot`) was
+  dropped in favor of the raw comparison artifact, which better matches the
+  goal of showing results.
 
 ### Out of scope
 
@@ -178,3 +184,20 @@ constraint.
   during that vertical's phase.
 - Gemini default model id (`gemini-2.0-flash` proposed; confirm against the
   available API key's access at build time).
+
+## Implementation status (2026-07-10)
+
+- **Phase 1 (Google/Gemini provider): complete and merge-ready.** Dependency,
+  contract, `reasonOnce` branch, wiring, config + both mode tables; unit-tested,
+  full agent suite green, drift guard green.
+- **Screenshot suite (harness + 4 vertical specs + doc builder): code complete;
+  live captures deferred.** A live run against the AWS deployment
+  (`ai-demo.ping-devops.com`) confirmed that environment does **not** run this
+  branch (still exposes the retired `ollama` mode, has no `google` mode) and only
+  has Helix configured. So the actual 4-column screenshots cannot be produced
+  until a stack (a) runs this branch and (b) has llama.cpp + Claude + Google
+  configured. The harness records unavailable modes as skips with a reason.
+- **To capture live:** `E2E_BASE_URL=<url> E2E_CUSTOMER_USERNAME=<user>
+  E2E_CUSTOMER_PASSWORD=<pass> npx playwright test tests/e2e/agent-screenshots/
+  --config=playwright.real.config.js`, then
+  `node tests/e2e/agent-screenshots/build-doc.js`.
