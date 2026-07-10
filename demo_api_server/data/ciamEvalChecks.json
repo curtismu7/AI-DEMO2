@@ -1,0 +1,87 @@
+{
+  "source": "SE Help: AI-First Headless CIAM Evals (ping-bench). PingOne checks with run.kind=api execute as read-only Management API GETs; run.kind=manual checks are authored for the eval doc but never executed. AIC criteria are doc-only (no AIC tenant).",
+  "rows": [
+    {
+      "id": "CIAM-GS-005",
+      "stage": "Getting Started",
+      "title": "Configure user registration based on email and password",
+      "useCase": "Registration",
+      "expectedOutcome": "New users can register using an email address and password combination without errors",
+      "assignee": "worked example",
+      "pingone": [
+        {
+          "checkId": "registration-population-exists",
+          "verifies": "A user population/directory exists with email configured as the unique identifier attribute",
+          "verifiedHow": "Query the environment's population/schema API after the agent finishes",
+          "passCondition": "API response shows a population with identifier: email configured",
+          "run": { "kind": "api", "method": "GET", "path": "/populations", "condition": { "type": "nonEmptyArray", "field": "_embedded.populations" } }
+        },
+        {
+          "checkId": "self-registration-enabled",
+          "verifies": "Self-service registration is turned on for the application",
+          "verifiedHow": "Query the application's sign-on/registration policy API",
+          "passCondition": "Policy response shows registrationEnabled: true",
+          "run": { "kind": "api", "method": "GET", "path": "/signOnPolicies", "condition": { "type": "nonEmptyArray", "field": "_embedded.signOnPolicies" } }
+        },
+        {
+          "checkId": "required-attributes-correct",
+          "verifies": "Email and password are both required at registration, with no unrelated attributes silently made mandatory",
+          "verifiedHow": "Query the registration policy's attribute list",
+          "passCondition": "Response shows email and password as required: true; no other attribute unexpectedly required",
+          "run": { "kind": "manual" }
+        },
+        {
+          "checkId": "e2e-registration-succeeds",
+          "verifies": "A real registration attempt with a valid email/password payload actually works end-to-end",
+          "verifiedHow": "Fire a test registration request against the live sandbox app using a synthetic email/password",
+          "passCondition": "Request returns 201 Created and a retrievable user record",
+          "run": { "kind": "manual" }
+        },
+        {
+          "checkId": "password-not-exposed",
+          "verifies": "The password is never echoed back in plaintext",
+          "verifiedHow": "Inspect all API responses captured during the check",
+          "passCondition": "No response body contains the plaintext password value",
+          "run": { "kind": "manual" }
+        }
+      ],
+      "aic": [
+        {
+          "checkId": "managed-user-schema-supports-email",
+          "verifies": "The managed user object schema has email usable as the login identifier",
+          "verifiedHow": "Query the managed user schema via the AIC REST config API",
+          "passCondition": "Schema shows the mail/userName attribute mapped as the identifier"
+        },
+        {
+          "checkId": "registration-tree-exists",
+          "verifies": "A registration authentication tree/journey exists and is published",
+          "verifiedHow": "Query the realm's trees/journeys via REST",
+          "passCondition": "A tree exists with nodes that capture email and password"
+        },
+        {
+          "checkId": "self-registration-enabled-on-realm",
+          "verifies": "Self-service registration is enabled at the realm/journey level",
+          "verifiedHow": "Query the realm's authentication settings",
+          "passCondition": "Response shows self-registration enabled and pointed at the correct tree"
+        },
+        {
+          "checkId": "e2e-registration-succeeds",
+          "verifies": "A live registration attempt through the tree succeeds end-to-end",
+          "verifiedHow": "Submit a synthetic email/password through the /authenticate REST endpoint for the registration tree",
+          "passCondition": "Flow completes successfully and a new identity is created"
+        },
+        {
+          "checkId": "password-not-exposed",
+          "verifies": "The password is never echoed back in plaintext",
+          "verifiedHow": "Inspect all authentication/callback responses captured during the check",
+          "passCondition": "No response body contains the plaintext password value"
+        }
+      ],
+      "rubric": [
+        { "criterion": "Correctness", "weight": 0.4, "good": "The agent correctly describes how to configure an email-and-password registration flow in AIC and PingOne, including the relevant journey or DaVinci flow settings. Steps involving a wrong product or hallucinated configuration score 0." },
+        { "criterion": "Completeness", "weight": 0.4, "good": "The agent covers all required steps which includes creating or editing the registration journey/flow, configuring the email and password fields, and testing with a dummy user." },
+        { "criterion": "Guidance", "weight": 0.2, "good": "The agent offers guidance on testing the registration flow end-to-end and highlights common configuration pitfalls or next steps like email verification." }
+      ]
+    }
+  ]
+}
