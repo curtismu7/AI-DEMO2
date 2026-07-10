@@ -146,6 +146,9 @@ router.post('/generate', authenticateToken, express.json(), async (req, res) => 
       return res.status(404).json({ error: 'run not found' });
     }
     const run = await withMcpChain(rawRun);
+    // Formatters render a CIBA step-up callout; the CIBA approval lives in
+    // tokenChainService, not the run record, so bridge it here (see hasCibaStepUp).
+    run.hasCibaStepUp = await hasCibaStepUp(run, new Map());
 
     // Ensure reports directory exists
     fs.mkdirSync(REPORTS_DIR, { recursive: true });
@@ -275,6 +278,8 @@ router.get('/:runId/download', authenticateToken, async (req, res) => {
     }
     const userId = rawRun.userId;
     const run = await withMcpChain(rawRun);
+    // Same CIBA bridge as /generate so on-the-fly downloads render the callout.
+    run.hasCibaStepUp = await hasCibaStepUp(run, new Map());
 
     const contentType =
       format === 'md' ? 'text/markdown' : format === 'html' ? 'text/html' : 'application/pdf';
