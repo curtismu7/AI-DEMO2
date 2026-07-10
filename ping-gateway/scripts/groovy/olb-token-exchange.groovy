@@ -78,6 +78,18 @@ if (!subjectToken) {
     return Promises.newResultPromise(r)
 }
 
+// ── BFF-brokered exchange skip (ff_gateway_brokered_exchange=false) ───────────
+// When the BFF owns the final RFC 8693 hop it has already minted the
+// mcp-server-audience (mcpserver.ping.demo) token and signals it via
+// X-BFF-Exchanged. In that mode the IG must NOT exchange again — forward the
+// delegated token as-is. Absent header => gateway-brokered (default): exchange below.
+def bffExchanged = (request.headers.getFirst('X-BFF-Exchanged') ?: '').equalsIgnoreCase('true')
+def issuedToken
+if (bffExchanged) {
+    logger.info('[OlbExchange] X-BFF-Exchanged=true — skipping Exchange #3; forwarding BFF-delegated token')
+    issuedToken = subjectToken
+} else {
+
 // ── Exchange #3: get OLB token from PingOne ───────────────────────────────────
 // RFC 8707: PingOne requires `resource=` to narrow to ONE resource server when
 // the TE client has grants on several — `audience=` alone is silently ignored
@@ -117,7 +129,7 @@ if (exchangeResp.code != 200) {
 }
 
 def exchangeParsed = new JsonSlurper().parseText(exchangeResp.body ?: '{}')
-def issuedToken = exchangeParsed?.access_token as String
+issuedToken = exchangeParsed?.access_token as String
 
 if (!issuedToken) {
     logger.warn('[OlbExchange] No access_token in exchange response')
@@ -126,6 +138,8 @@ if (!issuedToken) {
     return Promises.newResultPromise(errResp)
 }
 logger.info('[OlbExchange] Exchange #3 succeeded — token_type=' + (exchangeParsed?.token_type ?: '?'))
+
+} // end gateway-brokered exchange (else bffExchanged)
 
 // ── MCP session: send initialize to get Mcp-Session-Id ───────────────────────
 def initHdrs = [
