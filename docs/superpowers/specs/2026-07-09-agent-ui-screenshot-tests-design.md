@@ -99,9 +99,10 @@ Per-chip flow, run **once per LLM mode** (4×):
 ```
 1. Set agent mode:  POST /api/langchain/config  { agent_mode: <mode> }
    (same endpoint the UI mode picker uses — no feature-flag file edits)
-2. Guard: GET /api/langchain/config/status — if that provider's key_set is
+2. Guard: GET /api/langchain/provider/<provider>/status — if `configured` is
    false, SKIP this mode and record the skip loudly in the doc (never omit
-   silently).
+   silently). (Note: /config/status is NOT used for this — its key_set never
+   emits google/llamacpp flags, which would falsely skip both.)
 3. Open the vertical's dashboard (real UI, real BFF session cookie).
 4. Click the chip.
 5. Wait for the agent response to settle.
@@ -150,10 +151,12 @@ Playwright test
 
 ## Testing strategy
 
-- **Visual regression:** `toHaveScreenshot()` golden baselines per (vertical ×
-  chip × mode). First run establishes baselines (committed); later runs diff.
-- **Content correctness:** keyword assertions per response — the domain's own
-  vocabulary present, other domains' vocabulary absent.
+- **Visual record:** each capture writes a PNG of the agent panel per (vertical ×
+  chip × mode), assembled into the side-by-side comparison doc. This is a visual
+  record for review, not a pixel-diff regression gate (`toHaveScreenshot` was
+  dropped — see Scope).
+- **Content correctness (enforced gate):** keyword assertions per response — the
+  domain's own vocabulary present, other domains' vocabulary absent.
 - **Isolation:** each phase (vertical) is independently runnable and shippable.
 
 ## Phasing
