@@ -190,6 +190,7 @@ for manifest in \
   56-llm-stack.yaml \
   20-api-server-deployment.yaml \
   60-mcp-gateway-deployment.yaml \
+  71-ping-gateway-deployment.yaml \
   61-agent-service-deployment.yaml \
   40-agent-service-deployment.yaml \
   65-mastra-agent-deployment.yaml \
