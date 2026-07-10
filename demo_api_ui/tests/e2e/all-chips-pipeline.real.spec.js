@@ -43,7 +43,7 @@ test.describe('all-chips routing + non-skippable pipeline (real)', () => {
     // APIRequestContext (ctx.request, used by runChip) is a separate Node TLS
     // client that does not — without this it rejects with "self-signed
     // certificate in certificate chain". Scoped to this spec; the strict
-    // config default stays for Vercel/production targets.
+    // config default stays for remote/production targets.
     // Customer session
     customerCtx = await browser.newContext({ ignoreHTTPSErrors: true });
     const cPage = await customerCtx.newPage();
