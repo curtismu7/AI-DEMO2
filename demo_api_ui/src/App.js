@@ -106,6 +106,7 @@ import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PrivilegeDemoPage from "./pages/PrivilegeDemoPage";
 import PingCliPage from "./components/PingCliPage";
+import PingAiTestLabPage from "./components/PingAiTestLabPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
@@ -575,6 +576,21 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <PingCliPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/ping-ai-test-lab"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <PingAiTestLabPage />
                         </main>
                       </>
                     ) : (
