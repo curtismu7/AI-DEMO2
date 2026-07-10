@@ -296,7 +296,7 @@ class OAuthService {
    *   1. Issue `may_act` on user tokens (naming this client_id as permitted actor)
    *   2. Allow the token-exchange grant type on this client
    */
-  async performTokenExchange(subjectToken, audience, scopes) {
+  async performTokenExchange(subjectToken, audience, scopes, exchangeOptions = {}) {
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : scopes;
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -306,6 +306,9 @@ class OAuthService {
       scope: scopeStr,
       client_id: this.config.clientId,
     });
+    if (exchangeOptions.tokenLifetime != null) {
+      body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
+    }
     applyAudienceParam(body, audience);
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     applyAdminTokenEndpointClientAuth(this.config, body, headers);
@@ -416,7 +419,7 @@ class OAuthService {
    * @param {string} subjectToken - User's access token (who is affected)
    * @param {string} actorToken   - Agent client-credentials token (who performs the action)
    */
-  async performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes) {
+  async performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes, exchangeOptions = {}) {
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : scopes;
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -428,6 +431,9 @@ class OAuthService {
       scope: scopeStr,
       client_id: this.config.clientId,
     });
+    if (exchangeOptions.tokenLifetime != null) {
+      body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
+    }
     applyAudienceParam(body, audience);
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     applyAdminTokenEndpointClientAuth(this.config, body, headers);
@@ -827,7 +833,7 @@ class OAuthService {
    * @param {string[]}        scopes         - Requested scopes
    */
   // Standard: token exchange always uses client_secret_basic (RFC 8693 + PingOne convention)
-  async performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method = 'basic') {
+  async performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method = 'basic', exchangeOptions = {}) {
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : scopes;
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -837,6 +843,9 @@ class OAuthService {
       scope: scopeStr,
       client_id: clientId,
     });
+    if (exchangeOptions.tokenLifetime != null) {
+      body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
+    }
     applyAudienceParam(body, audience);
     // Only include actor_token when provided (Exchange 1 is delegation-only, no actor)
     // NOTE: Even if actor_token is sent, PingOne may not include an `act` claim in the response
@@ -875,14 +884,14 @@ class OAuthService {
    * Falls back to performTokenExchange (via admin client) if the dedicated app is not configured.
    * Used by agentMcpTokenService for narrow delegation — subject token with optional actor token.
    */
-  async performTokenExchangeWithDedicatedApp(subjectToken, audience, scopes, actorToken = null) {
+  async performTokenExchangeWithDedicatedApp(subjectToken, audience, scopes, actorToken = null, exchangeOptions = {}) {
     // Check if dedicated exchanger is enabled and provisioned
     const isEnabled = clientAssertionService.isExchangerPrivateKeyJwtEnabled();
     if (!isEnabled) {
       // Fall back to standard admin-client exchange
       return actorToken
-        ? this.performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes)
-        : this.performTokenExchange(subjectToken, audience, scopes);
+        ? this.performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes, exchangeOptions)
+        : this.performTokenExchange(subjectToken, audience, scopes, exchangeOptions);
     }
 
     // Use dedicated app with private_key_jwt
@@ -897,6 +906,9 @@ class OAuthService {
       client_id: exchangerClientId,
     });
 
+    if (exchangeOptions.tokenLifetime != null) {
+      body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
+    }
     applyAudienceParam(body, audience);
     if (actorToken) {
       body.set('actor_token', actorToken);

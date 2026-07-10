@@ -86,6 +86,9 @@ function generateFlowId() {
  * @param {string} options.username - Optional username association
  */
 function logEvent(category, severity, message, options = {}) {
+  const useCaseId = options.useCaseId
+    || (options.metadata && options.metadata.useCaseId)
+    || null;
   const event = {
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
@@ -96,6 +99,7 @@ function logEvent(category, severity, message, options = {}) {
     metadata: options.metadata || null,
     flowId: options.flowId || null,
     username: options.username || null,
+    ...(useCaseId ? { useCaseId } : {}),
   };
 
   events.push(event);
