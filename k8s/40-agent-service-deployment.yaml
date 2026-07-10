@@ -49,12 +49,15 @@ spec:
           limits:
             memory: "4Gi"
             cpu: "2000m"
-        # Health server binds 127.0.0.1 only — kubelet httpGet hits the pod IP
-        # and is refused. tcpSocket liveness just checks the port is open (no
-        # process spawn). exec readiness does a real HTTP check before routing.
+        # Health server binds 127.0.0.1 only (CR-03: /inspector/mcp-host leaks the
+        # MCP registry unauthenticated, so it must not reach the pod network).
+        # BOTH tcpSocket AND httpGet probes connect via the pod IP, so both are
+        # refused by a loopback-only bind — that caused a liveness crashloop.
+        # Only an exec probe reaches loopback (it runs inside the container), so
+        # liveness uses the same curl-localhost check as readiness.
         livenessProbe:
-          tcpSocket:
-            port: 8890
+          exec:
+            command: ["curl", "-f", "http://localhost:8890/health"]
           initialDelaySeconds: 20
           periodSeconds: 60
           timeoutSeconds: 5
