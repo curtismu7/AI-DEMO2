@@ -80,6 +80,39 @@ function _wrongAud() {
 }
 
 /**
+ * RFC 8693 token exchange for the attack sims, authenticated AS the MCP Exchanger
+ * app — the SAME mechanism the real chip flow uses (see agentMcpTokenService.js
+ * variant selection). The exchanger app is granted the MCP Gateway scopes by the
+ * two-exchange reconciler (condition 4), so PingOne binds the minted token's `aud`
+ * to the requested gateway/resource audience. Plain performTokenExchange (default
+ * app) instead mints for the scope-owning API resource (enduser.ping.demo), whose
+ * aud BOTH gateways reject — masking every sim's real control behind an audience
+ * failure. Falling back to the plain exchange only when the exchanger is
+ * unconfigured keeps dev parity. Keep this selection in sync with
+ * agentMcpTokenService.js (guarded by attackSimAudience parity test).
+ *
+ * @param {string} subjectToken - the user access token to exchange
+ * @param {string} audience - target resource audience (gateway or a deliberately-wrong one)
+ * @param {string[]} scopes - requested scopes
+ * @returns {Promise<string>} exchanged access token
+ */
+async function _exchangeSimToken(subjectToken, audience, scopes) {
+  const exchangerId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
+  const exchangerCred = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
+  if (exchangerId && exchangerCred) {
+    const method = (
+      process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD ||
+      process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD ||
+      'post'
+    ).toLowerCase();
+    return oauthService.performTokenExchangeAs(
+      subjectToken, null, exchangerId, exchangerCred, audience, scopes, method,
+    );
+  }
+  return oauthService.performTokenExchange(subjectToken, audience, scopes);
+}
+
+/**
  * Parse the gateway error from an error thrown by callToolViaGateway.
  *
  * callToolViaGateway throws errors with ONLY .code + .httpStatus + .message
@@ -172,7 +205,7 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
 
   let exchangedToken;
   try {
-    exchangedToken = await oauthService.performTokenExchange(subjectToken, gatewayAud, scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -331,7 +364,7 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   ));
 
   try {
-    exchangedToken = await oauthService.performTokenExchange(
+    exchangedToken = await _exchangeSimToken(
       subjectToken,
       gatewayAud,
       ['read']
@@ -608,7 +641,7 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
 
   let exchangedToken;
   try {
-    exchangedToken = await oauthService.performTokenExchange(
+    exchangedToken = await _exchangeSimToken(
       subjectToken,
       gatewayAud,
       ['read'],
@@ -1040,4 +1073,4 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 }
 
-module.exports = { runAttackSim };
+module.exports = { runAttackSim, _exchangeSimToken };
