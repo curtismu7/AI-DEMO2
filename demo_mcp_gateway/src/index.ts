@@ -23,6 +23,7 @@ import * as crypto from 'node:crypto';
 import WebSocket from 'ws';
 import { loadConfig, GatewayConfig, assertProductionSecrets, isInternalSecretUsable, checkInternalSecret } from './config';
 import { validateInboundToken, extractBearerToken, TokenValidationError } from './tokenValidator';
+import { validateIntentToken } from './intentTokenValidator';
 import { routeTool, backendWsUrl } from './router';
 import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
@@ -656,10 +657,10 @@ async function handleMessage(
     // amount-conditioned PingAuthorize policy fires identically on WS.
     // Intent token: parity with HTTP authorizeMcpRequest — validate X-Intent-Token
     // when present (or when INTENT_TOKEN_REQUIRED=true) before PingAuthorize.
-    const intentValidation = xIntentToken || process.env.INTENT_TOKEN_REQUIRED === 'true'
+    const intentValidation = xIntentToken || config.intentTokenRequired === true
       ? validateIntentToken(xIntentToken, toolName)
       : null;
-    if (intentValidation && !intentValidation.valid && process.env.INTENT_TOKEN_REQUIRED === 'true') {
+    if (intentValidation && !intentValidation.valid && config.intentTokenRequired === true) {
       send(jsonRpcError(id, -32001, intentValidation.error || 'intent token invalid', {
         error: 'intent_token_invalid',
         login_required: false,

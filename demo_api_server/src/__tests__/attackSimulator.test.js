@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Real-API tests for A6.1 Attack Simulator.
+ * Real-API tests for A6.1 + A6.2 Attack Simulator.
  * Skipped unless ATTACK_SIM_REAL_API=true (requires live PingOne session + gateway).
  *
  * Run:
@@ -59,6 +59,29 @@ describe('AttackSimulator — structural (no creds needed)', () => {
     const result = await runAttackSim('insufficient-scope', {});
     expect(Array.isArray(result.tokenChainEvents)).toBe(true);
   });
+
+  const A62_SIM_USE_CASE_IDS = {
+    'cross-owner-account': 'cross-owner-account',
+    'replayed-token': 'token-theft-replay',
+    'rogue-actor': 'confused-deputy-actor-injection',
+    'rar-exceeded': 'rar-intent-violation',
+    'tampered-intent-token': 'intent-token-tampering',
+    'impersonation-no-act': 'impersonation-blocked',
+    'rate-limit-burst': 'rate-limit-defense',
+  };
+
+  test.each(Object.entries(A62_SIM_USE_CASE_IDS))(
+    'A6.2 sim %s is recognised and maps to catalog slug %s',
+    async (sim, expectedSlug) => {
+      const result = await runAttackSim(sim, {
+        session: { oauthTokens: { accessToken: 'not-a-real-jwt' } },
+      });
+      expect(result.sim).toBe(sim);
+      expect(result.useCaseId).toBe(expectedSlug);
+      expect(result.errorCode).not.toBe('unknown_sim');
+      expect(Array.isArray(result.tokenChainEvents)).toBe(true);
+    },
+  );
 });
 
 // ─── Real-API tests (skipped unless ATTACK_SIM_REAL_API=true) ────────────────

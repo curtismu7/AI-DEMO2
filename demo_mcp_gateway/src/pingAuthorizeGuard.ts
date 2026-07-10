@@ -189,7 +189,7 @@ export async function guardToolCall(
 
   // RFC 9396 RAR intent-subset enforcement (parity with the HTTP path). Hard only when
   // REQUIRE_RAR_INTENT=true; fail-closed if intent is required but none was declared.
-  if (process.env.REQUIRE_RAR_INTENT === 'true') {
+  if (config.requireRarIntent === true) {
     const rarDetails = rarDetailsFromEnvelope(tratClaims ? { azd: tratClaims.azd } : undefined);
     if (!rarDetails) {
       return { permitted: false, reason: 'rar_intent_required: authorization_details required (RFC 9396)' };

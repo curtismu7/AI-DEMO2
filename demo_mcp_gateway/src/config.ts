@@ -95,6 +95,10 @@ export interface GatewayConfig {
    * Only breaks ff_skip_token_exchange=true flows (intentional — that flag is warn-only).
    */
   requireActForAgentTools: boolean;
+  /** UC15 — reject invalid/missing intent tokens at the gateway (default OFF). */
+  intentTokenRequired: boolean;
+  /** UC14 — enforce RAR authorization_details subset at the gateway (default OFF). */
+  requireRarIntent: boolean;
   /**
    * UC18 rate-limiting. When true, the gateway enforces per-agent/per-tool
    * sliding-window limits and returns 429 on burst exceedance.
@@ -250,6 +254,8 @@ export function loadConfig(): GatewayConfig {
       optional('PINGONE_MCP_EXCHANGER_CLIENT_ID',
         optional('AGENT_OAUTH_CLIENT_ID', ''))),
     requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
+    intentTokenRequired: process.env.INTENT_TOKEN_REQUIRED === 'true',
+    requireRarIntent: process.env.REQUIRE_RAR_INTENT === 'true',
     // UC18 rate-limiting (default OFF — must also set GATEWAY_RATE_LIMIT_ENABLED=true)
     rateLimitEnabled: process.env.GATEWAY_RATE_LIMIT_ENABLED === 'true',
     // Web Bot Auth mode (default 'monitor' — verify + audit, never block)

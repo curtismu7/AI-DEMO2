@@ -36,6 +36,9 @@ export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'p1azEnabled',
   'hitlServiceUrl',
   'devBypass',
+  'requireActForAgentTools',
+  'intentTokenRequired',
+  'requireRarIntent',
   'rateLimitEnabled',
   'rateLimitMaxRequests',
   'rateLimitWindowMs',
@@ -60,6 +63,9 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     p1azEnabled:           config.p1azEnabled,
     hitlServiceUrl:        config.hitlServiceUrl,
     devBypass:             config.devBypass,
+    requireActForAgentTools: config.requireActForAgentTools,
+    intentTokenRequired:   config.intentTokenRequired,
+    requireRarIntent:      config.requireRarIntent,
     rateLimitEnabled:      config.rateLimitEnabled,
     rateLimitMaxRequests:  config.rateLimitMaxRequests,
     rateLimitWindowMs:     config.rateLimitWindowMs,
@@ -89,6 +95,7 @@ export function applyAdminConfigUpdate(
 ): AdminConfigResult {
   const hasDevBypass = Object.prototype.hasOwnProperty.call(updates, 'devBypass');
   const hasRateLimitEnabled = Object.prototype.hasOwnProperty.call(updates, 'rateLimitEnabled');
+  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent'] as const;
 
   // A — strict-boolean validation (all environments). Reject the whole
   // request on any non-boolean devBypass BEFORE the prod check / assignment.
@@ -101,6 +108,19 @@ export function applyAdminConfigUpdate(
       },
       mutated: false,
     };
+  }
+
+  for (const key of boolKeys) {
+    if (Object.prototype.hasOwnProperty.call(updates, key) && typeof updates[key] !== 'boolean') {
+      return {
+        status: 400,
+        body: {
+          error: 'invalid_config',
+          message: `${key} must be a JSON boolean (true/false), not a string or number`,
+        },
+        mutated: false,
+      };
+    }
   }
 
   if (hasRateLimitEnabled && typeof updates.rateLimitEnabled !== 'boolean') {
@@ -154,6 +174,9 @@ export function applyAdminConfigUpdate(
       } else if (key === 'rateLimitEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
+      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (config as any)[key] = updates[key] === true;
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key as string];

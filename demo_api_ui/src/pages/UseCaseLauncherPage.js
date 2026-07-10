@@ -2,8 +2,8 @@
  * UseCaseLauncherPage — Plan A · Phase A5
  * /use-cases: full catalog grouped by track, big "Run" buttons.
  * chip-type triggers: POST /api/use-cases/demo/run, then navigate to /dashboard with the trigger text in router state.
- * attack-type triggers: disabled button, "coming in A6" note.
- * A6: runnable attack sims (insufficient-scope, wrong-aud) wired to POST /api/demo/attack-sim/run.
+ * attack-type triggers: POST /api/demo/attack-sim/run when sim is in RUNNABLE_SIMS.
+ * A6: runnable attack sims wired to POST /api/demo/attack-sim/run.
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
  * A5.3 — FF-aware run-gating + inline enable toggle.
  */
@@ -34,8 +34,18 @@ const TRACK_LABELS = {
   tools:       'Developer Tools — utilities and explorers',
 };
 
-// Attack sims wired to POST /api/demo/attack-sim/run in A6.
-const RUNNABLE_SIMS = ['insufficient-scope', 'wrong-aud'];
+// Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
+const RUNNABLE_SIMS = [
+  'insufficient-scope',
+  'wrong-aud',
+  'cross-owner-account',
+  'replayed-token',
+  'rogue-actor',
+  'rar-exceeded',
+  'tampered-intent-token',
+  'impersonation-no-act',
+  'rate-limit-burst',
+];
 
 /**
  * Normalize catalog sim IDs to the backend's VALID_SIMS.

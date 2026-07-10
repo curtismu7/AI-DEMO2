@@ -16,7 +16,17 @@ const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { runAttackSim } = require('../services/attackSimulatorService');
 
-const VALID_SIMS = ['insufficient-scope', 'wrong-aud', 'rate-limit-burst'];
+const VALID_SIMS = [
+  'insufficient-scope',
+  'wrong-aud',
+  'cross-owner-account',
+  'replayed-token',
+  'rogue-actor',
+  'rar-exceeded',
+  'tampered-intent-token',
+  'impersonation-no-act',
+  'rate-limit-burst',
+];
 
 router.post('/run', authenticateToken, async (req, res) => {
   // Hard production guard — this endpoint must never be reachable in prod.
