@@ -210,9 +210,13 @@ function resolveMcpToolForPath(path, tools) {
   const plural = resource.toLowerCase();
   const singular = plural.replace(/ies$/, 'y').replace(/s$/, '');
   const isRead = (n) => /^(list|readall|readone|read|get|search)/i.test(n);
+  // Only tools whose REQUIRED inputs we can actually supply (environmentId) —
+  // otherwise e.g. /signOnPolicies resolves to listApplicationSignOnPolicyAssignments
+  // (requires applicationId) and every call dies with -32602.
+  const satisfiable = (t) => (t.inputSchema?.required || []).every((p) => p === 'environmentId' || p === 'limit');
   const matches = tools.filter((t) => {
     const n = t.name.toLowerCase();
-    return isRead(n) && (n.includes(plural) || n.includes(singular));
+    return isRead(n) && satisfiable(t) && (n.includes(plural) || n.includes(singular));
   });
   if (!matches.length) return null;
   // Prefer collection reads (list*/readAll*) over single-item reads, and
