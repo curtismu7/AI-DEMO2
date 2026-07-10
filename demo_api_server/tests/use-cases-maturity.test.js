@@ -29,6 +29,18 @@ function walkSourceFiles(dir, fn) {
   }
 }
 
+/** Scan one source file for pattern matches (used by nodePatternCount fallback). */
+function countPatternInFile(filePath, re, skipComments) {
+  let count = 0;
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  for (const line of lines) {
+    if (skipComments && /^\s*(\/\/|\*)/.test(line)) continue;
+    const m = line.match(re);
+    if (m) count += m.length;
+  }
+  return count;
+}
+
 /** Node fallback when ripgrep is unavailable (e.g. GitHub Actions runners). */
 function nodePatternCount(pattern, relDirs, extraFlags = '') {
   const skipComments = pattern.includes('(?!\\s*(?:\\/\\/|\\*))');
@@ -37,13 +49,14 @@ function nodePatternCount(pattern, relDirs, extraFlags = '') {
   const re = new RegExp(body, flags);
   let count = 0;
   for (const rel of relDirs) {
-    walkSourceFiles(path.join(ROOT, rel), (filePath) => {
-      const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-      for (const line of lines) {
-        if (skipComments && /^\s*(\/\/|\*)/.test(line)) continue;
-        const m = line.match(re);
-        if (m) count += m.length;
-      }
+    const abs = path.join(ROOT, rel);
+    if (!fs.existsSync(abs)) continue;
+    if (fs.statSync(abs).isFile()) {
+      if (/\.(js|ts)$/.test(abs)) count += countPatternInFile(abs, re, skipComments);
+      continue;
+    }
+    walkSourceFiles(abs, (filePath) => {
+      count += countPatternInFile(filePath, re, skipComments);
     });
   }
   return count;

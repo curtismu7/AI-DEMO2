@@ -27,6 +27,8 @@ jobs:
         run: npm run regression:paths
       - name: Install demo_api_server deps (topology gate runs its jest suite)
         run: npm install --prefix demo_api_server --no-audit --no-fund
+      - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
+        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Topology no-drift gate
         run: npm run topology:verify
 
