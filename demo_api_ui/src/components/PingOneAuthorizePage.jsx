@@ -527,14 +527,17 @@ function PoliciesCard({ state }) {
           <div style={S.empty}>Loading policies…</div>
         ) : state.error ? (
           <div style={{ ...S.empty, color: '#b45309', borderColor: '#fde68a', background: '#fffbeb' }}>⚠️ {state.error}</div>
-        ) : state.note ? (
-          <div style={S.empty}>{state.note}</div>
         ) : state.policies.length === 0 ? (
-          <div style={S.empty}>No authorization policies found in this environment.</div>
+          <div style={S.empty}>{state.note || 'No authorization policies found in this environment.'}</div>
         ) : (
-          <div style={S.polTree}>
-            {state.policies.map((p) => <PolicyNode key={p.id} node={p} />)}
-          </div>
+          <>
+            {/* A note alongside a tree means the tree came from a fallback
+                source (e.g. the repo snapshot) — show it above, don't hide the tree. */}
+            {state.note ? <div style={{ ...S.empty, marginBottom: '10px' }}>{state.note}</div> : null}
+            <div style={S.polTree}>
+              {state.policies.map((p) => <PolicyNode key={p.id} node={p} />)}
+            </div>
+          </>
         )}
       </div>
     </div>

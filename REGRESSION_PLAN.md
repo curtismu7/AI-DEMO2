@@ -81,6 +81,35 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-10 — Authorize policies card: render tree from repo snapshot on 403
+
+**Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`
+(`getAuthorizationPoliciesFromSnapshot`), `demo_api_server/routes/authorize.js`
+(403 branch), `demo_api_server/Dockerfile` (COPY snapshot to `/snapshots/`),
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx` (note renders above the
+tree instead of replacing it).
+
+**What was broken:** the `/pingone-authorize` policies card always failed —
+PingOne's policy-editor API (`GET /authorizationPolicies`) rejects worker
+client_credentials tokens regardless of roles/license (verified live). The
+real configuration flow never used that API: policies are edited in
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` and
+imported via the console (see `pingone/pingone-authorize-configure/SKILL.md`).
+
+**What was fixed:** on a 403 the BFF now builds the policy tree from that
+snapshot (the import source of truth) and returns it with `source: 'snapshot'`
+plus a note; the UI shows the note above the tree.
+
+**Do not break:** the live-API success path is still tried first and returns
+with no note; the snapshot parser maps `type: PolicySet|Policy|Rule` +
+`children` refs + `disabled` to the `_normalizePolicyNode` shape — keep the
+two shapes in sync; the snapshot file name in the service, Dockerfile, and
+skill must stay identical.
+
+**Verify:** `node -e "require('./services/pingOneAuthorizeService').getAuthorizationPoliciesFromSnapshot()"`
+returns 1 root / 2 policies / 14 rules; jest `--testPathPattern=authorize`
+(204 passed); `demo_api_ui && npm run build` exit 0.
+
 ### 2026-07-10 — Board-feedback batch (12 items: nginx 404, authz 403 note, pingcli auth, attack-demo buttons, CodeGraph reindex, code-search agent, settings write-through, delegation credentials, MCP-route rail, scope docs, Exploring nav)
 
 **Files changed:** `k8s/aws/nginx-http-configmap.yaml`, `routes/authorize.js` +
