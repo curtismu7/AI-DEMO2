@@ -31,17 +31,37 @@ const FORCE_HEURISTIC_RE =
 // sync with the manifest if those teaching prompts change. The last chip runs the
 // real HITL demonstration (an over-threshold transfer → approve-and-retry).
 const STARTER_CHIPS = [
-  "why does my AI agent need oauth",
-  "what scopes should an AI agent request",
-  "how does token exchange work for AI agents",
+  "what is oauth",
+  "what is the authorization code flow with pkce",
+  "what is the difference between an id token and an access token",
+  "explain scopes and least privilege",
+  "explain refresh tokens",
+  "what is the client credentials grant",
+  "how does token exchange work (rfc 8693)",
   "what is act and may_act delegation",
-  "how do I limit what an AI agent can do",
-  "what is human in the loop approval",
+  "what is token introspection",
+  "what is step-up authentication",
+  "demonstrate a real token exchange",
   "demonstrate hitl approval",
-  "how does pkce protect AI agent flows",
-  "what is a confused deputy attack",
-  "show token chain",
 ];
+
+// Assistant answers may embed a real code snippet between ``` fences (the
+// oauth-teaching explain_concept tool appends app implementation examples).
+// Render fenced segments as <pre> blocks; plain segments keep their newlines
+// via the bubble's existing white-space: pre-wrap.
+const renderBubbleContent = (content) => {
+  const text = String(content);
+  if (!text.includes("```")) return text;
+  return text.split("```").map((part, i) =>
+    i % 2 === 1 ? (
+      <pre className="msg-code" key={i}>
+        {part.replace(/^\n/, "")}
+      </pre>
+    ) : (
+      part
+    )
+  );
+};
 
 const OAuthAcademyPage = () => {
   const [messages, setMessages] = useState([]);
@@ -280,7 +300,7 @@ const OAuthAcademyPage = () => {
                 <div className="msg-avatar">
                   {msg.role === "user" ? "You" : "OA"}
                 </div>
-                <div className="message-bubble">{msg.content}</div>
+                <div className="message-bubble">{renderBubbleContent(msg.content)}</div>
               </div>
             );
           })}

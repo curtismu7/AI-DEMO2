@@ -1,142 +1,144 @@
 # Scope Vocabulary — Canonical Registry
 
-> **Single source of truth** for all OAuth 2.0 scope definitions in the Super Banking demo.
-> Phase 146 (Scope Vocabulary Alignment) — Decision D-02, D-03.
+> **Machine-readable source of truth:** [`scope-topology.json`](../scope-topology.json) (repo root),
+> loaded and validated by `services/scopeTopology.js`.
+> This document is the **human-readable companion** to that file — it explains the same
+> scopes, aliases, and resource-server mappings in prose. **If `scope-topology.json`
+> changes, this document must be updated to match.** The live drift check on the
+> `/scope-reference` admin page compares PingOne against the topology file, not this doc.
 
 ---
 
 ## Canonical Scope List
 
-| Scope Name | Type | Description | Resource Server |
-|-----------|------|-------------|-----------------|
-| `banking:read` | Core | Read-only access to accounts, balances, and transactions | Main Banking API |
-| `banking:write` | Core | Write access for deposits, withdrawals, transfers | Main Banking API |
-| `banking:admin` | Core | Full administrative access (admin UI, stats, settings) | Main Banking API |
-| `banking:sensitive` | Core | Sensitive data access (PII, account details) | Main Banking API |
-| `banking:ai:agent` | Core | AI agent delegation marker on banking resource tokens | Main Banking API |
-| `banking:mcp:invoke` | Core | Permission to invoke MCP tools (MCP RS only) | MCP Resource Server |
-| `ai_agent` | Identity | Agent identity marker (OIDC scope, no RS needed) | OIDC (built-in) |
+All 25 canonical scopes declared in `scope-topology.json` → `scopes{}`.
+Descriptions, risk levels, and categories are taken from that file.
 
-> **Deprecated — do not create in PingOne or request in code:**
-> `banking:accounts:read`, `banking:transactions:read`, `banking:transactions:write`, `banking:agent:invoke`, `banking:ai:agent:read`, `banking:general:read`, `banking:admin:full`
->
-> These names were removed in Phase 146. The `Scopes.ACCOUNTS_READ` / `Scopes.TRANSACTIONS_READ` / `Scopes.MCP_TOOLS` constants in `middleware/scopeEnforcement.js` were replaced with `Scopes.READ`, `Scopes.WRITE`, `Scopes.MCP_INVOKE`.
+| Scope Name | Category | Risk | Description | Resource Server |
+| --------- | -------- | ---- | ----------- | --------------- |
+| `read` | data | low | Read accounts, balances, transactions | Super Banking API |
+| `write` | data | high | Write operations (deposit/withdrawal/transfer) | Super Banking API |
+| `transfer` | data | high | Execute fund transfers | Super Banking API |
+| `accounts:read` | data | low | Read account information and balances | Super Banking API |
+| `transactions:read` | data | low | Read transaction history and details | Super Banking API |
+| `sensitive:read` | data | high | Read sensitive account details (full account/routing numbers) — requires user consent | Super Banking API |
+| `mortgage:read` | feature | low | Read mortgage/feature-specific data (banking vertical) | Super Banking API |
+| `largepurchase:read` | feature | low | Read large purchase data (retail vertical) | Super Banking API |
+| `records:read` | feature | low | Read health record data (healthcare vertical) | Super Banking API |
+| `gear:read` | feature | low | Read gear order data (sporting-goods vertical) | Super Banking API |
+| `expense:read` | feature | low | Read expense report data (workforce vertical) | Super Banking API |
+| `permits:read` | feature | low | Read permit status data (government vertical) | Super Banking API |
+| `transcript:read` | feature | low | Read enrollment/transcript status data (university vertical) | Super Banking API |
+| `workorders:read` | feature | low | Read Work Order Status data (manufacturing vertical) | Super Banking API |
+| `invest:read` | feature | low | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) | Super Banking API |
+| `ai:agent:read` | agent | medium | Agent invocation permission | Super Banking API |
+| `ai_agent` | ai | medium | AI agent identity | Super Banking API |
+| `admin:read` | admin | medium | Read access to administrative data | Super Banking API |
+| `admin:write` | admin | high | Write access to administrative operations | Super Banking API |
+| `admin:delete` | admin | critical | Delete operations for administrative tasks | Super Banking API |
+| `users:read` | admin | medium | Read access to user management data | Super Banking API |
+| `users:manage` | admin | high | Full user management capabilities | Super Banking API |
+| `mcp:invoke` | infra | medium | Invoke MCP tools via the gateway (RFC 8693 exchange) | Super Banking MCP Server |
+| `code:search` | infra | low | Search and read the indexed source code (read-only) | Super Banking MCP Server |
+| `agent:invoke` | infra | medium | Invoke the Agent Gateway (Two-Exchange Step 1 audience) | Super Banking Agent Gateway |
+
+---
+
+## Alias Table
+
+External spellings accepted and normalized to canonical scopes via
+`scope-topology.json` → `aliases{}` (`scopeTopology.normalizeScope()`).
+Aliases reconcile spellings used outside the manifest (PingGateway env,
+OAuth `/authorize` requests) with the canonical scope names.
+
+| Alias (external spelling) | Canonical Scope |
+| ------------------------- | --------------- |
+| `banking:mcp:invoke` | `mcp:invoke` |
+| `gateway:mcp:invoke` | `mcp:invoke` |
+| `server:mcp:invoke` | `mcp:invoke` |
+| `ai:agent` | `ai:agent:read` |
 
 ---
 
 ## Resource Server Mapping
 
-### Main Banking API
+Six resource servers are modelled in `scope-topology.json` → `resources{}`.
+**Native scopes** are the scopes a resource server canonically owns.
+**Mirrored scopes** are additionally provisioned onto a resource because it is an
+RFC 8693 exchange-hop audience (ARCHITECTURE-TRUTHS T-10) — the gateway enforces
+per-tool scopes on the inbound bearer, so every gateway-surface tool scope must
+also exist on the exchange-target resource. Bootstrap provisions native + mirrored.
 
-- **Audience URI:** Value of `ENDUSER_AUDIENCE` env var (e.g. `https://resource.pingdemo.com`)
-- **PingOne Resource:** Custom resource server — create in PingOne Admin → Resources
-- **Scopes issued:** `banking:read`, `banking:write`, `banking:admin`, `banking:sensitive`, `banking:ai:agent`
-- **Enforcement:** BFF middleware `requireScopes()` + row-level ownership checks
+PingOne display names come from `provisioning.resourceNames`
+(e.g. `Super Banking API` is provisioned as **Demo API**).
 
-### MCP Resource Server
+### Super Banking API (PingOne: "Demo API")
 
-- **Audience URI:** Value of `PINGONE_RESOURCE_MCP_SERVER_URI` env var
-- **Scopes issued:** `banking:read`, `banking:write`, `banking:mcp:invoke`
-- **Purpose:** Narrowed delegated tokens for MCP tool execution (RFC 8693 exchange output)
+- **Audience URI:** `enduser.ping.demo`
+- **Native scopes:** `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+- **Mirrored scopes:** _(none)_
+- **Enforcement:** BFF validates `aud === enduser.ping.demo`; `requireScopes()` middleware + row-level ownership checks
 
----
+### Super Banking MCP Server (PingOne: "Demo MCP Server")
 
-## Route Enforcement Index
+- **Audience URI:** `mcpserver.ping.demo`
+- **Native scopes:** `mcp:invoke`, `code:search`
+- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+- **Note:** The gateway forwards the inbound bearer unchanged, so the MCP server actually validates `aud === mcpgateway.ping.demo` (see `servers.demo_mcp_server` in the topology)
 
-Two sources govern route access:
-1. **`ROUTE_SCOPE_MAP`** (`config/scopes.js`) — the intended policy, used by `auth.test.js`
-2. **Route middleware** — what is actually wired in `routes/*.js` (may differ; see Notes)
+### Super Banking MCP Invest (PingOne: "Demo MCP Invest")
 
-| Route | Scope Gate (`requireScopes`) | Additional Gate | Notes |
-|-------|------------------------------|-----------------|-------|
-| `GET /api/accounts` | `banking:read` | Admin role check (403 for non-admin) | All accounts; non-admin users get 403 even with correct scope |
-| `GET /api/accounts/my` | `banking:read` | — | Returns only caller's rows |
-| `GET /api/accounts/:id` | `banking:read` | Ownership check | |
-| `GET /api/accounts/:id/balance` | `banking:read` | — | |
-| `POST /api/accounts` | `banking:write` | Admin role check (403 for non-admin) | |
-| `PUT /api/accounts/:id` | `banking:write` | — | |
-| `DELETE /api/accounts/:id` | `banking:write` | — | |
-| `GET /api/transactions` | `banking:read` | Admin role check (403 for non-admin) | All transactions; non-admin users get 403 |
-| `GET /api/transactions/my` | _(none — just auth)_ | Row-level ownership | No `requireScopes()` wired in route. Any authenticated token works |
-| `GET /api/transactions/:id` | `banking:read` | — | |
-| `POST /api/transactions` | _(none — just auth)_ | **Phase 122 session check** + HITL consent + Step-up MFA | No scope gate. Requires `req.session?.user` (login session, not just Bearer token). Amounts > $500 require HITL consent challenge. Amounts ≥ $250 (configurable) trigger step-up MFA |
-| `POST /api/transactions/deposit` | `banking:write` | — | |
-| `POST /api/transactions/withdraw` | `banking:write` | — | |
-| `POST /api/transactions/transfer` | `banking:write` | — | |
-| `PUT /api/transactions/:id` | `banking:write` | — | |
-| `DELETE /api/transactions/:id` | `banking:write` | — | |
-| `GET /api/admin/*` | `banking:admin` | — | |
-| `POST /api/admin/*` | `banking:admin` | — | |
-| `PUT /api/admin/*` | `banking:admin` | — | |
-| `DELETE /api/admin/*` | `banking:admin` | — | |
-| `GET /api/users` | `banking:read` | — | |
-| `GET /api/users/me` | `banking:read` | — | |
-| `GET /api/users/:id` | `banking:read` | Ownership check | |
-| `POST /api/users` | Admin role via `requireAdmin` | — | Scope `banking:write` insufficient alone; admin role required |
-| `PUT /api/users/:id` | `banking:write` | — | |
-| `DELETE /api/users/:id` | `banking:write` | — | |
+- **Audience URI:** `mcp-invest.ping.demo`
+- **Native scopes:** `mcp:invoke`
+- **Mirrored scopes:** `invest:read`, `read`
 
-### Phase 122 session check on POST /api/transactions
+### Super Banking MCP Gateway (PingOne: "Demo MCP Gateway")
 
-`POST /api/transactions` checks `req.session?.user` before executing. A valid Bearer token alone is not enough — the caller must have a full login session. This affects:
-- **API-only callers** (no browser session): will receive `401 unauthenticated`
-- **MCP tool calls** that go through the BFF: succeed only when the BFF session carries the delegated user context
+- **Audience URI:** `mcpgateway.ping.demo`
+- **Native scopes:** `mcp:invoke`
+- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+- **Enforcement:** Validates inbound `aud === mcpgateway.ping.demo` and enforces per-tool `requiredScopes` before credential swap
+
+### Super Banking Agent Gateway (PingOne: "Demo Agent Gateway")
+
+- **Audience URI:** `agentgateway.ping.demo`
+- **Native scopes:** `agent:invoke`
+- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+- **Purpose:** Two-Exchange Step 1 audience for the AI Agent client-credentials token
+
+### Super Banking A2A Intermediate (PingOne: "Demo A2A Intermediate")
+
+- **Audience URI:** `a2a-intermediate.ping.demo`
+- **Native scopes:** `agent:invoke`
+- **Mirrored scopes:** _(none)_
 
 ---
 
-## User Type Scope Assignments
+## Deprecated / Do Not Create
 
-| User Type | Scopes |
-|-----------|--------|
-| **Admin** | `banking:admin`, `banking:read`, `banking:write`, `banking:sensitive`, `banking:ai:agent` |
-| **Customer** | `banking:read`, `banking:write`, `banking:ai:agent` |
-| **Read-only** | `banking:read` |
-| **AI Agent** | `ai_agent`, `banking:ai:agent`, `banking:read`, `banking:write` |
+> **Do not create these scope names in PingOne or request them in new code.**
+> The old Phase-146 `banking:*` vocabulary has been superseded by the canonical
+> names above. Where an old spelling is still accepted, it survives only as an
+> alias (see Alias Table) and is normalized to its canonical scope.
 
-Defined in `config/scopes.js` → `USER_TYPE_SCOPES`.
-
----
-
-## Scope Injection (Demo Mode)
-
-When PingOne resource server is not configured, the BFF can inject banking scopes for demo purposes via feature flag `ff_inject_scopes`:
-
-- **Flag:** `ff_inject_scopes` (configStore / Feature Flags UI)
-- **Behavior:** When enabled, if the user token lacks `banking:read`/`banking:write`, the BFF injects them in memory before token exchange
-- **Tracking:** Injected scope names stored in `claims.injected_scope_names` array
-- **UI:** Token Chain displays ⚡ INJECTED badge per scope (see Phase 146 Plan 03)
-- **Security:** Flag only writable by admin; injection is logged to tokenEvents and exchange audit
-
-See also: `ff_inject_may_act` (similar pattern for RFC 8693 `may_act` claim injection).
-
----
-
-## Deprecation Path
-
-### Old → New Scope Names (Phase 146)
-
-| Old Name | New Canonical Name | Status |
-|----------|--------------------|--------|
-| `banking:general:read` | `banking:read` | **Replaced** in `config/scopes.js` |
-| `banking:general:write` | `banking:write` | **Replaced** in `config/scopes.js` |
-
-### Compound Scopes (Future Deprecation)
-
-| Scope | Status | Notes |
-|-------|--------|-------|
-| `banking:accounts:read` | Accepted | Still recognized by middleware for backward compatibility |
-| `banking:transactions:read` | Accepted | Still recognized by middleware for backward compatibility |
-| `banking:transactions:write` | Accepted | Still recognized by middleware for backward compatibility |
-
-These compound scopes will be fully removed in a future phase. New code should use `banking:read` and `banking:write`.
+| Old Name | Superseded By | Status |
+| -------- | ------------- | ------ |
+| `banking:read` | `read` | Removed |
+| `banking:write` | `write` | Removed |
+| `banking:admin` | `admin:read` / `admin:write` / `admin:delete` | Removed |
+| `banking:sensitive` | `sensitive:read` | Removed |
+| `banking:ai:agent` | `ai:agent:read` | Removed |
+| `banking:mcp:invoke` | `mcp:invoke` | Accepted alias only (normalized via `aliases{}`) |
+| `banking:accounts:read` | `accounts:read` | Removed |
+| `banking:transactions:read` | `transactions:read` | Removed |
 
 ---
 
 ## Related Documentation
 
+- `scope-topology.json` (repo root) — machine-readable source of truth (scopes, aliases, resources, apps, tools, policy)
+- `services/scopeTopology.js` — validated accessor for the topology (aliases, resource scopes, audiences)
+- `routes/scopeAudit.js` — live PingOne vs. topology drift check backing the `/scope-reference` page
 - [OAUTH_SCOPE_CONFIGURATION.md](OAUTH_SCOPE_CONFIGURATION.md) — PingOne environment setup and OAuth app configuration
 - [SCOPE_AUTHORIZATION.md](SCOPE_AUTHORIZATION.md) — Middleware enforcement patterns and code examples
-- [SCOPE_CONFIGURATION_README.md](SCOPE_CONFIGURATION_README.md) — Quick start for scope setup
-- `config/scopes.js` — Scope constants and user type mappings (code)
-- `services/configStore.js` — Feature flag `ff_inject_scopes` for demo mode
 - [REGRESSION_PLAN.md](../REGRESSION_PLAN.md) §1 — Protected areas (transaction routes, scope enforcement)

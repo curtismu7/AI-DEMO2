@@ -123,6 +123,122 @@ the new "login-as-customer error card renders" case that fails without the filte
 fix); `cd demo_api_ui && npm run build` exits 0. Live click-through pending deploy
 (the running containers bind-mount the main checkout).
 
+### 2026-07-10 — Authorize policies card: render tree from repo snapshot on 403
+
+**Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`
+(`getAuthorizationPoliciesFromSnapshot`), `demo_api_server/routes/authorize.js`
+(403 branch), `demo_api_server/Dockerfile` (COPY snapshot to `/snapshots/`),
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx` (note renders above the
+tree instead of replacing it).
+
+**What was broken:** the `/pingone-authorize` policies card always failed —
+PingOne's policy-editor API (`GET /authorizationPolicies`) rejects worker
+client_credentials tokens regardless of roles/license (verified live). The
+real configuration flow never used that API: policies are edited in
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` and
+imported via the console (see `pingone/pingone-authorize-configure/SKILL.md`).
+
+**What was fixed:** on a 403 the BFF now builds the policy tree from that
+snapshot (the import source of truth) and returns it with `source: 'snapshot'`
+plus a note; the UI shows the note above the tree.
+
+**Do not break:** the live-API success path is still tried first and returns
+with no note; the snapshot parser maps `type: PolicySet|Policy|Rule` +
+`children` refs + `disabled` to the `_normalizePolicyNode` shape — keep the
+two shapes in sync; the snapshot file name in the service, Dockerfile, and
+skill must stay identical.
+
+**Verify:** `node -e "require('./services/pingOneAuthorizeService').getAuthorizationPoliciesFromSnapshot()"`
+returns 1 root / 2 policies / 14 rules; jest `--testPathPattern=authorize`
+(204 passed); `demo_api_ui && npm run build` exit 0.
+
+### 2026-07-10 — Board-feedback batch (12 items: nginx 404, authz 403 note, pingcli auth, attack-demo buttons, CodeGraph reindex, code-search agent, settings write-through, delegation credentials, MCP-route rail, scope docs, Exploring nav)
+
+**Files changed:** `k8s/aws/nginx-http-configmap.yaml`, `routes/authorize.js` +
+`services/pingOneAuthorizeService.js`, `routes/pingcli.js` + `PingCliPage.js`,
+`components/education/AiAttacksPanel.js` + `AIAgent.js` (listener effects only),
+`langchain_agent/src/api/codegraph_handler.py` + `scripts/build-codegraph.py`,
+`pages/CodeSearchPage.jsx/.css` + `CodeSearchAsk.jsx` + `CodebaseUploader.jsx` +
+`services/codeSearchAPI.js`, `routes/admin.js` (settings) + `SecuritySettings.js`,
+`services/delegationService.js` + `DelegationPage.js`, `TokenChainTraceRail.jsx` +
+`verticalOps/VerticalOpsConsole.jsx/.css`, `SCOPE_VOCABULARY.md` +
+`ScopeReferencePage.js`, `AdminSideNav.jsx` ("Exploring" group).
+
+**What was broken / fixed (one line each):**
+- Prod nginx configmap (AWS override) lacked the `/pinggateway-test.html` proxy
+  block the base configmap has → SPA shell served; block added.
+- PingOne Authorize policy-list 403 surfaced as a raw error dump → now routed
+  through the friendly `note` channel. Live-verified root cause (2026-07-10):
+  NOT roles or license — the worker app holds Environment Admin + Identity Data
+  Admin (env-scoped) + Authorize Gateway Policy Evaluator and the INTERNAL
+  license has allowDynamicAuthorization, yet `/authorizationPolicies`,
+  `/trustFramework/*`, `/deploymentPackages` all 403 for worker tokens while
+  `/decisionEndpoints` + `/authorizationVersions` return 200. The policy-editor
+  API appears to accept only admin user (console) tokens — escalate to the
+  PingOne Authorize team. A spare "AI Demo Authorize Worker" app
+  (226934ee-6c73-4761-baec-2b8735cf040d) was created during diagnosis.
+- pingcli commands failed "Authentication is not configured": container has no
+  writable `$HOME` so the file_system token store can't init, and no auth
+  bootstrap existed → children now get a writable HOME + lazy shared
+  `pingone auth login` bootstrap; `GET /version` added; UI shows installed
+  version + `brew upgrade pingidentity/tap/pingcli`; run() gets a 30s abort +
+  `finally` reset so Run buttons can't stay stuck. NOTE: committed
+  `bin/pingcli` is stale 0.8.3 (runtime uses the brew-staged 1.x binary).
+- AI Attack Demos run buttons dispatched window events that the inline agent
+  ignored (`if (isInline) return` — added to prevent a floating+inline double-run
+  that can't happen; only one agent instance ever mounts) and that dropped
+  silently when no agent was mounted → guards removed; `window.__bankingAgentMounted`
+  flag + sessionStorage `banking-agent-pending-attack` replay-after-navigate
+  fallback added.
+- CodeGraph "index not available" masked LLM-backend failures, and reindex wrote
+  the DB to `repo-src/.codegraph/` while queries read `CODEGRAPH_DB_PATH` → error
+  now differentiates index-missing vs LLM-unavailable; indexer gained `--out`;
+  reindex passes the query path and resets `_graph_cache` on success.
+- `/code-search`: `.cs-tabs` buttons had zero CSS; "Ask the agent" was a single
+  input → styled segmented tabs; Ask rewritten as an OAuth-Academy-style chat
+  (messages, chips, stop button); uploads drive the global spinner; file-size
+  limits fire native `window.alert`.
+- `/settings`: `maxTransactionAmount` saved to runtimeSettings which nothing
+  reads (enforcement reads configStore `MAX_TRANSACTION_AMOUNT`) → PUT now
+  writes through to configStore and GET reads the effective value; the inert
+  `authorizeEnabled` toggle became a read-only status row driven by
+  `getAuthorizationStatusSummary()`.
+- `/delegation`: newly created delegate users had no password and no credentials
+  shown → password set (DEMO_PASSWORD; failure = warning, not grant failure),
+  `credentials` returned only for new users, dismissible credential card in UI
+  (silent re-auth deferred until dismissal in that case).
+- Vertical ops pages had no token chain → `TokenChainTraceRail` gained opt-in
+  `mcpRouteOnly` prop (MCP steps only, dots relabeled "Agent (MCP Client) →
+  MCP Server", MCP tab default), mounted collapsed in `VerticalOpsConsole`.
+- `SCOPE_VOCABULARY.md` was stale Phase-146 `banking:*` content → rewritten from
+  `scope-topology.json` (25 scopes, 4 aliases, 6 resources); `/scope-reference`
+  now shows `missingRequired` drift warnings.
+- Code Explorer / Code Search / OAuth Academy / OAS Demo grouped under a new
+  "Exploring" nav group (slug `exploring` added to `AUTO_EXPAND_SECTIONS`).
+- OAuth Academy chips reworked to core OAuth/OIDC learning topics (12 chips,
+  `STARTER_CHIPS` + manifest `chips10` kept in sync); `CONCEPTS` entries in
+  `config/verticals/oauth-teaching/index.js` gained structural `rfc` (always
+  rendered as "Spec: …") and `code` (real snippet from this app) fields plus
+  three new concepts (OAuth overview, refresh tokens, client credentials —
+  overview catch-all must stay LAST in the array); bubble renderer in
+  `OAuthAcademyPage.jsx` renders ``` fences as `.msg-code` blocks.
+
+**Do not break:** `TokenChainTraceRail` without `mcpRouteOnly` must render
+exactly as before (dashboards); AIAgent changes must stay confined to the
+drawer-event listener effects (FAB/resize/dock/session untouched); the settings
+PUT must keep writing runtimeSettings for all other keys; delegation grant must
+still succeed when password-set fails; `build-codegraph.py` without `--out`
+must write to `.codegraph/codegraph.db` as before; the base
+`k8s/02-configmap.yaml` proxy block and the AWS override must stay in sync.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0); `npx jest
+tests/pingcli.route.test.js --testPathIgnorePatterns=/node_modules/` (8/8);
+jest `--testPathPattern=delegation` (101 passed); vitest
+`AiAttacksPanel.runButtons` + `AiAttacksPanel.inlineAgent` (13/13); vitest
+`TokenChainTraceRail` + `VerticalOpsConsole` (8/8); `python3 -m py_compile`
+on both .py files; live: `/pinggateway-test.html` returns the BFF test page
+after redeploy.
+
 ### 2026-07-10 — Dual token-exchange broker flag (`ff_gateway_brokered_exchange`)
 
 **Files changed:** `demo_api_server/routes/featureFlags.js` (new flag + pin-alias),

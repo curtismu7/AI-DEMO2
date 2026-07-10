@@ -553,6 +553,9 @@ export default function DelegationPage({ user }) {
   const [submitting, setSubmitting]         = useState(false);
   const [submitError, setSubmitError]       = useState('');
   const [submitSuccess, setSubmitSuccess]   = useState('');
+  // Persistent credential card for a newly created delegate user (demo-only).
+  const [newDelegateCreds, setNewDelegateCreds] = useState(null); // { email, password, reauthPending }
+  const [credsCopied, setCredsCopied]           = useState(false);
 
   // Revoke
   const [revoking, setRevoking] = useState(null);
@@ -600,14 +603,29 @@ export default function DelegationPage({ user }) {
       if (!data.ok) {
         setSubmitError(data.message || `Grant failed (${data.error || 'unknown error'})`);
       } else {
-        setSubmitSuccess(`Access granted to ${delegateEmail.trim()}`);
         setDelegateEmail('');
         setSelectedScopes(['view_accounts', 'view_balances']);
         await loadData();
-        // Silently re-auth so the re-issued token carries the updated delegated_to.
-        // Show the confirmation first, then reload via SSO after a short delay.
-        if (data.reauthRequired) {
-          setTimeout(() => requestSilentReauth(window.location.pathname), 1200);
+        if (data.credentials) {
+          // A new PingOne user was created for the delegate — show a persistent
+          // credential card. The silent re-auth is a full-page redirect, so we
+          // defer it until the card is dismissed (✕) to keep the credentials visible.
+          setNewDelegateCreds({
+            email: data.credentials.email,
+            password: data.credentials.password,
+            reauthPending: !!data.reauthRequired,
+          });
+        } else {
+          setSubmitSuccess(
+            data.warning
+              ? `Access granted to ${delegateEmail.trim()} ⚠️ ${data.warning}`
+              : `Access granted to ${delegateEmail.trim()}`
+          );
+          // Silently re-auth so the re-issued token carries the updated delegated_to.
+          // Show the confirmation first, then reload via SSO after a short delay.
+          if (data.reauthRequired) {
+            setTimeout(() => requestSilentReauth(window.location.pathname), 1200);
+          }
         }
       }
     } catch (err) {
@@ -615,6 +633,27 @@ export default function DelegationPage({ user }) {
     } finally {
       setSubmitting(false);
       setTimeout(() => { setSubmitError(''); setSubmitSuccess(''); }, 4000);
+    }
+  };
+
+  const dismissCredsCard = () => {
+    const pending = newDelegateCreds?.reauthPending;
+    setNewDelegateCreds(null);
+    setCredsCopied(false);
+    // Run the deferred silent re-auth so the re-issued token carries delegated_to.
+    if (pending) requestSilentReauth(window.location.pathname);
+  };
+
+  const copyCreds = async () => {
+    if (!newDelegateCreds) return;
+    try {
+      await navigator.clipboard.writeText(
+        `Email: ${newDelegateCreds.email}\nPassword: ${newDelegateCreds.password}\nLogin: ${window.location.origin}`
+      );
+      setCredsCopied(true);
+      setTimeout(() => setCredsCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable — credentials remain visible on the card */
     }
   };
 
@@ -714,6 +753,37 @@ export default function DelegationPage({ user }) {
 
           {submitError   && <div style={S.errorBanner}>{submitError}</div>}
           {submitSuccess && <div style={S.successBanner}>{submitSuccess}</div>}
+
+          {/* Demo-only credential card for a newly created delegate user */}
+          {newDelegateCreds && (
+            <div style={{
+              marginTop: 16, borderRadius: 8, border: '2px solid #1e40af',
+              background: '#eff6ff', padding: '16px 18px', position: 'relative',
+            }}>
+              <button
+                onClick={dismissCredsCard}
+                aria-label="Dismiss credentials"
+                style={{
+                  position: 'absolute', top: 10, right: 12, background: 'none', border: 'none',
+                  color: '#1e3a5f', fontSize: 16, fontWeight: 700, cursor: 'pointer', lineHeight: 1, padding: 0,
+                }}
+              >✕</button>
+              <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: '#1e3a5f' }}>
+                ✓ Delegate account created — share these credentials with your demo user:
+              </p>
+              <div style={{ fontSize: 14, color: '#111827', lineHeight: 1.8 }}>
+                <div><span style={{ fontWeight: 700 }}>Email:</span> <code style={{ fontSize: 13 }}>{newDelegateCreds.email}</code></div>
+                <div><span style={{ fontWeight: 700 }}>Password:</span> <code style={{ fontSize: 13 }}>{newDelegateCreds.password}</code></div>
+                <div><span style={{ fontWeight: 700 }}>Login URL:</span> <code style={{ fontSize: 13 }}>{window.location.origin}</code></div>
+              </div>
+              <p style={{ margin: '10px 0 12px', fontSize: 13, fontWeight: 600, color: '#1e3a5f' }}>
+                Log in as this user to see the delegated access.
+              </p>
+              <button onClick={copyCreds} style={{ ...S.primaryBtn, padding: '7px 16px', fontSize: 13 }}>
+                {credsCopied ? '✓ Copied' : 'Copy credentials'}
+              </button>
+            </div>
+          )}
 
           <div style={{ marginTop: 16 }}>
             <button

@@ -1300,17 +1300,22 @@ What's your email address?"""
 
         identity = get_token_validator().validate(user_token)
 
+        # The cryptographically-verified `sub` is the identity key; `email` is
+        # only a human-readable label for conversation memory. When an RFC 8693
+        # exchanged token omits `email` (the target resource maps no email
+        # attribute), bind on `sub` rather than refusing the whole session —
+        # signature, audience, issuer, and expiry were already enforced by
+        # validate(), so this does not weaken any security check.
         if not identity.email:
-            # Identity must be usable for the banking flow. PingOne profile
-            # without an email claim cannot be bound; refuse rather than guess.
-            raise TokenValidationError(
-                f"Validated token for sub={identity.sub} has no email claim — "
-                f"cannot bind chat identity"
+            logger.warning(
+                "Validated token for sub=%s has no email claim — binding chat "
+                "identity on sub (memory label only)",
+                identity.sub,
             )
 
         await self.conversation_memory.set_user_identified(
             session_id,
-            user_email=identity.email,
+            user_email=identity.email or identity.sub,
             user_id=identity.sub,
         )
         logger.info(

@@ -27,6 +27,18 @@ data:
             try_files $uri $uri/ /index.html;
         }
 
+        # BFF public test page only — served from demo_api_server/public/, not
+        # part of the React build. Mirrors the block in k8s/02-configmap.yaml
+        # (this file overrides that configmap on AWS, so it must repeat it).
+        location = /pinggateway-test.html {
+            proxy_pass https://demo-api-server:3001/pinggateway-test.html;
+            proxy_ssl_verify off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+
         # Proxy /api/ to BFF (HTTPS inside cluster — BFF uses self-signed mkcert TLS)
         location /api/ {
             proxy_pass https://demo-api-server:3001/api/;

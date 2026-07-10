@@ -489,22 +489,51 @@ router.get('/activity/export', requireAdmin, requireScopes(['admin']), (req, res
 
 // ── Runtime Settings ─────────────────────────────────────────────────────────
 
+// Dual-store bridge: runtimeSettings is an in-memory store for the Settings UI,
+// but the hard transaction limit is ENFORCED from configStore
+// ('max_transaction_amount', read by routes/transactions.js). The handlers
+// below bridge the two stores so the UI edits the value the server applies.
+const configStore = require('../services/configStore');
+const transactionAuthorizationService = require('../services/transactionAuthorizationService');
+
 // GET /api/admin/settings — return current live settings
 router.get('/settings', requireAdmin, requireScopes(['admin']), (req, res) => {
+  const settings = runtimeSettings.getAll();
+
+  // Dual-store bridge (read side): surface the ENFORCED limit from configStore
+  // so the form shows the value routes/transactions.js actually applies.
+  const enforcedMax = parseFloat(configStore.getEffective('max_transaction_amount'));
+  if (Number.isFinite(enforcedMax)) settings.maxTransactionAmount = enforcedMax;
+
   res.json({
-    settings: runtimeSettings.getAll(),
+    settings,
     history: runtimeSettings.getHistory(),
+    // Effective PingOne Authorize state, computed by the engine (read-only —
+    // authorization is always-on by design; the UI shows this as status, not a toggle).
+    authorizeStatus: transactionAuthorizationService.getAuthorizationStatusSummary(),
   });
 });
 
 // PUT /api/admin/settings — update one or more settings at runtime
-router.put('/settings', requireAdmin, requireScopes(['admin']), (req, res) => {
+router.put('/settings', requireAdmin, requireScopes(['admin']), async (req, res) => {
   try {
     const changedBy = req.user?.email || req.user?.username || 'admin';
     const result = runtimeSettings.update(req.body, changedBy);
 
     if (!result.updated) {
       return res.status(400).json({ error: 'No valid settings fields provided.' });
+    }
+
+    // Dual-store bridge (write side): mirror a valid maxTransactionAmount into
+    // configStore, whose 'max_transaction_amount' key is what
+    // routes/transactions.js enforces. Without this write-through the setting
+    // is dead. FIELD_DEFS declares the key as MAX_TRANSACTION_AMOUNT and
+    // setConfig validates keys case-sensitively, so use the uppercase form.
+    if (req.body.maxTransactionAmount !== undefined) {
+      const parsedMax = parseFloat(req.body.maxTransactionAmount);
+      if (Number.isFinite(parsedMax) && parsedMax >= 0) {
+        await configStore.setConfig({ MAX_TRANSACTION_AMOUNT: String(parsedMax) });
+      }
     }
 
     console.log(`[Settings] Updated by ${changedBy}:`, req.body);

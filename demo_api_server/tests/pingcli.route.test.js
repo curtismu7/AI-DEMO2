@@ -7,6 +7,10 @@ jest.mock('child_process', () => ({
   }),
 }));
 
+// Capture the same mock instance the route captured at load time. setup.js
+// calls jest.resetModules() after each test, so require('child_process')
+// inside a test body would return a NEW mock the route never sees.
+const { execFile } = require('child_process');
 const pingcliRoutes = require('../routes/pingcli');
 
 const app = express();
@@ -48,6 +52,36 @@ describe('POST /api/admin/pingcli/run', () => {
       .post('/api/admin/pingcli/run')
       .send({});
     expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /api/admin/pingcli/version', () => {
+  it('returns the parsed pingcli version', async () => {
+    execFile.mockImplementationOnce((_bin, _args, _opts, cb) => {
+      cb(null, 'pingcli version 1.1.0 (commit: 80fe2c68f075a8d430a87726854c0615ca2aaa44)\n', '');
+    });
+    const res = await request(app).get('/api/admin/pingcli/version');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ version: '1.1.0' });
+  });
+
+  it('returns 503 when the binary is missing', async () => {
+    execFile.mockImplementationOnce((_bin, _args, _opts, cb) => {
+      const err = new Error('spawn /app/bin/pingcli ENOENT');
+      err.code = 'ENOENT';
+      cb(err, '', '');
+    });
+    const res = await request(app).get('/api/admin/pingcli/version');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/not installed/);
+  });
+
+  it('returns 503 when version output is unparseable', async () => {
+    execFile.mockImplementationOnce((_bin, _args, _opts, cb) => {
+      cb(null, 'FATAL: profile validation error\n', '');
+    });
+    const res = await request(app).get('/api/admin/pingcli/version');
+    expect(res.status).toBe(503);
   });
 });
 

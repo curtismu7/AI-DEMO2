@@ -3,6 +3,7 @@ import CodebaseUploader from '../components/CodebaseUploader';
 import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
+import { spinner } from '../services/spinnerService';
 import './CodeSearchPage.css';
 
 // Read the persisted codebase list once, synchronously, so the very first
@@ -83,6 +84,9 @@ export function CodeSearchPage() {
     async (file, codebaseName) => {
       setIsIndexing(true);
       setIndexError('');
+      // Global spinner modal while the ZIP uploads and indexes (same service
+      // CodeExplorerPage drives around its async work).
+      spinner.show('Uploading and indexing codebase…', 'POST /api/code-search/index');
 
       try {
         // Call the BFF API. Use the codebase_id the server generated — a
@@ -110,6 +114,7 @@ export function CodeSearchPage() {
           err.message || 'Failed to index codebase. Make sure the server is running.'
         );
       } finally {
+        spinner.hide();
         setIsIndexing(false);
       }
     },

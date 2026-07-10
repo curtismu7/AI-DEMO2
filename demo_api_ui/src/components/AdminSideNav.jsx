@@ -149,6 +149,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "tests", paths: ["/pingone-test", "/mfa-test", "/resource-server", "/resource-server-cc"] },
+  { id: "exploring", paths: ["/code-explorer", "/code-search", "/oauth-academy", "/oas-demo"] },
 ];
 
 // Load a role's saved expansion state, falling back to the path-based
@@ -447,6 +448,11 @@ export default function AdminSideNav({ user }) {
       icon: "mcp",
       children: [
         {
+          label: "Ping AI Test Lab",
+          path: "/ping-ai-test-lab",
+          icon: "tst",
+        },
+        {
           label: "Demo MCP Inspector",
           path: "/mcp-inspector",
           icon: "dbg",
@@ -680,10 +686,16 @@ export default function AdminSideNav({ user }) {
         },
       ],
     },
-    { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
-    { label: "Code Search", path: "/code-search", icon: "srch" },
-    { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
-    { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
+    {
+      label: "Exploring",
+      icon: "srch",
+      children: [
+        { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
+        { label: "Code Search", path: "/code-search", icon: "srch" },
+        { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
+        { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
+      ],
+    },
     { label: "Learning Hub", path: "/learning", icon: "doc" },
     { label: "llama-vscode Guide", path: "/llama-vscode-guide", icon: "doc" },
     // Always-visible top-level entry to the past-reports list. Kept after every

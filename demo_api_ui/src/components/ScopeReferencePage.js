@@ -120,8 +120,9 @@ const ChevronIcon = () => (
 );
 
 function ResourceCard({ resource }) {
-  const { id, name, audience, type, scopes = [] } = resource;
+  const { id, name, audience, type, scopes = [], expected } = resource;
   const isCustom = (type || '').toUpperCase() === 'CUSTOM';
+  const missingRequired = expected?.missingRequired || [];
 
   return (
     <section className="scope-ref-card">
@@ -141,6 +142,20 @@ function ResourceCard({ resource }) {
             <div><dt>Audience</dt><dd><code>{audience || '(none)'}</code></dd></div>
             <div><dt>Resource ID</dt><dd><code>{id}</code></dd></div>
           </dl>
+          {missingRequired.length > 0 && (
+            <div style={{
+              marginTop: '0.6rem',
+              padding: '0.45rem 0.7rem',
+              background: '#fffbeb',
+              border: '1px solid #fcd34d',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              color: '#92400e',
+            }}>
+              ⚠️ Missing required scopes (defined in scope-topology.json but absent in PingOne):{' '}
+              <code style={{ fontSize: '0.78rem', fontWeight: 600 }}>{missingRequired.join(', ')}</code>
+            </div>
+          )}
         </summary>
 
         {scopes.length > 0 ? (
