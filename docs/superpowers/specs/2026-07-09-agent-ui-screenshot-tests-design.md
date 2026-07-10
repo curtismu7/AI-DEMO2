@@ -196,10 +196,13 @@ constraint.
 - **Screenshot suite (harness + 4 vertical specs + doc builder): code complete;
   live captures deferred.** A live run against the AWS deployment
   (`ai-demo.ping-devops.com`) confirmed that environment does **not** run this
-  branch (still exposes the retired `ollama` mode, has no `google` mode) and only
-  has Helix configured. So the actual 4-column screenshots cannot be produced
-  until a stack (a) runs this branch and (b) has llama.cpp + Claude + Google
-  configured. The harness records unavailable modes as skips with a reason.
+  branch (its agent-mode list still exposes the retired `ollama` mode and has no
+  `google` mode). Provider availability there, via
+  `GET /api/langchain/provider/<name>/status`: **helix, llamacpp, and google are
+  all `configured`/`available`; only anthropic (Claude cloud) is unconfigured.**
+  So once this branch is deployed to that stack, 3 of the 4 columns
+  (llama.cpp, Helix, Google) capture immediately and Claude records a skip until
+  its key is set. The harness records unavailable modes as skips with a reason.
 - **To capture live:** `E2E_BASE_URL=<url> E2E_CUSTOMER_USERNAME=<user>
   E2E_CUSTOMER_PASSWORD=<pass> npx playwright test tests/e2e/agent-screenshots/
   --config=playwright.real.config.js`, then
