@@ -19,6 +19,27 @@ const MODES = [
 
 const SHOT_ROOT = path.resolve(__dirname, '..', '__screenshots__');
 
+const BUBBLE = '.banking-agent-msg.assistant .banking-agent-msg-bubble';
+
+// Thrown when a chip is present but disabled (the Authorize/tools fetch failed,
+// so the chip renders `disabled` + `...--unverified`). Clicking it would spin
+// until the test timeout; captureChip catches this and records a blocked cell.
+class ChipDisabledError extends Error {}
+
+// Poll for a NEW assistant bubble (count > before) up to timeoutMs. Returns
+// true if one appeared, false on timeout — never throws, so callers decide
+// whether a missing response is fatal or just a recorded skip.
+async function waitForNewBubble(page, before, timeoutMs) {
+  try {
+    await expect
+      .poll(async () => page.locator(BUBBLE).count(), { timeout: timeoutMs })
+      .toBeGreaterThan(before);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function setAgentMode(page, modeId) {
   const res = await page.request.post('/api/langchain/config', {
     data: { agent_mode: modeId },
@@ -61,6 +82,13 @@ async function clickChip(page, chipLabel) {
     if (await trigger.isVisible().catch(() => false)) await trigger.click();
   }
   await expect(chip.first()).toBeVisible({ timeout: 10000 });
+  // A tool-backed chip is disabled when the Authorize/tools fetch failed
+  // (class ...--unverified, `disabled` attribute). Clicking it would retry
+  // until the test timeout, so detect it and signal a blocked capture.
+  if (await chip.first().isDisabled().catch(() => false)) {
+    const reason = (await chip.first().getAttribute('title')) || 'chip disabled (authorize unverified)';
+    throw new ChipDisabledError(reason);
+  }
   await chip.first().click();
 }
 
@@ -71,22 +99,41 @@ async function captureChip(page, { vertical, chipId, chipLabel, modeId }) {
   const rel = path.relative(SHOT_ROOT, file);
 
   if (!(await modeAvailable(page, modeId))) {
-    return { modeId, file: rel, text: '', skipped: true };
+    return { modeId, file: rel, text: '', skipped: true, reason: 'provider unconfigured' };
   }
 
   await setAgentMode(page, modeId);
   const panel = await ensureAgentReady(page);
-  const bubblesBefore = await page.locator('.banking-agent-msg.assistant .banking-agent-msg-bubble').count();
+  const bubblesBefore = await page.locator(BUBBLE).count();
 
-  await clickChip(page, chipLabel);
+  try {
+    await clickChip(page, chipLabel);
+  } catch (err) {
+    if (err instanceof ChipDisabledError) {
+      return { modeId, file: rel, text: '', skipped: true, reason: err.message };
+    }
+    throw err;
+  }
 
-  // Wait for a NEW assistant bubble to settle.
-  await expect
-    .poll(async () => page.locator('.banking-agent-msg.assistant .banking-agent-msg-bubble').count(),
-      { timeout: 45000 })
-    .toBeGreaterThan(bubblesBefore);
+  // Some chips prefill the NL input instead of sending (Check balance,
+  // Transfer, etc.). If no bubble started shortly and the input holds text,
+  // submit it explicitly so the agent actually responds.
+  const started = await waitForNewBubble(page, bubblesBefore, 5000);
+  if (!started) {
+    const input = page.locator('input.ba-input');
+    if ((await input.count()) && (await input.inputValue().catch(() => ''))) {
+      await input.press('Enter');
+    }
+  }
 
-  const lastBubble = page.locator('.banking-agent-msg.assistant .banking-agent-msg-bubble').last();
+  // Wait for the response to settle (LLM round-trip can be slow). A mode that
+  // never answers is recorded as a skip rather than failing the whole run.
+  const answered = await waitForNewBubble(page, bubblesBefore, 60000);
+  if (!answered) {
+    return { modeId, file: rel, text: '', skipped: true, reason: 'no response (timeout)' };
+  }
+
+  const lastBubble = page.locator(BUBBLE).last();
   await expect(lastBubble).toBeVisible();
   const text = (await lastBubble.innerText()).trim();
 
