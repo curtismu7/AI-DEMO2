@@ -1834,6 +1834,29 @@ export default function BankingAgent({
     activityUpsertStep(errorStep(activityInstitution));
   }, [aguiEnabled, activityNarrationEnabled, aguiState.error, activityUpsertStep, activityInstitution]);
 
+  // AG-UI run error → visible chat bubble. Without this a failed run (RUN_ERROR
+  // from the BFF, stream failure, MCP tool 503) left the thread silent — the
+  // user saw only RFC-info token events and no reply, which made config faults
+  // look like a dead agent. Dedupe per error value: useAgentState resets error
+  // to null on RUN_STARTED, so each new failure produces exactly one bubble.
+  const aguiErrorBubbleRef = useRef(null);
+  useEffect(() => {
+    if (!aguiState.error) {
+      // RUN_STARTED cleared the error — re-arm so an identical failure on the
+      // next run still gets its own bubble.
+      aguiErrorBubbleRef.current = null;
+      return;
+    }
+    if (aguiErrorBubbleRef.current === aguiState.error) return;
+    aguiErrorBubbleRef.current = aguiState.error;
+    addMessage(
+      "error",
+      `⚠️ The agent request failed: ${aguiState.error} — open Token Chain or MCP Traffic to see the failing step, then try again.`,
+    );
+    // addMessage has stable identity for the life of the component; listing it
+    // would re-fire this effect on unrelated renders.
+  }, [aguiState.error]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Run finished → close the story (unless it's an HITL/step-up interrupt,
   // in which case the agent is suspended waiting for the user — keep running).
   useEffect(() => {
