@@ -128,20 +128,25 @@ const authBase = (tld) => `https://auth.pingone.${tld}`;
  * Obtain a short-lived worker access_token via client credentials.
  * @returns {Promise<string>} access_token
  */
-async function getWorkerToken() {
-  const { envId, clientId, clientSecret, regionTld } = _getCredentials();
+// Worker token cache (P1AZ hardening amendment §E). Reused until 60s before the
+// token's own `expires_in` elapses, so a decision no longer pays a
+// client-credentials round-trip every call. Keyed by credentials/env so an
+// admin credential or environment rotation is picked up immediately instead of
+// surviving until expiry. `_workerTokenInflight` is a single-flight guard:
+// concurrent gate evaluations before the cache is warm share ONE token request
+// rather than stampeding the token endpoint.
+const WORKER_TOKEN_EXPIRY_MARGIN_MS = 60_000;
+let _workerTokenCache = null;   // { token, expiresAt, credKey }
+let _workerTokenInflight = null; // Promise<string> | null
 
-  if (!envId || !clientId || !clientSecret) {
-    throw new Error(
-      'PingOne Authorize worker credentials are not fully configured. ' +
-      'Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env (or the dedicated ' +
-      'PINGONE_AUTHORIZE_WORKER_CLIENT_ID + PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET if using a separate app), ' +
-      'or enter authorize_worker_client_id / authorize_worker_client_secret in Admin → Configuration → PingOne Authorize.'
-    );
-  }
+/** Non-secret cache key: which worker app + environment minted the token. */
+function _workerCredKey(clientId, envId) {
+  return `${envId}:${clientId}`;
+}
 
+async function _requestWorkerToken({ envId, clientId, clientSecret, regionTld }) {
   const tokenUrl = `${authBase(regionTld)}/${envId}/as/token`;
-  const encoded  = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const encoded = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
   const response = await fetchT(tokenUrl, {
     method: 'POST',
@@ -161,7 +166,64 @@ async function getWorkerToken() {
   if (!data.access_token) {
     throw new Error('Worker token response did not include access_token');
   }
-  return data.access_token;
+  const ttlMs = Number(data.expires_in) > 0 ? Number(data.expires_in) * 1000 : 3600_000;
+  return {
+    token: data.access_token,
+    expiresAt: Date.now() + ttlMs - WORKER_TOKEN_EXPIRY_MARGIN_MS,
+  };
+}
+
+async function getWorkerToken() {
+  const creds = _getCredentials();
+  const { envId, clientId, clientSecret } = creds;
+
+  if (!envId || !clientId || !clientSecret) {
+    throw new Error(
+      'PingOne Authorize worker credentials are not fully configured. ' +
+      'Set PINGONE_WORKER_CLIENT_ID + PINGONE_WORKER_CLIENT_SECRET in .env (or the dedicated ' +
+      'PINGONE_AUTHORIZE_WORKER_CLIENT_ID + PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET if using a separate app), ' +
+      'or enter authorize_worker_client_id / authorize_worker_client_secret in Admin → Configuration → PingOne Authorize.'
+    );
+  }
+
+  const credKey = _workerCredKey(clientId, envId);
+
+  // Reuse a still-valid token minted by the SAME credentials/environment.
+  if (_workerTokenCache && _workerTokenCache.credKey === credKey && Date.now() < _workerTokenCache.expiresAt) {
+    return _workerTokenCache.token;
+  }
+
+  // Single-flight: concurrent callers share one client-credentials request.
+  if (_workerTokenInflight) return _workerTokenInflight;
+
+  _workerTokenInflight = (async () => {
+    try {
+      const { token, expiresAt } = await _requestWorkerToken(creds);
+      _workerTokenCache = { token, expiresAt, credKey };
+      return token;
+    } finally {
+      _workerTokenInflight = null;
+    }
+  })();
+
+  return _workerTokenInflight;
+}
+
+/**
+ * Invalidate the cached worker token iff it matches the one that just failed
+ * (e.g. a 401 from a decision call). Only clears when the failing token is the
+ * cached token, so a concurrent refresh that already replaced it is not wiped.
+ */
+function _invalidateWorkerToken(failedToken) {
+  if (_workerTokenCache && (!failedToken || _workerTokenCache.token === failedToken)) {
+    _workerTokenCache = null;
+  }
+}
+
+/** Test hook: clear in-process authorize runtime state (worker token cache). */
+function _resetAuthorizeRuntimeState() {
+  _workerTokenCache = null;
+  _workerTokenInflight = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,6 +1098,8 @@ module.exports = {
   _normalizeDecision,
   _isPolicyNotFoundEffect,
   _decisionError,
+  _invalidateWorkerToken,
+  _resetAuthorizeRuntimeState,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,
