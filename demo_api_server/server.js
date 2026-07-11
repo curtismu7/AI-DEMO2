@@ -1058,6 +1058,9 @@ app.use('/api/langchain/lmstudio', lmstudioRoutes);
 app.use('/api/langchain/llamacpp', llamacppModelsRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
+// Pre-Demo Check — readiness checks for the demo. Any logged-in user.
+const { authenticateToken: authForCheck } = require('./middleware/auth');
+app.use('/api/check', authForCheck, require('./routes/check').router);
 app.use('/api/admin/authorize', authorizeConfigRoutes);
 app.use('/api/introspect', introspectRoutes);
 app.use('/api/setup', setupRoutes);
