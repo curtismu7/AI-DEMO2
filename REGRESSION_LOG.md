@@ -5,6 +5,18 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-07-11 — Agent reported "Transferred $X" success on an unparseable tool result; vertical chips rendered `{}`
+
+**Symptom**: When a tool call's raw result body was malformed, blank, or garbage (not valid JSON, or JSON with no recognizable shape), the agent still replied with a success message such as "Transferred $X" as if the transfer had gone through, and vertical action chips rendered an empty `{}` instead of an error or the expected card.
+
+**Root cause**: The upstream parse step swallowed unparseable tool output down to `null` instead of surfacing a failure, and `classifyMcpToolResult(null)` then classified that `null` as `{kind:'ok'}` — a bare absence of content was indistinguishable from a genuine success. Downstream, `parseMcpToolPayload` inherited the same blind spot: when it couldn't find a shape it recognized, it fell back to `result:{}` rather than an error, so the UI had nothing to key off of except an empty object, which several chip renderers treat as "render nothing meaningful" rather than "this failed."
+
+**Fix**: Added `services/llmResponseContract.js`'s `parseToolResult`, which returns explicit error-shaped objects (never `null`, never a bare `{}`, never a false `{kind:'ok'}`) for unparseable or empty tool output. Wired it in at all consumer sites (`tryParseIntentJson` and the 7 `parseToolResult` call sites across the agent/vertical pipeline) so a malformed/blank/garbage tool result is always surfaced as an explicit error to both the agent's response logic and the chip renderer, instead of being silently coerced into a phantom success.
+
+**Tests**: `demo_api_server/src/__tests__/toolResultFalseSuccess.regression.test.js` — reproduces the false-success case (unparseable tool output previously classified `{kind:'ok'}`) and asserts it now surfaces as an error at every consumer site; part of the broader `llmResponseContract` suite (`llmResponseContract.test.js`, `llmResponseContract.intent.test.js`, `llmResponseContract.toolResult.test.js`, `tryParseIntentJson.test.js`) added alongside it, all green.
+
+---
+
 ## 2026-06-24 — Agent action chips silently absent — every PingOne token rejected as `jwt issuer invalid`
 
 **Symptom**: A signed-in customer saw an empty agent Actions dropdown — no "Super Banking Actions" chips — despite the UI showing "Signed in" with a populated token chain. `GET /api/verticals/me` returned `401 invalid_token` on both `localhost:4000` and `api.ping.demo:4000`. Server log: `PingOne token validation failed: jwt issuer invalid. expected: https://auth.pingone.com/{envId}` (no `/as`).
