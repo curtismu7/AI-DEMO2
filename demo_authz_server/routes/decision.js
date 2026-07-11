@@ -205,15 +205,19 @@ module.exports = async function decisionHandler(req, res) {
   }
 
   // ── Rule 0b: aud must include the gateway resource URI ────────────────────
-  // Parse aud as space-separated string (how the gateway serialises it) or a
-  // JSON array string (e.g. '["a","b"]') — handle both to avoid spurious DENYs.
+  // Parse aud as space- or comma-separated string or a JSON array string
+  // (e.g. '["a","b"]') — handle all three to avoid spurious DENYs. The Node
+  // gateway passes its GATEWAY_RESOURCE_URI verbatim as TokenAudience, and on
+  // k8s that env is comma-joined ("mcpgateway.ping.demo,https://…/mcp"), which
+  // the old whitespace-only split treated as ONE bogus aud → every tools/list
+  // DENYed with "aud mismatch" even though the expected aud was present.
   const rawAud = asStr(TokenAudActual) || asStr(TokenAudience);
   let audList;
   try {
     const parsed = JSON.parse(rawAud);
     audList = Array.isArray(parsed) ? parsed : [String(parsed)];
   } catch {
-    audList = rawAud.split(/\s+/).filter(Boolean);
+    audList = rawAud.split(/[\s,]+/).filter(Boolean);
   }
   if (!EXPECTED_AUDS.some((a) => audList.includes(a))) {
     warn(`[AuthzServer/decision] DENY — aud mismatch: [${audList.join(',')}] expected ${EXPECTED_AUDS.join(' | ')}`);

@@ -112,6 +112,33 @@ afterEach(() => {
   try { fs.unlinkSync(OVERLAY); } catch (e) { /* ignore */ }
 });
 
+// ── Rule 0b: aud parsing ─────────────────────────────────────────────────────
+
+// Regression: the Node gateway passes its GATEWAY_RESOURCE_URI verbatim as the
+// audience, and on k8s that env is comma-joined ("test-aud,https://…/mcp"). The
+// old whitespace-only split treated it as ONE bogus aud → every tools/list
+// DENYed with invalid_aud even though the expected aud was present.
+test('Rule 0b: comma-joined aud list containing the expected aud is not DENYed for invalid_aud', async () => {
+  const result = await decide(readParams({
+    TokenAudience: 'test-aud,https://api.ping.demo:3036/mcp',
+    TokenAudActual: 'test-aud,https://api.ping.demo:3036/mcp',
+  }));
+  assert.ok(
+    !String(result.reason || '').includes('invalid_aud'),
+    'comma-joined aud with expected entry must pass Rule 0b, got: ' + result.reason
+  );
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
+test('Rule 0b: aud list NOT containing the expected aud still DENYs invalid_aud', async () => {
+  const result = await decide(readParams({
+    TokenAudience: 'other-aud,another-aud',
+    TokenAudActual: 'other-aud,another-aud',
+  }));
+  assert.strictEqual(result.decision, 'DENY', 'Expected DENY, got ' + result.decision + ': ' + result.reason);
+  assert.ok(String(result.reason || '').includes('invalid_aud'), 'reason should include invalid_aud, got: ' + result.reason);
+});
+
 // ── NNP-5: Hard-DENY ceiling ───────────────────────────────────────────────
 
 test('NNP-5 A-1: write tool, amount=2500 (> deny ceiling 2000) -> DENY with amount_exceeds_ceiling', async () => {

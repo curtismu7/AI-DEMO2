@@ -232,10 +232,40 @@ override_redirect_uris_for_public_origin() {
   info "  PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
 }
 
+# ── Demo service API key (apikey-dispatch path) ──────────────────────────────
+# The gateway pulls DEMO_MORTGAGE_SERVICE_KEY / DEMO_INVEST_SERVICE_KEY from the
+# BFF vault bridge and presents it to mortgage-service as X-API-Key. In-cluster
+# the BFF has no vault password and no LMDB entry, so the bridge falls back to
+# the committed default — while mortgage-service refuses to boot with that same
+# default. Nothing else provisions the pair in k8s (ensure-service-keys.js is
+# local-only), so a fresh deploy either crash-loops the backend or 401s every
+# invest/mortgage chip ("backend rejected the service API key"). Single-source
+# the key here: prefer the ensure-service-keys value from the repo-root .env,
+# else mint one, then ship the SAME value to both sides (ai-demo-secrets for
+# the BFF bridge, mortgage-secrets for the backend).
+align_service_api_keys() {
+  local key
+  key=$(grep -E '^MORTGAGE_SERVICE_API_KEY=.+' "$ASSET_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  case "$key" in
+    ""|demo-mortgage-key-0000|mortgage-compose-dev-key)
+      key="mortgage-$(openssl rand -hex 12)"
+      warn "  MORTGAGE_SERVICE_API_KEY missing/default in repo-root .env — minted a deploy-local service key"
+      ;;
+  esac
+  printf '{"stringData":{"DEMO_MORTGAGE_SERVICE_KEY":"%s","DEMO_INVEST_SERVICE_KEY":"%s"}}' "$key" "$key" \
+    | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  kubectl create secret generic mortgage-secrets \
+    --namespace="$NS" \
+    --from-literal="MORTGAGE_SERVICE_API_KEY=${key}" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  info "  Service API key aligned across ai-demo-secrets (bridge) + mortgage-secrets (backend)"
+}
+
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
 override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
+align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
