@@ -504,3 +504,6 @@ router.post('/oauth-health/check', requireAdminOrUnconfigured, configReadLimiter
 });
 
 module.exports = router;
+// Shared with configCredentials.js so both config-write surfaces enforce the
+// same first-run-open / admin-once-configured gate.
+module.exports.requireAdminOrUnconfigured = requireAdminOrUnconfigured;
