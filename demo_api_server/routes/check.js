@@ -28,7 +28,7 @@ router.post('/run', async (req, res) => {
   });
   const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
-  const results = await runChecks(checks, { flags }, (r) => send('result', r));
+  const results = await runChecks(checks, { flags, req }, (r) => send('result', r));
   send('done', { verdict: aggregateVerdict(results), total: results.length });
   res.end();
 });

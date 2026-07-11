@@ -50,4 +50,12 @@ describe('/api/check', () => {
     const res = await request(makeApp()).post('/api/check/run').send({ includeHeavy: true });
     expect(res.text).toContain('"id":"heavy1"');
   });
+
+  test('run passes req into check ctx', async () => {
+    const { register } = require('../services/checks/registry');
+    register({ id: 'ctxprobe', name: 'ctx', category: 'C', run: async (ctx) => ({ status: ctx.req ? 'pass' : 'fail', detail: ctx.req ? 'has req' : 'no req' }) });
+    const res = await request(makeApp()).post('/api/check/run').send({ only: ['ctxprobe'] });
+    expect(res.text).toContain('"id":"ctxprobe"');
+    expect(res.text).toContain('"status":"pass"');
+  });
 });
