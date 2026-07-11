@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: openai-agent
-        image: ai-demo-openai-agent:latest
+        image: ai-demo-k8-openai-agent:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8891

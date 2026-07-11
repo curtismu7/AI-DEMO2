@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: mcp-gateway
-        image: ai-demo-mcp-gateway:latest
+        image: ai-demo-k8-mcp-gateway:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3005
@@ -122,7 +122,7 @@ spec:
       # probes must run inside the container's netns (exec); an httpGet probe
       # dials the pod IP and would be refused.
       - name: authz-server
-        image: ai-demo-authz-server:latest
+        image: ai-demo-k8-authz-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9001

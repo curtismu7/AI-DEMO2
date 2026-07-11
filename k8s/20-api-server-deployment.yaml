@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: api-server
-        image: ai-demo-api-server:latest
+        image: ai-demo-k8-api-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3001

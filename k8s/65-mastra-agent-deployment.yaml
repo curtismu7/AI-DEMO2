@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: mastra-agent
-        image: ai-demo-mastra-agent:latest
+        image: ai-demo-k8-mastra-agent:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8892

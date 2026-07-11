@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: mcp-invest
-        image: ai-demo-mcp-invest:latest
+        image: ai-demo-k8-mcp-invest:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081

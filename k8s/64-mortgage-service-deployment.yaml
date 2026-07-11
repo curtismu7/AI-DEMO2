@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: mortgage-service
-        image: ai-demo-mortgage-service:latest
+        image: ai-demo-k8-mortgage-service:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8082

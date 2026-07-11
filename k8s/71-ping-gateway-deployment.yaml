@@ -145,7 +145,7 @@ spec:
       # http://127.0.0.1:9001 (P1AZ_MOCK_BASE above). Same pattern as the
       # mcp-gateway pod (k8s/60-mcp-gateway-deployment.yaml).
       - name: authz-server
-        image: ai-demo-authz-server:latest
+        image: ai-demo-k8-authz-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9001

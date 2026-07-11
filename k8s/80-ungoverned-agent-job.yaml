@@ -32,7 +32,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: ungoverned-agent
-        image: ai-demo-ungoverned-agent:latest
+        image: ai-demo-k8-ungoverned-agent:latest
         imagePullPolicy: IfNotPresent
         env:
         # In-cluster the UI Service is `frontend:4000` (k8s/10-frontend-deployment.yaml).
