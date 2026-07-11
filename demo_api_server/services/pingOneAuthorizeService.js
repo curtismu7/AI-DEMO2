@@ -46,10 +46,19 @@ const { classifyObligations } = require('./authorizeObligations');
 // path instead of an indefinite hang (fetch has no default timeout). Callers
 // keep passing their normal options; a caller-supplied signal still wins.
 // Resolved from globalThis at call time (not captured) so a test's fetch mock
-// is still honoured.
-const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 15000;
-function fetchT(url, opts = {}) {
-  return globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
+// is still honoured. One retry on transient failure (network/timeout or 5xx)
+// so a single blip doesn't trip failover mid-demo; 4xx is never retried.
+const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 5000;
+async function fetchT(url, opts = {}) {
+  const attempt = () =>
+    globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
+  try {
+    const response = await attempt();
+    if (response.status >= 500) return attempt();
+    return response;
+  } catch (_transientErr) {
+    return attempt();
+  }
 }
 
 /** Stable names — idempotent GET list + create if missing */
@@ -124,11 +133,61 @@ const authBase = (tld) => `https://auth.pingone.${tld}`;
 // Worker token (client credentials grant)
 // ---------------------------------------------------------------------------
 
+// Worker-token cache: client-credentials tokens are env-wide, so one cached
+// token serves every decision call until 60s before expiry. Cleared on a 401
+// from a decision call (revoked/rotated credentials) so the caller can retry
+// once with a fresh token.
+let _workerTokenCache = { token: null, expiresAt: 0 };
+function _clearWorkerTokenCache() {
+  _workerTokenCache = { token: null, expiresAt: 0 };
+}
+
+// Circuit breaker: after 3 consecutive evaluate failures, fail fast for 60s so
+// every action during an outage doesn't pay the full timeout before failover
+// engages. policy_not_found is drift, not an outage — it never trips the
+// breaker. Any success closes it; after cooldown the next call probes live.
+const BREAKER_THRESHOLD = 3;
+const BREAKER_COOLDOWN_MS = 60_000;
+let _breakerFailures = 0;
+let _breakerOpenUntil = 0;
+
+async function _withCircuitBreaker(evaluateFn) {
+  if (Date.now() < _breakerOpenUntil) {
+    const err = new Error('PingOne Authorize circuit open — failing fast after repeated errors.');
+    err.code = 'authorize_circuit_open';
+    throw err;
+  }
+  try {
+    const result = await evaluateFn();
+    _breakerFailures = 0;
+    return result;
+  } catch (err) {
+    if (err.code !== 'policy_not_found') {
+      _breakerFailures += 1;
+      if (_breakerFailures >= BREAKER_THRESHOLD) {
+        _breakerOpenUntil = Date.now() + BREAKER_COOLDOWN_MS;
+        _breakerFailures = 0; // half-open probe after cooldown
+      }
+    }
+    throw err;
+  }
+}
+
+/** Test hook: reset in-process reliability state (token cache + breaker). */
+function _resetAuthorizeRuntimeState() {
+  _clearWorkerTokenCache();
+  _breakerFailures = 0;
+  _breakerOpenUntil = 0;
+}
+
 /**
  * Obtain a short-lived worker access_token via client credentials.
  * @returns {Promise<string>} access_token
  */
 async function getWorkerToken() {
+  if (_workerTokenCache.token && Date.now() < _workerTokenCache.expiresAt) {
+    return _workerTokenCache.token;
+  }
   const { envId, clientId, clientSecret, regionTld } = _getCredentials();
 
   if (!envId || !clientId || !clientSecret) {
@@ -161,6 +220,8 @@ async function getWorkerToken() {
   if (!data.access_token) {
     throw new Error('Worker token response did not include access_token');
   }
+  const ttlMs = (Number(data.expires_in) || 300) * 1000;
+  _workerTokenCache = { token: data.access_token, expiresAt: Date.now() + ttlMs - 60_000 };
   return data.access_token;
 }
 
@@ -201,21 +262,28 @@ function _normalizeDecision(raw, { hasObligation = false } = {}) {
 async function _postDecisionEndpoint(endpointId, parameters) {
   const { envId, regionTld } = _getCredentials();
 
-  const workerToken = await getWorkerToken();
-
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await fetchT(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${workerToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ parameters }),
-  });
+  const post = async () => {
+    const workerToken = await getWorkerToken();
+    return fetchT(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${workerToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ parameters }),
+    });
+  };
+  let response = await post();
+  if (response.status === 401) {
+    // Cached token rejected — refresh once and retry.
+    _clearWorkerTokenCache();
+    response = await post();
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -365,7 +433,7 @@ async function evaluateMcpToolDelegation({
     Timestamp: new Date().toISOString(),
   };
 
-  return _postDecisionEndpoint(endpointId, parameters);
+  return _withCircuitBreaker(() => _postDecisionEndpoint(endpointId, parameters));
 }
 
 // ---------------------------------------------------------------------------
@@ -388,8 +456,6 @@ async function evaluateMcpToolDelegation({
 async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = {} }) {
   const { envId, regionTld } = _getCredentials();
 
-  const workerToken = await getWorkerToken();
-
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/governance/policyDecisionPoints/${policyId}/evaluate`;
 
   const payload = {
@@ -407,14 +473,23 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await fetchT(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${workerToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const post = async () => {
+    const workerToken = await getWorkerToken();
+    return fetchT(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${workerToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  };
+  let response = await post();
+  if (response.status === 401) {
+    // Cached token rejected — refresh once and retry.
+    _clearWorkerTokenCache();
+    response = await post();
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -463,20 +538,20 @@ async function evaluateTransaction({ policyId, decisionEndpointId, userId, amoun
 
   if (resolvedEndpointId) {
     // Phase 2 — preferred path
-    return _evaluateViaDecisionEndpoint({
+    return _withCircuitBreaker(() => _evaluateViaDecisionEndpoint({
       endpointId: resolvedEndpointId,
       userId,
       amount,
       type,
       acr,
       extra: context,
-    });
+    }));
   }
 
   if (resolvedPolicyId) {
     // Phase 1 — legacy fallback
     console.warn('[Authorize] Using legacy PDP path. Set authorize_decision_endpoint_id for Phase 2 API.');
-    return _evaluateViaPdp({ policyId: resolvedPolicyId, userId, amount, type, acr, context });
+    return _withCircuitBreaker(() => _evaluateViaPdp({ policyId: resolvedPolicyId, userId, amount, type, acr, context }));
   }
 
   throw new Error('authorize_decision_endpoint_id or authorize_policy_id must be configured.');
@@ -1034,4 +1109,5 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
+  _resetAuthorizeRuntimeState,
 };
