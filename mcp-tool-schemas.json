@@ -122,10 +122,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "provider",
-          "when"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -318,10 +315,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "product",
-          "amount"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -687,9 +681,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "rentalId"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1031,10 +1023,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "symbol",
-          "amount"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1472,9 +1461,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "permitId"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1487,9 +1474,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "recordId"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1515,9 +1500,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "orderId"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1700,9 +1683,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "days"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -2049,9 +2030,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "amount"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },

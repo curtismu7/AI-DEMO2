@@ -46,19 +46,10 @@ const { classifyObligations } = require('./authorizeObligations');
 // path instead of an indefinite hang (fetch has no default timeout). Callers
 // keep passing their normal options; a caller-supplied signal still wins.
 // Resolved from globalThis at call time (not captured) so a test's fetch mock
-// is still honoured. One retry on transient failure (network/timeout or 5xx)
-// so a single blip doesn't trip failover mid-demo; 4xx is never retried.
-const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 5000;
-async function fetchT(url, opts = {}) {
-  const attempt = () =>
-    globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
-  try {
-    const response = await attempt();
-    if (response.status >= 500) return attempt();
-    return response;
-  } catch (_transientErr) {
-    return attempt();
-  }
+// is still honoured.
+const AUTHZ_FETCH_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 15000;
+function fetchT(url, opts = {}) {
+  return globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
 }
 
 /** Stable names — idempotent GET list + create if missing */
@@ -133,61 +124,11 @@ const authBase = (tld) => `https://auth.pingone.${tld}`;
 // Worker token (client credentials grant)
 // ---------------------------------------------------------------------------
 
-// Worker-token cache: client-credentials tokens are env-wide, so one cached
-// token serves every decision call until 60s before expiry. Cleared on a 401
-// from a decision call (revoked/rotated credentials) so the caller can retry
-// once with a fresh token.
-let _workerTokenCache = { token: null, expiresAt: 0 };
-function _clearWorkerTokenCache() {
-  _workerTokenCache = { token: null, expiresAt: 0 };
-}
-
-// Circuit breaker: after 3 consecutive evaluate failures, fail fast for 60s so
-// every action during an outage doesn't pay the full timeout before failover
-// engages. policy_not_found is drift, not an outage — it never trips the
-// breaker. Any success closes it; after cooldown the next call probes live.
-const BREAKER_THRESHOLD = 3;
-const BREAKER_COOLDOWN_MS = 60_000;
-let _breakerFailures = 0;
-let _breakerOpenUntil = 0;
-
-async function _withCircuitBreaker(evaluateFn) {
-  if (Date.now() < _breakerOpenUntil) {
-    const err = new Error('PingOne Authorize circuit open — failing fast after repeated errors.');
-    err.code = 'authorize_circuit_open';
-    throw err;
-  }
-  try {
-    const result = await evaluateFn();
-    _breakerFailures = 0;
-    return result;
-  } catch (err) {
-    if (err.code !== 'policy_not_found') {
-      _breakerFailures += 1;
-      if (_breakerFailures >= BREAKER_THRESHOLD) {
-        _breakerOpenUntil = Date.now() + BREAKER_COOLDOWN_MS;
-        _breakerFailures = 0; // half-open probe after cooldown
-      }
-    }
-    throw err;
-  }
-}
-
-/** Test hook: reset in-process reliability state (token cache + breaker). */
-function _resetAuthorizeRuntimeState() {
-  _clearWorkerTokenCache();
-  _breakerFailures = 0;
-  _breakerOpenUntil = 0;
-}
-
 /**
  * Obtain a short-lived worker access_token via client credentials.
  * @returns {Promise<string>} access_token
  */
 async function getWorkerToken() {
-  if (_workerTokenCache.token && Date.now() < _workerTokenCache.expiresAt) {
-    return _workerTokenCache.token;
-  }
   const { envId, clientId, clientSecret, regionTld } = _getCredentials();
 
   if (!envId || !clientId || !clientSecret) {
@@ -220,8 +161,6 @@ async function getWorkerToken() {
   if (!data.access_token) {
     throw new Error('Worker token response did not include access_token');
   }
-  const ttlMs = (Number(data.expires_in) || 300) * 1000;
-  _workerTokenCache = { token: data.access_token, expiresAt: Date.now() + ttlMs - 60_000 };
   return data.access_token;
 }
 
@@ -239,18 +178,38 @@ async function getWorkerToken() {
 const _PERMIT_EFFECTS = new Set(['permit', 'allow', 'allowed']);
 const _DENY_EFFECTS = new Set(['deny', 'denied']);
 
-function _normalizeDecision(raw, { hasObligation = false } = {}) {
+function _rawEffect(raw) {
   const effect = raw && typeof raw === 'object'
     ? raw.decision ?? raw.result?.decision ?? raw.details?.decision
     : undefined;
-  const value = typeof effect === 'string' ? effect.trim().toLowerCase() : '';
+  return typeof effect === 'string' ? effect.trim().toLowerCase() : '';
+}
+
+function _normalizeDecision(raw, { hasObligation = false } = {}) {
+  const value = _rawEffect(raw);
   if (_PERMIT_EFFECTS.has(value)) return 'PERMIT';
   if (_DENY_EFFECTS.has(value)) return 'DENY';
-  // Explicit XACML "no policy matched" — surfaced so callers can tell the
-  // operator the code and the P1AZ policy set drifted apart. Anything else
-  // still fails closed.
-  if (value === 'not_applicable') return 'NOT_APPLICABLE';
   return hasObligation ? 'INDETERMINATE' : 'DENY';
+}
+
+// Drift detector (P1AZ hardening amendment §A). True only when the engine
+// evaluated successfully but no policy matched — the "code added a tool/action
+// P1AZ has no policy for" case, which returns a literal not_applicable effect.
+// This is a SIDE CHANNEL: `_normalizeDecision` still collapses the same input to
+// DENY, so a consumer that ignores this flag stays fail-closed.
+function _isPolicyNotFoundEffect(raw) {
+  return _rawEffect(raw).replace(/[-_\s]/g, '') === 'notapplicable';
+}
+
+// Single status->error mapping for both decision paths (amendment §A / altitude).
+// A 404 means the configured decision-endpoint/policy id does not exist in P1AZ
+// (config drift), distinct from a genuine outage; tag it so failover and the
+// gates can tell them apart. All other statuses stay plain outages.
+function _decisionError(status, text, label) {
+  const err = new Error(`PingOne Authorize ${label} evaluation failed (${status}): ${text}`);
+  err.status = status;
+  if (status === 404) err.code = 'policy_not_found';
+  return err;
 }
 
 /**
@@ -262,36 +221,25 @@ function _normalizeDecision(raw, { hasObligation = false } = {}) {
 async function _postDecisionEndpoint(endpointId, parameters) {
   const { envId, regionTld } = _getCredentials();
 
+  const workerToken = await getWorkerToken();
+
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const post = async () => {
-    const workerToken = await getWorkerToken();
-    return fetchT(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${workerToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ parameters }),
-    });
-  };
-  let response = await post();
-  if (response.status === 401) {
-    // Cached token rejected — refresh once and retry.
-    _clearWorkerTokenCache();
-    response = await post();
-  }
+  const response = await fetchT(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${workerToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ parameters }),
+  });
 
   if (!response.ok) {
     const text = await response.text();
-    const error = new Error(`PingOne Authorize decision endpoint evaluation failed (${response.status}): ${text}`);
-    error.status = response.status;
-    // 404 = the configured decision endpoint does not exist in this environment.
-    if (response.status === 404) error.code = 'policy_not_found';
-    throw error;
+    throw _decisionError(response.status, text, 'decision endpoint');
   }
 
   const raw = await response.json();
@@ -300,6 +248,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   const decision = _normalizeDecision(raw, {
     hasObligation: stepUpRequired || hitlRequired || consentRequired,
   });
+  const policyNotFound = _isPolicyNotFoundEffect(raw);
 
   const decisionId = raw.id || raw.decisionId || null;
 
@@ -307,7 +256,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
     request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
     response: raw,
   };
-  return { decision, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
+  return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
 }
 
 /**
@@ -433,7 +382,7 @@ async function evaluateMcpToolDelegation({
     Timestamp: new Date().toISOString(),
   };
 
-  return _withCircuitBreaker(() => _postDecisionEndpoint(endpointId, parameters));
+  return _postDecisionEndpoint(endpointId, parameters);
 }
 
 // ---------------------------------------------------------------------------
@@ -456,6 +405,8 @@ async function evaluateMcpToolDelegation({
 async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = {} }) {
   const { envId, regionTld } = _getCredentials();
 
+  const workerToken = await getWorkerToken();
+
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/governance/policyDecisionPoints/${policyId}/evaluate`;
 
   const payload = {
@@ -473,37 +424,26 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const post = async () => {
-    const workerToken = await getWorkerToken();
-    return fetchT(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${workerToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-  };
-  let response = await post();
-  if (response.status === 401) {
-    // Cached token rejected — refresh once and retry.
-    _clearWorkerTokenCache();
-    response = await post();
-  }
+  const response = await fetchT(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${workerToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     const text = await response.text();
-    const error = new Error(`PingOne Authorize PDP evaluation failed (${response.status}): ${text}`);
-    error.status = response.status;
-    if (response.status === 404) error.code = 'policy_not_found';
-    throw error;
+    throw _decisionError(response.status, text, 'PDP');
   }
 
   const raw = await response.json();
   const { stepUpRequired } = _classifyRawObligations(raw);
   const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
+  const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-  return { decision, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
+  return { decision, policyNotFound, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
 }
 
 // ---------------------------------------------------------------------------
@@ -538,20 +478,20 @@ async function evaluateTransaction({ policyId, decisionEndpointId, userId, amoun
 
   if (resolvedEndpointId) {
     // Phase 2 — preferred path
-    return _withCircuitBreaker(() => _evaluateViaDecisionEndpoint({
+    return _evaluateViaDecisionEndpoint({
       endpointId: resolvedEndpointId,
       userId,
       amount,
       type,
       acr,
       extra: context,
-    }));
+    });
   }
 
   if (resolvedPolicyId) {
     // Phase 1 — legacy fallback
     console.warn('[Authorize] Using legacy PDP path. Set authorize_decision_endpoint_id for Phase 2 API.');
-    return _withCircuitBreaker(() => _evaluateViaPdp({ policyId: resolvedPolicyId, userId, amount, type, acr, context }));
+    return _evaluateViaPdp({ policyId: resolvedPolicyId, userId, amount, type, acr, context });
   }
 
   throw new Error('authorize_decision_endpoint_id or authorize_policy_id must be configured.');
@@ -845,52 +785,6 @@ async function warmup({ force = false } = {}) {
 }
 
 /**
- * Demo preflight: fire one synthetic decision per configured gate and classify
- * whether a policy actually matched — catches code/P1AZ drift (missing endpoint
- * or NOT_APPLICABLE policy tree) before the audience does. Never throws.
- *
- * @returns {Promise<{ ok: boolean, skipped?: string,
- *   gates?: { transaction: { status: string, detail?: string },
- *             mcp: { status: string, detail?: string } } }>}
- *   status ∈ 'ready' | 'policy_not_found' | 'error' | 'unconfigured'
- */
-async function checkPolicyReadiness() {
-  if (configStore.getEffective('ff_authorize_simulated') === 'true') {
-    return { ok: false, skipped: 'simulated' };
-  }
-  if (!isWorkerCredentialReady()) {
-    return { ok: false, skipped: 'unconfigured' };
-  }
-  const { decisionEndpointId, policyId, mcpDecisionEndpointId } = _getCredentials();
-
-  const classify = async (evaluate) => {
-    try {
-      const r = await evaluate();
-      if (r.decision === 'NOT_APPLICABLE') return { status: 'policy_not_found' };
-      return { status: 'ready', detail: r.decision };
-    } catch (err) {
-      if (err.code === 'policy_not_found') return { status: 'policy_not_found', detail: err.message };
-      return { status: 'error', detail: err.message };
-    }
-  };
-
-  const gates = {};
-  gates.transaction = (decisionEndpointId || policyId)
-    ? await classify(() => evaluateTransaction({
-        decisionEndpointId, policyId, userId: 'preflight@demo.local', amount: 1, type: 'deposit',
-      }))
-    : { status: 'unconfigured' };
-  gates.mcp = mcpDecisionEndpointId
-    ? await classify(() => evaluateMcpToolDelegation({
-        decisionEndpointId: mcpDecisionEndpointId, userId: 'preflight@demo.local', toolName: 'preflight_check',
-      }))
-    : { status: 'unconfigured' };
-
-  const ok = Object.values(gates).every((g) => g.status === 'ready' || g.status === 'unconfigured');
-  return { ok, gates };
-}
-
-/**
  * Find a decision endpoint returned from getDecisionEndpoints() by exact name.
  * @param {Array<{ id?: string, name?: string }>} endpoints
  * @param {string} name
@@ -1140,6 +1034,8 @@ function _classifyRawObligations(raw) {
 
 module.exports = {
   _normalizeDecision,
+  _isPolicyNotFoundEffect,
+  _decisionError,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,
@@ -1155,6 +1051,4 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
-  checkPolicyReadiness,
-  _resetAuthorizeRuntimeState,
 };
