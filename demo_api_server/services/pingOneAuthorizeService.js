@@ -40,6 +40,7 @@
 const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
+const { CircuitBreaker } = require('../utils/circuitBreaker');
 
 // Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
 // provider outage yields a controlled failure in the authorization-decision
@@ -245,10 +246,57 @@ function _invalidateWorkerToken(failedToken) {
   }
 }
 
-/** Test hook: clear in-process authorize runtime state (worker token cache). */
+// Per-endpoint circuit breakers (P1AZ hardening amendment §E). One breaker per
+// evaluate target (decision endpoint id / policy id) so a failure streak on one
+// endpoint does not fast-fail an unrelated healthy one. After 3 consecutive
+// OUTAGE failures (timeout/network/5xx) the breaker opens for 60s and evaluate
+// calls fail fast with err.code='authorize_circuit_open' — the gates' existing
+// failover then engages instantly instead of paying the full timeout per call.
+const AUTHZ_BREAKER_THRESHOLD = 3;
+const AUTHZ_BREAKER_OPEN_MS = 60_000;
+const _breakers = new Map();
+function _getBreaker(key) {
+  let breaker = _breakers.get(key);
+  if (!breaker) {
+    breaker = new CircuitBreaker({ threshold: AUTHZ_BREAKER_THRESHOLD, openMs: AUTHZ_BREAKER_OPEN_MS });
+    _breakers.set(key, breaker);
+  }
+  return breaker;
+}
+
+/**
+ * Run an evaluate against its endpoint's circuit breaker. Only an OUTAGE (5xx or
+ * a network/timeout error with no HTTP status) counts as a failure; a reachable
+ * 4xx — including a 404 policy_not_found or the UserGroups 400 that has its own
+ * self-heal — records success so the engine's own error handlers keep running
+ * and config drift never masquerades as an outage.
+ */
+async function _evaluateWithBreaker(key, doEvaluate) {
+  const breaker = _getBreaker(key);
+  if (!breaker.canRequest()) {
+    const err = new Error('PingOne Authorize circuit open — failing fast to failover');
+    err.code = 'authorize_circuit_open';
+    throw err;
+  }
+  try {
+    const result = await doEvaluate();
+    breaker.recordSuccess();
+    return result;
+  } catch (err) {
+    if (typeof err?.status === 'number' && err.status >= 400 && err.status < 500) {
+      breaker.recordSuccess(); // reachable 4xx — engine is up, not an outage
+    } else {
+      breaker.recordFailure(); // 5xx or network/timeout
+    }
+    throw err;
+  }
+}
+
+/** Test hook: clear in-process authorize runtime state (worker token cache + breakers). */
 function _resetAuthorizeRuntimeState() {
   _workerTokenCache = null;
   _workerTokenInflight = null;
+  _breakers.clear();
 }
 
 /**
@@ -336,28 +384,30 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await _postDecisionWithAuth(url, JSON.stringify({ parameters }));
+  return _evaluateWithBreaker(`decision:${endpointId}`, async () => {
+    const response = await _postDecisionWithAuth(url, JSON.stringify({ parameters }));
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw _decisionError(response.status, text, 'decision endpoint');
-  }
+    if (!response.ok) {
+      const text = await response.text();
+      throw _decisionError(response.status, text, 'decision endpoint');
+    }
 
-  const raw = await response.json();
-  console.log('[BFF→P1AZ] RESPONSE: status=%d body=%j', response.status, raw);
-  const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(raw);
-  const decision = _normalizeDecision(raw, {
-    hasObligation: stepUpRequired || hitlRequired || consentRequired,
+    const raw = await response.json();
+    console.log('[BFF→P1AZ] RESPONSE: status=%d body=%j', response.status, raw);
+    const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(raw);
+    const decision = _normalizeDecision(raw, {
+      hasObligation: stepUpRequired || hitlRequired || consentRequired,
+    });
+    const policyNotFound = _isPolicyNotFoundEffect(raw);
+
+    const decisionId = raw.id || raw.decisionId || null;
+
+    const _debug = {
+      request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
+      response: raw,
+    };
+    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
   });
-  const policyNotFound = _isPolicyNotFoundEffect(raw);
-
-  const decisionId = raw.id || raw.decisionId || null;
-
-  const _debug = {
-    request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
-    response: raw,
-  };
-  return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
 }
 
 /**
@@ -523,19 +573,21 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await _postDecisionWithAuth(url, JSON.stringify(payload));
+  return _evaluateWithBreaker(`pdp:${policyId}`, async () => {
+    const response = await _postDecisionWithAuth(url, JSON.stringify(payload));
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw _decisionError(response.status, text, 'PDP');
-  }
+    if (!response.ok) {
+      const text = await response.text();
+      throw _decisionError(response.status, text, 'PDP');
+    }
 
-  const raw = await response.json();
-  const { stepUpRequired } = _classifyRawObligations(raw);
-  const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
-  const policyNotFound = _isPolicyNotFoundEffect(raw);
+    const raw = await response.json();
+    const { stepUpRequired } = _classifyRawObligations(raw);
+    const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
+    const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-  return { decision, policyNotFound, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
+    return { decision, policyNotFound, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1132,6 +1184,7 @@ module.exports = {
   _resetAuthorizeRuntimeState,
   _fetchRetryable: fetchRetryable,
   _postDecisionWithAuth,
+  _evaluateWithBreaker,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,
