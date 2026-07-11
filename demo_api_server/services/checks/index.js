@@ -4,4 +4,5 @@ require('./serversCheck');
 require('./authorizeCheck');
 require('./configCheck');
 require('./llmCheck');
+require('./gatewayCheck');
 module.exports = require('./registry');
