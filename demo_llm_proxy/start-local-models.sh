@@ -69,7 +69,7 @@ start_model() {
     --port "$port" \
     --threads "$threads" \
     --n-gpu-layers 33 \
-    --ctx-size 4096 \
+    --ctx-size 16384 \
     $extra \
     >"$log_file" 2>&1 &
 

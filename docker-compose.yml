@@ -579,10 +579,21 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       # When set, HitlApproved+UUID also requires an approved challenge in HITL store.
       HITL_SERVICE_URL: "http://hitl-service:3009"
+      # Accept Node-gateway + PingGateway audiences — same dual-audience pin as
+      # demo-api-server above; the stale single-value demo_mcp_gateway/.env
+      # entry otherwise wins via env_file and every PingGateway-minted token
+      # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
       - path: ./demo_authz_server/.env
+        required: false
+      # Worker credentials for the Rule 0a2 PingOne user lookup — without
+      # PINGONE_WORKER_CLIENT_ID/SECRET every decision fails closed with
+      # user_lookup_failed. Listed last so its values win over the gateway
+      # .env; the environment: block above still overrides everything.
+      - path: ./demo_api_server/.env
         required: false
     volumes:
       - ./scripts/otel-instrument.js:/otel/otel-instrument.js:ro
