@@ -8,7 +8,7 @@ const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuild
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
-const { isAdminClientToken, adminTokenAgentResponse } = require('./customerTokenGuard');
+const { isAdminClientToken, adminTokenAgentResponse, isVerticalExemptFromAdminTokenGuard } = require('./customerTokenGuard');
 const { executePluginToolViaMcp } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
 const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
@@ -1043,12 +1043,12 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // loop. Return a structured requiresCustomerLogin envelope (zero tool calls)
     // so the SPA offers "Log in as customer" vs "Cancel (stay on admin)".
     //
-    // Exempt the oauth-teaching vertical (OAuth Academy): it is a pure teaching
-    // surface whose explain/show tools never read customer banking data, so an
-    // admin signing in must still be able to learn. The one tool that does move
-    // money (the HITL transfer demo) stays protected by the tool-level guard in
+    // Exempt verticals where an admin token is the CORRECT credential — the
+    // admin console (its chips are admin-only tools) and OAuth Academy (a pure
+    // teaching surface). See isVerticalExemptFromAdminTokenGuard for the full
+    // rationale. Money-moving tools stay protected by the per-tool guard in
     // bffMcpToolExecutor (isCustomerBankingTool + isAdminClientToken).
-    if (vertical !== 'oauth-teaching' && isAdminClientToken(userToken)) {
+    if (!isVerticalExemptFromAdminTokenGuard(vertical) && isAdminClientToken(userToken)) {
       console.warn('[processAgentMessage] Admin-client token on customer agent — requiring customer login (no tool calls)');
       appEventService.logEvent('agent', 'warning',
         'Admin token used on the customer agent — prompting customer sign-in',

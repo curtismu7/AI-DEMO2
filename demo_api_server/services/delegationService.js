@@ -7,6 +7,7 @@ const { logEvent: logAppEvent } = require('./appEventService');
 const { getManagementToken } = require('./pingOneClientService');
 const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
 const { fetchFirstPopulationId } = require('./pingoneBootstrapService');
+const { DEMO_PASSWORD } = require('./pingoneProvisionService');
 
 // ---------------------------------------------------------------------------
 // Storage — LMDB
@@ -135,6 +136,8 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
 
   // Look up delegate in PingOne
   let delegateUserId = null;
+  let credentials = null;
+  let credentialsWarning = null;
   const { user: existingUser } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
 
   if (existingUser) {
@@ -160,6 +163,19 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
         { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000 },
       );
       delegateUserId = userRes.data.id;
+
+      // SECURITY: demo-only flow. We set a known demo password on the newly
+      // created delegate and return it in the API response so the presenter
+      // can log in as the delegate. Returning a password from an API is
+      // acceptable ONLY in this demo — never do this in production.
+      try {
+        pingOneUserService.initialize();
+        await pingOneUserService.setUserPassword(delegateUserId, DEMO_PASSWORD);
+        credentials = { email: delegateEmail, password: DEMO_PASSWORD, note: 'newly created user' };
+      } catch (pwErr) {
+        console.warn(`[delegationService] password set failed for new delegate ${delegateEmail}: ${pwErr.message}`);
+        credentialsWarning = 'Delegate user was created but setting their password failed — the delegation is still active.';
+      }
     } catch (err) {
       // When management credentials are not configured, store the delegation
       // locally without a PingOne user ID so the demo still works.
@@ -204,7 +220,13 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
     { tag: 'delegation/grant-success', metadata: { delegationId: record.id, delegatorUserId, delegateEmail, scopeCount: (scopes || []).length } }
   );
   await _syncGrantorDelegatedTo(delegatorUserId);
-  return { ok: true, delegation: toRecord(record), reauthRequired: true };
+  return {
+    ok: true,
+    delegation: toRecord(record),
+    reauthRequired: true,
+    ...(credentials ? { credentials } : {}),
+    ...(credentialsWarning ? { warning: credentialsWarning } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,84 @@
+# Jaeger all-in-one — UI + OTLP collector (free local tracing backend).
+# Mirrors docker-compose's `jaeger` service, but deployed by default (no
+# profile gate): the /tracing page's BFF proxy (demo_api_server/routes/tracing.js)
+# resolves http://jaeger:16686 via this Service's DNS name, and instrumented
+# services export OTLP spans to http://jaeger:4317. In-memory storage only —
+# traces reset on pod restart, which is fine for a demo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: jaeger
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: jaeger
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one:1.62.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 16686
+          name: query
+        - containerPort: 4317
+          name: otlp-grpc
+        env:
+        - name: COLLECTOR_OTLP_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 16686
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: jaeger
+spec:
+  type: ClusterIP
+  ports:
+  - port: 16686
+    targetPort: 16686
+    protocol: TCP
+    name: query
+  - port: 4317
+    targetPort: 4317
+    protocol: TCP
+    name: otlp-grpc
+  selector:
+    app: ai-demo
+    component: jaeger

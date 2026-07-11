@@ -892,3 +892,71 @@ describe("Suggested prompts — admin list", () => {
     expect(screen.queryByText('"Show me my accounts"')).not.toBeInTheDocument();
   });
 });
+
+// ─── Error-role messages must render in the transcript ───────────────────────
+// Regression: the transcript filter only passed user/assistant (+token-event
+// behind RFC info), so role:"error" cards — including the admin-token-on-
+// customer "Log in as customer" card from maybeHandleCustomerLogin — were
+// added to state but never rendered. The agent looked like it gave NO response.
+
+describe("Error-role messages render (admin token on customer agent)", () => {
+  let origFetch;
+
+  beforeEach(() => {
+    origFetch = global.fetch;
+    // Typed sends hit /api/demo-agent/nl with raw fetch; resolve it to the
+    // admin lookup_customer vertical intent. Any other fetch gets a benign {}.
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            source: "heuristic",
+            result: {
+              kind: "vertical",
+              vertical: "admin",
+              action: "lookup_customer",
+              params: {},
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    demoAgentService.sendAgentMessage.mockResolvedValue({
+      success: false,
+      error: "admin_token_on_customer",
+      code: "admin_token_on_customer",
+      requiresCustomerLogin: true,
+      reply:
+        "This action needs a customer sign-in. You are signed in with an admin token, " +
+        "which cannot read customer banking data. Log in as a customer to continue, " +
+        "or cancel to stay on the admin console.",
+      toolsCalled: [],
+      _status: 200,
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+  });
+
+  it("shows the login-as-customer error card instead of silence", async () => {
+    renderAgent({ user: adminUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message /);
+    fireEvent.change(input, { target: { value: "look up a customer" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // The NL → /agent/invoke flow must have run; the card must then RENDER
+    // (the original bug: message added to state but dropped by the role filter).
+    await waitFor(() => {
+      expect(demoAgentService.sendAgentMessage).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/needs a customer sign-in/i),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Log in as customer")).toBeInTheDocument();
+    });
+  });
+});

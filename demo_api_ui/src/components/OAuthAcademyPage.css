@@ -96,6 +96,19 @@
   border-top-right-radius: var(--v2-r-sm, 4px);
 }
 
+/* Real code snippets from the app, embedded in teaching answers. */
+.oauth-academy-page .message-bubble .msg-code {
+  margin: 0.5rem 0;
+  padding: 0.65rem 0.85rem;
+  background: #1e1b4b;
+  color: #e0e7ff;
+  border-radius: var(--v2-r-sm, 6px);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre;
+}
+
 /* ── Typing indicator ────────────────────────────────────────────────────── */
 .oauth-academy-page .typing-indicator {
   display: flex;

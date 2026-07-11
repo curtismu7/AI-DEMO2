@@ -1,6 +1,17 @@
 import React, { useRef, useState } from 'react';
-import { filterFolderFiles, indexFolderFiles } from '../services/codeSearchAPI';
+import {
+  filterFolderFiles,
+  indexFolderFiles,
+  FOLDER_MAX_FILE_BYTES,
+  FOLDER_MAX_FILES,
+} from '../services/codeSearchAPI';
+import { spinner } from '../services/spinnerService';
 import './CodebaseUploader.css';
+
+// Mirrors the multer `limits.fileSize` on the BFF route
+// (demo_api_server/routes/codeSearch.js) so oversized ZIPs are caught with a
+// clear message before the upload starts.
+const ZIP_MAX_BYTES = 50 * 1024 * 1024;
 
 export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed }) {
   const [file, setFile] = useState(null);
@@ -30,6 +41,26 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     if (!list || list.length === 0) return;
 
     const { accepted, skipped } = filterFolderFiles(list);
+
+    // Native system modal when files were skipped for size/count, stating what
+    // was skipped and the limits. The inline note below stays as the
+    // persistent record.
+    if (skipped > 0) {
+      window.alert(
+        `${skipped} of ${list.length} selected files will be skipped.\n\n` +
+          `Limits: max ${FOLDER_MAX_FILES} files per folder and ` +
+          `${Math.round(FOLDER_MAX_FILE_BYTES / 1024)} KB per file. ` +
+          `Binary, vendored (node_modules, .git, dist, build) and unsupported ` +
+          `file types are also excluded.`
+      );
+    }
+    if (accepted.length === 0) {
+      setFolderSkipped(skipped);
+      setFolderIndexed(0);
+      e.target.value = '';
+      return;
+    }
+
     const topFolder = (accepted[0]?.webkitRelativePath || 'folder').split('/')[0];
     // One id for the whole folder so all batches land in a single codebase and
     // the id we hand the page matches what is stored in Weaviate (queryable).
@@ -38,6 +69,9 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     setFolderSkipped(skipped);
     setFolderIndexed(0);
     setIsFolderIndexing(true);
+    // Global spinner modal while the folder uploads and indexes (same service
+    // CodeExplorerPage drives around its async work).
+    spinner.show('Indexing folder…', 'POST /api/code-search/index');
 
     try {
       // Client-batched upload to stay under body limits.
@@ -56,6 +90,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     } catch (err) {
       setFolderError(err.message || 'Folder indexing failed');
     } finally {
+      spinner.hide();
       setIsFolderIndexing(false);
       e.target.value = '';
     }
@@ -71,6 +106,19 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
 
     if (!codebaseName.trim()) {
       setError('Please enter a codebase name');
+      return;
+    }
+
+    // Native system modal for the ZIP-too-large validation path, stating the
+    // limit, before any upload starts.
+    if (file.size > ZIP_MAX_BYTES) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      window.alert(
+        `"${file.name}" is ${sizeMb} MB, which exceeds the ` +
+          `${ZIP_MAX_BYTES / (1024 * 1024)} MB upload limit for ZIP files. ` +
+          `Please upload a smaller archive.`
+      );
+      setError(`ZIP file too large (limit ${ZIP_MAX_BYTES / (1024 * 1024)} MB)`);
       return;
     }
 
@@ -135,7 +183,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
           onClick={() => folderInputRef.current?.click()}
           disabled={isFolderIndexing}
         >
-          {isFolderIndexing ? 'Indexing folder...' : '📁 Index a folder from your computer'}
+          {isFolderIndexing ? 'Indexing folder...' : 'Index a folder from your computer'}
         </button>
         {folderError && <div className="error-message">{folderError}</div>}
         {folderSkipped != null && (

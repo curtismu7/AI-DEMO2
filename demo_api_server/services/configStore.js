@@ -496,6 +496,16 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // ff_authorize_simulated derivation. See simulatedAuthorizeService.resolveAuthorizeMode().
   authorize_mode: { public: true, default: 'pingone' },
 
+  // PingOne Authorize decision-endpoint IDs — canonical lowercase keys saved by
+  // POST /api/authorize/bootstrap-demo-endpoints and the Admin Config UI, read
+  // back via getEffective (the PINGONE_AUTHORIZE_*_ENDPOINT_ID env vars still
+  // win through its env-fallback map). Without these entries setConfig silently
+  // dropped the bootstrap route's patch while the route reported
+  // configSaved:true, so the MCP first-tool gate failed closed (503) even after
+  // a "successful" bootstrap.
+  authorize_decision_endpoint_id:     { public: true, default: '' },
+  authorize_mcp_decision_endpoint_id: { public: true, default: '' },
+
   // Simulated (mock) Authorize rules — override env vars at runtime
   SIMULATED_AUTHORIZE_CONFIRM_AMOUNT:    { public: true, default: '250' },
   SIMULATED_AUTHORIZE_DENY_AMOUNT:       { public: true, default: '2000' },

@@ -33,6 +33,8 @@ COPY service-topology.json /service-topology.json
 COPY docs/ /docs/
 # llamacppModelsService.js resolves to /demo_llm_proxy/modelCatalog.js (../../ from /app/services)
 COPY demo_llm_proxy/modelCatalog.js /demo_llm_proxy/modelCatalog.js
+# pingOneAuthorizeService.getAuthorizationPoliciesFromSnapshot resolves to /snapshots/… (../../ from /app/services)
+COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
 
 # Create data directory with proper permissions. Pre-create the LMDB persist
 # dir (/app/data/persistent) so that when docker-compose mounts the

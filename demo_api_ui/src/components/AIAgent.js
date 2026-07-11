@@ -946,13 +946,15 @@ export default function BankingAgent({
   // Pre-fill NL input from external event (e.g. "Test Revocation" button after kill switch).
   // When detail.autoSend is set (AI Attacks drawer "Run this attack" prompts), open the
   // agent and submit the message through the live NL pipeline instead of just prefilling.
+  // Only one <AIAgent> instance mounts at a time (App.js shouldMountSingleAgent), so the
+  // mounted instance — floating OR inline — must handle the run; an inline early-return
+  // here made the drawer buttons dead on /dashboard (inline is always open, no double-run risk).
   useEffect(() => {
     const handler = (e) => {
       const msg = e.detail?.message;
       if (!msg) return;
       if (e.detail?.autoSend) {
-        if (isInline) return; // drawer-triggered runs belong to the floating agent
-        setIsOpen(true);
+        setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
         setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
         return;
@@ -962,7 +964,7 @@ export default function BankingAgent({
     };
     window.addEventListener("banking-agent-prefill", handler);
     return () => window.removeEventListener("banking-agent-prefill", handler);
-  }, [isInline]);
+  }, []);
 
   // Open demo guide when event dispatched from side menu
   useEffect(() => {
@@ -1057,18 +1059,53 @@ export default function BankingAgent({
   });
 
   // Run a Security Showcase attack from an external trigger (AI Attacks drawer).
+  // Handled by whichever single instance is mounted — floating or inline (see note
+  // on the banking-agent-prefill effect above).
   useEffect(() => {
     const handler = (e) => {
       const showcase = e.detail?.showcase;
       if (!showcase) return;
-      if (isInline) return; // drawer-triggered runs belong to the floating agent
-      setIsOpen(true);
+      setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
       // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
       setTimeout(() => runDrawerAttackRef.current?.({ showcase, label: e.detail?.label }), 80);
     };
     window.addEventListener("banking-run-showcase", handler);
     return () => window.removeEventListener("banking-run-showcase", handler);
-  }, [isInline]);
+  }, []);
+
+  // Presence flag + deferred replay for the AI Attacks drawer. On routes with no
+  // mounted agent (most admin sub-pages) AiAttacksPanel sees the flag unset,
+  // persists the pending run to sessionStorage, and navigates to /admin — the
+  // agent that mounts there replays it here. Defined after the runDrawerAttackRef
+  // effect so the ref is populated before the replay timer is armed.
+  useEffect(() => {
+    window.__bankingAgentMounted = true;
+    let raw = null;
+    try {
+      raw = sessionStorage.getItem("banking-agent-pending-attack");
+      if (raw) sessionStorage.removeItem("banking-agent-pending-attack");
+    } catch (_) {
+      raw = null; // sessionStorage unavailable — nothing to replay
+    }
+    if (raw) {
+      try {
+        const pending = JSON.parse(raw);
+        const payload = pending?.payload || {};
+        if (pending?.type === "showcase" && payload.showcase) {
+          setIsOpen(true);
+          setTimeout(() => runDrawerAttackRef.current?.({ showcase: payload.showcase, label: payload.label }), 300);
+        } else if (pending?.type === "prefill" && payload.message) {
+          setIsOpen(true);
+          setTimeout(() => runDrawerAttackRef.current?.({ message: payload.message }), 300);
+        }
+      } catch (_) {
+        // malformed pending action — drop it
+      }
+    }
+    return () => {
+      delete window.__bankingAgentMounted;
+    };
+  }, []);
 
   // Reset conversation when demo is cleared (no full page reload needed)
   useEffect(() => {
@@ -1796,6 +1833,29 @@ export default function BankingAgent({
     if (!aguiEnabled || !activityNarrationEnabled || !aguiState.error) return;
     activityUpsertStep(errorStep(activityInstitution));
   }, [aguiEnabled, activityNarrationEnabled, aguiState.error, activityUpsertStep, activityInstitution]);
+
+  // AG-UI run error → visible chat bubble. Without this a failed run (RUN_ERROR
+  // from the BFF, stream failure, MCP tool 503) left the thread silent — the
+  // user saw only RFC-info token events and no reply, which made config faults
+  // look like a dead agent. Dedupe per error value: useAgentState resets error
+  // to null on RUN_STARTED, so each new failure produces exactly one bubble.
+  const aguiErrorBubbleRef = useRef(null);
+  useEffect(() => {
+    if (!aguiState.error) {
+      // RUN_STARTED cleared the error — re-arm so an identical failure on the
+      // next run still gets its own bubble.
+      aguiErrorBubbleRef.current = null;
+      return;
+    }
+    if (aguiErrorBubbleRef.current === aguiState.error) return;
+    aguiErrorBubbleRef.current = aguiState.error;
+    addMessage(
+      "error",
+      `⚠️ The agent request failed: ${aguiState.error} — open Token Chain or MCP Traffic to see the failing step, then try again.`,
+    );
+    // addMessage has stable identity for the life of the component; listing it
+    // would re-fire this effect on unrelated renders.
+  }, [aguiState.error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run finished → close the story (unless it's an HITL/step-up interrupt,
   // in which case the agent is suspended waiting for the user — keep running).
@@ -8586,6 +8646,7 @@ export default function BankingAgent({
                     (msg) =>
                       msg.role === "user" ||
                       msg.role === "assistant" ||
+                      msg.role === "error" ||
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg) => {

@@ -14,6 +14,7 @@ const {
   getRecentDecisions,
   getDecisionEndpoints,
   getAuthorizationPolicies,
+  getAuthorizationPoliciesFromSnapshot,
   isConfigured,
   isWorkerCredentialReady,
   provisionDemoDecisionEndpoints,
@@ -680,6 +681,37 @@ router.get('/pingone-policies', authenticateToken, async (_req, res) => {
     return res.json({ ok: true, policies, environmentId });
   } catch (err) {
     console.error('[authorize/pingone-policies] Error:', err.message);
+    // PingOne rejects GET /authorizationPolicies for worker (client_credentials)
+    // tokens with 403 INSUFFICIENT_PERMISSIONS even when the worker app holds
+    // Environment Admin + Identity Data Admin (correctly env-scoped), the
+    // Authorize Gateway Policy Evaluator role, and the license includes
+    // Dynamic Authorization (verified live 2026-07-10: /decisionEndpoints and
+    // /authorizationVersions return 200 with the same token; /authorizationPolicies,
+    // /trustFramework/* and /deploymentPackages all 403). The policy-editor API
+    // appears to accept only admin *user* (console) tokens. Surface that as
+    // guidance (same note channel as the missing-credentials branch) instead of
+    // a raw upstream error dump.
+    if (err.status === 403) {
+      // Fall back to the repo snapshot — the import source of truth for these
+      // policies (pingone/pingone-authorize-configure/SKILL.md). Same tree the
+      // console shows, rendered from the file that was imported.
+      const snapshotPolicies = getAuthorizationPoliciesFromSnapshot();
+      if (Array.isArray(snapshotPolicies) && snapshotPolicies.length > 0) {
+        return res.json({
+          ok: true,
+          policies: snapshotPolicies,
+          environmentId,
+          source: 'snapshot',
+          note: 'Rendered from the repo snapshot (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) — the file these policies are imported from. PingOne’s policy-editor API rejects worker tokens, so a live read is not possible; if the policies were edited in the console after import, this view may lag the live tree.',
+        });
+      }
+      return res.json({
+        ok: true,
+        policies: [],
+        environmentId,
+        note: 'PingOne returned 403 for the Authorize policy list. This endpoint currently rejects worker (client_credentials) tokens regardless of admin roles or license — policy evaluation and decision endpoints still work. View the policy tree in the PingOne console under Authorize → Policies.',
+      });
+    }
     return res.status(502).json({ ok: false, policies: [], environmentId, error: err.message });
   }
 });

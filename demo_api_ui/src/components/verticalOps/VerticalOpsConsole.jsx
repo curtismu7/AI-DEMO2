@@ -4,6 +4,7 @@ import bffAxios from '../../services/bffAxios';
 import { notifySuccess, notifyError, notifyWarning } from '../../utils/appToast';
 import { getVerticalConfig } from './verticalOpsConfig';
 import RecordDrawer from './RecordDrawer';
+import TokenChainTraceRail from '../TokenChainTraceRail';
 import './VerticalOpsConsole.css';
 
 export default function VerticalOpsConsole({ vertical }) {
@@ -131,6 +132,13 @@ export default function VerticalOpsConsole({ vertical }) {
           ))}
         </section>
       )}
+
+      <details className="vops__trace" data-testid="vops-token-chain">
+        <summary>Token Chain — MCP Route (Agent → MCP Server)</summary>
+        <div className="vops__tracebody">
+          <TokenChainTraceRail mcpRouteOnly />
+        </div>
+      </details>
 
       <RecordDrawer open={!!drawer} vertical={vertical} category={drawer?.category || {}} row={drawer?.row} customer={result?.customer} query={q} onClose={() => setDrawer(null)} onAction={runAction} />
     </div>

@@ -44,9 +44,22 @@ spec:
           value: "http://mcp-invest:8081"
         - name: DEMO_API_BASE_URL
           value: "https://demo-api-server:3001"
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "mcp-invest"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
         envFrom:
         - configMapRef:
             name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "128Mi"
@@ -70,6 +83,10 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
       restartPolicy: Always
 ---
 apiVersion: v1

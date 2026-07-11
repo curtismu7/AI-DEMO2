@@ -81,7 +81,15 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/02-configmap.yaml"
   kubectl apply -f "$SCRIPT_DIR/21-api-server-logs-pvc.yaml"
 
-  # Deploy in dependency order: backends → bff → gateway/agents → ui
+  # OTel bootstrap script mounted at /otel in every instrumented Node service
+  # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
+  kubectl create configmap otel-instrument -n "$NS" \
+    --from-file=otel-instrument.js="$SCRIPT_DIR/../scripts/otel-instrument.js" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+  # Deploy in dependency order: tracing → backends → bff → gateway/agents → ui
+  # Jaeger first so the OTLP collector is up before services export spans
+  kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-invest-deployment.yaml"
@@ -129,7 +137,7 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in mcp-server mcp-invest mortgage-service hitl-service \
+  for dep in jaeger mcp-server mcp-invest mortgage-service hitl-service \
              demo-api-server ping-gateway agent-service \
              "${AGENT_SELECTION}-agent" frontend; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s &
