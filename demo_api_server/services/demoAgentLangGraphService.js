@@ -1415,18 +1415,25 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         error: 'max_tool_iterations',
       };
     }
-    // reasoning_unavailable: LLM service failed. Fall back to showing the catalog
-    // of what the agent can do (same as heuristics-only mode) to help the user
-    // rephrase their question into something we can actually handle.
-    const { verticalId: _fallbackVerticalId, verticalCtx: _fallbackVerticalCtx } = resolveVerticalRouting(vertical);
+    // reasoning_unavailable: LLM service failed. Say so honestly — the old
+    // behavior returned the heuristics capability catalog as success:true,
+    // which misreported an LLM/provider outage as "Heuristics-only mode" and
+    // sent whoever debugged it down the wrong path (it masked the live-site
+    // provider misconfiguration for a full day). heuristicFallbackResult (a
+    // real matched heuristic answer) still takes precedence when present.
     return heuristicFallbackResult || {
-      reply: buildCatalogMessage(_fallbackVerticalCtx),
-      success: true,
+      reply:
+        `The ${provider || 'configured'} LLM could not complete this request` +
+        `${loopResult.reason ? ` (${loopResult.reason})` : ''}. ` +
+        'Switch the agent to "Heuristics only" mode for deterministic responses, ' +
+        'or check the LLM backend status and try again.',
+      success: false,
       toolsCalled: [],
       tokensUsed: 0,
       requiresConsent: false,
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
+      error: 'reasoning_unavailable',
     };
   } catch (rawError) {
     // Normalize non-Error throws (e.g. thrown strings/objects) so property accesses below are safe.

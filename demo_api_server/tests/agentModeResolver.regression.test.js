@@ -41,9 +41,11 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     });
   });
 
-  test('AGENT_MODES lists exactly the six single-brain modes', () => {
+  test('AGENT_MODES lists exactly the single-brain modes, Gemini first among LLMs', () => {
+    // Gemini leads the LLM modes (picker order mirrors the UI table in
+    // demo_api_ui/src/config/agentModes.js — fastest live-demo provider).
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'llamacpp', 'mlx', 'claude', 'gemini', 'helix_google', 'google',
+      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google', 'google',
     ]);
   });
 

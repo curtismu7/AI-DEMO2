@@ -16,10 +16,13 @@
 // Each is exactly ONE router with NO fallback chain:
 const AGENT_MODES = [
   { id: 'heuristics',   label: 'Heuristics only', provider: null,        heuristicRouting: true,  external: false },
+  // Gemini listed first among LLM modes — mirrors the UI picker order in
+  // demo_api_ui/src/config/agentModes.js (fastest live-demo LLM on the
+  // CPU-only SE cluster). Resolution is by id; order is cosmetic here.
+  { id: 'gemini',       label: 'Google Gemini only', provider: 'google', heuristicRouting: false, external: true  },
   { id: 'llamacpp',     label: 'llama.cpp only',  provider: 'llamacpp',  heuristicRouting: false, external: true  },
   { id: 'mlx',          label: 'MLX (Apple)',     provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
-  { id: 'gemini',       label: 'Google Gemini only', provider: 'google', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
   { id: 'google',       label: 'Google (Gemini) only', provider: 'google',    heuristicRouting: false, external: true  },
 ];

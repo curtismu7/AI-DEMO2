@@ -130,6 +130,16 @@ derive_ns() {
 NS="$(derive_ns)"
 SERVICE="${1:-}"
 
+# ── Build-input preflight ─────────────────────────────────────────────────────
+# langchain_agent/repo-src/ is a GENERATED staging dir (gitignored) that the
+# langchain-agent Dockerfile COPYs — a clean checkout has none and the build
+# fails with "repo-src: not found". Generate it when missing.
+if [[ -z "$SERVICE" || "$SERVICE" == "agent" ]] && [[ ! -d "$BASEDIR/langchain_agent/repo-src" ]]; then
+  info "langchain_agent/repo-src missing — generating (build-codegraph.py --stage-src)..."
+  python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" \
+    || die "repo-src generation failed — run: python3 scripts/build-codegraph.py --stage-src langchain_agent/repo-src"
+fi
+
 # ── GHCR login ────────────────────────────────────────────────────────────────
 info "Logging in to GHCR..."
 docker logout ghcr.io >/dev/null 2>&1 || true
