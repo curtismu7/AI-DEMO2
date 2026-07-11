@@ -20,6 +20,7 @@ import { loadConfig } from './config';
 import { loadVaultIntoEnv } from './vault';
 import { makeReasonHandler } from './reasonRoute';
 import { makeAgentRunHandler } from './agentRunHandler';
+import { getPromptStoreStatus } from './promptStore';
 
 // Vault load MUST run (and complete) BEFORE loadConfig() reads process.env.
 // loadVaultIntoEnv is async (Argon2id KDF), so — exactly like
@@ -87,6 +88,7 @@ app.get('/health', (_req, res) => {
     uptime: process.uptime(),
     checks: {
       env: 'ok',
+      prompts: getPromptStoreStatus().source,
     },
   });
 });
