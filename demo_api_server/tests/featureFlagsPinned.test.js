@@ -80,3 +80,25 @@ describe('serializeFlag pinned/pinnedBy', () => {
     expect(out.value).toBe('pinggateway');
   });
 });
+
+describe('ff_tracing flag registration', () => {
+  test('exists in registry as a boolean defaulting to true', () => {
+    const f = flagById('ff_tracing');
+    expect(f).toBeDefined();
+    expect(f.type).toBe('boolean');
+    expect(f.defaultValue).toBe(true);
+    expect(f.category).toBe('Observability');
+  });
+
+  test('is NOT pinned even when OTEL endpoint env is set (unlocked toggle)', () => {
+    const saved = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://jaeger:4317';
+    try {
+      const out = serializeFlag(flagById('ff_tracing'));
+      expect(out.pinned).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      else process.env.OTEL_EXPORTER_OTLP_ENDPOINT = saved;
+    }
+  });
+});
