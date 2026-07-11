@@ -28,7 +28,6 @@ export const AGENT_MODES = [
   { id: "mlx",          label: "MLX",        provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
-  { id: "google",       label: "Google API", provider: "google",    pure: true  },
 ];
 
 // Picker order for the core modes.

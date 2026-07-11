@@ -29,12 +29,6 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     });
   });
 
-  test('google: google provider, routing off, defaults to bff wiring', () => {
-    expect(resolveAgentMode('google')).toEqual({
-      mode: 'google', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
-    });
-  });
-
   test('mlx: mlx provider, routing off (pure LLM), defaults to bff wiring', () => {
     expect(resolveAgentMode('mlx')).toEqual({
       mode: 'mlx', provider: 'mlx', heuristicRouting: false, externalWiring: 'bff',
@@ -45,7 +39,7 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     // Gemini leads the LLM modes (picker order mirrors the UI table in
     // demo_api_ui/src/config/agentModes.js — fastest live-demo provider).
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google', 'google',
+      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google',
     ]);
   });
 
@@ -58,7 +52,7 @@ describe('resolveAgentMode (five single-brain modes)', () => {
   });
 
   test('retired modes resolve to the default (heuristics) rather than throwing', () => {
-    ['heuristics_helix', 'heuristics_ollama', 'lmstudio', 'chatgpt', 'bogus']
+    ['heuristics_helix', 'heuristics_ollama', 'lmstudio', 'chatgpt', 'google', 'bogus']
       .forEach((id) => { expect(resolveAgentMode(id).mode).toBe('heuristics'); });
   });
 
