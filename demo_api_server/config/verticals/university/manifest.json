@@ -80,6 +80,7 @@
       { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course" },
       { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "tool": "release_transcript" },
       { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment" },
+      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "tool": "sensitive_student_finance" },
       { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm" },
       { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
     ],

@@ -124,6 +124,65 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(calls.exchanges[1].scopes).toEqual(['read']);
   });
 
+  // A specialist tool whose SoT entry carries an a2aDelegatedScope derives that
+  // scope (least privilege) instead of the generic read — mirrors the real
+  // scope-topology.json wiring for government/university/manufacturing.
+  const a2aTopo = (tool, scope) => ({
+    toolScopes: () => ['read'],
+    a2aDelegatedScope: (t) => (t === tool ? scope : null),
+  });
+
+  test('derives tax:read for the government Tax Records Specialist', async () => {
+    const { oauthService, calls } = makeOauth();
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'government',
+      deps: {
+        ...bankingDeps({ pingone_tax_agent_client_id: 'tax-agent', pingone_tax_agent_client_secret: 's' }),
+        oauthService,
+        scopeTopology: a2aTopo('sensitive_tax_record', 'tax:read'),
+      },
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.specialist).toBe('Tax Records Specialist');
+    expect(result.agent2).toBe('tax-agent');
+    expect(result.scopes).toEqual(['tax:read']);
+    expect(calls.exchanges[1].scopes).toEqual(['tax:read']);
+  });
+
+  test('derives finaid:read for the university Financial Aid Specialist', async () => {
+    const { oauthService, calls } = makeOauth();
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'university',
+      deps: {
+        ...bankingDeps({ pingone_finaid_agent_client_id: 'finaid-agent', pingone_finaid_agent_client_secret: 's' }),
+        oauthService,
+        scopeTopology: a2aTopo('sensitive_student_finance', 'finaid:read'),
+      },
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.specialist).toBe('Financial Aid Specialist');
+    expect(result.agent2).toBe('finaid-agent');
+    expect(result.scopes).toEqual(['finaid:read']);
+    expect(calls.exchanges[1].scopes).toEqual(['finaid:read']);
+  });
+
+  test('derives supplier:read for the manufacturing Supplier Contract Specialist', async () => {
+    const { oauthService, calls } = makeOauth();
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'manufacturing',
+      deps: {
+        ...bankingDeps({ pingone_supplier_agent_client_id: 'supplier-agent', pingone_supplier_agent_client_secret: 's' }),
+        oauthService,
+        scopeTopology: a2aTopo('sensitive_supplier_contract', 'supplier:read'),
+      },
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.specialist).toBe('Supplier Contract Specialist');
+    expect(result.agent2).toBe('supplier-agent');
+    expect(result.scopes).toEqual(['supplier:read']);
+    expect(calls.exchanges[1].scopes).toEqual(['supplier:read']);
+  });
+
   test('emits the a2a-* token-chain events in order with nested act on exchange2', async () => {
     const { oauthService } = makeOauth();
     const tokenEvents = [];

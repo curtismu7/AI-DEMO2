@@ -8,6 +8,8 @@ const store = createManufacturingStore();
 const { tools, execute } = buildManufacturingTools(store);
 
 const HEURISTICS = [
+  // sensitive_supplier_contract must precede the pack's supplier/read rules.
+  { re: /\bsensitive\b.*\bsupplier\b|\bsupplier\b.*\bsensitive\b/i, action: 'sensitive_supplier_contract' },
   /* PACK:heuristics:start */
   { re: /\b(close|resolve|complete)\b.*\bmaintenance\b.*\bticket\b|\bmaintenance\b.*\bticket\b.*\b(clos\w*|resolv\w*|complet\w*)\b/i, action: 'close_maintenance_ticket', extractsRecordId: true },
   { re: /\b(complete|pass|sign[\s-]off)\b.*\b(quality|QC|QA)\b.*\binspection\b|\b(quality|QC|QA)\b.*\binspection\b.*\b(complet\w*|pass\w*|sign[\s-]?off)\b/i, action: 'complete_quality_inspection', extractsRecordId: true },

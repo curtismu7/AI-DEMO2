@@ -1905,6 +1905,33 @@
         "additionalProperties": false
       }
     },
+    "sensitive_student_finance": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_supplier_contract": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "sensitive_tax_record": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "sequential_think": {
       "source": "olb",
       "inputSchema": {

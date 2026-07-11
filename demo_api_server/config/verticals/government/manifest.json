@@ -80,6 +80,7 @@
       { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee" },
       { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "tool": "release_record" },
       { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit" },
+      { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "tool": "sensitive_tax_record" },
       { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm" },
       { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
     ],

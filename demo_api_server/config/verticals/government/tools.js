@@ -35,6 +35,7 @@ function buildGovernmentTools(store) {
     { name: 'view_filings', description: 'List the resident\'s filing history (applications, inspections, renewals).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'pay_fee', description: 'Pay an outstanding permit fee.', inputSchema: { type: 'object', properties: { amount: { type: 'number' }, permitId: { type: 'string' } } }, scopes: ['write'], authz: {} },
     { name: 'release_record', description: 'Release a permit record to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { permitId: { type: 'string' } }, required: ['permitId'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'sensitive_tax_record', description: 'Access highly sensitive tax assessment records. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
   ];
@@ -160,6 +161,25 @@ function buildGovernmentTools(store) {
         if (!permit) return { result: { error: 'permit not found' }, render: 'text' };
         return { result: permit, render: 'release_record' };
       }
+      case 'sensitive_tax_record':
+        return {
+          result: {
+            data: {
+              record: {
+                parcel: '17-22-401-001',
+                owner: '[REDACTED]',
+                address: '1234 Maple Street, Springfield, IL',
+                taxYear: 2026,
+                assessedValue: 224000,
+                taxDue: 4480,
+                status: 'Pending',
+              },
+              sensitiveDataAccessed: true,
+              accessGrantedBy: 'consent',
+            },
+          },
+          render: 'text',
+        };
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };
