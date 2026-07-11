@@ -379,9 +379,30 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
       emit(res, { type: EventType.STEP_FINISHED, stepName: 'reasoning-' + (iter + 1) });
 
       if (reasonResult.type === 'final') {
+        const answer = reasonResult.answer ?? '';
+        // A provider failure (Gemini 429, missing key, empty/malformed output) returns
+        // { type:'final', answer:'', reasoningUnavailable:true }. Streaming that as-is
+        // emits a blank assistant bubble the client believes succeeded. Surface a real
+        // degraded message and end the run as an error instead of empty-success —
+        // mirrors the BFF reason-loop coercion (demoAgentLangGraphService.js).
+        if (reasonResult.reasoningUnavailable || !answer.trim()) {
+          const degraded =
+            'The AI model could not complete this request (reasoning unavailable — the provider may be ' +
+            'rate-limited or misconfigured). Switch to Heuristics-only mode or try again.';
+          const msgId = uid('msg');
+          emit(res, { type: EventType.TEXT_MESSAGE_START, messageId: msgId, role: 'assistant' });
+          emit(res, { type: EventType.TEXT_MESSAGE_CONTENT, messageId: msgId, delta: degraded });
+          emit(res, { type: EventType.TEXT_MESSAGE_END, messageId: msgId });
+          emitStateDelta(res, [
+            { op: 'replace', path: '/activeRun/status', value: 'error' },
+            { op: 'replace', path: '/activeRun/currentStep', value: null },
+          ]);
+          emit(res, { type: EventType.RUN_ERROR, message: 'reasoning_unavailable', code: 'REASONING_UNAVAILABLE' });
+          res.end();
+          return;
+        }
         const msgId = uid('msg');
         emit(res, { type: EventType.TEXT_MESSAGE_START, messageId: msgId, role: 'assistant' });
-        const answer = reasonResult.answer ?? '';
         const chunkSize = 100;
         for (let i = 0; i < answer.length; i += chunkSize) {
           if (aborted) break;

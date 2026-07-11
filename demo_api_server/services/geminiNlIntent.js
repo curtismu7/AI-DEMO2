@@ -212,31 +212,45 @@ function ensureRenderableAnswer(result) {
 async function answerWithLlamaCpp(userMessage, context = {}) {
   try {
     const { callLlamaCpp } = require('./llamacppLlmService');
-    const systemWithCtx = buildSystemWithCtx(null, context);
-    const raw = await callLlamaCpp([
-      { role: 'system', content: systemWithCtx },
+    const domain = (typeof context.vertical === 'string' && context.vertical)
+      ? context.vertical.replace(/-/g, ' ')
+      : 'banking';
+    const answer = await callLlamaCpp([
+      {
+        role: 'system',
+        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+      },
       { role: 'user', content: userMessage },
     ]);
-    return raw || null;
+    if (answer) {
+      return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
+    }
   } catch (err) {
     console.warn('[nlIntent] llama.cpp conversational error:', err.message);
-    return null;
   }
+  return null;
 }
 
 async function answerWithMlx(userMessage, context = {}) {
   try {
     const { callMlx } = require('./mlxLlmService');
-    const systemWithCtx = buildSystemWithCtx(null, context);
-    const raw = await callMlx([
-      { role: 'system', content: systemWithCtx },
+    const domain = (typeof context.vertical === 'string' && context.vertical)
+      ? context.vertical.replace(/-/g, ' ')
+      : 'banking';
+    const answer = await callMlx([
+      {
+        role: 'system',
+        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+      },
       { role: 'user', content: userMessage },
     ]);
-    return raw || null;
+    if (answer) {
+      return { kind: 'education', education: { panel: 'general-knowledge' }, message: answer };
+    }
   } catch (err) {
     console.warn('[nlIntent] mlx-lm conversational error:', err.message);
-    return null;
   }
+  return null;
 }
 
 async function answerWithGoogle(userMessage, context = {}, langchainConfig = {}) {
