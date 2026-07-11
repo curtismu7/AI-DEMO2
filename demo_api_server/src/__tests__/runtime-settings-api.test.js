@@ -68,6 +68,10 @@ jest.mock('../../services/pingOneAuthorizeService', () => ({
   evaluateTransaction: jest.fn().mockResolvedValue({ decision: 'PERMIT', raw: {} }),
   evaluateMcpToolDelegation: jest.fn().mockResolvedValue({ decision: 'PERMIT', stepUpRequired: false, raw: {} }),
   isMcpDelegationDecisionReady: jest.fn(() => false),
+  // GET /api/admin/settings now returns authorizeStatus, whose
+  // getAuthorizationStatusSummary() calls isConfigured() — without this the
+  // route 500s under the mock and every settings test fails.
+  isConfigured: jest.fn(() => false),
 }));
 
 const app = require('../../server');

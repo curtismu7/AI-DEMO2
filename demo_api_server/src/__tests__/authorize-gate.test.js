@@ -339,7 +339,10 @@ describe('PingOne Authorize Gate — POST /api/transactions', () => {
   // ── ACR passed through to Authorize ──────────────────────────────────────────
   describe('user ACR is forwarded to the Authorize policy', () => {
     it('should include acr in the evaluation context', async () => {
-      runtimeSettings.update({ authorizeEnabled: true, authorizePolicyId: 'test-policy-id' }, 'test');
+      // stepUpMaxAge: 0 — the RFC 9470 auth_time freshness downgrade must not
+      // fire here (the mock user has no authTime, so any positive max-age —
+      // e.g. STEP_UP_MAX_AGE from a local .env — would null the acr).
+      runtimeSettings.update({ authorizeEnabled: true, authorizePolicyId: 'test-policy-id', stepUpMaxAge: 0 }, 'test');
       evaluateTransaction.mockResolvedValueOnce({ decision: 'PERMIT', raw: {} });
 
       await request(app)
