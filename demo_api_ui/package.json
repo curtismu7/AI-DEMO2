@@ -60,6 +60,8 @@
     "test:e2e:real:careconnect": "playwright test tests/e2e/careconnect-three-chips.real.spec.js --config=playwright.real.config.js --reporter=list",
     "test:e2e:real:careconnect:core": "playwright test tests/e2e/careconnect-core-chips.real.spec.js --config=playwright.real.config.js --reporter=list",
     "test:e2e:real:vertical:core": "playwright test tests/e2e/vertical-core-chips.real.spec.js --config=playwright.real.config.js --reporter=list",
+    "test:e2e:evidence": "playwright test tests/e2e/evidence-screenshots.real.spec.js --config=playwright.real.config.js --reporter=list",
+    "test:e2e:usecases": "playwright test tests/e2e/use-cases-agent.real.spec.js --config=playwright.real.config.js --reporter=list",
     "test:e2e:real:local": "E2E_BASE_URL=http://localhost:3000 playwright test --config=playwright.real.config.js --reporter=list",
     "test:e2e:smoke": "playwright test tests/e2e/url-smoke.spec.js"
   },

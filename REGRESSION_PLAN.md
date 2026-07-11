@@ -81,6 +81,25 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-10 — Heuristics mode silently used an LLM on typed sends; bk9/bk10 threw "Unknown action"
+
+- **Files changed:** `demo_api_ui/src/components/AIAgent.js`
+- **What was broken:** (1) `activeLlmProvider` fell back to stale `nlMeta.activeLlmProvider`
+  in heuristics mode, so "Heuristics only" typed messages carried the last LLM provider on
+  `/nl` — and, with `ff_agui_enabled=true`, streamed to `POST /api/agent/run` where the BFF
+  resolves a missing provider to the default LLM (`agentRun.js` → 'anthropic'). (2) The
+  heuristic parser resolves `unusual_patterns`/`afford_check` (bk9/bk10 chips) but
+  `runAction` had no case for them — "❌ Unknown action" toast.
+- **What was fixed:** `activeLlmProvider` trusts the `agentModes.js` SSOT for every known
+  mode (heuristics → null is authoritative); both AG-UI branches require an LLM provider so
+  heuristics uses the legacy `/nl` parser; `runAction` handles the two LLM-analysis actions
+  (LLM modes → `sequential_think`, heuristics → explicit needs-an-LLM reply).
+- **Do not break:** heuristics mode must send `provider:"heuristic"` on `/nl` (server
+  short-circuits to heuristic-only, `demoAgentNl.js`); pure-LLM modes keep their AG-UI
+  streaming path; the mode→provider table stays imported from `config/agentModes.js`.
+- **Verify:** `npm run test:e2e:evidence` (asserts each `/nl` request carries the picker's
+  provider and no error-card/toast renders).
+
 ### 2026-07-10 — PingGateway Exchange #2 sent `audience=` (ignored) instead of `resource=`
 
 **Files changed:** `demo_api_server/services/agentMcpTokenService.js` (finalAudiences
