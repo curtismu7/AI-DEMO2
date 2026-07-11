@@ -27,7 +27,7 @@ function buildInvestmentTools(store) {
     { name: 'sell_security', description: 'Sell shares of a security held in the portfolio.', inputSchema: { type: 'object', properties: { symbol: { type: 'string' }, shares: { type: 'number' }, price: { type: 'number' } }, required: ['symbol', 'shares'] }, scopes: ['write'], authz: {} },
     { name: 'deposit', description: 'Deposit funds into a managed portfolio.', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'withdraw', description: 'Withdraw funds from a managed portfolio.', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
-    { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: ['symbol', 'amount'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'rebalance_portfolio', description: "Rebalance a portfolio to its target allocation.", inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -61,8 +61,15 @@ function buildInvestmentTools(store) {
         return { result: store.deposit(userId, params || {}), render: 'deposit' };
       case 'withdraw':
         return { result: store.withdraw(userId, params || {}), render: 'withdraw' };
-      case 'large_trade':
-        return { result: store.largeTrade(userId, params || {}), render: 'large_trade' };
+      case 'large_trade': {
+        // Consent/step-up showcase chips carry no symbol/amount — default the symbol to a
+        // held security and a nominal amount so the security control runs against a real trade.
+        // An amount-driven policy chip that DOES carry an amount keeps it (UC6/7/8 behavior).
+        const _p = params || {};
+        const _sym = _p.symbol || (store.get(userId).holdings[0] || {}).symbol || 'VTI';
+        const _amt = _p.amount != null ? _p.amount : 100;
+        return { result: store.largeTrade(userId, { ..._p, symbol: _sym, amount: _amt }), render: 'large_trade' };
+      }
       case 'rebalance_portfolio':
         return { result: store.rebalancePortfolio(userId, params || {}), render: 'rebalance_portfolio' };
       case 'api_key_demo':

@@ -34,7 +34,7 @@ function buildGovernmentTools(store) {
     { name: 'view_fees', description: 'Show the resident\'s outstanding permit fees.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_filings', description: 'List the resident\'s filing history (applications, inspections, renewals).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'pay_fee', description: 'Pay an outstanding permit fee.', inputSchema: { type: 'object', properties: { amount: { type: 'number' }, permitId: { type: 'string' } } }, scopes: ['write'], authz: {} },
-    { name: 'release_record', description: 'Release a permit record to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { permitId: { type: 'string' } }, required: ['permitId'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'release_record', description: 'Release a permit record to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { permitId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'sensitive_tax_record', description: 'Access highly sensitive tax assessment records. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -157,7 +157,10 @@ function buildGovernmentTools(store) {
       case 'pay_fee':
         return { result: store.payFee(userId, params || {}), render: 'pay_fee' };
       case 'release_record': {
-        const permit = store.releaseRecord(userId, params && params.permitId);
+        // Consent/step-up showcase chips carry no permit id — default to the first permit
+        // so the security control (consent + step-up) is demonstrated against a real record.
+        const _pid = (params && params.permitId) || (store.get(userId).permits[0] || {}).id;
+        const permit = store.releaseRecord(userId, _pid);
         if (!permit) return { result: { error: 'permit not found' }, render: 'text' };
         return { result: permit, render: 'release_record' };
       }

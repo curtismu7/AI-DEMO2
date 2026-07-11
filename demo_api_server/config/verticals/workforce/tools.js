@@ -61,7 +61,7 @@ function buildWorkforceTools(store) {
           category: { type: 'string' },
           amount: { type: 'number' },
         },
-        required: ['amount'],
+        required: [],
       },
       scopes: ['write'],
       authz: { stepUp: true, consent: true },
@@ -74,7 +74,7 @@ function buildWorkforceTools(store) {
         properties: {
           days: { type: 'number' },
         },
-        required: ['days'],
+        required: [],
       },
       scopes: ['write'],
       authz: { consent: true },
@@ -220,14 +220,21 @@ function buildWorkforceTools(store) {
 
       case 'submit_expense': {
         // Amount-driven policy chip ("submit a $300 expense") may omit a category — default it
-        // so the Authorize outcome (amount-driven) can still be demonstrated.
+        // so the Authorize outcome (amount-driven) can still be demonstrated. A consent/step-up
+        // showcase chip may omit the amount too — default it so the control runs against a real
+        // expense. An amount-driven chip that DOES carry an amount keeps it (UC6/7/8 behavior).
         const _p = params || {};
         const _category = (_p.category && String(_p.category).trim()) ? _p.category : 'Travel';
-        return { result: store.submitExpense(userId, { ..._p, category: _category }), render: 'submit_expense' };
+        const _amount = _p.amount != null ? _p.amount : 100;
+        return { result: store.submitExpense(userId, { ..._p, category: _category, amount: _amount }), render: 'submit_expense' };
       }
 
       case 'request_time_off': {
-        const out = store.requestTimeOff(userId, params || {});
+        // Consent showcase / one-click chips carry no day count — default to a single day
+        // so the consent control runs instead of dead-ending on a missing-param prompt.
+        const _p = params || {};
+        const _days = _p.days != null ? _p.days : 1;
+        const out = store.requestTimeOff(userId, { ..._p, days: _days });
         if (out && out.error) {
           return { result: { error: out.error }, render: 'text' };
         }

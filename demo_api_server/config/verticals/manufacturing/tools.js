@@ -33,7 +33,7 @@ function buildManufacturingTools(store) {
     { name: 'view_inventory', description: 'Show on-hand inventory value and stock levels.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_production_history', description: 'List production-run history (setups, runs, inspections, shipments).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'schedule_run', description: 'Schedule a production run for a work order.', inputSchema: { type: 'object', properties: { workOrder: { type: 'string' }, when: { type: 'string' } } }, scopes: ['write'], authz: {} },
-    { name: 'release_work_order', description: 'Release a work order to the production floor (requires step-up + consent).', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } }, required: ['orderId'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'release_work_order', description: 'Release a work order to the production floor (requires step-up + consent).', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'sensitive_supplier_contract', description: 'Access highly sensitive supplier contract terms. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -172,7 +172,10 @@ function buildManufacturingTools(store) {
       case 'schedule_run':
         return { result: store.scheduleRun(userId, params || {}), render: 'schedule_run' };
       case 'release_work_order': {
-        const wo = store.releaseWorkOrder(userId, params && params.orderId);
+        // Consent/step-up showcase chips carry no order id — default to the first work order
+        // so the security control (consent + step-up) is demonstrated against a real record.
+        const _oid = (params && params.orderId) || (store.get(userId).workOrders[0] || {}).id;
+        const wo = store.releaseWorkOrder(userId, _oid);
         if (!wo) return { result: { error: 'work order not found' }, render: 'text' };
         return { result: wo, render: 'release_work_order' };
       }
