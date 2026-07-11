@@ -5062,6 +5062,20 @@ export default function BankingAgent({
     _source = "heuristic",
     nlUserText = "",
   ) {
+    // A /nl error envelope (e.g. the Vite proxy's 502 {"error":"proxy_error"}
+    // while the BFF restarts) parses as JSON but carries no `result`, so all
+    // three call paths land here with undefined. Reading result.kind then threw
+    // and the user saw "Could not parse: Cannot read properties of undefined" —
+    // say what actually happened instead.
+    if (!result || typeof result.kind !== "string") {
+      addMessage(
+        "assistant",
+        "The agent backend didn't return a usable response — it may be restarting. Please try again in a moment.",
+        null,
+        { source: _source },
+      );
+      return;
+    }
     // Degraded-mode detection: only relevant in helix_google (Helix-only) mode.
     // In heuristics-only mode a heuristic response is expected, not a fallback —
     // don't show the "AI offline" banner for normal operation.

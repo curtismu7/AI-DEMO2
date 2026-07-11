@@ -81,6 +81,41 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — /nl error envelopes crashed the agent; otel single-file mounts crash-looped services after git pull
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (guard at the top of
+`dispatchNlResult`), `docker-compose.yml` (7 otel mounts), plus a test in
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** (1) while the BFF restarts, the Vite proxy answers
+`POST /api/demo-agent/nl` with 502 `{"error":"proxy_error"}` — valid JSON with
+no `result`. All three dispatch call paths passed `undefined` into
+`dispatchNlResult`, which threw reading `result.kind`, and the chat showed the
+raw TypeError ("Could not parse: Cannot read properties of undefined"). (2) The
+compose files bind-mounted `scripts/otel-instrument.js` as a SINGLE FILE into 7
+services; any `git pull`/checkout that rewrites that file re-inodes it, the
+mount goes stale, and every `node --watch` restart after that dies with
+`Cannot find module '/otel/otel-instrument.js'` — the BFF crash-loops until the
+container is restarted (this instability masqueraded as agent bugs:
+"Unknown action: lookup_customer", mode-select flips in the evidence e2e suite).
+
+**What was fixed:** (1) `dispatchNlResult` now returns a friendly
+"backend may be restarting" assistant message when `result?.kind` is not a
+string. (2) The 7 otel mounts are directory mounts (`./scripts:/otel:ro`) —
+the in-container path `/otel/otel-instrument.js` is unchanged, so no
+`NODE_OPTIONS` edits; directory mounts survive file replacement.
+
+**Do not break:** the guard must stay ABOVE the first `result.kind` read in
+`dispatchNlResult` and must not intercept `kind:"none"` results (those carry
+catalog messages). Keep `NODE_OPTIONS: "-r /otel/otel-instrument.js"` in sync
+with the `/otel` mount path. Containers need `docker compose up -d` (not just
+restart) to pick up the mount change.
+
+**Verify:** vitest `AIAgent.chips` (58 pass, incl. "NL error envelope … degrades
+gracefully", which fails without the guard); `npm run build` exits 0;
+`docker compose config -q` valid; live — stop the BFF, send a chat message,
+see the friendly message instead of the TypeError.
+
 ### 2026-07-10 — Heuristics mode silently used an LLM on typed sends; bk9/bk10 threw "Unknown action"
 
 - **Files changed:** `demo_api_ui/src/components/AIAgent.js`

@@ -960,3 +960,47 @@ describe("Error-role messages render (admin token on customer agent)", () => {
     });
   });
 });
+
+// ─── /nl error envelopes must degrade gracefully ─────────────────────────────
+// Regression: when the BFF is restarting, the UI proxy answers /api/demo-agent/nl
+// with 502 {"error":"proxy_error"} — a JSON body with NO `result`. dispatchNlResult
+// then crashed reading `result.kind`, surfacing the raw TypeError as
+// "Could not parse: Cannot read properties of undefined (reading 'kind')".
+
+describe("NL error envelope (BFF restarting) degrades gracefully", () => {
+  let origFetch;
+
+  beforeEach(() => {
+    origFetch = global.fetch;
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        // Vite proxy shape when the BFF is down: JSON, parses fine, no `result`.
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          json: async () => ({ error: "proxy_error", detail: "ECONNREFUSED" }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+  });
+
+  it("shows a friendly backend-unavailable message, not a TypeError", async () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "show my accounts" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/may be restarting|backend .*unavailable/i),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(/Could not parse: Cannot read properties/i),
+    ).not.toBeInTheDocument();
+  });
+});
