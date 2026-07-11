@@ -393,6 +393,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   helix_api_key:              { public: false, default: '' },
   helix_environment_id:       { public: true,  default: 'fe213c3c-9c1d-4bdb-954a-a22879dad26d' },
   helix_agent_id:             { public: true,  default: 'LLM' },
+  // Which agent version conversations run: 'published' (default) or 'draft'.
+  // Lets the demo run a staged driver fix when the Helix admin API exposes no
+  // publish action (see helixLlmService.callHelixAgent).
+  helix_agent_version:        { public: true,  default: '' },
   helix_prompt_field_id:      { public: true,  default: 'textInput502c5045a61c' },
 
   // CIBA — Client-Initiated Backchannel Authentication

@@ -516,9 +516,36 @@ test.describe('evidence screenshots — agent modes (real)', () => {
       test(`${mode}: ${probe.id} — "${probe.message}"`, async () => {
         test.setTimeout(240_000); // llamacpp responses can take a minute+
 
-        // Guard against AgentModeSelector auto-deselecting a dead mode
-        // between tests: the screenshot must show the mode it claims.
-        await expect(panel.locator('select.ams-select').first()).toHaveValue(mode);
+        // The picker rehydrates to the server's env-pinned agent_mode after a
+        // panel remount (e.g. the mortgage navigation probe's page round
+        // trip) — re-commit the mode rather than hard-failing, then assert.
+        // A DEAD mode still fails here: selectOption on a disabled option
+        // throws and the committed value never matches.
+        const sel = panel.locator('select.ams-select').first();
+        // Stabilization loop: a hydration GET that was in flight during the
+        // remount can land AFTER our commit and overwrite the shared mode
+        // state — keep re-selecting until the value HOLDS through a settle
+        // window. A dead mode still fails: its option is disabled, so
+        // selectOption throws and the poll never reaches `mode`.
+        await expect
+          .poll(
+            async () => {
+              if ((await sel.inputValue()) !== mode) {
+                const commit = page
+                  .waitForResponse(
+                    (r) => r.url().includes('/api/langchain/config') && r.request().method() === 'POST',
+                    { timeout: 10_000 },
+                  )
+                  .catch(() => {});
+                await sel.selectOption(mode).catch(() => {});
+                await commit;
+              }
+              await page.waitForTimeout(600); // outlast any late hydration write
+              return sel.inputValue();
+            },
+            { timeout: 30_000, message: `${mode}: picker stable on mode before probe` },
+          )
+          .toBe(mode);
         await runProbe(page, panel, mode, probe);
       });
     }

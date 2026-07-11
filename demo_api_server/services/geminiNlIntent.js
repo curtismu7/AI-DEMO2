@@ -58,6 +58,7 @@ async function answerWithHelix(userMessage, context = {}) {
     // helix_api_key must still be supplied by the operator.
     const helixConfig = {
       helix_base_url: configStore.getEffective('helix_base_url'),
+      helix_agent_version: configStore.getEffective('helix_agent_version'),
       helix_api_key: configStore.getEffective('helix_api_key'),
       helix_environment_id: configStore.getEffective('helix_environment_id'),
       helix_agent_id: configStore.getEffective('helix_agent_id'),
@@ -412,6 +413,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       // Use getEffective so FIELD_DEFS defaults reach fresh clones (see answerWithHelix).
       const helixConfig = {
         helix_base_url: langchainConfig.helix_base_url || configStore.getEffective('helix_base_url'),
+        helix_agent_version: configStore.getEffective('helix_agent_version'),
         helix_api_key: langchainConfig.helix_api_key || configStore.getEffective('helix_api_key'),
         helix_environment_id: langchainConfig.helix_environment_id || configStore.getEffective('helix_environment_id'),
         helix_agent_id: langchainConfig.helix_agent_id || configStore.getEffective('helix_agent_id'),
