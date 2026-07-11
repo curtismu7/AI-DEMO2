@@ -875,18 +875,28 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         error: 'max_tool_iterations',
       };
     }
-    // reasoning_unavailable: LLM service failed. Fall back to showing the catalog
-    // of what the agent can do (same as heuristics-only mode) to help the user
-    // rephrase their question into something we can actually handle.
-    const { verticalId: _fallbackVerticalId, verticalCtx: _fallbackVerticalCtx } = resolveVerticalRouting(vertical);
+    // reasoning_unavailable: LLM service failed. Say so honestly — mirroring
+    // demoAgentLangGraphService: returning the heuristics capability catalog as
+    // success:true misreported an LLM outage as "Heuristics-only mode" and sent
+    // whoever debugged it down the wrong path (2026-07-11 live incident: the
+    // post-deploy llama model-load window looked like a mode misconfiguration).
+    // heuristicFallbackResult (a real matched heuristic answer) still wins.
     return heuristicFallbackResult || {
-      reply: buildCatalogMessage(_fallbackVerticalCtx),
-      success: true,
+      reply:
+        `The ${provider || 'configured'} LLM could not complete this request` +
+        `${loopResult.reason ? ` (${loopResult.reason})` : ''}. ` +
+        (provider === 'llamacpp'
+          ? 'If the stack was just deployed or restarted, the local model takes several minutes to load — try again shortly. '
+          : '') +
+        'Switch the agent to "Heuristics only" mode for deterministic responses, ' +
+        'or check the LLM backend status and try again.',
+      success: false,
       toolsCalled: [],
       tokensUsed: 0,
       requiresConsent: false,
       agentConfigured: true,
       tokenEvents: tokenEvents || [],
+      error: 'reasoning_unavailable',
     };
   } catch (error) {
     // TOKEN_INACTIVE must propagate so the route can return 401 + need_auth

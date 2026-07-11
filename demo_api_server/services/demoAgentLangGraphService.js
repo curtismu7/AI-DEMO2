@@ -1425,6 +1425,9 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       reply:
         `The ${provider || 'configured'} LLM could not complete this request` +
         `${loopResult.reason ? ` (${loopResult.reason})` : ''}. ` +
+        (provider === 'llamacpp'
+          ? 'If the stack was just deployed or restarted, the local model takes several minutes to load — try again shortly. '
+          : '') +
         'Switch the agent to "Heuristics only" mode for deterministic responses, ' +
         'or check the LLM backend status and try again.',
       success: false,
