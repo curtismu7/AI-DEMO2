@@ -1,0 +1,61 @@
+'use strict';
+const p1az = require('../../services/pingOneAuthorizeService');
+const configStore = require('../../services/configStore');
+const { register } = require('./registry');
+
+const SMALL = { amount: 2500,  type: 'transfer' };   // expect PERMIT
+const LARGE = { amount: 75000, type: 'transfer' };   // expect DENY / step-up
+const TEST_USER = 'check-preflight-user';
+
+const mode = {
+  id: 'authorize.mode', name: 'Authorize mode', category: 'PingOne Authorize',
+  async run({ flags }) {
+    const simulated = flags.ff_authorize_simulated === true;
+    return {
+      status: 'pass',
+      detail: simulated ? 'Demo / simulated mode active' : 'Real PingOne Authorize',
+      meta: { mode: simulated ? 'demo' : 'real' },
+    };
+  },
+};
+
+const realDecision = {
+  id: 'authorize.real_decision', name: 'Real decision (force-live)', category: 'PingOne Authorize',
+  async run({ flags }) {
+    if (!p1az.isConfigured()) {
+      return { status: 'fail', detail: 'PingOne Authorize worker credentials + decision endpoint are not configured' };
+    }
+    const decisionEndpointId = configStore.getEffective('authorize_decision_endpoint_id') || undefined;
+    const evalOne = (t) => p1az.evaluateTransaction({ decisionEndpointId, userId: TEST_USER, amount: t.amount, type: t.type });
+    let decisions;
+    try {
+      decisions = await Promise.all([evalOne(SMALL), evalOne(LARGE)]);
+    } catch (err) {
+      return { status: 'fail', detail: err.message };
+    }
+    if (decisions.some((d) => !d || !d.decision || !d.decisionId)) {
+      return { status: 'fail', detail: 'PingOne returned no decision id', meta: { decisions } };
+    }
+    const discriminates = decisions[0].decision !== decisions[1].decision;
+    const note = flags.ff_authorize_simulated ? ' (simulated active for demo; real path verified)' : '';
+    return {
+      status: discriminates ? 'pass' : 'warn',
+      detail: discriminates
+        ? `${decisions[0].decision} / ${decisions[1].decision}${note}`
+        : `Both inputs returned ${decisions[0].decision} — policy may not discriminate${note}`,
+      meta: { decisions: decisions.map((d) => ({ decision: d.decision, decisionId: d.decisionId })) },
+    };
+  },
+};
+
+const failOpen = {
+  id: 'authorize.fail_open', name: 'Fail-open awareness', category: 'PingOne Authorize',
+  async run({ flags }) {
+    return flags.ff_authorize_fail_open === false
+      ? { status: 'warn', detail: 'Fail-open is OFF — Authorize errors will hard-deny mid-demo' }
+      : { status: 'pass', detail: 'Fail-open is on' };
+  },
+};
+
+register(mode, realDecision, failOpen);
+module.exports = { mode, realDecision, failOpen };
