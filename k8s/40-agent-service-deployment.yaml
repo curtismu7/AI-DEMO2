@@ -42,6 +42,17 @@ spec:
             name: langchain-secrets
         - configMapRef:
             name: ai-demo-config
+        env:
+        # httpx honors SSL_CERT_FILE: combined system-roots + mkcert bundle so
+        # the BFF tool callback (mkcert cert) verifies without breaking
+        # external HTTPS. Mirrors the docker-compose wiring.
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/certs/ca-bundle-with-mkcert.pem
+        volumeMounts:
+        - name: ca-bundle
+          mountPath: /etc/ssl/certs/ca-bundle-with-mkcert.pem
+          subPath: ca-bundle-with-mkcert.pem
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -69,6 +80,13 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: ca-bundle
+        secret:
+          secretName: tls-certs
+          items:
+          - key: ca-bundle-with-mkcert.pem
+            path: ca-bundle-with-mkcert.pem
       restartPolicy: Always
       securityContext:
         runAsNonRoot: true

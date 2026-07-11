@@ -62,12 +62,22 @@ kubectl get ns "$NS" &>/dev/null || die "Namespace $NS not found. Apply 01-names
 
 # ── TLS secret from mkcert certs ─────────────────────────────────────────────
 info "Creating tls-certs secret..."
+# ca-bundle-with-mkcert.pem (system roots + mkcert root CA) lets the Python
+# agents verify the BFF's mkcert cert via SSL_CERT_FILE without breaking
+# external HTTPS — same bundle docker-compose mounts. Ship it when present.
+CA_BUNDLE_ARG=()
+if [ -f "$ASSET_ROOT/certs/ca-bundle-with-mkcert.pem" ]; then
+  CA_BUNDLE_ARG=(--from-file=ca-bundle-with-mkcert.pem="$ASSET_ROOT/certs/ca-bundle-with-mkcert.pem")
+fi
+# Server-side apply: the CA bundle pushes the secret past the 256KB
+# last-applied-configuration annotation limit of client-side apply.
 kubectl create secret generic tls-certs \
   --namespace="$NS" \
   --from-file=tls.crt="$ASSET_ROOT/certs/api.ping.demo+2.pem" \
   --from-file=tls.key="$ASSET_ROOT/certs/api.ping.demo+2-key.pem" \
   --from-file=rootCA.pem="$ASSET_ROOT/certs/rootCA.pem" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  "${CA_BUNDLE_ARG[@]}" \
+  --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -
 info "tls-certs secret applied."
 
 # ── Helper: create one secret from a service's .env file ─────────────────────
