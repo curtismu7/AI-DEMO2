@@ -23,22 +23,44 @@ const verticalDispatch = require('../services/verticalDispatch');
 const { verticalManifest } = require('../services/verticalManifest');
 const { scrubRawJwts } = require('../services/jwtScrubber');
 
-// Build tool→vertical map using verticalManifest.plugins — the SoT for all vertical tools.
+// Build tool→verticals map using verticalManifest.plugins — the SoT for all vertical tools.
 // plugins.get(id) lazy-loads each vertical's index.js from disk (no pre-init needed).
-// Each tool name belongs to exactly one vertical. Derived at module-load time so the
-// route never depends on the global active_vertical configStore setting.
-const TOOL_VERTICAL_MAP = (() => {
+// Most tool names belong to exactly one vertical, but some are SHARED across several
+// (e.g. deposit/withdraw across banking+investment; view_billing across healthcare+
+// university; api_key_demo/dual_token_demo across all). Keep EVERY owner so a shared
+// name can be disambiguated by the caller's active vertical at call time — a plain
+// name→id map let an arbitrary readdir winner run (e.g. a healthcare view_billing
+// executing university's implementation and returning tuition data).
+const TOOL_VERTICALS_MAP = (() => {
   const map = {};
   const verticalsDir = require('path').join(__dirname, '../config/verticals');
   for (const id of require('fs').readdirSync(verticalsDir)) {
     const plugin = verticalManifest.plugins.get(id);
     if (!plugin) continue;
     for (const t of plugin.getTools()) {
-      if (t && t.name) map[t.name] = id;
+      if (t && t.name) (map[t.name] = map[t.name] || []).push(id);
     }
   }
   return map;
 })();
+
+/**
+ * Resolve which vertical's implementation runs for a tool call.
+ *  - unique name  → its owning vertical (independent of active_vertical)
+ *  - shared name  → the caller's active vertical (falls back to the first owner)
+ *  - body.vertical hint wins when it legitimately owns the tool (forward-compat:
+ *    the MCP relay may pass the gateway's AllowedVertical here)
+ *  - unknown name → active vertical, else banking
+ */
+function resolveVertical(name, req) {
+  const owners = TOOL_VERTICALS_MAP[name] || [];
+  const active = configStore.getEffective('active_vertical');
+  const hint = typeof req.body?.vertical === 'string' ? req.body.vertical : null;
+  if (hint && owners.includes(hint)) return hint;
+  if (owners.length === 1) return owners[0];
+  if (owners.length > 1) return (active && owners.includes(active)) ? active : owners[0];
+  return active || 'banking';
+}
 
 router.post('/vertical-tool', authenticateToken, express.json(), async (req, res) => {
   res.set({ 'Cache-Control': 'private, no-store' });
@@ -48,9 +70,9 @@ router.post('/vertical-tool', authenticateToken, express.json(), async (req, res
     return res.status(400).json({ error: 'invalid_body', message: 'name (tool) is required' });
   }
 
-  // Derive vertical from tool name — each tool belongs to exactly one vertical.
-  // Fall back to global active_vertical only if the tool isn't in any manifest.
-  const activeVertical = TOOL_VERTICAL_MAP[name] || configStore.getEffective('active_vertical') || 'banking';
+  // Derive the vertical from the tool name, disambiguating shared names by the
+  // caller's active vertical (see resolveVertical).
+  const activeVertical = resolveVertical(name, req);
   const userId = req.user && req.user.id;
   const isAdmin = req.user && req.user.role === 'admin';
 

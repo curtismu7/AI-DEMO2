@@ -29,6 +29,12 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     });
   });
 
+  test('google: google provider, routing off, defaults to bff wiring', () => {
+    expect(resolveAgentMode('google')).toEqual({
+      mode: 'google', provider: 'google', heuristicRouting: false, externalWiring: 'bff',
+    });
+  });
+
   test('mlx: mlx provider, routing off (pure LLM), defaults to bff wiring', () => {
     expect(resolveAgentMode('mlx')).toEqual({
       mode: 'mlx', provider: 'mlx', heuristicRouting: false, externalWiring: 'bff',

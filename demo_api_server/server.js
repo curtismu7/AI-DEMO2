@@ -217,7 +217,6 @@ const {
 const {
     refreshIfExpiring
 } = require('./middleware/tokenRefresh');
-const audValidationMiddleware = require('./middleware/audValidationMiddleware');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
 const { delegationGate } = require('./middleware/delegationGate');
 
@@ -597,11 +596,12 @@ app.use(
     refreshIfExpiring,
 );
 
-// RFC 6750 §3 — Validate audience (aud) claim on all incoming tokens
-// Prevents token confusion attacks (token for API A cannot be used for API B).
-// Fails closed: if aud doesn't match, return 401 Unauthorized.
-// Applied to all /api/ routes after authentication.
-app.use('/api', audValidationMiddleware);
+// Audience (aud) enforcement lives in authenticateToken → validatePingOneCoreToken
+// (middleware/auth.js): always-on when BFF_RESOURCE_URI is configured, and aware of
+// the BFF + MCP-gateway multi-audience model and token-exchange flows. The former
+// global audValidationMiddleware here was a permanent no-op (it ran before per-route
+// auth, and req.user.decoded is never set, so it always fell through) — removed so it
+// can't be mistaken for enforcement.
 
 // High-frequency polling paths excluded from API Explorer tracking to avoid noise
 const TRACKING_SKIP_PREFIXES = [
