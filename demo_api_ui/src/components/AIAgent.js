@@ -4896,7 +4896,7 @@ export default function BankingAgent({
           provider: activeLlmProvider || "heuristic",
           vertical: effectiveVerticalId,
         }),
-        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" ? 60000 : 15000), signal]),
+        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       })
         .then((r) =>
           r.json().catch(() => ({
@@ -5809,7 +5809,7 @@ export default function BankingAgent({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId }),
-        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" ? 60000 : 15000), signal]),
+        signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       });
       const { result: _nlResult, source: _nlSource, llm_not_configured: _nlNotConfigured } = await _nlRes
         .json()
