@@ -203,9 +203,29 @@ PY
   info "  GOOGLE_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
+# ── Cloud override: redirect URIs must match the public origin ───────────────
+# The BFF .env carries the LOCAL redirect URIs (https://api.ping.demo:4000/...).
+# Shipping them verbatim breaks sign-in on any public deployment: these keys are
+# bootstrap-authoritative (env beats the runtime config store), so the BFF sends
+# PingOne a redirect_uri that only resolves on the dev machine. When
+# PUBLIC_APP_URL is set (required for SE/EKS deploys), derive them from it.
+override_redirect_uris_for_public_origin() {
+  local origin="${PUBLIC_APP_URL:-}"
+  if [ -z "$origin" ]; then
+    warn "  PUBLIC_APP_URL not set — PINGONE_*_REDIRECT_URI shipped as-is from .env (local values; sign-in will break on a public deployment)"
+    return
+  fi
+  origin="${origin%/}"
+  local patch
+  patch=$(printf '{"stringData":{"PINGONE_ADMIN_REDIRECT_URI":"%s/api/auth/oauth/callback","PINGONE_USER_REDIRECT_URI":"%s/api/auth/oauth/user/callback"}}' "$origin" "$origin")
+  printf '%s' "$patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  info "  PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
+}
+
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
+override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
