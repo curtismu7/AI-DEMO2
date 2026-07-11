@@ -920,8 +920,11 @@ cmd_demo_sync() {
     OTEL_EXPORTER_OTLP_ENDPOINT="" \
       docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps ${otel_services} >/dev/null 2>&1 || true
   else
-    ok "Tracing ON — ensuring Jaeger is up"
-    docker compose "${COMPOSE_FILES[@]}" up -d --no-deps jaeger >/dev/null 2>&1 || true
+    ok "Tracing ON — ensuring Jaeger is up and instrumented services export spans"
+    # No --force-recreate: with OTEL_EXPORTER_OTLP_ENDPOINT unset here, compose
+    # resolves the default endpoint and recreates only services whose endpoint
+    # drifted (e.g. left empty by a prior OFF) — no churn in the steady state.
+    docker compose "${COMPOSE_FILES[@]}" up -d --no-deps jaeger ${otel_services} >/dev/null 2>&1 || true
   fi
   echo ""
 }
