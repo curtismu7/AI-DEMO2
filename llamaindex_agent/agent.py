@@ -34,7 +34,10 @@ def _make_llm():
         is_chat_model=True,
         is_function_calling_model=True,
         temperature=0.1,
-        max_tokens=800,
+        # Reasoning models (gpt-oss via the swap-mode proxy) spend most of the
+        # budget on reasoning_content before emitting any visible answer —
+        # 800 tokens regularly produced an EMPTY content string.
+        max_tokens=int(os.getenv("AGENT_MAX_TOKENS", "3000")),
     )
 
 
@@ -104,5 +107,33 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
     completion = llm.complete(
         f"{SYSTEM}\n\nSnippets:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
-    return {"answer": str(completion), "sources": _dedup(hits),
+    return {"answer": _completion_text(completion), "sources": _dedup(hits),
             "toolCalls": 1 if hits else 0, "mode": "single-shot"}
+
+
+def _completion_text(completion):
+    """Visible text of a completion, tolerating reasoning models.
+
+    The swap-mode llm-proxy treats the request's model as a MINIMUM tier, so a
+    loaded gpt-oss (reasoning model) legitimately serves phi-pinned requests —
+    and it emits its work in `reasoning_content`, leaving `content` empty when
+    the token budget runs out mid-reasoning. An empty answer with populated
+    sources was exactly that. Prefer content; fall back to reasoning_content.
+    """
+    text = (str(completion) or "").strip()
+    if text:
+        return text
+    raw = getattr(completion, "raw", None)
+    try:
+        choice = raw["choices"][0] if isinstance(raw, dict) else raw.choices[0]
+        msg = choice["message"] if isinstance(choice, dict) else choice.message
+        if isinstance(msg, dict):
+            reasoning = msg.get("reasoning_content") or ""
+        else:
+            reasoning = getattr(msg, "reasoning_content", None) or (
+                (getattr(msg, "model_extra", None) or {}).get("reasoning_content") or ""
+            )
+        return str(reasoning).strip()
+    except Exception:
+        return ""
+

@@ -95,8 +95,10 @@ async function startDefaultIndex({ client, rootDir }) {
     const files = collectFiles(rootDir);
     status.skipped = files._skipped || 0;
 
-    // Batch to respect the code-search 60MB body limit (~400 files/batch).
-    const BATCH = 400;
+    // Small batches: a 400-file POST wedged the BFF->code-search hop (15min+
+    // timeouts) while 50-file batches index the whole repo in ~2.5min, 2-5s
+    // each — and a failure only retries a small slice.
+    const BATCH = 50;
     let chunks = 0;
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);

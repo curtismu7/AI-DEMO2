@@ -102,6 +102,9 @@ class MCPCodeSearchClient {
         codebase_id: request.codebase_id,
         codebase_name: request.codebase_name,
         chunk_strategy: request.chunk_strategy || 'line-based',
+      }, {
+        // Repo-scale indexing embeds thousands of chunks — minutes, not 30s.
+        timeout: 900000,
       });
 
       return response.data;
