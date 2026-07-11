@@ -63,7 +63,11 @@ function isAdminSession(req) {
  */
 function requireAdminOrUnconfigured(req, res, next) {
   if (!configStore.isConfigured()) return next(); // first-run: always open
-  if (!hosting.isReplit()) return next(); // local dev: always open
+  // Non-production (local dev, tests): always open. In production every host —
+  // including self-hosted / AWS, not just Replit — must fall through to the admin
+  // session / config-password checks below. (Was `!isReplit()`, which left every
+  // non-Replit production deployment writable by anyone.)
+  if (process.env.NODE_ENV !== 'production') return next();
   if (isAdminSession(req)) return next();          // OAuth admin session
 
   // Hosted Replit: sessions may not persist — optional admin password header.

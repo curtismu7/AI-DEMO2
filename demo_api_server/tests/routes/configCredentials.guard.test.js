@@ -1,20 +1,22 @@
 'use strict';
 
 /**
- * C1 regression — POST /api/config/credentials/set must not be an unauthenticated
- * credential-overwrite primitive. It now shares adminConfig's requireAdminOrUnconfigured
- * gate: open during first-run setup, admin-only once the app is configured (in hosted mode).
+ * C1 + M5 regression — POST /api/config/credentials/set must not be an
+ * unauthenticated credential-overwrite primitive. It shares adminConfig's
+ * requireAdminOrUnconfigured gate: open during first-run setup and in
+ * non-production, admin-only once configured in production (M5: enforced on
+ * EVERY host, including self-hosted / non-Replit, not just Replit).
  *
- * hosting is mocked to simulate a hosted deployment (isReplit=true) so the
- * configured-but-not-admin path is exercised deterministically. configStore.isConfigured
- * and setConfig are spied so no real config is read or written.
+ * hosting.isReplit is mocked false (self-hosted) to prove the M5 fix keys off
+ * NODE_ENV, not the host. configStore.isConfigured/setConfig are spied so no
+ * real config is read or written.
  */
 
 const express = require('express');
 const request = require('supertest');
 
 jest.mock('../../config/hosting', () => ({
-  isReplit: jest.fn(() => true),
+  isReplit: jest.fn(() => false),
   useConfigPasswordHeader: jest.fn(() => false),
   isDeploymentManagedPingOneOAuth: jest.fn(() => false),
 }));
@@ -35,10 +37,12 @@ const VALID_BODY = {
   credentials: { client_id: 'cid-123', client_secret: 'secret-xyz' },
 };
 
-describe('POST /api/config/credentials/set — requireAdminOrUnconfigured gate (C1)', () => {
-  afterEach(() => jest.restoreAllMocks());
+describe('POST /api/config/credentials/set — requireAdminOrUnconfigured gate (C1 + M5)', () => {
+  const ORIG_NODE_ENV = process.env.NODE_ENV;
+  afterEach(() => { process.env.NODE_ENV = ORIG_NODE_ENV; jest.restoreAllMocks(); });
 
-  test('first-run (unconfigured): allowed so setup can seed credentials', async () => {
+  test('first-run (unconfigured): allowed even in production', async () => {
+    process.env.NODE_ENV = 'production';
     jest.spyOn(configStore, 'isConfigured').mockReturnValue(false);
     const setSpy = jest.spyOn(configStore, 'setConfig').mockResolvedValue(undefined);
 
@@ -52,7 +56,19 @@ describe('POST /api/config/credentials/set — requireAdminOrUnconfigured gate (
     });
   });
 
-  test('configured + hosted + no admin session: 401 and NO credential write', async () => {
+  test('non-production (dev): open even when configured', async () => {
+    process.env.NODE_ENV = 'development';
+    jest.spyOn(configStore, 'isConfigured').mockReturnValue(true);
+    const setSpy = jest.spyOn(configStore, 'setConfig').mockResolvedValue(undefined);
+
+    const res = await request(makeApp({})).post('/api/config/credentials/set').send(VALID_BODY);
+
+    expect(res.status).toBe(200);
+    expect(setSpy).toHaveBeenCalled();
+  });
+
+  test('production + self-hosted (non-Replit) + configured + no admin: 401, NO write (M5)', async () => {
+    process.env.NODE_ENV = 'production';
     jest.spyOn(configStore, 'isConfigured').mockReturnValue(true);
     const setSpy = jest.spyOn(configStore, 'setConfig').mockResolvedValue(undefined);
 
@@ -62,7 +78,8 @@ describe('POST /api/config/credentials/set — requireAdminOrUnconfigured gate (
     expect(setSpy).not.toHaveBeenCalled();
   });
 
-  test('configured + admin session: allowed', async () => {
+  test('production + configured + admin session: allowed', async () => {
+    process.env.NODE_ENV = 'production';
     jest.spyOn(configStore, 'isConfigured').mockReturnValue(true);
     const setSpy = jest.spyOn(configStore, 'setConfig').mockResolvedValue(undefined);
 
