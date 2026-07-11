@@ -148,7 +148,40 @@ router.post('/intent-bypass-demo', requireSession, async (req, res) => {
           tokenEvents,
         });
       }
-      throw gwErr;
+      // Non-403 gateway rejection (e.g. the real PingGateway rejects the
+      // mismatched create_transfer at request-schema validation with 400 before
+      // any authorization runs). The attack is still blocked — nothing executed
+      // — so surface the token events built so far (intent token + exchange
+      // chain) instead of dropping them, mirroring the AIAgent.js denied-call
+      // fix (REGRESSION_PLAN §"error paths dropped tokenEvents"). Without this
+      // the UI's `if (data?.tokenEvents)` guard never fires and the Token Chain
+      // stays empty on this gateway profile.
+      const gwStatus = gwErr.httpStatus || null;
+      tokenEvents.push(buildTokenEvent(
+        'gw-attack-blocked',
+        `Gateway — HTTP ${gwStatus || '?'} (Attack Blocked before execution)`,
+        'failed',
+        null,
+        `The mismatched "${ATTACK_TOOL}" call was rejected by the gateway ` +
+        `(HTTP ${gwStatus}) before any banking action executed. On the real ` +
+        `PingGateway this is MCP request-schema validation; on the demo gateway ` +
+        `with intent enforcement it is a 403 intent_mismatch (Rule 4b). Either ` +
+        `way the agent cannot widen its own authorization after the prompt is ` +
+        `bound at the BFF.`,
+        {
+          gatewayDecision:  'DENY',
+          gatewayHttpStatus: gwStatus,
+          gatewayErrorCode:  gwErr.gatewayErrorCode || null,
+        }
+      ));
+      return res.status(gwStatus && gwStatus >= 400 && gwStatus < 500 ? gwStatus : 502).json({
+        error:            'attack_blocked_upstream',
+        attackDemo:       true,
+        gatewayDecision:  'DENY',
+        gatewayHttpStatus: gwStatus,
+        message:          `Attack blocked — the gateway rejected the mismatched "${ATTACK_TOOL}" call (HTTP ${gwStatus}) before any banking action ran. See Token Chain for the minted delegation trail.`,
+        tokenEvents,
+      });
     }
   } catch (err) {
     console.error('[dev/intent-bypass-demo] Unexpected error:', err.message);
