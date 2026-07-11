@@ -61,7 +61,7 @@ function buildWorkforceTools(store) {
           category: { type: 'string' },
           amount: { type: 'number' },
         },
-        required: ['category', 'amount'],
+        required: ['amount'],
       },
       scopes: ['write'],
       authz: { stepUp: true, consent: true },
@@ -218,11 +218,13 @@ function buildWorkforceTools(store) {
           render: 'list_expenses',
         };
 
-      case 'submit_expense':
-        return {
-          result: store.submitExpense(userId, params || {}),
-          render: 'submit_expense',
-        };
+      case 'submit_expense': {
+        // Amount-driven policy chip ("submit a $300 expense") may omit a category — default it
+        // so the Authorize outcome (amount-driven) can still be demonstrated.
+        const _p = params || {};
+        const _category = (_p.category && String(_p.category).trim()) ? _p.category : 'Travel';
+        return { result: store.submitExpense(userId, { ..._p, category: _category }), render: 'submit_expense' };
+      }
 
       case 'request_time_off': {
         const out = store.requestTimeOff(userId, params || {});
