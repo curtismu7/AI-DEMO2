@@ -854,6 +854,48 @@ export function createWithdrawalWithConsent(
  *   _status?: number
  * }>}
  */
+
+/**
+ * Trace-rail ingestion for the legacy (non-AG-UI) agent response. Display-only,
+ * never throws. Exported for tests.
+ *
+ * LLM-routed runs synthesize the llmDetail that buildTraceSteps' step 4 needs —
+ * the AG-UI path gets it from the streamed CUSTOM llm_detail event, but this
+ * JSON path has no such event, so chip runs / non-streaming typed prompts left
+ * the agent + LLM steps permanently pending.
+ */
+export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
+  try {
+    const heuristicRun = forceHeuristic || data.agentPath === "heuristic";
+    if (heuristicRun) {
+      tokenChainTraceStore.ingestRoutingMode("heuristic", {
+        action: data.toolsCalled?.[0] || data.action || null,
+      });
+    } else {
+      tokenChainTraceStore.ingestRoutingMode("llm", {
+        action: data.toolsCalled?.[0] || data.action || null,
+      });
+      tokenChainTraceStore.ingestLlmDetail({
+        model: data.model || "session default",
+        toolCalls: Array.isArray(data.toolsCalled)
+          ? data.toolsCalled.map((tool) => ({ tool }))
+          : [],
+        usage: data.inputTokens || data.outputTokens
+          ? { inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 }
+          : null,
+      });
+    }
+    if (data.mcpAuthorizeEvaluation) {
+      tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
+    }
+    if (typeof data.reply === "string" && data.reply) {
+      tokenChainTraceStore.ingestLlmReply(data.reply);
+    }
+    const failed = data.success === false || Boolean(data.error);
+    tokenChainTraceStore.completeTrace(!failed);
+  } catch { /* display-only */ }
+}
+
 export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null } = {}) {
   const body = { prompt: message };
   if (consentId) body.consentId = consentId;
@@ -958,22 +1000,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       );
     }
 
-    try {
-      const heuristicRun = forceHeuristic || data.agentPath === "heuristic";
-      if (heuristicRun) {
-        tokenChainTraceStore.ingestRoutingMode("heuristic", {
-          action: data.toolsCalled?.[0] || data.action || null,
-        });
-      }
-      if (data.mcpAuthorizeEvaluation) {
-        tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
-      }
-      if (typeof data.reply === "string" && data.reply) {
-        tokenChainTraceStore.ingestLlmReply(data.reply);
-      }
-      const failed = data.success === false || Boolean(data.error);
-      tokenChainTraceStore.completeTrace(!failed);
-    } catch { /* display-only */ }
+    ingestLegacyRunTrace(data, { forceHeuristic });
 
     // Attach HTTP status for caller to inspect (428 = HITL required)
     return { ...data, _status: res.status };
