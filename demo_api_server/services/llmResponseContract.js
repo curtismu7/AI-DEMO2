@@ -83,4 +83,25 @@ function repairAndParseJson(text) {
   return null;
 }
 
-module.exports = { repairAndParseJson, snippet, logMendEvent };
+/**
+ * Shape check for parsed intent-router output. The three renderable kinds are
+ * validated for the fields their dispatchers require; kind:"none" and unknown
+ * kinds are invalid (callers fall through to the existing retry/floor ladder).
+ */
+function validateIntent(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  if (obj.kind === 'education') {
+    return (!!obj.education && typeof obj.education === 'object') || obj.ciba === true;
+  }
+  if (obj.kind === 'banking') {
+    return !!obj.banking && typeof obj.banking === 'object'
+      && typeof obj.banking.action === 'string' && obj.banking.action.trim() !== '';
+  }
+  if (obj.kind === 'vertical') {
+    return typeof obj.vertical === 'string' && obj.vertical.trim() !== ''
+      && typeof obj.action === 'string' && obj.action.trim() !== '';
+  }
+  return false;
+}
+
+module.exports = { repairAndParseJson, validateIntent, snippet, logMendEvent };
