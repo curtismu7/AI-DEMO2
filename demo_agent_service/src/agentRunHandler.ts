@@ -347,9 +347,10 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
         reasonResult = await reasonOnce({
           messages: conversationMessages,
           tools,
-          provider: (provider ?? process.env.AGENT_PROVIDER ?? 'anthropic') as 'anthropic' | 'helix' | 'anthropic-lmstudio' | 'lmstudio',
+          provider: (provider ?? process.env.AGENT_PROVIDER ?? 'anthropic') as 'anthropic' | 'helix' | 'anthropic-lmstudio' | 'lmstudio' | 'llamacpp' | 'google',
           model,
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          googleApiKey: process.env.GOOGLE_API_KEY,
         });
       } catch (err) {
         emit(res, { type: EventType.RUN_ERROR, message: 'Reasoning failed: ' + String(err), code: 'REASONING_ERROR' });

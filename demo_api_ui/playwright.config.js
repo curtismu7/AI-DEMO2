@@ -11,7 +11,7 @@
  *   npm run test:e2e              # all Playwright browser specs under tests/e2e
  *   npm run test:e2e:ci           # CI=true; starts CRA or reuses http://127.0.0.1:BANKING_UI_PORT
  *   npm run test:e2e:ci:reuse     # CI=true + PLAYWRIGHT_SKIP_WEBSERVER=1 (never spawn npm start)
- *   npm run test:e2e:ci:vercel    # CI=true + PLAYWRIGHT_BASE_URL=demo (no webServer; override URL if needed)
+ *   npm run test:e2e:ci:remote    # CI=true + PLAYWRIGHT_BASE_URL=demo (no webServer; override URL if needed)
  *   npm run test:e2e:ui           # interactive UI mode
  *   npm run test:e2e:api          # API-only (health + banking-operations); needs API server
  *   npm run test:e2e:admin        # admin-dashboard.spec.js only
@@ -39,7 +39,7 @@ const UI_PORT = process.env.BANKING_UI_PORT || '3000';
 /** Use 127.0.0.1 so webServer health checks match CRA bind (avoids ::1 vs IPv4 mismatch). */
 const LOCAL_UI_BASE = `http://127.0.0.1:${UI_PORT}`;
 
-/** Base URL for tests (Vercel/preview or local CRA). */
+/** Base URL for tests (remote deployment or local CRA). */
 const UI_BASE =
   process.env.PLAYWRIGHT_BASE_URL ||
   process.env.BASE_URL ||
@@ -67,7 +67,7 @@ module.exports = defineConfig({
   testDir: './tests/e2e',
 
   // API-only specs use playwright.api.config.js (BANKING_API_BASE). Do not run them here or
-  // requests would go to the UI baseURL (e.g. Vercel) instead of banking_api_server.
+  // requests would go to the UI baseURL (e.g. the AWS deployment) instead of banking_api_server.
   testIgnore: ['**/banking-operations.spec.js', '**/health.spec.js', '**/session-regression.spec.js'],
 
   // Fail fast on CI; allow retries locally
