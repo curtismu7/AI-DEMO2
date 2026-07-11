@@ -2047,10 +2047,14 @@ app.use((err, req, res, _next) => {
 
 // WR-21: In production, transient background rejections (startup validators,
 // audit loggers, etc.) must not crash the server. Log and continue.
-// In development/test keep the hard exit so bugs surface loudly.
+// Demo runtimes run NODE_ENV=development (simulated Authorize requires it) and
+// set CRASH_GUARD=1 to get the same log-and-continue — otherwise one stray
+// rejection restarts the BFF mid-demo. Dev/test without the flag keep the hard
+// exit so bugs surface loudly. Decision logic: utils/crashGuard.js.
+const { shouldHardExitOnUnhandledRejection } = require('./utils/crashGuard');
 process.on('unhandledRejection', (reason) => {
     console.error('[unhandledRejection]', reason);
-    if (process.env.NODE_ENV !== 'production') {
+    if (shouldHardExitOnUnhandledRejection()) {
         process.exit(1);
     }
 });
