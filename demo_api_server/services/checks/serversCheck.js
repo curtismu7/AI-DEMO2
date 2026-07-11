@@ -4,7 +4,12 @@ const https = require('https');
 const { SERVER_INVENTORY } = require('../../data/serverInventory');
 const { register } = require('./registry');
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+// Dev HTTPS agent — allows self-signed mkcert certs on loopback. Production keeps
+// TLS verification ON (undefined → axios uses its default secure agent); matches
+// the health.js /inventory pattern. Never disable verification in production.
+const agent = process.env.NODE_ENV === 'production'
+  ? undefined
+  : new https.Agent({ rejectUnauthorized: false });
 
 async function probe(entry) {
   const path = entry.healthPath || '/health';
@@ -13,7 +18,11 @@ async function probe(entry) {
     const url = `${base.replace(/\/$/, '')}${path}`;
     const start = Date.now();
     try {
-      await axios.get(url, { timeout: 2500, httpsAgent: agent, validateStatus: () => true });
+      await axios.get(url, {
+        timeout: 2500,
+        httpsAgent: agent,
+        ...(entry.acceptAnyStatus ? { validateStatus: () => true } : {}),
+      });
       return { up: true, latencyMs: Date.now() - start };
     } catch (e) { lastError = e.code || e.message; }
   }

@@ -30,4 +30,16 @@ describe('serversCheck', () => {
     expect(r.detail).toMatch(/Gateway/);
     expect(r.meta.services.find((s) => s.key === 'gw').up).toBe(false);
   });
+
+  test('non-2xx response marks a non-acceptAnyStatus service down', async () => {
+    // Entries without acceptAnyStatus pass no validateStatus, so real axios
+    // rejects on a 500 — simulate that rejection behavior in the mock.
+    axios.get.mockImplementation((url) =>
+      url.includes('gw')
+        ? Promise.reject({ response: { status: 500 } })
+        : Promise.resolve({ status: 200 }));
+    const r = await run({});
+    expect(r.status).toBe('fail');
+    expect(r.meta.services.find((s) => s.key === 'gw').up).toBe(false);
+  });
 });
