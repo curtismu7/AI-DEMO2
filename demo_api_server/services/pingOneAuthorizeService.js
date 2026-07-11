@@ -178,14 +178,38 @@ async function getWorkerToken() {
 const _PERMIT_EFFECTS = new Set(['permit', 'allow', 'allowed']);
 const _DENY_EFFECTS = new Set(['deny', 'denied']);
 
-function _normalizeDecision(raw, { hasObligation = false } = {}) {
+function _rawEffect(raw) {
   const effect = raw && typeof raw === 'object'
     ? raw.decision ?? raw.result?.decision ?? raw.details?.decision
     : undefined;
-  const value = typeof effect === 'string' ? effect.trim().toLowerCase() : '';
+  return typeof effect === 'string' ? effect.trim().toLowerCase() : '';
+}
+
+function _normalizeDecision(raw, { hasObligation = false } = {}) {
+  const value = _rawEffect(raw);
   if (_PERMIT_EFFECTS.has(value)) return 'PERMIT';
   if (_DENY_EFFECTS.has(value)) return 'DENY';
   return hasObligation ? 'INDETERMINATE' : 'DENY';
+}
+
+// Drift detector (P1AZ hardening amendment §A). True only when the engine
+// evaluated successfully but no policy matched — the "code added a tool/action
+// P1AZ has no policy for" case, which returns a literal not_applicable effect.
+// This is a SIDE CHANNEL: `_normalizeDecision` still collapses the same input to
+// DENY, so a consumer that ignores this flag stays fail-closed.
+function _isPolicyNotFoundEffect(raw) {
+  return _rawEffect(raw).replace(/[-_\s]/g, '') === 'notapplicable';
+}
+
+// Single status->error mapping for both decision paths (amendment §A / altitude).
+// A 404 means the configured decision-endpoint/policy id does not exist in P1AZ
+// (config drift), distinct from a genuine outage; tag it so failover and the
+// gates can tell them apart. All other statuses stay plain outages.
+function _decisionError(status, text, label) {
+  const err = new Error(`PingOne Authorize ${label} evaluation failed (${status}): ${text}`);
+  err.status = status;
+  if (status === 404) err.code = 'policy_not_found';
+  return err;
 }
 
 /**
@@ -215,7 +239,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`PingOne Authorize decision endpoint evaluation failed (${response.status}): ${text}`);
+    throw _decisionError(response.status, text, 'decision endpoint');
   }
 
   const raw = await response.json();
@@ -224,6 +248,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   const decision = _normalizeDecision(raw, {
     hasObligation: stepUpRequired || hitlRequired || consentRequired,
   });
+  const policyNotFound = _isPolicyNotFoundEffect(raw);
 
   const decisionId = raw.id || raw.decisionId || null;
 
@@ -231,7 +256,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
     request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
     response: raw,
   };
-  return { decision, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
+  return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
 }
 
 /**
@@ -410,14 +435,15 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`PingOne Authorize PDP evaluation failed (${response.status}): ${text}`);
+    throw _decisionError(response.status, text, 'PDP');
   }
 
   const raw = await response.json();
   const { stepUpRequired } = _classifyRawObligations(raw);
   const decision = _normalizeDecision(raw, { hasObligation: stepUpRequired });
+  const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-  return { decision, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
+  return { decision, policyNotFound, stepUpRequired, raw, decisionId: null, path: 'pdp-legacy' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1008,6 +1034,8 @@ function _classifyRawObligations(raw) {
 
 module.exports = {
   _normalizeDecision,
+  _isPolicyNotFoundEffect,
+  _decisionError,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,
