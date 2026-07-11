@@ -63,6 +63,15 @@ spec:
         # mkcert TLS on demo-api-server — same opt-in as MCP_GATEWAY_REJECT_UNAUTHORIZED.
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "mcp-gateway"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
         # gateway-secrets supplies MCP_GW_CLIENT_ID/SECRET, PINGONE_* (from
         # demo_mcp_gateway/.env, same as compose's env_file). configmap last.
         envFrom:
@@ -70,6 +79,10 @@ spec:
             name: gateway-secrets
         - configMapRef:
             name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "128Mi"
@@ -119,6 +132,13 @@ spec:
           value: "production"
         - name: AUTHZ_PORT
           value: "9001"
+        # OpenTelemetry → in-cluster Jaeger (same pattern as the gateway above).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "authz-server"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
         # Reuse the gateway's PingOne creds + PINGAUTHORIZE_* config. dotenv falls
         # back to process.env when no .env file is present in the image.
         envFrom:
@@ -126,6 +146,10 @@ spec:
             name: gateway-secrets
         - configMapRef:
             name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
         resources:
           requests:
             memory: "96Mi"
@@ -143,6 +167,10 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
       restartPolicy: Always
 ---
 apiVersion: v1
