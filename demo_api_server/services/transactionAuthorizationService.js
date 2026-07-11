@@ -245,10 +245,12 @@ async function evaluateTransactionPolicy({
       acr,
     });
 
-    // NOT_APPLICABLE: P1AZ evaluated fine but no policy matched — code/policy
+    // Policy not found: P1AZ evaluated fine but no policy matched — code/policy
     // drift, not a deny and not an outage, so no failover applies. Block and
-    // tell the operator exactly what is wrong.
-    if (r.decision === 'NOT_APPLICABLE') {
+    // tell the operator exactly what is wrong. Read the side-channel flag:
+    // _normalizeDecision stays fail-closed (DENY), so r.decision is never
+    // 'NOT_APPLICABLE'.
+    if (r.policyNotFound) {
       logEvent(EVENT_CATEGORIES.AUTHORIZE, 'error',
         '[Authorize] NOT_APPLICABLE — no PingOne policy matched this request (code/policy drift)',
         { tag: 'authorize/policy-not-found', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });

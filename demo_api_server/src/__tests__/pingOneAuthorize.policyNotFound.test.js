@@ -28,9 +28,13 @@ afterEach(() => {
 });
 
 describe('_normalizeDecision NOT_APPLICABLE', () => {
-  it('maps literal NOT_APPLICABLE to NOT_APPLICABLE', () => {
-    expect(svc._normalizeDecision({ decision: 'NOT_APPLICABLE' })).toBe('NOT_APPLICABLE');
-    expect(svc._normalizeDecision({ decision: 'not_applicable' })).toBe('NOT_APPLICABLE');
+  it('keeps NOT_APPLICABLE fail-closed (DENY) and flags it on the side channel', () => {
+    // Drift must NOT become a new non-DENY decision value: consumers that only
+    // check `decision === 'DENY'` (sensitiveDataService, checkStepUpRequired)
+    // would fail OPEN. Normalized decision stays DENY; policyNotFound carries it.
+    expect(svc._normalizeDecision({ decision: 'NOT_APPLICABLE' })).toBe('DENY');
+    expect(svc._normalizeDecision({ decision: 'not_applicable' })).toBe('DENY');
+    expect(svc._isPolicyNotFoundEffect({ decision: 'NOT_APPLICABLE' })).toBe(true);
   });
 
   it('still collapses other unknown effects to DENY (fail-closed)', () => {
