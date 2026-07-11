@@ -64,7 +64,7 @@ function buildSportingGoodsTools(store) {
       inputSchema: {
         type: 'object',
         properties: { rentalId: { type: 'string' }, days: { type: 'number' }, amount: { type: 'number' } },
-        required: ['rentalId'],
+        required: [],
       },
       scopes: ['write'],
       authz: { consent: true },
@@ -206,7 +206,11 @@ function buildSportingGoodsTools(store) {
         // record, not the raw array.
         return { result: (store.get(userId).loyalty || [])[0] || {}, render: 'loyalty_balance' };
       case 'extend_rental': {
-        const r = store.extendRental(userId, params || {});
+        // Consent showcase chip carries no rental id — default to the member's first
+        // active rental so the consent control is demonstrated against a real record.
+        const _p = params || {};
+        const _rid = _p.rentalId || (store.get(userId).rentals[0] || {}).id;
+        const r = store.extendRental(userId, { ..._p, rentalId: _rid });
         if (!r) return { result: { error: 'rental not found' }, render: 'text' };
         return { result: r, render: 'extend_rental' };
       }

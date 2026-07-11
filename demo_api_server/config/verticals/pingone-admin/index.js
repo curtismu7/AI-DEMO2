@@ -2,12 +2,16 @@
 const { verticalManifest } = require('../../../services/verticalManifest');
 const { tools, execute } = require('./tools');
 
+// Each call_pingone_operation heuristic carries the OAS operationId it resolves to,
+// so a chip's phrasing ("List Users", "Create User", …) maps deterministically to the
+// right operation. The parser injects h.defaultParams into the parsed params, satisfying
+// the tool's required `operationId` without asking the user to name the operation.
 const HEURISTICS = [
   { re: /\b(discover|explore|show|list)\b.*\b(api|operat|spec|endpoint)\b|\b(what|which)\b.*\b(api|can you do|operat)\b/i, action: 'discover_oas_operations' },
-  { re: /\blist\b.*\busers?\b|\bshow\s+users?\b/i,   action: 'call_pingone_operation' },
-  { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,         action: 'call_pingone_operation' },
-  { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                 action: 'call_pingone_operation' },
-  { re: /\b(get|show|view)\b.*\benvironment\b/i,            action: 'call_pingone_operation' },
+  { re: /\blist\b.*\busers?\b|\bshow\s+users?\b/i,   action: 'call_pingone_operation', defaultParams: { operationId: 'listUsers' } },
+  { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,         action: 'call_pingone_operation', defaultParams: { operationId: 'createUser' } },
+  { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                 action: 'call_pingone_operation', defaultParams: { operationId: 'listApplications' } },
+  { re: /\b(get|show|view)\b.*\benvironment\b/i,            action: 'call_pingone_operation', defaultParams: { operationId: 'getEnvironment' } },
 ];
 
 function getManifest() {

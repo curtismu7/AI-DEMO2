@@ -1091,6 +1091,12 @@ function parseHeuristic(
           // can match it against its CONCEPTS regexes.
           params = { ...params, topic: t };
         }
+        if (h.defaultParams) {
+          // Static params a heuristic resolves to regardless of message text (e.g. the
+          // pingone-admin operation heuristics each fix their OAS operationId). Extracted
+          // params still win — defaults only fill keys the message didn't provide.
+          params = { ...h.defaultParams, ...params };
+        }
         // Banking vertical uses the kind:'banking' contract expected by all consumers.
         // Only include params when non-empty so callers can test params === undefined.
         // Admin overlay heuristics are appended when isAdmin:true — those actions must

@@ -31,7 +31,7 @@ function buildRetailTools(store) {
     { name: 'list_orders', description: 'List the customer\'s orders.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'order_status', description: 'Show the status of an order. Defaults to the most recent order when no orderId is given.', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } }, scopes: ['read'], authz: {} },
     { name: 'rewards_balance', description: 'Show the customer\'s reward points and store credit.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
-    { name: 'checkout', description: 'Place an order (checkout). Requires confirmation.', inputSchema: { type: 'object', properties: { product: { type: 'string' }, amount: { type: 'number' } }, required: ['product', 'amount'] }, scopes: ['write'], authz: { consent: true } },
+    { name: 'checkout', description: 'Place an order (checkout). Requires confirmation.', inputSchema: { type: 'object', properties: { product: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { consent: true } },
     { name: 'sensitive_order_history', description: 'Access sensitive order history including payment details. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -158,8 +158,15 @@ function buildRetailTools(store) {
         // rewards_balance render descriptor is a flat fieldList, so return the
         // current reward record, not the raw array.
         return { result: (store.get(userId).rewards || [])[0] || {}, render: 'rewards_balance' };
-      case 'checkout':
-        return { result: store.checkout(userId, params || {}), render: 'checkout' };
+      case 'checkout': {
+        // Consent showcase / one-click chips may carry no product or amount — default both to
+        // nominal values so the consent control runs against a real order. An amount-driven
+        // policy chip that DOES carry an amount keeps it (UC6/7/8 behavior).
+        const _p = params || {};
+        const _product = (_p.product && String(_p.product).trim()) ? _p.product : 'Headphones';
+        const _amt = _p.amount != null ? _p.amount : 100;
+        return { result: store.checkout(userId, { ..._p, product: _product, amount: _amt }), render: 'checkout' };
+      }
       case 'sensitive_order_history':
         return {
           result: {

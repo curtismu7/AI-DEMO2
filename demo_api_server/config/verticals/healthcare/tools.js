@@ -31,8 +31,8 @@ function buildHealthcareTools(store) {
     { name: 'mark_message_read', description: "Mark a secure portal message as read by messageId", inputSchema: { type: 'object', properties: { messageId: { type: 'string' } }, required: ['messageId'] }, scopes: ['write'], authz: {} },
     { name: 'request_document', description: "Request or download a health document by id, setting its status to Requested", inputSchema: { type: 'object', properties: { documentId: { type: 'string' } }, required: ['documentId'] }, scopes: ['write'], authz: {} },
     { name: 'cancel_referral', description: "Cancel a pending or scheduled specialist referral by referralId, setting its status to Cancelled", inputSchema: { type: 'object', properties: { referralId: { type: 'string' } }, required: ['referralId'] }, scopes: ['write'], authz: {} },
-    { name: 'book_appointment', description: 'Book a new appointment with a provider.', inputSchema: { type: 'object', properties: { provider: { type: 'string' }, clinic: { type: 'string' }, when: { type: 'string' }, reason: { type: 'string' } }, required: ['provider', 'when'] }, scopes: ['write'], authz: {} },
-    { name: 'release_records', description: 'Release medical records to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { recordId: { type: 'string' } }, required: ['recordId'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'book_appointment', description: 'Book a new appointment with a provider.', inputSchema: { type: 'object', properties: { provider: { type: 'string' }, clinic: { type: 'string' }, when: { type: 'string' }, reason: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
+    { name: 'release_records', description: 'Release medical records to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { recordId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'sensitive_patient_records', description: 'Access highly sensitive patient health records. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -99,10 +99,19 @@ function buildHealthcareTools(store) {
         if (!appt) return { result: { error: 'appointment not found' }, render: 'text' };
         return { result: appt, render: 'reschedule_appointment' };
       }
-      case 'book_appointment':
-        return { result: store.bookAppointment(userId, params || {}), render: 'book_appointment' };
+      case 'book_appointment': {
+        // One-click "Book an appointment" chip carries no provider/when — default both to
+        // nominal values so the booking runs instead of dead-ending on a missing-param prompt.
+        const _p = params || {};
+        const _provider = (_p.provider && String(_p.provider).trim()) ? _p.provider : 'Dr. Smith';
+        const _when = (_p.when && String(_p.when).trim()) ? _p.when : 'next week';
+        return { result: store.bookAppointment(userId, { ..._p, provider: _provider, when: _when }), render: 'book_appointment' };
+      }
       case 'release_records': {
-        const rec = store.markRecordReleased(userId, params && params.recordId);
+        // Consent/step-up showcase chips carry no record id — default to the first record
+        // so the security control (consent + step-up) is demonstrated against a real record.
+        const _rid = (params && params.recordId) || (store.get(userId).patientRecords[0] || {}).id;
+        const rec = store.markRecordReleased(userId, _rid);
         if (!rec) return { result: { error: 'record not found' }, render: 'text' };
         return { result: rec, render: 'release_records' };
       }
