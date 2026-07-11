@@ -128,36 +128,48 @@ for _ in 1 2 3 4 5; do
 done
 if [ -n "$LLM_OK" ]; then pass "llm-proxy serving models"; else fail "llm-proxy not answering /v1/models — LLM agent modes will fall back to the heuristics catalog"; fi
 
-# ── 6. authz aud canary (tools/list discovery) ────────────────────────────────
-# Replays the gateway's own decision request shape: TokenAudience is its
-# MCP_GW_RESOURCE_URI verbatim (comma-joined on k8s). A DENY invalid_aud here
-# means every tools/list is denied → discovery degrades → vertical chips hidden.
-info "6/6 authz sidecar canary decision (comma-joined aud)..."
+# ── 6. authz tools/list canary — must PERMIT ─────────────────────────────────
+# Replays the EXACT decision request the Node gateway sends for tools/list
+# (pingAuthorizeGuard.ts): comma-joined MCP_GW_RESOURCE_URI as TokenAudience/
+# McpResourceUri, UserId, empty ActClientId, Vertical, CandidateTools. Any
+# non-PERMIT means real discovery is denied → the BFF degrades to the local
+# catalog → vertical chips ride the fallback. SMOKE_SUB must be a real,
+# enabled PingOne user (Rule 0a2 user lookup); defaults to the demo user of
+# env 01d89b06-… — override for other PingOne environments.
+SMOKE_SUB="${SMOKE_SUB:-1aee74ae-3d09-4bcf-a69f-7e1bc225b761}"
+info "6/6 authz tools/list canary (full gateway parameter shape, expect PERMIT)..."
 GW_POD=$(kubectl get pods -n "$NS" -l component=mcp-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 if [ -z "$GW_POD" ]; then
   fail "no mcp-gateway pod found"
 else
-  CANARY=$(kexec "$GW_POD" -c mcp-gateway -- node -e '
+  CANARY=$(SMOKE_SUB="$SMOKE_SUB" kubectl exec -n "$NS" "$GW_POD" -c mcp-gateway -- env SMOKE_SUB="$SMOKE_SUB" node -e '
     const aud = process.env.MCP_GW_RESOURCE_URI || "mcpgateway.ping.demo";
+    const sub = process.env.SMOKE_SUB;
     const body = JSON.stringify({ parameters: {
       DecisionContext: "McpToolsList",
-      ClientId: "smoke-canary",
+      ClientId: sub,
+      UserId: sub,
+      ActClientId: "",
       TokenAudience: aud,
       TokenAudActual: aud,
+      McpResourceUri: aud,
       TokenScopes: "gateway:mcp:invoke",
+      ActiveVertical: "",
+      Vertical: "",
+      CandidateTools: "[]",
     }});
     const req = require("http").request({ host: "127.0.0.1", port: 9001,
       path: "/governance/pap/alpha/policy/smoke-canary/decision", method: "POST",
       headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 8000 },
       res => { let b = ""; res.on("data", c => b += c); res.on("end", () => { console.log(b); process.exit(0); }); });
     req.on("error", e => { console.log(JSON.stringify({ error: e.message })); process.exit(0); });
-    req.end(body);' | tail -1)
-  if echo "$CANARY" | grep -q 'invalid_aud'; then
-    fail "authz DENYs the gateway's own aud (invalid_aud) — tools/list is broken, vertical chips will be hidden: $CANARY"
+    req.end(body);' 2>/dev/null | tail -1)
+  if echo "$CANARY" | grep -q '"decision":"PERMIT"'; then
+    pass "authz PERMITs the gateway tools/list shape"
   elif echo "$CANARY" | grep -q '"error"'; then
     fail "authz sidecar unreachable from mcp-gateway: $CANARY"
   else
-    pass "authz accepts the gateway aud ($(echo "$CANARY" | grep -o '"decision":"[A-Z]*"' | head -1))"
+    fail "authz does not PERMIT the gateway tools/list shape — discovery is degraded, vertical chips ride the fallback catalog: $CANARY"
   fi
 fi
 

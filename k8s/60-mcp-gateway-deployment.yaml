@@ -141,11 +141,18 @@ spec:
           value: "-r /otel/otel-instrument.js"
         # Reuse the gateway's PingOne creds + PINGAUTHORIZE_* config. dotenv falls
         # back to process.env when no .env file is present in the image.
+        # ai-demo-secrets LAST (k8s: later envFrom wins on key collisions) —
+        # mirrors compose, which layers demo_api_server/.env after the gateway
+        # .env. It carries PINGONE_WORKER_CLIENT_ID/SECRET + ENVIRONMENT_ID for
+        # the Rule 0a2/tools-list user lookup; without them EVERY decision
+        # fails closed with user_lookup_failed and discovery degrades.
         envFrom:
         - secretRef:
             name: gateway-secrets
         - configMapRef:
             name: ai-demo-config
+        - secretRef:
+            name: ai-demo-secrets
         volumeMounts:
         - name: otel-instrument
           mountPath: /otel
