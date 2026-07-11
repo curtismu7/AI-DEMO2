@@ -4414,6 +4414,15 @@ export default function BankingAgent({
           actionId,
           { showReauthAgentAction: true },
         );
+      } else if (err?.code === "policy_not_found") {
+        // P1AZ has no policy matching this action (missing decision endpoint or
+        // NOT_APPLICABLE) — config drift, not a deny. Tell the user plainly and
+        // return control to the agent.
+        addMessage(
+          "assistant",
+          "Policy not found, please contact administrator.",
+          actionId,
+        );
       } else if (err?.code === "mcp_authorization_denied") {
         // MCP Authorize gate: PingOne (or simulated) denied tool access
         const reason =
