@@ -874,11 +874,18 @@ services:
     container_name: ai-demo-embeddings
     ports:
       - "8084:8080"
-    # Memory-tuned for Code Search: 8k ctx + single slot (~400–600MB vs ~1.1GB).
+    # Memory-tuned for Code Search: single slot, ctx/batch pinned to the
+    # model's TRAINED context (nomic-embed v1.5 = 2048 tokens — llama.cpp
+    # clamps -c to it anyway). Embeddings are non-causal, so any input longer
+    # than the physical batch OR the context is rejected outright ("input (N
+    # tokens) is too large to process" / "larger than the max context size"),
+    # which 500'd the whole index batch. -b/-ub must equal -c, and the
+    # code-search embedder truncates chunks to fit (embeddings.ts
+    # MAX_EMBED_CHARS).
     command: >
       --host 0.0.0.0 --port 8080
       --embedding --pooling mean
-      -c 8192 -b 512 -ub 512 --parallel 1
+      -c 2048 -b 2048 -ub 2048 --parallel 1
       -hf nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0
     volumes:
       - embed-models:/root/.cache/llama.cpp

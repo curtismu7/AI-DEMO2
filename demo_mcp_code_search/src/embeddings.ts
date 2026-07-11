@@ -25,20 +25,41 @@ interface EmbeddingItem {
 }
 
 export function createEmbedder(opts: EmbedderOptions): Embedder {
+  // Indexing a whole repo embeds thousands of chunks on a single-slot CPU
+  // embedder — 30s was never enough for a 400-file batch. Each internal
+  // slice (EMBED_BATCH inputs) gets its own generous window instead.
   const post: PostFn =
-    opts.post ?? ((url, body) => axios.post(url, body, { timeout: 30000 }));
+    opts.post ?? ((url, body) => axios.post(url, body, { timeout: 120000 }));
   const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/embeddings`;
+
+  // nomic-embed-text v1.5's trained context is 2048 tokens and llama.cpp
+  // rejects longer inputs outright ("input ... is larger than the max context
+  // size"), which failed the whole index batch on any oversized chunk (giant
+  // single-line JSON/markdown). Truncate defensively: punctuation-dense
+  // content tokenizes at ~2 chars/token (a 6000-char chunk measured 2727
+  // tokens), so 3500 chars keeps the worst case under the 2048 cap; only the
+  // pathological chunk loses tail recall, everything else is untouched.
+  const MAX_EMBED_CHARS = 3500;
 
   return {
     async embed(texts: string[]): Promise<number[][]> {
       if (texts.length === 0) return [];
 
-      const res = await post(url, { input: texts, model: opts.model });
-      const items = ((res.data as { data?: EmbeddingItem[] })?.data ?? []);
-
+      const input = texts.map((t) =>
+        t.length > MAX_EMBED_CHARS ? t.slice(0, MAX_EMBED_CHARS) : t
+      );
+      // Slice the request so one repo-sized batch doesn't become a single
+      // multi-minute HTTP call (the llama.cpp server processes inputs
+      // sequentially on --parallel 1 anyway).
+      const EMBED_BATCH = 64;
       const vectors: number[][] = new Array(texts.length);
-      for (const item of items) {
-        vectors[item.index] = item.embedding;
+      for (let off = 0; off < input.length; off += EMBED_BATCH) {
+        const slice = input.slice(off, off + EMBED_BATCH);
+        const res = await post(url, { input: slice, model: opts.model });
+        const items = ((res.data as { data?: EmbeddingItem[] })?.data ?? []);
+        for (const item of items) {
+          vectors[off + item.index] = item.embedding;
+        }
       }
       // Fail loud on a partial/short/out-of-order response rather than letting
       // `undefined` vectors flow silently into the store (which Weaviate would
@@ -47,7 +68,7 @@ export function createEmbedder(opts: EmbedderOptions): Embedder {
         if (!Array.isArray(vectors[i]) || vectors[i].length === 0) {
           throw new Error(
             `Embedding response is incomplete: missing vector for input index ${i} ` +
-            `(${items.length} vectors returned for ${texts.length} inputs)`
+            `of ${texts.length} inputs`
           );
         }
       }
