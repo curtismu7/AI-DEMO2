@@ -1338,6 +1338,7 @@ echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."
   SSL_KEY_FILE="${KEY_FILE}" \
   VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
   VAULT_PATH="${VAULT_PATH:-}" \
+  CRASH_GUARD="${CRASH_GUARD:-1}" \
   BFF_DEV="${BFF_DEV:-0}" \
   nohup bash -c 'if [[ "${BFF_DEV:-0}" == "1" ]]; then exec npm run dev; else exec npm start; fi' > "${LOG_API}" 2>&1
 ) &
