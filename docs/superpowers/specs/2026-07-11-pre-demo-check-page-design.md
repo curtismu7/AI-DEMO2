@@ -194,10 +194,17 @@ pinged. We reuse the three graded PingGateway test endpoints in
 
 ## Frontend (`demo_api_ui/src/pages/CheckPage.jsx`, route `/check`)
 
-- Follows the existing appShell page pattern (like `ServersPage` / `FeatureFlagsPage`):
-  imported and routed in `App.js`, wrapped in `TopNav` + `main.main-content`,
-  visible to any logged-in user (same guard as `/servers`).
-- Nav entry added to `TopNav` next to Servers / Feature Flags, label **Check**.
+- Follows the existing appShell page pattern (like `ServersPage`): imported and
+  routed in `App.js` at `/check`, wrapped in the standard shell, visible to any
+  logged-in user (same guard as `/servers` — `authenticateToken` only, no admin gate).
+- **Side-nav entry** in `demo_api_ui/src/components/AdminSideNav.jsx` (the app's
+  role-aware side nav that renders for ALL logged-in users) — a
+  `{ label: "Check", path: "/check", icon }` item **without** `adminOnly`, placed
+  near the Servers item (~line 711), so every user can open and run it.
+- **Emoji rule (CLAUDE.md §0):** the traffic lights and status icons must be
+  **CSS / semantic** (colored dots via tokens), NOT emoji. The only emoji allowed
+  anywhere are `⚠️ ✅ ❌ 🔐 ✕ ✓`. The mock's card lights already use CSS dots;
+  the real page must do the same everywhere (no 🟢🟡🔴⚪🚦).
 ### Layout — one results model, four switchable views
 
 All layouts render the **same** check-results model (categories → checks →
