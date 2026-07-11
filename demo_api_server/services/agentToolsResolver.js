@@ -93,6 +93,14 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
     }
   }
   if (lastErr) {
+    // Surface WHY discovery failed — this error was previously swallowed, which
+    // turned a broken gateway/authz hop into a silent chips regression only
+    // diagnosable by re-driving the WS handshake by hand.
+    console.error(
+      `[agentToolsResolver] tool discovery failed after ${DISCOVERY_RETRY_BACKOFFS_MS.length + 1} attempts` +
+      ` (vertical=${vertical || '(global)'}) — degrading to local catalog:`,
+      (lastErr && lastErr.message) || lastErr,
+    );
     // Discovery is down, so the Authorize-filtered scope decision is unavailable.
     // Degrade to a local catalog with every tool permitted: `permitted` only
     // drives chip affordance — every tools/call still goes through the gateway's
