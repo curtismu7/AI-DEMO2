@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import bffAxios from "../services/bffAxios";
+import { adminCustomerContext } from "../services/adminCustomerContext";
 import "./AdminCustomerPanel.css";
 
 const API = "/api/admin/agent";
@@ -76,7 +77,9 @@ const AdminCustomerPanel = () => {
   }, [query]);
 
   const handleSelect = useCallback((u) => {
-    setSelectedCustomer({ id: u.id, name: displayName(u) });
+    const customer = { id: u.id, name: displayName(u) };
+    setSelectedCustomer(customer);
+    adminCustomerContext.set(customer);
     setResult(null);
     setActionError(null);
     setAdjustAccountId("");
@@ -87,6 +90,7 @@ const AdminCustomerPanel = () => {
 
   const handleClear = useCallback(() => {
     setSelectedCustomer(null);
+    adminCustomerContext.set(null);
     setResult(null);
     setActionError(null);
     setAdjustAccountId("");

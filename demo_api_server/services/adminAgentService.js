@@ -32,7 +32,7 @@ function _extractHelixConfig(langchainConfig = {}) {
  * Returns the same response envelope as processAgentMessage in demoAgentLangGraphService:
  *   { reply, success, toolsCalled, inputTokens?, outputTokens?, tokenEvents, requiresConsent, agentConfigured, error? }
  */
-async function processAdminMessage({ message, userId, sessionId, tokenEvents = [], langchainConfig = {}, req = null }) {
+async function processAdminMessage({ message, userId, sessionId, tokenEvents = [], langchainConfig = {}, req = null, customer = null }) {
   try {
     appEventService.logEvent('agent', 'info', 'Admin agent processing message…', { tag: 'agent/admin_message' });
 
@@ -86,7 +86,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       console.warn('[adminAgentService] Worker token card failed:', cardErr.message);
     }
 
-    const systemPrompt = buildAdminSystemPrompt();
+    const systemPrompt = buildAdminSystemPrompt(customer);
 
     const loopResult = await runReasonLoop({
       messages: [{ role: 'user', content: message }],

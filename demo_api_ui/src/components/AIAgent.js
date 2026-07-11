@@ -62,6 +62,7 @@ import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
+import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
 import GatewayConsentModal from "./GatewayConsentModal";
@@ -7042,6 +7043,7 @@ export default function BankingAgent({
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 message,
+                                customer: adminCustomerContext.get(),
                               }),
                               signal: AbortSignal.timeout(30000),
                             });
