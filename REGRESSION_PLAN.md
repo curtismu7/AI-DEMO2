@@ -81,6 +81,38 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-10 — PingGateway Exchange #2 sent `audience=` (ignored) instead of `resource=`
+
+**Files changed:** `demo_api_server/services/agentMcpTokenService.js` (finalAudiences
+array for the PingGateway path), `service-topology.json` + `k8s/02-configmap.yaml`
+(`PINGONE_RESOURCE_PINGGATEWAY_URI`).
+
+**What was broken:** for the PingGateway path the BFF passed `finalAudiences` as a
+single STRING, and `oauthService.applyAudienceParam()` maps a string to `audience=`.
+PingOne SILENTLY IGNORES `audience=` (honors only RFC 8707 `resource=`), so the
+exchanged token kept the subject/actor aud `mcpgateway.ping.demo` instead of the
+gateway resource aud. The IG's `McpProtectionFilter` then rejected it (400) BEFORE
+`olb-token-exchange.groovy` ran, so tool calls failed and chips fell back to
+heuristic. Verified live via the PingOne Management API: `resource=https://api.ping.demo:3036/mcp`
+yields `aud=[that] scope=gateway:mcp:invoke`; the PingOne resource (6635cfb8) + scope
+(gateway:mcp:invoke) + exchanger grant (f4dd707d) + IG `PG_GATEWAY_RESOURCE_ID` were
+all already correct — only the BFF's request param was wrong.
+
+**What was fixed:** pass the PingGateway audience as a one-element ARRAY so it goes
+out as `resource=`; single-source `PINGONE_RESOURCE_PINGGATEWAY_URI` (the aud the IG
+expects) into the configmap so `pingGatewayResourceAud` no longer falls back to
+`mcpgateway.ping.demo`.
+
+**Do not break:** the non-PingGateway audience path (single-resource string) is
+unchanged; the two-exchange structure, `gateway:mcp:invoke` scope, actor tokens, and
+`finalAudTarget` (later aud-match checks) are unchanged. `applyAudienceParam` array->
+`resource=` mapping is the load-bearing behavior — do not "simplify" it to always use
+`audience=`.
+
+**Verify:** `node --check`; live — set the same value on the BFF, click a banking chip,
+confirm `[OlbExchange] REQUEST` appears in the ping-gateway pod and the tool returns a
+real (non-heuristic) result.
+
 ### 2026-07-10 — Admin agent chips silently no-op ("Look Up Customer" no response)
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (transcript render
