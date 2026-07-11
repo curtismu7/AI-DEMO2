@@ -60,7 +60,7 @@ function mockWorkerThenDecision(decisionBody) {
 beforeEach(() => {
   // The worker token is cached across evaluate calls; reset so every test's
   // "call[0] token, call[1] decision" mock queue lines up.
-  svc._resetAuthorizeRuntimeState();
+  if (typeof svc._resetAuthorizeRuntimeState === 'function') svc._resetAuthorizeRuntimeState();
 });
 
 afterEach(() => {
