@@ -1,0 +1,255 @@
+/* AdminCustomerPanel.css — deterministic customer admin panel.
+   Reuses dashboard tokens (--dash-*) and shared classes (dash-shell-card,
+   btn btn-primary, table, form-control) so it blends into the admin dashboard. */
+
+.acp-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.acp-subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--dash-muted, #64748b);
+  line-height: 1.5;
+}
+
+.acp-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--dash-muted, #64748b);
+  margin-bottom: 0.3rem;
+}
+
+.acp-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.acp-search-input {
+  max-width: 360px;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--dash-border, #e2e8f0);
+}
+
+.acp-hint {
+  font-size: 0.85rem;
+  color: var(--dash-muted, #64748b);
+  margin: 0.35rem 0;
+}
+
+.acp-hint--select {
+  font-style: italic;
+}
+
+.acp-error {
+  font-size: 0.85rem;
+  color: var(--brand-error, #dc2626);
+  font-weight: 500;
+}
+
+.acp-error--block {
+  display: block;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+/* Match list */
+.acp-matches {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 1px solid var(--dash-border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 480px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.acp-match {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--dash-border, #e2e8f0);
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.acp-matches li:last-child .acp-match {
+  border-bottom: none;
+}
+
+.acp-match:hover,
+.acp-match:focus-visible {
+  background: var(--dash-surface2, #f1f5f9);
+  outline: none;
+}
+
+.acp-match__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--dash-text, #1e293b);
+}
+
+.acp-match__meta {
+  font-size: 0.78rem;
+  color: var(--dash-muted, #64748b);
+}
+
+/* Selected banner */
+.acp-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: var(--dash-surface2, #f1f5f9);
+  border: 1px solid var(--dash-border, #e2e8f0);
+}
+
+.acp-selected__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dash-muted, #64748b);
+}
+
+.acp-selected__name {
+  font-weight: 600;
+  color: var(--dash-text, #1e293b);
+}
+
+.acp-selected__id {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--dash-muted, #64748b);
+  word-break: break-all;
+}
+
+.acp-clear-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--dash-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--dash-text, #1e293b);
+}
+
+.acp-clear-btn:hover {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+/* Actions */
+.acp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.acp-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Results */
+.acp-results {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--dash-border, #e2e8f0);
+}
+
+.acp-result-title {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dash-text, #1e293b);
+}
+
+.acp-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem 1.25rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.acp-dl__row {
+  min-width: 0;
+}
+
+.acp-dl__key {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--dash-muted, #64748b);
+}
+
+.acp-dl__val {
+  margin: 0.15rem 0 0;
+  color: var(--dash-text, #1e293b);
+  word-break: break-word;
+}
+
+.acp-mono {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+
+.acp-json {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--dash-surface2, #f1f5f9);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.acp-callout {
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.acp-callout--ok {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: var(--dash-text, #14532d);
+}
+
+/* Adjust form */
+.acp-adjust__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.acp-select {
+  min-width: 220px;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--dash-border, #e2e8f0);
+}
