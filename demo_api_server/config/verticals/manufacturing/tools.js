@@ -11,7 +11,7 @@ function buildManufacturingTools(store) {
     { name: 'close_maintenance_ticket', description: "Close or resolve an open maintenance ticket by ticketId.", inputSchema: { type: 'object', properties: { ticketId: { type: 'string' } }, required: ['ticketId'] }, scopes: ['write'], authz: {} },
     { name: 'complete_quality_inspection', description: "Mark a quality inspection as passed and complete by inspectionId.", inputSchema: { type: 'object', properties: { inspectionId: { type: 'string' } }, required: ['inspectionId'] }, scopes: ['write'], authz: {} },
     { name: 'receive_shipment', description: "Mark a shipment as received by shipmentId.", inputSchema: { type: 'object', properties: { shipmentId: { type: 'string' } }, required: ['shipmentId'] }, scopes: ['write'], authz: {} },
-    { name: 'approve_purchase_order', description: "Approve a pending purchase order by poId.", inputSchema: { type: 'object', properties: { poId: { type: 'string' }, amount: { type: 'number' } }, required: ['poId'] }, scopes: ['write'], authz: {} },
+    { name: 'approve_purchase_order', description: "Approve a pending purchase order by poId.", inputSchema: { type: 'object', properties: { poId: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'reject_purchase_order', description: "Reject a pending purchase order by poId.", inputSchema: { type: 'object', properties: { poId: { type: 'string' } }, required: ['poId'] }, scopes: ['write'], authz: {} },
     { name: 'void_purchase_order', description: "Void a purchase order before supplier fulfillment by poId.", inputSchema: { type: 'object', properties: { poId: { type: 'string' } }, required: ['poId'] }, scopes: ['write'], authz: {} },
     { name: 'flag_defect', description: "Flag or log a quality defect record by defectId.", inputSchema: { type: 'object', properties: { defectId: { type: 'string' } }, required: ['defectId'] }, scopes: ['write'], authz: {} },
@@ -75,6 +75,8 @@ function buildManufacturingTools(store) {
         const _arr = store.get(userId).purchaseOrders || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        // Amount-driven policy chip ("approve a $300 purchase order") carries no PO id — default to the first pending PO.
+        if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending') || _arr[0];
         if (!_item) return { result: { error: 'purchase order not found' }, render: 'text' };
         Object.assign(_item, { status: 'Approved' });
         return { result: _item, render: 'approve_purchase_order' };

@@ -13,7 +13,7 @@ function buildHealthcareTools(store) {
     { name: 'list_appointments', description: 'List the patient\'s appointments.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_claims', description: 'List the patient\'s insurance claims and their status.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_billing', description: 'List the patient\'s bills and amounts due.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
-    { name: 'pay_bill', description: 'Pay an outstanding bill.', inputSchema: { type: 'object', properties: { billId: { type: 'string' }, amount: { type: 'number' } }, required: ['billId'] }, scopes: ['write'], authz: {} },
+    { name: 'pay_bill', description: 'Pay an outstanding bill.', inputSchema: { type: 'object', properties: { billId: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'cancel_appointment', description: 'Cancel an existing appointment.', inputSchema: { type: 'object', properties: { appointmentId: { type: 'string' } }, required: ['appointmentId'] }, scopes: ['write'], authz: {} },
     { name: 'reschedule_appointment', description: 'Reschedule an existing appointment to a new date/time.', inputSchema: { type: 'object', properties: { appointmentId: { type: 'string' }, when: { type: 'string' } }, required: ['appointmentId'] }, scopes: ['write'], authz: {} },
     { name: 'view_medications', description: "List the patient's current medications with dosage, frequency, and refill status", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -81,7 +81,11 @@ function buildHealthcareTools(store) {
       case 'view_billing':
         return { result: { bills: store.get(userId).billingHistory }, render: 'view_billing' };
       case 'pay_bill': {
-        const bill = store.payBill(userId, (params && (params.billId || params.recordId)));
+        // Amount-driven policy chips ("pay my $300 bill") don't carry a bill id —
+        // default to the first outstanding bill so the Authorize outcome can be shown.
+        let _billId = params && (params.billId || params.recordId);
+        if (!_billId) { const _bills = store.get(userId).billingHistory || []; _billId = _bills[0] && _bills[0].id; }
+        const bill = store.payBill(userId, _billId);
         if (!bill) return { result: { error: 'bill not found' }, render: 'text' };
         return { result: bill, render: 'pay_bill' };
       }

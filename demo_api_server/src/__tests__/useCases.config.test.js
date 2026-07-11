@@ -94,9 +94,9 @@ describe('useCases catalog SoT', () => {
     const expected = {
       banking: {
         UC1: 'show my balance',
-        UC6: 'transfer $2500 to savings',
-        UC7: 'transfer $600 to savings',
-        UC8: 'transfer $300 to savings',
+        UC6: 'transfer $2500 from checking to savings',
+        UC7: 'transfer $600 from checking to savings',
+        UC8: 'transfer $300 from checking to savings',
         UC24: 'What branches are near me?',
       },
       healthcare: {

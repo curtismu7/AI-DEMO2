@@ -99,7 +99,7 @@
           }
         },
         "required": [
-          "poId"
+          "amount"
         ],
         "additionalProperties": false
       }
@@ -1263,7 +1263,7 @@
           }
         },
         "required": [
-          "billId"
+          "amount"
         ],
         "additionalProperties": false
       }
@@ -1297,7 +1297,7 @@
           }
         },
         "required": [
-          "billId"
+          "amount"
         ],
         "additionalProperties": false
       }
@@ -2050,7 +2050,6 @@
           }
         },
         "required": [
-          "category",
           "amount"
         ],
         "additionalProperties": false

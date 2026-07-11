@@ -12,7 +12,7 @@ function buildUniversityTools(store) {
     { name: 'cancel_course_registration', description: "Drop (cancel) a registered course by courseId.", inputSchema: { type: 'object', properties: { courseId: { type: 'string' } }, required: ['courseId'] }, scopes: ['write'], authz: {} },
     { name: 'waitlist_course', description: "Add a student to the waitlist for a full course by courseId.", inputSchema: { type: 'object', properties: { courseId: { type: 'string' } }, required: ['courseId'] }, scopes: ['write'], authz: {} },
     { name: 'accept_financial_aid', description: "Accept a pending financial aid award or loan offer by aidId.", inputSchema: { type: 'object', properties: { aidId: { type: 'string' } }, required: ['aidId'] }, scopes: ['write'], authz: {} },
-    { name: 'pay_tuition_balance', description: "Mark a tuition bill as paid by billId.", inputSchema: { type: 'object', properties: { billId: { type: 'string' }, amount: { type: 'number' } }, required: ['billId'] }, scopes: ['write'], authz: {} },
+    { name: 'pay_tuition_balance', description: "Mark a tuition bill as paid by billId.", inputSchema: { type: 'object', properties: { billId: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'release_hold', description: "Request release of an account hold by holdId.", inputSchema: { type: 'object', properties: { holdId: { type: 'string' } }, required: ['holdId'] }, scopes: ['write'], authz: {} },
     { name: 'request_housing_assignment', description: "Submit or change a housing assignment request by housingId.", inputSchema: { type: 'object', properties: { housingId: { type: 'string' } }, required: ['housingId'] }, scopes: ['write'], authz: {} },
     { name: 'renew_parking_permit', description: "Renew a campus parking permit by permitId.", inputSchema: { type: 'object', properties: { permitId: { type: 'string' } }, required: ['permitId'] }, scopes: ['write'], authz: {} },
@@ -76,6 +76,8 @@ function buildUniversityTools(store) {
         const _arr = store.get(userId).billing || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        // Amount-driven policy chip ("pay $300 tuition") carries no bill id — default to the first tuition bill.
+        if (!_item && !_id) _item = _arr[0];
         if (!_item) return { result: { error: 'tuition bill not found' }, render: 'text' };
         Object.assign(_item, { status: 'Paid' });
         return { result: _item, render: 'pay_tuition_balance' };
