@@ -154,7 +154,10 @@ build_and_push() {
   local uri="${REGISTRY}/${g_img}:${TAG}"
 
   info "Building ${svc}..."
-  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" build "$svc"
+  # --profile demo-auth: mcp-gateway and authz-server sit behind that compose
+  # profile; without it their builds are silently skipped and the tag/push
+  # step ships whatever stale local image happens to exist.
+  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" --profile demo-auth build "$svc"
   info "Pushing → ${uri}"
   docker tag "${l_img}:latest" "$uri"
   docker push "$uri"
@@ -173,7 +176,9 @@ roll_deployment() {
 # ── Build + push ──────────────────────────────────────────────────────────────
 if [[ -z "$SERVICE" ]]; then
   info "Building ALL services..."
-  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" build
+  # --profile demo-auth: see build_and_push — profile-gated services must build
+  # too or the loop below pushes stale local images for them.
+  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" --profile demo-auth build
   for key in $ALL_KEYS; do
     l_img="$(local_img "$key")"
     g_img="$(ghcr_img "$key")"

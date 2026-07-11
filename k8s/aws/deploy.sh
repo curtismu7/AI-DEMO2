@@ -83,8 +83,11 @@ patch_images() {
     local ghcr_uri="${GHCR_REGISTRY}/${ghcr_name}:${IMAGE_TAG}"
     content="${content/image: ${local_name}:latest/image: ${ghcr_uri}}"
   done
-  # Always pull from GHCR (never use a cached local image)
-  content="${content/imagePullPolicy: IfNotPresent/imagePullPolicy: Always}"
+  # Always pull from GHCR (never use a cached local image). // = replace ALL
+  # occurrences: multi-container manifests (mcp-gateway + authz-server sidecar)
+  # have several imagePullPolicy lines; a single / left the sidecar on
+  # IfNotPresent, pinning it to whatever stale image the node had cached.
+  content="${content//imagePullPolicy: IfNotPresent/imagePullPolicy: Always}"
   echo "$content"
 }
 
