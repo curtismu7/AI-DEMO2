@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const configStore = require('../services/configStore');
+const { requireAdminOrUnconfigured } = require('./adminConfig');
 
 /**
  * Credential type → required config keys mapping.
@@ -118,7 +119,7 @@ router.get('/missing', (req, res) => {
  * Body: { credentialType, credentials: { field: value, ... } }
  * Saves credentials to configStore.
  */
-router.post('/set', async (req, res) => {
+router.post('/set', requireAdminOrUnconfigured, async (req, res) => {
   try {
     const { credentialType, credentials } = req.body;
 
