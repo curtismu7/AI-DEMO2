@@ -53,9 +53,9 @@ services:
 
   # ── Jaeger UI + OTLP collector (free local tracing backend) ────────────────
   jaeger:
-    profiles: ["tracing"]
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
+    mem_limit: 512m
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
@@ -78,7 +78,7 @@ services:
     environment:
       NODE_ENV: development
       # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in instrument.js).
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "demo-api-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       JAEGER_QUERY_URL: "http://jaeger:16686"
@@ -283,7 +283,7 @@ services:
       NODE_ENV: production
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8080"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_RESOURCE_URL: "http://localhost:8080"
@@ -397,7 +397,7 @@ services:
     environment:
       NODE_ENV: production
       MCP_GW_PORT: "3005"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-gateway"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
@@ -445,7 +445,7 @@ services:
       NODE_ENV: production
       HOST: "0.0.0.0"    # override loopback default (REGRESSION_PLAN §3) for container networking
       AGENT_SERVICE_PORT: "3006"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "agent-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       BFF_BASE_URL: "https://demo-api-server:3001"
@@ -483,7 +483,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3009"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://api.ping.demo:3001"
@@ -516,7 +516,7 @@ services:
       # second entry for callers still on the old forward-unchanged contract. Compose env
       # wins over demo_mcp_invest/.env.
       MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcpgateway.ping.demo"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-invest"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
     env_file:
@@ -574,7 +574,7 @@ services:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
       HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "authz-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       # When set, HitlApproved+UUID also requires an approved challenge in HITL store.
