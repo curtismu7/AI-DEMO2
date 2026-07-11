@@ -43,4 +43,12 @@ describe('parseToolResult', () => {
     expect(c.kind).toBe('error');
     expect(c.message).toContain('not json');
   });
+
+  it('does NOT extract embedded JSON fragments from prose-wrapped garbage (machine output is strict)', () => {
+    const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result, parseFailed } = parseToolResult('Gateway error: policy {"decision":"DENY"} evaluated', { site: 'test' });
+    expect(parseFailed).toBe(true);
+    expect(result.error).toBe('tool_result_unparseable');
+    spy.mockRestore();
+  });
 });

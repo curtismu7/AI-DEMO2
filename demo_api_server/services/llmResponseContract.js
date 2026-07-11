@@ -105,11 +105,30 @@ function validateIntent(obj) {
 }
 
 /**
+ * Strict JSON parse for machine tool output (not LLM prose): direct parse,
+ * then in-place textual repairs only (smart quotes, trailing commas,
+ * truncated-closer completion). Deliberately does NOT fence-strip or
+ * brace-slice extract — tool output is not wrapped in markdown or
+ * conversational text, so an embedded `{...}` found inside a prose/error
+ * string (e.g. a gateway error message) must not be mistaken for the result.
+ */
+function strictParseJson(text) {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) { /* try repaired */ }
+  try {
+    return JSON.parse(repairJsonText(trimmed));
+  } catch (_) { /* unparseable */ }
+  return null;
+}
+
+/**
  * Normalize a tool result (executeBffTool output: object or JSON string) into
  * an object. Unparseable/empty input becomes an error-shaped object that
- * classifyMcpToolResult routes to kind:'error' — never a raw string, never
- * null (classify(null) is 'ok', which turned parse failures into false
- * successes on the write paths).
+ * classifyMcpToolResult routes to kind:'error' — never an unparsed raw
+ * string (parsed JSON scalars pass through), never null (classify(null) is
+ * 'ok', which turned parse failures into false successes on the write paths).
  */
 function parseToolResult(raw, opts = {}) {
   const site = opts.site || 'tool';
@@ -117,7 +136,7 @@ function parseToolResult(raw, opts = {}) {
     return { result: raw, parseFailed: false };
   }
   if (typeof raw === 'string' && raw.trim() !== '') {
-    const parsed = repairAndParseJson(raw);
+    const parsed = strictParseJson(raw);
     if (parsed !== null) return { result: parsed, parseFailed: false };
     logMendEvent('tool_result_unparseable', { site, snippet: snippet(raw) });
     return {

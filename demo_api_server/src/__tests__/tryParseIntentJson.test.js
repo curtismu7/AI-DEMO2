@@ -43,4 +43,9 @@ describe('tryParseIntentJson', () => {
     expect(spy).toHaveBeenCalledWith('[llmContract]', expect.stringContaining('intent_shape_rejected'));
     spy.mockRestore();
   });
+
+  it('unwraps a single-element array wrapper from small models', () => {
+    expect(tryParseIntentJson('[{"kind":"banking","banking":{"action":"accounts"}}]'))
+      .toEqual({ kind: 'banking', banking: { action: 'accounts' } });
+  });
 });

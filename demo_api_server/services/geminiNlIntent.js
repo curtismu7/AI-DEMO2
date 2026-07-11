@@ -113,7 +113,10 @@ const MLX_PROVIDERS = new Set(['mlx']);
 /** Parse a non-none intent JSON object from an LLM reply (repairs + validates via llmResponseContract). */
 function tryParseIntentJson(text) {
   if (!text) return null;
-  const parsed = repairAndParseJson(text);
+  let parsed = repairAndParseJson(text);
+  if (Array.isArray(parsed) && parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object') {
+    parsed = parsed[0];
+  }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   if (!parsed.kind || parsed.kind === 'none') return null;
   if (!validateIntent(parsed)) {
