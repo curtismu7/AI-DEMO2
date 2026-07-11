@@ -88,3 +88,6 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 # SE DevOps kubeconfig backup (credentials — never commit; use install-se-kubeconfig.sh)
 .local/kube/*
 !.local/kube/README.md
+
+# evidence screenshots/results from the real e2e evidence + use-case suites (never commit)
+/demo_api_ui/evidence/

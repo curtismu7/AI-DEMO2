@@ -1065,6 +1065,13 @@ cmd_start() {
   vault_preflight
   echo ""
 
+  # Auto-provision the apikey-dispatch service key (vault + .env) BEFORE `up`
+  # so mortgage-service boots with a non-default key on fresh clones and any
+  # rotation is picked up by the recreated containers. Fails soft.
+  # Force a fresh key with: ROTATE_SERVICE_KEYS=1 ./run-docker.sh start
+  node demo_api_server/scripts/ensure-service-keys.js
+  echo ""
+
   # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't
   # reported "not configured" on the first request.
   start_llamacpp
