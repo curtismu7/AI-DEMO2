@@ -6760,7 +6760,11 @@ export default function BankingAgent({
                                 method: "POST",
                                 credentials: "include",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ tool: "get_my_accounts", params: {}, _testActClientId: rogue }),
+                                // Attacks demonstrate the security infrastructure (banking is the
+                                // reference), not vertical data — pin to banking so the demo runs the
+                                // same regardless of the active vertical instead of dead-ending on a
+                                // cross-vertical deny.
+                                body: JSON.stringify({ tool: "get_my_accounts", params: {}, vertical: "banking", _testActClientId: rogue }),
                               });
                               const data = await r.json().catch(() => ({}));
                               const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
@@ -6798,7 +6802,14 @@ export default function BankingAgent({
                               });
                               const seedData = await seedRes.json().catch(() => ({}));
                               const payload = seedData.description || seedData.notes || "(payload planted)";
-                              const readResp = await callMcpTool(inj.readTool, inj.readTool === "get_my_transactions" ? { limit: 25 } : {});
+                              // Pin the poisoned read to banking (where the seed plants data) so the
+                              // injection surfaces regardless of the active vertical.
+                              const readResp = await (await fetch(`${apiBase}/api/mcp/tool`, {
+                                method: "POST",
+                                credentials: "include",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ tool: inj.readTool, params: inj.readTool === "get_my_transactions" ? { limit: 25 } : {}, vertical: "banking" }),
+                              })).json().catch(() => ({}));
                               const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
                               addMessage(
                                 "token-event",
@@ -6832,8 +6843,11 @@ export default function BankingAgent({
                           // approved, so the reuse is re-challenged (428), not honored.
                           (async () => {
                             const apiBase = process.env.REACT_APP_API_URL || "";
+                            // Pin to banking: the receipt-replay demo exercises the gateway's
+                            // per-tool receipt binding (a security control), not vertical data, so it
+                            // runs the same everywhere instead of dead-ending on a cross-vertical deny.
                             const call = (tool, params) =>
-                              fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params }) });
+                              fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params, vertical: "banking" }) });
                             try {
                               const acctD = await (await call("get_my_accounts", {})).json().catch(() => ({}));
                               let accounts = [];
