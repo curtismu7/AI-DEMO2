@@ -66,7 +66,10 @@ fi
 
 # ── 2. Rebuild image(s) ──────────────────────────────────────────────────────
 # Production images only — never merge docker-compose.override.yml (Vite dev target).
-K8S_COMPOSE=( -f "${REPO_ROOT}/docker-compose.yml" )
+# -p ai-demo-k8: build under the K8 compose project so prod images tag as
+# ai-demo-k8-* and never overwrite the dev stack's ai-demo-* tags (the dev UI
+# crash-looped with exit 127 when a prod build landed on its tag — §4 2026-07-11).
+K8S_COMPOSE=( -p ai-demo-k8 -f "${REPO_ROOT}/docker-compose.yml" )
 if [ "${#SERVICES[@]}" -eq 0 ]; then
   info "Rebuilding ALL images (docker compose -f docker-compose.yml build)..."
   ( cd "$REPO_ROOT" && docker compose "${K8S_COMPOSE[@]}" build )
@@ -77,12 +80,12 @@ else
   ( cd "$REPO_ROOT" && docker compose "${K8S_COMPOSE[@]}" build "${compose_names[@]}" )
 fi
 
-# Compose tags images as <project>-<service>:latest (e.g. ai-demo-demo-api-server).
-# K8s deployments use shorter names (ai-demo-api-server). Retag so rollouts pick
+# Compose tags images as <project>-<service>:latest (e.g. ai-demo-k8-demo-api-server).
+# K8s deployments use shorter names (ai-demo-k8-api-server). Retag so rollouts pick
 # up the just-built layers instead of a stale IfNotPresent image.
 retag_compose_to_k8s() {
   local compose_svc="$1" k8s_image="$2"
-  local project="${COMPOSE_PROJECT_NAME:-ai-demo}"
+  local project="${COMPOSE_PROJECT_NAME:-ai-demo-k8}"
   local src="${project}-${compose_svc}:latest"
   if docker image inspect "$src" >/dev/null 2>&1; then
     docker tag "$src" "$k8s_image"
@@ -90,10 +93,10 @@ retag_compose_to_k8s() {
   fi
 }
 if [ "${#SERVICES[@]}" -eq 0 ] || printf '%s\n' "${SERVICES[@]}" | grep -qx 'demo-api-server'; then
-  retag_compose_to_k8s demo-api-server ai-demo-api-server:latest
+  retag_compose_to_k8s demo-api-server ai-demo-k8-api-server:latest
 fi
 if [ "${#SERVICES[@]}" -eq 0 ] || printf '%s\n' "${SERVICES[@]}" | grep -qx 'ui\|frontend'; then
-  retag_compose_to_k8s ui ai-demo-ui:latest
+  retag_compose_to_k8s ui ai-demo-k8-ui:latest
 fi
 
 # ── 3. Restart deployment(s) so new images are pulled into fresh pods ────────

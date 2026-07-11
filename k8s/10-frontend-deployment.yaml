@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: ai-demo-ui:latest
+        image: ai-demo-k8-ui:latest
         imagePullPolicy: IfNotPresent   # use locally-built image (OrbStack/minikube)
         ports:
         - containerPort: 3000

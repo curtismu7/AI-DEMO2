@@ -79,7 +79,7 @@ if $all_current; then
   echo -e "${GREEN}✓ All pods match local HEAD.${NC}"
 else
   echo -e "${YELLOW}Some pods are out of date. To update:${NC}"
-  echo "  docker compose build <service>  # rebuild changed images"
+  echo "  docker compose -p ai-demo-k8 build <service>  # rebuild changed images (k8 project — do not clobber dev tags)"
   echo "  docker tag <local>:latest ghcr.io/curtismu7/<ghcr-name>:latest && docker push ..."
   echo "  kubectl rollout restart deployment/<name> -n $NS"
   echo "  See k8s/aws/deploy.sh or /ping-aws-cluster skill for full instructions."

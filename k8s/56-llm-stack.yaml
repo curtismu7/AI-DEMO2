@@ -269,7 +269,7 @@ spec:
       serviceAccountName: llm-tier-manager
       containers:
         - name: tier-manager
-          image: ai-demo-tier-manager:latest
+          image: ai-demo-k8-tier-manager:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8097
@@ -341,7 +341,7 @@ spec:
     spec:
       containers:
         - name: llm-proxy
-          image: ai-demo-llm-proxy:latest
+          image: ai-demo-k8-llm-proxy:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8090

@@ -81,6 +81,41 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — Local-K8s flow also built onto dev image tags (same class as the SE clobber)
+
+**Files changed:** `run-k8.sh` (K8_COMPOSE_PROJECT, `-p` on all 3 build sites,
+expanded `tag_k8_images`), `k8s/update.sh` (`-p` + retag targets),
+`k8s/*.yaml` (19 locally-built images renamed `ai-demo-X` → `ai-demo-k8-X`),
+`k8s/aws/deploy.sh` (IMAGE_MAP local keys renamed; GHCR names unchanged),
+`k8s/check-cluster.sh` + `k8s/deploy.sh` (operator hints).
+
+**What was broken:** the local-K8s manifests deliberately shared image tags
+with the dev compose stack (`ai-demo-ui:latest`, …), so every
+`run-k8.sh`/`k8s/update.sh` build wrote production-stage images onto the dev
+tags — the same mechanism that crash-looped the dev UI (exit 127) when the SE
+script did it.
+
+**What was fixed:** the K8 flow now has its own namespace end to end — builds
+run under compose project `ai-demo-k8`, manifests reference `ai-demo-k8-*`
+names, `tag_k8_images` bridges the BFF (compose `demo-api-server` → manifest
+`api-server`) and the explicit-image services (llm-proxy, tier-manager,
+mcp-code-search, llamaindex-agent), and `k8s/aws/deploy.sh` rewrites the new
+local names to the SAME GHCR URIs as before.
+
+**Do not break:** GHCR image names and k8s Deployment names are unchanged —
+only local tag names moved. `patch_images` in `k8s/aws/deploy.sh` string-matches
+`image: <local-name>:latest`; its IMAGE_MAP keys must exactly equal the
+manifest image names. Explicit-image compose services (`image: ai-demo-…`) are
+NOT renamed by `-p` — their k8 builds still write the dev tag first, then
+retag (single-Dockerfile services, so identical bits; do not add a multi-stage
+`target:` to one without also parameterizing its compose `image:`).
+
+**Verify:** `bash -n` on all 4 scripts; `python3 yaml.safe_load_all` over
+`k8s/*.yaml` (24 files, 0 invalid); no `ai-demo-(ui|api-server):latest`
+references remain outside GHCR right-hand names. First local-K8s rollout after
+this change requires a fresh `./run-k8.sh` build (pods reference the new
+`ai-demo-k8-*` names, which don't exist until built).
+
 ### 2026-07-11 — SE builds overwrote the dev stack's image tags (dev UI crash-looped with exit 127)
 
 **Files changed:** `se-update-code.sh` (SE_COMPOSE_PROJECT + `-p` on both
