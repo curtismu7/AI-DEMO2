@@ -318,9 +318,14 @@ export default function BankingAgent({
   // Map agentProviderMode (updated immediately on mode switch via useLangchainProvider)
   // to the provider string the BFF expects, using the shared SSOT (config/agentModes.js).
   // nlMeta.activeLlmProvider is fetched once on mount and goes stale after a mode
-  // change, so agentProviderMode wins for explicit modes; unknown modes fall back to it.
-  const activeLlmProvider = (agentProviderMode && agentProviderMode !== 'heuristics')
-    ? (MODE_PROVIDER[agentProviderMode] ?? nlMeta?.activeLlmProvider ?? null)
+  // change, so agentProviderMode wins for every KNOWN mode — including heuristics,
+  // whose SSOT provider is null. That null is authoritative, not a fallback trigger:
+  // it makes /nl send provider:"heuristic" (heuristic-only short-circuit in
+  // demoAgentNl) and keeps typed messages off the AG-UI LLM path. Falling back to
+  // stale nlMeta here made "Heuristics only" silently use the last LLM provider.
+  // Only unknown/legacy modes fall back to nlMeta.
+  const activeLlmProvider = (agentProviderMode && agentProviderMode in MODE_PROVIDER)
+    ? MODE_PROVIDER[agentProviderMode]
     : (nlMeta?.activeLlmProvider ?? null);
   // Degraded-mode banner: true when the user selected an LLM provider (Helix)
   // but routing fell back to the heuristic parser (Helix unreachable / not
@@ -946,15 +951,13 @@ export default function BankingAgent({
   // Pre-fill NL input from external event (e.g. "Test Revocation" button after kill switch).
   // When detail.autoSend is set (AI Attacks drawer "Run this attack" prompts), open the
   // agent and submit the message through the live NL pipeline instead of just prefilling.
-  // Only one <AIAgent> instance mounts at a time (App.js shouldMountSingleAgent), so the
-  // mounted instance — floating OR inline — must handle the run; an inline early-return
-  // here made the drawer buttons dead on /dashboard (inline is always open, no double-run risk).
   useEffect(() => {
     const handler = (e) => {
       const msg = e.detail?.message;
       if (!msg) return;
       if (e.detail?.autoSend) {
-        setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
+        if (isInline) return; // drawer-triggered runs belong to the floating agent
+        setIsOpen(true);
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
         setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
         return;
@@ -964,7 +967,7 @@ export default function BankingAgent({
     };
     window.addEventListener("banking-agent-prefill", handler);
     return () => window.removeEventListener("banking-agent-prefill", handler);
-  }, []);
+  }, [isInline]);
 
   // Open demo guide when event dispatched from side menu
   useEffect(() => {
@@ -1059,53 +1062,18 @@ export default function BankingAgent({
   });
 
   // Run a Security Showcase attack from an external trigger (AI Attacks drawer).
-  // Handled by whichever single instance is mounted — floating or inline (see note
-  // on the banking-agent-prefill effect above).
   useEffect(() => {
     const handler = (e) => {
       const showcase = e.detail?.showcase;
       if (!showcase) return;
-      setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
+      if (isInline) return; // drawer-triggered runs belong to the floating agent
+      setIsOpen(true);
       // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
       setTimeout(() => runDrawerAttackRef.current?.({ showcase, label: e.detail?.label }), 80);
     };
     window.addEventListener("banking-run-showcase", handler);
     return () => window.removeEventListener("banking-run-showcase", handler);
-  }, []);
-
-  // Presence flag + deferred replay for the AI Attacks drawer. On routes with no
-  // mounted agent (most admin sub-pages) AiAttacksPanel sees the flag unset,
-  // persists the pending run to sessionStorage, and navigates to /admin — the
-  // agent that mounts there replays it here. Defined after the runDrawerAttackRef
-  // effect so the ref is populated before the replay timer is armed.
-  useEffect(() => {
-    window.__bankingAgentMounted = true;
-    let raw = null;
-    try {
-      raw = sessionStorage.getItem("banking-agent-pending-attack");
-      if (raw) sessionStorage.removeItem("banking-agent-pending-attack");
-    } catch (_) {
-      raw = null; // sessionStorage unavailable — nothing to replay
-    }
-    if (raw) {
-      try {
-        const pending = JSON.parse(raw);
-        const payload = pending?.payload || {};
-        if (pending?.type === "showcase" && payload.showcase) {
-          setIsOpen(true);
-          setTimeout(() => runDrawerAttackRef.current?.({ showcase: payload.showcase, label: payload.label }), 300);
-        } else if (pending?.type === "prefill" && payload.message) {
-          setIsOpen(true);
-          setTimeout(() => runDrawerAttackRef.current?.({ message: payload.message }), 300);
-        }
-      } catch (_) {
-        // malformed pending action — drop it
-      }
-    }
-    return () => {
-      delete window.__bankingAgentMounted;
-    };
-  }, []);
+  }, [isInline]);
 
   // Reset conversation when demo is cleared (no full page reload needed)
   useEffect(() => {
@@ -3630,6 +3598,38 @@ export default function BankingAgent({
           navigate("/path/dualtoken-info");
           return;
         }
+        case "unusual_patterns":
+        case "afford_check": {
+          // LLM-analysis intents (bk9/bk10 chips and their typed phrasings).
+          // The heuristic parser resolves these action ids, but they have no
+          // deterministic tool — they need an LLM. In heuristics mode say so
+          // (fail loud per the agentModes.js contract) instead of falling to
+          // the default "Unknown action" throw; in LLM modes reason via the
+          // same sequential_think path the ai_* actions use.
+          if (!activeLlmProvider) {
+            toast.update(toastId, {
+              render: "Needs an LLM mode",
+              type: "info",
+              isLoading: false,
+              autoClose: agentToastMs.toolsLoaded,
+            });
+            addMessage(
+              "assistant",
+              "This analysis needs an LLM mode — Heuristics can't reason over your transactions. Switch the Agent mode to llama.cpp, Anthropic, or Helix and ask again.",
+            );
+            setLoading(false);
+            toolProgressIdRef.current = null;
+            return;
+          }
+          toast.update(toastId, { render: "Reasoning…" });
+          response = await callMcpTool("sequential_think", {
+            query:
+              actionId === "unusual_patterns"
+                ? "Check my recent transactions for unusual patterns"
+                : "Could my savings cover a big upcoming expense?",
+          });
+          break;
+        }
         default: {
           const customChip = customChips.find((c) => c.id === actionId);
           if (customChip) {
@@ -4799,7 +4799,11 @@ export default function BankingAgent({
     } catch (_) { /* display-only */ }
     // AG-UI path (ff_agui_enabled=true): stream via POST /api/agent/run
     // The old NL pipeline is bypassed entirely when this flag is on.
-    if (aguiEnabled) {
+    // Heuristics mode (activeLlmProvider=null) must NOT take this path: the
+    // BFF's provider fallback would silently send the message to the default
+    // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
+    // violating the agentModes.js contract that Heuristics needs no provider.
+    if (aguiEnabled && activeLlmProvider) {
       // Stable thread ID for the session (persists across HITL resumes).
       // runId is per-message so each turn is distinct.
       if (!aguiThreadIdRef.current) {
@@ -5776,7 +5780,11 @@ export default function BankingAgent({
       // (capabilities, think/reason, log queries, clarifications) returned earlier, so
       // they are unaffected. When aguiEnabled is false this branch is skipped and the
       // legacy /api/demo-agent/nl path below runs exactly as before.
-      if (aguiEnabled) {
+      // Heuristics mode (activeLlmProvider=null) also skips this path: the
+      // BFF's provider fallback would silently send the message to the default
+      // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
+      // violating the agentModes.js contract that Heuristics needs no provider.
+      if (aguiEnabled && activeLlmProvider) {
         if (!aguiThreadIdRef.current) aguiThreadIdRef.current = "ba-" + Date.now();
         aguiActiveRunIdRef.current = "run-" + Date.now();
         if (activityNarrationEnabled) activityStartRequest(text);

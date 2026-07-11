@@ -433,8 +433,11 @@ async function main() {
     TE_CLIENT_ID:                   creds.mcpExchangerClientId,
     TE_CLIENT_SECRET:               creds.mcpExchangerSecret,
     PG_OLB_RESOURCE_URI:            mcpServerAud,
-    // Intersection of subject scopes ∩ mcpserver mirrored scopes for read tools.
-    PG_OLB_SCOPE:                   'read mcp:invoke',
+    // Intersection of subject scopes ∩ mcpserver mirrored scopes. Must include
+    // `write` or every write tool (create_transfer/deposit/withdraw) 502s with
+    // "Insufficient scope" on the gateway-brokered path — the BFF-brokered
+    // equivalent mints "write mcp:invoke" for this same hop.
+    PG_OLB_SCOPE:                   'read write mcp:invoke',
     PG_INVEST_RESOURCE_URI:         mcpInvestAud,
     PG_INVEST_SCOPE:                'read mcp:invoke invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
