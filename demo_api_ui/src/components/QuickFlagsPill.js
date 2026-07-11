@@ -26,8 +26,9 @@ const QUICK_FLAGS = [
   { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'LLM Chips — Heuristic Fast-Path' },
   { id: 'ff_agent_results_panel',       group: 'Agent',           control: 'toggle',    label: 'Floating Results Panel' },
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
+  { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },
 ];
-const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent'];
+const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];
 const PILL_FLAG = 'ff_mcp_gateway_jwks';
 
 export default function QuickFlagsPill({ user }) {

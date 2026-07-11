@@ -159,6 +159,20 @@ const FLAG_REGISTRY = [
     defaultValue: 'onetime',
   },
 
+  // ── Observability ──────────────────────────────────────────────────────────
+  {
+    id:           'ff_tracing',
+    name:         'Tracing — OpenTelemetry → Jaeger',
+    category:     'Observability',
+    description:
+      'Export OpenTelemetry spans from the BFF and cooperating services to Jaeger. ' +
+      'Change takes effect after container reconciliation: run `./run-docker.sh demo-sync` ' +
+      '(Docker) to start/stop Jaeger and recreate the instrumented services.',
+    impact:       'ON = services export spans to Jaeger and the Tracing page shows call paths. OFF = Jaeger is stopped and services boot with tracing disabled.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+
   // ── MCP Server ─────────────────────────────────────────────────────────────
   {
     id:           'mcp_use_legacy_protocol',

@@ -846,10 +846,10 @@ _wait_bff_healthy() {
 }
 
 # Read ff_authorize_simulated + ff_mcp_gateway_pinggateway from the running BFF.
-# Prints "sim pgw" as 0/1 tokens. Falls back to 0 1 (real P1AZ + PingGateway) on failure.
+# Prints "sim pgw trc" as 0/1 tokens. Falls back to 0 1 1 (real P1AZ + PingGateway + tracing on) on failure.
 _read_demo_stack_flags() {
   if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'ai-demo-api-server'; then
-    echo "0 1"
+    echo "0 1 1"
     return 0
   fi
   docker exec ai-demo-api-server node -e "
@@ -857,8 +857,9 @@ _read_demo_stack_flags() {
     const t = (v) => (v === true || v === 'true') ? '1' : '0';
     const sim = t(cs.getEffective('ff_authorize_simulated'));
     const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
-    process.stdout.write(sim + ' ' + pgw);
-  " 2>/dev/null || echo "0 1"
+    const trc = (cs.getEffective('ff_tracing') === false || cs.getEffective('ff_tracing') === 'false') ? '0' : '1';
+    process.stdout.write(sim + ' ' + pgw + ' ' + trc);
+  " 2>/dev/null || echo "0 1 1"
 }
 
 # Start/stop demo-auth profile containers to match admin Quick Flag toggles.
@@ -875,10 +876,12 @@ cmd_demo_sync() {
     return 0
   fi
 
-  local flags sim pgw need_authz=0 need_demo_gw=0
+  local flags sim pgw trc need_authz=0 need_demo_gw=0
   flags="$(_read_demo_stack_flags)"
   sim="${flags%% *}"
-  pgw="${flags##* }"
+  pgw="$(echo "${flags}" | awk '{print $2}')"
+  trc="$(echo "${flags}" | awk '{print $3}')"
+  [[ -z "${trc}" ]] && trc=1
 
   [[ "${sim}" == "1" ]] && need_authz=1
   [[ "${pgw}" == "0" ]] && { need_demo_gw=1; need_authz=1; }
@@ -905,6 +908,23 @@ cmd_demo_sync() {
   if [[ ${need_demo_gw} -eq 1 ]]; then
     MCP_GATEWAY_HTTP_URL="${proxy_gw_url}" \
       docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps demo-api-server >/dev/null 2>&1 || true
+  fi
+
+  # Tracing (ff_tracing): OFF stops Jaeger and recreates the instrumented
+  # services with an empty OTLP endpoint so otel-instrument.js no-ops. ON is the
+  # compose default — ensure Jaeger is up.
+  local otel_services="demo-api-server mcp-server mcp-gateway agent-service hitl-service mcp-invest authz-server"
+  if [[ "${trc}" == "0" ]]; then
+    ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
+    docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
+    OTEL_EXPORTER_OTLP_ENDPOINT="" \
+      docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps ${otel_services} >/dev/null 2>&1 || true
+  else
+    ok "Tracing ON — ensuring Jaeger is up and instrumented services export spans"
+    # No --force-recreate: with OTEL_EXPORTER_OTLP_ENDPOINT unset here, compose
+    # resolves the default endpoint and recreates only services whose endpoint
+    # drifted (e.g. left empty by a prior OFF) — no churn in the steady state.
+    docker compose "${COMPOSE_FILES[@]}" up -d --no-deps jaeger ${otel_services} >/dev/null 2>&1 || true
   fi
   echo ""
 }

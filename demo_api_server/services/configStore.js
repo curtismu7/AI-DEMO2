@@ -273,6 +273,7 @@ const FIELD_DEFS = {
   // engines DENY a restricted tool unless the user is in its required group.
   ff_authorize_group_policy:   { public: true, default: 'false' },
   ff_hitl_enabled:             { public: true, default: 'true'  }, // require human approval for agent-initiated high-value transactions
+  ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
