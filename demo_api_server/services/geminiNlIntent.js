@@ -136,6 +136,17 @@ const JSON_RETRY_NUDGE =
   `still emit the matching action with params:{} — do NOT emit kind:"none" and ` +
   `do NOT answer conversationally. The tools fill defaults server-side.`;
 
+/**
+ * Grammar constraint for llama.cpp intent routing: forces a JSON object with a
+ * "kind" field. Deliberately permissive — themes add per-vertical shapes and
+ * kind:"none" is a legal model answer; validateIntent does the strict check.
+ */
+const INTENT_JSON_SCHEMA = {
+  type: 'object',
+  required: ['kind'],
+  properties: { kind: { type: 'string' } },
+};
+
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
   try {
@@ -613,7 +624,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       const raw = await callLlamaCpp([
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
-      ]);
+      ], { jsonSchema: INTENT_JSON_SCHEMA });
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
       if (raw) {
@@ -622,7 +633,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           const retry = await callLlamaCpp([
             { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
             { role: 'user', content: message },
-          ]);
+          ], { jsonSchema: INTENT_JSON_SCHEMA });
           parsed = tryParseIntentJson(retry);
           if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
         } catch (e) {
