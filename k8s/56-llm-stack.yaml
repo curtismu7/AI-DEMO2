@@ -203,6 +203,16 @@ spec:
             limits:
               memory: "16Gi"
               cpu: "4000m"
+          # First start downloads ~12GB from HF into the PVC then loads to RAM;
+          # /health returns 503 the whole time. Without a startupProbe the
+          # liveness probe (4 min budget) kills the pod mid-download repeatedly.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health
