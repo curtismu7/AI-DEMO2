@@ -4,7 +4,6 @@ const oauth = require('../oauthService');
 const configStore = require('../configStore');
 const { register } = require('./registry');
 
-const SCOPES = ['mcp:invoke'];
 // Read-only banking tool for the mcp-call probe. Confirmed against
 // mcp-tool-schemas.json (Task 3 Step 1): source "olb", inputSchema.required
 // is [] (no required arguments), so the empty {} arguments object below is
@@ -27,8 +26,13 @@ const realPath = {
 
     let gwToken;
     try {
-      const aud = configStore.getEffective('pingone_resource_mcp_gateway_uri');
-      gwToken = await oauth.performTokenExchange(userToken, aud, SCOPES);
+      // PingGateway (IG) requires the token aud to be its HTTPS resource URI
+      // and a coarse gateway-invoke scope — not the demo/Node gateway audience.
+      // Matches resolveExpectedMcpResourceUri() (mcpToolAuthorizationService.js)
+      // and the Exchange #2 aud/scope resolution in agentMcpTokenService.js.
+      const aud = configStore.getEffective('pingone_resource_pinggateway_uri');
+      const scope = configStore.getEffective('gateway_mcp_invoke_scope') || 'gateway:mcp:invoke';
+      gwToken = await oauth.performTokenExchange(userToken, aud, [scope]);
     } catch (err) { return fail('token-exchange', err.message); }
 
     // Hop 1: introspection
