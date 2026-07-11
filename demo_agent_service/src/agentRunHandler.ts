@@ -171,6 +171,9 @@ async function executeTool(
         'x-internal-gateway-secret': internalSecret,
       },
       body: JSON.stringify({ tool: toolName, args: toolArgs, sessionId }),
+      // Bound the BFF tool call so a hung/slow tool can't hold the SSE stream open
+      // forever — a timeout surfaces as a tool error the reasoning loop can recover from.
+      signal: AbortSignal.timeout(30000),
     });
     if (!resp.ok) {
       throw new Error(`BFF tool call failed: ${resp.status} ${resp.statusText}`);

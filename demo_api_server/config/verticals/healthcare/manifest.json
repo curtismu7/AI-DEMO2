@@ -127,7 +127,7 @@
       { "id": "hc-a2a", "label": "Sensitive records", "message": "access my sensitive patient records", "mode": "both", "tool": "sensitive_patient_records" },
       { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record" },
       { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "llm" },
-      { "id": "hc-direct", "label": "Direct MCP", "message": "get my health record", "mode": "direct", "tool": "view_records" }
+      { "id": "hc-direct", "label": "Direct MCP", "message": "list my records", "mode": "direct", "tool": "view_records" }
     ],
     "securityShowcase": {
       "tabs": [
