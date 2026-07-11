@@ -65,7 +65,9 @@ metadata:
     app: ai-demo
     component: llama-tier1
 spec:
-  replicas: 1
+  # 0: tiers swap on a shared RWO model volume; the pinned tool-calling tier
+  # is llama-tier5 (gpt-oss-20b). The tier-manager scales this up on demand.
+  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -158,7 +160,9 @@ metadata:
     app: ai-demo
     component: llama-tier5
 spec:
-  replicas: 0
+  # 1 replica: gpt-oss-20b is the tool-calling tier — with it absent, the proxy
+  # downgrades every agent LLM call to phi-4-mini, which cannot drive tools.
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -348,8 +352,11 @@ spec:
               value: "llama-tier1"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
+            # Pin to :8096 (gpt-oss-20b). The tiers swap (shared RWO model
+            # volume — only one runs at a time); pinning :8091 capped every
+            # agent LLM call to phi-4-mini, which cannot drive tool calls.
             - name: LLM_PROXY_PIN_TIER
-              value: "8091"
+              value: "8096"
           resources:
             requests:
               memory: "64Mi"
