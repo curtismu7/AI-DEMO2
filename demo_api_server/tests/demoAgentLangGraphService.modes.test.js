@@ -193,4 +193,27 @@ describe('processAgentMessage — mode seams', () => {
     expect(runReasonLoop).toHaveBeenCalledTimes(1);
     expect(runReasonLoop.mock.calls[0][0].provider).toBe('anthropic');
   });
+
+  test('6. reasoning_unavailable in llamacpp mode: honest error with model-load hint, never the catalog', async () => {
+    // 2026-07-11 live incident: right after a deploy the local model spends
+    // minutes loading; the failure must say so — not return the heuristics
+    // catalog (or a bare error) that reads as a mode misconfiguration.
+    resetCfg({ agent_mode: 'llamacpp' });
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+    runReasonLoop.mockResolvedValueOnce({ ok: false, reason: 'reasoning_unavailable' });
+
+    const result = await processAgentMessage({
+      message: 'how is my portfolio doing',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      langchainConfig: {},
+      req: { body: {} },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('reasoning_unavailable');
+    expect(result.reply).toContain('llamacpp');
+    expect(result.reply).toContain('takes several minutes to load');
+    expect(result.reply).not.toContain('Heuristics-only mode');
+  });
 });
