@@ -3,7 +3,7 @@
 // SKIPPED automatically when real-login credentials are not set.
 const { test, expect } = require('@playwright/test');
 const { loginAsCustomer, requireRealLoginEnv } = require('../helpers/realLogin');
-const { MODES, captureChip, assertInDomain, writeManifest } = require('./helpers/agentScreenshotHarness');
+const { MODES, setVertical, captureChip, assertInDomain, writeManifest } = require('./helpers/agentScreenshotHarness');
 
 const VERTICAL = 'banking';
 const CHIPS = [
@@ -18,7 +18,7 @@ test.describe('banking agent — 4-mode screenshots', () => {
 
   test('capture all chips across all modes', async ({ page }) => {
     await loginAsCustomer(page);
-    await page.goto('/dashboard');
+    await setVertical(page, 'banking');
 
     const rows = [];
     for (const chip of CHIPS) {

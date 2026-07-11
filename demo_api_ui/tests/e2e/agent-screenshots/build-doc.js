@@ -6,8 +6,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '__screenshots__');
-const MODE_ORDER = ['llamacpp', 'claude', 'helix_google', 'gemini'];
-const MODE_LABEL = { llamacpp: 'llama.cpp', claude: 'Claude', helix_google: 'Helix', gemini: 'Google Gemini' };
+const MODE_ORDER = ['heuristics'];
+const MODE_LABEL = { heuristics: 'Heuristics' };
 
 function loadManifests() {
   if (!fs.existsSync(ROOT)) return [];
