@@ -228,8 +228,12 @@ async function selectTier(cls) {
 }
 
 // Idle decay: after IDLE_DECAY_MS with no traffic, drop back to the smallest
-// tier so the big model's memory is freed.
+// tier so the big model's memory is freed. A pin disables decay: the pin's
+// whole point is keeping that tier warm, and decaying anyway forced the next
+// request after 5 idle minutes to sit through a multi-minute model reload
+// (with the downgrade guard, it would 503 instead — equally wrong).
 setInterval(() => {
+  if (PIN_TIER_INDEX >= 0) return;
   if (Date.now() - lastRequestAt < IDLE_DECAY_MS) return;
   if (swapInFlight) return;
   const biggerLoaded = TIERS.slice(1).some((t) => t.healthy);
