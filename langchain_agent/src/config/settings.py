@@ -464,6 +464,26 @@ class ConfigManager:
                 "A value of 0 or negative causes trim_messages() to return an empty list, "
                 "which would silently discard all conversation history."
             )
+        # WebSocket Origin allowlist. Starts from ALLOWED_WS_ORIGINS (or the local
+        # dev default), then folds in the deployment's public origin
+        # (CORS_ORIGIN / PUBLIC_APP_URL) so a deployed frontend can open the chat
+        # WebSocket without a separate ALLOWED_WS_ORIGINS entry. Without this, a
+        # deploy that sets only PUBLIC_APP_URL (e.g. the SE cluster) falls back to
+        # the local-only default and silently rejects the deployed origin — the
+        # agent connects but never returns results.
+        _ws_origins = [
+            o.strip()
+            for o in get_env_value(
+                "ALLOWED_WS_ORIGINS",
+                "https://api.ping.demo:4000,http://localhost:4000,http://127.0.0.1:4000",
+            ).split(",")
+            if o.strip()
+        ]
+        for _pub_key in ("CORS_ORIGIN", "PUBLIC_APP_URL"):
+            _pub = (get_env_value(_pub_key, "") or "").strip().rstrip("/")
+            if _pub and _pub not in _ws_origins:
+                _ws_origins.append(_pub)
+
         chat_config = ChatConfig(
             websocket_port=int(get_env_value("WEBSOCKET_PORT", "8889")),
             max_message_length=int(get_env_value("MAX_MESSAGE_LENGTH", "4096")),
@@ -473,10 +493,7 @@ class ConfigManager:
             session_worker_idle_ttl_seconds=int(get_env_value("SESSION_WORKER_IDLE_TTL_SECONDS", "900")),
             session_worker_reap_interval_seconds=int(get_env_value("SESSION_WORKER_REAP_INTERVAL_SECONDS", "60")),
             chat_ws_host=get_env_value("CHAT_WS_HOST", "127.0.0.1"),
-            allowed_ws_origins=get_env_value(
-                "ALLOWED_WS_ORIGINS",
-                "https://api.ping.demo:4000,http://localhost:4000,http://127.0.0.1:4000",
-            ),
+            allowed_ws_origins=",".join(_ws_origins),
             ws_max_message_bytes=int(get_env_value("WS_MAX_MESSAGE_BYTES", str(64 * 1024))),
             health_http_port=int(get_env_value("HEALTH_HTTP_PORT", "8890")),
             agui_http_host=get_env_value("AGUI_HTTP_HOST", "127.0.0.1"),
