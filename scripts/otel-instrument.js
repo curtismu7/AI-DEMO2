@@ -8,12 +8,25 @@ if (!otlpEndpoint) {
   return;
 }
 
+// In Docker this file is bind-mounted at /otel, outside the service tree, so a
+// plain require() never searches the service's /app/node_modules. Resolve from
+// the service's working directory instead, falling back to normal resolution
+// for native mode (where this file sits inside the repo and hoisting applies).
+let req = require;
 try {
-  const { NodeSDK } = require('@opentelemetry/sdk-node');
-  const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
-  const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-  const { Resource } = require('@opentelemetry/resources');
-  const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
+  req.resolve('@opentelemetry/sdk-node');
+} catch (_) {
+  req = require('module').createRequire(
+    require('path').join(process.cwd(), 'package.json')
+  );
+}
+
+try {
+  const { NodeSDK } = req('@opentelemetry/sdk-node');
+  const { OTLPTraceExporter } = req('@opentelemetry/exporter-trace-otlp-grpc');
+  const { getNodeAutoInstrumentations } = req('@opentelemetry/auto-instrumentations-node');
+  const { Resource } = req('@opentelemetry/resources');
+  const { ATTR_SERVICE_NAME } = req('@opentelemetry/semantic-conventions');
 
   const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-service';
 

@@ -10,6 +10,48 @@ const RUNNABLE = new Set(['pingone_envs_list', 'config_list_keys', 'version']);
 // Client-side cap on how long a streamed run may take before it is aborted.
 const RUN_TIMEOUT_MS = 30000;
 
+// Preferred column order for the friendly results table. Only columns present
+// in the data are used; remaining slots fill with the first other primitive
+// fields found (up to MAX_COLUMNS).
+const PREFERRED_COLUMNS = ['name', 'username', 'email', 'id', 'type', 'region', 'enabled', 'description'];
+const MAX_COLUMNS = 6;
+
+// Parse a pingcli JSON envelope ({schemaVersion, status, message, data: [...]})
+// into { status, message, columns, rows } for the friendly results table.
+// Returns null when the output is not an envelope with a data array (plain-text
+// commands like `config list-keys` keep the terminal-only view). Exported for
+// tests.
+export function parsePingcliResults(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return null; }
+  if (!parsed || typeof parsed !== 'object' || !parsed.schemaVersion || !Array.isArray(parsed.data)) {
+    return null;
+  }
+  const rows = parsed.data.map((item) => {
+    const flat = {};
+    if (item && typeof item === 'object') {
+      for (const [k, v] of Object.entries(item)) {
+        if (k.startsWith('_')) continue; // _links / _embedded noise
+        if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) flat[k] = v;
+      }
+    }
+    return flat;
+  });
+  const present = new Set();
+  for (const row of rows) for (const k of Object.keys(row)) present.add(k);
+  const columns = PREFERRED_COLUMNS.filter((c) => present.has(c));
+  for (const k of present) {
+    if (columns.length >= MAX_COLUMNS) break;
+    if (!columns.includes(k)) columns.push(k);
+  }
+  return {
+    status: parsed.status || '',
+    message: parsed.message || '',
+    columns: columns.slice(0, MAX_COLUMNS),
+    rows,
+  };
+}
+
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON
 // (e.g. mid-stream or plain-text output), so the caller falls back to raw text.
@@ -326,6 +368,40 @@ export default function PingCliPage() {
           </div>
         </div>
       ))}
+
+      {showTerminal && !running && exitCode === 0 && (() => {
+        const results = output ? parsePingcliResults(output) : null;
+        if (!results || results.status !== 'success' || results.rows.length === 0) return null;
+        return (
+          <div className="pingcli-results">
+            <div className="pingcli-results-header">
+              <span className="pingcli-results-title">Results</span>
+              <span className="pingcli-results-meta">
+                {results.rows.length} item{results.rows.length === 1 ? '' : 's'}
+                {results.message ? ` · ${results.message}` : ''}
+              </span>
+            </div>
+            <div className="pingcli-results-scroll">
+              <table className="pingcli-results-table">
+                <thead>
+                  <tr>
+                    {results.columns.map((c) => <th key={c}>{c}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.rows.map((row, i) => (
+                    <tr key={row.id ?? i}>
+                      {results.columns.map((c) => (
+                        <td key={c}>{row[c] === undefined || row[c] === null ? '—' : String(row[c])}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {showTerminal && (
         <div className="pingcli-terminal">
