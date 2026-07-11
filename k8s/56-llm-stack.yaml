@@ -186,7 +186,10 @@ spec:
             - "8096"
             - "--jinja"
             - "-hf"
-            - "ggml-org/gpt-oss-20b-GGUF:gpt-oss-20b-mxfp4.gguf"
+            # quant TAG, not filename — llama.cpp:server matches the text after
+            # ':' against quant tags (cf. tier1's :Q4_K_M); the filename form
+            # finds nothing and the server exits at startup.
+            - "ggml-org/gpt-oss-20b-GGUF:mxfp4"
           ports:
             - containerPort: 8096
               name: http
