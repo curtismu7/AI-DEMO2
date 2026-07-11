@@ -897,7 +897,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // approval receipt and PERMITs instead of re-challenging.
   const mcpResult = await executePluginToolViaMcp({
     name: action,
-    args: params,
+    args: normalizeVerticalToolArgs(params, toolDef),
     userId,
     userToken,
     req,
@@ -1487,9 +1487,32 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
   }
 }
 
+/**
+ * Normalize a vertical tool's args to its schema before the RFC 8693 → gateway → MCP call.
+ * The heuristic parser attaches a generic `recordId` that tool schemas don't declare (they
+ * use billId/poId/etc.), and the generated MCP schema is additionalProperties:false — so an
+ * undeclared recordId is rejected at the gateway with HTTP 400. Drop a recordId that merely
+ * echoes the $ amount (the amount-driven policy chips run against the default record);
+ * otherwise map it to the tool's own id field so a real id ("pay bill 402") still targets
+ * the right record. No-op when the tool genuinely declares recordId.
+ */
+function normalizeVerticalToolArgs(params, toolDef) {
+  if (!params || params.recordId == null) return params;
+  const props = (toolDef && toolDef.inputSchema && toolDef.inputSchema.properties) || {};
+  if ('recordId' in props) return params;
+  const args = { ...params };
+  const echoesAmount = args.amount != null && String(args.recordId) === String(args.amount);
+  if (!echoesAmount) {
+    const idProp = Object.keys(props).find((k) => /Id$/i.test(k));
+    if (idProp && args[idProp] == null) args[idProp] = args.recordId;
+  }
+  delete args.recordId;
+  return args;
+}
+
 module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs },
 };
