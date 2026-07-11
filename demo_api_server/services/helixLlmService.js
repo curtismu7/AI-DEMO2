@@ -243,7 +243,15 @@ async function callHelixAgent(config, messages) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-        body: JSON.stringify({ agent: { version: 'published' } }),
+        // helix_agent_version (config) lets the demo run the agent's DRAFT —
+        // useful when a fixed driver is staged but the admin API exposes no
+        // publish action; flip back to 'published' after publishing. The
+        // configStore fallback covers callers that assemble their own
+        // helixConfig (agentBuilder, the config test route).
+        body: JSON.stringify({ agent: { version:
+          config.helix_agent_version ||
+          (() => { try { return require('./configStore').getEffective('helix_agent_version'); } catch (_) { return null; } })() ||
+          'published' } }),
       },
       'createConversation',
     );
