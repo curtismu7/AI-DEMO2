@@ -156,9 +156,16 @@ spec:
         - name: AUTHZ_PORT
           value: "9001"
         envFrom:
+        # ai-demo-secrets first (lowest precedence): supplies the Rule 0a2
+        # PingOne worker credentials (PINGONE_WORKER_CLIENT_ID/SECRET) the user
+        # lookup fails closed without — k8s twin of the docker-compose fix that
+        # layers demo_api_server/.env into the authz-server (PR #284).
+        - secretRef:
+            name: ai-demo-secrets
         # ping-gateway-secrets (not gateway-secrets) — this sidecar serves the
         # PingGateway pod and must use IG's PingOne credentials (INTROSPECT_CLIENT_ID,
-        # PINGONE_INTROSPECTION_ENDPOINT), not the Node gateway's (MCP_GW_CLIENT_ID).
+        # PINGONE_INTROSPECTION_ENDPOINT), not the Node gateway's (MCP_GW_CLIENT_ID);
+        # listed after ai-demo-secrets so IG-specific keys win on duplicates.
         - secretRef:
             name: ping-gateway-secrets
         - configMapRef:
