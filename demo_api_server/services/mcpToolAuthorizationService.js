@@ -419,6 +419,25 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
+    // NOT_APPLICABLE: P1AZ evaluated fine but no policy matched — code/policy
+    // drift (e.g. a new tool the deployed policy doesn't know), not a deny.
+    if (r.decision === 'NOT_APPLICABLE') {
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
     if (r.decision === 'DENY') {
       return {
         ran: true,
@@ -605,7 +624,11 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     // ff_authorize_fail_open via resolveAuthorizeMode (single source of truth).
     const { failoverMode } = simulatedAuthorizeService.resolveAuthorizeMode(configStore);
     const authorizeFallback = simulatedAuthorizeService.buildAuthorizeFallbackSignal(
-      failoverMode, err, 'mcp', { tool });
+      failoverMode, err, 'mcp', {
+        tool,
+        ...(err.code === 'policy_not_found' ? { reason: 'policy_not_found' }
+          : err.code === 'authorize_circuit_open' ? { reason: 'circuit_open' } : {}),
+      });
 
     if (failoverMode === 'permit') {
       console.warn(`[MCP Authorize] PingOne error — fail open (failover=permit): ${err.message}`);
@@ -669,6 +692,23 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     }
 
     // failoverMode === 'deny' (strict pingone): fail closed, surface the signal.
+    // A 404'd decision endpoint is a config bug, not an outage — name it so the
+    // UI can show "Policy not found" instead of "service unavailable".
+    if (err.code === 'policy_not_found') {
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            authorizeFallback,
+          },
+        },
+      };
+    }
     return { ran: true, pingoneError: err, authorizeFallback };
   }
 }
