@@ -45,6 +45,7 @@ describe('callLlamaCpp json schema constraint', () => {
     const { callLlamaCpp } = require('../../services/llamacppLlmService');
     const out = await callLlamaCpp([{ role: 'user', content: 'hi' }], { jsonSchema: { type: 'object' } });
     expect(calls).toHaveLength(2);
+    expect(calls[0].response_format).toEqual({ type: 'json_object', schema: { type: 'object' } });
     expect(calls[1].response_format).toBeUndefined();
     expect(out).toBe('{"kind":"none"}');
     spy.mockRestore();
