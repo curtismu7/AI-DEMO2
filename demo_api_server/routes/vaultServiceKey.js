@@ -26,6 +26,10 @@ if (DISABLED_INSECURE) {
 // The ONLY names this endpoint will ever return. Demo backend keys only.
 const ALLOWED = new Set(['DEMO_MORTGAGE_SERVICE_KEY', 'DEMO_INVEST_SERVICE_KEY']);
 
+// Committed defaults the mortgage backend hard-rejects at boot (see
+// demo_mortgage_service/server.js and ensure-service-keys.js KNOWN_DEFAULTS).
+const KNOWN_DEFAULT_KEYS = new Set(['demo-mortgage-key-0000', 'mortgage-compose-dev-key']);
+
 function secretOk(presented) {
   const buf = typeof presented === 'string' ? Buffer.from(presented) : null;
   return (
@@ -51,6 +55,19 @@ router.get('/vault/service-key', (req, res) => {
   const value = configStore.getEffective(name.toLowerCase());
   if (value === null || value === undefined || value === '') {
     return res.status(404).json({ error: 'key_unset' });
+  }
+  // Mirror demo_mortgage_service's boot guard: the backend hard-rejects the
+  // committed defaults, so serving one here can only produce a confusing 401
+  // ("backend rejected the service API key") several hops downstream. In
+  // production, fail HERE with an explicit provisioning error instead.
+  // Locally the default stays servable so a fresh clone still runs.
+  if (process.env.NODE_ENV === 'production' && KNOWN_DEFAULT_KEYS.has(value)) {
+    console.error(
+      `[vaultServiceKey] ${name} resolves to a committed default in production — ` +
+      'refusing to serve it. Provision real keys (k8s: create-secrets.sh align_service_api_keys; ' +
+      'local: demo_api_server/scripts/ensure-service-keys.js).'
+    );
+    return res.status(503).json({ error: 'key_not_provisioned' });
   }
   return res.status(200).json({ name, value });
 });

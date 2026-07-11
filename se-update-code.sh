@@ -190,10 +190,21 @@ fi
 
 # ── Re-deploy manifests (applies config + rolls pods) ────────────────────────
 info "Re-deploying manifests to $NS..."
+DEPLOY_START_EPOCH="$(date +%s)"
+# deploy.sh's per-deployment rollout wait is known to time out on llm-proxy
+# while llama-tier5 loads its model, aborting the script and leaving later
+# deployments on pre-push images. Don't die here — the smoke checks below
+# verify rollout completeness and pod freshness and fail loudly instead.
 GITHUB_OWNER="$GITHUB_OWNER" \
 K8S_NAMESPACE="$NS" \
 PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
-  bash "$BASEDIR/k8s/aws/deploy.sh"
+  bash "$BASEDIR/k8s/aws/deploy.sh" \
+  || warn "deploy.sh exited nonzero (usually the llm-proxy rollout wait) — smoke checks will verify what actually landed"
+
+# ── Post-deploy smoke checks (fail at deploy time, not demo time) ─────────────
+info "Running post-deploy smoke checks..."
+SE_NAMESPACE="$NS" DEPLOY_START_EPOCH="$DEPLOY_START_EPOCH" bash "$BASEDIR/k8s/smoke.sh" \
+  || die "Smoke checks failed — see [FAIL] lines above for what is degraded and how to fix it."
 
 success ""
 echo -e "${GREEN}Update complete.${NC} App: https://ai-demo.ping-devops.com"

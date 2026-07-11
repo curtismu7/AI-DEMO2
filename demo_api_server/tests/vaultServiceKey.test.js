@@ -69,4 +69,34 @@ describe('GET /internal/vault/service-key', () => {
     expect(res.body).toEqual({ name: 'DEMO_MORTGAGE_SERVICE_KEY', value: 'demo-mortgage-key-0000' });
     expect(configStore.getEffective).toHaveBeenCalledWith('demo_mortgage_service_key');
   });
+
+  // The mortgage backend hard-rejects the committed defaults at boot, so a
+  // bridge serving one in production can only yield a confusing downstream
+  // 401 ("backend rejected the service API key"). Fail HERE instead.
+  describe('committed-default guard (NODE_ENV=production)', () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    afterEach(() => { process.env.NODE_ENV = prevNodeEnv; });
+
+    test('503 key_not_provisioned when the resolved value is a committed default', async () => {
+      process.env.NODE_ENV = 'production';
+      configStore.getEffective.mockReturnValue('demo-mortgage-key-0000');
+      const res = await request(buildApp())
+        .get('/internal/vault/service-key')
+        .set('x-internal-gateway-secret', SECRET)
+        .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+      expect(res.status).toBe(503);
+      expect(res.body.error).toBe('key_not_provisioned');
+    });
+
+    test('200 in production for a real (non-default) key', async () => {
+      process.env.NODE_ENV = 'production';
+      configStore.getEffective.mockReturnValue('mortgage-abc123def456');
+      const res = await request(buildApp())
+        .get('/internal/vault/service-key')
+        .set('x-internal-gateway-secret', SECRET)
+        .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+      expect(res.status).toBe(200);
+      expect(res.body.value).toBe('mortgage-abc123def456');
+    });
+  });
 });
