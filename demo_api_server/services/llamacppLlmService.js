@@ -53,29 +53,44 @@ function toOpenAiMessages(messages) {
 /**
  * Call llama-server's OpenAI-compatible chat endpoint and return the assistant reply text.
  * @param {Array} messages [{ role:'system'|'user'|'assistant'|'human', content }]
+ * @param {{ jsonSchema?: object }} [opts] jsonSchema constrains decoding to that
+ *   JSON shape (llama.cpp grammar). On HTTP 400 the call retries once without it
+ *   so older llama-server builds keep working.
  * @returns {Promise<string>}
  */
-async function callLlamaCpp(messages) {
+async function callLlamaCpp(messages, opts = {}) {
   if (!messages || messages.length === 0) throw new Error('No messages provided to llama.cpp');
   const base = baseUrl();
   const mdl = await model();
 
-  const res = await fetch(`${base}/v1/chat/completions`, {
+  const body = {
+    model: mdl,
+    messages: toOpenAiMessages(messages),
+    stream: false,
+    temperature: 0,
+    // Intent JSON is short; cap tokens so small models finish under SPA timeouts.
+    max_tokens: 256,
+  };
+  if (opts.jsonSchema) {
+    body.response_format = { type: 'json_object', schema: opts.jsonSchema };
+  }
+
+  const post = () => fetch(`${base}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       Authorization: 'Bearer llama-cpp',
     },
-    body: JSON.stringify({
-      model: mdl,
-      messages: toOpenAiMessages(messages),
-      stream: false,
-      temperature: 0,
-      // Intent JSON is short; cap tokens so small models finish under SPA timeouts.
-      max_tokens: 256,
-    }),
+    body: JSON.stringify(body),
   });
+
+  let res = await post();
+  if (!res.ok && res.status === 400 && body.response_format) {
+    console.warn('[llamacpp] response_format rejected (400) — retrying without schema constraint');
+    delete body.response_format;
+    res = await post();
+  }
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error(`llama.cpp chat/completions failed: ${res.status} ${errText}`);
