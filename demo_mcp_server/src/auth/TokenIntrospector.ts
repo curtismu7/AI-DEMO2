@@ -40,6 +40,11 @@ export class TokenIntrospector {
   private config: PingOneConfig;
   // Memoised JWKS keyset — created lazily on first signature verification.
   private jwksKeySet: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
+  // Last keyset that successfully verified a token. Retained across JWKS outages
+  // (unlike jwksKeySet, which is dropped on fetch failure to force a refetch) so a
+  // transient endpoint blip can still verify legitimately-signed tokens — and reject
+  // forged ones — instead of failing open.
+  private lastKnownGoodJwks: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
 
   constructor(config: PingOneConfig) {
     this.config = config;
@@ -327,6 +332,7 @@ export class TokenIntrospector {
     const { jwtVerify } = await getJose();
     try {
       await jwtVerify(token, jwks);
+      this.lastKnownGoodJwks = jwks;
       teachLog.info('agent token signature verified (JWKS)');
       return;
     } catch (err) {
@@ -352,6 +358,7 @@ export class TokenIntrospector {
         const fresh = await this.getJwksKeySet();
         if (fresh) {
           await jwtVerify(token, fresh);
+          this.lastKnownGoodJwks = fresh;
           teachLog.info('agent token signature verified (JWKS, after retry)');
           return;
         }
@@ -362,14 +369,35 @@ export class TokenIntrospector {
           throw new AuthenticationError('Agent token signature verification failed', AuthErrorCodes.INVALID_AGENT_TOKEN);
         }
       }
-      // JWKS still unreachable after retry. Without STRICT_AUTH, accept on the upstream
-      // gateway authorization (an infra blip shouldn't log users out — see above). With
-      // STRICT_AUTH, fail closed: an unverifiable signature must not pass.
-      if (process.env.STRICT_AUTH === 'true') {
-        teachLog.error('STRICT_AUTH set but JWKS endpoint unavailable — failing closed', undefined, { operation: 'jwks_verify', detail: msg });
+      // JWKS still unreachable after retry. Before giving up, verify against the
+      // last-known-good keyset from a previous successful verification — keys rarely
+      // rotate, so a transient endpoint blip should still verify a legitimately-signed
+      // token (and reject a forged one) rather than skip verification entirely.
+      if (this.lastKnownGoodJwks) {
+        try {
+          await jwtVerify(token, this.lastKnownGoodJwks);
+          teachLog.warn(`JWKS endpoint unavailable (${msg}) — verified against last-known-good keyset instead`);
+          return;
+        } catch (lkgErr) {
+          if (!isJwksUnavailableError(lkgErr)) {
+            const lmsg = lkgErr instanceof Error ? lkgErr.message : String(lkgErr);
+            teachLog.error('agent token signature verification failed (last-known-good JWKS)', undefined, { operation: 'jwks_verify', detail: lmsg });
+            throw new AuthenticationError('Agent token signature verification failed', AuthErrorCodes.INVALID_AGENT_TOKEN);
+          }
+          // last-known-good also couldn't resolve keys — fall through to fail-closed.
+        }
+      }
+      // No verifiable keyset and JWKS unreachable. FAIL CLOSED by default: an
+      // unverifiable signature must not pass (the previous default silently accepted,
+      // so an attacker who could force/await a JWKS outage got a forged JWT accepted).
+      // STRICT_AUTH always fails closed; an operator who knowingly runs a demo box with
+      // a flaky JWKS endpoint can restore accept-on-gateway-authorization by setting
+      // ALLOW_JWKS_FAILOPEN=true.
+      if (process.env.STRICT_AUTH === 'true' || process.env.ALLOW_JWKS_FAILOPEN !== 'true') {
+        teachLog.error(`JWKS endpoint unavailable (${msg}) and no verifiable keyset — failing closed (set ALLOW_JWKS_FAILOPEN=true to accept on gateway authorization)`, undefined, { operation: 'jwks_verify', detail: msg });
         throw new AuthenticationError('Agent token signature verification unavailable (JWKS unreachable)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
-      teachLog.warn(`JWKS endpoint unavailable (${msg}) — agent token signature NOT verified; accepting on gateway authorization (introspection already PERMITted upstream). Fix PINGONE_JWKS_URI to restore signature checks.`);
+      teachLog.warn(`JWKS endpoint unavailable (${msg}) and ALLOW_JWKS_FAILOPEN=true — agent token signature NOT verified; accepting on gateway authorization. Fix PINGONE_JWKS_URI to restore signature checks.`);
     }
   }
 
