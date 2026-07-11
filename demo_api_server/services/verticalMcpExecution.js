@@ -9,17 +9,13 @@ const configStore = require('./configStore');
 const verticalDispatch = require('./verticalDispatch');
 const { executeBffTool } = require('./bffMcpToolExecutor');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
+const { parseToolResult } = require('./llmResponseContract');
 
 /**
  * Parse executeBffTool JSON/string into { result, render } for dispatchVerticalIntent.
  */
 function parseMcpToolPayload(raw) {
-  let parsed;
-  try {
-    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch (_) {
-    parsed = null;
-  }
+  const { result: parsed } = parseToolResult(raw, { site: 'parseMcpToolPayload' });
   // Shared classifier so vertical + banking agent paths never drift on which
   // HITL/step-up code shapes they recognise (mcp_-prefixed gate vs bare gateway).
   const c = classifyMcpToolResult(parsed);

@@ -104,4 +104,35 @@ function validateIntent(obj) {
   return false;
 }
 
-module.exports = { repairAndParseJson, validateIntent, snippet, logMendEvent };
+/**
+ * Normalize a tool result (executeBffTool output: object or JSON string) into
+ * an object. Unparseable/empty input becomes an error-shaped object that
+ * classifyMcpToolResult routes to kind:'error' — never a raw string, never
+ * null (classify(null) is 'ok', which turned parse failures into false
+ * successes on the write paths).
+ */
+function parseToolResult(raw, opts = {}) {
+  const site = opts.site || 'tool';
+  if (raw !== null && raw !== undefined && typeof raw !== 'string') {
+    return { result: raw, parseFailed: false };
+  }
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const parsed = repairAndParseJson(raw);
+    if (parsed !== null) return { result: parsed, parseFailed: false };
+    logMendEvent('tool_result_unparseable', { site, snippet: snippet(raw) });
+    return {
+      result: {
+        error: 'tool_result_unparseable',
+        error_description: `The tool returned data the agent could not read: ${snippet(raw)}`,
+      },
+      parseFailed: true,
+    };
+  }
+  logMendEvent('tool_result_empty', { site });
+  return {
+    result: { error: 'tool_result_empty', error_description: 'The tool returned no data.' },
+    parseFailed: true,
+  };
+}
+
+module.exports = { repairAndParseJson, validateIntent, parseToolResult, snippet, logMendEvent };
