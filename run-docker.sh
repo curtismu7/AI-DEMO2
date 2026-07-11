@@ -913,7 +913,14 @@ cmd_demo_sync() {
   # Tracing (ff_tracing): OFF stops Jaeger and recreates the instrumented
   # services with an empty OTLP endpoint so otel-instrument.js no-ops. ON is the
   # compose default — ensure Jaeger is up.
-  local otel_services="demo-api-server mcp-server mcp-gateway agent-service hitl-service mcp-invest authz-server"
+  # Base = the 5 un-gated instrumented services. The demo-auth-gated services
+  # (authz-server, mcp-gateway) are appended ONLY when this sync is keeping them
+  # up — naming a profile-gated service on `up` would auto-activate its profile
+  # and resurrect it on the lean stack. When they're down, their next
+  # flag-driven start picks up the current OTEL endpoint anyway.
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest"
+  [[ ${need_authz} -eq 1 ]] && otel_services+=" authz-server"
+  [[ ${need_demo_gw} -eq 1 ]] && otel_services+=" mcp-gateway"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
