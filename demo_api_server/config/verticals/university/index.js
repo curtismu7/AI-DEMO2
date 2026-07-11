@@ -8,6 +8,8 @@ const store = createUniversityStore();
 const { tools, execute } = buildUniversityTools(store);
 
 const HEURISTICS = [
+  // sensitive_student_finance must precede the pack's view_financial_aid read rule.
+  { re: /\bsensitive\b.*\b(financial\s+aid|student\s+finance|aid)\b|\b(financial\s+aid|student\s+finance)\b.*\bsensitive\b/i, action: 'sensitive_student_finance' },
   /* PACK:heuristics:start */
   { re: /\b(cancel|drop|withdraw)\b.*\b(registration|enrollment|course|section|class)\b/i, action: 'cancel_course_registration', extractsRecordId: true },
   { re: /\bwaitlist\b.{0,25}\b(course|class|section)\b|\bjoin\b.{0,15}\bwaitlist\b/i, action: 'waitlist_course', extractsRecordId: true },

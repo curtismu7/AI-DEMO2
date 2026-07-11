@@ -63,6 +63,7 @@
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
       { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
+      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "tool": "sensitive_supplier_contract" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm" },
       { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
     ],

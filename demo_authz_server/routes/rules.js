@@ -23,6 +23,9 @@ const VERTICAL_TOOL_MAP = {
   'Retail':        ['show_large_purchase','list_orders','order_status','rewards_balance','checkout','sensitive_order_history'],
   'Sporting Goods':['show_gear_order','list_gear','list_rentals','gear_order_status','loyalty_balance','extend_rental','sensitive_membership_details'],
   'Workforce':     ['view_benefits','pto_balance','list_expenses','submit_expense','request_time_off','sensitive_payroll_details'],
+  'Government':     ['show_permit','view_permits','view_fees','view_filings','pay_fee','release_record','sensitive_tax_record'],
+  'University':    ['show_enrollment','view_courses','view_standing','register_course','release_transcript','sensitive_student_finance'],
+  'Manufacturing': ['show_work_order','view_work_orders','view_inventory','schedule_run','release_work_order','sensitive_supplier_contract'],
 };
 
 module.exports = function rulesHandler(_req, res) {

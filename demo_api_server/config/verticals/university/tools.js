@@ -35,6 +35,7 @@ function buildUniversityTools(store) {
     { name: 'view_enrollment_history', description: 'List the student\'s enrollment history (registrations, drops, grades).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'register_course', description: 'Register the student for a new course.', inputSchema: { type: 'object', properties: { course: { type: 'string' }, title: { type: 'string' } } }, scopes: ['write'], authz: {} },
     { name: 'release_transcript', description: 'Release the student\'s official transcript to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { recipient: { type: 'string' } } }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'sensitive_student_finance', description: 'Access highly sensitive student financial aid records. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
   ];
@@ -157,6 +158,25 @@ function buildUniversityTools(store) {
         return { result: store.registerCourse(userId, params || {}), render: 'register_course' };
       case 'release_transcript':
         return { result: store.releaseTranscript(userId, params || {}), render: 'release_transcript' };
+      case 'sensitive_student_finance':
+        return {
+          result: {
+            data: {
+              record: {
+                awardYear: '2025-2026',
+                grantAward: 6200,
+                loanAmount: 8500,
+                workStudy: 2000,
+                expectedFamilyContribution: 4200,
+                ssn: '[REDACTED]',
+                status: 'Awarded',
+              },
+              sensitiveDataAccessed: true,
+              accessGrantedBy: 'consent',
+            },
+          },
+          render: 'text',
+        };
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };

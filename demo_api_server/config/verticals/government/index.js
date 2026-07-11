@@ -8,6 +8,8 @@ const store = createGovernmentStore();
 const { tools, execute } = buildGovernmentTools(store);
 
 const HEURISTICS = [
+  // sensitive_tax_record must precede the pack's view_tax_assessments read rule.
+  { re: /\bsensitive\b.*\btax\b|\btax\b.*\bsensitive\b/i, action: 'sensitive_tax_record' },
   /* PACK:heuristics:start */
   { re: /\b(dispute|appeal|contest)\b.*\bviolation\b/i, action: 'dispute_violation', extractsRecordId: true },
   { re: /\b(reschedule|move|change)\b.*\bappointment\b/i, action: 'reschedule_gov_appointment', extractsRecordId: true },

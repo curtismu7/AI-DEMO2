@@ -60,6 +60,27 @@ const A2A_SPECIALISTS = {
     tools: ['sensitive_payroll_details'],
     subtaskHint: 'review the sensitive payroll details',
   },
+  government: {
+    appKey: 'tax',
+    appName: 'Super Banking Tax Records Specialist Agent',
+    specialistName: 'Tax Records Specialist',
+    tools: ['sensitive_tax_record'],
+    subtaskHint: 'retrieve the sensitive tax assessment record',
+  },
+  university: {
+    appKey: 'finaid',
+    appName: 'Super Banking Financial Aid Specialist Agent',
+    specialistName: 'Financial Aid Specialist',
+    tools: ['sensitive_student_finance'],
+    subtaskHint: 'review the sensitive student financial aid record',
+  },
+  manufacturing: {
+    appKey: 'supplier',
+    appName: 'Super Banking Supplier Contract Specialist Agent',
+    specialistName: 'Supplier Contract Specialist',
+    tools: ['sensitive_supplier_contract'],
+    subtaskHint: 'review the sensitive supplier contract terms',
+  },
 };
 
 /** All verticals that have an A2A specialist. */

@@ -48,7 +48,7 @@ const VERTICALS = (process.env.E2E_UC_VERTICALS || ALL_VERTICALS.join(','))
   .map((s) => s.trim())
   .filter(Boolean);
 // Keep in sync with demo_api_server/config/a2aSpecialists.js.
-const A2A_SUPPORTED = new Set(['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']);
+const A2A_SUPPORTED = new Set(['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce', 'government', 'university', 'manufacturing']);
 
 const EVIDENCE_ROOT =
   process.env.E2E_EVIDENCE_DIR ||

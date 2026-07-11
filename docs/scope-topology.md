@@ -18,6 +18,9 @@
 | `expense:read` | low | Super Banking API | Read expense report data (workforce vertical) |
 | `permits:read` | low | Super Banking API | Read permit status data (government vertical) |
 | `transcript:read` | low | Super Banking API | Read enrollment/transcript status data (university vertical) |
+| `tax:read` | low | Super Banking API | Read sensitive tax assessment records (government vertical A2A specialist scope) |
+| `finaid:read` | low | Super Banking API | Read sensitive student financial aid records (university vertical A2A specialist scope) |
+| `supplier:read` | low | Super Banking API | Read sensitive supplier contract records (manufacturing vertical A2A specialist scope) |
 | `invest:read` | low | Super Banking API | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) |
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |
@@ -38,7 +41,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Server
 
@@ -46,7 +49,7 @@ Audience: `mcpserver.ping.demo`
 
 Native scopes: `mcp:invoke`, `code:search`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Invest
 
@@ -62,7 +65,7 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
 
 ### Super Banking Agent Gateway
 
@@ -70,7 +73,7 @@ Audience: `agentgateway.ping.demo`
 
 Native scopes: `agent:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
 
 ### Super Banking A2A Intermediate
 
@@ -93,7 +96,7 @@ Native scopes: `agent:invoke`
 
 Type: `WEB_APP`  ·  Grants: `authorization_code`, `refresh_token`, `token_exchange`
 
-Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`, `invest:read`
+Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `workorders:read`, `invest:read`
 
 ### Super Banking Admin App
 
@@ -154,6 +157,24 @@ Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 Granted scopes: `read`
 
 ### Super Banking Payroll Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`
+
+### Super Banking Tax Records Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`
+
+### Super Banking Financial Aid Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`
+
+### Super Banking Supplier Contract Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
@@ -224,6 +245,9 @@ Granted scopes: — (none; resource-server or worker app)
 | `sensitive_order_history` | gateway | `read` | consent |
 | `sensitive_membership_details` | gateway | `read` | consent |
 | `sensitive_payroll_details` | gateway | `read` | consent |
+| `sensitive_tax_record` | gateway | `read` | consent |
+| `sensitive_student_finance` | gateway | `read` | consent |
+| `sensitive_supplier_contract` | gateway | `read` | consent |
 | `query_user_by_email` | exchange-only | `ai_agent` | — |
 | `admin_list_all_users` | exchange-only | `admin:read` `users:read` | — |
 | `admin_get_user_details` | exchange-only | `admin:read` `users:read` | — |
