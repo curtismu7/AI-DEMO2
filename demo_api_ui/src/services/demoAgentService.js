@@ -448,6 +448,18 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
           },
         );
       }
+      // Missing/unmatched P1AZ policy (code/policy drift) — distinct from a deny.
+      if (err.error === "policy_not_found") {
+        throw Object.assign(
+          new Error(err.error_description || "Policy not found, please contact administrator."),
+          {
+            code: "policy_not_found",
+            statusCode: response.status,
+            tool: tool,
+            tokenEvents: allTokenEvents,
+          },
+        );
+      }
       // MCP authorization denied — surface deny_reason + deny_parameters for diagnostic display.
       if (err.error === "mcp_authorization_denied") {
         throw Object.assign(

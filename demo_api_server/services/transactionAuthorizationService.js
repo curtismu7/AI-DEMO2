@@ -245,6 +245,27 @@ async function evaluateTransactionPolicy({
       acr,
     });
 
+    // NOT_APPLICABLE: P1AZ evaluated fine but no policy matched — code/policy
+    // drift, not a deny and not an outage, so no failover applies. Block and
+    // tell the operator exactly what is wrong.
+    if (r.decision === 'NOT_APPLICABLE') {
+      logEvent(EVENT_CATEGORIES.AUTHORIZE, 'error',
+        '[Authorize] NOT_APPLICABLE — no PingOne policy matched this request (code/policy drift)',
+        { tag: 'authorize/policy-not-found', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
+            authorize_policy_id: AUTHORIZE_DECISION_ENDPOINT_ID || AUTHORIZE_POLICY_ID,
+          },
+        },
+      };
+    }
+
     // Check stepUpRequired before consentRequired (parity with the simulated
     // branch above): step-up is the stronger gate and must not be bypassed by
     // satisfying the weaker consent flow when a transaction trips both thresholds.
@@ -304,7 +325,9 @@ async function evaluateTransactionPolicy({
     // transaction response (success or block body) so the UI can tell the user
     // the live PingOne call genuinely failed and what the failover policy did.
     const authorizeFallback = simulatedAuthorizeService.buildAuthorizeFallbackSignal(
-      failoverMode, err, 'transaction');
+      failoverMode, err, 'transaction',
+      err.code === 'policy_not_found' ? { reason: 'policy_not_found' }
+        : err.code === 'authorize_circuit_open' ? { reason: 'circuit_open' } : {});
 
     if (failoverMode === 'permit') {
       // Fail-open: allow the transaction and log prominently.
@@ -326,6 +349,22 @@ async function evaluateTransactionPolicy({
     }
 
     if (failoverMode === 'deny') {
+      // A missing decision endpoint (404) is a config bug, not an outage —
+      // name it so the operator fixes P1AZ instead of waiting out an "outage".
+      if (err.code === 'policy_not_found') {
+        return {
+          ran: true,
+          block: {
+            status: 503,
+            body: {
+              error: 'policy_not_found',
+              error_description: 'Policy not found, please contact administrator.',
+              failover_mode: 'deny',
+              authorizeFallback,
+            },
+          },
+        };
+      }
       // Fail-closed: block all transactions when live policy is unavailable.
       return {
         ran: true,

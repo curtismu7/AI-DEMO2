@@ -493,13 +493,18 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // 'pingone'                    : real PingOne Authorize only (failover = deny)
   // 'simulated'                  : in-process simulated/demo engine only
   // 'pingone_fallback_simulated' : real PingOne, fall back to simulated when unreachable
-  // DEFAULT 'pingone' — the demo runs against real PingOne Authorize by default, and
-  // this default lives in code so a fresh/empty configStore, a missing .env, a restart,
-  // a rebuild, or a bootstrap can never silently revert it to the simulated/demo engine.
-  // To run the demo engine, an operator must explicitly store authorize_mode='simulated'
-  // (Admin Config / Authorize page). When unset this default wins over the legacy
-  // ff_authorize_simulated derivation. See simulatedAuthorizeService.resolveAuthorizeMode().
-  authorize_mode: { public: true, default: 'pingone' },
+  // DEFAULT 'pingone_fallback_simulated' — the demo runs against real PingOne
+  // Authorize by default, but a live P1AZ failure falls back to the in-process
+  // simulated engine (with the operator-facing "PingOne fell back" modal) instead
+  // of blocking the demo with 503s (reliability decision 2026-07-11; see
+  // docs/superpowers/specs/2026-07-11-p1az-reliability-design.md §3). The default
+  // lives in code so a fresh/empty configStore, a missing .env, a restart, a
+  // rebuild, or a bootstrap can never silently revert it. Operators who want
+  // strict fail-closed store authorize_mode='pingone'; the demo engine requires
+  // an explicit authorize_mode='simulated' (Admin Config / Authorize page). When
+  // unset this default wins over the legacy ff_authorize_simulated derivation.
+  // See simulatedAuthorizeService.resolveAuthorizeMode().
+  authorize_mode: { public: true, default: 'pingone_fallback_simulated' },
 
   // PingOne Authorize decision-endpoint IDs — canonical lowercase keys saved by
   // POST /api/authorize/bootstrap-demo-endpoints and the Admin Config UI, read

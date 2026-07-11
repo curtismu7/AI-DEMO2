@@ -160,6 +160,9 @@ describe('Authorize parity: enforcement flags match between simulated and PingOn
     originalFetch = global.fetch;
     originalEnv   = process.env;
     process.env   = { ...originalEnv, ...MOCK_ENV };
+    // The worker token is cached across evaluate calls; reset so each case's
+    // "Call 1: worker token, Call 2: decision" mock queue lines up.
+    pingOneSvc._resetAuthorizeRuntimeState();
   });
 
   afterEach(() => {
@@ -208,6 +211,9 @@ describe('Authorize parity: DENY decision matches between engines', () => {
     originalFetch = global.fetch;
     originalEnv   = process.env;
     process.env   = { ...originalEnv, ...MOCK_ENV };
+    // The worker token is cached across evaluate calls; reset so each case's
+    // "Call 1: worker token, Call 2: decision" mock queue lines up.
+    pingOneSvc._resetAuthorizeRuntimeState();
   });
 
   afterEach(() => {
@@ -245,6 +251,9 @@ describe('Authorize parity: consentRequired always defined as boolean', () => {
     originalFetch = global.fetch;
     originalEnv   = process.env;
     process.env   = { ...originalEnv, ...MOCK_ENV };
+    // The worker token is cached across evaluate calls; reset so each case's
+    // "Call 1: worker token, Call 2: decision" mock queue lines up.
+    pingOneSvc._resetAuthorizeRuntimeState();
   });
 
   afterEach(() => {

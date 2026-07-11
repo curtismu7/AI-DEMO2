@@ -22,6 +22,7 @@ const {
   evaluateDecisionEndpoint,
   setEndpointRecording,
   warmup,
+  checkPolicyReadiness,
 } = require('../services/pingOneAuthorizeService');
 const {
   getSimulatedRecentDecisions,
@@ -52,6 +53,22 @@ const router = express.Router();
  */
 router.post('/warmup', authenticateToken, async (_req, res) => {
   const result = await warmup();
+  return res.json(result);
+});
+
+/**
+ * GET /api/authorize/policy-readiness
+ * Demo preflight: one synthetic decision per configured gate, classified as
+ * ready / policy_not_found / error / unconfigured. policy_not_found means the
+ * code and the deployed P1AZ policy set drifted (missing decision endpoint or
+ * a NOT_APPLICABLE policy tree) — fix PingOne Authorize before the demo.
+ * Admin-only; never throws (checkPolicyReadiness classifies failures).
+ */
+router.get('/policy-readiness', authenticateToken, async (req, res) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
+  }
+  const result = await checkPolicyReadiness();
   return res.json(result);
 });
 
