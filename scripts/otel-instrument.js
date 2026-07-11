@@ -25,17 +25,21 @@ try {
   const { NodeSDK } = req('@opentelemetry/sdk-node');
   const { OTLPTraceExporter } = req('@opentelemetry/exporter-trace-otlp-grpc');
   const { getNodeAutoInstrumentations } = req('@opentelemetry/auto-instrumentations-node');
-  const { Resource } = req('@opentelemetry/resources');
+  const resources = req('@opentelemetry/resources');
   const { ATTR_SERVICE_NAME } = req('@opentelemetry/semantic-conventions');
 
   const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-service';
+  const attrs = { [ATTR_SERVICE_NAME || 'service.name']: serviceName };
+  // Services pin different @opentelemetry/resources majors: 1.x exports the
+  // Resource class, 2.x replaced it with resourceFromAttributes().
+  const resource = typeof resources.Resource === 'function'
+    ? new resources.Resource(attrs)
+    : resources.resourceFromAttributes(attrs);
 
   const sdk = new NodeSDK({
     traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
     instrumentations: [getNodeAutoInstrumentations()],
-    resource: new Resource({
-      [ATTR_SERVICE_NAME]: serviceName,
-    }),
+    resource,
   });
   sdk.start();
   console.log(`[otel] tracing to ${otlpEndpoint} as ${serviceName}`);
