@@ -61,6 +61,13 @@ export async function decodeAndValidate(token: string, expectedAud: string): Pro
       }
     }
   } else {
+    // No JWKS endpoint configured — nothing to verify the signature against.
+    // STRICT_AUTH must not accept an unverifiable token (parity with the main MCP
+    // server's TokenIntrospector); the local demo runs without JWKS by design, so it
+    // otherwise keeps warn+accept.
+    if (process.env.STRICT_AUTH === 'true') {
+      throw new TokenError('Token signature cannot be verified (JWKS not configured)', 'invalid_token');
+    }
     console.warn('[invest] JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL) — token signature NOT verified');
   }
 
