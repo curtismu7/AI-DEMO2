@@ -236,6 +236,19 @@ done
 kubectl rollout status "deployment/llama-tier1" -n "$NS" --timeout=900s \
   || info "WARNING: llama-tier1 not ready yet — model may still be downloading from HuggingFace"
 
+# ── Reset runtime demo flags to demo defaults ────────────────────────────────
+# The LMDB runtime KV (PVC-backed) beats env for these keys, so a QuickFlags
+# click or Gateway Tester preset from a previous session survives deploys and
+# silently changes agent behavior (heuristics off / mock Authorize on broke
+# the live demo). Opt out with SKIP_DEMO_FLAG_RESET=1.
+if [[ "${SKIP_DEMO_FLAG_RESET:-0}" != "1" ]]; then
+  info "Resetting runtime demo flags to demo defaults..."
+  kubectl exec -n "$NS" deploy/demo-api-server -- node scripts/reset-demo-flags.js \
+    && kubectl rollout restart deployment/demo-api-server -n "$NS" \
+    && kubectl rollout status deployment/demo-api-server -n "$NS" --timeout=180s \
+    || info "WARNING: demo-flag reset failed — flags keep their previous runtime values"
+fi
+
 success "Deploy complete."
 echo
 if [[ -n "$K8S_NAMESPACE" ]]; then

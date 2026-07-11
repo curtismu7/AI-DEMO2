@@ -1,0 +1,51 @@
+# Live-site canary: signs in as the demo user and runs UC1 ("Delegated access
+# with proof") end-to-end against ai-demo.ping-devops.com every 30 minutes.
+# A red run means the demo a customer would see is broken — check the uploaded
+# screenshot artifact and scripts/canary/uc1-canary.js failure markers.
+#
+# Required repo secrets: CANARY_USERNAME, CANARY_PASSWORD (the demo user).
+name: live-canary
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to probe
+        default: https://ai-demo.ping-devops.com
+        required: false
+
+concurrency:
+  group: live-canary
+  cancel-in-progress: false
+
+jobs:
+  uc1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/canary
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.59.1
+          npx playwright install --with-deps chromium
+      - name: Run UC1 canary
+        env:
+          CANARY_BASE_URL: ${{ github.event.inputs.base_url || 'https://ai-demo.ping-devops.com' }}
+          CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
+          CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
+          CANARY_OUT_DIR: canary-artifacts
+        run: node scripts/canary/uc1-canary.js
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-artifacts
+          path: canary-artifacts/
+          if-no-files-found: ignore

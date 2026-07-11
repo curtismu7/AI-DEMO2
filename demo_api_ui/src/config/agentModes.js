@@ -20,10 +20,13 @@
 
 export const AGENT_MODES = [
   { id: "heuristics",   label: "Heuristics", provider: null,        pure: false },
+  // Gemini first among LLM modes: on the CPU-only SE cluster it answers in
+  // seconds while llama.cpp (gpt-oss-20b) takes minutes — lead live demos
+  // with the fast provider. Order here IS the picker order (CORE_MODE_IDS).
+  { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
   { id: "llamacpp",     label: "llama.cpp",  provider: "llamacpp",  pure: true  },
   { id: "mlx",          label: "MLX",        provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
-  { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
   { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
   { id: "google",       label: "Google API", provider: "google",    pure: true  },
 ];
