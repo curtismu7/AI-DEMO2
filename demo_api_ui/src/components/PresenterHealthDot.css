@@ -1,0 +1,12 @@
+/* demo_api_ui/src/components/PresenterHealthDot.css */
+.phd-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  align-self: center;
+  flex: 0 0 auto;
+}
+.phd-ok { background: #22c55e; }
+.phd-warn { background: #f59e0b; }
+.phd-err { background: #ef4444; }
