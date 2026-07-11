@@ -8,6 +8,7 @@ const router = express.Router();
 const configStore = require('../services/configStore');
 const runtimeSettings = require('../config/runtimeSettings');
 const { logEvent, EVENT_CATEGORIES } = require('../services/appEventService');
+const { requireAdminOrUnconfigured } = require('./adminConfig');
 
 // Single source of truth: the committed defaults live in configStore.FIELD_DEFS.
 // Derive them here instead of re-hardcoding 250/500 so the two can't drift. Guard
@@ -56,7 +57,7 @@ router.get('/', (req, res) => {
 // POST /api/config/thresholds  { confirm_threshold_usd?, mfa_threshold_usd?, vertical? }
 // When vertical is provided, writes per-vertical overrides (confirm_threshold_usd_<id>, mfa_threshold_usd_<id>)
 // instead of global keys. Global keys are written when vertical is absent.
-router.post('/', async (req, res) => {
+router.post('/', requireAdminOrUnconfigured, async (req, res) => {
   try {
     const { confirm_threshold_usd, mfa_threshold_usd, vertical } = req.body || {};
 
