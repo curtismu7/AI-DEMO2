@@ -263,6 +263,16 @@ async function evaluateTransactionPolicy({
       return { ran: true, block: { status: 428, body: buildConsentBody() } };
     }
 
+    // Engine evaluated OK but no policy matched (drift). Fail closed with a clear
+    // operator-facing message instead of a generic deny. Success response →
+    // failover does not apply (amendment §A).
+    if (r.policyNotFound) {
+      return {
+        ran: true,
+        block: { status: 403, body: simulatedAuthorizeService.buildPolicyNotFoundBody('transaction') },
+      };
+    }
+
     if (r.decision === 'DENY') {
       return {
         ran: true,

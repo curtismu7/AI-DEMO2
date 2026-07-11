@@ -1127,6 +1127,22 @@ function buildAuthorizeFallbackSignal(failoverMode, err, path, extra = {}) {
 }
 
 /**
+ * Block body for the "policy not found" case (P1AZ hardening amendment §A):
+ * the engine evaluated successfully but no policy matched the request (drift —
+ * code added a tool/action P1AZ has no policy for). Shared by both BFF gates so
+ * the error code and message can never diverge between the transaction and MCP
+ * paths. This is a fail-CLOSED block, not an outage — failover does not apply.
+ */
+function buildPolicyNotFoundBody(path) {
+  return {
+    error: 'policy_not_found',
+    error_description: 'Policy not found, please contact administrator.',
+    authorize_engine: 'pingone',
+    authorize_path: path,
+  };
+}
+
+/**
  * Simulated P1AZ evaluation for AgentRestrictions gate.
  * Mirrors the policy rule: DENY if none, DENY if read+write, PERMIT otherwise.
  */
@@ -1150,6 +1166,7 @@ module.exports = {
   isSimulatedModeEnabled,
   resolveAuthorizeMode,
   buildAuthorizeFallbackSignal,
+  buildPolicyNotFoundBody,
   AUTHORIZE_MODES,
   getSimulatedRecentDecisions,
   buildTrustFrameworkParameters,

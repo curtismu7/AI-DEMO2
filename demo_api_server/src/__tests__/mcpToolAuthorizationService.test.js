@@ -17,6 +17,12 @@ jest.mock('../../services/simulatedAuthorizeService', () => ({
     effectiveAction: failoverMode === 'deny' ? 'denied' : failoverMode === 'permit' ? 'permitted' : 'fell_back_to_simulated',
     error: err && err.message ? err.message : String(err), path, ...extra,
   })),
+  buildPolicyNotFoundBody: jest.fn((path) => ({
+    error: 'policy_not_found',
+    error_description: 'Policy not found, please contact administrator.',
+    authorize_engine: 'pingone',
+    authorize_path: path,
+  })),
 }));
 jest.mock('../../services/hitlServiceClient', () => ({
   getChallengeStatus: jest.fn(),
@@ -324,6 +330,40 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.block.body.error).toBe('mcp_hitl_required');
       expect(r.block.body.authorize_engine).toBe('pingone');
       expect(r.block.body.decisionId).toBe('p1-hitl-1');
+    });
+
+    it('blocks with policy_not_found (not a generic deny) when no policy matched', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      // Engine ran, no policy matched: decision stays fail-closed DENY, drift on side channel.
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'DENY',
+        policyNotFound: true,
+        stepUpRequired: false,
+        path: 'decision-endpoint',
+        decisionId: 'p1-na-1',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } } },
+        tool: 'get_my_accounts',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.ran).toBe(true);
+      expect(r.block.status).toBe(403);
+      expect(r.block.body.error).toBe('policy_not_found');
+      expect(r.block.body.error_description).toMatch(/contact administrator/i);
+      expect(r.block.body.decisionContext).toBe('McpFirstTool');
     });
   });
 

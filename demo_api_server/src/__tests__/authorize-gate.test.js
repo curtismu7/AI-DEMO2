@@ -300,6 +300,38 @@ describe('PingOne Authorize Gate — POST /api/transactions', () => {
     });
   });
 
+  // ── Policy not found (drift) → fail closed with a clear message ───────────────
+  describe('when the engine evaluated but no policy matched (policyNotFound)', () => {
+    it('should return 403 policy_not_found, not a generic deny', async () => {
+      runtimeSettings.update({ authorizeEnabled: true, authorizePolicyId: 'test-policy-id' }, 'test');
+      // decision stays fail-closed (DENY); the drift is carried on the side channel.
+      evaluateTransaction.mockResolvedValueOnce({ decision: 'DENY', policyNotFound: true, raw: {} });
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser())
+        .send(withdrawalBody);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('policy_not_found');
+      expect(res.body.error_description).toMatch(/contact administrator/i);
+    });
+
+    it('should not create the transaction', async () => {
+      const { createTransaction } = require('../../data/store');
+      createTransaction.mockClear?.();
+      runtimeSettings.update({ authorizeEnabled: true, authorizePolicyId: 'test-policy-id' }, 'test');
+      evaluateTransaction.mockResolvedValueOnce({ decision: 'DENY', policyNotFound: true, raw: {} });
+
+      await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser())
+        .send(withdrawalBody);
+
+      expect(createTransaction).not.toHaveBeenCalled();
+    });
+  });
+
   // ── Service error → fail open ─────────────────────────────────────────────────
   describe('when the Authorize service throws an error', () => {
     it('should fail open and allow the transaction', async () => {
