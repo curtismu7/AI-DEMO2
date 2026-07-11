@@ -4,7 +4,15 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PINGCLI_BIN = process.env.PINGCLI_BIN || '/app/bin/pingcli';
+// Resolution order: explicit override → image-baked Linux build (the Dockerfile
+// downloads it to /usr/local/bin because the ./demo_api_server:/app dev bind
+// mount shadows /app/bin with the repo's macOS Mach-O binary, which cannot exec
+// in the container) → repo binary (native macOS runs via run.sh).
+const PINGCLI_BIN =
+  process.env.PINGCLI_BIN ||
+  (fs.existsSync('/usr/local/bin/pingcli')
+    ? '/usr/local/bin/pingcli'
+    : path.join(__dirname, '..', 'bin', 'pingcli'));
 const TIMEOUT_MS = 15000;
 
 // pingcli persists its token store under $HOME/.pingcli. The container user

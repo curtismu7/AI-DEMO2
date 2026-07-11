@@ -14,6 +14,16 @@ RUN addgroup -g 1001 -S appgroup && \
 # Build tools required for native modules (argon2, lmdb)
 RUN apk add --no-cache python3 make g++ curl
 
+# PingCLI for the PingCLI demo page. The dev bind mount (./demo_api_server:/app)
+# shadows /app/bin with the repo's macOS Mach-O binary, which cannot exec in a
+# Linux container ("Exec format error"). Bake the matching Linux build into a
+# non-shadowed path instead; routes/pingcli.js prefers it when present.
+ARG TARGETARCH
+ARG PINGCLI_VERSION=1.1.0
+RUN curl -fsSL -o /usr/local/bin/pingcli \
+      "https://github.com/pingidentity/pingcli/releases/download/v${PINGCLI_VERSION}/pingcli_${PINGCLI_VERSION}_linux_${TARGETARCH}" \
+    && chmod 755 /usr/local/bin/pingcli
+
 # Copy package files from service subdirectory (context is repo root)
 COPY demo_api_server/package*.json ./
 
