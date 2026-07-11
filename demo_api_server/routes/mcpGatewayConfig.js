@@ -718,7 +718,13 @@ router.post('/demo-presets', express.json(), async (req, res) => {
         try {
             await configStore.setRaw({
                 ff_mcp_gateway_pinggateway: 'true',
-                ff_authorize_simulated: 'true',
+                // Real PingOne Authorize: this preset is single-call PERMIT/DENY
+                // demos (see hint), so quota is not a concern — and a preset named
+                // "real-policy" silently flipping the whole demo onto the mock
+                // engine is exactly the config drift that broke the live site.
+                // The burst presets (uc18-throttle / real-throttle-ig) stay
+                // simulated deliberately: they hammer the decision endpoint.
+                ff_authorize_simulated: 'false',
                 ff_mcp_rate_limit: 'false',
             });
         } catch (e) {
@@ -729,7 +735,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
             ok: true,
             preset,
             activeGateway: 'PingOne Agent Gateway',
-            authorizeBackend: 'Simulated (no real P1AZ API calls)',
+            authorizeBackend: 'Real PingOne Authorize',
             rateLimitLayer: 'off',
             hint: 'Use single tool calls for PERMIT/DENY demos. Enable UC18 demo mode separately to burst-test PingGateway throttling on IG.',
         });
