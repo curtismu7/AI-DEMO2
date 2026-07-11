@@ -83,6 +83,47 @@ describe('fetchT retry', () => {
   });
 });
 
+describe('checkPolicyReadiness', () => {
+  afterEach(() => {
+    delete process.env.PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID;
+    delete process.env.PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID;
+  });
+
+  it('classifies PERMIT/DENY as ready and NOT_APPLICABLE as policy_not_found', async () => {
+    process.env.PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID = 'ep-tx';
+    process.env.PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID = 'ep-mcp';
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ decision: 'DENY' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ decision: 'NOT_APPLICABLE' }) });
+    const r = await svc.checkPolicyReadiness();
+    expect(r.ok).toBe(false);
+    expect(r.gates.transaction.status).toBe('ready');
+    expect(r.gates.mcp.status).toBe('policy_not_found');
+  });
+
+  it('classifies a 404 endpoint as policy_not_found and other errors as error', async () => {
+    process.env.PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID = 'ep-tx';
+    process.env.PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID = 'ep-mcp';
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'NOT_FOUND' })
+      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'boom' })
+      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'boom' }); // retry of the 500
+    const r = await svc.checkPolicyReadiness();
+    expect(r.gates.transaction.status).toBe('policy_not_found');
+    expect(r.gates.mcp.status).toBe('error');
+  });
+
+  it('reports unconfigured gates without calling out', async () => {
+    globalThis.fetch = jest.fn();
+    const r = await svc.checkPolicyReadiness();
+    expect(r.gates.transaction.status).toBe('unconfigured');
+    expect(r.gates.mcp.status).toBe('unconfigured');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('circuit breaker', () => {
   const fail500 = () => {
     globalThis.fetch = jest.fn()

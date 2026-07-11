@@ -845,6 +845,52 @@ async function warmup({ force = false } = {}) {
 }
 
 /**
+ * Demo preflight: fire one synthetic decision per configured gate and classify
+ * whether a policy actually matched — catches code/P1AZ drift (missing endpoint
+ * or NOT_APPLICABLE policy tree) before the audience does. Never throws.
+ *
+ * @returns {Promise<{ ok: boolean, skipped?: string,
+ *   gates?: { transaction: { status: string, detail?: string },
+ *             mcp: { status: string, detail?: string } } }>}
+ *   status ∈ 'ready' | 'policy_not_found' | 'error' | 'unconfigured'
+ */
+async function checkPolicyReadiness() {
+  if (configStore.getEffective('ff_authorize_simulated') === 'true') {
+    return { ok: false, skipped: 'simulated' };
+  }
+  if (!isWorkerCredentialReady()) {
+    return { ok: false, skipped: 'unconfigured' };
+  }
+  const { decisionEndpointId, policyId, mcpDecisionEndpointId } = _getCredentials();
+
+  const classify = async (evaluate) => {
+    try {
+      const r = await evaluate();
+      if (r.decision === 'NOT_APPLICABLE') return { status: 'policy_not_found' };
+      return { status: 'ready', detail: r.decision };
+    } catch (err) {
+      if (err.code === 'policy_not_found') return { status: 'policy_not_found', detail: err.message };
+      return { status: 'error', detail: err.message };
+    }
+  };
+
+  const gates = {};
+  gates.transaction = (decisionEndpointId || policyId)
+    ? await classify(() => evaluateTransaction({
+        decisionEndpointId, policyId, userId: 'preflight@demo.local', amount: 1, type: 'deposit',
+      }))
+    : { status: 'unconfigured' };
+  gates.mcp = mcpDecisionEndpointId
+    ? await classify(() => evaluateMcpToolDelegation({
+        decisionEndpointId: mcpDecisionEndpointId, userId: 'preflight@demo.local', toolName: 'preflight_check',
+      }))
+    : { status: 'unconfigured' };
+
+  const ok = Object.values(gates).every((g) => g.status === 'ready' || g.status === 'unconfigured');
+  return { ok, gates };
+}
+
+/**
  * Find a decision endpoint returned from getDecisionEndpoints() by exact name.
  * @param {Array<{ id?: string, name?: string }>} endpoints
  * @param {string} name
@@ -1109,5 +1155,6 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
+  checkPolicyReadiness,
   _resetAuthorizeRuntimeState,
 };
