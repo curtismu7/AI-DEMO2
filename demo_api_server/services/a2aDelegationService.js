@@ -200,7 +200,23 @@ async function delegateToSpecialist(req, opts = {}) {
   }
 
   const subtask = opts.subtask || specialist.subtaskHint;
-  const tool = opts.tool || (specialist.tools && specialist.tools[0]) || null;
+  // Constrain the tool to the specialist's own allowlist. Via delegate_to_specialist
+  // the LLM can name ANY tool (free-form arg); one the specialist is not provisioned
+  // for would otherwise flow through and fail downstream as a confusing Authorize
+  // DENY (the delegated token lacks that tool's scope). Reject it here with a clear,
+  // actionable message instead so the agent can tell the user what the specialist
+  // actually does.
+  const allowedTools = specialist.tools || [];
+  const requestedTool = opts.tool || null;
+  if (requestedTool && !allowedTools.includes(requestedTool)) {
+    return {
+      ...base,
+      error:
+        `The ${specialist.specialistName} can only run: ${allowedTools.join(', ') || '(none)'}. ` +
+        `It is not authorized for "${requestedTool}".`,
+    };
+  }
+  const tool = requestedTool || allowedTools[0] || null;
   // Scope is DERIVED from the SoT (scope-topology.json) — never re-declared here.
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
 

@@ -173,6 +173,19 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(result.token).toBeNull();
     expect(result.error).toMatch(/Investment Advisor.*credentials/i);
   });
+
+  test('rejects a tool that is not in the specialist allowlist (no exchange runs)', async () => {
+    const { oauthService, calls } = makeOauth();
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      tool: 'mortgage_demo', // not one of the Investment Advisor's tools
+      deps: { ...bankingDeps(), oauthService },
+    });
+    expect(result.token).toBeNull();
+    expect(result.error).toMatch(/Investment Advisor can only run/i);
+    expect(result.error).toMatch(/not authorized for "mortgage_demo"/i);
+    expect(calls.exchanges).toHaveLength(0); // fails fast, before any token exchange
+  });
 });
 
 describe('a2aDelegationService.countActDepth', () => {
