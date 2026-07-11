@@ -138,7 +138,13 @@ if [ -n "$LLM_OK" ]; then pass "llm-proxy serving models"; else fail "llm-proxy 
 # env 01d89b06-… — override for other PingOne environments.
 SMOKE_SUB="${SMOKE_SUB:-1aee74ae-3d09-4bcf-a69f-7e1bc225b761}"
 info "6/6 authz tools/list canary (full gateway parameter shape, expect PERMIT)..."
-GW_POD=$(kubectl get pods -n "$NS" -l component=mcp-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Skip terminating pods: right after a rollout the label selector also matches
+# the old pod (still phase=Running but with deletionTimestamp set), and
+# exec'ing into it dies silently (empty canary → phantom FAIL — hit on the
+# 2026-07-11 verification run).
+GW_POD=$(kubectl get pods -n "$NS" -l component=mcp-gateway \
+  -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.deletionTimestamp}{"\n"}{end}' 2>/dev/null \
+  | awk 'NF==1 {print $1; exit}')
 if [ -z "$GW_POD" ]; then
   fail "no mcp-gateway pod found"
 else
