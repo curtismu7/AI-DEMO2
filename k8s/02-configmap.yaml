@@ -48,6 +48,12 @@ data:
   DEMO_API_BASE_URL: "https://demo-api-server:3001"
   BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
   BANKING_RESOURCE_SERVER_BASE_URL: "https://demo-api-server:3001"
+  # In-cluster BFF hosts for the agents' tool callbacks. langchain-secrets
+  # ships the LOCAL values (http://api-server:3001) from langchain_agent/.env;
+  # the configmap is listed after it in envFrom, so these win in k8s. Without
+  # them every LLM-mode tool call dies with httpx ConnectError.
+  BFF_BASE_URL: "https://demo-api-server:3001"
+  BFF_INTERNAL_TOOL_URL: "https://demo-api-server:3001/internal/agent-tool"
   AGUI_HTTP_PORT: "8888"
   WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"
