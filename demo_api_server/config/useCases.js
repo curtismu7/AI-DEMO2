@@ -196,6 +196,7 @@ const RAW_USE_CASES = [
       idp:   'Manages the agent app as a first-class identity; disabling or rotating the credential blocks all subsequent token exchanges.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC20',
@@ -220,6 +221,7 @@ const RAW_USE_CASES = [
       authz: 'Records the policy decision (PERMIT/DENY/STEP_UP) for every evaluated request.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
 
   // --- CONTROLS ---
@@ -400,6 +402,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the tier claim against the entitlement rule; adjusts the permitted tool set and limits.',
       gw:    'Enforces the per-tier decision from Authorize before dispatching tool calls.',
     },
+    perVertical: AMOUNT_PER_VERTICAL(600),
   },
   {
     id: 'UC22',
@@ -696,6 +699,7 @@ const RAW_USE_CASES = [
       gw:    'Introspects every token; a token past its TTL is rejected with 401 even if its signature is valid.',
     },
     primaryTool: null,
+    perVertical: READ_PER_VERTICAL,
   },
   {
     id: 'UC18',
