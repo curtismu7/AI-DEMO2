@@ -146,7 +146,7 @@
           "id": "ai",
           "label": "AI Reasoning",
           "chips": [
-            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "both", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
+            { "id": "sec_llm_analyze", "label": "Spot unusual patterns", "message": "Check for unusual patterns in my recent activity", "mode": "llm", "showcase": "llm_analyze", "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut." },
             { "id": "sec_llm_explain", "label": "Why was that blocked?", "message": "Explain why my last blocked action was denied and walk me through the token chain", "mode": "llm", "showcase": "llm_explain", "caption": "The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired." }
           ]
         },

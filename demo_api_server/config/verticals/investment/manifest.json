@@ -122,7 +122,7 @@
               "id": "sec_llm_analyze",
               "label": "Spot unusual patterns",
               "message": "Check for unusual patterns in my recent activity",
-              "mode": "both",
+              "mode": "llm",
               "showcase": "llm_analyze",
               "caption": "The analysis path ran the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut."
             },
