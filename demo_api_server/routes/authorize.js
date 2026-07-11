@@ -58,11 +58,14 @@ router.post('/warmup', authenticateToken, async (_req, res) => {
 
 /**
  * GET /api/authorize/policy-readiness
- * Demo preflight: one synthetic decision per configured gate, classified as
- * ready / policy_not_found / error / unconfigured. policy_not_found means the
- * code and the deployed P1AZ policy set drifted (missing decision endpoint or
- * a NOT_APPLICABLE policy tree) — fix PingOne Authorize before the demo.
- * Admin-only; never throws (checkPolicyReadiness classifies failures).
+ * Demo preflight (P1AZ hardening amendment §E). Verifies each configured gate's
+ * decision endpoint EXISTS in PingOne Authorize, classified as
+ * ready / policy_not_found / not_configured / error. It does NOT fire synthetic
+ * decisions — those would pollute the recent-decisions log and, given the demo
+ * snapshot's always-applicable catch-all rules, could not reliably surface
+ * NOT_APPLICABLE drift anyway (a synthetic request would just hit the catch-all).
+ * policy_not_found here means a configured endpoint id is missing from P1AZ —
+ * fix PingOne Authorize before the demo. Admin-only; never throws.
  */
 router.get('/policy-readiness', authenticateToken, async (req, res) => {
   if (req.user?.role !== 'admin') {

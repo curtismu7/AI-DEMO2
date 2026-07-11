@@ -1176,6 +1176,46 @@ function _classifyRawObligations(raw) {
   return classifyObligations(merged);
 }
 
+/**
+ * On-demand drift check (P1AZ hardening amendment §E). Verifies each configured
+ * gate's decision endpoint EXISTS in PingOne Authorize by listing endpoints —
+ * the reliable, side-effect-free signal. It deliberately does NOT fire synthetic
+ * decisions: those would pollute the recent-decisions log, and against the demo
+ * snapshot's always-applicable catch-all rules a synthetic request cannot surface
+ * NOT_APPLICABLE drift anyway. Never throws — failures are classified.
+ *
+ * @returns {Promise<{ readiness: 'ready'|'policy_not_found'|'not_configured'|'skipped'|'error', gates: Array, reason?, error? }>}
+ */
+async function checkPolicyReadiness() {
+  if (!isWorkerCredentialReady()) {
+    return { readiness: 'skipped', reason: 'worker_creds_missing', gates: [] };
+  }
+
+  let liveIds;
+  try {
+    const endpoints = await getDecisionEndpoints();
+    liveIds = new Set((endpoints || []).map((ep) => ep.id));
+  } catch (err) {
+    return { readiness: 'error', error: err.message, gates: [] };
+  }
+
+  const toCheck = [
+    { key: 'authorize_decision_endpoint_id', gate: 'Transaction decision endpoint' },
+    { key: 'authorize_mcp_decision_endpoint_id', gate: 'MCP first-tool decision endpoint' },
+  ];
+  const gates = toCheck.map(({ key, gate }) => {
+    const id = configStore.getEffective(key) || process.env[key.toUpperCase()];
+    if (!id) return { gate, status: 'not_configured', id: null };
+    return { gate, status: liveIds.has(id) ? 'ready' : 'policy_not_found', id };
+  });
+
+  const readiness = gates.some((g) => g.status === 'policy_not_found')
+    ? 'policy_not_found'
+    : (gates.some((g) => g.status === 'ready') ? 'ready' : 'not_configured');
+
+  return { readiness, gates };
+}
+
 module.exports = {
   _normalizeDecision,
   _isPolicyNotFoundEffect,
@@ -1200,4 +1240,5 @@ module.exports = {
   provisionDemoDecisionEndpoints,
   getWorkerToken,
   warmup,
+  checkPolicyReadiness,
 };
