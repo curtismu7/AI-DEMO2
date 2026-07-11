@@ -44,6 +44,11 @@ spec:
         envFrom:
         - configMapRef:
             name: ai-demo-config
+        # MORTGAGE_SERVICE_API_KEY — provisioned by create-secrets.sh
+        # (align_service_api_keys) with the SAME value the BFF vault bridge
+        # serves, so apikey-dispatch never 401s on a fresh deploy.
+        - secretRef:
+            name: mortgage-secrets
         resources:
           requests:
             memory: "64Mi"
