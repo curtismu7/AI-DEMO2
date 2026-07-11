@@ -52,6 +52,31 @@ function fetchT(url, opts = {}) {
   return globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_FETCH_TIMEOUT_MS) });
 }
 
+// Retry is OPT-IN, not a property of fetchT (P1AZ hardening amendment §C):
+// applied ONLY to the idempotent evaluate/token calls, NEVER to provisioning
+// writes (a create-endpoint POST that succeeds server-side but times out
+// client-side must not be re-fired into a duplicate). These calls also get a
+// tighter default timeout (5s vs fetchT's 15s) so a frozen P1AZ hands off to
+// failover fast; PINGONE_AUTHZ_TIMEOUT_MS still overrides. At most one retry,
+// on a transient failure only (network/timeout or 5xx); a 4xx is never retried.
+const AUTHZ_EVAL_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 5000;
+async function fetchRetryable(url, opts = {}) {
+  const attempt = () =>
+    globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_EVAL_TIMEOUT_MS) });
+  let response;
+  try {
+    response = await attempt();
+  } catch (err) {
+    // network error / timeout — one retry
+    return attempt();
+  }
+  if (response.status >= 500) {
+    // transient server error — one retry
+    return attempt();
+  }
+  return response; // 2xx / 3xx / 4xx — never retried
+}
+
 /** Stable names — idempotent GET list + create if missing */
 const DEMO_TX_ENDPOINT_NAME = 'Super Banking Demo — Transactions';
 const DEMO_MCP_ENDPOINT_NAME = 'Super Banking Demo — MCP first tool';
@@ -148,7 +173,7 @@ async function _requestWorkerToken({ envId, clientId, clientSecret, regionTld })
   const tokenUrl = `${authBase(regionTld)}/${envId}/as/token`;
   const encoded = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const response = await fetchT(tokenUrl, {
+  const response = await fetchRetryable(tokenUrl, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${encoded}`,
@@ -226,6 +251,29 @@ function _resetAuthorizeRuntimeState() {
   _workerTokenInflight = null;
 }
 
+/**
+ * POST a decision request with the worker token, retrying ONCE on a 401 with a
+ * freshly-minted token (the cached token may have been rotated/revoked at P1AZ).
+ * Idempotent evaluate call, so the underlying fetchRetryable transient-retry is
+ * safe. A 401 that survives the refresh is returned to the caller as-is.
+ */
+async function _postDecisionWithAuth(url, body) {
+  const doFetch = (tok) => fetchRetryable(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body,
+  });
+
+  let workerToken = await getWorkerToken();
+  let response = await doFetch(workerToken);
+  if (response.status === 401) {
+    _invalidateWorkerToken(workerToken);
+    workerToken = await getWorkerToken();
+    response = await doFetch(workerToken);
+  }
+  return response;
+}
+
 // ---------------------------------------------------------------------------
 // Phase 2 — Decision Endpoints evaluation (current / preferred path)
 // POST /v1/environments/{envId}/decisionEndpoints/{endpointId}
@@ -283,21 +331,12 @@ function _decisionError(status, text, label) {
 async function _postDecisionEndpoint(endpointId, parameters) {
   const { envId, regionTld } = _getCredentials();
 
-  const workerToken = await getWorkerToken();
-
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
 
   console.log('[BFF→P1AZ] REQUEST: url=%s', url);
   console.log('[BFF→P1AZ] PARAMETERS: %j', parameters);
 
-  const response = await fetchT(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${workerToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ parameters }),
-  });
+  const response = await _postDecisionWithAuth(url, JSON.stringify({ parameters }));
 
   if (!response.ok) {
     const text = await response.text();
@@ -467,8 +506,6 @@ async function evaluateMcpToolDelegation({
 async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = {} }) {
   const { envId, regionTld } = _getCredentials();
 
-  const workerToken = await getWorkerToken();
-
   const url = `${apiBase(regionTld)}/v1/environments/${envId}/governance/policyDecisionPoints/${policyId}/evaluate`;
 
   const payload = {
@@ -486,14 +523,7 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
     },
   };
 
-  const response = await fetchT(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${workerToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const response = await _postDecisionWithAuth(url, JSON.stringify(payload));
 
   if (!response.ok) {
     const text = await response.text();
@@ -1100,6 +1130,8 @@ module.exports = {
   _decisionError,
   _invalidateWorkerToken,
   _resetAuthorizeRuntimeState,
+  _fetchRetryable: fetchRetryable,
+  _postDecisionWithAuth,
   evaluateTransaction,
   evaluateMcpToolDelegation,
   evaluateDecisionEndpoint,
