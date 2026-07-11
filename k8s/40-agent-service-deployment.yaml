@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: langchain-agent
-        image: ai-demo-langchain-agent:latest
+        image: ai-demo-k8-langchain-agent:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8888

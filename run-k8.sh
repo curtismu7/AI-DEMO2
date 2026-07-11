@@ -200,16 +200,37 @@ kill_all() {
   success "Cleared existing processes."
 }
 
-# Compose project "ai-demo" tags the BFF image ai-demo-demo-api-server; K8 manifests
-# expect ai-demo-api-server. Retag after every build so IfNotPresent pulls locally.
+# K8 builds run under their own compose project (K8_COMPOSE_PROJECT) so the
+# production-stage images they produce get ai-demo-k8-* tags — NEVER the dev
+# stack's ai-demo-* tags. Building prod images onto the dev tags broke the
+# running dev stack (the recreated dev ui got the nginx image and crash-looped
+# with exit 127 — see REGRESSION_PLAN §4 2026-07-11). K8 manifests reference
+# the ai-demo-k8-* names.
+K8_COMPOSE_PROJECT="ai-demo-k8"
+
+# Two tag gaps remain after a project-scoped build:
+#   - the BFF: compose names it ai-demo-k8-demo-api-server; manifests expect
+#     ai-demo-k8-api-server.
+#   - explicit-image services (llm-proxy, tier-manager-k8, and the rag-profile
+#     pair): their compose `image:` pins the ai-demo-* name, which `-p` does
+#     not change — retag those to the ai-demo-k8-* manifest names when present.
 tag_k8_images() {
-  local compose_bff="ai-demo-demo-api-server"
-  if docker image inspect "${compose_bff}:latest" &>/dev/null; then
-    docker tag "${compose_bff}:latest" ai-demo-api-server:latest
-    info "Tagged ${compose_bff}:latest → ai-demo-api-server:latest"
-  else
-    warn "Missing ${compose_bff}:latest — build demo-api-server first"
-  fi
+  local pairs=(
+    "${K8_COMPOSE_PROJECT}-demo-api-server:ai-demo-k8-api-server"
+    "ai-demo-llm-proxy:ai-demo-k8-llm-proxy"
+    "ai-demo-tier-manager:ai-demo-k8-tier-manager"
+    "ai-demo-mcp-code-search:ai-demo-k8-mcp-code-search"
+    "ai-demo-llamaindex-agent:ai-demo-k8-llamaindex-agent"
+  )
+  for entry in "${pairs[@]}"; do
+    local src="${entry%%:*}" dst="${entry##*:}"
+    if docker image inspect "${src}:latest" &>/dev/null; then
+      docker tag "${src}:latest" "${dst}:latest"
+      info "Tagged ${src}:latest → ${dst}:latest"
+    fi
+  done
+  docker image inspect "ai-demo-k8-api-server:latest" &>/dev/null \
+    || warn "Missing ai-demo-k8-api-server:latest — build demo-api-server first"
 }
 
 build() {
@@ -220,10 +241,10 @@ build() {
   mkdir -p "$BASEDIR/.codegraph"
   [[ -f "$BASEDIR/.codegraph/codegraph.db" ]] || touch "$BASEDIR/.codegraph/codegraph.db"
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.yml build \
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
     demo-api-server ui mcp-server langchain-agent agent-service \
     hitl-service mcp-invest mortgage-service mcp-proxy authz-server mcp-gateway
-  COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   tag_k8_images
   success "Images built and tagged for K8."
 }
@@ -354,23 +375,26 @@ aws_build() {
     || die "GHCR login failed — run: gh auth login"
 
   info "Building images..."
-  docker compose -f docker-compose.yml build
+  # -p: build under the K8 project so prod-stage images never land on the dev
+  # stack's ai-demo-* tags (see K8_COMPOSE_PROJECT above).
+  docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build
 
-  # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
+  # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2).
+  # Local side = compose default naming under -p: ai-demo-k8-<service>.
   local IMAGE_MAP=(
-    "ai-demo-ui:ai-demo-frontend"
-    "ai-demo-demo-api-server:ai-demo-demo-api-server"
-    "ai-demo-mcp-server:ai-demo-mcp-server"
-    "ai-demo-mcp-gateway:ai-demo-mcp-gateway"
-    "ai-demo-authz-server:ai-demo-authz-server"
-    "ai-demo-agent-service:ai-demo-agent-service"
-    "ai-demo-hitl-service:ai-demo-hitl-service"
-    "ai-demo-mcp-invest:ai-demo-mcp-invest"
-    "ai-demo-mortgage-service:ai-demo-mortgage-service"
-    "ai-demo-langchain-agent:ai-demo-langchain-agent"
-    "ai-demo-openai-agent:ai-demo-openai-agent"
-    "ai-demo-mastra-agent:ai-demo-mastra-agent"
-    "ai-demo-pydantic-agent:ai-demo-pydantic-agent"
+    "ai-demo-k8-ui:ai-demo-frontend"
+    "ai-demo-k8-demo-api-server:ai-demo-demo-api-server"
+    "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+    "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
+    "ai-demo-k8-authz-server:ai-demo-authz-server"
+    "ai-demo-k8-agent-service:ai-demo-agent-service"
+    "ai-demo-k8-hitl-service:ai-demo-hitl-service"
+    "ai-demo-k8-mcp-invest:ai-demo-mcp-invest"
+    "ai-demo-k8-mortgage-service:ai-demo-mortgage-service"
+    "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+    "ai-demo-k8-openai-agent:ai-demo-openai-agent"
+    "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
+    "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
   )
 
   for entry in "${IMAGE_MAP[@]}"; do

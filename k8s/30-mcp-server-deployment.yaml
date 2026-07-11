@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: mcp-server
-        image: ai-demo-mcp-server:latest
+        image: ai-demo-k8-mcp-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

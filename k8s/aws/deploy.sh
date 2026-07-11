@@ -57,21 +57,21 @@ die()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2)
 IMAGE_MAP=(
-  "ai-demo-ui:ai-demo-frontend"
-  "ai-demo-api-server:ai-demo-demo-api-server"
-  "ai-demo-mcp-server:ai-demo-mcp-server"
-  "ai-demo-mcp-gateway:ai-demo-mcp-gateway"
-  "ai-demo-authz-server:ai-demo-authz-server"
-  "ai-demo-agent-service:ai-demo-agent-service"
-  "ai-demo-hitl-service:ai-demo-hitl-service"
-  "ai-demo-mcp-invest:ai-demo-mcp-invest"
-  "ai-demo-mortgage-service:ai-demo-mortgage-service"
-  "ai-demo-langchain-agent:ai-demo-langchain-agent"
-  "ai-demo-openai-agent:ai-demo-openai-agent"
-  "ai-demo-mastra-agent:ai-demo-mastra-agent"
-  "ai-demo-pydantic-agent:ai-demo-pydantic-agent"
-  "ai-demo-llm-proxy:ai-demo-llm-proxy"
-  "ai-demo-tier-manager:ai-demo-tier-manager"
+  "ai-demo-k8-ui:ai-demo-frontend"
+  "ai-demo-k8-api-server:ai-demo-demo-api-server"
+  "ai-demo-k8-mcp-server:ai-demo-mcp-server"
+  "ai-demo-k8-mcp-gateway:ai-demo-mcp-gateway"
+  "ai-demo-k8-authz-server:ai-demo-authz-server"
+  "ai-demo-k8-agent-service:ai-demo-agent-service"
+  "ai-demo-k8-hitl-service:ai-demo-hitl-service"
+  "ai-demo-k8-mcp-invest:ai-demo-mcp-invest"
+  "ai-demo-k8-mortgage-service:ai-demo-mortgage-service"
+  "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+  "ai-demo-k8-openai-agent:ai-demo-openai-agent"
+  "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
+  "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
+  "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
+  "ai-demo-k8-tier-manager:ai-demo-tier-manager"
 )
 
 # Rewrite image refs in a YAML: local name → GHCR URI

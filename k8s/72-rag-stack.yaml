@@ -252,7 +252,7 @@ spec:
     spec:
       containers:
         - name: mcp-code-search
-          image: ai-demo-mcp-code-search:latest
+          image: ai-demo-k8-mcp-code-search:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8095
@@ -332,7 +332,7 @@ spec:
     spec:
       containers:
         - name: llamaindex-agent
-          image: ai-demo-llamaindex-agent:latest
+          image: ai-demo-k8-llamaindex-agent:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8894

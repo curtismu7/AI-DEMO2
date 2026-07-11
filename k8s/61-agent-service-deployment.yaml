@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: agent-service
-        image: ai-demo-agent-service:latest
+        image: ai-demo-k8-agent-service:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3006

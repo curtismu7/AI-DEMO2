@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: pydantic-agent
-        image: ai-demo-pydantic-agent:latest
+        image: ai-demo-k8-pydantic-agent:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8893

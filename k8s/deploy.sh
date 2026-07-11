@@ -66,7 +66,7 @@ deploy() {
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
 
-  # Images are tagged ai-demo-*:latest with imagePullPolicy: IfNotPresent. When
+  # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is
   # identical, so `kubectl apply` is a no-op and the running pods keep serving
   # the OLD image. Capture which deployments already exist so we can force them
