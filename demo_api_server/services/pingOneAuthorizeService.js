@@ -185,6 +185,10 @@ function _normalizeDecision(raw, { hasObligation = false } = {}) {
   const value = typeof effect === 'string' ? effect.trim().toLowerCase() : '';
   if (_PERMIT_EFFECTS.has(value)) return 'PERMIT';
   if (_DENY_EFFECTS.has(value)) return 'DENY';
+  // Explicit XACML "no policy matched" — surfaced so callers can tell the
+  // operator the code and the P1AZ policy set drifted apart. Anything else
+  // still fails closed.
+  if (value === 'not_applicable') return 'NOT_APPLICABLE';
   return hasObligation ? 'INDETERMINATE' : 'DENY';
 }
 
@@ -215,7 +219,11 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`PingOne Authorize decision endpoint evaluation failed (${response.status}): ${text}`);
+    const error = new Error(`PingOne Authorize decision endpoint evaluation failed (${response.status}): ${text}`);
+    error.status = response.status;
+    // 404 = the configured decision endpoint does not exist in this environment.
+    if (response.status === 404) error.code = 'policy_not_found';
+    throw error;
   }
 
   const raw = await response.json();
@@ -410,7 +418,10 @@ async function _evaluateViaPdp({ policyId, userId, amount, type, acr, context = 
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`PingOne Authorize PDP evaluation failed (${response.status}): ${text}`);
+    const error = new Error(`PingOne Authorize PDP evaluation failed (${response.status}): ${text}`);
+    error.status = response.status;
+    if (response.status === 404) error.code = 'policy_not_found';
+    throw error;
   }
 
   const raw = await response.json();
