@@ -81,6 +81,34 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — SE builds overwrote the dev stack's image tags (dev UI crash-looped with exit 127)
+
+**Files changed:** `se-update-code.sh` (SE_COMPOSE_PROJECT + `-p` on both
+`docker compose build` calls; `local_img` derives `ai-demo-se-<service>`).
+
+**What was broken:** the SE deploy script built production-stage images with
+`docker compose -f docker-compose.yml build` (no `-p`, no dev override), which
+tags straight onto the dev stack's `ai-demo-*` image names. For multi-stage
+services this swaps the dev image for prod under the same tag — the next
+`docker compose up -d` recreated `ai-demo-ui` from the nginx (prod) image while
+the dev override still ran `npm start`, and the container crash-looped with
+exit 127 (`npm: not found`).
+
+**What was fixed:** SE builds now run under compose project `ai-demo-se`, so
+they produce `ai-demo-se-*` tags and the GHCR retag/push reads those. Dev
+`ai-demo-*` tags are never touched by an SE deploy.
+
+**Do not break:** `local_img` must stay in sync with compose default naming
+(`<project>-<service>` from `compose_svc`); the GHCR image names (`ghcr_img`)
+and k8s deployment names are unchanged. Known same-pattern follow-up:
+`run-k8.sh` (local-K8s flow) still builds onto dev tags and its
+`retag_compose_to_k8s` consumers read them — trace those together before
+changing it.
+
+**Verify:** `bash -n se-update-code.sh`; naming semantics proven with a
+throwaway compose file (`-p ai-demo-se` → `ai-demo-se-ui`); dev tag image ID
+unchanged after an SE-project build of the same service.
+
 ### 2026-07-11 — /nl error envelopes crashed the agent; otel single-file mounts crash-looped services after git pull
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (guard at the top of

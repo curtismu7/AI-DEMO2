@@ -73,22 +73,18 @@ ghcr_img() {
   esac
 }
 
+# SE builds run under their own compose project (SE_COMPOSE_PROJECT) so the
+# production-stage images they produce get tags like ai-demo-se-ui — NEVER the
+# dev stack's ai-demo-* tags. Building prod images onto the dev tags broke the
+# running dev stack: the next `docker compose up -d` recreated ai-demo-ui from
+# the nginx (prod) image while the dev override still ran `npm start`, and the
+# container crash-looped with exit 127 (npm: not found).
+SE_COMPOSE_PROJECT="ai-demo-se"
+
 local_img() {
-  case "$1" in
-    bff)      echo "ai-demo-demo-api-server" ;;
-    frontend) echo "ai-demo-ui" ;;
-    mcp)      echo "ai-demo-mcp-server" ;;
-    gateway)  echo "ai-demo-mcp-gateway" ;;
-    agent)    echo "ai-demo-langchain-agent" ;;
-    authz)    echo "ai-demo-authz-server" ;;
-    mastra)   echo "ai-demo-mastra-agent" ;;
-    openai)   echo "ai-demo-openai-agent" ;;
-    pydantic) echo "ai-demo-pydantic-agent" ;;
-    hitl)     echo "ai-demo-hitl-service" ;;
-    invest)   echo "ai-demo-mcp-invest" ;;
-    mortgage) echo "ai-demo-mortgage-service" ;;
-    *)        echo "" ;;
-  esac
+  # Compose default image naming: <project>-<service>.
+  local svc; svc="$(compose_svc "$1")"
+  [[ -n "$svc" ]] && echo "${SE_COMPOSE_PROJECT}-${svc}" || echo ""
 }
 
 k8s_dep() {
@@ -148,7 +144,7 @@ build_and_push() {
   local uri="${REGISTRY}/${g_img}:${TAG}"
 
   info "Building ${svc}..."
-  docker compose -f "$BASEDIR/docker-compose.yml" build "$svc"
+  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" build "$svc"
   info "Pushing → ${uri}"
   docker tag "${l_img}:latest" "$uri"
   docker push "$uri"
@@ -167,7 +163,7 @@ roll_deployment() {
 # ── Build + push ──────────────────────────────────────────────────────────────
 if [[ -z "$SERVICE" ]]; then
   info "Building ALL services..."
-  docker compose -f "$BASEDIR/docker-compose.yml" build
+  docker compose -p "$SE_COMPOSE_PROJECT" -f "$BASEDIR/docker-compose.yml" build
   for key in $ALL_KEYS; do
     l_img="$(local_img "$key")"
     g_img="$(ghcr_img "$key")"
