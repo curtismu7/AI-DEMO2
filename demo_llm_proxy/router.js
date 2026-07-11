@@ -334,6 +334,30 @@ const server = http.createServer((req, res) => {
     const { cls, via } = requiredClass(bodyBuffer);
     const routedCls = effectiveClass(cls);
 
+    // A pin (or missing tier) may only substitute UP. Serving a class-N request
+    // with a weaker tier silently degrades quality — on K8s this answered
+    // gpt-oss-20b tool loops with phi-4-mini, which cannot drive tool calls,
+    // and the failure surfaced as "agent shows no result" with nothing in the
+    // logs. Refuse loudly instead (LLM_PROXY_ALLOW_DOWNGRADE=true opts back in).
+    if (routedCls < cls && process.env.LLM_PROXY_ALLOW_DOWNGRADE !== 'true') {
+      console.error(
+        `[proxy] REFUSED downgrade: request needs ${TIERS[cls].name} (class ${cls}) but routing is capped to ${TIERS[routedCls].name} (class ${routedCls})`,
+      );
+      if (!res.headersSent) {
+        res.writeHead(503, {
+          'Content-Type': 'application/json',
+          'X-LLM-Proxy-Downgrade-Refused': `${TIERS[cls].name}->${TIERS[routedCls].name}`,
+        });
+        res.end(JSON.stringify({
+          error: 'model_downgrade_refused',
+          message: `Requested ${TIERS[cls].name} but routing is capped to ${TIERS[routedCls].name} (LLM_PROXY_PIN_TIER). Set LLM_PROXY_ALLOW_DOWNGRADE=true to serve the weaker model anyway.`,
+          requested: TIERS[cls].name,
+          available: TIERS[routedCls].name,
+        }));
+      }
+      return;
+    }
+
     let selectedTier;
     try {
       selectedTier = await selectTier(routedCls);
