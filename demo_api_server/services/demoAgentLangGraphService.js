@@ -11,6 +11,7 @@ const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
 const { isAdminClientToken, adminTokenAgentResponse, isVerticalExemptFromAdminTokenGuard } = require('./customerTokenGuard');
 const { executePluginToolViaMcp } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
+const { parseToolResult } = require('./llmResponseContract');
 const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
 const z = require('zod');
 const appEventService = require('./appEventService');
@@ -160,9 +161,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
 
       const rawResult = await executeBffTool({ name: toolName, args: toolArgs, userId, userToken, req, tokenEvents, sessionId });
 
-      let parsed2;
-      try { parsed2 = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult; }
-      catch (_) { parsed2 = null; }
+      const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
 
       // An MCP error result (e.g. invalid_token / 401 from the gateway or backend)
       // arrives as { content:[{text}], isError:true } with NO top-level `.error`, so
@@ -170,7 +169,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       // accounts yet" success branch below — masking an auth failure as success (D-2).
       // Detect it here and surface the real error, mirroring the write/sensitive path.
       if (!parsed2 || parsed2.error || parsed2.isError) {
-        const errMsg = parsed2?.content?.[0]?.text || parsed2?.message || parsed2?.error || 'Tool call failed.';
+        const errMsg = parsed2?.content?.[0]?.text || parsed2?.error_description || parsed2?.message || parsed2?.error || 'Tool call failed.';
         return { reply: `❌ ${errMsg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
 
@@ -270,9 +269,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           },
           userId, userToken, req, tokenEvents, sessionId,
         });
-        let result;
-        try { result = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult; }
-        catch (_) { result = null; }
+        const { result } = parseToolResult(rawResult, { site: 'create_transfer' });
         const tc = classifyMcpToolResult(result);
         if (tc.kind === 'hitl') {
           return { reply: tc.message || 'This transfer requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: tc.hitl, hitl_threshold_usd: tc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer' };
@@ -317,9 +314,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           args: { to_account_id: toAcct.id, amount, description: params.description || 'Agent deposit' },
           userId, userToken, req, tokenEvents, sessionId,
         });
-        let result;
-        try { result = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult; }
-        catch (_) { result = null; }
+        const { result } = parseToolResult(rawResult, { site: 'create_deposit' });
         const dc = classifyMcpToolResult(result);
         if (dc.kind === 'hitl') {
           return { reply: dc.message || 'This deposit requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: dc.hitl, hitl_threshold_usd: dc.hitl_threshold_usd || amount, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit' };
@@ -364,9 +359,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           args: { from_account_id: fromAcct.id, amount, description: params.description || 'Agent withdrawal' },
           userId, userToken, req, tokenEvents, sessionId,
         });
-        let result;
-        try { result = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult; }
-        catch (_) { result = null; }
+        const { result } = parseToolResult(rawResult, { site: 'create_withdrawal' });
         const wc = classifyMcpToolResult(result);
         if (wc.kind === 'hitl') {
           return { reply: wc.message || 'This withdrawal requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: wc.hitl, hitl_threshold_usd: wc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal' };
@@ -404,8 +397,10 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         const errMsg = rawResult?.content?.[0]?.text || rawResult?.error || 'Could not retrieve sensitive account details.';
         return { reply: `❌ ${errMsg}`, success: false, toolsCalled: ['get_sensitive_account_details'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
-      let parsed;
-      try { parsed = JSON.parse(rawResult?.content?.[0]?.text || '{}'); } catch (_) { parsed = rawResult; }
+      const { result: parsed, parseFailed } = parseToolResult(rawResult?.content?.[0]?.text ?? rawResult, { site: 'get_sensitive_account_details' });
+      if (parseFailed) {
+        return { reply: `❌ ${parsed.error_description}`, success: false, toolsCalled: ['get_sensitive_account_details'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
       const accounts = parsed?.accounts || [];
       const lines = accounts.map(a => {
         const parts = [`• **${a.accountType}** — ${a.name || a.accountType}`];
@@ -539,7 +534,7 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
       suppliedToken: result.token,
       suppliedUserSub: result.userSub,
     });
-    try { toolResult = JSON.parse(raw); } catch (_e) { toolResult = raw; }
+    ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
   }
 
   return JSON.stringify({

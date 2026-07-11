@@ -12,6 +12,7 @@ const { parseHeuristic, EDU, resolveVerticalRouting } = require('./nlIntentParse
 const { callHelixAgent } = require('./helixLlmService');
 const configStore = require('./configStore');
 const verticalDispatch = require('./verticalDispatch');
+const { repairAndParseJson, validateIntent, snippet: contractSnippet, logMendEvent } = require('./llmResponseContract');
 
 const { base: SYSTEM_BASE, themes: THEME_OVERRIDES } =
   require(path.join(__dirname, '../../docs/HELIX_AGENT_DIRECTIVES.json'));
@@ -109,25 +110,20 @@ const GOOGLE_PROVIDERS = new Set(['google']);
 const LLAMACPP_PROVIDERS = new Set(['llamacpp']);
 const MLX_PROVIDERS = new Set(['mlx']);
 
-/** Parse a non-none intent JSON object from an LLM reply (strips markdown fences). */
+/** Parse a non-none intent JSON object from an LLM reply (repairs + validates via llmResponseContract). */
 function tryParseIntentJson(text) {
   if (!text) return null;
-  let cleaned = String(text).replace(/^```json\s*/i, '').replace(/```\s*$/m, '').trim();
-  // Small local models often wrap JSON in prose or emit trailing commentary.
-  // Prefer a direct parse, then extract the first {...} object that has kind.
-  const candidates = [cleaned];
-  const brace = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (brace >= 0 && end > brace) {
-    candidates.push(cleaned.slice(brace, end + 1));
+  let parsed = repairAndParseJson(text);
+  if (Array.isArray(parsed) && parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object') {
+    parsed = parsed[0];
   }
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-      if (parsed && typeof parsed === 'object' && parsed.kind && parsed.kind !== 'none') return parsed;
-    } catch (_) { /* try next */ }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  if (!parsed.kind || parsed.kind === 'none') return null;
+  if (!validateIntent(parsed)) {
+    logMendEvent('intent_shape_rejected', { kind: String(parsed.kind), snippet: contractSnippet(text) });
+    return null;
   }
-  return null;
+  return parsed;
 }
 
 /**
@@ -142,6 +138,17 @@ const JSON_RETRY_NUDGE =
   `params (orderId, product, amount, recordId, rentalId, days, provider, when), ` +
   `still emit the matching action with params:{} — do NOT emit kind:"none" and ` +
   `do NOT answer conversationally. The tools fill defaults server-side.`;
+
+/**
+ * Grammar constraint for llama.cpp intent routing: forces a JSON object with a
+ * "kind" field. Deliberately permissive — themes add per-vertical shapes and
+ * kind:"none" is a legal model answer; validateIntent does the strict check.
+ */
+const INTENT_JSON_SCHEMA = {
+  type: 'object',
+  required: ['kind'],
+  properties: { kind: { type: 'string' } },
+};
 
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
@@ -620,7 +627,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       const raw = await callLlamaCpp([
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
-      ]);
+      ], { jsonSchema: INTENT_JSON_SCHEMA });
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
       if (raw) {
@@ -629,7 +636,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           const retry = await callLlamaCpp([
             { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
             { role: 'user', content: message },
-          ]);
+          ], { jsonSchema: INTENT_JSON_SCHEMA });
           parsed = tryParseIntentJson(retry);
           if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
         } catch (e) {
