@@ -66,9 +66,19 @@ if [ -n "${DEPLOY_START_EPOCH:-}" ]; then
   STALE=""
   while IFS=$'\t' read -r name start; do
     [ -n "$start" ] || continue
-    start_epoch=$(date -j -f '%Y-%m-%dT%H:%M:%SZ' "$start" +%s 2>/dev/null || date -d "$start" +%s 2>/dev/null || echo 0)
+    # jaeger is tracing infra — its image never changes with app deploys and
+    # deploy.sh deliberately doesn't restart it, so it always predates deploys.
+    case "$name" in jaeger-*) continue ;; esac
+    # k8s startTime is UTC ("...Z"): parse with -u on BOTH platforms. Without it
+    # macOS `date -j -f` read the timestamp as LOCAL time, inflating start
+    # epochs by the UTC offset — pods up to ~5h stale passed as fresh (this
+    # masked a demo-api-server that deploy.sh's llm-proxy timeout never
+    # restarted, 2026-07-11).
+    start_epoch=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$start" +%s 2>/dev/null || date -u -d "$start" +%s 2>/dev/null || echo 0)
     if [ "$start_epoch" -ne 0 ] && [ "$start_epoch" -lt "$DEPLOY_START_EPOCH" ]; then
-      STALE="$STALE ${name%%-*}"
+      # Pod name = <deployment>-<rs-hash>-<pod-hash>: strip the last TWO
+      # segments (%%-* kept only the first segment, e.g. "demo").
+      STALE="$STALE ${name%-*-*}"
     fi
   done < <(kubectl get pods -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.startTime}{"\n"}{end}')
   if [ -n "$STALE" ]; then
