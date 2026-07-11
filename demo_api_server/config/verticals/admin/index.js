@@ -22,7 +22,7 @@ const HEURISTICS = [
   // accounts for a customer
   { re: /\b(view|show|get|list)\s+(?:(?:customer|user|their?|the|a)\s+)?accounts?\b|\baccounts?\s+for\b/, action: 'get_customer_accounts' },
   // profile / account details (generic — keep last)
-  { re: /\b(view|show|get)\s+(?:(?:customer|user|their?|the|a)\s+)?profile\b|\b(customer|user).*profile\b|\bprofile\s*(information|details)\b|\baccount\s+details\b/, action: 'get_customer_profile' },
+  { re: /\b(view|show|get)\s+(?:\w+\s+){0,3}profile\b|\b(customer|user).*profile\b|\bprofile\s*(information|details)\b|\baccount\s+details\b/, action: 'get_customer_profile' },
 ];
 
 // The admin vertical's MCP tools. The agent sees ONLY these on the admin

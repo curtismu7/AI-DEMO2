@@ -4,7 +4,7 @@ const { tools, execute } = require('./tools');
 
 const HEURISTICS = [
   { re: /\b(discover|explore|show|list)\b.*\b(api|operat|spec|endpoint)\b|\b(what|which)\b.*\b(api|can you do|operat)\b/i, action: 'discover_oas_operations' },
-  { re: /\blist\s+(all\s+)?users?\b|\bshow\s+users?\b/i,   action: 'call_pingone_operation' },
+  { re: /\blist\b.*\busers?\b|\bshow\s+users?\b/i,   action: 'call_pingone_operation' },
   { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,         action: 'call_pingone_operation' },
   { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                 action: 'call_pingone_operation' },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,            action: 'call_pingone_operation' },
