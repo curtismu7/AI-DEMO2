@@ -448,6 +448,22 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
           },
         );
       }
+      // Policy not found (drift) — the engine ran but no policy matched. Distinct
+      // from a denial and from an outage: surface the clear operator message and
+      // return control to the agent (same pattern as mcp_authorization_denied).
+      if (err.error === "policy_not_found") {
+        throw Object.assign(
+          new Error(err.error_description || "Policy not found, please contact administrator."),
+          {
+            code: "policy_not_found",
+            statusCode: 403,
+            tool: tool,
+            authorizeEngine: err.authorize_engine || "pingone",
+            decisionId: err.decisionId || null,
+            tokenEvents: allTokenEvents,
+          },
+        );
+      }
       // MCP authorization denied — surface deny_reason + deny_parameters for diagnostic display.
       if (err.error === "mcp_authorization_denied") {
         throw Object.assign(

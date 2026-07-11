@@ -419,6 +419,24 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
+    // Engine evaluated OK but no policy matched (drift — a tool no P1AZ policy
+    // covers). Fail closed with a clear operator-facing message rather than a
+    // generic deny. Success response → failover does not apply (amendment §A).
+    if (r.policyNotFound) {
+      return {
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            ...simulatedAuthorizeService.buildPolicyNotFoundBody('mcp-first-tool'),
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
     if (r.decision === 'DENY') {
       return {
         ran: true,

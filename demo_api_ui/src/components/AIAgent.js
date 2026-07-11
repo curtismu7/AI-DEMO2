@@ -4414,6 +4414,21 @@ export default function BankingAgent({
           actionId,
           { showReauthAgentAction: true },
         );
+      } else if (err?.code === "policy_not_found") {
+        // Authorize engine ran but no policy matched (drift): the demo references
+        // a tool/action PingOne Authorize has no policy for. Distinct from a
+        // denial and from an outage — state it plainly and end the action.
+        const msg = err.message || "Policy not found, please contact administrator.";
+        addMessage("assistant", msg, actionId);
+        addMessage(
+          "token-event",
+          [
+            " PingOne Authorize — Policy Not Found",
+            "   The engine evaluated successfully but no policy matched the request context.",
+            "   Cause: the demo added a tool/action without a matching Authorize policy.",
+          ].join("\n"),
+          actionId,
+        );
       } else if (err?.code === "mcp_authorization_denied") {
         // MCP Authorize gate: PingOne (or simulated) denied tool access
         const reason =
