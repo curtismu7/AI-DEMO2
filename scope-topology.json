@@ -12,7 +12,7 @@
   "provisioning": {
     "appPrefix": "Demo AI App",
     "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate" },
-    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent" }
+    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent", "Super Banking Tax Records Specialist Agent": "Demo AI App - Tax Records Specialist Agent", "Super Banking Financial Aid Specialist Agent": "Demo AI App - Financial Aid Specialist Agent", "Super Banking Supplier Contract Specialist Agent": "Demo AI App - Supplier Contract Specialist Agent" }
   },
   "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
   "scopes": {
@@ -28,6 +28,9 @@
     "expense:read": { "description": "Read expense report data (workforce vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "permits:read": { "description": "Read permit status data (government vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "transcript:read": { "description": "Read enrollment/transcript status data (university vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "tax:read": { "description": "Read sensitive tax assessment records (government vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "finaid:read": { "description": "Read sensitive student financial aid records (university vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "supplier:read": { "description": "Read sensitive supplier contract records (manufacturing vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "invest:read": { "description": "Read investment accounts, balances, and portfolio summaries (A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
     "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },
@@ -45,12 +48,12 @@
   "resources": {
     "Super Banking API": {
       "uri": "enduser.ping.demo",
-      "scopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+      "scopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
     },
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
       "scopes": ["mcp:invoke", "code:search"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
     },
     "Super Banking MCP Invest": {
       "uri": "mcp-invest.ping.demo",
@@ -60,12 +63,12 @@
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",
       "scopes": ["mcp:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking Agent Gateway": {
       "uri": "agentgateway.ping.demo",
       "scopes": ["agent:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking A2A Intermediate": {
       "uri": "a2a-intermediate.ping.demo",
@@ -76,7 +79,7 @@
     "Super Banking User App": {
       "type": "WEB_APP",
       "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
-      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "workorders:read", "invest:read"]
+      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "workorders:read", "invest:read"]
     },
     "Super Banking Admin App": {
       "type": "WEB_APP",
@@ -126,6 +129,21 @@
       "grantedScopes": ["read"]
     },
     "Super Banking Payroll Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Tax Records Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Financial Aid Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read"]
+    },
+    "Super Banking Supplier Contract Specialist Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
       "grantedScopes": ["read"]
@@ -375,6 +393,30 @@
     },
     "sensitive_payroll_details": {
       "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_tax_record": {
+      "requiredScopes": ["read"],
+      "a2aDelegatedScope": "tax:read",
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_student_finance": {
+      "requiredScopes": ["read"],
+      "a2aDelegatedScope": "finaid:read",
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
+    },
+    "sensitive_supplier_contract": {
+      "requiredScopes": ["read"],
+      "a2aDelegatedScope": "supplier:read",
       "surface": "gateway",
       "challengeType": "consent",
       "a2aDelegated": true,

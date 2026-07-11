@@ -34,6 +34,7 @@ function buildManufacturingTools(store) {
     { name: 'view_production_history', description: 'List production-run history (setups, runs, inspections, shipments).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'schedule_run', description: 'Schedule a production run for a work order.', inputSchema: { type: 'object', properties: { workOrder: { type: 'string' }, when: { type: 'string' } } }, scopes: ['write'], authz: {} },
     { name: 'release_work_order', description: 'Release a work order to the production floor (requires step-up + consent).', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } }, required: ['orderId'] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
+    { name: 'sensitive_supplier_contract', description: 'Access highly sensitive supplier contract terms. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
   ];
@@ -173,6 +174,25 @@ function buildManufacturingTools(store) {
         if (!wo) return { result: { error: 'work order not found' }, render: 'text' };
         return { result: wo, render: 'release_work_order' };
       }
+      case 'sensitive_supplier_contract':
+        return {
+          result: {
+            data: {
+              contract: {
+                supplier: 'Apex Components Inc.',
+                contractId: 'SC-2026-0044',
+                unitPricing: '[REDACTED]',
+                paymentTerms: 'Net 45',
+                ndaSigned: true,
+                renewalDate: '2027-01-15',
+                status: 'Active',
+              },
+              sensitiveDataAccessed: true,
+              accessGrantedBy: 'consent',
+            },
+          },
+          render: 'text',
+        };
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };
