@@ -97,14 +97,14 @@ describe('authorize_mode default (FIELD_DEFS source of truth)', () => {
   // fail-closed is still available by explicitly storing authorize_mode='pingone'.
   // The resolver tests above use store doubles that bypass FIELD_DEFS, so this
   // pins the default itself.
-  test("defaults to 'pingone_fallback_simulated'", () => {
-    expect(FIELD_DEFS.authorize_mode.default).toBe('pingone_fallback_simulated');
+  test("defaults to 'pingone' (fail-closed; fallback is explicit opt-in)", () => {
+    expect(FIELD_DEFS.authorize_mode.default).toBe('pingone');
   });
 
-  test('a store reflecting only the FIELD_DEFS default resolves to real PingOne with simulated fallback', () => {
+  test('a store reflecting only the FIELD_DEFS default resolves to strict fail-closed PingOne', () => {
     const store = mkStore({ authorize_mode: FIELD_DEFS.authorize_mode.default });
     expect(resolveAuthorizeMode(store)).toEqual({
-      mode: 'pingone_fallback_simulated', useSimulated: false, failoverMode: 'fallback_simulated',
+      mode: 'pingone', useSimulated: false, failoverMode: 'deny',
     });
   });
 

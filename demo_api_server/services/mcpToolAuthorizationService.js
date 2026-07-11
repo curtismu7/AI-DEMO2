@@ -419,9 +419,11 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    // NOT_APPLICABLE: P1AZ evaluated fine but no policy matched — code/policy
+    // Policy not found: P1AZ evaluated fine but no policy matched — code/policy
     // drift (e.g. a new tool the deployed policy doesn't know), not a deny.
-    if (r.decision === 'NOT_APPLICABLE') {
+    // Read the side-channel flag: _normalizeDecision stays fail-closed and
+    // returns DENY, so `r.decision` is never 'NOT_APPLICABLE'.
+    if (r.policyNotFound) {
       return {
         ran: true,
         block: {

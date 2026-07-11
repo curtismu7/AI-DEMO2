@@ -50,7 +50,7 @@ beforeEach(() => {
 describe('transaction gate', () => {
   it('NOT_APPLICABLE → 503 policy_not_found (strict pingone mode)', async () => {
     setCfg({ authorize_mode: 'pingone', authorize_decision_endpoint_id: 'ep-1' });
-    pingOne.evaluateTransaction.mockResolvedValue({ decision: 'NOT_APPLICABLE', raw: {}, path: 'decision-endpoint' });
+    pingOne.evaluateTransaction.mockResolvedValue({ decision: 'DENY', policyNotFound: true, raw: {}, path: 'decision-endpoint' });
     const r = await txSvc.evaluateTransactionPolicy(txArgs);
     expect(r.ran).toBe(true);
     expect(r.block.status).toBe(503);
@@ -60,7 +60,7 @@ describe('transaction gate', () => {
 
   it('NOT_APPLICABLE → policy_not_found even in fallback_simulated mode (no fallback for a working engine)', async () => {
     setCfg({ authorize_mode: 'pingone_fallback_simulated', authorize_decision_endpoint_id: 'ep-1' });
-    pingOne.evaluateTransaction.mockResolvedValue({ decision: 'NOT_APPLICABLE', raw: {}, path: 'decision-endpoint' });
+    pingOne.evaluateTransaction.mockResolvedValue({ decision: 'DENY', policyNotFound: true, raw: {}, path: 'decision-endpoint' });
     const r = await txSvc.evaluateTransactionPolicy(txArgs);
     expect(r.block.body.error).toBe('policy_not_found');
   });
@@ -101,7 +101,7 @@ describe('MCP first-tool gate', () => {
 
   it('NOT_APPLICABLE → 503 policy_not_found block', async () => {
     setCfg({ authorize_mode: 'pingone', authorize_mcp_decision_endpoint_id: 'ep-mcp' });
-    pingOne.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'NOT_APPLICABLE', raw: {}, decisionId: 'd1' });
+    pingOne.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'DENY', policyNotFound: true, raw: {}, decisionId: 'd1' });
     const r = await mcpSvc.evaluateMcpFirstToolGate(gateArgs);
     expect(r.ran).toBe(true);
     expect(r.block.status).toBe(503);
