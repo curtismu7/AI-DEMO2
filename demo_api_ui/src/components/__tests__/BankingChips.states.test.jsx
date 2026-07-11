@@ -24,8 +24,8 @@ vi.mock("../../context/SessionTokenContext", () => ({
   useSessionToken: () => mockToken,
 }));
 
-describe("BankingChips grey states", () => {
-  it("marks an unverified (Authorize-unreachable) chip with the --unverified class", () => {
+describe("BankingChips chip states", () => {
+  it("keeps an unverifiable chip (Authorize-unreachable) visible AND clickable", () => {
     mockToken = { hasActiveToken: true, tokenLoading: false, staleSession: false };
     render(
       <BankingChips
@@ -35,15 +35,44 @@ describe("BankingChips grey states", () => {
         onChipClick={() => {}}
       />,
     );
+    // Unverifiable != denied: the chip renders active — never hidden, never
+    // disabled. Enforcement happens at the gateway's per-call Authorize
+    // decision (fail-closed), not via chip affordance.
     const btn = screen.getByText("My records").closest("button");
-    expect(btn.className).toContain("banking-chips-dropdown__button--unverified");
-    expect(btn).toHaveAttribute(
-      "title",
-      expect.stringContaining("couldn't reach PingOne or the demo authorize server"),
-    );
+    expect(btn.className).not.toContain("banking-chips-dropdown__button--unverified");
+    expect(btn.className).not.toContain("banking-chips-dropdown__button--denied");
+    expect(btn).not.toBeDisabled();
   });
 
-  it("prompts sign-in (not an authorize error) when there's no token", () => {
+  it("keeps a chip visible and clickable when its tool is absent from the loaded list (degraded/stale discovery)", () => {
+    mockToken = { hasActiveToken: true, tokenLoading: false, staleSession: false };
+    render(
+      <BankingChips
+        user={{ role: "user" }}
+        toolPermissions={{ some_other_tool: { permitted: true } }}
+        onChipClick={() => {}}
+      />,
+    );
+    const btn = screen.getByText("My records").closest("button");
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("greys a chip ONLY on an explicit Authorize deny, with the reason in the tooltip", () => {
+    mockToken = { hasActiveToken: true, tokenLoading: false, staleSession: false };
+    render(
+      <BankingChips
+        user={{ role: "user" }}
+        toolPermissions={{ get_records: { permitted: false, deniedReason: "insufficient_scope" } }}
+        onChipClick={() => {}}
+      />,
+    );
+    const btn = screen.getByText("My records").closest("button");
+    expect(btn.className).toContain("banking-chips-dropdown__button--denied");
+    expect(btn).toHaveAttribute("title", expect.stringContaining("insufficient_scope"));
+  });
+
+  it("still prompts sign-in when there's no token", () => {
     mockToken = { hasActiveToken: false, tokenLoading: false, staleSession: false };
     render(
       <BankingChips
@@ -53,10 +82,10 @@ describe("BankingChips grey states", () => {
         onChipClick={() => {}}
       />,
     );
-    // A clickable sign-in CTA appears, and the unverified chip tooltip switches
-    // from the misleading authorize-outage copy to a sign-in prompt.
+    // The sign-in CTA is session-state driven and unchanged; the chip itself
+    // stays active (no unverified lockout).
     expect(screen.getByRole("button", { name: /sign in to use these actions/i })).toBeInTheDocument();
     const btn = screen.getByText("My records").closest("button");
-    expect(btn).toHaveAttribute("title", "Sign in to use these actions.");
+    expect(btn).not.toBeDisabled();
   });
 });

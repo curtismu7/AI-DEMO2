@@ -24,6 +24,8 @@ const { resolveAgentScopes } = require('./agentScopes');
 const agentTokenCache = require('./agentTokenCache');
 const agentMcpTokenService = require('./agentMcpTokenService');
 const agentGatewayClient = require('./agentGatewayClient');
+const { verticalManifest } = require('./verticalManifest');
+const scopeTopology = require('./scopeTopology');
 
 // Pseudo-tool name for the discovery exchange — not a real MCP tool; the scope
 // set comes from scopeOverride, so MCP_TOOL_SCOPES is not consulted for it.
@@ -91,19 +93,44 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
     }
   }
   if (lastErr) {
-    const catalog = (agentGatewayClient.getLocalToolsCatalog() || []).map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema || {},
-      requiredScopes: t.requiredScopes || ['read'],
-      readOnly: t.readOnly ?? true,
-      // Discovery is down, so the Authorize-filtered scope decision is unavailable.
-      // Permit only read-only tools (keep chips usable); never grant write-capable
-      // tools (e.g. transfer_funds) by default — that would bypass authorization.
-      permitted: t.readOnly ?? true,
-    }));
+    // Discovery is down, so the Authorize-filtered scope decision is unavailable.
+    // Degrade to a local catalog with every tool permitted: `permitted` only
+    // drives chip affordance — every tools/call still goes through the gateway's
+    // per-call Authorize decision, which fails closed, so nothing is bypassed.
+    const catalog = new Map();
+    for (const t of agentGatewayClient.getLocalToolsCatalog() || []) {
+      catalog.set(t.name, {
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema || {},
+        requiredScopes: t.requiredScopes || ['read'],
+        readOnly: t.readOnly ?? true,
+        permitted: true,
+      });
+    }
+    // Add the ACTIVE VERTICAL's chip-backed tools (manifest chips10) so a
+    // degraded list doesn't read every non-banking chip as vertical-foreign.
+    // Same static-manifest read as agentScopes (loader wraps { manifest, ... }).
+    try {
+      verticalManifest.init(); // idempotent — loads seed manifests if boot init hasn't run
+      const loaded = verticalManifest.loader.get(vertical);
+      const manifest = loaded && (loaded.manifest || loaded);
+      const chips = (manifest && manifest.dashboard && manifest.dashboard.chips10) || [];
+      for (const c of chips) {
+        if (!c || !c.tool || catalog.has(c.tool)) continue;
+        const requiredScopes = scopeTopology.toolScopes(c.tool);
+        catalog.set(c.tool, {
+          name: c.tool,
+          description: c.label || c.tool,
+          inputSchema: {},
+          requiredScopes: requiredScopes.length ? requiredScopes : ['read'],
+          readOnly: !requiredScopes.some((s) => s === 'write' || s.endsWith(':write')),
+          permitted: true,
+        });
+      }
+    } catch { /* unknown vertical — banking baseline only */ }
     return {
-      availableTools: catalog,
+      availableTools: [...catalog.values()],
       tokenEvents: (req.tokenEvents || []).slice(),
       scopes,
       degraded: true,

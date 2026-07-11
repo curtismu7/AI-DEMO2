@@ -60,4 +60,19 @@ describe('resolveAvailableTools degraded fallback', () => {
     expect(res.degraded).toBe(true);
     expect(res.degradedReason).toBe('authz_failover');
   });
+
+  it('degraded fallback includes the active vertical\'s manifest chip tools, all permitted', async () => {
+    gw.listAvailableTools.mockRejectedValue(new Error('ws closed'));
+    const res = await resolveAvailableTools(req, { vertical: 'university', allowWrite: true });
+    expect(res.degraded).toBe(true);
+    const names = res.availableTools.map((t) => t.name);
+    // banking baseline still present
+    expect(names).toContain('get_my_accounts');
+    // university chips10 tools present so chips are not read as vertical-foreign
+    expect(names).toContain('view_courses');
+    expect(names).toContain('view_standing');
+    expect(names).toContain('register_course');
+    // affordance-only: everything permitted; the gateway enforces per-call
+    expect(res.availableTools.every((t) => t.permitted === true)).toBe(true);
+  });
 });

@@ -1,16 +1,17 @@
 // Shared chip permission gating, used by both the regular chip rail (BankingChips)
 // and the Security Showcase panel so the two surfaces can never diverge.
 //
-// Join a chip with the live Authorize-filtered tool list. No backing tool →
-// always active. No perms yet: if the fetch ERRORED we can't verify → mark
-// unverified (disabled, not a doomed click); if it's just still loading → show
-// active briefly. Otherwise: tool absent from the list → hide (vertical-foreign);
-// present but not permitted → grey (scope-denied) with the reason.
+// Join a chip with the live Authorize-filtered tool list. Only an EXPLICIT
+// Authorize deny (tool present with permitted:false) greys a chip. Everything
+// the UI cannot verify — list still loading, fetch errored, or tool absent from
+// the list (degraded/stale discovery) — renders ACTIVE and clickable: chips
+// never vanish or lock up on discovery blips. This is safe because chip state
+// is affordance only; every tools/call still goes through the gateway's
+// per-call PingOne Authorize decision, which fails closed.
+// (`toolsError` is kept in the signature for callers but no longer disables.)
 export function chipPermState(chip, toolPermissions = {}, toolsError = false) {
-  const havePerms = toolPermissions && Object.keys(toolPermissions).length > 0;
   if (!chip.tool) return { show: true, denied: false };
-  if (!havePerms) return toolsError ? { show: true, unverified: true } : { show: true, denied: false };
-  const t = toolPermissions[chip.tool];
-  if (!t) return { show: false, denied: false };
-  return { show: true, denied: t.permitted === false, reason: t.deniedReason };
+  const t = toolPermissions ? toolPermissions[chip.tool] : null;
+  if (t && t.permitted === false) return { show: true, denied: true, reason: t.deniedReason };
+  return { show: true, denied: false };
 }

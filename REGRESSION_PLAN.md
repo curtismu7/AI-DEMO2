@@ -81,6 +81,36 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — Agent chips vanished/locked when tool discovery degraded (non-banking verticals)
+
+**Files changed:** `demo_api_server/services/agentToolsResolver.js`,
+`demo_api_ui/src/utils/chipPermissions.js`, tests
+(`agentToolsResolver.degraded.test.js`, `BankingChips.states.test.jsx`).
+
+**What was broken:** when WS tool discovery failed (`discovery_unreachable` —
+e.g. PingGateway active: the discovery token's aud never matches the Node
+gateway, so discovery is ALWAYS degraded in that mode), the fallback catalog
+was banking-only. `chipPermState` then hid every chip whose tool was absent
+("vertical-foreign") — chips rendered for ~1.7s and disappeared in every
+non-banking vertical — and `toolsError` disabled chips outright.
+
+**What was fixed:** (1) the degraded fallback now merges the ACTIVE vertical's
+manifest chips10 tools (via `verticalManifest.loader` + `scopeTopology`) into
+the banking baseline, all `permitted:true`; (2) `chipPermState` only greys on
+an EXPLICIT Authorize deny (`permitted:false`) — absent-from-list, still
+loading, and fetch-error states all render active and clickable. Chip state is
+affordance only; the gateway's per-call Authorize decision (fail-closed) is the
+enforcement point.
+
+**Do not break:** explicit-deny greying (Read-only scope demo: write chips grey
+with the deniedReason tooltip) must keep working; chip `id`/`message`/`tool`
+routing keys unchanged; the sign-in CTA for tokenless sessions unchanged.
+
+**Verify:** `jest --runTestsByPath src/__tests__/agentToolsResolver.degraded.test.js`
+(server), `vitest run src/components/__tests__/BankingChips.states.test.jsx`
+(UI), then live: switch to Super University, open Actions — all 8 curated chips
+must stay rendered while `/api/demo-agent/tools` returns `degraded:true`.
+
 ### 2026-07-11 — Local-K8s flow also built onto dev image tags (same class as the SE clobber)
 
 **Files changed:** `run-k8.sh` (K8_COMPOSE_PROJECT, `-p` on all 3 build sites,
