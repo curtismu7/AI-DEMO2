@@ -32,6 +32,15 @@ describe('GET /api/health/tracing/status', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(false);
   });
+
+  test('returns ok:false when query root returns HTML (QUERY_BASE_PATH mismatch)', async () => {
+    // 200 but the UI HTML shell, not the JSON services API — must not be treated
+    // as a reachable query base (else services/traces silently come back empty).
+    axios.get.mockResolvedValue({ status: 200, data: '<!doctype html><html><body>Jaeger UI</body></html>' });
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+  });
 });
 
 describe('GET /api/health/tracing/traces', () => {

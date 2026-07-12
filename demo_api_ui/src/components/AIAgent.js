@@ -8357,6 +8357,11 @@ export default function BankingAgent({
               show={showMcpToolsModal}
               onClose={() => setShowMcpToolsModal(false)}
               tools={mcpToolsList}
+              onToolSelect={(tool) => {
+                setShowMcpToolsModal(false);
+                addMessage('user', `Call ${tool.name}`, 'tool_selected');
+                handleSubmit({ agentMode: agentMode || 'helix' });
+              }}
             />
 
             {/* Demo Guide Modal */}
