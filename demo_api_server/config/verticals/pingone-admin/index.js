@@ -2,16 +2,17 @@
 const { verticalManifest } = require('../../../services/verticalManifest');
 const { tools, execute } = require('./tools');
 
-// Each call_pingone_operation heuristic carries the OAS operationId it resolves to,
-// so a chip's phrasing ("List Users", "Create User", …) maps deterministically to the
-// right operation. The parser injects h.defaultParams into the parsed params, satisfying
-// the tool's required `operationId` without asking the user to name the operation.
+// Each call_pingone_tool heuristic pins the hosted MCP tool name it resolves to,
+// so a chip's phrasing ("List Users", "Create User", …) maps deterministically to
+// the right tool. The parser injects h.defaultParams into the parsed params,
+// satisfying the tool's required `name` without asking the user to name the tool.
+// Order matters: specific data heuristics come before the broad discovery regex.
 const HEURISTICS = [
-  { re: /\b(discover|explore|show|list)\b.*\b(api|operat|spec|endpoint)\b|\b(what|which)\b.*\b(api|can you do|operat)\b/i, action: 'discover_oas_operations' },
-  { re: /\blist\b.*\busers?\b|\bshow\s+users?\b/i,   action: 'call_pingone_operation', defaultParams: { operationId: 'listUsers' } },
-  { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,         action: 'call_pingone_operation', defaultParams: { operationId: 'createUser' } },
-  { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                 action: 'call_pingone_operation', defaultParams: { operationId: 'listApplications' } },
-  { re: /\b(get|show|view)\b.*\benvironment\b/i,            action: 'call_pingone_operation', defaultParams: { operationId: 'getEnvironment' } },
+  { re: /\blist\b.*\busers?\b|\bshow\s+users?\b|\bhow many\b.*\b(users?|identit)/i, action: 'call_pingone_tool', defaultParams: { name: 'listUsers' } },
+  { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,                                  action: 'call_pingone_tool', defaultParams: { name: 'createUser' } },
+  { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                                          action: 'call_pingone_tool', defaultParams: { name: 'listApplications' } },
+  { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
+  { re: /\b(discover|explore|show|list|what|which)\b.*\b(tools?|apis?|operat|capabilit|can you do)/i, action: 'list_pingone_tools' },
 ];
 
 function getManifest() {
@@ -20,12 +21,11 @@ function getManifest() {
 
 function getSystemPrompt(_ctx) {
   return [
-    'You are a PingOne Admin Assistant that uses OpenAPI specifications to discover and call platform APIs.',
-    'When asked what you can do, ALWAYS call discover_oas_operations first to read the live OAS spec.',
-    'When calling an API, use call_pingone_operation with the correct operationId from the spec.',
-    'In your responses, cite the operationId and x-permission annotation from the spec.',
-    'Make the OAS security contract visible: state which OAuth scope and role permission each operation requires.',
-    'This demo shows how AI agents can be governed by machine-readable OpenAPI specs with x-permission annotations.',
+    'You are a PingOne Admin Assistant connected to the hosted PingOne MCP server.',
+    'When asked what you can do, ALWAYS call list_pingone_tools first — the visible tool set is gated by the worker application\'s admin roles in PingOne.',
+    'Call tools with call_pingone_tool using the exact tool name and camelCase arguments from the live tool list.',
+    'Every result carries a source field: state whether the answer came from the live server or from labeled mock fallback data.',
+    'This demo shows an AI agent whose capabilities are governed by the identity it runs as, not by hardcoded features.',
   ].join(' ');
 }
 

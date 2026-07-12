@@ -131,3 +131,41 @@ test('unknown vertical tool name returns error', async () => {
   const { result } = await plugin.executeTool('unknown_tool', {}, {});
   expect(result.error).toBeDefined();
 });
+
+describe('heuristics resolve chip phrasing to live tools', () => {
+  const resolve = (msg) => plugin.getHeuristics().find((h) => h.re.test(msg));
+
+  test('discovery phrasing maps to list_pingone_tools', () => {
+    const h = resolve('Show me the tools available from the PingOne MCP server');
+    expect(h.action).toBe('list_pingone_tools');
+  });
+
+  test('old OAS demo page phrasing still resolves to discovery', () => {
+    const h = resolve('Show me all available PingOne API operations from the OpenAPI spec');
+    expect(h.action).toBe('list_pingone_tools');
+  });
+
+  test('list users maps to call_pingone_tool listUsers', () => {
+    const h = resolve('List the users in my PingOne environment');
+    expect(h.action).toBe('call_pingone_tool');
+    expect(h.defaultParams).toEqual({ name: 'listUsers' });
+  });
+
+  test('create user maps to call_pingone_tool createUser', () => {
+    const h = resolve('Create a demo user in my environment');
+    expect(h.action).toBe('call_pingone_tool');
+    expect(h.defaultParams).toEqual({ name: 'createUser' });
+  });
+
+  test('list applications maps to call_pingone_tool listApplications', () => {
+    const h = resolve('List the applications registered in my environment');
+    expect(h.action).toBe('call_pingone_tool');
+    expect(h.defaultParams).toEqual({ name: 'listApplications' });
+  });
+
+  test('get environment maps to call_pingone_tool getEnvironment', () => {
+    const h = resolve('Get the details of my PingOne environment');
+    expect(h.action).toBe('call_pingone_tool');
+    expect(h.defaultParams).toEqual({ name: 'getEnvironment' });
+  });
+});
