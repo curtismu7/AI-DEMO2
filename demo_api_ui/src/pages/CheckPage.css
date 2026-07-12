@@ -78,7 +78,7 @@
   padding: 16px 20px; box-shadow: var(--shadow); margin-bottom: 20px;
 }
 .verdict-bar .verdict { display: flex; align-items: center; gap: 13px; }
-.verdict-bar .verdict h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; color: #fff; }
+.verdict-bar .verdict h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; color: var(--text); }
 .verdict-bar .dot { width: 15px; height: 15px; border-radius: 999px; background: var(--idle); box-shadow: 0 0 0 4px var(--idle-bg); }
 .verdict-bar.verdict-ready .dot { background: var(--pass); box-shadow: 0 0 0 4px var(--pass-bg); }
 .verdict-bar.verdict-ready_with_warnings .dot { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-bg); }
@@ -89,7 +89,7 @@
 .check-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
 .chk-tab {
   appearance: none; border: 0; background: none; cursor: pointer;
-  font-family: inherit; font-size: 14px; font-weight: 600; color: #fff;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text);
   padding: 11px 15px; border-radius: 9px 9px 0 0; position: relative; top: 1px;
   border-bottom: 2px solid transparent; opacity: 0.7;
 }
@@ -98,18 +98,18 @@
 .chk-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .check-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.check-actions label { color: #fff; }
+.check-actions label { color: var(--text); }
 
 .chk-btn {
   appearance: none; font-family: inherit; font-size: 13.5px; font-weight: 600;
   border-radius: 9px; padding: 9px 15px; cursor: pointer; border: 1px solid;
-  display: inline-flex; align-items: center; gap: 7px; color: #fff;
+  display: inline-flex; align-items: center; gap: 7px;
 }
 .chk-btn:disabled { opacity: .55; cursor: not-allowed; }
-.chk-btn-primary { background: var(--accent); border-color: var(--accent); }
+.chk-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chk-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
-.chk-btn-ghost { background: transparent; color: #fff; border-color: #fff; }
-.chk-btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.chk-btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
+.chk-btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
 
 /* ---- cards (traffic-light grid) ---- */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -124,13 +124,13 @@
 .card.s-warn::before { background: var(--warn); }
 .card.s-fail::before { background: var(--fail); }
 .card-top { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
-.card-top .title { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #fff; opacity: 0.8; }
+.card-top .title { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text); opacity: 0.8; }
 .card-body { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .card-metric { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-.card-metric small { font-size: 13px; font-weight: 600; color: #fff; opacity: 0.8; }
-.card-sub { font-size: 12.5px; color: #fff; opacity: 0.8; margin-top: 3px; }
+.card-metric small { font-size: 13px; font-weight: 600; color: var(--text); opacity: 0.8; }
+.card-sub { font-size: 12.5px; color: var(--text); opacity: 0.8; margin-top: 3px; }
 .card-foot { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.card-foot .hint { font-size: 12px; color: #fff; opacity: 0.6; }
+.card-foot .hint { font-size: 12px; color: var(--text); opacity: 0.6; }
 
 /* ---- stepper (pre-flight sequence) ---- */
 .steps { display: flex; align-items: flex-start; gap: 0; margin-bottom: 22px; overflow-x: auto; padding-bottom: 4px; }
@@ -141,41 +141,41 @@
 .step .node {
   width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center;
   font-size: 13px; font-weight: 700; z-index: 1; border: 2px solid var(--border-strong);
-  background: var(--surface); color: #fff; opacity: 0.8;
+  background: var(--surface); color: var(--text); opacity: 0.8;
 }
 .step.s-pass .node { background: var(--pass); border-color: var(--pass); color: #fff; opacity: 1; }
-.step.s-warn .node { border-color: var(--warn); color: #fff; opacity: 0.8; }
-.step.s-fail .node { border-color: var(--fail); color: #fff; opacity: 0.8; }
-.step .lbl { font-size: 12px; font-weight: 600; color: #fff; opacity: 0.8; text-align: center; }
+.step.s-warn .node { border-color: var(--warn); color: var(--text); opacity: 0.8; }
+.step.s-fail .node { border-color: var(--fail); color: var(--text); opacity: 0.8; }
+.step .lbl { font-size: 12px; font-weight: 600; color: var(--text); opacity: 0.8; text-align: center; }
 .phase-detail {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: var(--shadow); padding: 20px;
 }
-.phase-detail h3 { margin: 0 0 3px; font-size: 16px; display: flex; align-items: center; gap: 10px; color: #fff; }
-.detail-head h3 { color: #fff; }
+.phase-detail h3 { margin: 0 0 3px; font-size: 16px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+.detail-head h3 { color: var(--text); }
 
 /* ---- grouped checklist ---- */
 .group { margin-bottom: 8px; }
 .group-head {
   display: flex; align-items: center; gap: 10px; padding: 12px 4px 8px;
-  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #fff;
+  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text);
 }
-.group-head .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: #fff; opacity: 0.7; letter-spacing: 0; }
+.group-head .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text); opacity: 0.7; letter-spacing: 0; }
 .chk-rows { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .chk-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); }
 .chk-row:first-child { border-top: 0; }
-.chk-row .name { font-weight: 600; font-size: 14px; color: #fff; }
-.chk-row .detail { color: #fff; opacity: 0.8; font-size: 12.5px; margin-left: auto; text-align: right; }
-.chk-row .chev { color: #fff; opacity: 0.6; font-size: 12px; }
+.chk-row .name { font-weight: 600; font-size: 14px; color: var(--text); }
+.chk-row .detail { color: var(--text); opacity: 0.8; font-size: 12.5px; margin-left: auto; text-align: right; }
+.chk-row .chev { color: var(--text); opacity: 0.6; font-size: 12px; }
 
 /* ---- rail + detail (master-detail) ---- */
 .split { display: grid; grid-template-columns: 232px 1fr; gap: 16px; align-items: start; }
 @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
 .rail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; }
-.rail-item { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600; color: #fff; opacity: 0.8; }
+.rail-item { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text); opacity: 0.8; }
 .rail-item:hover { background: var(--surface-2); color: var(--text); }
 .rail-item.sel { background: var(--accent-soft); color: var(--accent); }
-.rail-item .n { margin-left: auto; font-family: var(--mono); font-size: 11px; font-weight: 700; color: #fff; opacity: 0.6; }
+.rail-item .n { margin-left: auto; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text); opacity: 0.6; }
 .detail-pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 .detail-head { display: flex; align-items: center; gap: 11px; margin-bottom: 4px; }
 .detail-head h3 { margin: 0; font-size: 16px; }
