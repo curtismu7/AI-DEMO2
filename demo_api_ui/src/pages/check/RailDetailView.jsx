@@ -22,7 +22,12 @@ export default function RailDetailView({ catalog, results, verdict }) {
             <div
               className={`rail-item${category === activeCategory ? ' sel' : ''}`}
               key={category}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelected(category)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(category); }
+              }}
             >
               <span className={`s-${catCls}`}><span className="light" /></span>
               {category}

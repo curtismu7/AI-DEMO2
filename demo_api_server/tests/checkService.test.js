@@ -45,4 +45,16 @@ describe('checkService core', () => {
     expect(results[1]).toMatchObject({ id: 'boom', status: 'fail', detail: 'kaboom' });
     expect(typeof results[0].durationMs).toBe('number');
   });
+
+  test('runChecks normalizes a non-object outcome to fail and does not abort the batch', async () => {
+    const seen = [];
+    const checks = [
+      { id: 'undef', name: 'undef', category: 'C', run: async () => undefined },
+      { id: 'after', name: 'after', category: 'C', run: async () => ({ status: 'pass' }) },
+    ];
+    const results = await svc.runChecks(checks, {}, (r) => seen.push(r.id));
+    expect(seen).toEqual(['undef', 'after']);
+    expect(results[0]).toMatchObject({ id: 'undef', status: 'fail' });
+    expect(results[1]).toMatchObject({ id: 'after', status: 'pass' });
+  });
 });
