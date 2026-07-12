@@ -35,6 +35,7 @@
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
+#   ./run-k8.sh se-status     # switch to the SE cluster + your namespace, show pod status
 #   ./run-k8.sh se-undeploy   # remove all app resources from your SE namespace (run when done!)
 #
 #   Namespace is auto-derived from your Ping email (cmuir@pingidentity.com → ping-devops-cmuir).
@@ -44,6 +45,11 @@
 #   ./run-k8.sh aws-build    # build images + push to GHCR (needs GITHUB_OWNER)
 #   ./run-k8.sh aws-deploy   # deploy to EKS (needs GITHUB_OWNER, AWS_REGION, EKS_CLUSTER_NAME)
 #   ./run-k8.sh aws-all      # aws-build + aws-deploy
+#   ./run-k8.sh aws-status   # update kubeconfig for EKS_CLUSTER_NAME, show pod status
+#
+#   NOTE: plain `./run-k8.sh status` only ever inspects whatever kubectl context
+#   is CURRENTLY active — it never switches clusters. Use se-status/aws-status
+#   to check pods on the SE or EKS cluster specifically.
 #
 #   ./run-k8.sh help         # show this help
 #
@@ -414,6 +420,16 @@ aws_deploy() {
   bash "$K8S_DIR/aws/deploy.sh"
 }
 
+# Point kubectl at the EKS cluster and print pod status. `./run-k8.sh status`
+# never touches EKS — it only ever inspects whatever context is already
+# current, so an AWS-deployed stack was silently invisible to it.
+aws_status() {
+  check_eks_env
+  info "Updating kubeconfig for EKS cluster: $EKS_CLUSTER_NAME"
+  aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+  K8S_NAMESPACE="${K8S_NAMESPACE:-ai-demo}" bash "$K8S_DIR/deploy.sh" status
+}
+
 sim_deploy() {
   check_ghcr_env
   check_prereqs
@@ -510,6 +526,22 @@ se_deploy() {
   se_deploy_banner "$ns"
 }
 
+# Point kubectl at the SE cluster + your namespace and print pod status.
+# `./run-k8.sh status` never switches context/namespace, so an SE-deployed
+# stack was silently invisible to it (querying the local cluster instead).
+se_status() {
+  local ns
+  ns="$(derive_se_namespace)"
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "$ctx" != "us" && "$ctx" != "ping-dev-aws-us-east-2-oidc" ]]; then
+    info "Switching kubectl context to 'us' (ping-dev-aws-us-east-2)..."
+    kubectl config use-context us
+  fi
+  info "SE cluster status → namespace: $ns"
+  K8S_NAMESPACE="$ns" bash "$K8S_DIR/deploy.sh" status
+}
+
 se_deploy_banner() {
   local ns="$1"
   echo ""
@@ -587,13 +619,15 @@ case "${1:-all}" in
   se-build)    aws_build ;;
   se-deploy)   se_deploy ;;
   se-all)      aws_build; se_deploy ;;
+  se-status)   se_status ;;
   se-undeploy) se_undeploy ;;
   aws-build)  aws_build ;;
   aws-deploy) aws_deploy; aws_finish ;;
   aws-all)    aws_build; aws_deploy; aws_finish ;;
+  aws-status) aws_status ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-undeploy|aws-build|aws-deploy|aws-all|help}"
+    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-status|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
     exit 1
     ;;
 esac

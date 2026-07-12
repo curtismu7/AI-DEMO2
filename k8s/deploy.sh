@@ -32,7 +32,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_NAME="$(basename "$0")"
-NS="ai-demo"
+NS="${K8S_NAMESPACE:-ai-demo}"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=scripts/demo-terminal.sh
 source "${REPO_ROOT}/scripts/demo-terminal.sh"
@@ -211,37 +211,55 @@ show_commands() {
 }
 
 show_status() {
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || echo "(none)")"
   echo
-  echo -e "${CYAN}${BOLD}  Pods — namespace: ${NS}${RESET}"
+  echo -e "${CYAN}${BOLD}  Pods — context: ${ctx}  namespace: ${NS}${RESET}"
   echo
 
-  # awk normalises "2 (50s ago)" restarts → "2" so read gets exactly 5 fields.
-  kubectl get pods -n "$NS" --no-headers 2>/dev/null \
-    | awk '{print $1, $2, $3, $4, $NF}' \
-    | while read -r name ready status restarts age; do
-    local icon color restart_tag
-    local total="${ready##*/}" current="${ready%%/*}"
-    case "$status" in
-      Running)
-        if [ "$current" = "$total" ]; then
-          icon="✅"; color="$GREEN"
-        else
-          icon="⚠️"; color="$YELLOW"
-        fi ;;
-      ContainerCreating|Init:*|PodInitializing|Pending|Terminating)
-        icon="⚠️"; color="$YELLOW" ;;
-      CrashLoopBackOff|Error|OOMKilled|ImagePullBackOff|ErrImagePull)
-        icon="❌"; color="$RED" ;;
-      *)
-        icon="⚠️"; color="$YELLOW" ;;
-    esac
+  # Fetch once so we can tell "kubectl failed" apart from "namespace has no pods" —
+  # piping straight into the while loop hid both cases behind a silent blank line
+  # (the pipeline's exit status was the while loop's, never kubectl's).
+  local raw
+  if ! raw="$(kubectl get pods -n "$NS" --no-headers 2>&1)"; then
+    echo -e "  ${RED}kubectl failed — check context/cluster reachability:${RESET}"
+    echo "$raw" | sed 's/^/    /'
+    echo
+    return
+  fi
+  # kubectl prints "No resources found in <ns> namespace." (not empty output)
+  # when there are no pods — treat that the same as truly empty output.
+  if [ -z "$raw" ] || [[ "$raw" == "No resources found"* ]]; then
+    echo "  (no pods found in this namespace)"
+  else
+    # awk normalises "2 (50s ago)" restarts → "2" so read gets exactly 5 fields.
+    echo "$raw" \
+      | awk '{print $1, $2, $3, $4, $NF}' \
+      | while read -r name ready status restarts age; do
+      local icon color restart_tag
+      local total="${ready##*/}" current="${ready%%/*}"
+      case "$status" in
+        Running)
+          if [ "$current" = "$total" ]; then
+            icon="✅"; color="$GREEN"
+          else
+            icon="⚠️"; color="$YELLOW"
+          fi ;;
+        ContainerCreating|Init:*|PodInitializing|Pending|Terminating)
+          icon="⚠️"; color="$YELLOW" ;;
+        CrashLoopBackOff|Error|OOMKilled|ImagePullBackOff|ErrImagePull)
+          icon="❌"; color="$RED" ;;
+        *)
+          icon="⚠️"; color="$YELLOW" ;;
+      esac
 
-    restart_tag=""
-    [ "${restarts:-0}" -gt 0 ] 2>/dev/null && restart_tag=" ${RED}↺${restarts}${RESET}"
+      restart_tag=""
+      [ "${restarts:-0}" -gt 0 ] 2>/dev/null && restart_tag=" ${RED}↺${restarts}${RESET}"
 
-    printf "  %s  ${color}%-48s${RESET}  %s  %-22s  age:%-4s%b\n" \
-      "$icon" "$name" "$ready" "$status" "$age" "$restart_tag"
-  done || echo "  (no pods found)"
+      printf "  %s  ${color}%-48s${RESET}  %s  %-22s  age:%-4s%b\n" \
+        "$icon" "$name" "$ready" "$status" "$age" "$restart_tag"
+    done
+  fi
 
   echo
   echo -e "${CYAN}${BOLD}  Agent selection${RESET}"
@@ -249,7 +267,7 @@ show_status() {
   for _agent in $ALL_AGENTS; do
     local dep="${_agent}-agent"
     local replicas
-    replicas=$(kubectl get deploy "$dep" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+    replicas=$(kubectl get deploy "$dep" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null) || true
     if [ "${replicas:-0}" -ge 1 ]; then
       printf "  ${GREEN}✓${RESET}  ${GREEN}%-28s on${RESET}\n" "$dep"
     else
@@ -262,7 +280,7 @@ show_status() {
   echo
   for _gw in ping-gateway mcp-gateway mcp-proxy llm-proxy; do
     local replicas
-    replicas=$(kubectl get deploy "$_gw" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+    replicas=$(kubectl get deploy "$_gw" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null) || true
     if [ "${replicas:-}" = "" ]; then
       printf "  ${DIM}%-30s not deployed${RESET}\n" "$_gw"
     elif [ "${replicas:-0}" -ge 1 ]; then
@@ -277,7 +295,7 @@ show_status() {
   echo
   for _rag in $RAG_SERVICES; do
     local replicas
-    replicas=$(kubectl get deploy "$_rag" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+    replicas=$(kubectl get deploy "$_rag" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null) || true
     if [ "${replicas:-}" = "" ]; then
       printf "  ${DIM}%-30s not deployed${RESET}\n" "$_rag"
     elif [ "${replicas:-0}" -ge 1 ]; then
