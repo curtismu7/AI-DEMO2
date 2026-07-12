@@ -6,6 +6,7 @@ const request = require('supertest');
 const express = require('express');
 
 const healthRoutes = require('../routes/health');
+const configStore = require('../services/configStore');
 
 function buildApp() {
   const app = express();
@@ -139,30 +140,37 @@ describe('GET /api/health/tracing/traces/:id', () => {
 });
 
 describe('jaegerUiUrl derivation on /status', () => {
-  const OLD_ENV = { ...process.env };
   beforeEach(() => {
     jest.clearAllMocks();
     axios.get.mockResolvedValue({ status: 200, data: { data: [] } });
+    // Base URL comes from configStore.getEffective('public_app_url'), which
+    // resolves .env (PUBLIC_APP_URL) first, then LMDB. Default: nothing set.
+    jest.spyOn(configStore, 'getEffective').mockReturnValue('');
   });
-  afterEach(() => { process.env = { ...OLD_ENV }; });
+  afterEach(() => {
+    configStore.getEffective.mockRestore();
+    delete process.env.JAEGER_UI_URL;
+  });
 
   test('explicit JAEGER_UI_URL wins and trailing slash is stripped', async () => {
     process.env.JAEGER_UI_URL = 'https://explicit.example/jaeger/';
-    process.env.PUBLIC_APP_URL = 'https://ignored.example';
+    configStore.getEffective.mockReturnValue('https://ignored.example');
     const res = await request(buildApp()).get('/api/health/tracing/status');
     expect(res.body.jaegerUiUrl).toBe('https://explicit.example/jaeger');
   });
 
-  test('derives from PUBLIC_APP_URL when JAEGER_UI_URL is unset', async () => {
+  test('derives from public_app_url (env or LMDB, via configStore) when JAEGER_UI_URL is unset', async () => {
     delete process.env.JAEGER_UI_URL;
-    process.env.PUBLIC_APP_URL = 'https://ai-demo.ping-devops.com';
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'public_app_url' ? 'https://ai-demo.ping-devops.com' : '');
     const res = await request(buildApp()).get('/api/health/tracing/status');
     expect(res.body.jaegerUiUrl).toBe('https://ai-demo.ping-devops.com/jaeger');
+    expect(configStore.getEffective).toHaveBeenCalledWith('public_app_url');
   });
 
-  test('falls back to localhost when neither env is set', async () => {
+  test('falls back to localhost when neither JAEGER_UI_URL nor public_app_url is set', async () => {
     delete process.env.JAEGER_UI_URL;
-    delete process.env.PUBLIC_APP_URL;
+    configStore.getEffective.mockReturnValue('');
     const res = await request(buildApp()).get('/api/health/tracing/status');
     expect(res.body.jaegerUiUrl).toBe('http://localhost:16686');
   });

@@ -9,6 +9,7 @@
 
 const express = require('express');
 const axios = require('axios');
+const configStore = require('../services/configStore');
 
 const router = express.Router();
 
@@ -16,14 +17,14 @@ const DEFAULT_SERVICE = process.env.OTEL_SERVICE_NAME || 'demo-api-server';
 
 /**
  * Browser-facing Jaeger UI base URL. Explicit JAEGER_UI_URL wins; otherwise
- * derive from the app's public origin so deep links resolve at the demo base
- * URL (e.g. https://ai-demo.ping-devops.com/jaeger). Falls back to localhost
+ * derive from the app's public origin (configStore.getEffective('public_app_url')
+ * — resolves .env PUBLIC_APP_URL first, then LMDB) so deep links resolve at the
+ * demo base URL (e.g. https://ai-demo.ping-devops.com/jaeger). Falls back to localhost
  * for local docker/native, where PUBLIC_APP_URL is unset.
  */
 function jaegerUiBase() {
-  const derived = process.env.PUBLIC_APP_URL
-    ? `${process.env.PUBLIC_APP_URL}/jaeger`
-    : 'http://localhost:16686';
+  const publicAppUrl = String(configStore.getEffective('public_app_url') || '').trim();
+  const derived = publicAppUrl ? `${publicAppUrl}/jaeger` : 'http://localhost:16686';
   return (process.env.JAEGER_UI_URL || derived).replace(/\/$/, '');
 }
 
