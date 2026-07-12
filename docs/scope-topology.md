@@ -425,5 +425,8 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_portfolio_value` | gateway | `read` | — |
 | `view_portfolios` | gateway | `read` | — |
 | `view_trades` | gateway | `read` | — |
+| `sensitive_holdings` | gateway | `read` | consent |
+| `cash_out_store_credit` | gateway | `write` | step_up |
+| `transfer_membership` | gateway | `write` | step_up |
 | `call_pingone_tool` | gateway | `read` | — |
 | `list_pingone_tools` | gateway | `read` | — |

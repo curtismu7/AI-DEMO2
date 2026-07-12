@@ -106,34 +106,25 @@ export function verticalSuggestionChips(pageManifest) {
     // human-in-the-loop (consent/step-up). Carry it through so the UI can flag
     // them for the demo presenter — it was being dropped here.
     hitlTrigger: !!c.hitlTrigger,
+    // Challenge marker: consent | both | step_up (drives HitlChipMark glyphs).
+    challenge: c.challenge || null,
   }));
 }
 
-// Small ⚠️ marker shown on chips that trigger HITL (consent/MFA), so a demo
-// presenter can see at a glance which chips pause for approval.
-export function HitlChipMark() {
+// Chip challenge marker (REGRESSION_PLAN §0 allows 👤 and 🔑), so a demo
+// presenter can see at a glance which control a chip pauses for:
+//   consent → 👤 (HITL approval)   both → 👤🔑 (consent + step-up/MFA)
+//   step_up → 🔑 (MFA spotlight, showcase chips)
+const CHALLENGE_MARK = {
+  consent: { text: '👤', label: 'Requires human approval (consent)' },
+  both: { text: '👤🔑', label: 'Requires consent and step-up (MFA)' },
+  step_up: { text: '🔑', label: 'Requires step-up authentication (MFA)' },
+};
+export function HitlChipMark({ challenge = 'both' } = {}) {
+  const m = CHALLENGE_MARK[challenge] || CHALLENGE_MARK.both;
   return (
-    <span
-      className="ba-chip-hitl-mark"
-      role="img"
-      title="Requires approval — pauses for consent + identity verification (MFA)"
-      aria-label="Requires MFA"
-    >
-      <svg width="18" height="18" viewBox="0 0 28 28" aria-hidden="true">
-        <circle cx="14" cy="14" r="12.4" fill="#d6d6d6" stroke="#7c7c7c" strokeWidth="1.6" />
-        <text
-          x="14"
-          y="14.5"
-          dominantBaseline="central"
-          textAnchor="middle"
-          fontSize="8.5"
-          fontWeight="700"
-          fontFamily="system-ui, -apple-system, sans-serif"
-          fill="#3a3a3a"
-        >
-          MFA
-        </text>
-      </svg>
+    <span className="ba-chip-hitl-mark" role="img" title={m.label} aria-label={m.label}>
+      {m.text}
     </span>
   );
 }

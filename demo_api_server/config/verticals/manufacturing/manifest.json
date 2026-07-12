@@ -61,9 +61,9 @@
       { "id": "mf1", "label": "My work orders", "message": "show my work orders", "mode": "both", "tool": "view_work_orders" },
       { "id": "mf2", "label": "Inventory", "message": "what is my on-hand inventory", "mode": "both", "tool": "view_inventory" },
       { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
-      { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "tool": "release_work_order" },
+      { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_work_order" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
-      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "tool": "sensitive_supplier_contract" },
+      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm" },
       { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
     ],
@@ -73,9 +73,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a work-order release — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my work order", "mode": "both", "tool": "release_work_order", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the work-order release ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my work order", "mode": "both", "challenge": "step_up", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a work-order release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my work order", "mode": "both", "challenge": "step_up", "tool": "release_work_order", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my work order", "mode": "both", "challenge": "consent", "tool": "release_work_order", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the work-order release ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

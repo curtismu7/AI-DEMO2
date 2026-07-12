@@ -30,6 +30,8 @@ const HEURISTICS = [
   { re: /\b(buy|spend|redeem|use)\b.*\bpoints?\b|\bpoints?\b.*\b(buy|spend|redeem|use|what should)\b|\bwhat should i buy\b/i, action: 'rewards_balance' },
   // Deals on viewed items (chip rt10)
   { re: /\b(deals?|offers?|promos?|discounts?)\b.*\b(viewed|browsed|watched)\b|\b(viewed|browsed)\b.*\b(deals?|offers?)\b|\bany deals on what i viewed\b/i, action: 'view_recently_viewed' },
+  // Cash out store credit (step-up chip rt-mfa) before checkout so it isn't caught by "buy"
+  { re: /\bcash\s*out\b.*\b(store\s*)?credit\b|\bstore\s*credit\b.*\bcash\s*out\b/i, action: 'cash_out_store_credit' },
   // "check out my cart" (showcase MFA) — space form must match, not only "checkout"
   { re: /\bcheck\s*out\b|\bplace\s+(an?\s+)?order\b|\bbuy\b(?!\s+with\b)/, action: 'checkout', extractsCheckoutParams: true, paramHint: 'e.g. "checkout laptop $999" or "buy headphones $79"' },
   { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|order|charge|spend)|check for unusual|flag any unusual|spot unusual/i, action: 'list_orders' },

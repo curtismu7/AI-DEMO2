@@ -77,6 +77,13 @@ function buildSportingGoodsTools(store) {
       authz: { consent: true },
     },
     {
+      name: 'transfer_membership',
+      description: 'Transfer this membership to another person (requires step-up + consent).',
+      inputSchema: { type: 'object', properties: { recipient: { type: 'string' } }, required: [] },
+      scopes: ['write'],
+      authz: { stepUp: true, consent: true },
+    },
+    {
       name: 'api_key_demo',
       description: 'Demo API-key path.',
       inputSchema: { type: 'object', properties: {} },
@@ -227,6 +234,10 @@ function buildSportingGoodsTools(store) {
           },
           render: 'text',
         };
+      case 'transfer_membership': {
+        const _to = (params && params.recipient) || 'a family member';
+        return { result: { transferredTo: _to, status: 'pending step-up' }, render: 'text' };
+      }
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };

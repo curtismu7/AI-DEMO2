@@ -303,6 +303,19 @@
         "additionalProperties": false
       }
     },
+    "cash_out_store_credit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "checkout": {
       "source": "olb",
       "inputSchema": {
@@ -1850,6 +1863,15 @@
         "additionalProperties": false
       }
     },
+    "sensitive_holdings": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "sensitive_membership_details": {
       "source": "olb",
       "inputSchema": {
@@ -2046,6 +2068,19 @@
         "required": [
           "id"
         ],
+        "additionalProperties": false
+      }
+    },
+    "transfer_membership": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string"
+          }
+        },
+        "required": [],
         "additionalProperties": false
       }
     },

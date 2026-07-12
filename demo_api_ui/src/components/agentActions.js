@@ -30,6 +30,7 @@ export const ACTION_GROUPS = {
       desc: "View full account number and routing number (requires consent)",
       rfcs: ["8693", "7515", "9470"],
       hitlTrigger: true,
+      challenge: "consent",
     },
     {
       id: "sequential_think",
@@ -69,6 +70,7 @@ export const ACTION_GROUPS = {
       desc: "Transfer between accounts",
       rfcs: ["8693", "7515", "6749", "9470"],
       hitlTrigger: true,
+      challenge: "both",
     },
   ],
   admin: [

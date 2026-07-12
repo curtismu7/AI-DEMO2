@@ -123,8 +123,8 @@
       { "id": "hc2", "label": "Check coverage", "message": "check my coverage", "mode": "both", "tool": "view_coverage" },
       { "id": "hc3", "label": "My appointments", "message": "my appointments", "mode": "both", "tool": "list_appointments" },
       { "id": "hc4", "label": "Book an appointment", "message": "book an appointment", "mode": "both", "tool": "book_appointment" },
-      { "id": "hc5", "label": "🔐 Release my records", "message": "release my records", "mode": "both", "hitlTrigger": true, "tool": "release_records" },
-      { "id": "hc-a2a", "label": "Sensitive records", "message": "access my sensitive patient records", "mode": "both", "tool": "sensitive_patient_records" },
+      { "id": "hc5", "label": "🔐 Release my records", "message": "release my records", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_records" },
+      { "id": "hc-a2a", "label": "Sensitive records", "message": "access my sensitive patient records", "mode": "both", "challenge": "consent", "tool": "sensitive_patient_records" },
       { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record" },
       { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "llm" },
       { "id": "hc-direct", "label": "Direct MCP", "message": "list my records", "mode": "direct", "tool": "view_records" }
@@ -135,9 +135,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my records", "mode": "both", "tool": "release_records", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my records", "mode": "both", "challenge": "step_up", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my records", "mode": "both", "challenge": "step_up", "tool": "release_records", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my records", "mode": "both", "challenge": "consent", "tool": "release_records", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

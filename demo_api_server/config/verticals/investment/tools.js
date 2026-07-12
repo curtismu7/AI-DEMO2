@@ -29,6 +29,7 @@ function buildInvestmentTools(store) {
     { name: 'withdraw', description: 'Withdraw funds from a managed portfolio.', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'rebalance_portfolio', description: "Rebalance a portfolio to its target allocation.", inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
+    { name: 'sensitive_holdings', description: 'Access sensitive holdings detail including cost basis and tax lots. Requires explicit user consent.', inputSchema: { type: 'object', properties: {}, required: [] }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
   ];
@@ -72,6 +73,8 @@ function buildInvestmentTools(store) {
       }
       case 'rebalance_portfolio':
         return { result: store.rebalancePortfolio(userId, params || {}), render: 'rebalance_portfolio' };
+      case 'sensitive_holdings':
+        return { result: { holdings: store.get(userId).holdings, note: 'Sensitive cost-basis / tax-lot detail' }, render: 'text' };
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };

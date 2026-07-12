@@ -1137,6 +1137,21 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
+    "sensitive_holdings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent"
+    },
+    "cash_out_store_credit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
+    },
+    "transfer_membership": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
+    },
     "call_pingone_tool": {
       "requiredScopes": ["read"],
       "surface": "gateway"

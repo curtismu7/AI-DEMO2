@@ -32,6 +32,7 @@ function buildRetailTools(store) {
     { name: 'order_status', description: 'Show the status of an order. Defaults to the most recent order when no orderId is given.', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } }, scopes: ['read'], authz: {} },
     { name: 'rewards_balance', description: 'Show the customer\'s reward points and store credit.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'checkout', description: 'Place an order (checkout). Requires confirmation.', inputSchema: { type: 'object', properties: { product: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { consent: true } },
+    { name: 'cash_out_store_credit', description: 'Pay the store-credit balance out to an external bank account (requires step-up + consent).', inputSchema: { type: 'object', properties: { amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'sensitive_order_history', description: 'Access sensitive order history including payment details. Requires explicit user consent.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: { consent: true } },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -181,6 +182,10 @@ function buildRetailTools(store) {
           },
           render: 'text',
         };
+      case 'cash_out_store_credit': {
+        const _amt = (params && params.amount != null) ? params.amount : 50;
+        return { result: { cashedOut: _amt, to: 'external bank ****1234', status: 'pending step-up' }, render: 'text' };
+      }
       case 'api_key_demo':
       case 'dual_token_demo':
         return { result: { data: {} }, render: 'text' };

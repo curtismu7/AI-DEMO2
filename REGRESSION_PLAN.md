@@ -11,8 +11,9 @@ truth — if the skill and this file disagree, this file wins.
 
 - **Emoji rule (project-wide):** the only emojis allowed in skills, commands,
   code, and UI text are `⚠️` (warning), `✅` (green check), `❌` (red X),
-  `🔐` (security/lock — HITL trigger chips), `✕` (close / dismiss), and `✓`
-  (check / confirm). Everything else is plain text or CSS icons / semantic HTML.
+  `🔐` (security/lock — HITL trigger chips), `✕` (close / dismiss), `✓`
+  (check / confirm), `👤` (HITL consent marker), and `🔑` (step-up / MFA
+  marker). Everything else is plain text or CSS icons / semantic HTML.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
 - **Minimal diff:** name the component, name the element, change only that. No
