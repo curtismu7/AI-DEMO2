@@ -325,6 +325,17 @@ async function runWsAuthorizationPipeline(
   const result = await runMcpAuthorizationPipeline(token, wsIntrospectionClient, config);
   if (result.kind === 'authorized') return true;
 
+  if (result.kind === 'introspection_unavailable') {
+    // Introspection itself could not be completed (transport error, or the
+    // gateway's own introspection-client credentials/auth-method were
+    // rejected) — NOT a confirmed-revoked token. Don't tell the user to log
+    // back in for a gateway-side problem.
+    send(jsonRpcError(id, -32003, 'Gateway is temporarily unable to validate tokens (introspection unavailable)', {
+      error: 'gateway_misconfigured',
+    }));
+    return false;
+  }
+
   if (result.kind === 'introspection_failed') {
     send(jsonRpcError(id, -32001, 'Token is revoked or no longer active (RFC 7662)', {
       error: 'login_required',

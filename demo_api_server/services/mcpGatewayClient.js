@@ -453,6 +453,17 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     if (status >= 500) {
+        const body5xx = response.data || {};
+        // A gateway self-diagnosed misconfiguration (introspection unavailable,
+        // PingOne user-lookup unreachable) carries its own clear message —
+        // surface it verbatim instead of the generic "upstream error" text so
+        // it doesn't read as an ordinary transient failure.
+        if (body5xx.error === 'gateway_misconfigured') {
+            throw Object.assign(
+                new Error(body5xx.message || 'The security gateway is misconfigured'),
+                { code: 'gateway_misconfigured', httpStatus: status, gatewayErrorCode: body5xx.error, gatewayMessage: body5xx.message || '' },
+            );
+        }
         throw Object.assign(
             new Error(`Gateway upstream error (HTTP ${status})`),
             { code: 'gateway_upstream_error', httpStatus: status },
