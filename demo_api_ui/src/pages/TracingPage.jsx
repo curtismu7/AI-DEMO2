@@ -124,8 +124,8 @@ export default function TracingPage() {
         <div>
           <h1>Tracing</h1>
           <p className="tracing-subtitle">
-            OpenTelemetry spans from the BFF and cooperating services, collected by Jaeger.
-            Generate traffic (login, agent tools, transfers) then inspect latency and call paths here.
+            See how a single request travels across the demo's services. Generate traffic —
+            sign in, use the AI agent, make a transfer — then inspect the call path and latency below.
           </p>
         </div>
         <div className="tracing-header-actions">
@@ -147,6 +147,42 @@ export default function TracingPage() {
           </button>
         </div>
       </header>
+
+      <section className="tracing-explainer">
+        <h2>What am I looking at?</h2>
+        <p>
+          Every action in this demo — signing in, an AI agent tool call, a money transfer —
+          travels through several cooperating services: the app backend (BFF), the AI agent,
+          the MCP gateway, and PingOne for authorization. <strong>Distributed tracing</strong> records
+          that journey. Each row below is one <strong>trace</strong> — a single end-to-end request —
+          made up of <strong>spans</strong>, the individual steps it took in each service.
+          <strong> Jaeger</strong> is the tool that collects these traces so you can see the full call
+          path and exactly where time is spent.
+        </p>
+        <dl className="tracing-glossary">
+          <div>
+            <dt>Trace</dt>
+            <dd>One complete request from start to finish — a single row in the table.</dd>
+          </div>
+          <div>
+            <dt>Span</dt>
+            <dd>One step inside a trace: an operation within a single service.</dd>
+          </div>
+          <div>
+            <dt>Service</dt>
+            <dd>A component that took part, e.g. demo-api-server, mcp-gateway, authz-server.</dd>
+          </div>
+          <div>
+            <dt>Duration</dt>
+            <dd>How long the whole trace took. Click a row to see each span's timing as a waterfall.</dd>
+          </div>
+        </dl>
+        <p className="tracing-columns-note">
+          <strong>The table:</strong> Operation (the request's entry point) · Spans (how many steps) ·
+          Duration (total time) · Start (when it began). Click any row to expand its span waterfall,
+          or <strong>View in Jaeger</strong> for the full interactive timeline.
+        </p>
+      </section>
 
       <div className="tracing-status-row">
         <span className={`tracing-pill ${status?.ok ? "tracing-pill--ok" : "tracing-pill--down"}`}>
