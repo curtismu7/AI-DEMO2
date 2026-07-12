@@ -231,7 +231,7 @@
 .tracing-span-label { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; }
 .tracing-span-svc { color: var(--tracing-muted, #6b7280); }
 .tracing-span-op { text-overflow: ellipsis; overflow: hidden; }
-.tracing-span-track { position: relative; height: 12px; background: rgba(127, 127, 127, 0.12); border-radius: 3px; }
+.tracing-span-track { position: relative; height: 12px; background: rgba(127, 127, 127, 0.12); border-radius: 3px; overflow: hidden; }
 .tracing-span-bar { position: absolute; top: 0; height: 12px; border-radius: 3px; min-width: 2px; }
 .tracing-span-dur { text-align: right; color: var(--tracing-muted, #6b7280); font-variant-numeric: tabular-nums; }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./TracingPage.css";
 
 const REFRESH_MS = 15000;
@@ -26,6 +26,7 @@ export default function TracingPage() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const latestTraceReq = useRef(null);
 
   const toggleTrace = useCallback(async (traceId) => {
     if (expandedId === traceId) {
@@ -33,6 +34,7 @@ export default function TracingPage() {
       return;
     }
     setExpandedId(traceId);
+    latestTraceReq.current = traceId;
     setDetail(null);
     setDetailError(null);
     setDetailLoading(true);
@@ -42,11 +44,14 @@ export default function TracingPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `HTTP ${res.status}`);
       }
-      setDetail(await res.json());
+      const data = await res.json();
+      if (latestTraceReq.current !== traceId) return;
+      setDetail(data);
     } catch (e) {
+      if (latestTraceReq.current !== traceId) return;
       setDetailError(e.message || "Failed to load trace");
     } finally {
-      setDetailLoading(false);
+      if (latestTraceReq.current === traceId) setDetailLoading(false);
     }
   }, [expandedId]);
 
