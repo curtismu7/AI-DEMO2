@@ -1709,7 +1709,7 @@ export default function BankingAgent({
   }, [isOpen, isLoggedIn]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const el = messagesContainerRef.current;
     if (!el) return;
     // requestAnimationFrame ensures scrollHeight is measured after the browser paints new content
@@ -1718,7 +1718,7 @@ export default function BankingAgent({
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isOpen, loading, nlLoading]);
+  }, [messages, isOpen, isInline, loading, nlLoading]);
 
   useEffect(() => {
     if (!isOpen && !isInline) return;
