@@ -493,12 +493,16 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   // 'pingone'                    : real PingOne Authorize only (failover = deny)
   // 'simulated'                  : in-process simulated/demo engine only
   // 'pingone_fallback_simulated' : real PingOne, fall back to simulated when unreachable
-  // DEFAULT 'pingone' — the demo runs against real PingOne Authorize by default, and
-  // this default lives in code so a fresh/empty configStore, a missing .env, a restart,
-  // a rebuild, or a bootstrap can never silently revert it to the simulated/demo engine.
-  // To run the demo engine, an operator must explicitly store authorize_mode='simulated'
-  // (Admin Config / Authorize page). When unset this default wins over the legacy
-  // ff_authorize_simulated derivation. See simulatedAuthorizeService.resolveAuthorizeMode().
+  // DEFAULT 'pingone' — fail CLOSED. The same failoverMode that governs an outage
+  // also governs the NOT-CONFIGURED path (transactionAuthorizationService.js:157,
+  // mcpToolAuthorizationService.js:326): a 'pingone_fallback_simulated' default
+  // makes a fresh/misconfigured install silently gate every request with the
+  // in-process mock (engine:'simulated', no authorizeFallback modal) instead of a
+  // loud 503 — the operator believes real PingOne Authorize is enforcing when it
+  // never ran (P1AZ hardening amendment §B). Operators who want the demo to keep
+  // running through a live P1AZ outage set 'pingone_fallback_simulated' explicitly;
+  // the demo engine requires an explicit authorize_mode='simulated' (Admin Config /
+  // Authorize page). See simulatedAuthorizeService.resolveAuthorizeMode().
   authorize_mode: { public: true, default: 'pingone' },
 
   // PingOne Authorize decision-endpoint IDs — canonical lowercase keys saved by
@@ -1545,6 +1549,11 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
+    'admin:write',        // admin — freeze account, adjust balance, reset password
+    'admin:delete',       // admin — delete customer
+    'users:read',         // admin — customer lookup/profile/accounts/transactions
+    'users:manage',       // admin — freeze/adjust/reset/delete
   ]);
 
   // MCP Resource Server — the gateway re-exchanges to this audience downstream.
@@ -1567,6 +1576,11 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
+    'admin:write',        // admin — freeze account, adjust balance, reset password
+    'admin:delete',       // admin — delete customer
+    'users:read',         // admin — customer lookup/profile/accounts/transactions
+    'users:manage',       // admin — freeze/adjust/reset/delete
   ]);
 
   // WR-19: warn when no resource URIs are configured (pre-bootstrap state)

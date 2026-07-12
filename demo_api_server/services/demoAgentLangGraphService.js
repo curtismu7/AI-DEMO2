@@ -678,6 +678,25 @@ function buildVerticalReply(action, data, render, verticalCtx) {
     const remaining = data && data.remaining;
     return `Time-off request${days != null ? ` for ${days} day${days === 1 ? '' : 's'}` : ''} submitted.${remaining != null ? ` ${remaining} day${remaining === 1 ? '' : 's'} remaining.` : ''}`;
   }
+  // Admin vertical write/confirmation actions (same reasoning as the block above).
+  if (action === 'freeze_account') {
+    const frozen = data && data.frozen;
+    return `Account${data && data.accountId ? ` ${data.accountId}` : ''} ${frozen ? 'frozen' : 'unfrozen'}.`;
+  }
+  if (action === 'adjust_balance') {
+    const bal = data && data.newBalance;
+    return `Balance adjusted.${bal != null ? ` New balance: $${Number(bal).toFixed(2)}.` : ''}`;
+  }
+  if (action === 'reset_customer_password') {
+    return `Password reset flagged — this customer must set a new password on next login.`;
+  }
+  if (action === 'delete_customer') {
+    return `Customer${data && data.userId ? ` ${data.userId}` : ''} and all associated data have been deleted.`;
+  }
+  if (action === 'lookup_customer') {
+    const count = data && data.count;
+    return count === 1 ? `Found 1 matching customer.` : `Found ${count || 0} matching customers.`;
+  }
   // Fallback: derive the noun from the ACTION name (e.g. view_benefits ->
   // "benefits", list_expenses -> "expenses") rather than term.accounts, which
   // would leak "Accounts" into non-banking verticals that lack an explicit case.
@@ -687,11 +706,38 @@ function buildVerticalReply(action, data, render, verticalCtx) {
   return `Here are your ${noun}.`;
 }
 
+// Fills userId/accountId from the admin dashboard's picker-selected customer
+// (req.body.customer, set by adminCustomerContext on the SPA) when the
+// resolved admin tool needs one and the parsed message didn't supply it.
+// accountId resolves to the customer's first account — same "first held
+// record" default used elsewhere for demo write tools with no explicit id.
+function applyAdminCustomerContext(vertical, params, toolDef, req) {
+  if (vertical !== 'admin' || !toolDef) return params;
+  const customer = req && req.body && req.body.customer;
+  const customerId = customer && typeof customer === 'object' ? customer.id : null;
+  if (customerId == null) return params;
+
+  const props = (toolDef.inputSchema && toolDef.inputSchema.properties) || {};
+  const args = { ...(params || {}) };
+  if ('userId' in props && args.userId == null) {
+    args.userId = String(customerId);
+  }
+  if ('accountId' in props && args.accountId == null) {
+    try {
+      const store = require('../data/store');
+      const accounts = store.getAccountsByUserId(String(customerId)) || [];
+      if (accounts[0]) args.accountId = accounts[0].id;
+    } catch (_) { /* best-effort default only — leave accountId unset */ }
+  }
+  return args;
+}
+
 // kind:'vertical' heuristic dispatch — runs the active vertical's plugin tool
 // and packages the result both for the chat reply and the UI render descriptor.
 // Mirrors executeHeuristicBanking's return envelope, adding `verticalResult`.
 async function dispatchVerticalIntent(heuristic, { userId, userToken, req, tokenEvents = [], sessionId = '', isAdmin = false, verticalCtx = null, hitlChallengeId = null }) {
-  const { vertical, action, params } = heuristic;
+  const { vertical, action } = heuristic;
+  let { params } = heuristic;
 
   // A2A fast-path: if ff_a2a_delegation is on AND the resolved action is declared
   // a2aDelegated in scope-topology, skip the BFF preflight and route directly
@@ -782,6 +828,14 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
 
   const toolDef = (verticalDispatch.toolSchemasFor(vertical, { isAdmin }, () => []) || [])
     .find((t) => t.name === action);
+
+  // Admin dashboard's Customer Admin picker selects a customer client-side —
+  // there's no server session state for it, so the SPA resends
+  // { customer: { id, name } } on every admin chat turn. Fill userId/accountId
+  // from it when the resolved tool needs one the parsed message didn't name,
+  // so "View Profile" etc. don't dead-end on a clarify prompt after a picker
+  // selection.
+  params = applyAdminCustomerContext(vertical, params, toolDef, req);
 
   // Authz runs INSIDE the pipeline now — no separate pre-flight here.
   // The vertical path takes the SAME single path as banking (and the LLM path):
@@ -1517,5 +1571,5 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
 };

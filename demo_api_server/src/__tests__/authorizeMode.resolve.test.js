@@ -90,15 +90,26 @@ describe('resolveAuthorizeMode — robustness', () => {
 
 describe('authorize_mode default (FIELD_DEFS source of truth)', () => {
   // Regression guard: the baked-in default is what makes a fresh/empty configStore,
-  // a missing .env, a restart, or a rebuild resolve to real PingOne (fail-closed)
-  // instead of silently reverting to the simulated/demo engine. The resolver tests
-  // above use store doubles that bypass FIELD_DEFS, so this pins the default itself.
-  test("defaults to 'pingone'", () => {
+  // a missing .env, a restart, or a rebuild resolve to real PingOne with simulated
+  // FALLBACK (demo-reliability decision 2026-07-11 — a live P1AZ outage falls back
+  // to the in-process engine + operator modal instead of 503-blocking the demo;
+  // docs/superpowers/specs/2026-07-11-p1az-reliability-design.md §3). Strict
+  // fail-closed is still available by explicitly storing authorize_mode='pingone'.
+  // The resolver tests above use store doubles that bypass FIELD_DEFS, so this
+  // pins the default itself.
+  test("defaults to 'pingone' (fail-closed; fallback is explicit opt-in)", () => {
     expect(FIELD_DEFS.authorize_mode.default).toBe('pingone');
   });
 
-  test('a store reflecting only the FIELD_DEFS default resolves to real PingOne, fail-closed', () => {
+  test('a store reflecting only the FIELD_DEFS default resolves to strict fail-closed PingOne', () => {
     const store = mkStore({ authorize_mode: FIELD_DEFS.authorize_mode.default });
+    expect(resolveAuthorizeMode(store)).toEqual({
+      mode: 'pingone', useSimulated: false, failoverMode: 'deny',
+    });
+  });
+
+  test("explicit authorize_mode='pingone' still resolves strict fail-closed", () => {
+    const store = mkStore({ authorize_mode: 'pingone' });
     expect(resolveAuthorizeMode(store)).toEqual({
       mode: 'pingone', useSimulated: false, failoverMode: 'deny',
     });

@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
+import PresenterHealthDot from "./PresenterHealthDot";
 import "./AgentDemoGuide.css";
 
 const ALL_12_STEPS = [
@@ -1175,6 +1176,7 @@ export default function AgentDemoGuide({
             : "Real request scenarios mapped to 13 compliance steps. See /architecture/flow for live diagram."}
         </p>
         <div className="adg-header-controls">
+          {viewMode === "presenter" && <PresenterHealthDot />}
           <div className="adg-view-toggle">
             <button
               type="button"

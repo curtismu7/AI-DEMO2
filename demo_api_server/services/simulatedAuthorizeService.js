@@ -251,6 +251,26 @@ async function evaluateMcpFirstTool({
       'Set SIMULATED_MCP_DENY_TOOLS to force DENY; SIMULATED_MCP_HITL_TOOLS for HITL.',
   };
 
+  // ── Missing-subject guard (parity with the P1AZ snapshot's "MCP Deny — Missing
+  // User ID" rule). No authenticated subject → no authorization is possible; fail
+  // closed. The real policy DENYs when UserId is absent or the 'none' sentinel.
+  if (!userId || String(userId).trim() === '' || String(userId).trim().toLowerCase() === 'none') {
+    const out = {
+      decision: 'DENY',
+      stepUpRequired: false,
+      hitlRequired: false,
+      path: 'simulated',
+      decisionId,
+      raw: {
+        ...rawBase,
+        decision: 'DENY',
+        reason: 'mcp_missing_user_id: no authenticated subject (UserId) on the tool call — cannot authorize.',
+      },
+    };
+    recordSimulatedDecision(out);
+    return out;
+  }
+
   // ── Audience-match guard (highest-priority deny — runs before tool-name checks).
   //
   // The bearer token's `aud` MUST equal the audience the BFF's single RFC 8693
@@ -1078,18 +1098,15 @@ function resolveAuthorizeMode(configStore) {
   // in AUTHORIZE_MODES (a test store double, a bogus stored value, or a caller
   // that still drives ff_authorize_simulated directly). Against the real
   // configStore this branch is effectively dead: FIELD_DEFS defaults authorize_mode
-  // to 'pingone', so getEffective() returns 'pingone' on a fresh/unset config and
-  // the explicit branch above wins.
+  // to 'pingone_fallback_simulated', so getEffective() returns that on a
+  // fresh/unset config and the explicit branch above wins.
   //
-  // Even via this path the steady state is strict 'pingone' (PingOne-ONLY): both
-  // FIELD_DEFS defaults reinforce it — ff_authorize_simulated defaults 'false' and
-  // authorize_failover_mode defaults 'deny', so an unreachable OR unconfigured
-  // PingOne FAILS CLOSED (503), it does not fall back to the mock. Callers also
-  // fail closed on the not-configured path (transactionAuthorizationService /
-  // mcpToolAuthorizationService) so this never silently degrades to ungated. Flip
-  // ff_authorize_simulated='true' (or store authorize_mode='simulated') for the
-  // demo engine, or set authorize_failover_mode='fallback_simulated' to allow mock
-  // fallback on a genuine outage.
+  // Steady state (demo-reliability decision 2026-07-11): real PingOne evaluates
+  // every decision, but an unreachable OR unconfigured PingOne falls back to the
+  // in-process simulated engine (with the operator "PingOne fell back" modal)
+  // instead of 503-blocking the demo — the gate still RUNS, it never silently
+  // degrades to ungated. Store authorize_mode='pingone' for strict fail-closed
+  // (503 on outage), or authorize_mode='simulated' for the demo engine only.
   const sim = read('ff_authorize_simulated');
   const useSimulated = sim === true || sim === 'true';
   const failoverMode = legacyFailOpen ? 'permit' : (read('authorize_failover_mode') || 'fallback_simulated');

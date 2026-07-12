@@ -81,6 +81,44 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — P1AZ policy-not-found handling + reliability hardening (deliberate posture change)
+
+**Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`
+(NOT_APPLICABLE normalization, 404 → `err.code='policy_not_found'`, worker-token
+cache + 401 refresh, 5s timeout + one transient retry, circuit breaker,
+`checkPolicyReadiness()`), `transactionAuthorizationService.js` +
+`mcpToolAuthorizationService.js` (policy_not_found blocks, fallback-signal
+`reason`), `configStore.js` (authorize_mode default), `routes/authorize.js`
+(GET /policy-readiness), `server.js` (boot readiness log),
+`demo_api_ui/src/services/demoAgentService.js` + `components/AIAgent.js`
+(chat message). Specs: `docs/superpowers/specs/2026-07-11-p1az-*.md`.
+
+**What was broken:** a policy missing from P1AZ (deleted endpoint → 404, or
+code sending attributes no policy matches → NOT_APPLICABLE) was
+indistinguishable from an outage — users saw "service unavailable" and the
+misconfiguration stayed hidden. A real outage also stalled every action for the
+full 15s timeout and, under the old `authorize_mode='pingone'` default,
+503-blocked the demo.
+
+**What was fixed/changed:** NOT_APPLICABLE and 404 now surface
+`policy_not_found` → chat shows "Policy not found, please contact
+administrator." (NOT_APPLICABLE blocks in every failover mode; 404 respects
+failover). **POSTURE CHANGE:** `authorize_mode` FIELD_DEFS default is now
+`'pingone_fallback_simulated'` — an unreachable/unconfigured P1AZ falls back to
+the simulated engine (+ operator modal) instead of failing closed; explicit
+`authorize_mode='pingone'` still fails closed.
+
+**Do not break:** only the literal `NOT_APPLICABLE` effect maps to
+policy_not_found — every other unknown decision still collapses to DENY
+(fail-closed); the gates must always RUN (never `ran:false`/ungated) when P1AZ
+is unconfigured; `policy_not_found` and the circuit breaker must never mask a
+real DENY; explicitly stored `authorize_mode` always wins over the default.
+
+**Verify:** jest `pingOneAuthorize.policyNotFound`, `pingOneAuthorize.reliability`,
+`authorizePolicyNotFound.gates`, `authorizeMode.resolve`,
+`authorizeNotConfiguredFailClosed`, `authorize.parity`, `mcpDelegationParity`;
+UI build + `AIAgent.chips` vitest.
+
 ### 2026-07-11 — Agent chips vanished/locked when tool discovery degraded (non-banking verticals)
 
 **Files changed:** `demo_api_server/services/agentToolsResolver.js`,

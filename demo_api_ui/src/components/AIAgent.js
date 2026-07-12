@@ -62,6 +62,7 @@ import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
+import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
 import GatewayConsentModal from "./GatewayConsentModal";
@@ -4415,18 +4416,12 @@ export default function BankingAgent({
           { showReauthAgentAction: true },
         );
       } else if (err?.code === "policy_not_found") {
-        // Authorize engine ran but no policy matched (drift): the demo references
-        // a tool/action PingOne Authorize has no policy for. Distinct from a
-        // denial and from an outage — state it plainly and end the action.
-        const msg = err.message || "Policy not found, please contact administrator.";
-        addMessage("assistant", msg, actionId);
+        // P1AZ has no policy matching this action (missing decision endpoint or
+        // NOT_APPLICABLE) — config drift, not a deny. Tell the user plainly and
+        // return control to the agent.
         addMessage(
-          "token-event",
-          [
-            " PingOne Authorize — Policy Not Found",
-            "   The engine evaluated successfully but no policy matched the request context.",
-            "   Cause: the demo added a tool/action without a matching Authorize policy.",
-          ].join("\n"),
+          "assistant",
+          "Policy not found, please contact administrator.",
           actionId,
         );
       } else if (err?.code === "mcp_authorization_denied") {
@@ -7048,6 +7043,7 @@ export default function BankingAgent({
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 message,
+                                customer: adminCustomerContext.get(),
                               }),
                               signal: AbortSignal.timeout(30000),
                             });

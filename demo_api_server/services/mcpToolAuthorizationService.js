@@ -419,16 +419,19 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    // Engine evaluated OK but no policy matched (drift — a tool no P1AZ policy
-    // covers). Fail closed with a clear operator-facing message rather than a
-    // generic deny. Success response → failover does not apply (amendment §A).
+    // Policy not found: P1AZ evaluated fine but no policy matched — code/policy
+    // drift (e.g. a new tool the deployed policy doesn't know), not a deny.
+    // Read the side-channel flag: _normalizeDecision stays fail-closed and
+    // returns DENY, so `r.decision` is never 'NOT_APPLICABLE'.
     if (r.policyNotFound) {
       return {
         ran: true,
         block: {
-          status: 403,
+          status: 503,
           body: {
-            ...simulatedAuthorizeService.buildPolicyNotFoundBody('mcp-first-tool'),
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
             ...autoDisabled,
@@ -623,7 +626,11 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     // ff_authorize_fail_open via resolveAuthorizeMode (single source of truth).
     const { failoverMode } = simulatedAuthorizeService.resolveAuthorizeMode(configStore);
     const authorizeFallback = simulatedAuthorizeService.buildAuthorizeFallbackSignal(
-      failoverMode, err, 'mcp', { tool });
+      failoverMode, err, 'mcp', {
+        tool,
+        ...(err.code === 'policy_not_found' ? { reason: 'policy_not_found' }
+          : err.code === 'authorize_circuit_open' ? { reason: 'circuit_open' } : {}),
+      });
 
     if (failoverMode === 'permit') {
       console.warn(`[MCP Authorize] PingOne error — fail open (failover=permit): ${err.message}`);
@@ -687,6 +694,23 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     }
 
     // failoverMode === 'deny' (strict pingone): fail closed, surface the signal.
+    // A 404'd decision endpoint is a config bug, not an outage — name it so the
+    // UI can show "Policy not found" instead of "service unavailable".
+    if (err.code === 'policy_not_found') {
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            authorizeFallback,
+          },
+        },
+      };
+    }
     return { ran: true, pingoneError: err, authorizeFallback };
   }
 }

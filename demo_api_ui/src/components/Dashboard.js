@@ -29,6 +29,7 @@ import FloatingPanel from "./FloatingPanel";
 import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import ConfirmModal from "./ConfirmModal";
 import ThresholdControls from "./ThresholdControls";
+import AdminCustomerPanel from "./AdminCustomerPanel";
 
 // Decode a JWT into { header, payload, raw } — no component deps
 function decodeToken(token) {
@@ -635,6 +636,7 @@ const Dashboard = ({ user, onLogout }) => {
 
               {/* Col-2 wrapper: all right-column sections scroll together */}
               <div className="admin-dash-col2">
+              <AdminCustomerPanel />
               <section
                 className="dash-shell-card"
                 aria-labelledby="tx-lookup-heading"

@@ -2050,10 +2050,14 @@ app.use((err, req, res, _next) => {
 
 // WR-21: In production, transient background rejections (startup validators,
 // audit loggers, etc.) must not crash the server. Log and continue.
-// In development/test keep the hard exit so bugs surface loudly.
+// Demo runtimes run NODE_ENV=development (simulated Authorize requires it) and
+// set CRASH_GUARD=1 to get the same log-and-continue — otherwise one stray
+// rejection restarts the BFF mid-demo. Dev/test without the flag keep the hard
+// exit so bugs surface loudly. Decision logic: utils/crashGuard.js.
+const { shouldHardExitOnUnhandledRejection } = require('./utils/crashGuard');
 process.on('unhandledRejection', (reason) => {
     console.error('[unhandledRejection]', reason);
-    if (process.env.NODE_ENV !== 'production') {
+    if (shouldHardExitOnUnhandledRejection()) {
         process.exit(1);
     }
 });
@@ -2129,6 +2133,21 @@ async function runBackgroundStartupTasks() {
     require('./services/pingOneAuthorizeService')
         .warmup({ force: true })
         .then((w) => console.log('[authz-warmup] boot warm:', JSON.stringify(w)))
+        // Policy-readiness preflight: one synthetic decision per configured gate.
+        // A policy_not_found here means the code and the P1AZ policy set drifted
+        // (missing endpoint or NOT_APPLICABLE) — flag it before a demo hits it.
+        .then(() => require('./services/pingOneAuthorizeService').checkPolicyReadiness())
+        .then((r) => {
+            if (!r || !r.gates) return;
+            const drifted = Object.entries(r.gates)
+                .filter(([, g]) => g.status === 'policy_not_found')
+                .map(([name]) => name);
+            if (drifted.length) {
+                console.warn(`[authz-warmup] ⚠️ POLICY DRIFT — no matching P1AZ policy for: ${drifted.join(', ')} — update PingOne Authorize or expect "Policy not found" blocks`);
+            } else {
+                console.log('[authz-warmup] policy readiness:', JSON.stringify(r));
+            }
+        })
         .catch((err) => console.warn('[authz-warmup] boot warm error (non-fatal):', err.message));
 
     // ── PingOne admin-tool list warmup ────────────────────────────────────────

@@ -483,20 +483,25 @@ router.get('/demo-status', async (_req, res) => {
  */
 router.get('/services', async (_req, res) => {
   // Probe a base URL's /health, trying https as a fallback for mkcert dev TLS.
-  const probe = async (baseUrl) => {
+  // withChecks: include the target's health `checks` object in the result
+  // (used for the agent service's prompt-store status).
+  const probe = async (baseUrl, { withChecks = false } = {}) => {
     if (!baseUrl) return { up: false, error: 'not_configured' };
     const base = baseUrl
       .replace(/^ws:\/\//, 'http://')
       .replace(/^wss:\/\//, 'https://')
       .replace(/\/$/, '');
+    const ok = (resp) => (withChecks && resp?.data?.checks)
+      ? { up: true, checks: resp.data.checks }
+      : { up: true };
     try {
-      await axios.get(`${base}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
-      return { up: true };
+      const resp = await axios.get(`${base}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
+      return ok(resp);
     } catch (e) {
       if (base.startsWith('http://')) {
         try {
-          await axios.get(`${base.replace('http://', 'https://')}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
-          return { up: true };
+          const resp = await axios.get(`${base.replace('http://', 'https://')}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
+          return ok(resp);
         } catch (e2) {
           return { up: false, error: e2.code || e2.message };
         }
@@ -505,11 +510,12 @@ router.get('/services', async (_req, res) => {
     }
   };
 
-  const [mcpGateway, mcpServer, hitl, agent] = await Promise.all([
+  const [mcpGateway, mcpServer, hitl, agent, llmProxy] = await Promise.all([
     probe(process.env.MCP_GATEWAY_HTTP_URL || 'http://localhost:3005'),
     probe((process.env.MCP_SERVER_URL || 'http://localhost:8080')),
     probe(process.env.HITL_SERVICE_URL || 'http://localhost:3009'),
-    probe(process.env.AGENT_SERVICE_URL || 'http://localhost:3006'),
+    probe(process.env.AGENT_SERVICE_URL || 'http://localhost:3006', { withChecks: true }),
+    probe(process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL || 'http://localhost:8090'),
   ]);
 
   return res.status(200).json({
@@ -518,6 +524,7 @@ router.get('/services', async (_req, res) => {
       mcp_server: mcpServer,
       hitl_service: hitl,
       agent_service: agent,
+      llm_proxy: llmProxy,
     },
     timestamp: new Date().toISOString(),
   });

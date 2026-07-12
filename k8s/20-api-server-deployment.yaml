@@ -38,6 +38,12 @@ spec:
         env:
         - name: NODE_ENV
           value: "development"
+        # Demo hardening Phase 4: with NODE_ENV=development (required by the
+        # simulated Authorize service), CRASH_GUARD=1 makes unhandled rejections
+        # log-and-continue instead of restarting the pod mid-demo.
+        # Decision logic: demo_api_server/utils/crashGuard.js.
+        - name: CRASH_GUARD
+          value: "1"
         # Persist structured logs + the unified token-chain trace to the PVC
         # mounted at /var/log/aidemo (survives pod restarts; queryable while the
         # pod runs). Set here (not the shared configmap) so only the BFF — which

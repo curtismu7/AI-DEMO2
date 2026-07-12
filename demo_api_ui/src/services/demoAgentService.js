@@ -18,6 +18,7 @@ import { openMcpFlowSse } from "./mcpFlowSseClient";
 import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
+import { adminCustomerContext } from "./adminCustomerContext";
 
 const log = createLogger("callMcpTool");
 const streamLog = createLogger("parseStreamingResponse");
@@ -448,18 +449,14 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
           },
         );
       }
-      // Policy not found (drift) — the engine ran but no policy matched. Distinct
-      // from a denial and from an outage: surface the clear operator message and
-      // return control to the agent (same pattern as mcp_authorization_denied).
+      // Missing/unmatched P1AZ policy (code/policy drift) — distinct from a deny.
       if (err.error === "policy_not_found") {
         throw Object.assign(
           new Error(err.error_description || "Policy not found, please contact administrator."),
           {
             code: "policy_not_found",
-            statusCode: 403,
+            statusCode: response.status,
             tool: tool,
-            authorizeEngine: err.authorize_engine || "pingone",
-            decisionId: err.decisionId || null,
             tokenEvents: allTokenEvents,
           },
         );
@@ -922,6 +919,10 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   if (forceHeuristic) body.forceHeuristic = true;
   if (vertical) body.vertical = vertical;
   if (consentGiven) body.consentGiven = true;
+  // Admin dashboard's Customer Admin picker selection, if any — only used
+  // server-side when the active vertical is 'admin'; a no-op otherwise.
+  const _adminCustomer = adminCustomerContext.get();
+  if (_adminCustomer) body.customer = _adminCustomer;
   // HITL approval retry: the BFF threads this to the pre-flight (receipt verify)
   // and the gateway (as _hitl_challenge_id) so an approved challenge PERMITs.
   if (hitlChallengeId) body.hitlChallengeId = hitlChallengeId;

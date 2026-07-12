@@ -70,13 +70,17 @@ router.post('/message', async (req, res) => {
   try {
     appEventService.logEvent('agent', 'info', 'Admin agent request received', { tag: 'agent/admin_route' });
 
-    const { message } = req.body;
+    const { message, customer } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message must be a non-empty string' });
     }
     if (message.length > 4000) {
       return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
     }
+    const safeCustomer =
+      customer && typeof customer === 'object' && customer.id != null
+        ? { id: String(customer.id), name: customer.name != null ? String(customer.name) : null }
+        : null;
 
     const { userId, accessToken, tokenEvents } = req.agentContext || {};
     if (!userId || !accessToken) {
@@ -94,6 +98,7 @@ router.post('/message', async (req, res) => {
       tokenEvents: tokenEvents || [],
       langchainConfig,
       req,
+      customer: safeCustomer,
     });
 
     // Save conversation history for admin agent (vertical='admin')
