@@ -118,13 +118,13 @@
       ]
     },
     "chips10": [
-      { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear" },
-      { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals" },
-      { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "extend_rental" },
-      { "id": "sg-mfa", "label": "Transfer membership", "message": "transfer my membership", "mode": "both", "challenge": "both", "tool": "transfer_membership" },
-      { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status" },
-      { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance" },
-      { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order" },
+      { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "extend_rental", "useCaseId": "hitl-consent" },
+      { "id": "sg-mfa", "label": "Transfer membership", "message": "transfer my membership", "mode": "both", "challenge": "both", "tool": "transfer_membership", "useCaseId": "hitl-consent" },
+      { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg-direct", "label": "Direct MCP", "message": "order status", "mode": "direct", "tool": "gear_order_status" }
     ],
     "securityShowcase": {

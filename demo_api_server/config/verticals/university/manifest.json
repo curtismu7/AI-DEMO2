@@ -75,12 +75,12 @@
       ]
     },
     "chips10": [
-      { "id": "un1", "label": "My courses", "message": "show my enrolled courses", "mode": "both", "tool": "view_courses" },
-      { "id": "un2", "label": "Credit standing", "message": "what is my credit standing", "mode": "both", "tool": "view_standing" },
-      { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course" },
-      { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_transcript" },
-      { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment" },
-      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance" },
+      { "id": "un1", "label": "My courses", "message": "show my enrolled courses", "mode": "both", "tool": "view_courses", "useCaseId": "delegated-access-with-proof" },
+      { "id": "un2", "label": "Credit standing", "message": "what is my credit standing", "mode": "both", "tool": "view_standing", "useCaseId": "delegated-access-with-proof" },
+      { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course", "useCaseId": "delegated-access-with-proof" },
+      { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_transcript", "useCaseId": "hitl-consent" },
+      { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment", "useCaseId": "delegated-access-with-proof" },
+      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance", "useCaseId": "a2a-delegation" },
       { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm" },
       { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
     ],

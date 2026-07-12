@@ -58,12 +58,12 @@
       ]
     },
     "chips10": [
-      { "id": "mf1", "label": "My work orders", "message": "show my work orders", "mode": "both", "tool": "view_work_orders" },
-      { "id": "mf2", "label": "Inventory", "message": "what is my on-hand inventory", "mode": "both", "tool": "view_inventory" },
-      { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run" },
-      { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_work_order" },
-      { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order" },
-      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract" },
+      { "id": "mf1", "label": "My work orders", "message": "show my work orders", "mode": "both", "tool": "view_work_orders", "useCaseId": "delegated-access-with-proof" },
+      { "id": "mf2", "label": "Inventory", "message": "what is my on-hand inventory", "mode": "both", "tool": "view_inventory", "useCaseId": "delegated-access-with-proof" },
+      { "id": "mf4", "label": "Schedule a run", "message": "schedule a production run", "mode": "both", "tool": "schedule_run", "useCaseId": "delegated-access-with-proof" },
+      { "id": "mf5", "label": "🔐 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_work_order", "useCaseId": "hitl-consent" },
+      { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order", "useCaseId": "delegated-access-with-proof" },
+      { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract", "useCaseId": "a2a-delegation" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm" },
       { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
     ],
