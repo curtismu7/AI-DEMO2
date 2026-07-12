@@ -30,7 +30,7 @@ import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, JsonRpcRequest, JsonRpcResponse } from './proxy';
-import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
+import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
@@ -719,6 +719,17 @@ async function handleMessage(
         } else {
           send(jsonRpcError(id, -32002, 'Human approval required', { hitl: true, tool: toolName, challenge_type: getChallengeTypeForTool(toolName) }));
         }
+      } else if (isPolicyNotFoundReason(authz.reason)) {
+        // Policy drift: the tool has no matching policy (mock 'unknown_tool' /
+        // NOT_APPLICABLE). Surface it as policy_not_found — same operator vocabulary
+        // as the BFF — instead of insufficient_scope, so nobody is sent to chase
+        // token scopes for a missing-policy problem.
+        send(jsonRpcError(id, -32403, 'Policy not found, please contact administrator.', {
+          error: 'policy_not_found',
+          tool: toolName,
+          detail: authz.reason,
+          login_required: false,
+        }));
       } else {
         send(jsonRpcError(id, -32403, authz.reason || 'Forbidden', {
           error: 'insufficient_scope',

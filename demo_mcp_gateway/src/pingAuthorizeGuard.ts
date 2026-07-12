@@ -54,6 +54,19 @@ export interface AuthzDecision {
 }
 
 /**
+ * True when a DENY reason indicates POLICY DRIFT — the tool/action exists in code
+ * but the authorization policy (or the mock rule store / scope topology) has no
+ * matching policy for it. This is distinct from a genuine scope denial: the fix
+ * is to update the policy, not to grant the caller more token scopes. Surfacing
+ * it as such keeps the gateway path's operator signal consistent with the BFF's
+ * "policy_not_found" (rather than a misleading "re-authenticate for scopes").
+ */
+export function isPolicyNotFoundReason(reason?: string): boolean {
+  if (!reason) return false;
+  return /unknown[_ ]?tool|no policy defined|no matching policy|not[_ ]?applicable|policy[_ ]?not[_ ]?found/i.test(reason);
+}
+
+/**
  * Best-effort cold-start warm of the Authorization Server connection. On gateway
  * (or authz-server) restart the first tools/list decision otherwise pays the
  * connect to the AS; this opens that socket up front via GET /health (the AS's
@@ -269,7 +282,16 @@ export async function guardToolCall(
       return { permitted: false, reason: 'HITL_REQUIRED' };
     }
 
-    return { permitted: false, reason: `PingAuthorize decision: ${decision}` };
+    // Preserve the policy engine's specific DENY reason (e.g. the mock's
+    // 'unknown_tool: no policy defined for tool X' = policy drift) instead of
+    // flattening every DENY to a generic string. This lets the tools/call
+    // handler distinguish a missing-policy drift from a genuine scope denial and
+    // surface the right signal to the operator instead of 'insufficient_scope'.
+    const engineReason: string =
+      typeof response.data?.reason === 'string' && response.data.reason
+        ? response.data.reason
+        : `PingAuthorize decision: ${decision}`;
+    return { permitted: false, reason: engineReason };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[GW] PingAuthorize tool guard failed — failing closed:', msg);
