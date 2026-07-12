@@ -103,7 +103,7 @@
       { "id": "rt1", "label": "List my orders", "message": "list my orders", "mode": "both", "tool": "list_orders" },
       { "id": "rt2", "label": "Where's my order?", "message": "order status", "mode": "both", "tool": "order_status" },
       { "id": "rt3", "label": "My reward points", "message": "my reward points", "mode": "both", "tool": "rewards_balance" },
-      { "id": "rt4", "label": "🔐 Checkout", "message": "checkout", "mode": "both", "hitlTrigger": true, "tool": "checkout" },
+      { "id": "rt4", "label": "🔐 Checkout", "message": "checkout", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "checkout" },
       { "id": "rt-feature", "label": "My large purchase", "message": "show my large purchase", "mode": "both", "tool": "show_large_purchase" },
       { "id": "rt-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "rt5", "label": "Order history", "message": "order history", "mode": "both" },
@@ -144,9 +144,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "check out my cart", "mode": "both", "tool": "checkout", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "check out my cart", "mode": "both", "challenge": "step_up", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "check out my cart", "mode": "both", "challenge": "step_up", "tool": "checkout", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "check out my cart", "mode": "both", "challenge": "consent", "tool": "checkout", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

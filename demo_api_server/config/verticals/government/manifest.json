@@ -78,9 +78,9 @@
       { "id": "gv1", "label": "My permits", "message": "show my permits", "mode": "both", "tool": "view_permits" },
       { "id": "gv2", "label": "Fees owed", "message": "what fees do I owe", "mode": "both", "tool": "view_fees" },
       { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee" },
-      { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "tool": "release_record" },
+      { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "challenge": "both", "tool": "release_record" },
       { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit" },
-      { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "tool": "sensitive_tax_record" },
+      { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "challenge": "consent", "tool": "sensitive_tax_record" },
       { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm" },
       { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
     ],
@@ -90,9 +90,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a permit-record release — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my permit record", "mode": "both", "tool": "release_record", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the permit-record release ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my permit record", "mode": "both", "challenge": "step_up", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before a permit-record release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my permit record", "mode": "both", "challenge": "step_up", "tool": "release_record", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my permit record", "mode": "both", "challenge": "consent", "tool": "release_record", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the permit-record release ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

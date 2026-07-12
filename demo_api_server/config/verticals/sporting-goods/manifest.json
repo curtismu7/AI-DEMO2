@@ -120,7 +120,7 @@
     "chips10": [
       { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear" },
       { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals" },
-      { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "tool": "extend_rental" },
+      { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "extend_rental" },
       { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status" },
       { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance" },
       { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order" },
@@ -132,9 +132,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "extend my rental", "mode": "both", "tool": "extend_rental", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "extend my rental", "mode": "both", "challenge": "step_up", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "extend my rental", "mode": "both", "challenge": "step_up", "tool": "extend_rental", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "extend my rental", "mode": "both", "challenge": "consent", "tool": "extend_rental", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

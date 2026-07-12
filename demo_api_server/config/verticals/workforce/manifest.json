@@ -98,8 +98,8 @@
       { "id": "wf1", "label": "My benefits", "message": "my benefits", "mode": "both", "tool": "view_benefits" },
       { "id": "wf2", "label": "PTO balance", "message": "pto balance", "mode": "both", "tool": "pto_balance" },
       { "id": "wf3", "label": "My expenses", "message": "my expenses", "mode": "both", "tool": "list_expenses" },
-      { "id": "wf4", "label": "🔐 Submit an expense", "message": "submit an expense", "mode": "both", "hitlTrigger": true, "tool": "submit_expense" },
-      { "id": "wf5", "label": "🔐 Request time off", "message": "request time off", "mode": "both", "hitlTrigger": true, "tool": "request_time_off" },
+      { "id": "wf4", "label": "🔐 Submit an expense", "message": "submit an expense", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "submit_expense" },
+      { "id": "wf5", "label": "🔐 Request time off", "message": "request time off", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "request_time_off" },
       { "id": "wf-feature", "label": "My expense report", "message": "view my expense report", "mode": "both", "tool": "show_expense_report" },
       { "id": "wf10", "label": "Which expenses are pending?", "message": "What's still waiting on my manager's sign-off?", "mode": "llm" },
       { "id": "wf-direct", "label": "Direct MCP", "message": "my expenses", "mode": "direct", "tool": "list_expenses" }
@@ -134,9 +134,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "submit a $600 expense", "mode": "both", "tool": "submit_expense", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "submit a $600 expense", "mode": "both", "challenge": "step_up", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "submit a $600 expense", "mode": "both", "challenge": "step_up", "tool": "submit_expense", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "submit a $600 expense", "mode": "both", "challenge": "consent", "tool": "submit_expense", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

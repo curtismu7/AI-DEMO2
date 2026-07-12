@@ -78,9 +78,9 @@
       { "id": "un1", "label": "My courses", "message": "show my enrolled courses", "mode": "both", "tool": "view_courses" },
       { "id": "un2", "label": "Credit standing", "message": "what is my credit standing", "mode": "both", "tool": "view_standing" },
       { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course" },
-      { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "tool": "release_transcript" },
+      { "id": "un5", "label": "🔐 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "release_transcript" },
       { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment" },
-      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "tool": "sensitive_student_finance" },
+      { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance" },
       { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm" },
       { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
     ],
@@ -90,9 +90,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before an official transcript release — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my official transcript", "mode": "both", "tool": "release_transcript", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before an official transcript release ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "release my official transcript", "mode": "both", "challenge": "step_up", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before an official transcript release — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "release my official transcript", "mode": "both", "challenge": "step_up", "tool": "release_transcript", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "release my official transcript", "mode": "both", "challenge": "consent", "tool": "release_transcript", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before an official transcript release ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my mortgage", "mode": "direct", "denyTool": "show_mortgage", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]

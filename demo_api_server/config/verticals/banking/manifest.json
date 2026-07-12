@@ -117,7 +117,7 @@
       { "id": "bk2", "label": "Check balance", "message": "what is my balance", "mode": "both", "tool": "get_account_balance" },
       { "id": "bk3", "label": "Recent transactions", "message": "recent transactions", "mode": "both", "tool": "get_my_transactions" },
       { "id": "bk4", "label": "Transfer $100", "message": "transfer $100 from checking to savings", "mode": "both", "tool": "create_transfer" },
-      { "id": "bk-hitl", "label": "🔐 Transfer $500", "message": "transfer $500 from checking to savings", "mode": "both", "hitlTrigger": true, "tool": "create_transfer" },
+      { "id": "bk-hitl", "label": "🔐 Transfer $500", "message": "transfer $500 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "create_transfer" },
       { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage" },
       { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "llm" },
       { "id": "bk-direct", "label": "Direct MCP", "message": "get my accounts", "mode": "direct", "tool": "get_my_accounts" }
@@ -152,9 +152,9 @@
           "id": "defenses",
           "label": "Defenses",
           "chips": [
-            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "transfer $600 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
-            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "transfer $600 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
-            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "transfer $500 from checking to savings", "mode": "both", "tool": "create_transfer", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
+            { "id": "sec_mfa_otp", "label": "🔐 MFA · OTP", "message": "transfer $600 from checking to savings", "mode": "both", "challenge": "step_up", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_otp", "stepUpMethod": "otp", "caption": "Defense worked. A high-value action forced live identity verification (email/SMS OTP) before money moved — the agent alone couldn't complete it." },
+            { "id": "sec_mfa_fido", "label": "🔐 MFA · Passkey", "message": "transfer $600 from checking to savings", "mode": "both", "challenge": "step_up", "tool": "create_transfer", "hitlTrigger": true, "showcase": "mfa_fido", "stepUpMethod": "fido", "caption": "Defense worked. The same high-value gate was satisfied with a passkey (FIDO2/WebAuthn) — phishing-resistant step-up, no shared secret." },
+            { "id": "sec_hitl", "label": "🔐 HITL consent", "message": "transfer $500 from checking to savings", "mode": "both", "challenge": "consent", "tool": "create_transfer", "hitlTrigger": true, "showcase": "hitl_consent", "caption": "Defense worked. A human had to explicitly approve the agent's action; PingOne Authorize returned a bound, single-use receipt before the transfer ran." },
             { "id": "sec_deny", "label": "⛔ Authz DENY", "message": "show my health record", "mode": "direct", "denyTool": "show_health_record", "showcase": "authz_deny", "caption": "Defense worked. PingOne Authorize hard-denied a tool from another vertical (AllowedVertical) — the agent can only reach tools the active context permits." },
             { "id": "sec_bad_scope", "label": "🚫 Bad scope", "message": "look up all customers", "mode": "both", "showcase": "bad_scope", "caption": "Defense worked. The call was refused with insufficient_scope — the user's token never carried admin scope, and RFC 8693 exchange can only narrow, never add, scope." }
           ]
