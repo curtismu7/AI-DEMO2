@@ -243,3 +243,56 @@
 .tracing-span-bar--c5 { background: #06b6d4; }
 .tracing-span-bar--c6 { background: #ec4899; }
 .tracing-span-bar--c7 { background: #84cc16; }
+
+.tracing-explainer {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #3b82f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.tracing-explainer h2 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+.tracing-explainer > p {
+  margin: 0;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.tracing-glossary {
+  margin: 12px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 16px;
+}
+.tracing-glossary > div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.tracing-glossary dt {
+  flex: 0 0 auto;
+  min-width: 62px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+}
+.tracing-glossary dd {
+  margin: 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.tracing-columns-note {
+  margin: 12px 0 0 0;
+  padding-top: 10px;
+  border-top: 1px solid #f3f4f6;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.6;
+}

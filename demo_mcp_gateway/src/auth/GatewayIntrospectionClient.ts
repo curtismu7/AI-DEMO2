@@ -51,8 +51,61 @@ function isTransientError(err: unknown): boolean {
   return true; // unknown error shape → treat as transient (retry is bounded)
 }
 
+function is401(err: unknown): boolean {
+  return (err as { response?: { status?: number } })?.response?.status === 401;
+}
+
+function otherMethod(method: 'basic' | 'post'): 'basic' | 'post' {
+  return method === 'post' ? 'basic' : 'post';
+}
+
 export class GatewayIntrospectionClient {
-  constructor(private readonly config: GatewayConfig) {}
+  // A 401 from PingOne's /as/introspect always means the introspecting
+  // client's own credentials/auth-method were rejected — never that the
+  // subject token is invalid (that's a 200 {active:false}). So it is safe to
+  // retry once with the other method, and once one is confirmed working,
+  // remember it so later calls skip straight to it.
+  private workingAuthMethod: 'basic' | 'post';
+
+  constructor(private readonly config: GatewayConfig) {
+    this.workingAuthMethod = config.tokenEndpointAuthMethod === 'post' ? 'post' : 'basic';
+  }
+
+  private buildRequest(token: string, method: 'basic' | 'post') {
+    const params = new URLSearchParams({ token, token_type_hint: 'access_token' });
+
+    // Use dedicated introspection credentials when configured; otherwise
+    // fall back to the gateway's own client credentials. PingOne only returns
+    // active:true for a token when the introspecting client is the issuing
+    // client or a resource server that owns the token's audience — so if the
+    // gateway is not that resource server, set GW_INTROSPECTION_CLIENT_ID +
+    // GW_INTROSPECTION_CLIENT_SECRET to the appropriate client.
+    const introspectClientId = this.config.introspectionClientId || this.config.clientId;
+    const introspectClientSecret = this.config.introspectionClientSecret || this.config.clientSecret;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+    if (method === 'post') {
+      params.set('client_id', introspectClientId);
+      params.set('client_secret', introspectClientSecret);
+    } else {
+      const credentials = Buffer.from(`${introspectClientId}:${introspectClientSecret}`).toString('base64');
+      headers.Authorization = `Basic ${credentials}`;
+    }
+    return { body: params.toString(), headers };
+  }
+
+  private toResult(data: Record<string, unknown>): IntrospectionResult {
+    return {
+      active: data.active === true,
+      sub: data.sub as string | undefined,
+      scope: data.scope as string | undefined,
+      exp: data.exp as number | undefined,
+      aud: data.aud as string | string[] | undefined,
+      client_id: data.client_id as string | undefined,
+    };
+  }
 
   async introspect(token: string): Promise<IntrospectionResult> {
     // Introspection endpoint is required — if not configured, fail closed
@@ -68,41 +121,14 @@ export class GatewayIntrospectionClient {
       return cached.result;
     }
 
-    const params = new URLSearchParams({
-      token,
-      token_type_hint: 'access_token',
-    });
-
-    // Authenticate introspection request using the gateway's configured method.
-    // PingOne apps provisioned with token_endpoint_auth_method=post require
-    // client credentials in the POST body (client_secret_post); apps using
-    // client_secret_basic require an Authorization: Basic header.
-    // MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD controls this (default: 'basic').
-    // Use dedicated introspection credentials when configured; otherwise
-    // fall back to the gateway's own client credentials. PingOne only returns
-    // active:true for a token when the introspecting client is the issuing
-    // client or a resource server that owns the token's audience — so if the
-    // gateway is not that resource server, set GW_INTROSPECTION_CLIENT_ID +
-    // GW_INTROSPECTION_CLIENT_SECRET to the appropriate client.
-    const introspectClientId = this.config.introspectionClientId || this.config.clientId;
-    const introspectClientSecret = this.config.introspectionClientSecret || this.config.clientSecret;
-
-    const introspectHeaders: Record<string, string> = {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    };
-    if (this.config.tokenEndpointAuthMethod === 'post') {
-      // client_secret_post: credentials go in the POST body
-      params.set('client_id', introspectClientId);
-      params.set('client_secret', introspectClientSecret);
-    } else {
-      // client_secret_basic: credentials go in the Authorization header
-      const credentials = Buffer.from(
-        `${introspectClientId}:${introspectClientSecret}`
-      ).toString('base64');
-      introspectHeaders.Authorization = `Basic ${credentials}`;
-    }
-
-    const body = params.toString();
+    // Authenticate introspection request using the gateway's configured
+    // method (client_secret_post puts credentials in the POST body;
+    // client_secret_basic uses an Authorization: Basic header). Controlled by
+    // MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD (default: 'basic'), but see the 401
+    // fallback below — a rejected method self-corrects rather than staying
+    // stuck denying every call.
+    const method = this.workingAuthMethod;
+    const { body, headers } = this.buildRequest(token, method);
 
     // Bounded retry on TRANSIENT failures so a brief PingOne/AS blip right after
     // a restart does not surface as a spurious 401. One retry with a short
@@ -114,34 +140,33 @@ export class GatewayIntrospectionClient {
     let lastErr: unknown;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const response = await axios.post(
-          this.config.introspectionEndpoint,
-          body,
-          {
-            headers: introspectHeaders,
-            timeout: 5000,
-          }
-        );
-
-        const data = response.data as Record<string, unknown>;
-        const result: IntrospectionResult = {
-          active: data.active === true,
-          sub: data.sub as string | undefined,
-          scope: data.scope as string | undefined,
-          exp: data.exp as number | undefined,
-          aud: data.aud as string | string[] | undefined,
-          client_id: data.client_id as string | undefined,
-        };
-
+        const response = await axios.post(this.config.introspectionEndpoint, body, { headers, timeout: 5000 });
+        const result = this.toResult(response.data as Record<string, unknown>);
         _cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
         return result;
       } catch (err) {
         lastErr = err;
+        if (is401(err)) break; // not transient — handled by the method-fallback below
         if (attempt < MAX_ATTEMPTS && isTransientError(err)) {
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
           continue;
         }
         break;
+      }
+    }
+
+    if (is401(lastErr)) {
+      const fallback = otherMethod(method);
+      try {
+        const { body: fallbackBody, headers: fallbackHeaders } = this.buildRequest(token, fallback);
+        const response = await axios.post(this.config.introspectionEndpoint, fallbackBody, { headers: fallbackHeaders, timeout: 5000 });
+        const result = this.toResult(response.data as Record<string, unknown>);
+        console.warn(`[GatewayIntrospection] Configured auth method "${method}" rejected (401) — "${fallback}" worked, switching to it for future calls`);
+        this.workingAuthMethod = fallback;
+        _cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+        return result;
+      } catch (fallbackErr) {
+        lastErr = fallbackErr;
       }
     }
 
