@@ -316,6 +316,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   ff_rfc9470_challenge:      { public: true, default: 'true'  }, // RFC 9470 step-up challenge support in authorization
   hitl_consent_mfa_mode:     { public: true, default: 'onetime' }, // HITL consent MFA mode: 'onetime' (default) or 'multi' — affects challenge UX
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
+  ADMIN_MFA_REQUIRED:              { public: true, default: 'false' }, // Require MFA verification for admin users at login
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
   ff_agent_restrictions:           { public: true, default: 'false' }, // P1AZ resource server gate + AgentRestrictions attribute

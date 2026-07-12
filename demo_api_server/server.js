@@ -219,6 +219,7 @@ const {
 } = require('./middleware/tokenRefresh');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
 const { delegationGate } = require('./middleware/delegationGate');
+const mfaSessionGate = require('./middleware/mfaSessionGate');
 
 const app = express();
 
@@ -499,6 +500,9 @@ app.use(async (_req, _res, next) => {
         next(err);
     }
 });
+
+// MFA gate: redirect admin users without MFA verification to /mfa-challenge
+app.use(mfaSessionGate);
 
 // Migrate demo accounts to persistent storage on startup
 migrateAccounts().catch(err => {
