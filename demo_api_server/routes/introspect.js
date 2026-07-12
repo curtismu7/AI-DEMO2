@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
 
     // Include additional metadata if token is valid
     if (introspectionResult.valid) {
-      if (introspectionResult.scope) {
+      if (introspectionResult.scopes && introspectionResult.scopes.length > 0) {
         response.scope = introspectionResult.scopes.join(' ');
       }
       if (introspectionResult.client_id) {
