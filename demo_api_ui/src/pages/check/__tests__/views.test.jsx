@@ -1,5 +1,6 @@
 // demo_api_ui/src/pages/check/__tests__/views.test.jsx
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import CardsView from '../CardsView';
 import StepperView from '../StepperView';
 import ChecklistView from '../ChecklistView';
@@ -16,6 +17,21 @@ test('CardsView shows a card per category with worst-status class', () => {
   expect(screen.getByText('Servers')).toBeInTheDocument();
   expect(screen.getByText('LLM')).toBeInTheDocument();
   expect(screen.getByText(/12\/12 up/)).toBeInTheDocument();
+});
+
+test('CardsView: clicking a card expands its individual checks below the grid', async () => {
+  const user = userEvent.setup();
+  const results = { 'servers.all_up': { id: 'servers.all_up', category: 'Servers', status: 'pass', detail: '12/12 up' } };
+  render(<CardsView catalog={catalog} results={results} verdict="ready" />);
+
+  expect(screen.queryByText('All servers running')).not.toBeInTheDocument();
+
+  await user.click(screen.getByText('Servers'));
+  expect(screen.getByText('All servers running')).toBeInTheDocument();
+  expect(screen.getAllByText(/12\/12 up/).length).toBeGreaterThan(0);
+
+  await user.click(screen.getByText('Servers'));
+  expect(screen.queryByText('All servers running')).not.toBeInTheDocument();
 });
 
 test('StepperView renders category labels without crashing', () => {

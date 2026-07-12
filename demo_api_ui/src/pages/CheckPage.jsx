@@ -26,13 +26,13 @@ export default function CheckPage() {
         <div className="verdict"><span className="dot" />
           <h2>{verdict ? VERDICT_TEXT[verdict] : 'Not run yet'}</h2></div>
         <div className="verdict-actions">
-          <button className="btn btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false }).catch(() => {})}>Run all checks</button>
+          <button className="chk-btn chk-btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false }).catch(() => {})}>Run all checks</button>
         </div>
       </div>
 
       <div className="check-tabs" role="tablist">
         {Object.keys(VIEWS).map((k) => (
-          <button key={k} role="tab" aria-selected={view === k} className="tab" onClick={() => setView(k)}>{VIEW_LABELS[k]}</button>
+          <button key={k} role="tab" aria-selected={view === k} className="chk-tab" onClick={() => setView(k)}>{VIEW_LABELS[k]}</button>
         ))}
       </div>
 
@@ -44,8 +44,8 @@ export default function CheckPage() {
             <option value="workforce">workforce</option>
           </select>
         </label>
-        <button className="btn btn-ghost" disabled={running} onClick={async () => setResult(await runChipTest({ vertical }))}>Run real chip test</button>
-        <button className="btn btn-ghost" disabled={running} onClick={() => runAll({ includeHeavy: true }).catch(() => {})}>Deep LLM test</button>
+        <button className="chk-btn chk-btn-ghost" disabled={running} onClick={async () => setResult(await runChipTest({ vertical }))}>Run real chip test</button>
+        <button className="chk-btn chk-btn-ghost" disabled={running} onClick={() => runAll({ includeHeavy: true }).catch(() => {})}>Deep LLM test</button>
       </div>
 
       <ViewComp catalog={catalog} results={results} verdict={verdict} />

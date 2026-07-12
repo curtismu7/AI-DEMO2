@@ -29,7 +29,7 @@ export default function RailDetailView({ catalog, results, verdict }) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(category); }
               }}
             >
-              <span className={`s-${catCls}`}><span className="light" /></span>
+              <span className={`s-${catCls}`}><span className="chk-light" /></span>
               {category}
               <span className="n">{catDone.length}/{catChecks.length}</span>
             </div>
@@ -38,13 +38,13 @@ export default function RailDetailView({ catalog, results, verdict }) {
       </aside>
       <div className="detail-pane">
         <div className="detail-head">
-          <span className={`s-${cls}`}><span className="light" /></span>
+          <span className={`s-${cls}`}><span className="chk-light" /></span>
           <h3>{activeCategory}</h3>
         </div>
-        <div className="rows">
+        <div className="chk-rows">
           {checks.map((c) => (
-            <div className={`row s-${c.result?.status || 'idle'}`} key={c.id}>
-              <span className="light" />
+            <div className={`chk-row s-${c.result?.status || 'idle'}`} key={c.id}>
+              <span className="chk-light" />
               <span className="name">{c.name}</span>
               <span className="detail">{c.result?.detail || 'Not run'}</span>
             </div>
