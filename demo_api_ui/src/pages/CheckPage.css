@@ -64,6 +64,7 @@
 .s-warn .light { background: var(--warn); --_ring: var(--warn-bg); }
 .s-fail .light { background: var(--fail); --_ring: var(--fail-bg); }
 .s-idle .light { background: var(--idle); --_ring: var(--idle-bg); }
+.s-skip .light { background: var(--idle); --_ring: var(--idle-bg); }
 
 .mono { font-family: var(--mono); }
 .tnum { font-variant-numeric: tabular-nums; }

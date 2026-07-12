@@ -13,7 +13,7 @@ const TOOL_NAME = 'get_my_accounts';
 const RESOURCE_ID = 'accounts:self';
 
 const realPath = {
-  id: 'gateway.real_path', name: 'Real gateway path (introspect → authorize → mcp-call)',
+  id: 'gateway.real_path', name: 'Real gateway path (introspect -> authorize -> mcp-call)',
   category: 'Agent Gateway', heavy: true,
   appliesWhen: (flags) => flags.ff_mcp_gateway_pinggateway === true,
   async run(ctx) {

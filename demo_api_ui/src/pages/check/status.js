@@ -8,9 +8,16 @@ export function worst(statuses) {
 }
 
 export function groupByCategory(catalog, results) {
+  results = results || {};
   const cats = {};
+  const catalogIds = new Set();
   for (const c of catalog?.checks || []) {
+    catalogIds.add(c.id);
     (cats[c.category] ||= []).push({ ...c, result: results[c.id] || null });
+  }
+  for (const [id, result] of Object.entries(results)) {
+    if (catalogIds.has(id)) continue;
+    (cats[result.category] ||= []).push({ id, name: result.name, category: result.category, result });
   }
   return cats;
 }

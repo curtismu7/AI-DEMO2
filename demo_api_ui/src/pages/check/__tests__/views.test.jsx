@@ -38,3 +38,14 @@ test('RailDetailView renders category labels without crashing', () => {
   expect(screen.getAllByText('Servers').length).toBeGreaterThan(0);
   expect(screen.getByText('LLM')).toBeInTheDocument();
 });
+
+test('ChecklistView renders an out-of-catalog result (e.g. chip test) under its own category', () => {
+  const results = {
+    'servers.all_up': { id: 'servers.all_up', category: 'Servers', status: 'pass', detail: '12/12 up' },
+    'chip.e2e': { id: 'chip.e2e', name: 'Chip end-to-end', category: 'End-to-End Chip', status: 'pass', detail: 'Agent called a tool' },
+  };
+  render(<ChecklistView catalog={catalog} results={results} verdict="ready" />);
+  expect(screen.getByText('End-to-End Chip')).toBeInTheDocument();
+  expect(screen.getByText('Chip end-to-end')).toBeInTheDocument();
+  expect(screen.getByText(/Agent called a tool/)).toBeInTheDocument();
+});
