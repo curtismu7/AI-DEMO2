@@ -1136,16 +1136,21 @@
     "view_trades": {
       "requiredScopes": ["read"],
       "surface": "gateway"
+    },
+    "call_pingone_tool": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_pingone_tools": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
     }
   },
   "policy": {
     "authorization": {
       "highValueConsentThresholdUsd": 250,
       "stepUpThresholdUsd": 500,
-      "amountLimitsByTier": {
-        "standard": 2000,
-        "privatebanking": 50000
-      }
+      "amountLimitsByTier": { "standard": 2000, "privatebanking": 50000 }
     }
   }
 }

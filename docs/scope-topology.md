@@ -425,3 +425,5 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_portfolio_value` | gateway | `read` | — |
 | `view_portfolios` | gateway | `read` | — |
 | `view_trades` | gateway | `read` | — |
+| `call_pingone_tool` | gateway | `read` | — |
+| `list_pingone_tools` | gateway | `read` | — |
