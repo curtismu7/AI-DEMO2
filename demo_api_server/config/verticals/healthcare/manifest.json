@@ -124,7 +124,7 @@
       { "id": "hc3", "label": "My appointments", "message": "my appointments", "mode": "both", "tool": "list_appointments" },
       { "id": "hc4", "label": "Book an appointment", "message": "book an appointment", "mode": "both", "tool": "book_appointment" },
       { "id": "hc5", "label": "🔐 Release my records", "message": "release my records", "mode": "both", "hitlTrigger": true, "tool": "release_records" },
-      { "id": "hc-a2a", "label": "Sensitive records", "message": "access my sensitive patient records", "mode": "both", "tool": "sensitive_patient_records" },
+      { "id": "hc-a2a", "label": "🔐 Sensitive records", "message": "access my sensitive patient records", "mode": "both", "hitlTrigger": true, "tool": "sensitive_patient_records" },
       { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record" },
       { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "llm" },
       { "id": "hc-direct", "label": "Direct MCP", "message": "list my records", "mode": "direct", "tool": "view_records" }
