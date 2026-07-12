@@ -13,7 +13,19 @@ const axios = require('axios');
 const router = express.Router();
 
 const DEFAULT_SERVICE = process.env.OTEL_SERVICE_NAME || 'demo-api-server';
-const JAEGER_UI_URL = (process.env.JAEGER_UI_URL || 'http://localhost:16686').replace(/\/$/, '');
+
+/**
+ * Browser-facing Jaeger UI base URL. Explicit JAEGER_UI_URL wins; otherwise
+ * derive from the app's public origin so deep links resolve at the demo base
+ * URL (e.g. https://ai-demo.ping-devops.com/jaeger). Falls back to localhost
+ * for local docker/native, where PUBLIC_APP_URL is unset.
+ */
+function jaegerUiBase() {
+  const derived = process.env.PUBLIC_APP_URL
+    ? `${process.env.PUBLIC_APP_URL}/jaeger`
+    : 'http://localhost:16686';
+  return (process.env.JAEGER_UI_URL || derived).replace(/\/$/, '');
+}
 
 /** Candidate Jaeger query bases — same env-first → compose → localhost pattern as inventory. */
 function jaegerCandidates() {
@@ -45,7 +57,7 @@ router.get('/status', async (_req, res) => {
   res.status(200).json({
     ok: Boolean(base),
     jaegerQueryUrl: base,
-    jaegerUiUrl: JAEGER_UI_URL,
+    jaegerUiUrl: jaegerUiBase(),
     defaultService: DEFAULT_SERVICE,
     otelEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || null,
     timestamp: new Date().toISOString(),
@@ -64,7 +76,7 @@ router.get('/services', async (_req, res) => {
   try {
     const resp = await axios.get(`${base}/api/services`, { timeout: 5000 });
     const services = Array.isArray(resp.data?.data) ? resp.data.data : [];
-    return res.json({ services, jaegerUiUrl: JAEGER_UI_URL });
+    return res.json({ services, jaegerUiUrl: jaegerUiBase() });
   } catch (err) {
     return res.status(502).json({
       error: 'jaeger_query_failed',
@@ -206,7 +218,7 @@ router.get('/traces', async (req, res) => {
       limit,
       lookback,
       traces,
-      jaegerUiUrl: JAEGER_UI_URL,
+      jaegerUiUrl: jaegerUiBase(),
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
