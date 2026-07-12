@@ -101,6 +101,7 @@ const oauthService = require('./services/oauthService');
 const reportsRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
 const accountRoutes = require('./routes/accounts');
+const investmentRoutes = require('./routes/investment');
 const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
@@ -1170,6 +1171,7 @@ app.use('/api/reports', reportsRoutes);
 app.use(['/api/accounts', '/api/transactions'], agentRestrictionsGate);
 app.use('/api/accounts', authenticateToken, accountRoutes);
 app.use('/api/accounts', authenticateToken, sensitiveBankingRoutes);
+app.use('/api/investment', authenticateToken, investmentRoutes);
 // Interactive tester — mounted BEFORE the general /api/resource-server router so the
 // more-specific /test/* paths match here instead of falling through to a 404.
 app.use('/api/resource-server/test', authenticateToken, resourceServerTesterRoutes);
