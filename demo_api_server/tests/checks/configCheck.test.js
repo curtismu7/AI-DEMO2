@@ -21,6 +21,13 @@ describe('configCheck', () => {
     expect(r.status).toBe('pass');
   });
 
+  test('meta.missing is an empty array when real P1AZ prereqs present', async () => {
+    configStore.getEffective.mockReturnValue('set');
+    const r = await prereqs.run({ flags: { ff_authorize_simulated: false } });
+    expect(r.status).toBe('pass');
+    expect(r.meta.missing).toEqual([]);
+  });
+
   test('fails when simulated+gateway+jwks needs AUTHZ_JWT_SECRET', async () => {
     delete process.env.AUTHZ_JWT_SECRET;
     const r = await prereqs.run({ flags: { ff_authorize_simulated: true, ff_mcp_gateway_pinggateway: true, ff_mcp_gateway_jwks: true } });

@@ -35,6 +35,7 @@ async function runChecks(checks, ctx, onResult = () => {}) {
     } catch (err) {
       outcome = { status: 'fail', detail: err.message };
     }
+    if (!outcome || typeof outcome !== 'object') outcome = { status: 'fail', detail: 'check returned no result' };
     const result = {
       id: check.id, name: check.name, category: check.category,
       status: outcome.status, detail: outcome.detail || '', meta: outcome.meta || null,

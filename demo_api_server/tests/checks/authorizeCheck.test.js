@@ -10,8 +10,8 @@ const { mode, realDecision, failOpen } = require('../../services/checks/authoriz
 
 describe('authorizeCheck', () => {
   beforeEach(() => {
+    p1az.evaluateTransaction.mockReset();
     p1az.isConfigured.mockReturnValue(true);
-    p1az.evaluateTransaction.mockClear();
   });
   afterEach(() => jest.clearAllMocks());
 
