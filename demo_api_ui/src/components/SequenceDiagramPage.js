@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
+import DiagramExportBar from "./DiagramExportBar";
 /**
 
 /**
@@ -3483,6 +3484,16 @@ export default function SequenceDiagramPage() {
           onSetStepMs={setStepMs}
         />
       </div>
+
+      {/* Downloads of the canonical sequence source. No .drawio for sequence
+          diagrams — paste the .mmd into Lucid's Mermaid diagram-as-code editor
+          (sequenceDiagram is supported) or draw.io's Insert > Advanced > Mermaid. */}
+      <DiagramExportBar
+        items={[
+          { label: "Mermaid (.mmd)", href: "/architecture/i4ai-ref-arch.mmd" },
+          { label: "PNG", href: "/architecture/token-flow.png" },
+        ]}
+      />
 
       {/* Diagram + Left Panel Flex Row */}
       <div
