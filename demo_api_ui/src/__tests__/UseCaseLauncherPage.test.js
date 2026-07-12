@@ -19,7 +19,7 @@
  *   T6d. Clicking the toggle PATCHes the flag and enables Run.
  *   T6e. Flag-gated Run stays disabled while flags are loading.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import UseCaseLauncherPage from '../pages/UseCaseLauncherPage';
@@ -409,5 +409,35 @@ describe('UseCaseLauncherPage', () => {
     const allBtns = screen.getAllByRole('button', { name: /^run$/i });
     const disabledFlagBtns = allBtns.filter((b) => b.disabled && !b.title?.includes('A6'));
     expect(disabledFlagBtns.length).toBeGreaterThan(0);
+  });
+
+  // ── Happy Path grouping ─────────────────────────────────────────────────
+  it('renders a Happy Path section above track sections containing only PERMIT-outcome use cases, deduped from their track', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Happy Paths — successful outcomes/i)).toBeInTheDocument());
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
+    const foundationsIdx = headings.findIndex((h) => /^Foundations/i.test(h));
+    expect(happyPathIdx).toBe(0);
+    expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
+
+    // UC1 (expectedOutcome: 'PERMIT') appears exactly once on the page.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(1);
+
+    // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
+    // so it stays in its original Foundations section, not Happy Path.
+    const foundationsHeading = screen.getByRole('heading', { level: 2, name: /^Foundations/i });
+    const foundationsSection = foundationsHeading.closest('section');
+    expect(within(foundationsSection).getByText('A2A delegation')).toBeInTheDocument();
+  });
+
+  it('does not render a Happy Path section when no use case has a PERMIT outcome', async () => {
+    apiClient.get.mockResolvedValue({
+      data: { vertical: 'banking', useCases: [UC_INSUFFICIENT_SCOPE, UC_WRONG_AUD] },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Insufficient scope attack')).toBeInTheDocument());
+    expect(screen.queryByText(/Happy Paths — successful outcomes/i)).not.toBeInTheDocument();
   });
 });

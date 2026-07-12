@@ -25,7 +25,7 @@ import { productsForUseCase } from '../utils/pingProducts';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
-  foundations: 'Happy Paths — core delegation and authorization',
+  foundations: 'Foundations — delegation lifecycle',
   demo:        'Progressive Trust Demo — Ping MyHotels pattern on banking agents (Acts 1–5)',
   attacks:     'Attacks — malicious attempts blocked by PingOne',
   hitl:        'Human-in-the-Loop — approval, step-up, and consent requirements',
@@ -33,6 +33,8 @@ const TRACK_LABELS = {
   learn:       'Learn — explore the platform hands-on',
   tools:       'Developer Tools — utilities and explorers',
 };
+
+const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -768,11 +770,25 @@ export default function UseCaseLauncherPage() {
       });
   }, []);
 
-  // Group use cases by track, in TRACK_ORDER order.
+  // Happy Path: every use case whose outcome is PERMIT, excluding cards that
+  // are exclusively surfaced via the Progressive Trust Demo strip (UC24 / Act 1).
+  const happyPath = useCases.filter(
+    (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
+  );
+  const happyPathIds = new Set(happyPath.map((uc) => uc.id));
+
+  // Group use cases by track, in TRACK_ORDER order. Cards already shown in the
+  // Happy Path section above are excluded here so each use case renders
+  // exactly once on the page.
   const grouped = TRACK_ORDER.map((track) => ({
     track,
-    items: useCases.filter((uc) => uc.track === track),
+    items: useCases.filter((uc) => uc.track === track && !happyPathIds.has(uc.id)),
   }));
+
+  // ProgressiveTrustDemoStrip resolves its Acts by id across the full 'demo'
+  // track (Acts 2–5 reference UC1/UC7/UC8/UC22/UC6) — it must stay unaffected
+  // by the Happy Path dedup above.
+  const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
 
   if (loading) {
     return (
@@ -803,6 +819,30 @@ export default function UseCaseLauncherPage() {
         </div>
       </header>
 
+      {happyPath.length > 0 && (
+        <section className="uc-track uc-track--happy-path">
+          <h2 className="uc-track__heading">{HAPPY_PATH_LABEL}</h2>
+          <div className="uc-track__grid">
+            {happyPath.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {grouped.map(({ track, items }) => {
         if (items.length === 0) return null;
         const displayItems = track === 'demo'
@@ -813,7 +853,7 @@ export default function UseCaseLauncherPage() {
             <h2 className="uc-track__heading">{TRACK_LABELS[track]}</h2>
             {track === 'demo' && (
               <ProgressiveTrustDemoStrip
-                useCases={items}
+                useCases={demoTrackItemsForStrip}
                 onRun={handleRun}
                 onExplain={setExplainUc}
                 chipRun={chipRun}

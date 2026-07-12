@@ -65,6 +65,10 @@
   gap: 1rem;
 }
 
+.uc-track--happy-path .uc-track__heading {
+  border-bottom-color: var(--color-accent, #2563eb);
+}
+
 /* ── Use Case card ─────────────────────────────────────────────────────── */
 
 .uc-card {
