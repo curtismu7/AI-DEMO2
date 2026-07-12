@@ -1549,6 +1549,11 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
+    'admin:write',        // admin — freeze account, adjust balance, reset password
+    'admin:delete',       // admin — delete customer
+    'users:read',         // admin — customer lookup/profile/accounts/transactions
+    'users:manage',       // admin — freeze/adjust/reset/delete
   ]);
 
   // MCP Resource Server — the gateway re-exchanges to this audience downstream.
@@ -1571,6 +1576,11 @@ function buildAllowedScopesByAudience() {
     'workorders:read',    // field-service — work-order vertical tools
     'sensitive:read',     // sensitive account/record details (consent-gated downstream)
     'code:search',        // code-search MCP tools (code_search/get_code/list_codebases)
+    'admin:read',         // admin — lookup/view customer profile, accounts, transactions
+    'admin:write',        // admin — freeze account, adjust balance, reset password
+    'admin:delete',       // admin — delete customer
+    'users:read',         // admin — customer lookup/profile/accounts/transactions
+    'users:manage',       // admin — freeze/adjust/reset/delete
   ]);
 
   // WR-19: warn when no resource URIs are configured (pre-bootstrap state)
