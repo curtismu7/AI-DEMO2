@@ -1141,6 +1141,11 @@
       "requiredScopes": ["read"],
       "surface": "gateway",
       "challengeType": "consent"
+    },
+    "cash_out_store_credit": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
     }
   },
   "policy": {

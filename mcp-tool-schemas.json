@@ -303,6 +303,19 @@
         "additionalProperties": false
       }
     },
+    "cash_out_store_credit": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "checkout": {
       "source": "olb",
       "inputSchema": {
