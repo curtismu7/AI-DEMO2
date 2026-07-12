@@ -11,6 +11,7 @@ export default function VerticalFeaturePage() {
 
   const fp  = location.state?.featurePageOverride || manifest?.featurePage || null;
   const raw = location.state?.featurePayload || null;
+  const chipContext = location.state?.chipContext || null;
 
   // accentColor is the only accent field in the v3 schema; the surrounding
   // shades are derived from it with CSS color-mix() so the feature page is
@@ -66,6 +67,46 @@ export default function VerticalFeaturePage() {
         <h1 className="vfp-title">{fp?.pageTitle || 'Feature data'}</h1>
         <p className="vfp-subtitle">{raw.message}</p>
       </header>
+
+      <section className="vfp-card vfp-card--flow">
+        <h2 className="vfp-card-title">What happened</h2>
+        <p className="vfp-flow-text">
+          You clicked a <strong>feature demonstration chip</strong> in the {chipContext?.verticalName || 'active vertical'}.
+          The agent routed your request through the OAuth gateway, which performed a <strong>credential swap</strong>:
+          your user's OAuth bearer token was exchanged for a service-specific API key before calling the backend.
+          This page displays the result of that API call.
+        </p>
+        {chipContext && (
+          <dl className="vfp-flow-details">
+            <div className="vfp-flow-detail">
+              <dt>Vertical:</dt>
+              <dd>{chipContext.verticalName}</dd>
+            </div>
+            <div className="vfp-flow-detail">
+              <dt>Tool called:</dt>
+              <dd><code>{chipContext.featureTool}</code></dd>
+            </div>
+          </dl>
+        )}
+      </section>
+
+      {chipContext?.tokenEvents && chipContext.tokenEvents.length > 0 && (
+        <section className="vfp-card vfp-card--chain">
+          <h2 className="vfp-card-title">Token chain</h2>
+          <div className="vfp-chain-list">
+            {chipContext.tokenEvents.map((event, idx) => (
+              <div key={idx} className="vfp-chain-event">
+                <div className="vfp-chain-step">Step {idx + 1}</div>
+                <div className="vfp-chain-detail">
+                  {event.step && <div className="vfp-chain-label">{event.step}</div>}
+                  {event.detail && <div className="vfp-chain-text">{event.detail}</div>}
+                  {event.aud && <div className="vfp-chain-aud">aud: <code>{event.aud}</code></div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="vfp-card vfp-card--data">
         <h2 className="vfp-card-title">{fp?.sectionTitle || 'Details'}</h2>
