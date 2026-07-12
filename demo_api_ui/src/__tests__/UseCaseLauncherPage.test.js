@@ -160,6 +160,25 @@ const UC_LINK = {
   advanced: false,
 };
 
+// Demo-track mock for search + Progressive Trust Demo strip interaction tests.
+// id 'UC24' is not a DEMO_USE_CASE_IDS member, so it never duplicates into Demo.
+const UC_DEMO_ACT1 = {
+  id: 'UC24',
+  useCaseId: 'progressive-trust-public-access',
+  track: 'demo',
+  title: 'Act 1 — Public catalog access',
+  buyerStory: 'Users should explore low-risk information before signing in.',
+  pingOneSolution: 'PingOne Authorize PERMITs a read-only public tool with no token exchange.',
+  trigger: { type: 'chip', text: 'What branches are near me?' },
+  expectedOutcome: 'PERMIT',
+  evidence: {},
+  codeRefs: [],
+  maturity: 'works',
+  owasp: {},
+  whatToSay: 'Low-friction first.',
+  advanced: false,
+};
+
 const SAMPLE_SIM_RESULT = {
   sim: 'insufficient-scope',
   status: 403,
@@ -527,5 +546,124 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('RAG code search')).toBeInTheDocument());
     expect(screen.queryByText(/Demo — a scripted walkthrough/i)).not.toBeInTheDocument();
+  });
+
+  // ── Search ───────────────────────────────────────────────────────────────
+  it('search filters cards across Demo, Happy Path, and track sections by title', async () => {
+    renderPage();
+    // UC1 and UC11 are both DEMO_USE_CASE_IDS members, so with the default
+    // MOCK_USE_CASES fixture each renders twice pre-search (Demo + its other
+    // section) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0);
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'delegated access' } });
+
+    // Only UC1 matches — it still renders twice (Demo + Happy Path, no dedup
+    // between those two), but UC11 and UC2 are fully filtered out everywhere.
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Bad client to agent gateway')).not.toBeInTheDocument();
+    expect(screen.queryByText('A2A delegation')).not.toBeInTheDocument();
+    // Attacks section had its only match filtered out — its heading disappears too.
+    expect(screen.queryByText(/Attacks — malicious/i)).not.toBeInTheDocument();
+  });
+
+  it('search matches by useCaseId substring', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'a2a-delegation' } });
+
+    // UC2 matches by useCaseId and still renders twice (Demo + Foundations).
+    expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Delegated access with proof')).not.toBeInTheDocument();
+  });
+
+  it('search matches by trigger text substring', async () => {
+    apiClient.get.mockResolvedValue({
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[0], UC_INSUFFICIENT_SCOPE] },
+    });
+    renderPage();
+    // UC_INSUFFICIENT_SCOPE's id was renamed off any DEMO_USE_CASE_IDS entry in
+    // Task 2, so only UC1 (a Demo id) duplicates here.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'show my balance' } });
+
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Insufficient scope attack')).not.toBeInTheDocument();
+  });
+
+  it('clearing the search box restores the full view', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'a2a-delegation' } });
+    expect(screen.queryByText('Bad client to agent gateway')).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: '' } });
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0);
+  });
+
+  it('shows an empty-state message when the search matches nothing', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'zzz-no-such-use-case' } });
+
+    expect(screen.getByText('No use cases match "zzz-no-such-use-case".')).toBeInTheDocument();
+    expect(screen.queryByText(/Demo — a scripted walkthrough/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Happy Paths — successful outcomes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Foundations/i)).not.toBeInTheDocument();
+  });
+
+  it('search filters the Demo section independently, preserving script order', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'a2a-delegation' } });
+
+    // Only UC2 (useCaseId 'a2a-delegation') matches — Demo narrows to just its
+    // Step 2 card; UC1's Step 1 and UC11's Step 10 cards disappear from Demo.
+    const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
+    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 1')).not.toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 10')).not.toBeInTheDocument();
+  });
+
+  it('hides the Progressive Trust Demo strip while searching, restores it when cleared', async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('feature-flags')) {
+        return Promise.resolve({
+          data: {
+            flags: [
+              { id: 'ff_a2a_delegation', value: false },
+              { id: 'ff_authorize_group_policy', value: false },
+              { id: 'ff_dpop', value: false },
+              { id: 'ff_rar', value: false },
+              { id: 'ciba_enabled', value: false },
+            ],
+            categories: [],
+          },
+        });
+      }
+      return Promise.resolve({ data: { vertical: 'banking', useCases: [UC_DEMO_ACT1] } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Progressive Trust Demo — Act 1 from here/i)).toBeInTheDocument());
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'public catalog' } });
+    expect(screen.queryByText(/Progressive Trust Demo — Act 1 from here/i)).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: '' } });
+    await waitFor(() => expect(screen.getByText(/Progressive Trust Demo — Act 1 from here/i)).toBeInTheDocument());
   });
 });

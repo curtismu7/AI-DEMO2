@@ -214,6 +214,30 @@ function maturityLabel(maturity) {
   return { text: maturity, cls: '' };
 }
 
+/**
+ * Case-insensitive substring match against a use case's searchable fields:
+ * id, useCaseId, title, buyerStory, whatToSay, and the trigger's prompt text.
+ */
+function matchesQuery(uc, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [uc.id, uc.useCaseId, uc.title, uc.buyerStory, uc.whatToSay, uc.trigger?.text]
+    .filter(Boolean)
+    .join(' \n ')
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
+/**
+ * A track's grid cards, minus any use case exclusively surfaced via the
+ * Progressive Trust Demo strip (UC24 / Act 1 in the 'demo' track).
+ */
+function getDisplayItems(track, items) {
+  return track === 'demo'
+    ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
+    : items;
+}
+
 function OWASPBadge({ owasp }) {
   if (!owasp || (!owasp.threats?.length && !owasp.sections?.length)) return null;
   const title = [
@@ -679,6 +703,8 @@ export default function UseCaseLauncherPage() {
   // { id, state: 'running' | 'error', msg? }. Guards double-clicks and surfaces errors.
   const [chipRun, setChipRun] = useState(null);
 
+  const [query, setQuery] = useState('');
+
   const { flagMap, flagsLoading, setFlag } = useLiveFlags();
 
   const vertical = verticalId || 'banking';
@@ -779,31 +805,34 @@ export default function UseCaseLauncherPage() {
       });
   }, []);
 
-  // Happy Path: every use case whose outcome is PERMIT, excluding cards that
-  // are exclusively surfaced via the Progressive Trust Demo strip (UC24 / Act 1).
-  const happyPath = useCases.filter(
+  const happyPathAll = useCases.filter(
     (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
   );
-  const happyPathIds = new Set(happyPath.map((uc) => uc.id));
+  const happyPathIds = new Set(happyPathAll.map((uc) => uc.id));
+  const happyPath = happyPathAll.filter((uc) => matchesQuery(uc, query));
 
-  // Group use cases by track, in TRACK_ORDER order. Cards already shown in the
-  // Happy Path section above are excluded here so each use case renders
-  // exactly once on the page.
   const grouped = TRACK_ORDER.map((track) => ({
     track,
-    items: useCases.filter((uc) => uc.track === track && !happyPathIds.has(uc.id)),
+    items: useCases
+      .filter((uc) => uc.track === track && !happyPathIds.has(uc.id))
+      .filter((uc) => matchesQuery(uc, query)),
   }));
 
-  // ProgressiveTrustDemoStrip resolves its Acts by id across the full 'demo'
-  // track (Acts 2–5 reference UC1/UC7/UC8/UC22/UC6) — it must stay unaffected
-  // by the Happy Path dedup above.
   const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
 
-  // Demo: fixed-order presenter script (12 ids). No dedup against Happy Path
-  // or track sections — see design spec §3.
   const demoAll = DEMO_USE_CASE_IDS
     .map((id) => useCases.find((uc) => uc.id === id))
     .filter(Boolean);
+  const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
+
+  const isSearching = query.trim().length > 0;
+  // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
+  // render time, so this reflects what actually becomes visible, not just
+  // what's in `items`.
+  const hasAnyResults =
+    demoVisible.length > 0 ||
+    happyPath.length > 0 ||
+    grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 
   if (loading) {
     return (
@@ -828,17 +857,34 @@ export default function UseCaseLauncherPage() {
         <p className="uc-launcher__subtitle">
           {useCases.length} security use cases grouped by demo track. Click Run to launch a scenario in the agent.
         </p>
+        <div className="uc-launcher__search">
+          <label htmlFor="uc-search-input" className="uc-launcher__search-label">
+            Search use cases
+          </label>
+          <input
+            id="uc-search-input"
+            type="search"
+            className="uc-launcher__search-input"
+            placeholder="Search by title, id, or prompt…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
         <div className="uc-launcher__vertical-picker" data-testid="uc-vertical-picker">
           <span className="uc-launcher__vertical-label">Vertical</span>
           <VerticalSwitcher variant="pills" />
         </div>
       </header>
 
-      {demoAll.length > 0 && (
+      {!hasAnyResults && (
+        <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
+      )}
+
+      {demoVisible.length > 0 && (
         <section className="uc-track uc-track--demo-script">
           <h2 className="uc-track__heading">{DEMO_LABEL}</h2>
           <div className="uc-track__grid">
-            {demoAll.map((uc) => (
+            {demoVisible.map((uc) => (
               <UseCaseCard
                 key={uc.id}
                 uc={uc}
@@ -885,13 +931,11 @@ export default function UseCaseLauncherPage() {
 
       {grouped.map(({ track, items }) => {
         if (items.length === 0) return null;
-        const displayItems = track === 'demo'
-          ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
-          : items;
+        const displayItems = getDisplayItems(track, items);
         return (
           <section key={track} className="uc-track">
             <h2 className="uc-track__heading">{TRACK_LABELS[track]}</h2>
-            {track === 'demo' && (
+            {track === 'demo' && !isSearching && (
               <ProgressiveTrustDemoStrip
                 useCases={demoTrackItemsForStrip}
                 onRun={handleRun}
