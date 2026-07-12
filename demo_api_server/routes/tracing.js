@@ -44,7 +44,11 @@ async function resolveJaegerBase() {
   for (const base of jaegerCandidates()) {
     try {
       const resp = await axios.get(`${base}/api/services`, { timeout: 2500 });
-      if (resp.status === 200) return base;
+      // Require the JSON query API, not just any 200: when Jaeger runs with
+      // QUERY_BASE_PATH set, the root /api/services returns the UI's HTML shell
+      // with a 200, which would otherwise be mistaken for a working query base
+      // and silently yield empty services/traces.
+      if (resp.status === 200 && Array.isArray(resp.data?.data)) return base;
     } catch {
       /* try next candidate */
     }
