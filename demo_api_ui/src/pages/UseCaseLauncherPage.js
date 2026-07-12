@@ -876,7 +876,7 @@ export default function UseCaseLauncherPage() {
         </div>
       </header>
 
-      {!hasAnyResults && (
+      {isSearching && !hasAnyResults && (
         <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
       )}
 

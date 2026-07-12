@@ -71,7 +71,7 @@ Heading label: `"Demo — a scripted walkthrough"`.
 
 ### 3. No dedup
 
-Demo's membership is computed independently — it does not read or write `happyPathIds` (from the prior spec) and does not remove its members from Happy Path or their track sections. A use case may render up to three times on the page (Demo, Happy Path, its track) if it qualifies for all three. This is a deliberate simplification: Demo is a fixed script, not a filtered view, so coupling it to the dedup mechanism would make both harder to reason about for a small cosmetic gain (one fewer repeated card).
+Demo's membership is computed independently — it does not read or write `happyPathIds` (from the prior spec) and does not remove its members from Happy Path or their track sections. A use case may render up to twice on the page: once in Demo, and once more in either Happy Path or its track section (Happy Path already dedups against tracks, so those two are mutually exclusive — a card is never in both). This is a deliberate simplification: Demo is a fixed script, not a filtered view, so coupling it to the dedup mechanism would make both harder to reason about for a small cosmetic gain (one fewer repeated card).
 
 ### 4. Section order
 
