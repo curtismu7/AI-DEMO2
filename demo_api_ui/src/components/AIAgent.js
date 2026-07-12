@@ -7199,7 +7199,7 @@ export default function BankingAgent({
                               >
                                 <span className="ba-popout-item-name">
                                   {action.label}
-                                  {action.hitlTrigger && <HitlChipMark />}
+                                  {(action.challenge || action.hitlTrigger) && <HitlChipMark challenge={action.challenge || 'both'} />}
                                 </span>
                                 {action.desc && (
                                   <span className="ba-popout-item-desc">
@@ -8604,7 +8604,7 @@ export default function BankingAgent({
                           >
                             <span className="ba-action-item-text">
                               {chip.label}
-                              {chip.hitlTrigger && <HitlChipMark />}
+                              {(chip.challenge || chip.hitlTrigger) && <HitlChipMark challenge={chip.challenge || 'both'} />}
                             </span>
                           </button>
                         ))}
