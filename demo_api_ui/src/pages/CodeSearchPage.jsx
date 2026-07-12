@@ -33,7 +33,7 @@ export function CodeSearchPage() {
   const [isIndexing, setIsIndexing] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [indexError, setIndexError] = useState('');
-  const [defaultStatus, setDefaultStatus] = useState('idle');
+  const [defaultStatus, setDefaultStatus] = useState({ state: 'idle', filesIndexed: 0, chunksCreated: 0, error: null });
   const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
 
   // Persist codebases to localStorage. Safe now that state is seeded from
@@ -79,6 +79,52 @@ export function CodeSearchPage() {
       cancelled = true;
     };
   }, []);
+
+  // Poll the default codebase indexing status. Once ready and we have
+  // codebases, auto-select the default codebase so users see code immediately.
+  useEffect(() => {
+    let cancelled = false;
+    let pollTimeout;
+
+    const pollStatus = async () => {
+      try {
+        const res = await fetch('/api/code-search/default-status');
+        if (!res.ok || cancelled) return;
+        const status = await res.json();
+        setDefaultStatus(status);
+
+        // Once indexing is done and default codebase exists, auto-select it.
+        if (status.state === 'ready') {
+          const defaultCodebaseId = 'ai-demo2-default';
+          setSelectedCodebaseId((cur) => {
+            // Only auto-select if nothing is selected yet, or current selection
+            // doesn't exist. Don't override user's manual selection.
+            if (!cur || !codebases.some((c) => c.id === cur)) {
+              return defaultCodebaseId;
+            }
+            return cur;
+          });
+          return; // Stop polling
+        }
+
+        // Keep polling while indexing or if not yet attempted.
+        if (status.state === 'indexing' || status.state === 'idle') {
+          pollTimeout = setTimeout(pollStatus, 2000);
+        }
+      } catch (err) {
+        // Non-fatal: MCP or server may not be ready yet.
+        if (!cancelled) {
+          pollTimeout = setTimeout(pollStatus, 5000);
+        }
+      }
+    };
+
+    pollStatus();
+    return () => {
+      cancelled = true;
+      if (pollTimeout) clearTimeout(pollTimeout);
+    };
+  }, [codebases]);
 
   const handleUpload = useCallback(
     async (file, codebaseName) => {
