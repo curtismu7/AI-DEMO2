@@ -270,7 +270,8 @@
     "withdraw": { "type": "card", "title": "Withdrawal Completed", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
     "large_trade": { "type": "card", "title": "Large Trade Executed", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Symbol", "path": "symbol" }, { "label": "Amount", "path": "amount", "format": "money" } ] },
     "rebalance_portfolio": { "type": "card", "title": "Portfolio Rebalanced", "fields": [ { "label": "Portfolio", "path": "portfolioType" }, { "label": "Status", "path": "status" } ] },
-    "dividend_summary": { "type": "fieldList", "title": "Dividend Summary", "fields": [ { "label": "Total Dividends", "path": "totalDividends", "format": "money" }, { "label": "Period", "path": "period" } ] }
+    "dividend_summary": { "type": "fieldList", "title": "Dividend Summary", "fields": [ { "label": "Total Dividends", "path": "totalDividends", "format": "money" }, { "label": "Period", "path": "period" } ] },
+    "portfolio_summary": { "type": "fieldList", "title": "Portfolio Summary", "fields": [ { "label": "Total Value", "path": "totalValue", "format": "money" }, { "label": "Cash Sweep", "path": "cashSweep", "format": "money" }, { "label": "YTD Return", "path": "ytdReturnPct", "format": "percent" }, { "label": "Risk Profile", "path": "riskProfile" } ] }
   },
   "featurePage": {
     "mcpTool": "show_investment",

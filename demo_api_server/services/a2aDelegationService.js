@@ -18,11 +18,17 @@
  *                               aud: <gateway/invest>, scope: invest:read }
  *
  * Design notes:
- *  - NO `may_act`. The token endpoint just BUILDS the act chain. Whether the
- *    delegation is *allowed* is a policy decision made by PingOne Authorize over
- *    the `act` chain at tool-call time (see authorize-pipeline / Slice 2). This is
- *    deliberately separate from the legacy `ff_require_may_act` gate, which is why
- *    A2A lives in its own service rather than resolveMcpAccessTokenWithEvents().
+ *  - `may_act` IS used (unlike the header comment used to say) — it's what makes
+ *    PingOne emit a native `act` claim at all (see docs/ACT_CLAIM_VERIFICATION.md).
+ *    Each specialist gets its OWN A2A Intermediate resource/audience with a literal
+ *    `may_act = {sub: <that specialist's client id>}` (pingoneProvisionService.js
+ *    Step 37a-A2A) — RFC 8707 resource indicators: a single audience shared across
+ *    all 9 specialists would let one specialist's token be replayed toward another's
+ *    exchange. Whether the delegation is *allowed* (beyond act-claim mechanics) is
+ *    still a separate policy decision made by PingOne Authorize over the `act` chain
+ *    at tool-call time (see authorize-pipeline / Slice 2) — deliberately separate
+ *    from the legacy `ff_require_may_act` gate, which is why A2A lives in its own
+ *    service rather than resolveMcpAccessTokenWithEvents().
  *  - Least-privilege: Agent 2 is granted ONLY `invest:read`, so T_invest cannot
  *    read checking accounts or move money — provable at the gateway/Authorize gate.
  *  - Gated behind ff_a2a_delegation; additive and isolated from the single- and
@@ -38,6 +44,7 @@ const {
   specialistForVertical,
   clientIdKey,
   clientSecretKey,
+  intermediateAudienceKey,
 } = require('../config/a2aSpecialists');
 
 // Heavy runtime deps (oauthService→axios, configStore→lmdb, mcpWebSocketClient→ws)
@@ -119,10 +126,12 @@ function resolveA2aConfig(cfgArg, specialist) {
   const agent2ClientId = cfg.getEffective(clientIdKey(specialist.appKey));
   const agent2Secret = cfg.getEffective(clientSecretKey(specialist.appKey));
 
-  // Exchange #1 result audience (intermediate). Falls back to the agent-gateway
-  // audience for single-resource deployments that have not provisioned a dedicated
-  // A2A intermediate resource yet.
+  // Exchange #1 result audience (intermediate) — THIS SPECIALIST'S OWN dedicated
+  // resource (RFC 8707; pingoneProvisionService.js Step 37a-A2A provisions one per
+  // appKey, each carrying its own may_act). Falls back to the legacy shared
+  // key/agent-gateway audience for deployments that haven't been re-provisioned yet.
   const intermediateAud =
+    cfg.getEffective(intermediateAudienceKey(specialist.appKey)) ||
     cfg.getEffective('a2a_intermediate_audience') ||
     cfg.getEffective('pingone_resource_a2a_intermediate_uri') ||
     cfg.getEffective('pingone_resource_agent_gateway_uri');
