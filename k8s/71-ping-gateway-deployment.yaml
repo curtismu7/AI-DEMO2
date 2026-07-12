@@ -132,8 +132,14 @@ spec:
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
+        # httpGet (not tcpSocket): a tcp-only check proves the port is open
+        # but not that P1AZDecision can reach its backend — that's exactly how
+        # the 2026-07-12 outage stayed "Ready" for 8h while denying every
+        # request. /health (00-health.json + p1az-readiness.groovy) reports
+        # 503 when the real PingOne Authorize backend is unconfigured.
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 30

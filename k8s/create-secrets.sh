@@ -299,4 +299,22 @@ else
   warn "ping-gateway/config/admin.json not found — skipping ping-gateway-config ConfigMap"
 fi
 
+# ── Restart deployments so already-running pods pick up what we just applied ──
+# K8s does not hot-reload Secret/ConfigMap-sourced env vars into a running
+# container — re-applying a secret above is a no-op for any pod that's already
+# up. Root cause of the 2026-07-12 ping-gateway P1AZ outage: the secret got
+# fixed but the pod kept running on its stale (pre-fix) environment, silently
+# denying every request while reporting healthy. Restart every deployment that
+# consumes a secret/configmap this script manages, so "rotate" always means
+# rotate for the running pod too, not just for the next full deploy.
+info "Restarting deployments to pick up refreshed secrets/configmaps..."
+for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service mortgage-service ping-gateway; do
+  if kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
+    kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
+    info "  restarted $dep"
+  else
+    warn "  $dep not found in $NS — skipping restart (first-time bootstrap?)"
+  fi
+done
+
 info "Done. Secrets are in namespace $NS."
