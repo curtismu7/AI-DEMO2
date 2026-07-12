@@ -116,13 +116,16 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
         permitted: true,
       });
     }
-    // Add the ACTIVE VERTICAL's chip-backed tools (manifest chips10) so a
-    // degraded list doesn't read every non-banking chip as vertical-foreign.
-    // Same static-manifest read as agentScopes (loader wraps { manifest, ... }).
+    // Add the ACTIVE VERTICAL's chip-backed tools (manifest chips10) and plugin tools
+    // so a degraded list doesn't read every non-banking chip as vertical-foreign.
+    // This is critical for verticals like pingone-admin whose tools are defined in the
+    // plugin, not in the gateway (they're never discovered through the banking gateway).
     try {
       verticalManifest.init(); // idempotent — loads seed manifests if boot init hasn't run
       const loaded = verticalManifest.loader.get(vertical);
       const manifest = loaded && (loaded.manifest || loaded);
+
+      // Add manifest chips10 (traditional chip-backed tools)
       const chips = (manifest && manifest.dashboard && manifest.dashboard.chips10) || [];
       for (const c of chips) {
         if (!c || !c.tool || catalog.has(c.tool)) continue;
@@ -135,6 +138,25 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
           readOnly: !requiredScopes.some((s) => s === 'write' || s.endsWith(':write')),
           permitted: true,
         });
+      }
+
+      // Add vertical plugin tools (e.g., pingone-admin's list_pingone_tools, call_pingone_tool).
+      // These are defined in the vertical's index.js but never discovered through the gateway,
+      // so they must be in the fallback catalog or they won't be available to the UI/agent.
+      const plugin = verticalManifest.plugins.get(vertical);
+      if (plugin && typeof plugin.getTools === 'function') {
+        const pluginTools = plugin.getTools() || [];
+        for (const t of pluginTools) {
+          if (!t || !t.name || catalog.has(t.name)) continue;
+          catalog.set(t.name, {
+            name: t.name,
+            description: t.description || '',
+            inputSchema: t.inputSchema || {},
+            requiredScopes: (t.scopes && Array.isArray(t.scopes)) ? t.scopes : ['read'],
+            readOnly: !(t.scopes && (t.scopes.includes('write') || t.scopes.some((s) => s.endsWith(':write')))),
+            permitted: true,
+          });
+        }
       }
     } catch { /* unknown vertical — banking baseline only */ }
     return {
