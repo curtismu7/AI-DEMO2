@@ -224,7 +224,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `happyPath`, `happyPathIds`, `grouped`, `demoTrackItemsForStrip` from Task 1 (same variable names, `happyPath`/`grouped` are further filtered in place by this task).
-- Produces: a new pure function `matchesQuery(uc, query) => boolean` (module-level, exported implicitly via component use only — no external export needed) and local state `query`/`setQuery`. No other task depends on these.
+- Produces: two new pure functions, `matchesQuery(uc, query) => boolean` and `getDisplayItems(track, items) => array` (both module-level, used only within this file — no external export needed), and local state `query`/`setQuery`. No other task depends on these.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -354,9 +354,9 @@ Then add these tests at the end of the `describe` block (after the Task 1 tests,
 Run: `cd demo_api_ui && npx vitest run src/__tests__/UseCaseLauncherPage.test.js`
 Expected: the 6 new tests FAIL (no `searchbox` role exists yet — `getByRole('searchbox', ...)` throws). The 18 tests from Task 1 still PASS.
 
-- [ ] **Step 3: Add the `matchesQuery` helper**
+- [ ] **Step 3: Add the `matchesQuery` and `getDisplayItems` helpers**
 
-In `demo_api_ui/src/pages/UseCaseLauncherPage.js`, add this function above the `OWASPBadge` function definition (currently line 207, `function OWASPBadge({ owasp }) {`):
+In `demo_api_ui/src/pages/UseCaseLauncherPage.js`, add these two functions above the `OWASPBadge` function definition (currently line 207, `function OWASPBadge({ owasp }) {`):
 
 ```js
 /**
@@ -371,6 +371,16 @@ function matchesQuery(uc, query) {
     .join(' \n ')
     .toLowerCase();
   return haystack.includes(q);
+}
+
+/**
+ * A track's grid cards, minus any use case exclusively surfaced via the
+ * Progressive Trust Demo strip (UC24 / Act 1 in the 'demo' track).
+ */
+function getDisplayItems(track, items) {
+  return track === 'demo'
+    ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
+    : items;
 }
 
 ```
@@ -424,16 +434,12 @@ with:
   const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
 
   const isSearching = query.trim().length > 0;
-  // Mirrors the demo-track STRIP_IDS exclusion applied at render time, so this
-  // check reflects what actually becomes visible, not just what's in `items`.
+  // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
+  // render time, so this reflects what actually becomes visible, not just
+  // what's in `items`.
   const hasAnyResults =
     happyPath.length > 0 ||
-    grouped.some(({ track, items }) => {
-      const displayItems = track === 'demo'
-        ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
-        : items;
-      return displayItems.length > 0;
-    });
+    grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 ```
 
 Note: `happyPathIds` is computed from `happyPathAll` (pre-search), so dedup between the Happy Path group and track sections is unaffected by the search query — only which of the already-deduped items are *visible* changes.
@@ -465,6 +471,20 @@ Immediately after the closing `</header>` tag and before the Happy Path section 
         <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
       )}
 
+```
+
+Next, replace the pre-existing inline `displayItems` computation inside the `{grouped.map(({ track, items }) => {` block (unmodified since before Task 1 — the three lines right after that opening line and the `if (items.length === 0) return null;` guard):
+
+```jsx
+        const displayItems = track === 'demo'
+          ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
+          : items;
+```
+
+with:
+
+```jsx
+        const displayItems = getDisplayItems(track, items);
 ```
 
 Finally, gate the strip render so it only shows when not searching. Change the `{track === 'demo' && (` line from Task 1 to:
