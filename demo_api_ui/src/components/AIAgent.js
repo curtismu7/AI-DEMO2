@@ -3051,7 +3051,7 @@ export default function BankingAgent({
               "   A token issued for `banking-api.example.com` MUST be rejected by `mcp-server.example.com`.",
               "   The `aud` claim in the MCP token must exactly match the MCP server's registered audience.",
               "",
-              "Open Token Chain ↗ → MCP access token → `aud` claim to see the audience after exchange.",
+              "Open Token Chain 🪟 → MCP access token → `aud` claim to see the audience after exchange.",
             ].join("\n"),
             actionId,
           );
@@ -4052,7 +4052,7 @@ export default function BankingAgent({
               `HITL gate (RFC 8693 §2.1) — Transfers over the threshold require your explicit consent before the agent proceeds. The agent cannot self-approve: enforcement is server-side, before tool execution.`,
               "",
               `RFCs in play — \`RFC 8693\` (token exchange) · \`RFC 6749 §3.3\` (scope) · \`RFC 8707\` (audience binding)`,
-              `Open Token Chain ↗ to inspect the MCP access token's \`act\`, \`aud\`, and \`scope\` claims.`,
+              `Open Token Chain 🪟 to inspect the MCP access token's \`act\`, \`aud\`, and \`scope\` claims.`,
             ].join("\n"),
             actionId,
           );

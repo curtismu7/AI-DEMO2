@@ -21,7 +21,8 @@ Two rules from `§0` that apply to everything you write here:
 
 - **Emoji rule:** the only emojis allowed in skills, commands, code, and UI text
   are `⚠️` `✅` `❌` `🔐` `✕` (close) `✓` (check) `👤` `🔑` (chip challenge
-  markers). Everything else is plain text or CSS/semantic icons.
+  markers) `🪟` (pop out to new window). Everything else is plain text or
+  CSS/semantic icons.
 - **Minimal diff:** name the component, name the element, change only that. No
   "while I'm here" cleanup of adjacent code.
 

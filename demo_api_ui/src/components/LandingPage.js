@@ -264,7 +264,7 @@ export default function LandingPage({ user, hasTopNav }) {
               <h2>Dev Tools Dashboard</h2>
               <p>
                 Live Token Chain, Agent &amp; Token Flow Inspector, and MCP
-                Traffic — all in one draggable, resizable panel. Hit ↗ to pop
+                Traffic — all in one draggable, resizable panel. Hit 🪟 to pop
                 out to a second screen.
               </p>
             </div>
