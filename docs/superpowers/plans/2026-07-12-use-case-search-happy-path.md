@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a search box and a top-of-page "Happy Path" (PERMIT-outcome) grouping to `UseCaseLauncherPage`, per `docs/superpowers/specs/2026-07-12-use-case-search-happy-path-design.md`.
+**Goal:** Add a curated "Demo" script section, a search box, and a top-of-page "Happy Path" (PERMIT-outcome) grouping to `UseCaseLauncherPage`, per `docs/superpowers/specs/2026-07-12-use-case-search-happy-path-design.md` and `docs/superpowers/specs/2026-07-12-use-case-demo-section-design.md`.
 
-**Architecture:** Two sequential changes to one React component (`UseCaseLauncherPage.js`) plus its stylesheet and test file. Task 1 introduces the deduped "Happy Path" grid section. Task 2 layers a client-side search filter on top of Task 1's grouping.
+**Architecture:** Three sequential changes to one React component (`UseCaseLauncherPage.js`) plus its stylesheet and test file. Task 1 introduces the deduped "Happy Path" grid section (**COMPLETE** — commit `9217e0318`, reviewed and approved). Task 2 adds a fixed-order, 12-step "Demo" section above Happy Path, with no dedup against it or any track section. Task 3 layers a client-side search filter on top of both Task 1's and Task 2's sections.
 
 **Tech Stack:** React (function component + hooks), Vitest + `@testing-library/react`, plain CSS (existing `uc-*` BEM-ish class conventions, `var(--color-*)` custom properties).
 
@@ -14,11 +14,13 @@
 - **Emoji allowlist** (CLAUDE.md §0): only `⚠️ ✅ ❌ 🔐 ✕ ✓ 👤 🔑` are permitted in UI text. No emoji is needed by this feature — do not add any.
 - **Worktree required**: all edits happen in `/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/feat+use-case-search-happy-path` on branch `worktree-feat+use-case-search-happy-path`. Stage files explicitly (`git add <path>`), never `git add -A`.
 - **Test runner**: this page's tests run under Vitest, not Jest — use `npx vitest run <path>` from `demo_api_ui/`, not `jest`.
-- **Baseline**: 16/16 tests passing in `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js` before this work; both tasks below must end with that count strictly increasing and 0 failures.
+- **Baseline**: 16/16 tests passing in `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js` before Task 1; 18/18 after Task 1 (current state). Each subsequent task below must end with that count strictly increasing and 0 failures.
 
 ---
 
-## Task 1: Happy Path grouping (dedup PERMIT-outcome cards above track sections)
+## Task 1: Happy Path grouping (dedup PERMIT-outcome cards above track sections) — COMPLETE
+
+**Status: COMPLETE.** Implemented in commit `9217e0318` on this branch; task review (spec compliance + code quality) returned Approved with no Critical/Important findings. The steps below are kept as a historical record — do not re-run them.
 
 **Files:**
 - Modify: `demo_api_ui/src/pages/UseCaseLauncherPage.js`
@@ -215,7 +217,7 @@ EOF
 
 ---
 
-## Task 2: Search box (client-side filter across Happy Path + track sections)
+## Task 2: Demo section (fixed-order, 12-step presenter script, no dedup)
 
 **Files:**
 - Modify: `demo_api_ui/src/pages/UseCaseLauncherPage.js`
@@ -223,8 +225,538 @@ EOF
 - Test: `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js`
 
 **Interfaces:**
-- Consumes: `happyPath`, `happyPathIds`, `grouped`, `demoTrackItemsForStrip` from Task 1 (same variable names, `happyPath`/`grouped` are further filtered in place by this task).
-- Produces: two new pure functions, `matchesQuery(uc, query) => boolean` and `getDisplayItems(track, items) => array` (both module-level, used only within this file — no external export needed), and local state `query`/`setQuery`. No other task depends on these.
+- Consumes: `useCases`, `UseCaseCard`, `handleRun`, `handleRunAttack`, `setExplainUc`, `handleOpen`, `attackStates`, `chipRun`, `flagMap`, `flagsLoading`, `setFlag` — all already defined in this file, unchanged by this task.
+- Produces: module constants `DEMO_USE_CASE_IDS` (ordered array of 12 ids) and `DEMO_LABEL` (string); inside `UseCaseLauncherPage`, a new local variable `demoAll` (array of use-case objects resolved in `DEMO_USE_CASE_IDS` order); a new `UseCaseCard` prop `stepNumber` (optional number, 1-based, renders a step badge when present). Task 3 reads `DEMO_USE_CASE_IDS`, `DEMO_LABEL`, and extends `demoAll` into a filtered `demoVisible`.
+
+**Important — this task's design has NO cross-section dedup** (per `docs/superpowers/specs/2026-07-12-use-case-demo-section-design.md` §3): a use case may render once in Demo, once in Happy Path, and/or once in its track section, simultaneously. This is deliberate, not a bug — Demo is a fixed script that must not be at the mercy of what else happens to qualify for other sections. Three of `DEMO_USE_CASE_IDS`'s ids (`UC1`, `UC2`, `UC11`) already exist in this test file's `MOCK_USE_CASES` fixture and legitimately duplicate once Demo exists — several pre-existing tests query for their title text with a *singular* `getByText`/`getByRole`, which throws once more than one match exists. Step 1 below includes the exact required edits to every affected pre-existing test. Do not "fix" the duplication by adding dedup logic instead — that would contradict the approved design; if a test fails in a way not covered by Step 1's edits, stop and ask rather than inventing dedup.
+
+- [ ] **Step 1: Write the failing/updated tests**
+
+Open `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js`.
+
+**1a. Rename two synthetic fixture ids that accidentally collide with real `DEMO_USE_CASE_IDS` entries.** `UC_INSUFFICIENT_SCOPE` and `UC_WRONG_AUD` use arbitrary test-only ids (`'UC12'`, `'UC13'`) that happen to match real catalog ids Demo references for *different* use cases (token-theft-replay, confused-deputy) — rename them so these attack-sim tests stay isolated from Demo:
+
+```js
+const UC_INSUFFICIENT_SCOPE = {
+  id: 'UC-ATTACK-SCOPE',
+  useCaseId: 'insufficient-scope',
+```
+
+(replacing the existing `id: 'UC12',` line; leave every other field in this object unchanged)
+
+```js
+const UC_WRONG_AUD = {
+  id: 'UC-ATTACK-AUD',
+  useCaseId: 'wrong-aud',
+```
+
+(replacing the existing `id: 'UC13',` line; leave every other field in this object unchanged)
+
+**1b. Update the 9 pre-existing tests that break once `UC1`/`UC2`/`UC11` legitimately render twice** (Demo + their other section). Each edit below is the complete replacement for that `it(...)` block — replace old with new exactly:
+
+Replace:
+```js
+  it('renders an enabled Run button for chip-type UC', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    const buttons = screen.getAllByRole('button', { name: /run/i });
+    const chipBtn = buttons.find((b) => !b.disabled && !b.title?.includes('A6'));
+    expect(chipBtn).toBeDefined();
+    expect(chipBtn.disabled).toBe(false);
+  });
+```
+with:
+```js
+  it('renders an enabled Run button for chip-type UC', async () => {
+    renderPage();
+    // UC1 now renders in both the Demo section and Happy Path (no cross-section
+    // dedup) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    const buttons = screen.getAllByRole('button', { name: /run/i });
+    const chipBtn = buttons.find((b) => !b.disabled && !b.title?.includes('A6'));
+    expect(chipBtn).toBeDefined();
+    expect(chipBtn.disabled).toBe(false);
+  });
+```
+
+Replace:
+```js
+  it('renders a disabled Run button for attack-type UC', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Bad client to agent gateway')).toBeInTheDocument());
+    const disabledBtn = screen.getByRole('button', { name: /run.*A6/i });
+    expect(disabledBtn.disabled).toBe(true);
+  });
+```
+with:
+```js
+  it('renders a disabled Run button for attack-type UC', async () => {
+    renderPage();
+    // UC11 now renders in both the Demo section and the Attacks track (no
+    // cross-section dedup) — scope the button query to the Attacks section.
+    await waitFor(() => expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0));
+    const attacksHeading = screen.getByRole('heading', { level: 2, name: /Attacks — malicious/i });
+    const attacksSection = attacksHeading.closest('section');
+    const disabledBtn = within(attacksSection).getByRole('button', { name: /run.*A6/i });
+    expect(disabledBtn.disabled).toBe(true);
+  });
+```
+
+Within `it('clicking Run on a chip UC POSTs the use case and navigates to /dashboard with state', ...)`, replace only its opening two lines:
+```js
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    const buttons = screen.getAllByRole('button', { name: /^run$/i });
+    fireEvent.click(buttons[0]);
+```
+with:
+```js
+    renderPage();
+    // UC1 now renders in both the Demo section and Happy Path (no cross-section
+    // dedup) — assert presence, not a single occurrence. buttons[0] still
+    // resolves to a UC1 card either way, since both copies share the same
+    // onRun handler and produce the identical POST call below.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    const buttons = screen.getAllByRole('button', { name: /^run$/i });
+    fireEvent.click(buttons[0]);
+```
+(the rest of that test — the `apiClient.post`/`mockNavigate` assertions — stays unchanged; both UC1 copies wire to the identical handler)
+
+Replace:
+```js
+  it('non-runnable attack UC keeps disabled coming-in-A6.2 button', async () => {
+    // UC11 has sim: 'expired-token' which is NOT in RUNNABLE_SIMS
+    apiClient.get.mockResolvedValue({
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2]] },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Bad client to agent gateway')).toBeInTheDocument());
+    const btn = screen.getByRole('button', { name: /A6/i });
+    expect(btn.disabled).toBe(true);
+  });
+```
+with:
+```js
+  it('non-runnable attack UC keeps disabled coming-in-A6.2 button', async () => {
+    // UC11 has sim: 'expired-token' which is NOT in RUNNABLE_SIMS. UC11 is also
+    // a Demo-script id, so with useCases: [MOCK_USE_CASES[2]] alone its card
+    // renders twice on the page (Attacks section + Demo section, no dedup) —
+    // scope the button query to the Attacks section.
+    apiClient.get.mockResolvedValue({
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2]] },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0));
+    const attacksHeading = screen.getByRole('heading', { level: 2, name: /Attacks — malicious/i });
+    const attacksSection = attacksHeading.closest('section');
+    const btn = within(attacksSection).getByRole('button', { name: /A6/i });
+    expect(btn.disabled).toBe(true);
+  });
+```
+
+Replace:
+```js
+  it('shows gate notice and disabled Run for flag-gated UC when flag is OFF', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('A2A delegation')).toBeInTheDocument());
+    expect(screen.getAllByText(/ff_a2a_delegation/).length).toBeGreaterThan(0);
+    const buttons = screen.getAllByRole('button', { name: /^run$/i });
+    const disabledRunBtns = buttons.filter((b) => b.disabled && !b.title?.includes('A6'));
+    expect(disabledRunBtns.length).toBeGreaterThan(0);
+  });
+```
+with:
+```js
+  it('shows gate notice and disabled Run for flag-gated UC when flag is OFF', async () => {
+    renderPage();
+    // UC2 now renders in both the Demo section and Foundations (no cross-section
+    // dedup) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/ff_a2a_delegation/).length).toBeGreaterThan(0);
+    const buttons = screen.getAllByRole('button', { name: /^run$/i });
+    const disabledRunBtns = buttons.filter((b) => b.disabled && !b.title?.includes('A6'));
+    expect(disabledRunBtns.length).toBeGreaterThan(0);
+  });
+```
+
+Replace:
+```js
+  it('non-flag UC still has enabled Run button', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+    const enabledRuns = allBtns.filter((b) => !b.disabled);
+    expect(enabledRuns.length).toBeGreaterThan(0);
+  });
+```
+with:
+```js
+  it('non-flag UC still has enabled Run button', async () => {
+    renderPage();
+    // UC1 now renders in both the Demo section and Happy Path (no cross-section
+    // dedup) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+    const enabledRuns = allBtns.filter((b) => !b.disabled);
+    expect(enabledRuns.length).toBeGreaterThan(0);
+  });
+```
+
+Replace:
+```js
+  it('clicking the toggle PATCHes the flag and enables Run', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('A2A delegation')).toBeInTheDocument());
+    const toggle = screen.getByRole('switch', { name: /Enable ff_a2a_delegation/i });
+    fireEvent.click(toggle);
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      '/api/admin/feature-flags',
+      { updates: { ff_a2a_delegation: true } }
+    );
+    await waitFor(() => {
+      const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+      const runForUC2 = allBtns.find((b) => !b.disabled && !b.title?.includes('A6'));
+      expect(runForUC2).toBeDefined();
+    });
+  });
+```
+with:
+```js
+  it('clicking the toggle PATCHes the flag and enables Run', async () => {
+    renderPage();
+    // UC2 now renders in both the Demo section and Foundations (no cross-section
+    // dedup), so two identical flag toggles exist — clicking either produces
+    // the same PATCH, since flag state is global, not per-card. Click the first.
+    await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
+    const toggles = screen.getAllByRole('switch', { name: /Enable ff_a2a_delegation/i });
+    fireEvent.click(toggles[0]);
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      '/api/admin/feature-flags',
+      { updates: { ff_a2a_delegation: true } }
+    );
+    await waitFor(() => {
+      const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+      const runForUC2 = allBtns.find((b) => !b.disabled && !b.title?.includes('A6'));
+      expect(runForUC2).toBeDefined();
+    });
+  });
+```
+
+Replace:
+```js
+  it('flag-gated Run is disabled while flags are loading', async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('feature-flags')) {
+        return new Promise(() => {}); // never resolves = loading
+      }
+      return Promise.resolve({ data: { vertical: 'banking', useCases: MOCK_USE_CASES } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('A2A delegation')).toBeInTheDocument());
+    const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+    const disabledFlagBtns = allBtns.filter((b) => b.disabled && !b.title?.includes('A6'));
+    expect(disabledFlagBtns.length).toBeGreaterThan(0);
+  });
+```
+with:
+```js
+  it('flag-gated Run is disabled while flags are loading', async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('feature-flags')) {
+        return new Promise(() => {}); // never resolves = loading
+      }
+      return Promise.resolve({ data: { vertical: 'banking', useCases: MOCK_USE_CASES } });
+    });
+    renderPage();
+    // UC2 now renders in both the Demo section and Foundations (no cross-section
+    // dedup) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
+    const allBtns = screen.getAllByRole('button', { name: /^run$/i });
+    const disabledFlagBtns = allBtns.filter((b) => b.disabled && !b.title?.includes('A6'));
+    expect(disabledFlagBtns.length).toBeGreaterThan(0);
+  });
+```
+
+Replace (Task 1's own test — Demo now renders first, above Happy Path, changing this test's ordering and occurrence-count assumptions):
+```js
+  it('renders a Happy Path section above track sections containing only PERMIT-outcome use cases, deduped from their track', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Happy Paths — successful outcomes/i)).toBeInTheDocument());
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
+    const foundationsIdx = headings.findIndex((h) => /^Foundations/i.test(h));
+    expect(happyPathIdx).toBe(0);
+    expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
+
+    // UC1 (expectedOutcome: 'PERMIT') appears exactly once on the page.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(1);
+
+    // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
+    // so it stays in its original Foundations section, not Happy Path.
+    const foundationsHeading = screen.getByRole('heading', { level: 2, name: /^Foundations/i });
+    const foundationsSection = foundationsHeading.closest('section');
+    expect(within(foundationsSection).getByText('A2A delegation')).toBeInTheDocument();
+  });
+```
+with:
+```js
+  it('renders a Happy Path section above track sections containing only PERMIT-outcome use cases, deduped from their track', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Happy Paths — successful outcomes/i)).toBeInTheDocument());
+
+    // The Demo section (Task 2) now renders first, above Happy Path — check
+    // relative order rather than assuming Happy Path is the first heading.
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const demoIdx = headings.findIndex((h) => /Demo — a scripted walkthrough/i.test(h));
+    const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
+    const foundationsIdx = headings.findIndex((h) => /^Foundations/i.test(h));
+    expect(demoIdx).toBe(0);
+    expect(happyPathIdx).toBeGreaterThan(demoIdx);
+    expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
+
+    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 — it renders
+    // once in Demo and once in Happy Path (no cross-section dedup between the
+    // two), and is still excluded from Foundations (dedup is only between
+    // Happy Path and track sections, unaffected by Demo membership).
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+
+    // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
+    // so it stays in its original Foundations section, not Happy Path.
+    const foundationsHeading = screen.getByRole('heading', { level: 2, name: /^Foundations/i });
+    const foundationsSection = foundationsHeading.closest('section');
+    expect(within(foundationsSection).getByText('A2A delegation')).toBeInTheDocument();
+  });
+```
+
+**1c. Add the new Demo-specific tests.** Add these at the end of the `describe` block, after the "Happy Path grouping" tests and before the block's closing `});`:
+
+```js
+  // ── Demo section ─────────────────────────────────────────────────────────
+  it('renders a Demo section first, above Happy Path, with cards in script order regardless of input order', async () => {
+    // Deliberately out of DEMO_USE_CASE_IDS order (UC11 first) to prove the
+    // section renders by script order, not by input array order.
+    apiClient.get.mockResolvedValue({
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2], MOCK_USE_CASES[0], MOCK_USE_CASES[1]] },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const demoIdx = headings.findIndex((h) => /Demo — a scripted walkthrough/i.test(h));
+    const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
+    expect(demoIdx).toBe(0);
+    expect(happyPathIdx).toBeGreaterThan(demoIdx);
+
+    const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
+    const demoCardIds = within(demoSection).getAllByText(/^UC(1|2|11)$/).map((el) => el.textContent);
+    expect(demoCardIds).toEqual(['UC1', 'UC2', 'UC11']);
+  });
+
+  it('shows the correct 1-based script step number on each Demo card', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+    const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
+    // UC1, UC2, UC11 are DEMO_USE_CASE_IDS[0], [1], [9] → Step 1, Step 2, Step 10.
+    expect(within(demoSection).getByText('Step 1')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 10')).toBeInTheDocument();
+  });
+
+  it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+    // UC1 qualifies for both Demo (script step 1) and Happy Path (PERMIT) — no
+    // cross-section dedup, so it renders twice total.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+  });
+
+  it('a flag-gated Demo step shows the gate UI', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+    const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
+    // UC2 (Step 2) is maturity 'flag:ff_a2a_delegation'.
+    expect(within(demoSection).getByText(/ff_a2a_delegation/)).toBeInTheDocument();
+  });
+
+  it('does not render a Demo section when none of its script ids are present', async () => {
+    apiClient.get.mockResolvedValue({ data: { vertical: 'banking', useCases: [UC_LINK] } });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('RAG code search')).toBeInTheDocument());
+    expect(screen.queryByText(/Demo — a scripted walkthrough/i)).not.toBeInTheDocument();
+  });
+```
+
+- [ ] **Step 2: Run tests to verify the expected failures**
+
+Run: `cd demo_api_ui && npx vitest run src/__tests__/UseCaseLauncherPage.test.js`
+Expected: the 5 new Demo tests FAIL (no "Demo — a scripted walkthrough" heading exists yet). The 9 edited pre-existing tests FAIL too (e.g. `getAllByText(...).toHaveLength(2)` currently sees only 1 occurrence — Demo doesn't exist yet). Every other test still PASSes.
+
+- [ ] **Step 3: Add `DEMO_USE_CASE_IDS` and `DEMO_LABEL` constants**
+
+In `demo_api_ui/src/pages/UseCaseLauncherPage.js`, add immediately after the `HAPPY_PATH_LABEL` line (`const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';`):
+
+```js
+const DEMO_LABEL = 'Demo — a scripted walkthrough';
+```
+
+Add immediately after the `PROGRESSIVE_TRUST_STRIP_IDS` line (`const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24']);`):
+
+```js
+
+/**
+ * Fixed presenter script for the Demo section, in display order. No dedup
+ * against Happy Path or track sections — see design spec §3: a use case may
+ * legitimately render once here and again in another section.
+ */
+const DEMO_USE_CASE_IDS = ['UC1', 'UC2', 'UC2.5', 'UC8', 'UC7', 'UC6', 'UC10', 'UC5', 'UC13', 'UC11', 'UC12', 'UC20'];
+```
+
+- [ ] **Step 4: Add the `stepNumber` prop to `UseCaseCard`**
+
+Change the `UseCaseCard` function signature from:
+
+```js
+function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+```
+
+to:
+
+```js
+function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+```
+
+Then, inside its returned JSX, change the card header block from:
+
+```jsx
+      <div className="uc-card__header">
+        <span className="uc-card__id">{uc.id}</span>
+        <h3 className="uc-card__title">{uc.title}</h3>
+        {uc.advanced && <span className="uc-card__advanced-label">Advanced</span>}
+        <OWASPBadge owasp={uc.owasp} />
+      </div>
+```
+
+to:
+
+```jsx
+      <div className="uc-card__header">
+        <span className="uc-card__id">{uc.id}</span>
+        {stepNumber != null && <span className="uc-card__step">Step {stepNumber}</span>}
+        <h3 className="uc-card__title">{uc.title}</h3>
+        {uc.advanced && <span className="uc-card__advanced-label">Advanced</span>}
+        <OWASPBadge owasp={uc.owasp} />
+      </div>
+```
+
+- [ ] **Step 5: Compute `demoAll` and render the Demo section**
+
+In `UseCaseLauncherPage()`, add immediately after the `demoTrackItemsForStrip` line (`const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');`):
+
+```js
+
+  // Demo: fixed-order presenter script (12 ids). No dedup against Happy Path
+  // or track sections — see design spec §3.
+  const demoAll = DEMO_USE_CASE_IDS
+    .map((id) => useCases.find((uc) => uc.id === id))
+    .filter(Boolean);
+```
+
+Then, in the JSX, insert a new section immediately after the `</header>` closing tag and immediately before the existing `{happyPath.length > 0 && (` block (Demo renders first, above Happy Path):
+
+```jsx
+      {demoAll.length > 0 && (
+        <section className="uc-track uc-track--demo-script">
+          <h2 className="uc-track__heading">{DEMO_LABEL}</h2>
+          <div className="uc-track__grid">
+            {demoAll.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                stepNumber={DEMO_USE_CASE_IDS.indexOf(uc.id) + 1}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+```
+
+- [ ] **Step 6: Add CSS for the step badge and Demo heading accent**
+
+In `demo_api_ui/src/pages/UseCaseLauncherPage.css`, immediately after the `.uc-track--happy-path .uc-track__heading { ... }` rule, add:
+
+```css
+
+.uc-track--demo-script .uc-track__heading {
+  border-bottom-color: var(--color-accent, #2563eb);
+}
+```
+
+Immediately after the `.uc-card__id { ... }` rule, add:
+
+```css
+
+.uc-card__step {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-accent, #2563eb);
+  border: 1px solid var(--color-accent, #2563eb);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+```
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+Run: `cd demo_api_ui && npx vitest run src/__tests__/UseCaseLauncherPage.test.js`
+Expected: PASS — every test in the file passes, 0 failures. Count them in the output and report the exact total in your report file.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add demo_api_ui/src/pages/UseCaseLauncherPage.js demo_api_ui/src/pages/UseCaseLauncherPage.css demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js
+git commit -m "$(cat <<'EOF'
+feat(use-cases): add curated Demo script section to launcher
+
+Adds a fixed 12-step presenter script (Demo), rendered above Happy
+Path, independent of Happy Path's PERMIT membership and of the
+pre-existing Progressive Trust Demo track/strip. No dedup: a use case
+may render in Demo and also in Happy Path and/or its track section.
+Updates pre-existing tests whose fixtures (UC1/UC2/UC11) now
+legitimately duplicate across sections; renames two unrelated
+synthetic test ids (UC12/UC13) that accidentally collided with real
+Demo-referenced catalog ids.
+EOF
+)"
+```
+
+---
+
+## Task 3: Search box (client-side filter across Demo + Happy Path + track sections)
+
+**Files:**
+- Modify: `demo_api_ui/src/pages/UseCaseLauncherPage.js`
+- Modify: `demo_api_ui/src/pages/UseCaseLauncherPage.css`
+- Test: `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js`
+
+**Interfaces:**
+- Consumes: `happyPath`, `happyPathIds`, `grouped`, `demoTrackItemsForStrip`, `demoAll`, `DEMO_USE_CASE_IDS`, `DEMO_LABEL` from Tasks 1–2 (same variable/constant names; `happyPath`/`grouped`/`demoAll` are further filtered in place by this task).
+- Produces: two new pure functions, `matchesQuery(uc, query) => boolean` and `getDisplayItems(track, items) => array` (both module-level, used only within this file — no external export needed), a new local variable `demoVisible` (Demo's members after search filtering, same order as `demoAll`), and local state `query`/`setQuery`. No other task depends on these.
+
+**Important:** every one of this task's own planned search tests (Step 1 below) uses fixtures that overlap with `DEMO_USE_CASE_IDS` (the same `MOCK_USE_CASES` collision Task 2 handled) — the test code below already accounts for this; do not write a naive singular-`getByText` version and then debug it, the fix is already baked into the test bodies given here.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -232,6 +764,7 @@ In `demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js`, add a new mock objec
 
 ```js
 // Demo-track mock for search + Progressive Trust Demo strip interaction tests.
+// id 'UC24' is not a DEMO_USE_CASE_IDS member, so it never duplicates into Demo.
 const UC_DEMO_ACT1 = {
   id: 'UC24',
   useCaseId: 'progressive-trust-public-access',
@@ -250,19 +783,24 @@ const UC_DEMO_ACT1 = {
 };
 ```
 
-Then add these tests at the end of the `describe` block (after the Task 1 tests, before the block's closing `});`):
+Then add these tests at the end of the `describe` block (after the Task 2 "Demo section" tests, before the block's closing `});`):
 
 ```js
   // ── Search ───────────────────────────────────────────────────────────────
-  it('search filters cards across Happy Path and track sections by title', async () => {
+  it('search filters cards across Demo, Happy Path, and track sections by title', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
-    expect(screen.getByText('Bad client to agent gateway')).toBeInTheDocument();
+    // UC1 and UC11 are both DEMO_USE_CASE_IDS members, so with the default
+    // MOCK_USE_CASES fixture each renders twice pre-search (Demo + its other
+    // section) — assert presence, not a single occurrence.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0);
 
     const search = screen.getByRole('searchbox', { name: /search use cases/i });
     fireEvent.change(search, { target: { value: 'delegated access' } });
 
-    expect(screen.getByText('Delegated access with proof')).toBeInTheDocument();
+    // Only UC1 matches — it still renders twice (Demo + Happy Path, no dedup
+    // between those two), but UC11 and UC2 are fully filtered out everywhere.
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
     expect(screen.queryByText('Bad client to agent gateway')).not.toBeInTheDocument();
     expect(screen.queryByText('A2A delegation')).not.toBeInTheDocument();
     // Attacks section had its only match filtered out — its heading disappears too.
@@ -271,12 +809,13 @@ Then add these tests at the end of the `describe` block (after the Task 1 tests,
 
   it('search matches by useCaseId substring', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
 
     const search = screen.getByRole('searchbox', { name: /search use cases/i });
     fireEvent.change(search, { target: { value: 'a2a-delegation' } });
 
-    expect(screen.getByText('A2A delegation')).toBeInTheDocument();
+    // UC2 matches by useCaseId and still renders twice (Demo + Foundations).
+    expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0);
     expect(screen.queryByText('Delegated access with proof')).not.toBeInTheDocument();
   });
 
@@ -285,38 +824,56 @@ Then add these tests at the end of the `describe` block (after the Task 1 tests,
       data: { vertical: 'banking', useCases: [MOCK_USE_CASES[0], UC_INSUFFICIENT_SCOPE] },
     });
     renderPage();
-    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    // UC_INSUFFICIENT_SCOPE's id was renamed off any DEMO_USE_CASE_IDS entry in
+    // Task 2, so only UC1 (a Demo id) duplicates here.
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
 
     const search = screen.getByRole('searchbox', { name: /search use cases/i });
     fireEvent.change(search, { target: { value: 'show my balance' } });
 
-    expect(screen.getByText('Delegated access with proof')).toBeInTheDocument();
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
     expect(screen.queryByText('Insufficient scope attack')).not.toBeInTheDocument();
   });
 
   it('clearing the search box restores the full view', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
 
     const search = screen.getByRole('searchbox', { name: /search use cases/i });
     fireEvent.change(search, { target: { value: 'a2a-delegation' } });
     expect(screen.queryByText('Bad client to agent gateway')).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: '' } });
-    expect(screen.getByText('Delegated access with proof')).toBeInTheDocument();
-    expect(screen.getByText('Bad client to agent gateway')).toBeInTheDocument();
+    expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0);
   });
 
   it('shows an empty-state message when the search matches nothing', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
 
     const search = screen.getByRole('searchbox', { name: /search use cases/i });
     fireEvent.change(search, { target: { value: 'zzz-no-such-use-case' } });
 
     expect(screen.getByText('No use cases match "zzz-no-such-use-case".')).toBeInTheDocument();
+    expect(screen.queryByText(/Demo — a scripted walkthrough/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Happy Paths — successful outcomes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Foundations/i)).not.toBeInTheDocument();
+  });
+
+  it('search filters the Demo section independently, preserving script order', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
+
+    const search = screen.getByRole('searchbox', { name: /search use cases/i });
+    fireEvent.change(search, { target: { value: 'a2a-delegation' } });
+
+    // Only UC2 (useCaseId 'a2a-delegation') matches — Demo narrows to just its
+    // Step 2 card; UC1's Step 1 and UC11's Step 10 cards disappear from Demo.
+    const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
+    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 1')).not.toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 10')).not.toBeInTheDocument();
   });
 
   it('hides the Progressive Trust Demo strip while searching, restores it when cleared', async () => {
@@ -352,7 +909,7 @@ Then add these tests at the end of the `describe` block (after the Task 1 tests,
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd demo_api_ui && npx vitest run src/__tests__/UseCaseLauncherPage.test.js`
-Expected: the 6 new tests FAIL (no `searchbox` role exists yet — `getByRole('searchbox', ...)` throws). The 18 tests from Task 1 still PASS.
+Expected: the 7 new tests FAIL (no `searchbox` role exists yet — `getByRole('searchbox', ...)` throws). The 23 tests from Tasks 1–2 still PASS.
 
 - [ ] **Step 3: Add the `matchesQuery` and `getDisplayItems` helpers**
 
@@ -385,15 +942,15 @@ function getDisplayItems(track, items) {
 
 ```
 
-- [ ] **Step 4: Add `query` state and filter `happyPath`/`grouped`**
+- [ ] **Step 4: Add `query` state; filter `happyPath`/`grouped`/`demoAll`; compute `demoVisible` and extend `hasAnyResults`**
 
-In `UseCaseLauncherPage()`, add the state declaration alongside the other `useState` calls (after the `chipRun` declaration, currently line 669):
+In `UseCaseLauncherPage()`, add the state declaration alongside the other `useState` calls (after the `chipRun` declaration):
 
 ```js
   const [query, setQuery] = useState('');
 ```
 
-Then replace the Task-1 block that computed `happyPath` and `grouped` (exact text, comments included, as Task 1 Step 4 wrote it):
+Then replace the Task-1+2 block that computed `happyPath`, `grouped`, `demoTrackItemsForStrip`, and `demoAll` (exact text, comments included, as Tasks 1 and 2 wrote it):
 
 ```js
   const happyPath = useCases.filter(
@@ -413,6 +970,12 @@ Then replace the Task-1 block that computed `happyPath` and `grouped` (exact tex
   // track (Acts 2-5 reference UC1/UC7/UC8/UC22/UC6) — it must stay unaffected
   // by the Happy Path dedup above.
   const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
+
+  // Demo: fixed-order presenter script (12 ids). No dedup against Happy Path
+  // or track sections — see design spec §3.
+  const demoAll = DEMO_USE_CASE_IDS
+    .map((id) => useCases.find((uc) => uc.id === id))
+    .filter(Boolean);
 ```
 
 with:
@@ -433,18 +996,24 @@ with:
 
   const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
 
+  const demoAll = DEMO_USE_CASE_IDS
+    .map((id) => useCases.find((uc) => uc.id === id))
+    .filter(Boolean);
+  const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
+
   const isSearching = query.trim().length > 0;
   // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
   // render time, so this reflects what actually becomes visible, not just
   // what's in `items`.
   const hasAnyResults =
+    demoVisible.length > 0 ||
     happyPath.length > 0 ||
     grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 ```
 
-Note: `happyPathIds` is computed from `happyPathAll` (pre-search), so dedup between the Happy Path group and track sections is unaffected by the search query — only which of the already-deduped items are *visible* changes.
+Note: `happyPathIds` is computed from `happyPathAll` (pre-search), so dedup between the Happy Path group and track sections is unaffected by the search query — only which of the already-deduped items are *visible* changes. `demoAll` stays the full unfiltered script list (its order/membership never changes); `demoVisible` is the only thing search affects.
 
-- [ ] **Step 5: Add the search input and empty-state message to the JSX**
+- [ ] **Step 5: Add the search input and empty-state message; filter the Demo section; fix track-section display and strip visibility**
 
 In the `<header className="uc-launcher__header">` block, immediately after the closing `</p>` of `uc-launcher__subtitle` (currently right before `<div className="uc-launcher__vertical-picker" ...>`), add:
 
@@ -464,13 +1033,37 @@ In the `<header className="uc-launcher__header">` block, immediately after the c
         </div>
 ```
 
-Immediately after the closing `</header>` tag and before the Happy Path section block added in Task 1, add:
+Immediately after the closing `</header>` tag and before the Demo section block added in Task 2, add:
 
 ```jsx
       {!hasAnyResults && (
         <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
       )}
 
+```
+
+Next, in the Demo section block added in Task 2, replace its guard and its `.map` call:
+
+```jsx
+      {demoAll.length > 0 && (
+```
+
+with:
+
+```jsx
+      {demoVisible.length > 0 && (
+```
+
+and:
+
+```jsx
+            {demoAll.map((uc) => (
+```
+
+with:
+
+```jsx
+            {demoVisible.map((uc) => (
 ```
 
 Next, replace the pre-existing inline `displayItems` computation inside the `{grouped.map(({ track, items }) => {` block (unmodified since before Task 1 — the three lines right after that opening line and the `if (items.length === 0) return null;` guard):
@@ -539,7 +1132,7 @@ In `demo_api_ui/src/pages/UseCaseLauncherPage.css`, after the `.uc-launcher__ver
 - [ ] **Step 7: Run tests to verify they pass**
 
 Run: `cd demo_api_ui && npx vitest run src/__tests__/UseCaseLauncherPage.test.js`
-Expected: PASS — all 18 tests from Task 1 plus the 6 new tests (24 total), 0 failures.
+Expected: PASS — all 23 tests from Tasks 1–2 plus the 7 new tests (30 total), 0 failures.
 
 - [ ] **Step 8: Run the full UI suite to check for unrelated regressions**
 
@@ -551,13 +1144,13 @@ Expected: same pass/fail counts as the pre-work baseline for every file other th
 ```bash
 git add demo_api_ui/src/pages/UseCaseLauncherPage.js demo_api_ui/src/pages/UseCaseLauncherPage.css demo_api_ui/src/__tests__/UseCaseLauncherPage.test.js
 git commit -m "$(cat <<'EOF'
-feat(use-cases): add search box to launcher, filter across sections
+feat(use-cases): add search box to launcher, filter across all sections
 
-Filters Happy Path and track-section cards by id/useCaseId/title/
-buyerStory/whatToSay/trigger text. Groups stay intact while searching;
-a section with zero matches disappears. Progressive Trust Demo strip
-hides while searching (fixed presenter script, not a filterable card)
-and reappears when the search box is cleared.
+Filters Demo, Happy Path, and track-section cards by id/useCaseId/
+title/buyerStory/whatToSay/trigger text. Groups stay intact while
+searching; a section with zero matches disappears. Progressive Trust
+Demo strip hides while searching (fixed presenter script, not a
+filterable card) and reappears when the search box is cleared.
 EOF
 )"
 ```
