@@ -6,6 +6,7 @@ const request = require('supertest');
 const express = require('express');
 
 const healthRoutes = require('../routes/health');
+const configStore = require('../services/configStore');
 
 function buildApp() {
   const app = express();
@@ -135,5 +136,42 @@ describe('GET /api/health/tracing/traces/:id', () => {
     const res = await request(buildApp()).get('/api/health/tracing/traces/aa58608e90e7be4872a3ae9085509cce');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('trace_not_found');
+  });
+});
+
+describe('jaegerUiUrl derivation on /status', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    axios.get.mockResolvedValue({ status: 200, data: { data: [] } });
+    // Base URL comes from configStore.getEffective('public_app_url'), which
+    // resolves .env (PUBLIC_APP_URL) first, then LMDB. Default: nothing set.
+    jest.spyOn(configStore, 'getEffective').mockReturnValue('');
+  });
+  afterEach(() => {
+    configStore.getEffective.mockRestore();
+    delete process.env.JAEGER_UI_URL;
+  });
+
+  test('explicit JAEGER_UI_URL wins and trailing slash is stripped', async () => {
+    process.env.JAEGER_UI_URL = 'https://explicit.example/jaeger/';
+    configStore.getEffective.mockReturnValue('https://ignored.example');
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('https://explicit.example/jaeger');
+  });
+
+  test('derives from public_app_url (env or LMDB, via configStore) when JAEGER_UI_URL is unset', async () => {
+    delete process.env.JAEGER_UI_URL;
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'public_app_url' ? 'https://ai-demo.ping-devops.com' : '');
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('https://ai-demo.ping-devops.com/jaeger');
+    expect(configStore.getEffective).toHaveBeenCalledWith('public_app_url');
+  });
+
+  test('falls back to localhost when neither JAEGER_UI_URL nor public_app_url is set', async () => {
+    delete process.env.JAEGER_UI_URL;
+    configStore.getEffective.mockReturnValue('');
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('http://localhost:16686');
   });
 });
