@@ -70,6 +70,17 @@
   border-color: var(--vfp-accent-lt);
 }
 
+.vfp-card--flow {
+  background: var(--vfp-accent-bg);
+  border-color: var(--vfp-accent-lt);
+  border-left: 3px solid var(--vfp-accent);
+}
+
+.vfp-card--chain {
+  background: #f9fafb;
+  border-left: 3px solid #9ca3af;
+}
+
 .vfp-card-title {
   font-size: 15px;
   font-weight: 700;
@@ -158,6 +169,113 @@
   font-size: 13px;
   color: #4b5563;
   line-height: 1.6;
+}
+
+.vfp-flow-text {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0 0 14px 0;
+}
+
+.vfp-flow-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.vfp-flow-detail {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.vfp-flow-detail:first-child {
+  border-top: none;
+}
+
+.vfp-flow-detail dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vfp-accent-dd);
+}
+
+.vfp-flow-detail dd {
+  font-size: 13px;
+  color: #1f2937;
+  margin: 0;
+}
+
+.vfp-flow-detail code {
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  background: var(--vfp-accent-code);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.vfp-chain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+
+.vfp-chain-event {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.vfp-chain-step {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vfp-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vfp-chain-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vfp-chain-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.vfp-chain-text {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.vfp-chain-aud {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace;
+  background: #f3f4f6;
+  padding: 6px 8px;
+  border-radius: 3px;
+  word-break: break-all;
+}
+
+.vfp-chain-aud code {
+  background: none;
+  padding: 0;
+  font-size: 12px;
 }
 
 .vfp-actions {

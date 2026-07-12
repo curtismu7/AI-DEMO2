@@ -2684,7 +2684,17 @@ export default function BankingAgent({
           toast.dismiss(toastId);
           setLoading(false);
           toolProgressIdRef.current = null;
-          navigate(featureRoute, { state: { featurePayload } });
+          navigate(featureRoute, {
+            state: {
+              featurePayload,
+              chipContext: {
+                actionId,
+                featureTool,
+                verticalName: themeManifest?.identity?.displayName || 'Demo',
+                tokenEvents: featureResp?.tokenEvents || [],
+              },
+            },
+          });
           return;
         }
         case "transactions":
