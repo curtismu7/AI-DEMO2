@@ -1120,6 +1120,16 @@ class ConfigStore {
       pingone_membership_agent_client_secret: ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
       pingone_payroll_agent_client_id:        ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID'],
       pingone_payroll_agent_client_secret:    ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
+      // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
+      // specialist, not one shared across all of them; see a2aSpecialists.js).
+      a2a_intermediate_audience_investment:   ['A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
+      a2a_intermediate_audience_records:      ['A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
+      a2a_intermediate_audience_purchase:     ['A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
+      a2a_intermediate_audience_membership:   ['A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
+      a2a_intermediate_audience_payroll:      ['A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
+      a2a_intermediate_audience_tax:          ['A2A_INTERMEDIATE_AUDIENCE_TAX'],
+      a2a_intermediate_audience_finaid:       ['A2A_INTERMEDIATE_AUDIENCE_FINAID'],
+      a2a_intermediate_audience_supplier:     ['A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
       pingone_resource_a2a_intermediate_uri:  ['PINGONE_RESOURCE_A2A_INTERMEDIATE_URI', 'A2A_INTERMEDIATE_AUDIENCE'],
       a2a_intermediate_audience:              ['A2A_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_A2A_INTERMEDIATE_URI'],
       a2a_intermediate_scope:                 ['A2A_INTERMEDIATE_SCOPE'],
