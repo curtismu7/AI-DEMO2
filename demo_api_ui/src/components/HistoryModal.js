@@ -265,7 +265,7 @@ export default function HistoryModal({ history, onClear }) {
           onClick={popOut}
           title="Pop out to new window"
           style={{ background: 'none', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: '0.68rem', color: '#374151', padding: '2px 6px' }}
-        >↗ Pop out</button>
+        >🪟 Pop out</button>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={onClear}

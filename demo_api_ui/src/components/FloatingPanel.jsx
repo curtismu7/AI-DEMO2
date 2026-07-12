@@ -192,7 +192,7 @@ export default function FloatingPanel({
         {/* Placeholder in original window */}
         <div className={`fp-placeholder ${className}`}>
           <div className="fp-placeholder-inner">
-            <span>↗ {title}</span>
+            <span>🪟 {title}</span>
             <button className="fp-btn fp-btn-popin" onClick={handlePopOut} title="Bring back">⤶</button>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function FloatingPanel({
           <button className="fp-btn" onClick={() => setIsCollapsed((c) => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
             {isCollapsed ? '▼' : '▲'}
           </button>
-          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window">↗</button>
+          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window">🪟</button>
           {onClose && (
             <button type="button" className="fp-btn" onClick={onClose} title="Close">✕</button>
           )}
