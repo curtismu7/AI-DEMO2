@@ -148,22 +148,22 @@
         "additionalProperties": false
       }
     },
-    "call_pingone_operation": {
+    "call_pingone_tool": {
       "source": "olb",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "operationId": {
+          "name": {
             "type": "string",
-            "description": "OAS operationId (e.g. listUsers, createUser, listApplications, getEnvironment)"
+            "description": "Hosted MCP tool name (see list_pingone_tools)"
           },
-          "parameters": {
+          "arguments": {
             "type": "object",
-            "description": "Operation parameters as key-value pairs"
+            "description": "Tool arguments as key-value pairs"
           }
         },
         "required": [
-          "operationId"
+          "name"
         ],
         "additionalProperties": false
       }
@@ -589,20 +589,6 @@
         "required": [
           "amount"
         ],
-        "additionalProperties": false
-      }
-    },
-    "discover_oas_operations": {
-      "source": "olb",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "filter": {
-            "type": "string",
-            "description": "Optional: filter by tag (e.g. \"Users\") or path fragment (e.g. \"applications\")"
-          }
-        },
-        "required": [],
         "additionalProperties": false
       }
     },
@@ -1113,6 +1099,20 @@
       "inputSchema": {
         "type": "object",
         "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_pingone_tools": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "description": "Optional: filter by tool name or description fragment (e.g. \"user\")"
+          }
+        },
         "required": [],
         "additionalProperties": false
       }
