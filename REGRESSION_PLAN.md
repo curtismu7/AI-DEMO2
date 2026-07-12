@@ -85,7 +85,9 @@ Reverse-chronological, newest first.
 
 **Files changed:** `demo_api_ui/src/components/TokenChainDisplay.js` (+`.css`),
 `ComplianceModalContent.js` + `ComplianceModal.css`,
-`__tests__/TokenChainDisplay.haltedAt.test.js`.
+`__tests__/TokenChainDisplay.haltedAt.test.js`. Follow-on sweep (same day):
+`SimpleStepperPanel.js` (+`.css`), `agent-clinical/TokenAuditTimeline.jsx` +
+`clinical.css`, `ApiTrafficPanel.js`.
 
 **What was broken:** token chain steps the BFF emits as `skipped` (mTLS off,
 gateway not in route, introspection not enabled) and compliance checklist steps
@@ -104,10 +106,14 @@ allowlist), strikethrough, dashed outline, "N/A this run" tag; footer wording
 **Do not break:** `resolveStatusVisual` unknown/negative statuses must still
 fall to the red `failed` bucket (fail loud); `notinpath` must never absorb a
 failure or should-have-run status — a step that should have run and didn't
-surfaces via `isHaltedAt`/`failed`, never as "Not in path"; downstream bucket
-consumers (`SimpleStepperPanel`, `TokenAuditTimeline`, history rollup) key on
-active/exchanged/failed only and treat `notinpath` as neutral, same as
-`skipped` before.
+surfaces via `isHaltedAt`/`failed`, never as "Not in path". Downstream
+consumers now render `notinpath` deliberately: `SimpleStepperPanel` crossed-out
+row (`sstp-row--notinpath`, distinct from ghost "did not run" and halted rows),
+`TokenAuditTimeline` bucket map is active/exchanged → done, acquiring/waiting →
+pending, notinpath → bypass (dashed open dot), anything else → error — real
+failures must never land in bypass; `ApiTrafficPanel` token-event badge
+relabels raw `skipped` → "not in path" (HTTP-status badges untouched); history
+rollup still treats it as neutral "~".
 
 **Verify:** vitest `TokenChainDisplay.haltedAt` (bucket assertions included),
 `SimpleStepperPanel`; UI build gate.

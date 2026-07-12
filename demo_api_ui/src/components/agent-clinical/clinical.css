@@ -425,6 +425,21 @@
 .ac-tstep--error .ac-tstep-role {
   color: var(--ac-rose);
 }
+/* Not-in-path: open dashed station dot + struck-through name — the step was
+   never applicable to this run (matches the main chain's bypass treatment). */
+.ac-tstep--bypass::before {
+  border-color: #94a3b8;
+  border-style: dashed;
+  background: #fff;
+}
+.ac-tstep--bypass .ac-tstep-role {
+  color: var(--ac-muted);
+}
+.ac-tstep--bypass .ac-tstep-name {
+  color: var(--ac-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.2px;
+}
 .ac-tstep-empty {
   color: var(--ac-muted);
   font-size: 12.5px;

@@ -132,6 +132,7 @@ function StepRow({ event, index, halted, didNotRun }) {
   let rowClass = '';
   if (halted) rowClass = 'sstp-row--halted';
   else if (didNotRun) rowClass = 'sstp-row--ghost';
+  else if (bucket === 'notinpath') rowClass = 'sstp-row--notinpath';
 
   let statusCell;
   if (didNotRun) {

@@ -8,7 +8,8 @@ import { resolveStatusVisual } from '../TokenChainDisplay';
  * MCP tool call — { id, label, status, explanation?, specRef? }) as the
  * .ac-tstep card rail. Status buckets come from TokenChainDisplay's
  * resolveStatusVisual so this stays in lockstep with the main chain UI:
- * active/exchanged → done, acquiring/waiting → pending, anything else → error.
+ * active/exchanged → done, acquiring/waiting → pending, notinpath → bypass
+ * (the step was never applicable to this run), anything else → error.
  *
  * Renders a quiet explainer before the first agent action instead of fake
  * static cards — real data only.
@@ -35,7 +36,9 @@ export default function TokenAuditTimeline() {
             ? 'done'
             : bucket === 'acquiring' || bucket === 'waiting'
               ? 'pending'
-              : 'error';
+              : bucket === 'notinpath'
+                ? 'bypass'
+                : 'error';
         return (
           <div key={ev.id ? `${ev.id}-${i}` : `step-${i}`} className={`ac-tstep ac-tstep--${mod}`}>
             <div className="ac-tstep-card">
