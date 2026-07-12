@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import bffAxios from '../services/bffAxios';
 import PolicyDecisionTree from './PolicyDecisionTree';
 import JsonHighlight from './shared/JsonHighlight';
+import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
 
@@ -103,6 +104,12 @@ const S = {
   warning: { padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '13px', marginBottom: '16px' },
   error: { padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px' },
   iconBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '8px' },
+
+  explainBox: { marginTop: '12px', padding: '12px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#334155', lineHeight: 1.55 },
+  explainHeadline: { fontWeight: 700, color: '#0f172a', marginBottom: '8px' },
+  explainRule: { fontSize: '12px', color: '#475569', marginBottom: '8px' },
+  explainList: { margin: '0 0 8px 18px', padding: 0 },
+  explainApi: { fontSize: '11px', fontFamily: 'monospace', color: '#64748b', wordBreak: 'break-all', marginTop: '6px' },
 
   tabHelp: { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '11px 14px', marginBottom: '14px', fontSize: '12.5px', color: '#475569', lineHeight: 1.55 },
   tabHelpTitle: { fontWeight: 700, color: '#0f172a', marginRight: '6px' },
@@ -213,6 +220,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
   const [lastTrace, setLastTrace] = useState(null);
+  const [lastParameters, setLastParameters] = useState(null);
 
   // Transaction preset fields
   const [amount, setAmount] = useState('5000');
@@ -240,7 +248,13 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   ]);
 
   // When the endpoint changes, reset to its auto-detected preset and clear result.
-  useEffect(() => { setPreset(autoPreset); setResult(null); setErr(null); setLastTrace(null); }, [endpointId, autoPreset]);
+  useEffect(() => {
+    setPreset(autoPreset);
+    setResult(null);
+    setErr(null);
+    setLastTrace(null);
+    setLastParameters(null);
+  }, [endpointId, autoPreset]);
 
   // Pre-fill the MCP First Tool fields from config (the real delegated actor +
   // the expected resource URI for the active exchange mode) so a default Evaluate
@@ -295,7 +309,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   };
 
   const run = async () => {
-    setRunning(true); setResult(null); setErr(null); setLastTrace(null);
+    setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null);
     const parameters = buildParameters();
     const started = Date.now();
     try {
@@ -304,7 +318,8 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
         parameters,
       });
       const elapsed = Date.now() - started;
-      setResult(res.data);
+      setLastParameters(parameters);
+      setResult({ ...res.data, elapsedMs: elapsed });
       setLastTrace({
         request: authorizeRequestPayload(res.data, endpointId, parameters),
         response: authorizeResponsePayload(res.data),
@@ -336,6 +351,12 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   const removeRow = (i) => setCustomRows(rows => rows.filter((_, idx) => idx !== i));
 
   const decision = displayDecision(result);
+  const explanation = useMemo(
+    () => (result && lastParameters
+      ? explainAuthorizeResult({ parameters: lastParameters, result, preset })
+      : null),
+    [result, lastParameters, preset],
+  );
   const presetLabel = { transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[preset];
 
   return (
@@ -437,6 +458,32 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
             <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
             <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
           </div>
+          {explanation && (
+            <div style={S.explainBox}>
+              <div style={S.explainHeadline}>{explanation.headline}</div>
+              {explanation.ruleLikely && (
+                <div style={S.explainRule}>
+                  Likely rule: <strong>{explanation.ruleLikely}</strong>
+                </div>
+              )}
+              {explanation.reasons.length > 0 && (
+                <ul style={S.explainList}>
+                  {explanation.reasons.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              )}
+              {explanation.thresholds?.length > 0 && preset === 'transaction' && (
+                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                  Policy thresholds: {explanation.thresholds.join(' · ')}
+                </div>
+              )}
+              {explanation.apiSummary && (
+                <div style={S.explainApi}>
+                  API: {explanation.apiSummary}
+                  {result.decisionId ? ` · decisionId ${result.decisionId}` : ''}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -445,11 +492,11 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
           <div className={`p1mcp-call-status ${lastTrace.error ? 'p1mcp-call-status--error' : ''}`} style={{ marginTop: '12px' }}>
             {lastTrace.error
               ? 'PingOne Authorize call failed'
-              : `Completed in ${lastTrace.timingsMs ?? '?'} ms`}
+              : `Live API call completed in ${lastTrace.timingsMs ?? '?'} ms — request and response below`}
           </div>
           <Section
-            title="Authorize request"
-            hint="POST decisionEndpoints — BFF → PingOne Authorize"
+            title="PingOne API request"
+            hint="Trust Framework parameters sent to the decision endpoint"
             status="ok"
             defaultOpen
           >
@@ -458,7 +505,8 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
             </pre>
           </Section>
           <Section
-            title="Authorize response"
+            title="PingOne API response"
+            hint={`decision: ${result ? (explainDisplayDecision(result) || result.decision) : '—'}`}
             status={lastTrace.error ? 'error' : 'ok'}
             defaultOpen
           >
