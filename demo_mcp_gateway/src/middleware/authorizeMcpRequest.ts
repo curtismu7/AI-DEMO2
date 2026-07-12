@@ -88,7 +88,7 @@ interface GwAuditTrail {
  * pipeline is bypassed and these functions are used instead.
  */
 export interface AuthorizeMcpRequestDeps {
-  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number }>;
+  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string }>;
   authorize: (
     decoded: any,
     method: string,
@@ -289,6 +289,19 @@ export function buildAuthorizeMcpRequest(
       };
       if (!introspResult.active) {
         setAuditHeader(res);
+        // introspResult.error is only set when introspection itself failed
+        // (transport error, or the client's own auth was rejected) — a
+        // genuinely confirmed-inactive token never carries it. Don't tell
+        // the user to log back in for a gateway-side problem.
+        if (introspResult.error) {
+          teachLog.warn('gateway audit trail — introspection unavailable', { gw_audit_trail: auditTrail });
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'gateway_misconfigured',
+            message: 'The security gateway could not validate this token (introspection unavailable). This is a gateway configuration/connectivity issue, not a problem with your credentials.',
+          }));
+          return;
+        }
         teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
         res.writeHead(401, {
           'Content-Type': 'application/json',
@@ -325,6 +338,22 @@ export function buildAuthorizeMcpRequest(
           sub: pipelineResult.audit.introspection.sub,
           exp: pipelineResult.audit.introspection.exp,
         };
+      }
+
+      if (pipelineResult.kind === 'introspection_unavailable') {
+        // Introspection itself could not be completed (transport error, or
+        // the gateway's own introspection-client credentials/auth-method
+        // were rejected) — NOT a confirmed-revoked token. Telling the user
+        // to log back in here would be misleading; this is a gateway-side
+        // problem an administrator needs to fix.
+        setAuditHeader(res);
+        teachLog.warn('gateway audit trail — introspection unavailable', { gw_audit_trail: auditTrail });
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'gateway_misconfigured',
+          message: 'The security gateway could not validate this token (introspection unavailable). This is a gateway configuration/connectivity issue, not a problem with your credentials.',
+        }));
+        return;
       }
 
       if (pipelineResult.kind === 'introspection_failed') {
@@ -679,6 +708,23 @@ export function buildAuthorizeMcpRequest(
       engine: authzDecision.engine,
       attributes: authzDecision.sentParameters,
     };
+
+    // A DENY caused by the authz server failing to look up the user in
+    // PingOne (worker credentials misconfigured, or PingOne unreachable) is
+    // an infrastructure fault, not a policy decision — the reason string is
+    // set consistently ('user_lookup_failed: ...') at every such call site
+    // in the mock authz server's decision.js. Surface it distinctly instead
+    // of a generic 403 policy denial.
+    if (authzDecision.decision === 'DENY' && /^user_lookup_failed:/.test(authzDecision.reason || '')) {
+      setAuditHeader(res);
+      teachLog.warn('gateway audit trail — user lookup unavailable', { gw_audit_trail: auditTrail });
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'gateway_misconfigured',
+        message: 'The security gateway could not verify the user identity (PingOne lookup unavailable). This is a gateway configuration/connectivity issue, not a policy denial.',
+      }));
+      return;
+    }
 
     if (authzDecision.decision !== 'PERMIT') {
       setAuditHeader(res);

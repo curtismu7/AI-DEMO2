@@ -1,0 +1,12 @@
+{
+  "comment": "Readiness probe: reports whether P1AZDecision's default (real, non-simulated) PingOne Authorize backend is actually configured. Returns 503 when it's not, instead of the gateway silently failing closed on every real request while k8s reports it healthy (root cause of the 2026-07-12 outage — plain tcpSocket probes never caught it). See p1az-readiness.groovy.",
+  "name": "health",
+  "condition": "${find(request.uri.path, '^/health$')}",
+  "handler": {
+    "type": "ScriptableHandler",
+    "config": {
+      "type": "application/x-groovy",
+      "file": "p1az-readiness.groovy"
+    }
+  }
+}

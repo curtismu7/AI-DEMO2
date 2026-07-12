@@ -30,6 +30,31 @@ const UPSTREAM_AUTH_METHOD = (process.env.PINGONE_INTROSPECTION_AUTH_METHOD || '
 // Without it, signatures are NOT verified — acceptable for isolated dev but not for shared envs.
 const LOCAL_JWT_SECRET = process.env.AUTHZ_JWT_SECRET || '';
 
+// A 401 from PingOne's /as/introspect always means the introspecting client's
+// OWN credentials/auth-method were rejected (invalid_client) — PingOne never
+// uses 401 to say the subject token is inactive (that's a 200 {active:false}).
+// So a 401 is unambiguously a client auth-method misconfiguration, safe to
+// retry once with the other method. Once one method is confirmed working,
+// cache it so every later call goes straight there instead of re-failing the
+// bad method first.
+let workingAuthMethod = UPSTREAM_AUTH_METHOD;
+
+function otherMethod(method) {
+  return method === 'post' ? 'basic' : 'post';
+}
+
+function buildIntrospectionRequest(token, method) {
+  const params = new URLSearchParams({ token, token_type_hint: 'access_token' });
+  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (method === 'post') {
+    params.set('client_id', UPSTREAM_CLIENT_ID);
+    params.set('client_secret', UPSTREAM_CLIENT_SECRET);
+  } else {
+    headers.Authorization = `Basic ${Buffer.from(`${UPSTREAM_CLIENT_ID}:${UPSTREAM_CLIENT_SECRET}`).toString('base64')}`;
+  }
+  return { params, headers };
+}
+
 module.exports = async function introspectHandler(req, res) {
   // Accept both JSON and form-encoded
   const token = req.body?.token || req.body?.access_token;
@@ -41,20 +66,24 @@ module.exports = async function introspectHandler(req, res) {
   // ── Option 1: Delegate to real PingOne ───────────────────────────────────
   if (UPSTREAM) {
     try {
-      const params = new URLSearchParams({ token, token_type_hint: 'access_token' });
-      const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-
-      if (UPSTREAM_AUTH_METHOD === 'post') {
-        params.set('client_id', UPSTREAM_CLIENT_ID);
-        params.set('client_secret', UPSTREAM_CLIENT_SECRET);
-      } else {
-        headers.Authorization = `Basic ${Buffer.from(`${UPSTREAM_CLIENT_ID}:${UPSTREAM_CLIENT_SECRET}`).toString('base64')}`;
-      }
-
+      const { params, headers } = buildIntrospectionRequest(token, workingAuthMethod);
       const response = await axios.post(UPSTREAM, params.toString(), { headers, timeout: 5000 });
       console.log(`[AuthzServer/introspect] Upstream PingOne → active=${response.data?.active}`);
       return res.json(response.data);
     } catch (err) {
+      if (err.response?.status === 401) {
+        const fallback = otherMethod(workingAuthMethod);
+        try {
+          const { params, headers } = buildIntrospectionRequest(token, fallback);
+          const response = await axios.post(UPSTREAM, params.toString(), { headers, timeout: 5000 });
+          console.warn(`[AuthzServer/introspect] Configured auth method "${workingAuthMethod}" rejected (401) — "${fallback}" worked, switching to it for future calls`);
+          workingAuthMethod = fallback;
+          return res.json(response.data);
+        } catch (fallbackErr) {
+          console.warn(`[AuthzServer/introspect] Both auth methods rejected (401) — failing closed: ${fallbackErr.message}`);
+          return res.json({ active: false, error: 'upstream_introspection_auth_error' });
+        }
+      }
       console.warn(`[AuthzServer/introspect] Upstream call failed (${err.message}) — failing closed`);
       return res.json({ active: false, error: 'upstream_introspection_failed' });
     }

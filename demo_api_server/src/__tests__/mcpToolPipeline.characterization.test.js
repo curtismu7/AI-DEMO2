@@ -312,6 +312,21 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 
+  test('gateway_misconfigured (introspection/lookup infra failure) → block 503 gateway_misconfigured, NOT policy-denied, NO fallback', async () => {
+    const deps = makeDeps();
+    deps.mcpCallTool = jest.fn(async () => { throw Object.assign(
+      new Error('The security gateway could not validate this token (introspection unavailable).'),
+      { code: 'gateway_misconfigured', httpStatus: 503 },
+    ); });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome).toMatchObject({
+      kind: 'block',
+      httpStatus: 503,
+      body: { error: 'gateway_misconfigured', message: expect.stringContaining('introspection unavailable') },
+    });
+    expect(deps.callToolLocal).not.toHaveBeenCalled();
+  });
+
   test('remote success default path → result body has activeModel/activeProvider + mcpAuthorizeEvaluation when set', async () => {
     const deps = makeDeps();
     deps.evaluateMcpFirstToolGate = jest.fn(async () => ({ ran: true, permit: true, evaluation: { decision: 'PERMIT', decisionId: 'dz' } }));
