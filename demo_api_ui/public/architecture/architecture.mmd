@@ -99,14 +99,14 @@ runtime switchable"]
     end
 
     %% ── MCP Gateway (Phase 243 + 266) ──────────────────────────────────
-    subgraph Gateway["demo_mcp_gateway  (TypeScript · port 3005 · active when MCP_GATEWAY_HTTP_URL set; else BFF → MCP :8080 direct)"]
+    subgraph Gateway["demo_mcp_gateway  (TypeScript · port 3005 · demo-auth profile, OFF by default — used only when ff_mcp_gateway_pinggateway=false)"]
         direction TB
         GwProxy["Policy-aware credential broker<br/>RFC 8693 chained exchange<br/>Paths A api_key - B dual_token - C oauth_bearer"]
         GwAuthorize["pingAuthorizeGuard.ts<br/>per-tool-call PDP evaluation"]
     end
 
     %% ── Additional Node services ───────────────────────────────────────
-    AgentService["demo_agent_service<br/>TypeScript LangGraph agent :3006<br/>(optional alternative — default agent is<br/>in-process BFF LangGraph /api/banking-agent)"]
+    AgentService["demo_agent_service<br/>TypeScript LangGraph agent :3006 (host :3016)<br/>(optional alternative — default agent is<br/>in-process BFF LangGraph /api/banking-agent)"]
 
     %% ── A2A agent-to-agent delegation ──────────────────────────────────
     A2AOrch["A2A Orchestrator<br/>CrewAI crew: decide / coordinate / authorize"]
@@ -115,8 +115,8 @@ runtime switchable"]
     MortgageSvc["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
     HITLSvc["demo_hitl_service<br/>Out-of-band consent :3009"]
 
-    %% ── PingGateway (Ping Identity IG) — alternative MCP gateway ──────
-    PingGW["PingGateway (IG, :3036)<br/>Alternative MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Real→mock Authorize failover (X-Authz-Simulated)<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
+    %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
+    PingGW["PingGateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Authorize outage: AUTHORIZE_FAILOVER_MODE=deny (fail-closed 503, default)<br/>fallback_simulated (mock authz-server :9001) is opt-in only<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
 
     %% ── AG-UI agent-run streaming ──────────────────────────────────────
     AGUIRoutes["/api/agent-run (agentRun.js)<br/>SSE stream — agent-run events<br/>Decoded token-chain events injected (never raw JWTs)<br/>In-memory trace store (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Proxies: langchain :8888, openai :8891, mastra :8892, pydantic :8893"]
@@ -140,7 +140,7 @@ runtime switchable"]
         PDP["Policy Decision Point\n/v1/environments/{env}/governance\n/policyDecisionPoints/{id}/evaluate"]
     end
 
-    LLM["LLM provider<br/>Helix (default) - x-api-key<br/>OpenAI - Anthropic - Groq - Gemini (optional)"]
+    LLM["LLM provider<br/>llama.cpp via demo_llm_proxy :8090 (default - AGENT_MODE=llamacpp)<br/>OpenAI - Anthropic - Groq - Gemini - Helix (optional)"]
 
     %% ── Connections: Browser → UI ──────────────────────────────────────────────
     AdminBrowser -->|"HTTPS"| UI
@@ -210,9 +210,9 @@ runtime switchable"]
     MCPInvestSvc -->|"REST exchanged Bearer"| TxRoutes
     GwAuthorize -->|"PDP evaluate"| PDP
 
-    %% ── Connections: PingGateway (alternative MCP gateway) ───────────────────
-    AuthRoutes -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true)"| PingGW
-    PingGW -->|"PDP evaluate (UserId + McpResourceUri)<br/>real→mock failover"| PDP
+    %% ── Connections: PingGateway (default MCP gateway) ───────────────────────
+    AuthRoutes -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true, default)"| PingGW
+    PingGW -->|"PDP evaluate (UserId + McpResourceUri)<br/>outage → fail-closed deny (default)"| PDP
     PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPProtocol
 
     %% ── Connections: AG-UI SSE streaming ─────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
+import DiagramExportBar from "./DiagramExportBar";
 /**
 
 /**
@@ -913,7 +914,7 @@ const ALL_STEPS = [
     why: "The agent asks the gateway for its catalog of MCP tools, presenting its own client_credentials token. The gateway will use this token to ask the authorizer what this agent is allowed to see.",
     request: {
       method: "POST",
-      url: "ws://localhost:3005/jsonrpc",
+      url: "http://localhost:3036/jsonrpc",
       headers: {
         Authorization: "Bearer eyJhbGciOi...AgentCCToken...",
         "Content-Type": "application/json",
@@ -938,7 +939,7 @@ const ALL_STEPS = [
     },
     onError: [
       "401 invalid_token — gateway can't verify the agent's bearer (wrong issuer or expired)",
-      "WebSocket connection refused — gateway not running on 3005 or firewall blocking",
+      "Connection refused — PingGateway (IG) not running on 3036 or firewall blocking",
       "JSON-RPC parse error — malformed payload from agent",
     ],
   },
@@ -1361,7 +1362,7 @@ const ALL_STEPS = [
     why: "The agent calls the tool with only its own client_credentials token attached. There's no user identity in the request, which is exactly the condition the next steps will catch.",
     request: {
       method: "POST",
-      url: "ws://localhost:3005/jsonrpc",
+      url: "http://localhost:3036/jsonrpc",
       headers: {
         Authorization: "Bearer eyJhbGciOi...AgentCCToken...",
         "Content-Type": "application/json",
@@ -1989,7 +1990,7 @@ const ALL_STEPS = [
     why: "This is the retry of step 14, but now with a real on-behalf-of token. The agent expects this call to succeed because the token carries both the user's consent and the agent's identity.",
     request: {
       method: "POST",
-      url: "ws://localhost:3005/jsonrpc",
+      url: "http://localhost:3036/jsonrpc",
       headers: {
         Authorization: "Bearer eyJhbGciOi...TxTokenGW...",
         "Content-Type": "application/json",
@@ -3483,6 +3484,16 @@ export default function SequenceDiagramPage() {
           onSetStepMs={setStepMs}
         />
       </div>
+
+      {/* Downloads of the canonical sequence source. No .drawio for sequence
+          diagrams — paste the .mmd into Lucid's Mermaid diagram-as-code editor
+          (sequenceDiagram is supported) or draw.io's Insert > Advanced > Mermaid. */}
+      <DiagramExportBar
+        items={[
+          { label: "Mermaid (.mmd)", href: "/architecture/i4ai-ref-arch.mmd" },
+          { label: "PNG", href: "/architecture/token-flow.png" },
+        ]}
+      />
 
       {/* Diagram + Left Panel Flex Row */}
       <div

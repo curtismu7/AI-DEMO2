@@ -620,19 +620,22 @@ export default function AdminSideNav({ user }) {
           path: "/architecture/overview",
           icon: "bld",
         },
-        {
-          label: "Token Flow (Interactive)",
-          path: "/architecture/token-flow",
-          icon: "lnk",
-        },
-        { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
-        {
-          label: "Phase 266 — 3 Paths",
-          path: "/architecture/phase-266",
-          icon: "rte",
-        },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
-        { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
+        // Hidden 2026-07-11 — top-3 diagram consolidation. Routes stay live
+        // (direct URLs still work); to restore an entry, uncomment it.
+        // See docs/diagrams/HIDDEN_DIAGRAMS.md for what each page shows.
+        // {
+        //   label: "Token Flow (Interactive)",
+        //   path: "/architecture/token-flow",
+        //   icon: "lnk",
+        // },
+        // { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
+        // {
+        //   label: "Phase 266 — 3 Paths",
+        //   path: "/architecture/phase-266",
+        //   icon: "rte",
+        // },
+        // { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
       ],
     },
     {
