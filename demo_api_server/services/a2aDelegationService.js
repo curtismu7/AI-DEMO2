@@ -143,7 +143,13 @@ function resolveA2aConfig(cfgArg, specialist) {
     cfg.getEffective('mcp_gw_resource_uri') ||
     cfg.getEffective('pingone_resource_mcp_server_uri');
 
-  const intermediateScope = (cfg.getEffective('a2a_intermediate_scope') || 'agent:invoke').trim();
+  // Scope name is unique per specialist ("agent:invoke:<appKey>"), NOT overridable
+  // via a shared config key — PingOne enforces one scope-name per client across ALL
+  // its grants, and Agent 1 holds a grant on every specialist's intermediate
+  // resource. A shared name collides silently (confirmed live: the exchanged token
+  // comes back audienced to whichever resource that name first bound to, ignoring
+  // the requested audience). See pingoneProvisionService.js Step 37a-A2A.
+  const intermediateScope = `agent:invoke:${specialist.appKey}`;
 
   // Agent 2 actor-token auth method (PingOne app token-endpoint auth). 'post' by
   // default to match the AI Agent actor convention.
@@ -279,12 +285,12 @@ async function delegateToSpecialist(req, opts = {}) {
     ));
 
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
-    // Agent 2's actor token targets the INTERMEDIATE audience (a2a-intermediate.ping.demo)
-    // rather than the final specialist audience. PingOne enforces scope-name uniqueness
-    // across all grants for a given app, so a specialist that already has `read` on
-    // Demo API cannot also hold `read` on MCP Gateway. Using the intermediate audience
-    // (where every specialist has `agent:invoke`) sidesteps this constraint while still
-    // proving Agent 2's identity for the nested-act chain.
+    // Agent 2's actor token targets its OWN intermediate audience (not the final
+    // specialist/gateway audience) using its uniquely-named invoke scope. PingOne
+    // enforces scope-name uniqueness across all grants for a given app, so a
+    // specialist that already has `read` on Demo API cannot also hold `read` on MCP
+    // Gateway — using the (per-specialist) intermediate audience + scope sidesteps
+    // this constraint while still proving Agent 2's identity for the nested-act chain.
     const agent2Actor = await oauth.getClientCredentialsTokenAs(
       c.agent2ClientId,
       c.agent2Secret,
