@@ -66,8 +66,11 @@ spec:
           value: "demo-api-server"
         - name: NODE_OPTIONS
           value: "-r /otel/otel-instrument.js"
+        # /jaeger base path matches QUERY_BASE_PATH=/jaeger on the jaeger
+        # deployment — with the base path set, jaeger serves its query API under
+        # /jaeger, and the root /api/* returns the UI HTML shell instead of JSON.
         - name: JAEGER_QUERY_URL
-          value: "http://jaeger:16686"
+          value: "http://jaeger:16686/jaeger"
         # secret first, configmap last → cluster URLs in the configmap win
         envFrom:
         - secretRef:
