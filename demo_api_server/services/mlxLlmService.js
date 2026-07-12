@@ -6,6 +6,8 @@
 //   MLX_LM_BASE_URL  default http://127.0.0.1:8098  (origin only, no /v1)
 //   MLX_LM_MODEL     optional — when unset we use /v1/models
 
+const { llmFetch } = require('./llmFetch');
+
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8098';
 const FALLBACK_MODEL = 'local-model';
 
@@ -46,7 +48,7 @@ async function callMlx(messages) {
   const base = baseUrl();
   const mdl = await model();
 
-  const res = await fetch(`${base}/v1/chat/completions`, {
+  const res = await llmFetch(`${base}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -58,7 +60,7 @@ async function callMlx(messages) {
       messages: toOpenAiMessages(messages),
       stream: false,
     }),
-  });
+  }, { label: 'mlx-lm' });
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error(`mlx-lm chat/completions failed: ${res.status} ${errText}`);

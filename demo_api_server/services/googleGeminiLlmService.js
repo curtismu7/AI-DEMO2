@@ -3,6 +3,8 @@
 // Minimal Gemini API client for NL intent in "Google Gemini only" agent mode.
 // Uses the Generative Language REST API (same key as GOOGLE_API_KEY / LangChain config).
 
+const { llmFetch } = require('./llmFetch');
+
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 /** Models to try when the preferred model hits free-tier quota (429). */
@@ -50,12 +52,11 @@ function toGeminiPayload(messages) {
  */
 async function generateOnce(key, model, body) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
-  const res = await fetch(url, {
+  const res = await llmFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
-  });
+  }, { label: 'gemini', timeoutMs: 12000, retryOn429: false });
   const data = await res.json().catch(() => ({}));
   return { res, data };
 }

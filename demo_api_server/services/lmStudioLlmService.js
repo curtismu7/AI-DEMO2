@@ -9,6 +9,7 @@
 //   lmstudio_model     default '' → resolved to LM Studio's first loaded model
 
 const configStore = require('./configStore');
+const { llmFetch } = require('./llmFetch');
 
 const DEFAULT_BASE_URL = 'http://localhost:1234/v1';
 
@@ -48,7 +49,7 @@ async function callLmStudio(messages) {
   const base = baseUrl();
   const model = await resolveModel(base);
 
-  const res = await fetch(`${base}/chat/completions`, {
+  const res = await llmFetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ async function callLmStudio(messages) {
       Authorization: 'Bearer lm-studio',
     },
     body: JSON.stringify({ model, messages: toOpenAiMessages(messages), stream: false }),
-  });
+  }, { label: 'LM Studio' });
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error(`LM Studio chat/completions failed: ${res.status} ${errText}`);

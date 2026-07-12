@@ -16,6 +16,8 @@
 // completes in a few seconds; a large reasoning model can blow the timeout and
 // surface "Could not parse: signal timed out".
 
+const { llmFetch } = require('./llmFetch');
+
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8090';
 const FALLBACK_MODEL = 'local-model';
 
@@ -75,7 +77,7 @@ async function callLlamaCpp(messages, opts = {}) {
     body.response_format = { type: 'json_object', schema: opts.jsonSchema };
   }
 
-  const post = () => fetch(`${base}/v1/chat/completions`, {
+  const post = () => llmFetch(`${base}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -83,7 +85,7 @@ async function callLlamaCpp(messages, opts = {}) {
       Authorization: 'Bearer llama-cpp',
     },
     body: JSON.stringify(body),
-  });
+  }, { label: 'llama.cpp' });
 
   let res = await post();
   if (!res.ok && res.status === 400 && body.response_format) {
