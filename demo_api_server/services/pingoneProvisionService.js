@@ -1499,10 +1499,10 @@ class PingOneProvisionService {
       `# Exchange #1 scope — must match the scope granted to AI Agent on the Agent Gateway resource`,
       `TWO_EXCHANGE_INTERMEDIATE_SCOPE=agent:invoke`,
       '# Agent-to-Agent (A2A) — per-vertical specialist agents (Agent 2), each with its',
-      '# OWN intermediate audience (RFC 8707 resource indicators — one shared audience',
-      '# across 9 unrelated specialists would let any one token be replayed against',
-      '# another specialist\'s resource; see docs/ACT_CLAIM_VERIFICATION.md).',
-      `A2A_INTERMEDIATE_SCOPE=agent:invoke`,
+      '# OWN intermediate audience AND uniquely-named invoke scope (RFC 8707 resource',
+      '# indicators + PingOne one-scope-name-per-client-across-all-grants constraint —',
+      '# a shared audience/scope across 9 unrelated specialists collides; see',
+      '# docs/ACT_CLAIM_VERIFICATION.md). Not overridable via env — derived in code.',
       ...Object.values((() => { try { return require('../config/a2aSpecialists').A2A_SPECIALISTS; } catch (_e) { return {}; } })()).flatMap((spec) => {
         const app = provisioned.a2aSpecialistApps && provisioned.a2aSpecialistApps[spec.appKey];
         const resource = provisioned.a2aResourceServers && provisioned.a2aResourceServers[spec.appKey];
@@ -2742,21 +2742,30 @@ class PingOneProvisionService {
             specAud,
           );
           provisioned.a2aResourceServers[spec.appKey] = specResourceResult.resource;
+          // Scope name is UNIQUELY PER SPECIALIST ("agent:invoke:<appKey>"), not the
+          // shared "agent:invoke" — PingOne enforces one scope-name per client across
+          // ALL its grants (see Step 37a's Agent Gateway grant comment above), and
+          // Agent 1 (AI Agent) holds a grant on every one of these 8 resources. Reusing
+          // "agent:invoke" for all of them collides silently: PingOne mints the
+          // Exchange #1 token against the WRONG resource's audience regardless of the
+          // audience actually requested (confirmed live — every exchange came back
+          // audienced to whichever resource "agent:invoke" first bound to).
+          const invokeScopeName = `agent:invoke:${spec.appKey}`;
           const specScopeResults = await this.createScopes(
             specResourceResult.resource.id,
-            topologyResourceScopeObjects('Super Banking A2A Intermediate'),
+            [{ name: invokeScopeName, description: `Invoke the ${spec.specialistName} A2A intermediate (Exchange #1 actor).` }],
           );
           pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A Intermediate scopes`, specScopeResults);
           onStep(steps[steps.length - 1]);
 
-          // Agent 1 needs agent:invoke on THIS specialist's intermediate to mint Exchange
-          // #1 for this vertical. The specialist needs the same scope on its own
-          // intermediate (to accept the Exchange #1 subject token in Exchange #2) plus its
-          // narrow derived scope on Demo API (mints the Exchange #2 token).
+          // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
+          // Exchange #1 for this vertical. The specialist needs the same scope on its
+          // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
+          // plus its narrow derived scope on Demo API (mints the Exchange #2 token).
           await Promise.all([
-            this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, ['agent:invoke']),
+            this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
             this.grantScopesToApplication(app.id, resourceResult.resource.id, specScopes),
-            this.grantScopesToApplication(app.id, specResourceResult.resource.id, ['agent:invoke']),
+            this.grantScopesToApplication(app.id, specResourceResult.resource.id, [invokeScopeName]),
           ]);
 
           // Wire may_act on this specialist's own intermediate resource — the proven
