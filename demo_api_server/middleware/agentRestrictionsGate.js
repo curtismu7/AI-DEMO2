@@ -148,6 +148,8 @@ async function agentRestrictionsGate(req, res, next) {
     const authorizeMode = configStore.getEffective('authorize_mode') || 'pingone';
     const useSimulated = ffSimulated || authorizeMode === 'simulated';
     let authzResult;
+    let decidedEngine = useSimulated ? 'simulated' : 'pingone';
+    let engineFallbackReason = null;
 
     if (useSimulated) {
       authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
@@ -167,7 +169,15 @@ async function agentRestrictionsGate(req, res, next) {
           },
         });
       } else {
-        // P1AZ mode but function not available — fall back to simulated.
+        // authorize_mode=pingone was selected, but the real P1AZ agent-restrictions
+        // evaluator is not implemented — the decision is actually made by the
+        // SIMULATED engine. Make this substitution OBSERVABLE (log + response
+        // marker) instead of silent, so an operator is never misled into believing
+        // real PingOne Authorize enforced this gate. Parity with every other
+        // fallback in this file, which all log. Decision behavior is unchanged.
+        logger.warn('[agentRestrictionsGate] authorize_mode=pingone but pingOneAuthorizeService.evaluateAgentRestrictions is not implemented — decision made by the simulated engine', { userId, toolName });
+        decidedEngine = 'simulated';
+        engineFallbackReason = 'pingone_evaluator_unavailable';
         authzResult = simulatedAuthorizeService.evaluateAgentRestrictions({
           agentRestrictions, requiredTier, userId, agentSub, tool: toolName,
         });
@@ -195,6 +205,8 @@ async function agentRestrictionsGate(req, res, next) {
       tool: toolName,
       agentRestrictions,
       requiredTier,
+      authorize_engine: decidedEngine,
+      ...(engineFallbackReason ? { authorize_fallback: engineFallbackReason } : {}),
     });
   } catch (err) {
     if (failoverPermits()) {

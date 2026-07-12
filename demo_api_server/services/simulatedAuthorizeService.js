@@ -251,6 +251,26 @@ async function evaluateMcpFirstTool({
       'Set SIMULATED_MCP_DENY_TOOLS to force DENY; SIMULATED_MCP_HITL_TOOLS for HITL.',
   };
 
+  // ── Missing-subject guard (parity with the P1AZ snapshot's "MCP Deny — Missing
+  // User ID" rule). No authenticated subject → no authorization is possible; fail
+  // closed. The real policy DENYs when UserId is absent or the 'none' sentinel.
+  if (!userId || String(userId).trim() === '' || String(userId).trim().toLowerCase() === 'none') {
+    const out = {
+      decision: 'DENY',
+      stepUpRequired: false,
+      hitlRequired: false,
+      path: 'simulated',
+      decisionId,
+      raw: {
+        ...rawBase,
+        decision: 'DENY',
+        reason: 'mcp_missing_user_id: no authenticated subject (UserId) on the tool call — cannot authorize.',
+      },
+    };
+    recordSimulatedDecision(out);
+    return out;
+  }
+
   // ── Audience-match guard (highest-priority deny — runs before tool-name checks).
   //
   // The bearer token's `aud` MUST equal the audience the BFF's single RFC 8693
