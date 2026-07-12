@@ -23,6 +23,49 @@ function displayDecision(result) {
   return result.decision;
 }
 
+/** Walk the normalized policy tree and collect nodes of a given kind. */
+function collectNodes(roots, kind, out = []) {
+  for (const n of roots || []) {
+    if (n.kind === kind) out.push(n);
+    if (n.children?.length) collectNodes(n.children, kind, out);
+  }
+  return out;
+}
+
+/** Find a policy node by transaction vs MCP evaluation context. */
+function resolveActivePolicy(roots, { isMcp }) {
+  const policies = collectNodes(roots, 'POLICY');
+  if (!policies.length) return null;
+  const needle = isMcp ? /mcp|delegation/i : /transaction/i;
+  return policies.find((p) => needle.test(p.name)) || policies[0];
+}
+
+/** Match a rule node by name (exact, then substring). */
+function findRuleNode(roots, ruleName) {
+  if (!ruleName) return null;
+  const rules = collectNodes(roots, 'RULE');
+  const target = String(ruleName).toLowerCase();
+  return (
+    rules.find((r) => String(r.name).toLowerCase() === target)
+    || rules.find((r) => String(r.name).toLowerCase().includes(target) || target.includes(String(r.name).toLowerCase()))
+    || null
+  );
+}
+
+function resolvePolicyContext(roots, { isMcp, ruleLikely }) {
+  const policySet = (roots || []).find((n) => n.kind === 'POLICY_SET') || roots?.[0] || null;
+  const policy = resolveActivePolicy(roots, { isMcp });
+  const rule = findRuleNode(roots, ruleLikely);
+  return {
+    policySetName: policySet?.name || null,
+    policyName: policy?.name || null,
+    policyDescription: policy?.description || '',
+    ruleName: rule?.name || ruleLikely || null,
+    ruleDescription: rule?.description || '',
+    combiningAlgorithm: policy?.algorithm || policySet?.algorithm || null,
+  };
+}
+
 /**
  * Infer which Super Banking transaction rule most likely drove the verdict.
  * Uses thresholds from the provisioned snapshot; statements refine the headline.
@@ -165,15 +208,28 @@ function explainMcp(parameters, result) {
 
 /**
  * Build a human-readable explanation for a live evaluate-endpoint result.
+ * @param {{ parameters: object, result: object, preset: string, policies?: object[] }} opts
  */
-export function explainAuthorizeResult({ parameters, result, preset }) {
+export function explainAuthorizeResult({ parameters, result, preset, policies = [] }) {
   if (!result || !parameters) {
-    return { headline: '', ruleLikely: '', reasons: [], thresholds: [] };
+    return {
+      headline: '',
+      ruleLikely: '',
+      reasons: [],
+      thresholds: [],
+      policyName: null,
+      policyDescription: '',
+      ruleName: null,
+      ruleDescription: '',
+      policySetName: null,
+      combiningAlgorithm: null,
+    };
   }
 
   const ctx = String(parameters.DecisionContext || '');
   const isMcp = preset === 'mcp' || ctx === 'McpFirstTool';
   const core = isMcp ? explainMcp(parameters, result) : explainTransaction(parameters, result);
+  const policyCtx = resolvePolicyContext(policies, { isMcp, ruleLikely: core.ruleLikely });
 
   const pingReq = result.pingoneRequest || {};
   const apiSummary = pingReq.url
@@ -182,6 +238,7 @@ export function explainAuthorizeResult({ parameters, result, preset }) {
 
   return {
     ...core,
+    ...policyCtx,
     apiSummary,
     decisionId: result.decisionId || null,
     elapsedMs: result.elapsedMs ?? null,
@@ -193,5 +250,9 @@ export {
   TX_DENY_USD,
   TX_STEP_UP_USD,
   acrLooksStrong,
+  collectNodes,
   displayDecision,
+  findRuleNode,
+  resolveActivePolicy,
+  resolvePolicyContext,
 };

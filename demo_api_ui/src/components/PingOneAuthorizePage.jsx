@@ -105,7 +105,13 @@ const S = {
   error: { padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px' },
   iconBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '8px' },
 
-  explainBox: { marginTop: '12px', padding: '12px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#334155', lineHeight: 1.55 },
+  policyUsed: { marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,.06)' },
+  policyUsedLabel: { fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px' },
+  policyUsedName: { fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' },
+  policyUsedDesc: { fontSize: '12px', color: '#475569', lineHeight: 1.5, marginBottom: '8px' },
+  ruleUsedName: { fontSize: '12px', fontWeight: 600, color: '#1e40af', marginBottom: '4px' },
+
+  explainBox: { marginTop: '10px', padding: '12px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#334155', lineHeight: 1.55 },
   explainHeadline: { fontWeight: 700, color: '#0f172a', marginBottom: '8px' },
   explainRule: { fontSize: '12px', color: '#475569', marginBottom: '8px' },
   explainList: { margin: '0 0 8px 18px', padding: 0 },
@@ -353,9 +359,9 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
   const decision = displayDecision(result);
   const explanation = useMemo(
     () => (result && lastParameters
-      ? explainAuthorizeResult({ parameters: lastParameters, result, preset })
+      ? explainAuthorizeResult({ parameters: lastParameters, result, preset, policies })
       : null),
-    [result, lastParameters, preset],
+    [result, lastParameters, preset, policies],
   );
   const presetLabel = { transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[preset];
 
@@ -454,6 +460,29 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
           <div style={S.resultSub}>
             {result.decisionId ? `Decision ID ${result.decisionId} · ` : ''}path: {result.path || '—'}
           </div>
+          {explanation?.policyName && (
+            <div style={S.policyUsed}>
+              <div style={S.policyUsedLabel}>Policy evaluated</div>
+              <div style={S.policyUsedName}>{explanation.policyName}</div>
+              {explanation.policyDescription && (
+                <div style={S.policyUsedDesc}>{explanation.policyDescription}</div>
+              )}
+              {explanation.ruleName && (
+                <>
+                  <div style={S.policyUsedLabel}>Rule that applied</div>
+                  <div style={S.ruleUsedName}>{explanation.ruleName}</div>
+                  {explanation.ruleDescription && (
+                    <div style={S.policyUsedDesc}>{explanation.ruleDescription}</div>
+                  )}
+                </>
+              )}
+              {explanation.combiningAlgorithm && (
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Combining algorithm: {explanation.combiningAlgorithm.replace(/([A-Z])/g, ' $1').trim()}
+                </div>
+              )}
+            </div>
+          )}
           <div style={S.oblig}>
             <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
             <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
@@ -461,7 +490,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
           {explanation && (
             <div style={S.explainBox}>
               <div style={S.explainHeadline}>{explanation.headline}</div>
-              {explanation.ruleLikely && (
+              {explanation.ruleLikely && !explanation.ruleName && (
                 <div style={S.explainRule}>
                   Likely rule: <strong>{explanation.ruleLikely}</strong>
                 </div>
