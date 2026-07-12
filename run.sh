@@ -524,6 +524,13 @@ preflight_checks() {
     fi
   fi
 
+  # Demo hardening Phase 2: pre-load the big LLM tier in the background so the
+  # cold model swap (~180s) never fires during a live demo. LLM_WARMUP=0 skips.
+  if [[ "${LLM_WARMUP:-1}" == "1" ]]; then
+    nohup "$BASEDIR/scripts/llm-warmup.sh" > /tmp/demo-llm-warmup.log 2>&1 &
+    echo "   LLM warmup started in background (log: /tmp/demo-llm-warmup.log)"
+  fi
+
   # MLX demo agent mode — Apple's mlx-lm on :8098 (Mac only; non-fatal).
   # Skipped when LLM_BACKEND=mlx already owns :8090 with mlx-lm.
   if [[ "$(uname)" == "Darwin" && "$llm_backend" != "mlx" ]]; then
