@@ -9,6 +9,7 @@ import ChecklistView from './check/ChecklistView';
 import RailDetailView from './check/RailDetailView';
 
 const VIEWS = { cards: CardsView, stepper: StepperView, checklist: ChecklistView, rail: RailDetailView };
+const VIEW_LABELS = { cards: 'Cards', stepper: 'Stepper', checklist: 'Checklist', rail: 'Rail + Detail' };
 const VERDICT_TEXT = { ready: 'Ready for demo', ready_with_warnings: 'Ready — with warnings', not_ready: 'Not ready' };
 
 export default function CheckPage() {
@@ -25,26 +26,26 @@ export default function CheckPage() {
         <div className="verdict"><span className="dot" />
           <h2>{verdict ? VERDICT_TEXT[verdict] : 'Not run yet'}</h2></div>
         <div className="verdict-actions">
-          <button className="btn btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false })}>Run all checks</button>
+          <button className="btn btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false }).catch(() => {})}>Run all checks</button>
         </div>
       </div>
 
       <div className="check-tabs" role="tablist">
         {Object.keys(VIEWS).map((k) => (
-          <button key={k} role="tab" aria-selected={view === k} className="tab" onClick={() => setView(k)}>{k}</button>
+          <button key={k} role="tab" aria-selected={view === k} className="tab" onClick={() => setView(k)}>{VIEW_LABELS[k]}</button>
         ))}
       </div>
 
       <div className="check-actions">
         <label>Vertical
-          <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
+          <select value={vertical} disabled={running} onChange={(e) => setVertical(e.target.value)}>
             <option value="banking">banking</option>
             <option value="healthcare">healthcare</option>
             <option value="workforce">workforce</option>
           </select>
         </label>
-        <button className="btn btn-ghost" onClick={async () => setResult(await runChipTest({ vertical }))}>Run real chip test</button>
-        <button className="btn btn-ghost" onClick={() => runAll({ includeHeavy: true })}>Deep LLM test</button>
+        <button className="btn btn-ghost" disabled={running} onClick={async () => setResult(await runChipTest({ vertical }))}>Run real chip test</button>
+        <button className="btn btn-ghost" disabled={running} onClick={() => runAll({ includeHeavy: true }).catch(() => {})}>Deep LLM test</button>
       </div>
 
       <ViewComp catalog={catalog} results={results} verdict={verdict} />

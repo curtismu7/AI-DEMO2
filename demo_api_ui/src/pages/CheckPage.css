@@ -1,7 +1,8 @@
 /* demo_api_ui/src/pages/CheckPage.css */
 /* Ported from the Pre-Demo Check layout mocks (design tokens + component
-   styles only — tab/demo-only chrome dropped). Keeps both light + dark
-   token sets so the page follows the app's theme toggle. */
+   styles, including the shell chrome: page wrap, verdict bar, tabs, actions,
+   buttons). Keeps both light + dark token sets so the page follows the app's
+   theme toggle. */
 
 :root {
   --bg: #f6f8fc;
@@ -66,6 +67,47 @@
 
 .mono { font-family: var(--mono); }
 .tnum { font-variant-numeric: tabular-nums; }
+
+/* ---- shell chrome (page container, verdict bar, tabs, actions, buttons) ---- */
+.check-wrap { max-width: 1080px; margin: 0 auto; padding: 32px 24px 80px; }
+
+.verdict-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 20px; box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.verdict-bar .verdict { display: flex; align-items: center; gap: 13px; }
+.verdict-bar .verdict h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+.verdict-bar .dot { width: 15px; height: 15px; border-radius: 999px; background: var(--idle); box-shadow: 0 0 0 4px var(--idle-bg); }
+.verdict-bar.verdict-ready .dot { background: var(--pass); box-shadow: 0 0 0 4px var(--pass-bg); }
+.verdict-bar.verdict-ready_with_warnings .dot { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-bg); }
+.verdict-bar.verdict-not_ready .dot { background: var(--fail); box-shadow: 0 0 0 4px var(--fail-bg); }
+.verdict-bar.verdict-idle .dot { background: var(--idle); box-shadow: 0 0 0 4px var(--idle-bg); }
+.verdict-actions { display: flex; gap: 9px; }
+
+.check-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tab {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-muted);
+  padding: 11px 15px; border-radius: 9px 9px 0 0; position: relative; top: 1px;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { color: var(--text); background: var(--surface-2); }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.check-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+
+.btn {
+  appearance: none; font-family: inherit; font-size: 13.5px; font-weight: 600;
+  border-radius: 9px; padding: 9px 15px; cursor: pointer; border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
 
 /* ---- cards (traffic-light grid) ---- */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
