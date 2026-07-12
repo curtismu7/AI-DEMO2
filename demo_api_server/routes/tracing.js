@@ -111,6 +111,76 @@ function summariseTrace(trace) {
   };
 }
 
+/**
+ * Flatten one Jaeger trace into a render-ready span tree for the in-app waterfall.
+ * @param {object} trace  a single Jaeger trace object ({ traceID, spans, processes })
+ */
+function normaliseTrace(trace) {
+  const spans = Array.isArray(trace?.spans) ? trace.spans : [];
+  const processes = trace?.processes || {};
+  if (!spans.length) {
+    return { traceId: trace?.traceID || '', spans: [], serviceColors: {}, durationMs: 0, startTime: null };
+  }
+
+  let minStart = Infinity;
+  let maxEnd = 0;
+  for (const s of spans) {
+    const start = Number(s.startTime) || 0;
+    const end = start + (Number(s.duration) || 0);
+    if (start < minStart) minStart = start;
+    if (end > maxEnd) maxEnd = end;
+  }
+  const totalUs = maxEnd > minStart ? maxEnd - minStart : 0;
+
+  const spanIds = new Set(spans.map((s) => s.spanID));
+  const parentOf = (s) => {
+    const ref = (s.references || []).find(
+      (r) => (r.refType === 'CHILD_OF' || r.refType === 'FOLLOWS_FROM') && spanIds.has(r.spanID),
+    );
+    return ref ? ref.spanID : null;
+  };
+
+  const byParent = new Map();
+  for (const s of spans) {
+    const p = parentOf(s);
+    if (!byParent.has(p)) byParent.set(p, []);
+    byParent.get(p).push(s);
+  }
+  for (const list of byParent.values()) {
+    list.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
+  }
+
+  const serviceOf = (s) => processes[s.processID]?.serviceName || 'unknown';
+  const services = [...new Set(spans.map(serviceOf))];
+  const serviceColors = Object.fromEntries(services.map((name, i) => [name, i % 8]));
+
+  const ordered = [];
+  const walk = (parentId, depth) => {
+    for (const s of byParent.get(parentId) || []) {
+      const start = Number(s.startTime) || 0;
+      ordered.push({
+        spanID: s.spanID,
+        parentSpanID: parentOf(s),
+        serviceName: serviceOf(s),
+        operationName: s.operationName || '—',
+        relativeStartMs: Math.round((start - minStart) / 1000),
+        durationMs: Math.round((Number(s.duration) || 0) / 1000),
+        depth,
+      });
+      walk(s.spanID, depth + 1);
+    }
+  };
+  walk(null, 0);
+
+  return {
+    traceId: trace.traceID,
+    spans: ordered,
+    serviceColors,
+    durationMs: Math.round(totalUs / 1000),
+    startTime: minStart !== Infinity ? new Date(minStart / 1000).toISOString() : null,
+  };
+}
+
 /** GET /traces?service=&limit= — recent traces for a service. */
 router.get('/traces', async (req, res) => {
   const base = await resolveJaegerBase();
@@ -144,6 +214,31 @@ router.get('/traces', async (req, res) => {
       error: 'jaeger_query_failed',
       message: err.message || 'Jaeger traces query failed',
     });
+  }
+});
+
+/** GET /traces/:id — full span tree for one trace, normalised for the in-app waterfall. */
+router.get('/traces/:id', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!/^[0-9a-f]{16,32}$/i.test(id)) {
+    return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) {
+    return res.status(503).json({ error: 'jaeger_unreachable', message: 'Jaeger query API is not reachable.' });
+  }
+  try {
+    const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+    const trace = Array.isArray(resp.data?.data) ? resp.data.data[0] : null;
+    if (!trace) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.json(normaliseTrace(trace));
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.status(502).json({ error: 'jaeger_query_failed', message: err.message || 'Jaeger trace query failed' });
   }
 });
 
