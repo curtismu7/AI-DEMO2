@@ -709,6 +709,7 @@ export default function AdminSideNav({ user }) {
     // index-coupled groups (same rule as AI Control Plane) so the auto-expand
     // adminIdx/customerIdx offsets above stay valid.
     { label: "Servers", path: "/servers", icon: "clk" },
+    { label: "Check", path: "/check", icon: "clk" },
     { label: "Tracing", path: "/tracing", icon: "log" },
   ];
 
