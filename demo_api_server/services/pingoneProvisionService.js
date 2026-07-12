@@ -2761,10 +2761,17 @@ class PingOneProvisionService {
           // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
           // Exchange #1 for this vertical. The specialist needs the same scope on its
           // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
-          // plus its narrow derived scope on Demo API (mints the Exchange #2 token).
+          // plus its narrow derived scope on the MCP Gateway resource — Exchange #2
+          // targets mcpGwResourceResult (c.specialistAud), NOT the general Demo API/
+          // enduser resource. Granting specScopes on the wrong resource was a
+          // pre-existing bug (predates the per-specialist redesign): PingOne resolves
+          // a token-exchange scope to whichever resource that scope NAME is granted
+          // on, so requesting mcpgateway.ping.demo with a scope only granted on
+          // enduser.ping.demo silently returned a token audienced to enduser instead
+          // (confirmed live — Exchange #2's act claim never appeared as a result).
           await Promise.all([
             this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
-            this.grantScopesToApplication(app.id, resourceResult.resource.id, specScopes),
+            this.grantScopesToApplication(app.id, mcpGwResourceResult.resource.id, specScopes),
             this.grantScopesToApplication(app.id, specResourceResult.resource.id, [invokeScopeName]),
           ]);
 
