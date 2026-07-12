@@ -2,13 +2,19 @@ import { useState } from 'react';
 import DraggableModal from './DraggableModal';
 import './MCPToolsListModal.css';
 
-export default function MCPToolsListModal({ show, onClose, tools = [] }) {
+export default function MCPToolsListModal({ show, onClose, tools = [], onToolSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTools = tools.filter(tool => {
     const s = searchTerm.toLowerCase();
     return tool.name?.toLowerCase().includes(s) || tool.description?.toLowerCase().includes(s);
   });
+
+  const handleToolClick = (tool) => {
+    if (onToolSelect) {
+      onToolSelect(tool);
+    }
+  };
 
   return (
     <DraggableModal
@@ -38,9 +44,22 @@ export default function MCPToolsListModal({ show, onClose, tools = [] }) {
           </div>
         ) : (
           filteredTools.map((tool, idx) => (
-            <div key={`${tool.name}-${idx}`} className="mcp-tool-item">
+            <div
+              key={`${tool.name}-${idx}`}
+              className="mcp-tool-item"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleToolClick(tool)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToolClick(tool);
+                }
+              }}
+              style={{ cursor: onToolSelect ? 'pointer' : 'default' }}
+            >
               <div className="mcp-tool-name">
-                <span className="mcp-tool-icon">🛠️</span>
+                <span className="mcp-tool-icon">🔧</span>
                 {tool.name}
               </div>
               <p className="mcp-tool-description">{tool.description || '(no description)'}</p>
@@ -53,6 +72,9 @@ export default function MCPToolsListModal({ show, onClose, tools = [] }) {
                     ))}
                   </div>
                 </div>
+              )}
+              {onToolSelect && (
+                <div className="mcp-tool-action">Click to execute</div>
               )}
             </div>
           ))
