@@ -81,6 +81,37 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — "Skipped" steps re-rendered as "Not in path" (bypass rail + checklist cross-out)
+
+**Files changed:** `demo_api_ui/src/components/TokenChainDisplay.js` (+`.css`),
+`ComplianceModalContent.js` + `ComplianceModal.css`,
+`__tests__/TokenChainDisplay.haltedAt.test.js`.
+
+**What was broken:** token chain steps the BFF emits as `skipped` (mTLS off,
+gateway not in route, introspection not enabled) and compliance checklist steps
+not applicable to the chip's action rendered as gray "Skipped" / pending "○" —
+reading as an alarming omission when the step was simply never part of the run.
+
+**What was fixed/changed:** new `notinpath` visual bucket — status `skipped`
+now maps to it (label "Not in path"); `synthesized` stays in the old `skipped`
+bucket. Not-in-path chain cards are shunted right onto a dashed spur with a
+solid rail passing them (`.tcd-event-wrap--notinpath`), title struck through,
+dashed badge; connectors touching them go dashed (`.tcd-connector--bypass`).
+Checklist non-applicable steps: `–` icon (the `☑️` violated the §0 emoji
+allowlist), strikethrough, dashed outline, "N/A this run" tag; footer wording
+"not triggered" → "not in this run's path".
+
+**Do not break:** `resolveStatusVisual` unknown/negative statuses must still
+fall to the red `failed` bucket (fail loud); `notinpath` must never absorb a
+failure or should-have-run status — a step that should have run and didn't
+surfaces via `isHaltedAt`/`failed`, never as "Not in path"; downstream bucket
+consumers (`SimpleStepperPanel`, `TokenAuditTimeline`, history rollup) key on
+active/exchanged/failed only and treat `notinpath` as neutral, same as
+`skipped` before.
+
+**Verify:** vitest `TokenChainDisplay.haltedAt` (bucket assertions included),
+`SimpleStepperPanel`; UI build gate.
+
 ### 2026-07-11 — P1AZ policy-not-found handling + reliability hardening (deliberate posture change)
 
 **Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`

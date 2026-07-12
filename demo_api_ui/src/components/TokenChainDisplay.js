@@ -83,8 +83,8 @@ function RfcRef({ rfc, className = "tcd-edu-ref" }) {
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-// Every status the BFF + gateway can emit, mapped to one of the four existing
-// visual buckets (active/exchanged/skipped/failed/waiting). The critical
+// Every status the BFF + gateway can emit, mapped to one of the existing
+// visual buckets (active/exchanged/notinpath/skipped/failed/waiting). The critical
 // invariant: any negative/terminal-failure status MUST resolve to the red
 // "failed" bucket — previously unmapped statuses (success, failure, error,
 // denied, expired, timeout, unreachable, deny, degraded, indeterminate,
@@ -107,7 +107,11 @@ const STATUS_VISUAL = {
   pending: { bucket: "acquiring", label: "Pending…" },
   waiting: { bucket: "waiting", label: "Waiting" },
   // neutral / not-applicable
-  skipped: { bucket: "skipped", label: "Skipped" },
+  // "skipped" from the BFF means the leg was never part of this run (mTLS off,
+  // gateway not in route, introspection not enabled) — render it as a bypassed
+  // "Not in path" step, not as an alarming omission. A step that SHOULD have
+  // run and didn't surfaces via isHaltedAt / the failed bucket, never here.
+  skipped: { bucket: "notinpath", label: "Not in path" },
   synthesized: { bucket: "skipped", label: "Synthesized (not verified)" },
   // failures — all must be red
   failed: { bucket: "failed", label: "Failed" },
@@ -3148,9 +3152,14 @@ function EventRow({
         ? "ACCESS + ID-TOKEN PATH"
         : "OAUTH BEARER PATH";
 
+  // Bypass-rail treatment: a not-in-path step is shunted right onto a dashed
+  // spur while the main flow line runs straight past it (see .tcd-event-wrap--notinpath).
+  const statusBucket = resolveStatusVisual(event.status).bucket;
+  const nextBucket = nextEvent ? resolveStatusVisual(nextEvent.status).bucket : null;
+
   return (
     <div
-      className={`tcd-event-wrap tcd-path-${credPath}${isSpotlit ? " tcd-event-wrap--spotlit" : ""}${halted ? " tcd-event-wrap--halted" : ""}`}
+      className={`tcd-event-wrap tcd-path-${credPath}${isSpotlit ? " tcd-event-wrap--spotlit" : ""}${halted ? " tcd-event-wrap--halted" : ""}${statusBucket === "notinpath" ? " tcd-event-wrap--notinpath" : ""}`}
       data-credential-path={credPath}
       data-step-index={stepNumber != null ? stepNumber - 1 : undefined}
     >
@@ -3160,7 +3169,7 @@ function EventRow({
           status string — otherwise a server status without a matching CSS rule
           (error/failure/denied/expired/timeout/degraded) renders with no
           failure styling, indistinguishable from success. */}
-      <div className={`tcd-event ${resolveStatusVisual(event.status).bucket}${halted ? " tcd-event--halted" : ""}`}>
+      <div className={`tcd-event ${statusBucket}${halted ? " tcd-event--halted" : ""}`}>
         <div className="tcd-event-content">
           <div className="tcd-event-title-row">
             <TokenColorDot
@@ -3497,7 +3506,7 @@ function EventRow({
       </div>
 
       {!isLast && (
-        <div className="tcd-connector">
+        <div className={`tcd-connector${statusBucket === "notinpath" || nextBucket === "notinpath" ? " tcd-connector--bypass" : ""}`}>
           <div className="tcd-connector-line" />
           <span className="tcd-connector-arrow">↓</span>
           <ScopeDelta fromEvent={event} toEvent={nextEvent} />
