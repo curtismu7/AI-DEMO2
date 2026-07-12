@@ -15,9 +15,11 @@
 - Emoji allowlist only: `⚠️ ✅ ❌ 🔐 ✕ ✓`. No other emoji in code/UI/docs.
 - Minimal diff: name the element, change only that. No adjacent cleanup.
 - `TracingPage.jsx` / `TracingPage.css` are UI surfaces — invoke the `regression-guard` skill before editing (REGRESSION_PLAN §0/§1).
-- Run BFF tests from the worktree with the repo's jest invocation:
-  `./node_modules/.bin/jest --testPathIgnorePatterns=/node_modules/ --runTestsByPath demo_api_server/tests/tracingRoute.test.js`
-  (worktree needs `node_modules` symlinked at root + `demo_api_server` if absent — see AI-DEMO2 ops memory).
+- Run BFF tests from the worktree with the repo's jest invocation (jest lives in
+  `demo_api_server/node_modules`, and the default `testPathIgnorePatterns` excludes
+  `.claude/worktrees/` — both must be worked around):
+  `cd demo_api_server && ./node_modules/.bin/jest --testPathIgnorePatterns=/node_modules/ --runTestsByPath tests/tracingRoute.test.js --forceExit`
+  (`node_modules` is already symlinked into this worktree for root + demo_api_server + demo_api_ui + demo_mcp_gateway.)
 
 ---
 
