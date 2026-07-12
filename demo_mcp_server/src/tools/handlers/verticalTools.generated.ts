@@ -141,6 +141,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"remove_wishlist_item","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"wishlistItemId":{"type":"string"}},"required":["wishlistItemId"],"additionalProperties":false}},
   {"name":"return_order","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"orderId":{"type":"string"}},"required":["orderId"],"additionalProperties":false}},
   {"name":"sensitive_membership_details","scope":"read","vertical":"sporting-goods"},
+  {"name":"transfer_membership","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"recipient":{"type":"string"}},"required":[],"additionalProperties":false}},
   {"name":"accept_financial_aid","scope":"write","vertical":"university","inputSchema":{"type":"object","properties":{"aidId":{"type":"string"}},"required":["aidId"],"additionalProperties":false}},
   {"name":"apply_scholarship","scope":"write","vertical":"university","inputSchema":{"type":"object","properties":{"scholarshipId":{"type":"string"}},"required":["scholarshipId"],"additionalProperties":false}},
   {"name":"cancel_course_registration","scope":"write","vertical":"university","inputSchema":{"type":"object","properties":{"courseId":{"type":"string"}},"required":["courseId"],"additionalProperties":false}},

@@ -427,3 +427,4 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_trades` | gateway | `read` | — |
 | `sensitive_holdings` | gateway | `read` | consent |
 | `cash_out_store_credit` | gateway | `write` | step_up |
+| `transfer_membership` | gateway | `write` | step_up |

@@ -2071,6 +2071,19 @@
         "additionalProperties": false
       }
     },
+    "transfer_membership": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "update_contact_email": {
       "source": "olb",
       "inputSchema": {

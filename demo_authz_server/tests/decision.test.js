@@ -196,6 +196,12 @@ test('chip-markers: cash_out_store_credit (write step-up tool, no amount) -> IND
   assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
 });
 
+test('chip-markers: transfer_membership (write step-up tool, no amount) -> INDETERMINATE reason=STEP_UP', async () => {
+  const result = await decide(writeParams({ ToolName: 'transfer_membership' }));
+  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
+  assert.strictEqual(result.reason, 'STEP_UP', 'Expected STEP_UP, got: ' + result.reason);
+});
+
 test('NNP-6 A-7b: step-up tool (release_records), no amount -> INDETERMINATE reason=STEP_UP (not HITL_CONSENT)', async () => {
   // F3 regression: no-amount step-up tools must map to STEP_UP, not collapse
   // into HITL_CONSENT — parity with the P1AZ snapshot RequiresMcpStepUp.

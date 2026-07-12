@@ -1146,6 +1146,11 @@
       "requiredScopes": ["write"],
       "surface": "gateway",
       "challengeType": "step_up"
+    },
+    "transfer_membership": {
+      "requiredScopes": ["write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
     }
   },
   "policy": {
