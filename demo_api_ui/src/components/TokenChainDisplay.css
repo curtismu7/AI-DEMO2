@@ -350,6 +350,21 @@
   border-color: #8d8d8d;
 }
 
+/* Not-in-path (bypass) — the step was never applicable to this run. Dashed
+   card + struck-through title; the wrap-level rail treatment lives at
+   .tcd-event-wrap--notinpath below the connector rules. */
+.tcd-event.notinpath {
+  border-color: #94a3b8;
+  border-style: dashed;
+  background: #f8fafc;
+  box-shadow: none;
+}
+.tcd-event.notinpath .tcd-event-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: #64748b;
+}
+
 .tcd-event.failed {
   border-color: #da1e28;
 }
@@ -496,6 +511,13 @@
   background: var(--brand-light-gray);
   color: #666666;
   border-color: #cccccc;
+}
+.tcd-badge--notinpath {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #94a3b8;
+  border-style: dashed;
+  box-shadow: none;
 }
 .tcd-badge--failed {
   background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
@@ -1238,6 +1260,55 @@ pre.tcd-jwt-dump {
   color: #334155;
   line-height: 1;
   font-weight: 700;
+}
+
+/* Connector entering or leaving a not-in-path step: dashed, muted — the flow
+   dips around the bypassed card rather than through it. */
+.tcd-connector--bypass .tcd-connector-line {
+  background: none;
+  border-left: 2px dashed #94a3b8;
+  width: 0;
+  border-radius: 0;
+}
+.tcd-connector--bypass .tcd-connector-arrow {
+  color: #94a3b8;
+}
+
+/* ─── Not-in-path bypass rail ────────────────────────────────────────────────
+   The bypassed card (and its path badge) is shunted right; a solid vertical
+   line runs straight down the freed left gutter — the main flow passing the
+   unused station — with a short dashed spur out to the card. Consecutive
+   not-in-path wraps stack, so their gutter lines read as one continuous rail. */
+.tcd-event-wrap--notinpath {
+  position: relative;
+}
+.tcd-event-wrap--notinpath > .tcd-path-badge,
+.tcd-event-wrap--notinpath > .tcd-event {
+  margin-left: 30px;
+}
+/* .tcd-path-badge is width:100%; shrink it so the 30px shunt doesn't overflow,
+   and mute its solid fill — a bypassed step shouldn't shout its path color. */
+.tcd-event-wrap--notinpath > .tcd-path-badge {
+  width: calc(100% - 30px);
+  opacity: 0.55;
+}
+.tcd-event-wrap--notinpath::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+  border-radius: 1px;
+}
+.tcd-event-wrap--notinpath::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 44px;
+  width: 17px;
+  border-top: 2px dashed #94a3b8;
 }
 
 /* ─── Scope delta strip (between connector events) ──────────────────────── */
