@@ -4,7 +4,8 @@ title: MCP Security Gateway — AI Demo (Live Architecture)
 %% Phase 266 R2 (2026-05-11): One gateway, three credential mechanisms.
 %% 2026-06-18: PingGateway (IG, :3036) is the default MCP gateway (ff_mcp_gateway_pinggateway=true).
 %% Authorize params now include UserId + McpResourceUri in every McpToolCall request.
-%% Real→mock Authorize failover: PingOne Authorize (real) → mock authz-server:9001 (via X-Authz-Simulated header).
+%% Authorize outage: fail-closed deny 503 by default (AUTHORIZE_FAILOVER_MODE=deny). Mock authz-server:9001
+%% failover (X-Authz-Simulated) is opt-in only (fallback_simulated / ff_authorize_simulated).
 %% Path A (api_key): scope gate (banking:mortgage:read); OAuth bearer dropped; X-API-Key + X-User-Sub injected; calls demo_mortgage_service :8082 (Phase 267).
 %% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity.
 %% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) to banking_resource_server /accounts /transactions (SQLite).
@@ -14,7 +15,7 @@ flowchart LR
 
     subgraph Customer["Customer Cloud"]
         direction TB
-        GATEWAY["MCP\nGateway"]
+        GATEWAY["MCP Gateway\nPingGateway (IG, :3036)\nff_mcp_gateway_pinggateway=true (default)"]
         MCP_SERVER["Banking MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
         GATEWAY <-->|"3. Adapt security to\ndownstream requirements"| MCP_SERVER
         BANKING_RS["banking_resource_server\n/identity (Path B: dual_token)\n/accounts /transactions (Path C: oauth_bearer)"]
@@ -25,14 +26,14 @@ flowchart LR
     subgraph Ping["Ping"]
         PING["Ping Identity Platform\n(PingOne)\ntoken validation · policy eval\nstep-up MFA · audit\nRFC 8693 token exchange"]
         PING_AUTHORIZE["PingOne Authorize (PDP)\nMcpToolCall evaluate:\nUserId + McpResourceUri params\nPERMIT · DENY · INDETERMINATE"]
-        MOCK_AUTHZ["mock authz-server :9001\nDrop-in fallback (X-Authz-Simulated)\nReal→mock failover"]
+        MOCK_AUTHZ["mock authz-server :9001\nOpt-in fallback only (X-Authz-Simulated)\nfallback_simulated / ff_authorize_simulated"]
     end
 
     BANKING_AGENT -->|"1. Intercept MCP traffic\n(user OAuth bearer)"| GATEWAY
     GATEWAY -->|"response"| BANKING_AGENT
     GATEWAY <-->|"2. Enforce identity and\nsecurity rules governed\nby the Ping platform"| PING
     GATEWAY -->|"2a. PDP evaluate per tool call\n(UserId + McpResourceUri)"| PING_AUTHORIZE
-    PING_AUTHORIZE -.->|"real P1AZ unavailable →\nfailover (X-Authz-Simulated)"| MOCK_AUTHZ
+    PING_AUTHORIZE -.->|"outage → fail-closed deny 503 (default)\nmock failover only if opted in"| MOCK_AUTHZ
 
     %% Phase 266 R2: Three outbound credential paths from the Gateway
     GATEWAY -->|"Path B: Bearer + id_token\ndual_token - /identity"| BANKING_RS
