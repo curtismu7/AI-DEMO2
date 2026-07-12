@@ -157,6 +157,10 @@ export function buildAuthorizeParameters(
   if (intentValidation) {
     base.IntentTokenValid  = String(intentValidation.valid);
     base.IntentMatchesTool = String(intentValidation.toolPermitted ?? false);
+    // Forward WHY validation failed so the policy can distinguish a TAMPERED
+    // intent token (malformed / bad signature — fail closed) from a benign
+    // 'expired' one (the 5-min TTL lapsed mid agent-run — allowed through).
+    base.IntentTokenError  = intentValidation.error ?? '';
     base.IntentJti         = intentValidation.payload?.jti ?? '';
     base.IntentIntent      = intentValidation.payload?.intent ?? '';
     base.IntentConfidence  = String(intentValidation.payload?.confidence ?? 0);

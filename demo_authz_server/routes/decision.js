@@ -133,6 +133,7 @@ module.exports = async function decisionHandler(req, res) {
     HitlChallengeId = '',
     IntentTokenValid = '',
     IntentMatchesTool = '',
+    IntentTokenError = '',   // why gateway validation failed (empty when valid/absent)
     IntentJti = '',
     IntentIntent = '',
     IntentConfidence = '',
@@ -685,6 +686,20 @@ module.exports = async function decisionHandler(req, res) {
       log(`[AuthzServer/decision] INDETERMINATE — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresConsent=${declaresConsent}`);
       return indeterminate(res, 'HITL_CONSENT');
     }
+  }
+
+  // ── Rule 4a: Intent token — deny if a token was PRESENTED but is TAMPERED ──────
+  // IntentTokenValid='false' means the gateway received an intent token and
+  // validation failed. A tampered/forged token (bad signature, malformed) must
+  // fail CLOSED — otherwise an attacker strips intent binding by corrupting the
+  // token (valid+enforced downgraded to invalid+ignored), defeating the whole
+  // control. A BENIGN 'expired' failure (the 5-min TTL lapsed mid agent-run) and
+  // an absent token (IntentTokenValid='') are allowed through — IT is opt-in and
+  // the mock cannot re-mint an expired token. Only present-and-tampered denies.
+  const INTENT_TAMPER_ERRORS = new Set(['malformed', 'invalid_signature', 'malformed_payload']);
+  if (IntentTokenValid === 'false' && INTENT_TAMPER_ERRORS.has(asStr(IntentTokenError))) {
+    warn(`[AuthzServer/decision] DENY — intent token tampered: error="${IntentTokenError}" tool="${ToolName}" jti=${IntentJti}`);
+    return deny(res, `intent_token_invalid: presented intent token failed validation (${IntentTokenError})`);
   }
 
   // ── Rule 4b: Intent token — deny if token is present but tool is not permitted ─
