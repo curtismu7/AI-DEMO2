@@ -1136,16 +1136,18 @@
     "view_trades": {
       "requiredScopes": ["read"],
       "surface": "gateway"
+    },
+    "sensitive_holdings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent"
     }
   },
   "policy": {
     "authorization": {
       "highValueConsentThresholdUsd": 250,
       "stepUpThresholdUsd": 500,
-      "amountLimitsByTier": {
-        "standard": 2000,
-        "privatebanking": 50000
-      }
+      "amountLimitsByTier": { "standard": 2000, "privatebanking": 50000 }
     }
   }
 }

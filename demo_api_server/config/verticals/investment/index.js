@@ -17,6 +17,7 @@ const HEURISTICS = [
   { re: /\bwithdraw\b/i, action: 'withdraw', extractsAmount: true, paramHint: 'e.g. "withdraw $500 from my retirement portfolio"' },
   { re: /\bdividends?\b/i, action: 'view_dividends' },
   { re: /\btrades?\b|\btrade\s+history\b/i, action: 'view_trades' },
+  { re: /\bsensitive\b.*\b(holdings?|positions?|cost\s*basis|tax\s*lots?)\b|\bholdings?\b.*\bsensitive\b/i, action: 'sensitive_holdings' },
   { re: /\bholdings?\b|\bsecurities\b/i, action: 'view_holdings' },
   { re: /\bportfolio\s+value\b|\btotal\s+value\b/i, action: 'view_portfolio_value' },
   { re: /\bportfolios?\b/i, action: 'view_portfolios' },

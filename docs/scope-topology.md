@@ -425,3 +425,4 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_portfolio_value` | gateway | `read` | — |
 | `view_portfolios` | gateway | `read` | — |
 | `view_trades` | gateway | `read` | — |
+| `sensitive_holdings` | gateway | `read` | consent |

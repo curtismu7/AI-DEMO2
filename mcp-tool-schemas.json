@@ -1850,6 +1850,15 @@
         "additionalProperties": false
       }
     },
+    "sensitive_holdings": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "sensitive_membership_details": {
       "source": "olb",
       "inputSchema": {
