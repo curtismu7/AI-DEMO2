@@ -48,8 +48,10 @@ async function llmFetch(url, options = {}, { label = 'llm', timeoutMs = DEFAULT_
   }
 
   if (retryOn429 && (res.status === 429 || res.status >= 500)) {
-    const retryAfter = res.headers?.get?.('Retry-After');
-    const backoffMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+    const retryAfter = parseInt(res.headers?.get?.('Retry-After') ?? '', 10);
+    // Cap the honored Retry-After: the client gives up long before a large
+    // value elapses, and an HTTP-date Retry-After parses to NaN → default.
+    const backoffMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000, 5000);
     console.warn(`[llmFetch] ${label} got ${res.status} — retrying in ${backoffMs}ms`);
     await new Promise((r) => setTimeout(r, backoffMs));
     return attempt();

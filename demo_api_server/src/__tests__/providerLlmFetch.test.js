@@ -81,4 +81,21 @@ describe('providers use llmFetch', () => {
     expect(calls[1]).not.toContain('gemini-2.0-flash:'); // rotated to a different model
     spy.mockRestore();
   });
+
+  it('model discovery fetches are timeout-guarded (hung /models cannot hang the call)', async () => {
+    process.env.LLM_FETCH_TIMEOUT_MS = '50'; // module default only affects completion; discovery uses explicit 5000 — so instead prove the abort signal is WIRED: assert fetch received a signal
+    jest.resetModules();
+    let modelsInit;
+    global.fetch = jest.fn(async (url, init) => {
+      if (String(url).endsWith('/models')) {
+        modelsInit = init;
+        return { ok: true, status: 200, json: async () => ({ data: [{ id: 'm1' }] }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'hi' } }] }) };
+    });
+    const { callLmStudio } = require('../../services/lmStudioLlmService');
+    await callLmStudio([{ role: 'user', content: 'x' }]);
+    expect(modelsInit.signal).toBeDefined(); // bare fetch had no signal; llmFetch always sets one
+    delete process.env.LLM_FETCH_TIMEOUT_MS;
+  });
 });

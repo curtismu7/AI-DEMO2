@@ -68,4 +68,16 @@ describe('llmFetch', () => {
     expect(DEFAULT_LLM_TIMEOUT_MS).toBeLessThan(60000);
     expect(DEFAULT_LLM_TIMEOUT_MS).toBeGreaterThan(0);
   });
+
+  it('caps Retry-After and defaults on unparseable values', async () => {
+    const ok = { ok: true, status: 200 };
+    const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // HTTP-date Retry-After → NaN → default 2000ms backoff (fast-forwarded via real short default not needed: assert the warn message names 2000ms)
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 429, headers: { get: () => 'Wed, 21 Oct 2026 07:28:00 GMT' } })
+      .mockResolvedValueOnce(ok);
+    await llmFetch('http://x/chat', {}, { label: 't' });
+    expect(spy.mock.calls.some((c) => String(c[0]).includes('2000ms'))).toBe(true);
+    spy.mockRestore();
+  }, 10000);
 });

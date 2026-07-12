@@ -200,6 +200,8 @@ git add demo_api_server/services/llmFetch.js demo_api_server/src/__tests__/llmFe
 git commit -m "feat(llm): shared llmFetch ladder — timeout, transport retry, 429/5xx retry"
 ```
 
+**Accepted residual risk (final review):** llmFetch bounds each ATTEMPT, not the total call — a slow-failure first attempt plus a retry can exceed the client budget (worst realistic local case ~110s vs 60s; gemini transport-retry worst case ~24s vs 15s). When that happens the SPA's own AbortSignal fires and the UI shows its "model took too long" hint — the designed floor. Fast-failure modes (connection refused, instant 5xx) stay well under budget. A total-deadline budget was considered and deferred: it complicates the ladder for a path whose failure UX is already acceptable.
+
 ---
 
 ### Task 2: Wire the four bare providers to `llmFetch`

@@ -33,7 +33,7 @@ async function model() {
   if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
   if (cachedModel) return cachedModel;
   try {
-    const res = await fetch(`${baseUrl()}/v1/models`);
+    const res = await llmFetch(`${baseUrl()}/v1/models`, {}, { label: 'llama.cpp models', timeoutMs: 5000, retryOn429: false });
     const data = await res.json();
     const first = Array.isArray(data?.data) ? data.data.find((m) => m && m.id) : undefined;
     cachedModel = first?.id || FALLBACK_MODEL;

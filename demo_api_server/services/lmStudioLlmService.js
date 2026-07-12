@@ -31,7 +31,7 @@ function toOpenAiMessages(messages) {
 async function resolveModel(base) {
   const configured = configStore.getEffective('lmstudio_model');
   if (typeof configured === 'string' && configured.trim()) return configured.trim();
-  const res = await fetch(`${base}/models`, { headers: { Accept: 'application/json' } });
+  const res = await llmFetch(`${base}/models`, { headers: { Accept: 'application/json' } }, { label: 'LM Studio models', timeoutMs: 5000, retryOn429: false });
   if (!res.ok) throw new Error(`LM Studio /models failed: ${res.status}`);
   const data = await res.json();
   const first = Array.isArray(data?.data) ? data.data.find((m) => m && m.id) : null;
