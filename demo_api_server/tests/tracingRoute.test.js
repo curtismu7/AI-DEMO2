@@ -137,3 +137,33 @@ describe('GET /api/health/tracing/traces/:id', () => {
     expect(res.body.error).toBe('trace_not_found');
   });
 });
+
+describe('jaegerUiUrl derivation on /status', () => {
+  const OLD_ENV = { ...process.env };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    axios.get.mockResolvedValue({ status: 200, data: { data: [] } });
+  });
+  afterEach(() => { process.env = { ...OLD_ENV }; });
+
+  test('explicit JAEGER_UI_URL wins and trailing slash is stripped', async () => {
+    process.env.JAEGER_UI_URL = 'https://explicit.example/jaeger/';
+    process.env.PUBLIC_APP_URL = 'https://ignored.example';
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('https://explicit.example/jaeger');
+  });
+
+  test('derives from PUBLIC_APP_URL when JAEGER_UI_URL is unset', async () => {
+    delete process.env.JAEGER_UI_URL;
+    process.env.PUBLIC_APP_URL = 'https://ai-demo.ping-devops.com';
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('https://ai-demo.ping-devops.com/jaeger');
+  });
+
+  test('falls back to localhost when neither env is set', async () => {
+    delete process.env.JAEGER_UI_URL;
+    delete process.env.PUBLIC_APP_URL;
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.body.jaegerUiUrl).toBe('http://localhost:16686');
+  });
+});
