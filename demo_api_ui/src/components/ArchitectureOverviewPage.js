@@ -6,6 +6,7 @@ import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS } from './diagram';
 import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
 import ArchitectureSimSvg from './ArchitectureSimSvg';
+import DiagramExportBar from './DiagramExportBar';
 
 // ─── State machine ───────────────────────────────────────────────────────────
 
@@ -260,6 +261,15 @@ export default function ArchitectureOverviewPage() {
           isComplete={isComplete}
           mode={sim.mode}
           allSteps={scenario?.steps}
+        />
+
+        {/* Downloads of the equivalent clean-view diagram (architecture-simple.mmd) */}
+        <DiagramExportBar
+          items={[
+            { label: 'Mermaid (.mmd)', href: '/architecture/architecture-simple.mmd' },
+            { label: 'PNG', href: '/architecture/overview.png' },
+            { label: 'draw.io / Lucid (.drawio)', href: '/architecture/architecture-simple.drawio' },
+          ]}
         />
       </div>
     </div>

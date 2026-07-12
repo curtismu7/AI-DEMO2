@@ -183,7 +183,14 @@ describe('resolveActiveVerticalCtx — live banking path (regression)', () => {
 describe('chip routing contract — every `both` chip resolves to a heuristic (all verticals)', () => {
   const { resolveActiveVerticalCtx } = require('../services/nlIntentParser');
   const { verticalManifest } = require('../services/verticalManifest');
-  const VERTICALS = ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce'];
+  // Phase 2 demo hardening: ALL chips10-bearing verticals, so an LLM outage
+  // can never leave a `both` chip dead in any vertical. mode:'llm' and
+  // mode:'direct' chips stay exempt via the bothChips filter below.
+  const VERTICALS = [
+    'admin', 'banking', 'government', 'healthcare', 'investment',
+    'manufacturing', 'oauth-teaching', 'pingone-admin', 'retail',
+    'sporting-goods', 'university', 'workforce',
+  ];
 
   let prevActive;
   beforeAll(() => {

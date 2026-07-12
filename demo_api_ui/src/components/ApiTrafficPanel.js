@@ -155,7 +155,10 @@ function StatusBadge({ entry }) {
   if (entry.kind === 'token-event') {
     const s = entry.eventStatus || 'active';
     const cls = { failed: 'err', skipped: 'skip' }[s] || 'tok';
-    return <span className={`api-status-badge api-status-badge--${cls}`}>{s}</span>;
+    // "skipped" means the leg was never part of this run — say so instead of
+    // rendering a word that reads as an unexpected omission.
+    const label = s === 'skipped' ? 'not in path' : s;
+    return <span className={`api-status-badge api-status-badge--${cls}`}>{label}</span>;
   }
   const { status } = entry;
   if (!status) return <span className="api-status-badge api-status-badge--net">net</span>;

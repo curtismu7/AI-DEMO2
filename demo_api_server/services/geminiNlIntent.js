@@ -13,6 +13,7 @@ const { callHelixAgent } = require('./helixLlmService');
 const configStore = require('./configStore');
 const verticalDispatch = require('./verticalDispatch');
 const { repairAndParseJson, validateIntent, snippet: contractSnippet, logMendEvent } = require('./llmResponseContract');
+const llmBreaker = require('./llmCircuitBreaker');
 
 const { base: SYSTEM_BASE, themes: THEME_OVERRIDES } =
   require(path.join(__dirname, '../../docs/HELIX_AGENT_DIRECTIVES.json'));
@@ -45,6 +46,19 @@ function buildSystemWithCtx(vertical, context) {
   return `${SYSTEM}\n\nSigned-in user: role=${context.role}${context.firstName ? `, name=${context.firstName}` : ''}. ${roleNote}`;
 }
 
+/**
+ * Single source of truth for the conversational (non-router) system prompt.
+ * Previously duplicated inline at five provider sites; the Helix copy had
+ * drifted to a hardcoded "banking demo platform" that ignored the active
+ * vertical. Google is intentionally NOT on this helper — it reuses the full
+ * buildSystemWithCtx router context.
+ */
+function conversationalSystemPrompt(context = {}) {
+  const domain = (typeof context.vertical === 'string' && context.vertical)
+    ? context.vertical.replace(/-/g, ' ')
+    : 'banking';
+  return `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`;
+}
 
 /**
  * Answer a general knowledge question using Helix when banking intent parsing fails.
@@ -75,7 +89,7 @@ async function answerWithHelix(userMessage, context = {}) {
     const messages = [
       {
         role: 'system',
-        content: 'You are a knowledgeable assistant for a banking demo platform. Answer the user\'s question concisely and accurately. Keep your answer to 1-2 paragraphs.',
+        content: conversationalSystemPrompt(context),
       },
       {
         role: 'user',
@@ -159,14 +173,11 @@ async function answerWithClaude(userMessage, context = {}) {
       console.warn('[nlIntent] Anthropic API key not configured');
       return null;
     }
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const client = new Anthropic.default({ apiKey });
     const response = await client.messages.create({
       model: configStore.getEffective('anthropic_model') || 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+      system: conversationalSystemPrompt(context),
       messages: [{ role: 'user', content: userMessage }],
     });
     const answer = response.content?.find((b) => b.type === 'text')?.text;
@@ -181,13 +192,10 @@ async function answerWithClaude(userMessage, context = {}) {
 async function answerWithLmStudio(userMessage, context = {}) {
   try {
     const { callLmStudio } = require('./lmStudioLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callLmStudio([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -219,13 +227,10 @@ function ensureRenderableAnswer(result) {
 async function answerWithLlamaCpp(userMessage, context = {}) {
   try {
     const { callLlamaCpp } = require('./llamacppLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callLlamaCpp([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -241,13 +246,10 @@ async function answerWithLlamaCpp(userMessage, context = {}) {
 async function answerWithMlx(userMessage, context = {}) {
   try {
     const { callMlx } = require('./mlxLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callMlx([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -428,6 +430,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 
   // Try selected provider first for NL intent routing
   if (selectedProvider === 'helix') {
+    if (llmBreaker.isOpen('helix')) {
+      console.warn('[nlIntent] helix breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
 
     try {
@@ -451,6 +457,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           { role: 'system', content: systemWithCtx },
           { role: 'user', content: message },
         ]);
+        llmBreaker.recordSuccess('helix');
 
         const tryParse = tryParseIntentJson;
 
@@ -486,6 +493,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     } catch (err) {
       // 401 means the cached API key is rejected — evict it so the next request
       // re-reads the key file (handles rotated or expired keys without a restart).
+      llmBreaker.recordFailure('helix');
       if (/\b401\b/.test(err.message)) {
         try { require('./helixAgentKeyLoader').clearCache(); } catch (_) {}
       }
@@ -496,6 +504,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 
   // Claude (Anthropic) JSON intent parsing — parallel to the Helix branch.
   if (CLAUDE_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('claude')) {
+      console.warn('[nlIntent] claude breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const apiKey = langchainConfig?.anthropic_api_key
       || configStore.getEffective('anthropic_api_key')
       || process.env.ANTHROPIC_API_KEY;
@@ -516,6 +528,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         system: systemWithCtx,
         messages: [{ role: 'user', content: message }],
       });
+      llmBreaker.recordSuccess('claude');
       const rawText = response.content?.find((b) => b.type === 'text')?.text;
       let parsed = tryParseIntentJson(rawText);
       if (parsed) return logAndReturn({ source: 'claude', result: parsed });
@@ -536,6 +549,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       }
       llmAttempted = true;
     } catch (err) {
+      llmBreaker.recordFailure('claude');
       console.warn('[nlIntent] Claude intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
@@ -543,6 +557,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 
   // Google Gemini JSON intent parsing — parallel to the Claude branch.
   if (GOOGLE_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('google')) {
+      console.warn('[nlIntent] google breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const apiKey = langchainConfig?.google_api_key
       || configStore.getEffective('google_api_key')
       || process.env.GOOGLE_API_KEY;
@@ -557,6 +575,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ], langchainConfig);
+      llmBreaker.recordSuccess('google');
       let parsed = tryParseIntentJson(rawText);
       if (parsed) return logAndReturn({ source: 'google', result: parsed });
 
@@ -578,6 +597,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       }
       llmAttempted = true;
     } catch (err) {
+      llmBreaker.recordFailure('google');
       console.warn('[nlIntent] Gemini intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
@@ -589,6 +609,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // conversational answer and action chips would break. Falls through to the
   // conversational answer below when the model returns kind:'none' or non-JSON.
   if (LMSTUDIO_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('lmstudio')) {
+      console.warn('[nlIntent] lmstudio breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
     try {
       const { callLmStudio } = require('./lmStudioLlmService');
@@ -596,6 +620,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
+      llmBreaker.recordSuccess('lmstudio');
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'lmstudio', result: parsed });
       if (raw) {
@@ -613,6 +638,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       }
       llmAttempted = true;
     } catch (err) {
+      llmBreaker.recordFailure('lmstudio');
       console.warn('[nlIntent] LM Studio intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
@@ -621,6 +647,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // llama.cpp JSON intent parsing — same pattern as LM Studio above.
   // Lets "llama.cpp only" mode (heuristicRouting:false) route structured actions.
   if (LLAMACPP_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('llamacpp')) {
+      console.warn('[nlIntent] llamacpp breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
     try {
       const { callLlamaCpp } = require('./llamacppLlmService');
@@ -628,6 +658,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ], { jsonSchema: INTENT_JSON_SCHEMA });
+      llmBreaker.recordSuccess('llamacpp');
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
       if (raw) {
@@ -645,6 +676,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       }
       llmAttempted = true;
     } catch (err) {
+      llmBreaker.recordFailure('llamacpp');
       console.warn('[nlIntent] llama.cpp intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
@@ -653,6 +685,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // mlx-lm JSON intent parsing — same pattern as llama.cpp above.
   // Lets "MLX (Apple)" mode (heuristicRouting:false) route structured actions.
   if (MLX_PROVIDERS.has(selectedProvider)) {
+    if (llmBreaker.isOpen('mlx')) {
+      console.warn('[nlIntent] mlx breaker open — skipping provider, using deterministic ladder');
+      return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
+    }
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
     try {
       const { callMlx } = require('./mlxLlmService');
@@ -660,6 +696,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
       ]);
+      llmBreaker.recordSuccess('mlx');
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'mlx', result: parsed });
       if (raw) {
@@ -677,6 +714,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       }
       llmAttempted = true;
     } catch (err) {
+      llmBreaker.recordFailure('mlx');
       console.warn('[nlIntent] mlx-lm intent error:', err.message);
       return { source: 'heuristic', result: heuristicResult, llm_attempted: true };
     }
@@ -722,5 +760,5 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 module.exports = {
   parseNaturalLanguage,
   EDU,
-  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson },
+  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson, conversationalSystemPrompt },
 };

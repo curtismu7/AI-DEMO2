@@ -1571,6 +1571,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
             5000,
           );
+        } else if (d?.error === "policy_not_found") {
+          // Policy drift, NOT a permission problem: the action has no matching
+          // authorization policy. Say so, so nobody chases scopes or user perms.
+          notifyError(
+            d?.error_description ||
+              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+            5000,
+          );
         } else {
           notifyError(
             "You do not have permission to perform transfers. Please contact your administrator.",
@@ -1669,6 +1677,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             userScopes.length > 0 ? userScopes.join(", ") : "(none)";
           notifyError(
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
+            5000,
+          );
+        } else if (d?.error === "policy_not_found") {
+          // Policy drift, NOT a permission problem: the action has no matching
+          // authorization policy. Say so, so nobody chases scopes or user perms.
+          notifyError(
+            d?.error_description ||
+              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
             5000,
           );
         } else {
@@ -1774,6 +1790,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             userScopes.length > 0 ? userScopes.join(", ") : "(none)";
           notifyError(
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
+            5000,
+          );
+        } else if (d?.error === "policy_not_found") {
+          // Policy drift, NOT a permission problem: the action has no matching
+          // authorization policy. Say so, so nobody chases scopes or user perms.
+          notifyError(
+            d?.error_description ||
+              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
             5000,
           );
         } else {

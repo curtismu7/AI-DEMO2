@@ -82,6 +82,74 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-11 — Restored clobbered AI-Attacks inline-agent fix; UI suite back to green
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`src/hooks/__tests__/useDraggablePanel.test.js`,
+`src/components/__tests__/AgentModeSelector.test.jsx`,
+`src/__tests__/uiRegression.test.js`.
+
+**What was broken:** the working-tree snapshot commit `5f5770de8` (made in the
+shared main checkout, not a worktree) swept in a stale copy of `AIAgent.js`,
+silently reverting `855f8a78a`'s removal of the `isInline` guards — AI Attacks
+drawer events (`banking-agent-prefill` autoSend, `banking-run-showcase`,
+sessionStorage replay) went dead for the inline agent again and its 5 tests
+failed. Separately: a `simport` typo (bulk commit `db2a1a074`) broke
+`useDraggablePanel` at parse time; an AgentModeSelector test queried the
+post-probe "— unavailable" label synchronously; three newer CSS files
+(PrivilegeDemoPage, ServersPage, CheckPage) used monospace without allowlist
+entries.
+
+**What was fixed:** re-applied 855f8a78a's AIAgent patch verbatim; fixed the
+typo; `findByRole` for the async probe label; allowlisted the three CSS files
+(identifier / data-column / check-log displays). Full `demo_api_ui` vitest:
+1455 passed, 0 failed.
+
+**Do not break:** the inline agent MUST handle drawer run events (no
+`isInline` early return — single-instance mount confirmed in 855f8a78a);
+working-tree snapshot commits from the shared checkout are how this fix was
+lost — use worktrees.
+
+**Verify:** vitest `AiAttacksPanel.inlineAgent`, `useDraggablePanel`,
+`AgentModeSelector`, `uiRegression`.
+
+### 2026-07-11 — "Skipped" steps re-rendered as "Not in path" (bypass rail + checklist cross-out)
+
+**Files changed:** `demo_api_ui/src/components/TokenChainDisplay.js` (+`.css`),
+`ComplianceModalContent.js` + `ComplianceModal.css`,
+`__tests__/TokenChainDisplay.haltedAt.test.js`. Follow-on sweep (same day):
+`SimpleStepperPanel.js` (+`.css`), `agent-clinical/TokenAuditTimeline.jsx` +
+`clinical.css`, `ApiTrafficPanel.js`.
+
+**What was broken:** token chain steps the BFF emits as `skipped` (mTLS off,
+gateway not in route, introspection not enabled) and compliance checklist steps
+not applicable to the chip's action rendered as gray "Skipped" / pending "○" —
+reading as an alarming omission when the step was simply never part of the run.
+
+**What was fixed/changed:** new `notinpath` visual bucket — status `skipped`
+now maps to it (label "Not in path"); `synthesized` stays in the old `skipped`
+bucket. Not-in-path chain cards are shunted right onto a dashed spur with a
+solid rail passing them (`.tcd-event-wrap--notinpath`), title struck through,
+dashed badge; connectors touching them go dashed (`.tcd-connector--bypass`).
+Checklist non-applicable steps: `–` icon (the `☑️` violated the §0 emoji
+allowlist), strikethrough, dashed outline, "N/A this run" tag; footer wording
+"not triggered" → "not in this run's path".
+
+**Do not break:** `resolveStatusVisual` unknown/negative statuses must still
+fall to the red `failed` bucket (fail loud); `notinpath` must never absorb a
+failure or should-have-run status — a step that should have run and didn't
+surfaces via `isHaltedAt`/`failed`, never as "Not in path". Downstream
+consumers now render `notinpath` deliberately: `SimpleStepperPanel` crossed-out
+row (`sstp-row--notinpath`, distinct from ghost "did not run" and halted rows),
+`TokenAuditTimeline` bucket map is active/exchanged → done, acquiring/waiting →
+pending, notinpath → bypass (dashed open dot), anything else → error — real
+failures must never land in bypass; `ApiTrafficPanel` token-event badge
+relabels raw `skipped` → "not in path" (HTTP-status badges untouched); history
+rollup still treats it as neutral "~".
+
+**Verify:** vitest `TokenChainDisplay.haltedAt` (bucket assertions included),
+`SimpleStepperPanel`; UI build gate.
+
 ### 2026-07-11 — P1AZ policy-not-found handling + reliability hardening (deliberate posture change)
 
 **Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`

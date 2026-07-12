@@ -304,8 +304,8 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
       <SimNode id="n-bff"      x={COL.bff}      y={ROW.top} label="BFF"           sub="demo_api_server :3001"
         tooltip="Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser"
         state={ns('n-bff')} />
-      <SimNode id="n-mcp-gw"   x={COL.mcpGw}   y={ROW.top} label="Ping Agent Gateway"   sub=":3005"
-        tooltip="Ping Agent Gateway (:3005) — central enforcement point; forwards BFF-issued token unchanged (no re-exchange); introspects token then consults PingOne Authorization Server before every tool call; validates aud (D-05 anti-bypass)"
+      <SimNode id="n-mcp-gw"   x={COL.mcpGw}   y={ROW.top} label="Ping Agent Gateway"   sub="PingGateway (IG) :3036"
+        tooltip="Ping Agent Gateway — central enforcement point; default is PingGateway (IG, :3036, ff_mcp_gateway_pinggateway=true); demo Node gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)"
         state={ns('n-mcp-gw')} />
       <SimNode id="n-mcp-server" x={COL.services} y={ROW.top} label="MCP Server"  sub=":8080"
         tooltip="MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority"
@@ -329,8 +329,8 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
       <SimNode id="n-resource-server" x={COL.services} y={ROW.lower} label="Resource Server" sub="/api/resource-server"
         tooltip="Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions"
         state={ns('n-resource-server')} />
-      <SimNode id="n-pingauthorize"   x={COL.external} y={ROW.lower} label="PingOne Authorization Server"    sub=":9001 (mock)"
-        tooltip="PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; demo uses mock at :9001 (configurable via PINGAUTHORIZE_ENDPOINT)"
+      <SimNode id="n-pingauthorize"   x={COL.external} y={ROW.lower} label="PingOne Authorization Server"    sub="cloud PDP"
+        tooltip="PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_simulated / AUTHORIZE_FAILOVER_MODE=fallback_simulated"
         state={ns('n-pingauthorize')} />
 
       {/* Row 4: HITL */}

@@ -175,6 +175,17 @@ describe("resolveStatusVisual — unknown status falls to failed bucket", () => 
     expect(resolveStatusVisual("valid").bucket).toBe("active");
   });
 
+  it("'skipped' (leg not part of this run) → bucket='notinpath', labeled Not in path", () => {
+    expect(resolveStatusVisual("skipped")).toEqual({
+      bucket: "notinpath",
+      label: "Not in path",
+    });
+  });
+
+  it("'synthesized' stays in the neutral 'skipped' bucket", () => {
+    expect(resolveStatusVisual("synthesized").bucket).toBe("skipped");
+  });
+
   it("'revoked' (gateway introspection inactive) → bucket='failed'", () => {
     expect(resolveStatusVisual("revoked").bucket).toBe("failed");
   });

@@ -9,6 +9,7 @@
 //   lmstudio_model     default '' → resolved to LM Studio's first loaded model
 
 const configStore = require('./configStore');
+const { llmFetch } = require('./llmFetch');
 
 const DEFAULT_BASE_URL = 'http://localhost:1234/v1';
 
@@ -30,7 +31,7 @@ function toOpenAiMessages(messages) {
 async function resolveModel(base) {
   const configured = configStore.getEffective('lmstudio_model');
   if (typeof configured === 'string' && configured.trim()) return configured.trim();
-  const res = await fetch(`${base}/models`, { headers: { Accept: 'application/json' } });
+  const res = await llmFetch(`${base}/models`, { headers: { Accept: 'application/json' } }, { label: 'LM Studio models', timeoutMs: 5000, retryOn429: false });
   if (!res.ok) throw new Error(`LM Studio /models failed: ${res.status}`);
   const data = await res.json();
   const first = Array.isArray(data?.data) ? data.data.find((m) => m && m.id) : null;
@@ -48,7 +49,7 @@ async function callLmStudio(messages) {
   const base = baseUrl();
   const model = await resolveModel(base);
 
-  const res = await fetch(`${base}/chat/completions`, {
+  const res = await llmFetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ async function callLmStudio(messages) {
       Authorization: 'Bearer lm-studio',
     },
     body: JSON.stringify({ model, messages: toOpenAiMessages(messages), stream: false }),
-  });
+  }, { label: 'LM Studio' });
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error(`LM Studio chat/completions failed: ${res.status} ${errText}`);

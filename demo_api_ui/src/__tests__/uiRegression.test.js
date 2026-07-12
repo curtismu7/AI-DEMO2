@@ -277,7 +277,10 @@ describe("CSS/JS monospace regression", () => {
         f.includes("AnnotatedResult.css") ||            // authz annotated-result mono value display (intentional)
         f.includes("McpDelegationScenarios.css") ||     // policy-statement code chip display (intentional)
         f.includes("SnapshotImport.css") ||             // raw JSON snapshot display (intentional)
-        f.includes("TokenChainRedesign.css")            // token chain code/claims/JSON display (intentional)
+        f.includes("TokenChainRedesign.css") ||         // token chain code/claims/JSON display (intentional)
+        f.includes("PrivilegeDemoPage.css") ||          // persona email identifier display (intentional)
+        f.includes("ServersPage.css") ||                // container/port/latency data columns (intentional)
+        f.includes("CheckPage.css")                     // pre-demo check id/count/log display via --mono (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");

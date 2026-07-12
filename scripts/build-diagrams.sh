@@ -83,6 +83,10 @@ for entry in "${ENTRIES[@]}"; do
 done
 
 echo ""
+echo "Exporting draw.io files (Lucidchart-importable) from flowchart sources"
+node "${BASEDIR}/scripts/export-drawio.mjs" || FAILED=$((FAILED + 1))
+
+echo ""
 if [[ ${FAILED} -eq 0 ]]; then
   echo "Done. Refresh /architecture/overview to see the updated image."
 else

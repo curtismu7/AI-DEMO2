@@ -4,6 +4,7 @@ import TokenExchangeFlowDiagram from "./TokenExchangeFlowDiagram";
 import InteractiveArchDiagram from "./education/InteractiveArchDiagram";
 import NarrativePanel from "./NarrativePanel";
 import CibaStepUpFlowPanel from "./CibaStepUpFlowPanel";
+import DiagramExportBar from "./DiagramExportBar";
 import bffAxios from "../services/bffAxios";
 import "./ArchitectureTabsPanel.css";
 
@@ -557,6 +558,14 @@ function SystemArchitectureView() {
               Open image in new tab
             </a>
           </div>
+          <DiagramExportBar
+            items={[
+              { label: "Mermaid (.mmd)", href: "/architecture/architecture.mmd" },
+              { label: "PNG", href: "/architecture/overview2.png" },
+              { label: "SVG", href: "/architecture/overview2.svg" },
+              { label: "draw.io / Lucid (.drawio)", href: "/architecture/architecture.drawio" },
+            ]}
+          />
           <div
             style={{
               background: "#ffffff",

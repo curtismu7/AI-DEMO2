@@ -62,7 +62,7 @@ export default function ComplianceModalContent({
                       : isActive
                         ? '⚙'
                         : isSkipped
-                          ? '☑️'
+                          ? '–'
                           : '○';
                 const items = [];
 
@@ -84,11 +84,15 @@ export default function ComplianceModalContent({
                       'compliance-modal__item' +
                       (isActive ? ' active' : '') +
                       (' ' + step.status) +
-                      (isApplicable && step.status === 'pending' ? ' applicable' : '')
+                      (isApplicable && step.status === 'pending' ? ' applicable' : '') +
+                      (isSkipped ? ' not-in-path' : '')
                     }
                   >
                     <span className="compliance-modal__icon">{icon}</span>
                     <span className="compliance-modal__label">{step.label}</span>
+                    {isSkipped && (
+                      <span className="compliance-modal__nip-tag">N/A this run</span>
+                    )}
                   </li>,
                 );
                 // Add inline explanation for non-applicable pending steps
@@ -126,7 +130,7 @@ export default function ComplianceModalContent({
               return (
                 <div className="compliance-modal__skip-note">
                   <strong>
-                    {skipped.length} step{skipped.length > 1 ? 's' : ''} not triggered
+                    {skipped.length} step{skipped.length > 1 ? 's' : ''} not in this run's path
                   </strong>
                   {' '}— gateway denial and HITL steps only fire on
                   scope-upgrade or permission-required operations (e.g. Sensitive Account

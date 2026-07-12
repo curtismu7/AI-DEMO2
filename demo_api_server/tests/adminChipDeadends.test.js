@@ -22,13 +22,13 @@ describe('admin / pingone-admin chip messages resolve (no dead-end)', () => {
     expect(actionOf(r)).not.toBe('get_customer_profile');
   });
 
-  test('pingone-admin "List Users" chip message resolves to call_pingone_operation', () => {
+  test('pingone-admin "List Users" chip message resolves to call_pingone_tool', () => {
     const r = parseHeuristic('List the users in my PingOne environment', 'pingone-admin', {});
-    expect(actionOf(r)).toBe('call_pingone_operation');
+    expect(actionOf(r)).toBe('call_pingone_tool');
   });
 
   test('pingone-admin still resolves "List the applications"', () => {
     const r = parseHeuristic('List the applications', 'pingone-admin', {});
-    expect(actionOf(r)).toBe('call_pingone_operation');
+    expect(actionOf(r)).toBe('call_pingone_tool');
   });
 });

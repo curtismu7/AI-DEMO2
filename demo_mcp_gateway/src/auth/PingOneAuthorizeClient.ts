@@ -157,6 +157,10 @@ export function buildAuthorizeParameters(
   if (intentValidation) {
     base.IntentTokenValid  = String(intentValidation.valid);
     base.IntentMatchesTool = String(intentValidation.toolPermitted ?? false);
+    // Forward WHY validation failed so the policy can distinguish a TAMPERED
+    // intent token (malformed / bad signature — fail closed) from a benign
+    // 'expired' one (the 5-min TTL lapsed mid agent-run — allowed through).
+    base.IntentTokenError  = intentValidation.error ?? '';
     base.IntentJti         = intentValidation.payload?.jti ?? '';
     base.IntentIntent      = intentValidation.payload?.intent ?? '';
     base.IntentConfidence  = String(intentValidation.payload?.confidence ?? 0);
@@ -249,7 +253,13 @@ export class PingOneAuthorizeClient {
       };
       if (outcome === 'PERMIT') return { decision: 'PERMIT', ...meta };
       if (outcome === 'INDETERMINATE') return { decision: 'INDETERMINATE', reason: 'HITL_REQUIRED', ...meta };
-      return { decision: 'DENY', reason: `PingAuthorize decision: ${outcome}`, ...meta };
+      // Preserve the engine's specific DENY reason (e.g. the mock's
+      // 'unknown_tool: no policy defined' = policy drift) instead of flattening
+      // every DENY to a generic string, so callers can distinguish drift from a
+      // genuine denial.
+      const denyReason: string =
+        typeof data?.reason === 'string' && data.reason ? data.reason : `PingAuthorize decision: ${outcome}`;
+      return { decision: 'DENY', reason: denyReason, ...meta };
     };
 
     const primary = this.config.pingAuthorizeEndpoint;

@@ -428,3 +428,5 @@ Granted scopes: — (none; resource-server or worker app)
 | `sensitive_holdings` | gateway | `read` | consent |
 | `cash_out_store_credit` | gateway | `write` | step_up |
 | `transfer_membership` | gateway | `write` | step_up |
+| `call_pingone_tool` | gateway | `read` | — |
+| `list_pingone_tools` | gateway | `read` | — |

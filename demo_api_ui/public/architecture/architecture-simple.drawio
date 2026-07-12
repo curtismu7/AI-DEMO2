@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><mxfile><diagram name="Architecture (clean view)"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="group_Backends" value="Backend resource servers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#94a3b8;dashed=1;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="650" width="1200" height="200" as="geometry"/></mxCell><mxCell id="group_PingOne" value="PingOne IAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#94a3b8;dashed=1;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="900" width="360" height="200" as="geometry"/></mxCell><mxCell id="User" value="End user
+(browser)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="40" width="220" height="90" as="geometry"/></mxCell><mxCell id="UI" value="demo_api_ui
+(React SPA · :4000)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="320" y="40" width="220" height="90" as="geometry"/></mxCell><mxCell id="BFF" value="demo_api_server
+BFF · OAuth callback · session
+:3001" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="40" width="220" height="90" as="geometry"/></mxCell><mxCell id="Agent" value="demo_agent_service
+LLM tool-calling agent
+:3006 (host :3016)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="880" y="40" width="220" height="90" as="geometry"/></mxCell><mxCell id="A2AOrch" value="A2A Orchestrator
+CrewAI crew: decide / coordinate / authorize" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="40" width="220" height="90" as="geometry"/></mxCell><mxCell id="Specialist" value="Specialist Agent
+Investment Advisor / Records / Purchase" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="Gateway" value="demo_mcp_gateway
+Policy-aware credential broker
+:3005 (demo-auth profile, OFF by default —
+used only when ff_mcp_gateway_pinggateway=false)
+
+• Inbound: user token + agent actor
+• Outbound: backend-appropriate creds
+• Calls Authorize per request" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="320" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="HITL" value="demo_hitl_service
+Out-of-band consent
+(high-value txns)
+:3009" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="Authorize" value="Ping Authorize (PDP)
+
+Evaluates EVERY tool call:
+• scope · aud · may_act
+• transaction amount / threshold
+• tool-specific risk rules
+↓
+PERMIT · DENY · INDETERMINATE" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="880" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="MCPServer" value="demo_mcp_server
+MCP protocol · WebSocket :8080
+tools/list · tools/call" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="MCPInvest" value="demo_mcp_invest
+Investment MCP server :8081
+(WebSocket + HTTP)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="Mortgage" value="demo_mortgage_service
+Phase 266 Path A backend :8082
+X-API-Key gated" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="320" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="LangChain" value="langchain_agent
+Python uvicorn :8888
+chat WS :8889 - health :8890" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="Vault" value="secrets.vault
+AEAD + Argon2id
+startup-loaded - Phase 269" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="880" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="MgmtAPI" value="PingOne Management API
+/v1/environments/{env}/users
+worker token (CC)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="PingGW" value="PingGateway (IG, :3036)
+DEFAULT MCP gateway
+ff_mcp_gateway_pinggateway (default true)
+Warms Authorize on startup
+Authorize outage: fail-closed deny 503 (default)
+mock failover (authz-server :9001) opt-in only" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="460" width="220" height="90" as="geometry"/></mxCell><mxCell id="AGUI" value="AG-UI SSE streams (agentRun.js)
+Decoded token-chain events injected
+In-memory trace (runId, 1h TTL)
+ff_agui_enabled (default ON)
+Runtimes: langchain :8888 · openai :8891
+mastra :8892 · pydantic :8893" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="320" y="460" width="220" height="90" as="geometry"/></mxCell><mxCell id="AgentTokenSvc" value="agent_token_service (Copilot-only)
+Node/TS · :8097 · 127.0.0.1
+Auth: x-api-key (BROKER_API_KEY)
+Mints PingOne CC token
+scope: agent:invoke · aud: agentgateway.ping.demo
+POST /token  GET /healthz" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="460" width="220" height="90" as="geometry"/></mxCell><mxCell id="OAuthRS" value="OAuth backend
+(demo_api_server REST + MCP)
+
+Accepts: downscoped MCP token
+Verifies: RFC 7662 introspect
+Pattern: standard OAuth 2.0" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="80" y="690" width="220" height="90" as="geometry"/></mxCell><mxCell id="APIKeyRS" value="API-key backend
+(demo_mortgage_service :8082 — LIVE)
+
+Accepts: X-API-Key + X-User-Sub
+Verifies: constant-time shared-secret
+Pattern: legacy / 3rd-party APIs
+Key injected by Gateway (Phase 267)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="360" y="690" width="220" height="90" as="geometry"/></mxCell><mxCell id="BankingRS" value="banking_resource_server
+/identity - /accounts - /transactions
+
+Path B: Bearer + id_token (dual_token)
+Path C: Bearer OAuth (oauth_bearer)
+Validates: RFC 6750 authenticateToken" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="640" y="690" width="220" height="90" as="geometry"/></mxCell><mxCell id="SQLite" value="SQLite DB
+banking-resource-server.db
+(seeded from data/store.js)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="920" y="690" width="220" height="90" as="geometry"/></mxCell><mxCell id="AS" value="Authorization server
+/authorize · /token
+/introspect · /jwks
+
+RFC 6749 · 7662 · 8693" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="80" y="940" width="220" height="90" as="geometry"/></mxCell><mxCell id="LLM" value="LLM provider
+llama.cpp via demo_llm_proxy :8090 (default - AGENT_MODE=llamacpp)
+OpenAI - Anthropic - Groq - Gemini - Helix (optional)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="880" y="460" width="220" height="90" as="geometry"/></mxCell><mxCell id="edge_0" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="User" target="UI" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_1" value="cookie session
++ proxy /api/*" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="UI" target="BFF" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_2" value="OAuth 2.0 + PKCE
+RFC 6749 / 7636" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="AS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_3" value="RFC 7662 introspect" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="AS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_4" value="prompt + user token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="Agent" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_5" value="RFC 8693 token exchange
+(subject = user, actor = agent)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Agent" target="AS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_6" value="tool call + TX token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Agent" target="Gateway" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_7" value="Delegate? (A2A)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Agent" target="A2AOrch" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_8" value="Approve act-chain" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="A2AOrch" target="Authorize" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_9" value="RFC 8693 nested act" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="A2AOrch" target="Specialist" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_10" value="Narrow tool call" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Specialist" target="Gateway" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_11" value="WS MCP - exchanged Bearer
+tools/call" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="MCPServer" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_12" value="WS MCP - invest tools" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="MCPInvest" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_13" value="X-API-Key (Path A)
+OAuth Bearer dropped" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="Mortgage" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_14" value="REST - exchanged Bearer
+BankingAPIClient" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="MCPServer" target="OAuthRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_15" value="RFC 7662 introspect
+RFC 8693 chained exchange" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="MCPServer" target="AS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_16" value="REST - exchanged Bearer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="MCPInvest" target="OAuthRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_17" value="PingOne Management API
+worker token (CC) - RFC 6749 §4.4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="MgmtAPI" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_18" value="vaultLoader.js startup-load
+configStore.setRaw persist:false" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="Vault" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_19" value="WS MCP - Bearer in JSON-RPC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="LangChain" target="MCPServer" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_20" value="HTTPS - provider API key" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="LangChain" target="LLM" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_21" value="WebSocket chat :8889" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="User" target="LangChain" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_22" value="PDP evaluate per call:
+scope · aud · may_act · amount" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="Authorize" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_23" value="PERMIT · DENY ·
+INDETERMINATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="Authorize" target="Gateway" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_24" value="RFC 8693 downscope
++ MCP token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="OAuthRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_25" value="X-API-Key: svc-key + X-User-Sub
+(no user token, Phase 267)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="APIKeyRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_26" value="Bearer + id_token
+dual_token - /identity" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="BankingRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_27" value="Bearer (RFC 8693 exchange)
+oauth_bearer - /accounts /transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Gateway" target="BankingRS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_28" value="reads accounts + transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="BankingRS" target="SQLite" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_29" value="INDETERMINATE →
+request consent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="Gateway" target="HITL" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_30" value="approval / deny
+(CIBA-style)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="HITL" target="Gateway" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_31" value="RFC 8693 exchanged Bearer
+(ff_mcp_gateway_pinggateway=true)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="PingGW" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_32" value="PDP evaluate
+UserId + McpResourceUri in params
+outage → fail-closed deny (default)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="PingGW" target="Authorize" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_33" value="WS/HTTP MCP — exchanged Bearer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="PingGW" target="MCPServer" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="BFF" target="AGUI" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_35" value="client_credentials
+scope: agent:invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="AgentTokenSvc" target="AS" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_36" value="prompt + tool defs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=9;" edge="1" source="Agent" target="LLM" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="edge_37" value="tool-call decisions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;fontSize=9;" edge="1" source="LLM" target="Agent" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>

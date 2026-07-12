@@ -27,10 +27,17 @@ vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 import AdminSideNav from "../AdminSideNav";
 
 const adminUser = { id: "4", username: "admin", role: "admin" };
+const customerUser = { id: "1", username: "customer", role: "customer" };
 const renderNav = (path = "/admin") =>
   render(
     <MemoryRouter initialEntries={[path]}>
       <AdminSideNav user={adminUser} />
+    </MemoryRouter>,
+  );
+const renderNavAsUser = (user, path = "/") =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <AdminSideNav user={user} />
     </MemoryRouter>,
   );
 
@@ -83,5 +90,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
       .getAllByRole("button", { name: "Admin" })
       .find((b) => b.className.includes("quick-link--active"));
     expect(adminQuick).toBeTruthy();
+  });
+
+  it("shows the Check nav item for a non-admin user (no admin gate)", () => {
+    renderNavAsUser(customerUser);
+    expect(screen.getByText("Check")).toBeInTheDocument();
   });
 });

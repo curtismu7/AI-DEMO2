@@ -4,8 +4,9 @@
   "description": "agent1 — AI orchestrator service for the Digital Assistant architecture",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && npm run copy:assets",
+    "build": "tsc && npm run copy:assets && npm run verify:prompts",
     "copy:assets": "cp -R src/prompts dist/prompts",
+    "verify:prompts": "node -e \"require('fs').accessSync('dist/prompts/default.json'); console.log('[build] dist/prompts verified')\"",
     "build:clean": "rm -rf dist && npm run build",
     "dev": "nodemon --exec ts-node src/index.ts",
     "start": "node dist/index.js",

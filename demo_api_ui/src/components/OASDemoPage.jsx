@@ -116,7 +116,7 @@ function SecurityFlowDiagram() {
       <div className="oas-flow-step oas-flow-step--ai">
         <div className="oas-flow-icon">🤖</div>
         <div className="oas-flow-label">AI Agent Reads Spec</div>
-        <div className="oas-flow-detail">discover_oas_operations</div>
+        <div className="oas-flow-detail">list_pingone_tools</div>
       </div>
       <div className="oas-flow-arrow">→</div>
       <div className="oas-flow-step oas-flow-step--scope">
@@ -134,7 +134,7 @@ function SecurityFlowDiagram() {
       <div className="oas-flow-step oas-flow-step--call">
         <div className="oas-flow-icon">✅</div>
         <div className="oas-flow-label">API Call Permitted</div>
-        <div className="oas-flow-detail">call_pingone_operation</div>
+        <div className="oas-flow-detail">call_pingone_tool</div>
       </div>
     </div>
   );
@@ -172,7 +172,7 @@ export default function OASDemoPage() {
     : allOperations.filter(({ op }) => (op.tags || []).includes(filterTag));
 
   const handleLaunchAgent = () => {
-    navigate('/?vertical=pingone-admin&msg=' + encodeURIComponent('Show me all available PingOne API operations from the OpenAPI spec'));
+    navigate('/?vertical=pingone-admin&msg=' + encodeURIComponent('Show me the tools available from the PingOne MCP server'));
   };
 
   return (

@@ -1151,6 +1151,14 @@
       "requiredScopes": ["write"],
       "surface": "gateway",
       "challengeType": "step_up"
+    },
+    "call_pingone_tool": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "list_pingone_tools": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
     }
   },
   "policy": {
