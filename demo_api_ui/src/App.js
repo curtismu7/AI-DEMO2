@@ -19,6 +19,7 @@ import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
 import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
+import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
@@ -1027,6 +1028,10 @@ function AppWithAuth() {
                             <Route
                               path="/agent-guardrails"
                               element={<AgentGuardrailsPage />}
+                            />
+                            <Route
+                              path="/agent-onboarding-flow"
+                              element={<AgentOnboardingFlowDiagram />}
                             />
                             <Route
                               path="/actor-token-education"

@@ -1,0 +1,245 @@
+/* AgentOnboardingFlowDiagram.css — scoped tokens under .aof-page, following
+   AgentGuardrailsDiagram.css / TokenDisplay.css convention (own palette,
+   dark mode via prefers-color-scheme). */
+
+.aof-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.aof-hero {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.aof-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f6f3eb;
+  color: #1b1b1b;
+  border: 1px solid #e5e5e5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.aof-page h1 {
+  margin: 0;
+  font-size: clamp(26px, 3.6vw, 38px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.aof-subhead {
+  max-width: 860px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* --- content rendered inside FloatingPanel --- */
+
+.aof-root {
+  --aof-bg: #ffffff;
+  --aof-bg-light: #f6f6f6;
+  --aof-border-light: #e5e5e5;
+  --aof-brand: #343ced;
+  --aof-text-primary: #1b1b1b;
+  --aof-text-secondary: #6b7280;
+  --aof-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --aof-shadow-focus: 0 0 0 3px rgba(52, 60, 237, 0.16);
+
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--aof-bg);
+  color: var(--aof-text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .aof-root {
+    --aof-bg: #0f1115;
+    --aof-bg-light: #161a21;
+    --aof-border-light: #2a313c;
+    --aof-text-primary: #e9ecf3;
+    --aof-text-secondary: #9aa2b4;
+    --aof-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.3);
+    --aof-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
+  }
+}
+
+.aof-flow-tabs,
+.aof-story-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.aof-flow-tab,
+.aof-story-tab {
+  appearance: none;
+  border: 1px solid var(--aof-border-light);
+  background: var(--aof-bg-light);
+  color: var(--aof-text-primary);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.aof-flow-tab.active,
+.aof-story-tab.active {
+  background: var(--aof-brand);
+  color: #fff;
+  border-color: var(--aof-brand);
+}
+
+.aof-story-tabs {
+  margin-top: -4px;
+}
+.aof-story-tab {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.aof-persona {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--aof-text-secondary);
+}
+
+.aof-diagram {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.aof-lane {
+  display: grid;
+  gap: 10px;
+}
+
+.aof-lane-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--aof-text-secondary);
+  padding-left: 2px;
+}
+
+.aof-card {
+  background: var(--aof-bg);
+  border: 1px solid var(--aof-border-light);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: var(--aof-shadow-soft);
+  opacity: 0.55;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease,
+    opacity 200ms ease;
+}
+
+.aof-card h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.25;
+}
+.aof-card p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--aof-text-secondary);
+}
+
+.aof-active-card {
+  opacity: 1;
+  transform: translateY(-2px);
+  border-color: var(--aof-brand);
+  box-shadow: var(--aof-shadow-focus), var(--aof-shadow-soft);
+}
+
+.aof-visited-card {
+  opacity: 0.85;
+}
+
+.aof-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--aof-border-light);
+}
+
+.aof-ctrl-btn {
+  appearance: none;
+  border: 1px solid var(--aof-border-light);
+  background: var(--aof-bg-light);
+  color: var(--aof-text-primary);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aof-ctrl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.aof-ctrl-btn--primary {
+  background: var(--aof-brand);
+  color: #fff;
+  border-color: var(--aof-brand);
+}
+.aof-ctrl-btn--ghost {
+  background: transparent;
+}
+
+.aof-step-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--aof-text-secondary);
+}
+
+.aof-step-detail {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--aof-border-light);
+  background: var(--aof-bg-light);
+}
+.aof-step-detail h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.aof-step-detail p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--aof-text-secondary);
+}
+
+.aof-outcome {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--aof-brand);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media screen and (max-width: 900px) {
+  .aof-diagram {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
