@@ -10,7 +10,7 @@ const plugin = require('../../config/verticals/pingone-admin/index');
 const mcpJson = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] });
 const httpErr = (msg) => Object.assign(new Error(msg), { code: 'pingone_mcp_http_error' });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => jest.resetAllMocks());
 
 test('plugin exports required interface', () => {
   expect(typeof plugin.getManifest).toBe('function');
