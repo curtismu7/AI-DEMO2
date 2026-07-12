@@ -64,6 +64,23 @@ All diagrams include comprehensive RFC annotations for:
 
 ## Recent Updates
 
+### 2026-07-11 — Top-3 nav consolidation + current-defaults refresh
+
+- Admin nav "Diagrams" section trimmed to the top 3 pages (System Diagram,
+  Overview Diagram, Sequence Diagram); the other four entries are hidden but
+  fully documented in [HIDDEN_DIAGRAMS.md](HIDDEN_DIAGRAMS.md), routes intact
+- `architecture.mmd` / `architecture-simple.mmd` / `i4ai-ref-arch.mmd`: PingGateway
+  (IG, :3036) is now framed as the DEFAULT MCP gateway; `demo_mcp_gateway :3005`
+  demoted to the opt-in demo-auth profile path
+- Authorize failover posture corrected: default is fail-closed
+  `AUTHORIZE_FAILOVER_MODE=deny` (503); mock `authz-server :9001` fallback is
+  opt-in only (was drawn as automatic real→mock failover)
+- Default LLM corrected from "Helix" to llama.cpp via `demo_llm_proxy :8090`
+  (`AGENT_MODE=llamacpp`)
+- `demo_agent_service` host port noted (:3006 container / :3016 host)
+- Overview simulator + Sequence Diagram page text updated to match; all PNGs/SVG
+  re-rendered via `npm run build:diagrams`
+
 ### 2026-06-18/19 — Architecture refresh
 
 - Added `agent_token_service` (Copilot Studio broker, :8097) to full and simple architecture diagrams

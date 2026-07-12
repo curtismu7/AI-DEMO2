@@ -20,7 +20,7 @@ sequenceDiagram
     participant RS as Resource Server (OAuth 2.1)
 
     Note over A: Agent = BFF in-process LangGraph agent, default, /api/banking-agent.<br/>demo_agent_service port 3006 and langchain_agent port 8888 are optional alternatives.
-    Note over AG: Agent Gateway hop (demo_mcp_gateway port 3005) is active when<br/>MCP_GATEWAY_HTTP_URL is set, otherwise BFF calls demo_mcp_server port 8080 directly.
+    Note over AG: Agent Gateway = PingGateway (IG, port 3036) by default (ff_mcp_gateway_pinggateway=true).<br/>demo_mcp_gateway port 3005 is the opt-in demo-auth alternative (ff=false).<br/>Ping Authorize outage → fail-closed deny 503 (AUTHORIZE_FAILOVER_MODE=deny, default).
 
     Note over U,CB: User submits prompt (two paths)
     Note over U,CB: Path A: Click chip (e.g., "Balance") → Heuristic fast path<br/>Path B: Type natural language → Heuristic + LLM path

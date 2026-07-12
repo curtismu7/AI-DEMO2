@@ -32,14 +32,14 @@ flowchart LR
     BFF["demo_api_server<br/>BFF · OAuth callback · session<br/>:3001"]
 
     %% ── Agent service ───────────────────────────────────────────────────
-    Agent["demo_agent_service<br/>LLM tool-calling agent<br/>:3006"]
+    Agent["demo_agent_service<br/>LLM tool-calling agent<br/>:3006 (host :3016)"]
 
     %% ── A2A agent-to-agent delegation ──────────────────────────────────
     A2AOrch["A2A Orchestrator<br/>CrewAI crew: decide / coordinate / authorize"]
     Specialist["Specialist Agent<br/>Investment Advisor / Records / Purchase"]
 
     %% ── Policy-aware gateway (the credential broker) ───────────────────
-    Gateway["demo_mcp_gateway<br/>Policy-aware credential broker<br/>:3005<br/><br/>• Inbound: user token + agent actor<br/>• Outbound: backend-appropriate creds<br/>• Calls Authorize per request"]
+    Gateway["demo_mcp_gateway<br/>Policy-aware credential broker<br/>:3005 (demo-auth profile, OFF by default —<br/>used only when ff_mcp_gateway_pinggateway=false)<br/><br/>• Inbound: user token + agent actor<br/>• Outbound: backend-appropriate creds<br/>• Calls Authorize per request"]
 
     %% ── Human-in-the-loop (out-of-band consent) ────────────────────────
     HITL["demo_hitl_service<br/>Out-of-band consent<br/>(high-value txns)<br/>:3009"]
@@ -61,8 +61,8 @@ flowchart LR
     %% Path C (oauth_bearer): RFC 8693 exchange, Bearer (new aud) to banking_resource_server /accounts /transactions.
     %% Paths B and C both terminate at the same banking_resource_server node at different routes.
 
-    %% ── PingGateway (Ping Identity IG) — alternative MCP gateway ──────
-    PingGW["PingGateway (IG, :3036)<br/>Alternative MCP gateway<br/>ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup<br/>Real→mock Authorize failover<br/>(X-Authz-Simulated header)"]
+    %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
+    PingGW["PingGateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup<br/>Authorize outage: fail-closed deny 503 (default)<br/>mock failover (authz-server :9001) opt-in only"]
 
     %% ── AG-UI agent-run SSE streaming ─────────────────────────────────
     AGUI["AG-UI SSE streams (agentRun.js)<br/>Decoded token-chain events injected<br/>In-memory trace (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Runtimes: langchain :8888 · openai :8891<br/>mastra :8892 · pydantic :8893"]
@@ -86,7 +86,7 @@ flowchart LR
     end
 
     %% ── Optional LLMs ───────────────────────────────────────────────────
-    LLM["LLM provider<br/>Helix (default) - x-api-key<br/>OpenAI - Anthropic - Groq - Gemini (optional)"]
+    LLM["LLM provider<br/>llama.cpp via demo_llm_proxy :8090 (default - AGENT_MODE=llamacpp)<br/>OpenAI - Anthropic - Groq - Gemini - Helix (optional)"]
 
     %% ── Flow: browser → SPA → BFF ──────────────────────────────────────
     User -->|HTTPS| UI
@@ -139,7 +139,7 @@ flowchart LR
 
     %% ── PingGateway edges ──────────────────────────────────────────────
     BFF -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true)"| PingGW
-    PingGW -->|"PDP evaluate<br/>UserId + McpResourceUri in params<br/>real→mock failover"| Authorize
+    PingGW -->|"PDP evaluate<br/>UserId + McpResourceUri in params<br/>outage → fail-closed deny (default)"| Authorize
     PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPServer
 
     %% ── AG-UI SSE streaming ────────────────────────────────────────────

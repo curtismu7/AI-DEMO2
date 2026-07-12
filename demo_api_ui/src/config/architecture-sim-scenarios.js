@@ -173,7 +173,7 @@ export const SCENARIOS = [
         nodes: ['n-pingauthorize'],
         edges: ['e-mcpgw-pingauth'],
         desc: 'Ping Agent Gateway → PingOne Authorization Server: policy returns INDETERMINATE — HITL required.',
-        why: 'INDETERMINATE is a structured policy signal meaning "a human decision is required before this can proceed." The PingOne Authorization Server (:9001) evaluates the transfer amount, tool name, scopes, and agent identity. The gateway never makes inline amount checks — all logic lives in the policy engine. This separation means changing the threshold only requires a policy update, not a code deploy.',
+        why: 'INDETERMINATE is a structured policy signal meaning "a human decision is required before this can proceed." The PingOne Authorization Server (real cloud PDP by default; mock :9001 is opt-in) evaluates the transfer amount, tool name, scopes, and agent identity. The gateway never makes inline amount checks — all logic lives in the policy engine. This separation means changing the threshold only requires a policy update, not a code deploy.',
       },
       {
         nodes: ['n-hitl'],
@@ -242,7 +242,7 @@ export const SCENARIOS = [
         nodes: ['n-pingauthorize'],
         edges: ['e-bff-pingauth'],
         desc: 'BFF → PingOne Authorization Server: full transaction policy evaluation with confirmed ACR.',
-        why: 'The PingOne Authorization Server (:9001) receives the transfer amount, transaction type, user identity, and the verified ACR value. This is policy-as-code: the BFF does not implement business rules inline; it sends all parameters to the PingOne Authorization Server and trusts the decision. Changing the policy requires no code deploy.',
+        why: 'The PingOne Authorization Server (real cloud PDP by default; mock :9001 is opt-in) receives the transfer amount, transaction type, user identity, and the verified ACR value. This is policy-as-code: the BFF does not implement business rules inline; it sends all parameters to the PingOne Authorization Server and trusts the decision. Changing the policy requires no code deploy.',
       },
       {
         nodes: ['n-browser'],
