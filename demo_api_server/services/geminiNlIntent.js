@@ -46,6 +46,19 @@ function buildSystemWithCtx(vertical, context) {
   return `${SYSTEM}\n\nSigned-in user: role=${context.role}${context.firstName ? `, name=${context.firstName}` : ''}. ${roleNote}`;
 }
 
+/**
+ * Single source of truth for the conversational (non-router) system prompt.
+ * Previously duplicated inline at five provider sites; the Helix copy had
+ * drifted to a hardcoded "banking demo platform" that ignored the active
+ * vertical. Google is intentionally NOT on this helper — it reuses the full
+ * buildSystemWithCtx router context.
+ */
+function conversationalSystemPrompt(context = {}) {
+  const domain = (typeof context.vertical === 'string' && context.vertical)
+    ? context.vertical.replace(/-/g, ' ')
+    : 'banking';
+  return `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`;
+}
 
 /**
  * Answer a general knowledge question using Helix when banking intent parsing fails.
@@ -76,7 +89,7 @@ async function answerWithHelix(userMessage, context = {}) {
     const messages = [
       {
         role: 'system',
-        content: 'You are a knowledgeable assistant for a banking demo platform. Answer the user\'s question concisely and accurately. Keep your answer to 1-2 paragraphs.',
+        content: conversationalSystemPrompt(context),
       },
       {
         role: 'user',
@@ -160,14 +173,11 @@ async function answerWithClaude(userMessage, context = {}) {
       console.warn('[nlIntent] Anthropic API key not configured');
       return null;
     }
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const client = new Anthropic.default({ apiKey });
     const response = await client.messages.create({
       model: configStore.getEffective('anthropic_model') || 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+      system: conversationalSystemPrompt(context),
       messages: [{ role: 'user', content: userMessage }],
     });
     const answer = response.content?.find((b) => b.type === 'text')?.text;
@@ -182,13 +192,10 @@ async function answerWithClaude(userMessage, context = {}) {
 async function answerWithLmStudio(userMessage, context = {}) {
   try {
     const { callLmStudio } = require('./lmStudioLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callLmStudio([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -220,13 +227,10 @@ function ensureRenderableAnswer(result) {
 async function answerWithLlamaCpp(userMessage, context = {}) {
   try {
     const { callLlamaCpp } = require('./llamacppLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callLlamaCpp([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -242,13 +246,10 @@ async function answerWithLlamaCpp(userMessage, context = {}) {
 async function answerWithMlx(userMessage, context = {}) {
   try {
     const { callMlx } = require('./mlxLlmService');
-    const domain = (typeof context.vertical === 'string' && context.vertical)
-      ? context.vertical.replace(/-/g, ' ')
-      : 'banking';
     const answer = await callMlx([
       {
         role: 'system',
-        content: `You are a knowledgeable assistant for a ${domain} platform. Answer the user's question concisely and accurately. Keep your answer to 1-2 paragraphs.`,
+        content: conversationalSystemPrompt(context),
       },
       { role: 'user', content: userMessage },
     ]);
@@ -759,5 +760,5 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 module.exports = {
   parseNaturalLanguage,
   EDU,
-  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson },
+  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson, conversationalSystemPrompt },
 };
