@@ -66,6 +66,7 @@
           "chips": [
             {
               "id": "sec_mfa_otp",
+              "challenge": "step_up",
               "label": "🔐 MFA · OTP",
               "message": "execute a large trade of $50000 in VTI",
               "mode": "both",
@@ -77,6 +78,7 @@
             },
             {
               "id": "sec_mfa_fido",
+              "challenge": "step_up",
               "label": "🔐 MFA · Passkey",
               "message": "execute a large trade of $50000 in VTI",
               "mode": "both",
@@ -88,6 +90,7 @@
             },
             {
               "id": "sec_hitl",
+              "challenge": "consent",
               "label": "🔐 HITL consent",
               "message": "execute a large trade of $50000 in VTI",
               "mode": "both",
