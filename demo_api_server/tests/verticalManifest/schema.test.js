@@ -128,3 +128,13 @@ describe('MockDataSchema', () => {
     expect(MockDataSchema.safeParse('x').success).toBe(false);
   });
 });
+
+describe('ChipSchema challenge', () => {
+  const { ChipSchema } = require('../../services/verticalManifest/schema');
+  test('accepts a valid challenge value', () => {
+    expect(ChipSchema.parse({ id: 'x', label: 'X', message: 'x', challenge: 'both' }).challenge).toBe('both');
+  });
+  test('rejects an invalid challenge value', () => {
+    expect(() => ChipSchema.parse({ id: 'x', label: 'X', message: 'x', challenge: 'nope' })).toThrow();
+  });
+});

@@ -8,6 +8,9 @@ const ChipSchema = z.object({
   scope: z.string().optional(),
   mode: z.enum(['both', 'llm', 'direct']).optional().default('both'),
   hitlTrigger: z.boolean().optional(),
+  // Chip challenge marker (REGRESSION_PLAN §0 markers): consent → 👤,
+  // both → 👤🔑 (consent + step-up/MFA), step_up → 🔑 (MFA-spotlight chips).
+  challenge: z.enum(['consent', 'both', 'step_up']).optional(),
   elicitationTrigger: z.boolean().optional(),
   // MCP tool this chip invokes. The UI joins it with the live Authorize-filtered
   // tool list: tool absent from the list → chip hidden (vertical-foreign); present
