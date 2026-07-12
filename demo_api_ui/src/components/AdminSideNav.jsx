@@ -153,7 +153,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/tracing", "/check"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
+  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/agent-onboarding-flow", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -722,6 +722,7 @@ export default function AdminSideNav({ user }) {
         { label: "Learning Hub", path: "/learning", icon: "doc" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
+        { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
         {
           label: "llama-vscode Guide",
