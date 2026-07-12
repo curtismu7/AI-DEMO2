@@ -83,6 +83,47 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-12 — Chat-driven transfer used wrong tool name, bypassing amount-aware HITL step-up
+
+**Files changed:** `demo_api_server/config/verticals/banking/index.js`,
+`demo_api_server/services/verticalDispatch.js`.
+
+**What was broken:** `getToolsWithActionAliases()` returns both the real MCP
+tool defs (`create_transfer`, `create_deposit`, `create_withdrawal`, ...) and a
+parallel set of legacy action-alias tools (`transfer`, `deposit`, `withdraw`,
+...) meant only for the heuristic parser's `dispatchVerticalIntent` name
+lookups. `verticalDispatch.js`'s `toolSchemasFor()` exposed both sets to the
+LLM's chat tool-calling schema. When the LLM picked the alias `transfer`
+instead of `create_transfer`: (1) PingGateway's `mcp-tool-schemas.json` doesn't
+recognize `transfer`, so `McpRequestValidation` rejected it with a plain 400
+before the request ever reached PingOne Authorize; (2) even on the local
+`McpFirstTool` gate (`mcpToolAuthorizationService.js`), `WRITE_TOOL_TYPE_MAP`
+is keyed by the real tool names only, so the wrong name made `transactionType`
+resolve to `null` and the amount never got extracted or evaluated — Authorize
+PERMITted with no step-up obligation, and the $500 HITL threshold was
+silently bypassed for chat-driven transfers.
+
+**What was fixed:** tagged `actionAliases` entries with `heuristicOnly: true`
+in `banking/index.js`, and filtered on that flag in `verticalDispatch.js`'s
+`toolSchemasFor()` before building the LLM-facing tool schema (all three
+merge points: base vertical, admin overlay, A2A overlay). Aliases remain
+available to `getTools()`/`getAuthz()` for heuristic dispatch — only the
+LLM-callable schema is filtered. No changes to the amount-aware gate itself:
+`evaluateMcpFirstToolGate` and `WRITE_TOOL_TYPE_MAP` were already correct once
+they receive the real tool name.
+
+**Do not break:** `getTools()` must still return the full alias set for
+heuristic-path lookups (`dispatchVerticalIntent`, `getAuthz()`) — only the LLM
+schema seam (`toolSchemasFor`) filters by `heuristicOnly`. Any new vertical
+adding its own action-alias pattern should tag aliases the same way rather
+than adding per-vertical filtering logic.
+
+**Verify:** `verticalDispatch.noFallback.test.js`,
+`verticalDispatch.fallback.test.js`, `agentTool.verticalDispatch.test.js`,
+`verticalDispatch.oas.test.js` — all pass. Live: chat "Transfer $600 from
+checking to savings" now resolves through `create_transfer` and correctly
+triggers the HITL step-up challenge instead of a 400.
+
 ### 2026-07-11 — Restored clobbered AI-Attacks inline-agent fix; UI suite back to green
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

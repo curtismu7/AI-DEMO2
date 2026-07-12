@@ -103,13 +103,18 @@ function toolSchemasFor(activeId, ctx, legacy) {
   const p = resolvePlugin(activeId);
   if (!p) return legacy();
 
-  let tools = p.getTools().map(toToolSchema);
+  // heuristicOnly tools (e.g. banking's action aliases like 'transfer') are for
+  // dispatchVerticalIntent name lookups only — never expose them as LLM-callable
+  // functions, since the gateway's tool schema only recognizes the real tool names.
+  const llmCallable = (t) => !t.heuristicOnly;
+
+  let tools = p.getTools().filter(llmCallable).map(toToolSchema);
 
   // Merge admin overlay tools if user is admin (admin tools override vertical tools with same name)
   if (ctx?.isAdmin) {
     const adminOverlay = resolvePlugin('admin');
     if (adminOverlay) {
-      tools = mergeToolsByName(tools, adminOverlay.getTools().map(toToolSchema));
+      tools = mergeToolsByName(tools, adminOverlay.getTools().filter(llmCallable).map(toToolSchema));
     }
   }
 
@@ -117,7 +122,7 @@ function toolSchemasFor(activeId, ctx, legacy) {
   if (a2aActiveFor(activeId)) {
     const a2aOverlay = resolvePlugin('a2a');
     if (a2aOverlay && typeof a2aOverlay.getTools === 'function') {
-      tools = mergeToolsByName(tools, a2aOverlay.getTools().map(toToolSchema));
+      tools = mergeToolsByName(tools, a2aOverlay.getTools().filter(llmCallable).map(toToolSchema));
     }
   }
 
