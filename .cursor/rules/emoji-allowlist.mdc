@@ -15,6 +15,8 @@ Do **not** use emojis in skills, commands, code, or UI text except:
 | `🔐` | Security / lock (HITL trigger chips) |
 | `✕` | Close / dismiss |
 | `✓` | Check / confirm |
+| `👤` | HITL consent marker |
+| `🔑` | Step-up / MFA marker |
 
 Everything else: plain text, CSS icons, or semantic HTML. Remove disallowed emojis when encountered.
 
