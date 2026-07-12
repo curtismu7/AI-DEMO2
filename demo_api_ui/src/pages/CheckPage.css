@@ -59,12 +59,12 @@
   --idle: #7a8199; --idle-bg: #e9ecf4; --idle-line: #c9cfdd;
 }
 
-.light { width: 11px; height: 11px; border-radius: 999px; flex: none; box-shadow: 0 0 0 3px var(--_ring, transparent); }
-.s-pass .light { background: var(--pass); --_ring: var(--pass-bg); }
-.s-warn .light { background: var(--warn); --_ring: var(--warn-bg); }
-.s-fail .light { background: var(--fail); --_ring: var(--fail-bg); }
-.s-idle .light { background: var(--idle); --_ring: var(--idle-bg); }
-.s-skip .light { background: var(--idle); --_ring: var(--idle-bg); }
+.chk-light { width: 11px; height: 11px; border-radius: 999px; flex: none; box-shadow: 0 0 0 3px var(--_ring, transparent); }
+.s-pass .chk-light { background: var(--pass); --_ring: var(--pass-bg); }
+.s-warn .chk-light { background: var(--warn); --_ring: var(--warn-bg); }
+.s-fail .chk-light { background: var(--fail); --_ring: var(--fail-bg); }
+.s-idle .chk-light { background: var(--idle); --_ring: var(--idle-bg); }
+.s-skip .chk-light { background: var(--idle); --_ring: var(--idle-bg); }
 
 .mono { font-family: var(--mono); }
 .tnum { font-variant-numeric: tabular-nums; }
@@ -87,28 +87,28 @@
 .verdict-actions { display: flex; gap: 9px; }
 
 .check-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-.tab {
+.chk-tab {
   appearance: none; border: 0; background: none; cursor: pointer;
   font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-muted);
   padding: 11px 15px; border-radius: 9px 9px 0 0; position: relative; top: 1px;
   border-bottom: 2px solid transparent;
 }
-.tab:hover { color: var(--text); background: var(--surface-2); }
-.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chk-tab:hover { color: var(--text); background: var(--surface-2); }
+.chk-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.chk-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .check-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 
-.btn {
+.chk-btn {
   appearance: none; font-family: inherit; font-size: 13.5px; font-weight: 600;
   border-radius: 9px; padding: 9px 15px; cursor: pointer; border: 1px solid transparent;
   display: inline-flex; align-items: center; gap: 7px;
 }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
-.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
-.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+.chk-btn:disabled { opacity: .55; cursor: not-allowed; }
+.chk-btn-primary { background: var(--accent); color: #fff; }
+.chk-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.chk-btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.chk-btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
 
 /* ---- cards (traffic-light grid) ---- */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -159,12 +159,12 @@
   font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted);
 }
 .group-head .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text-faint); letter-spacing: 0; }
-.rows { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); }
-.row:first-child { border-top: 0; }
-.row .name { font-weight: 600; font-size: 14px; }
-.row .detail { color: var(--text-muted); font-size: 12.5px; margin-left: auto; text-align: right; }
-.row .chev { color: var(--text-faint); font-size: 12px; }
+.chk-rows { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.chk-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.chk-row:first-child { border-top: 0; }
+.chk-row .name { font-weight: 600; font-size: 14px; }
+.chk-row .detail { color: var(--text-muted); font-size: 12.5px; margin-left: auto; text-align: right; }
+.chk-row .chev { color: var(--text-faint); font-size: 12px; }
 
 /* ---- rail + detail (master-detail) ---- */
 .split { display: grid; grid-template-columns: 232px 1fr; gap: 16px; align-items: start; }

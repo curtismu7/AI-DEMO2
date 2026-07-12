@@ -19,7 +19,7 @@ export default function StepperView({ catalog, results, verdict }) {
           const cls = worst(done);
           return (
             <div className={`step s-${cls}`} key={category}>
-              <div className="node"><span className="light" /></div>
+              <div className="node"><span className="chk-light" /></div>
               <div className="lbl">{category}</div>
             </div>
           );
@@ -28,10 +28,10 @@ export default function StepperView({ catalog, results, verdict }) {
       {current && (
         <div className="phase-detail">
           <h3>{current[0]}</h3>
-          <div className="rows">
+          <div className="chk-rows">
             {current[1].map((c) => (
-              <div className={`row s-${c.result?.status || 'idle'}`} key={c.id}>
-                <span className="light" />
+              <div className={`chk-row s-${c.result?.status || 'idle'}`} key={c.id}>
+                <span className="chk-light" />
                 <span className="name">{c.name}</span>
                 <span className="detail">{c.result?.detail || 'Not run'}</span>
               </div>
