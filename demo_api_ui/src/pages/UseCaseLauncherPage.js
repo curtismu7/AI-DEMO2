@@ -710,6 +710,12 @@ export default function UseCaseLauncherPage() {
     setChipRun({ id: uc.id, state: 'running' });
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => {
+        // Switch to the target vertical so the dashboard loads with the correct context.
+        // If already on this vertical, this is a no-op.
+        return apiClient.post('/api/verticals/active', { id: vertical })
+          .then(() => data);
+      })
+      .then((data) => {
         // Navigation unmounts this page, so chipRun need not be cleared here.
         navigate('/dashboard', {
           state: {

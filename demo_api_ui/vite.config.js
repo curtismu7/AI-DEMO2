@@ -178,6 +178,17 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'build',
       sourcemap: mode !== 'production',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            // Keep mermaid and its diagram chunks together in a single bundle
+            // to avoid dynamic import failures when chunks aren't deployed
+            if (id.includes('node_modules/mermaid')) {
+              return 'mermaid'
+            }
+          },
+        },
+      },
     },
 
     // Vitest configuration (replaces react-scripts test)
