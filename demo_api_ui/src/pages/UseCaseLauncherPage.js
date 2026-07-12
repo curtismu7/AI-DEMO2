@@ -35,6 +35,7 @@ const TRACK_LABELS = {
 };
 
 const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
+const DEMO_LABEL = 'Demo — a scripted walkthrough';
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -64,6 +65,13 @@ const FLAG_ID_ALIASES = { ff_ciba: 'ciba_enabled' };
 
 /** Hide Act 1 from demo grid — shown only in the presenter strip. */
 const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24']);
+
+/**
+ * Fixed presenter script for the Demo section, in display order. No dedup
+ * against Happy Path or track sections — see design spec §3: a use case may
+ * legitimately render once here and again in another section.
+ */
+const DEMO_USE_CASE_IDS = ['UC1', 'UC2', 'UC2.5', 'UC8', 'UC7', 'UC6', 'UC10', 'UC5', 'UC13', 'UC11', 'UC12', 'UC20'];
 
 /**
  * Progressive trust act strip — references existing catalog UCs (see design spec).
@@ -323,7 +331,7 @@ function FlagGate({ flagId, isOn, loading, onToggle }) {
   );
 }
 
-function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
@@ -347,6 +355,7 @@ function UseCaseCard({ uc, onRun, onRunAttack, onExplain, onOpen, attackState, c
     <div className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}`}>
       <div className="uc-card__header">
         <span className="uc-card__id">{uc.id}</span>
+        {stepNumber != null && <span className="uc-card__step">Step {stepNumber}</span>}
         <h3 className="uc-card__title">{uc.title}</h3>
         {uc.advanced && <span className="uc-card__advanced-label">Advanced</span>}
         <OWASPBadge owasp={uc.owasp} />
@@ -790,6 +799,12 @@ export default function UseCaseLauncherPage() {
   // by the Happy Path dedup above.
   const demoTrackItemsForStrip = useCases.filter((uc) => uc.track === 'demo');
 
+  // Demo: fixed-order presenter script (12 ids). No dedup against Happy Path
+  // or track sections — see design spec §3.
+  const demoAll = DEMO_USE_CASE_IDS
+    .map((id) => useCases.find((uc) => uc.id === id))
+    .filter(Boolean);
+
   if (loading) {
     return (
       <div className="uc-launcher">
@@ -818,6 +833,31 @@ export default function UseCaseLauncherPage() {
           <VerticalSwitcher variant="pills" />
         </div>
       </header>
+
+      {demoAll.length > 0 && (
+        <section className="uc-track uc-track--demo-script">
+          <h2 className="uc-track__heading">{DEMO_LABEL}</h2>
+          <div className="uc-track__grid">
+            {demoAll.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                stepNumber={DEMO_USE_CASE_IDS.indexOf(uc.id) + 1}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {happyPath.length > 0 && (
         <section className="uc-track uc-track--happy-path">
