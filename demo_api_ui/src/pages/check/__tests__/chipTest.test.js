@@ -19,4 +19,10 @@ describe('runChipTest', () => {
     expect(r.status).toBe('fail');
     expect(r.detail).toMatch(/authorize denied/);
   });
+
+  test('warn when agent responds but calls no tool and gives no final message', async () => {
+    bffAxios.post.mockResolvedValue({ status: 200, data: {} });
+    const r = await runChipTest({ vertical: 'banking', prompt: 'What is my balance?' });
+    expect(r.status).toBe('warn');
+  });
 });
