@@ -117,4 +117,23 @@ describe('GET /api/health/tracing/traces/:id', () => {
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('jaeger_query_failed');
   });
+
+  test('returns 503 when Jaeger is unreachable', async () => {
+    axios.get.mockRejectedValue(new Error('ECONNREFUSED'));
+    const res = await request(buildApp()).get('/api/health/tracing/traces/aa58608e90e7be4872a3ae9085509cce');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('jaeger_unreachable');
+  });
+
+  test('maps a Jaeger upstream 404 to trace_not_found', async () => {
+    axios.get.mockImplementation((url) => {
+      if (url.endsWith('/api/services')) return Promise.resolve({ status: 200, data: { data: ['demo-api-server'] } });
+      const err = new Error('Not Found');
+      err.response = { status: 404 };
+      return Promise.reject(err);
+    });
+    const res = await request(buildApp()).get('/api/health/tracing/traces/aa58608e90e7be4872a3ae9085509cce');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('trace_not_found');
+  });
 });
