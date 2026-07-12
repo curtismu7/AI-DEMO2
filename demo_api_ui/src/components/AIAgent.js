@@ -335,6 +335,8 @@ export default function BankingAgent({
   const [helixDegraded, setHelixDegraded] = useState(false);
   // Message id currently running the pre-warm-and-retry action (Task: prewarm-retry-timeout).
   const [prewarming, setPrewarming] = useState(null);
+  const prewarmGuardRef = useRef(null);
+  if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
   const [modelAdvisory, setModelAdvisory] = useState(null);
   const modelAdvisoryTimerRef = useRef(null);
   // Single-slot conversation state for clarification follow-ups.
@@ -5656,6 +5658,7 @@ export default function BankingAgent({
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
   async function handlePrewarmRetry(msgId, retryFn) {
+    if (!prewarmGuardRef.current.tryAcquire()) return;
     setPrewarming(msgId);
     try {
       await prewarmTierAndRetry("gpt-oss-20b", retryFn);
@@ -5665,6 +5668,7 @@ export default function BankingAgent({
       });
     } finally {
       setPrewarming(null);
+      prewarmGuardRef.current.release();
     }
   }
 
