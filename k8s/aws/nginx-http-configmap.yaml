@@ -57,7 +57,11 @@ data:
         # set via QUERY_BASE_PATH=/jaeger on the jaeger deployment). Mirrors the
         # block in k8s/02-configmap.yaml (this file overrides that configmap on AWS).
         location /jaeger/ {
-            proxy_pass http://jaeger:16686/;
+            # No trailing slash on proxy_pass: preserve the /jaeger prefix so it
+            # matches Jaeger's QUERY_BASE_PATH=/jaeger. Stripping it makes
+            # /jaeger/api/* hit Jaeger's SPA catch-all (HTML) instead of the
+            # query API (JSON), which breaks the trace view.
+            proxy_pass http://jaeger:16686;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
