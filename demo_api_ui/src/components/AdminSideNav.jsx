@@ -144,11 +144,17 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "mcp", paths: ["/webmcp", "/mcp-inspector", "/pingone-mcp-inspector", "/mcp-tools"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/mcp-tools"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab", "/mcp-tools"] },
+  { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
+  { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-  { id: "tests", paths: ["/pingone-test", "/mfa-test", "/resource-server", "/resource-server-cc"] },
+  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
+  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/tracing", "/check"] },
+  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
+  { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
 // Load a role's saved expansion state, falling back to the path-based
@@ -415,72 +421,77 @@ export default function AdminSideNav({ user }) {
       customerOnly: true,
     },
     {
-      label: "Monitoring",
-      icon: "log",
+      label: "AI Agents",
+      icon: "agt",
       children: [
-        { label: "Audit Trail", path: "/audit", icon: "srch", adminOnly: true },
         {
-          label: "Activity Log",
-          path: "/monitoring/activity-log",
-          icon: "log",
+          label: "AI Control Plane",
+          path: "/ai-control-plane",
+          icon: "sec",
+          highlight: true,
+          introGate: true,
+        },
+        { label: "Agent Chat", path: "/agent", icon: "chat" },
+        { label: "Copilot", path: "/copilot", icon: "ai" },
+        {
+          label: "PingOne Agent Builder",
+          path: "/agent-builder",
+          icon: "tool",
         },
         {
-          label: "API Explorer",
-          path: "/monitoring/api-explorer",
-          icon: "api",
+          label: "Agent Flow Inspector",
+          path: "/agent-flow-inspector",
+          icon: "flw",
         },
-        // Hidden from nav: Token Chain (reachable at /monitoring/token-chain) and
-        // Token Diff — token chain now lives in the portal rails / agent panel.
-        // { label: "Token Diff", path: "/monitoring/token-diff", icon: "≡" },
-        { label: "Run Reports", path: "/reports", icon: "rpt" },
-        { label: "Tracing", path: "/tracing", icon: "log" },
+        { label: "LangChain Agent", path: "/langchain", icon: "agt" },
         {
-          label: "Error Audit Log",
-          path: "/error-audit",
-          icon: "log",
-          adminOnly: true,
+          label: "Ungoverned Agent",
+          path: "/ungoverned-agent",
+          icon: "dbg",
         },
+        { label: "Agent Servers", path: "/servers", icon: "clk" },
       ],
     },
     {
-      label: "MCP",
+      label: "PingOne MCP",
       icon: "mcp",
+      highlight: true,
       children: [
         {
-          label: "Ping AI Test Lab",
-          path: "/ping-ai-test-lab",
-          icon: "tst",
+          label: "PingOne MCP Inspector",
+          path: "/pingone-mcp-inspector",
+          icon: "dbg",
         },
+        {
+          label: "PingOne MCP Tools",
+          action: () => {
+            window.location.href = "/pingone-mcp-tools.html";
+          },
+          icon: "tool",
+        },
+        {
+          label: "PingOne MCP Catalog",
+          path: "/mcp-tools",
+          icon: "ref",
+        },
+        { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
+      ],
+    },
+    {
+      label: "Banking MCP & Gateways",
+      icon: "rte",
+      children: [
         {
           label: "Demo MCP Inspector",
           path: "/mcp-inspector",
           icon: "dbg",
         },
         {
-          label: "PingOne MCP inspector",
-          path: "/pingone-mcp-inspector",
-          icon: "dbg",
+          label: "Ping AI Test Lab",
+          path: "/ping-ai-test-lab",
+          icon: "tst",
         },
-        {
-          label: "MCP Tools",
-          path: "/mcp-tools",
-          icon: "tool",
-        },
-        {
-          label: "PingOne MCP Tools",
-          // Static HTML page (not an SPA route) — force a full navigation so
-          // it loads directly instead of hitting the React Router catch-all.
-          action: () => {
-            window.location.href = "/pingone-mcp-tools.html";
-          },
-          icon: "tool",
-        },
-      ],
-    },
-    {
-      label: "Agent Gateway Server",
-      icon: "rte",
-      children: [
+        { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
           label: "PingGateway Config",
           path: "/configure?tab=mcp-gateway",
@@ -494,19 +505,43 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
-      label: "PingOne MCP Setup",
-      icon: "cfg",
-      path: "/pingone-setup",
+      label: "PingOne Demo Apps",
+      icon: "tst",
+      children: [
+        { label: "Self-Service Registration", path: "/self-service", icon: "usr" },
+        { label: "PingOne Test", path: "/pingone-test", icon: "tst" },
+        { label: "MFA Test", path: "/mfa-test", icon: "lck" },
+        {
+          label: "Token Exchange Tester",
+          path: "/token-exchange-tester",
+          icon: "syn",
+        },
+        { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
+        { label: "OAS Demo", path: "/oas-demo", icon: "pol" },
+        { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
+        { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
+      ],
     },
     {
-      label: "Vertical Ops",
-      icon: "cfg",
+      label: "Delegation & Consent",
+      icon: "dlg",
       children: [
-        { label: "Banking Ops", path: "/admin/banking", icon: "cfg" },
-        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
-        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
-        { label: "Sporting Goods Ops", path: "/admin/sporting-goods", icon: "cfg" },
-        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+        { label: "User Delegation", path: "/delegation", icon: "dlg" },
+        {
+          label: "Delegated Access",
+          path: "/delegated-access",
+          icon: "lnk",
+        },
+        {
+          label: "Transaction Consent",
+          path: "/transaction-consent",
+          icon: "lck",
+        },
+        {
+          label: "Actor Token Education",
+          path: "/actor-token-education",
+          icon: "key",
+        },
       ],
     },
     {
@@ -560,7 +595,38 @@ export default function AdminSideNav({ user }) {
           icon: "edt",
           adminOnly: true,
         },
-        { label: "User Delegation", path: "/delegation", icon: "dlg" },
+      ],
+    },
+    {
+      label: "Industry Verticals",
+      icon: "bld",
+      children: [
+        { label: "Banking Ops", path: "/admin/banking", icon: "acc" },
+        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
+        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
+        {
+          label: "Sporting Goods Ops",
+          path: "/admin/sporting-goods",
+          icon: "cfg",
+        },
+        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+        {
+          label: "Vertical Editor",
+          path: "/admin/verticals",
+          icon: "edt",
+          adminOnly: true,
+        },
+        { label: "Mortgage Path", path: "/path/mortgage", icon: "acc" },
+      ],
+    },
+    {
+      label: "Users & Accounts",
+      icon: "usr",
+      adminOnly: true,
+      children: [
+        { label: "Users", path: "/users", icon: "usr" },
+        { label: "Accounts", path: "/accounts", icon: "acc" },
+        { label: "Transactions", path: "/transactions", icon: "txn" },
       ],
     },
     {
@@ -607,6 +673,32 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
+      label: "Monitoring",
+      icon: "log",
+      children: [
+        { label: "Audit Trail", path: "/audit", icon: "srch", adminOnly: true },
+        {
+          label: "Activity Log",
+          path: "/monitoring/activity-log",
+          icon: "log",
+        },
+        {
+          label: "API Explorer",
+          path: "/monitoring/api-explorer",
+          icon: "api",
+        },
+        { label: "Run Reports", path: "/reports", icon: "rpt" },
+        { label: "Tracing", path: "/tracing", icon: "log" },
+        { label: "Health Check", path: "/check", icon: "clk" },
+        {
+          label: "Error Audit Log",
+          path: "/error-audit",
+          icon: "log",
+          adminOnly: true,
+        },
+      ],
+    },
+    {
       label: "Diagrams",
       icon: "arc",
       children: [
@@ -621,31 +713,31 @@ export default function AdminSideNav({ user }) {
           icon: "bld",
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
-        // Hidden 2026-07-11 — top-3 diagram consolidation. Routes stay live
-        // (direct URLs still work); to restore an entry, uncomment it.
-        // See docs/diagrams/HIDDEN_DIAGRAMS.md for what each page shows.
-        // {
-        //   label: "Token Flow (Interactive)",
-        //   path: "/architecture/token-flow",
-        //   icon: "lnk",
-        // },
-        // { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
-        // {
-        //   label: "Phase 266 — 3 Paths",
-        //   path: "/architecture/phase-266",
-        //   icon: "rte",
-        // },
-        // { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
       ],
     },
     {
-      label: "Users & Accounts",
-      icon: "rpt",
-      adminOnly: true,
+      label: "Learn & Present",
+      icon: "ref",
       children: [
-        { label: "Users", path: "/users", icon: "usr" },
-        { label: "Accounts", path: "/accounts", icon: "acc" },
-        { label: "Transactions", path: "/transactions", icon: "txn" },
+        { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
+        { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
+        { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
+        {
+          label: "llama-vscode Guide",
+          path: "/llama-vscode-guide",
+          icon: "doc",
+        },
+      ],
+    },
+    {
+      label: "Developer Tools",
+      icon: "tst",
+      children: [
+        { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
+        { label: "Code Search", path: "/code-search", icon: "srch" },
+        { label: "Graphify", path: "/graphify", icon: "arc" },
+        { label: "Dev Tools", path: "/dev-tools", icon: "tool" },
       ],
     },
     {
@@ -662,20 +754,13 @@ export default function AdminSideNav({ user }) {
         { label: "App Configuration", path: "/configure", icon: "fix" },
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },
-        { label: "Vault", path: "/admin/vault" },
-        {
-          label: "PingOne Agent Builder",
-          path: "/agent-builder",
-          icon: "tool",
-        },
+        { label: "Vault", path: "/admin/vault", icon: "vault" },
       ],
     },
     {
-      label: "Tests",
+      label: "Integration Tests",
       icon: "tst",
       children: [
-        { label: "PingOne Test", path: "/pingone-test", icon: "tst" },
-        { label: "MFA Test", path: "/mfa-test", icon: "lck" },
         {
           label: "OIDC Resource Server",
           path: "/resource-server",
@@ -688,32 +773,6 @@ export default function AdminSideNav({ user }) {
         },
       ],
     },
-    { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
-    { label: "Code Search", path: "/code-search", icon: "srch" },
-    { label: "OAuth Academy", path: "/oauth-academy", icon: "sec" },
-    { label: "OAS Demo", path: "/oas-demo", icon: "sec" },
-    { label: "Learning Hub", path: "/learning", icon: "doc" },
-    { label: "llama-vscode Guide", path: "/llama-vscode-guide", icon: "doc" },
-    // Always-visible top-level entry to the past-reports list. Kept after every
-    // group referenced by the expandedSections adminIdx/customerIdx map so the
-    // auto-expand offsets stay valid. (Run Reports also lives under Monitoring.)
-    { label: "Run Reports", path: "/reports", icon: "rpt" },
-    // Visible to ALL logged-in users (no adminOnly) — the AI Control Plane is
-    // not admin-gated. Appended after the index-coupled groups so the auto-expand
-    // adminIdx/customerIdx offsets above stay valid.
-    {
-      label: "AI Control Plane",
-      path: "/ai-control-plane",
-      icon: "sec",
-      highlight: true,
-      introGate: true,
-    },
-    // Live server inventory — visible to ALL logged-in users. Appended after the
-    // index-coupled groups (same rule as AI Control Plane) so the auto-expand
-    // adminIdx/customerIdx offsets above stay valid.
-    { label: "Servers", path: "/servers", icon: "clk" },
-    { label: "Check", path: "/check", icon: "clk" },
-    { label: "Tracing", path: "/tracing", icon: "log" },
   ];
 
   // Filter by role. adminOnly items are NOT hidden — they render with an
@@ -939,7 +998,7 @@ export default function AdminSideNav({ user }) {
         <div key={itemKey} className="admin-side-nav__group">
           <button
             type="button"
-            className={`admin-side-nav__item admin-side-nav__item--parent${isParentActive(item) ? " admin-side-nav__item--parent-active" : ""}`}
+            className={`admin-side-nav__item admin-side-nav__item--parent${isParentActive(item) ? " admin-side-nav__item--parent-active" : ""}${item.highlight ? " admin-side-nav__item--highlight-danger" : ""}`}
             onClick={() => toggleSection(itemKey)}
             title={collapsed ? item.label : undefined}
             aria-expanded={isExpanded ? "true" : "false"}
@@ -991,16 +1050,21 @@ export default function AdminSideNav({ user }) {
                   <Link
                     key={childKey}
                     to={child.path}
-                    className={`admin-side-nav__item admin-side-nav__item--child ${isActive(child.path) ? "admin-side-nav__item--active" : ""}`}
+                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
                     title={child.label}
                     aria-current={isActive(child.path) ? "page" : undefined}
                     onClick={
-                      !isAdmin && isAdminFeature
+                      child.introGate
                         ? (e) => {
                             e.preventDefault();
-                            setAdminPromptPath(child.path);
+                            setControlPlaneIntroPath(child.path);
                           }
-                        : undefined
+                        : !isAdmin && isAdminFeature
+                          ? (e) => {
+                              e.preventDefault();
+                              setAdminPromptPath(child.path);
+                            }
+                          : undefined
                     }
                   >
                     <NavIcon name={child.icon} />
