@@ -6,7 +6,16 @@
 # consumers, P1AZ snapshot, PingGateway config, and the mock authz rule store.
 # The live PingOne diff stays opt-in (npm run topology:verify:live).
 TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|demo_mcp_server/src/tools/|demo_mcp_invest/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
-if [ -n "$TOPO_TOUCHED" ]; then
+if [ -n "$TOPO_TOUCHED" ] && [ ! -x demo_mcp_gateway/node_modules/.bin/ts-node ] && ! command -v ts-node >/dev/null 2>&1; then
+  # The regen + drift checks below need node_modules (ts-node, topology deps). A
+  # git worktree does not get its own node_modules, so these are absent there.
+  # Do NOT hard-fail the whole hook in that case — that pushes developers to
+  # `git commit --no-verify`, which ALSO bypasses the secret & backup-artifact
+  # guards further down. Skip the drift check with a loud warning; the secret
+  # guards still run. Re-run the drift check in the main checkout before merge.
+  echo "[pre-commit] ⚠️  tool-schema/topology drift check SKIPPED — ts-node/node_modules unavailable (git worktree?)."
+  echo "[pre-commit]    The secret & backup guards below STILL run. Run 'npm run topology:verify' in the main checkout before merging."
+elif [ -n "$TOPO_TOUCHED" ]; then
   echo "[pre-commit] scope-topology / tool surface changed — regenerating P1AZ snapshot + tool schemas + verifying no drift..."
   # snapshots/ is gitignored (local-only artifact); only regenerate where present.
   if [ -f snapshots/gen-authorize-snapshot.js ]; then
