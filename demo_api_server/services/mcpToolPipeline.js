@@ -791,6 +791,23 @@ async function runMcpToolPipeline(ctx) {
             } };
         }
 
+        // Gateway self-diagnosed misconfiguration (introspection unavailable,
+        // PingOne user-lookup unreachable) — an infrastructure fault, not a
+        // policy decision. Do NOT fall back to the local handler (the fault
+        // is on the auth path, not the tool call) and do NOT label it a
+        // policy denial — that reads as "you are not authorized" when the
+        // real story is "an administrator needs to fix the gateway."
+        if (err.code === 'gateway_misconfigured') {
+            logger.warn(_CAT, `[/api/mcp/tool] Gateway misconfigured for tool '${tool}': ${err.message}`);
+            deps.emit({ phase: 'gateway_misconfigured' });
+            return { kind: 'block', httpStatus: err.httpStatus || 503, tokenEvents, body: {
+                error: 'gateway_misconfigured',
+                tool,
+                message: err.message,
+                tokenEvents,
+            } };
+        }
+
         // Gateway policy denial — propagate structured error to the UI for educational display.
         // Do NOT fall back to the local handler: the gateway denied for a policy reason
         // (audience mismatch, expired token, origin restriction) that local execution cannot bypass.

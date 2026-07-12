@@ -62,4 +62,60 @@ describe('GatewayIntrospectionClient — cold-start hardening', () => {
     expect(r.error).toMatch(/GW_INTROSPECTION_ENDPOINT not configured/);
     expect(mockedAxios.post).not.toHaveBeenCalled();
   });
+
+  describe('auth-method auto-fallback (401 invalid_client)', () => {
+    test('a 401 on the configured method falls back to the other method and succeeds', async () => {
+      mockedAxios.post.mockImplementationOnce(async () => {
+        throw { isAxiosError: true, response: { status: 401, data: { error: 'invalid_client' } } };
+      });
+      mockedAxios.post.mockImplementationOnce(async (_url: string, _body: unknown, opts: any) => {
+        expect(opts.headers.Authorization).toMatch(/^Basic /);
+        return { data: { active: true, sub: 'u1' } };
+      });
+
+      const client = new GatewayIntrospectionClient({ ...config, tokenEndpointAuthMethod: 'post' } as GatewayConfig);
+      const result = await client.introspect('tok-1');
+
+      expect(result.active).toBe(true);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    });
+
+    test('the fallback method is cached — a later call goes straight to it', async () => {
+      mockedAxios.post.mockImplementationOnce(async () => {
+        throw { isAxiosError: true, response: { status: 401, data: { error: 'invalid_client' } } };
+      });
+      mockedAxios.post.mockImplementationOnce(async () => ({ data: { active: true, sub: 'u1' } }));
+      mockedAxios.post.mockImplementationOnce(async (_url: string, _body: unknown, opts: any) => {
+        expect(opts.headers.Authorization).toMatch(/^Basic /);
+        return { data: { active: true, sub: 'u2' } };
+      });
+
+      const client = new GatewayIntrospectionClient({ ...config, tokenEndpointAuthMethod: 'post' } as GatewayConfig);
+      await client.introspect('tok-1');
+      const second = await client.introspect('tok-2');
+
+      expect(second.active).toBe(true);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(3); // 2 for first call, 1 for second (cached method)
+    });
+
+    test('both methods rejected with 401 fails closed without crashing', async () => {
+      mockedAxios.post.mockRejectedValue({ isAxiosError: true, response: { status: 401, data: { error: 'invalid_client' } } });
+      const client = new GatewayIntrospectionClient({ ...config, tokenEndpointAuthMethod: 'post' } as GatewayConfig);
+
+      const result = await client.introspect('tok-1');
+      expect(result.active).toBe(false);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    });
+
+    test('a non-401 transient error does not trigger the method-fallback attempt', async () => {
+      mockedAxios.post.mockRejectedValue(new Error('ECONNREFUSED'));
+      const client = new GatewayIntrospectionClient({ ...config, tokenEndpointAuthMethod: 'post' } as GatewayConfig);
+
+      const result = await client.introspect('tok-1');
+      expect(result.active).toBe(false);
+      // Existing transient-retry budget (2 attempts, same method) — no extra
+      // method-fallback attempts on top of it.
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    });
+  });
 });

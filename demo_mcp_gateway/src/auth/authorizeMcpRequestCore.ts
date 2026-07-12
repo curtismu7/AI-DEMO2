@@ -53,6 +53,15 @@ export type AuthorizationResult =
       audit: AuditTrail;
     }
   | {
+      // Introspection itself could not be completed (transport error, or the
+      // gateway's own introspection-client credentials/auth-method were
+      // rejected) — distinct from a CONFIRMED inactive/revoked token. Callers
+      // must not tell the user to log back in for this; it is a gateway-side
+      // problem, not a problem with their credentials.
+      kind: 'introspection_unavailable';
+      audit: AuditTrail;
+    }
+  | {
       kind: 'policy_violation';
       code: string;       // GatewayTokenPolicyError.code OR 'invalid_token'
       message: string;
@@ -83,6 +92,12 @@ export async function runMcpAuthorizationPipeline(
     error: introspResult.error,
   };
   if (!introspResult.active) {
+    // introspResult.error is only set when introspection itself failed
+    // (transport error, or the client's own auth was rejected) — a genuinely
+    // confirmed-inactive token (200 {active:false}) never carries it.
+    if (introspResult.error) {
+      return { kind: 'introspection_unavailable', audit };
+    }
     return { kind: 'introspection_failed', audit };
   }
 
