@@ -9,7 +9,7 @@ export function deriveVerdict(results) {
 }
 
 // Parse a fetch ReadableStream of SSE frames, invoking onEvent(eventName, data).
-async function readSse(response, onEvent) {
+export async function readSse(response, onEvent) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -25,6 +25,12 @@ async function readSse(response, onEvent) {
       if (ev && dataLine) onEvent(ev, JSON.parse(dataLine));
     }
   }
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const ev = /event: (.*)/.exec(buffer)?.[1];
+    const dataLine = /data: (.*)/.exec(buffer)?.[1];
+    if (ev && dataLine) onEvent(ev, JSON.parse(dataLine));
+  }
 }
 
 export function useCheckRun() {
@@ -34,6 +40,7 @@ export function useCheckRun() {
 
   const loadCatalog = useCallback(async () => {
     const res = await fetch('/api/check/catalog', { credentials: 'include' });
+    if (!res.ok) throw new Error(`check catalog failed: ${res.status}`);
     setCatalog(await res.json());
   }, []);
 
@@ -47,6 +54,7 @@ export function useCheckRun() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ includeHeavy }),
       });
+      if (!res.ok) throw new Error(`check run failed: ${res.status}`);
       await readSse(res, (ev, data) => { if (ev === 'result') setResult(data); });
     } finally { setRunning(false); }
   }, [setResult]);
