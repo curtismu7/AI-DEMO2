@@ -655,14 +655,28 @@ router.get('/inventory', async (_req, res) => {
     return { up: false, error: lastError };
   };
 
+  // Deployment-awareness: when INVENTORY_DEPLOYED_KEYS is set (e.g. the lean K8s
+  // deploy), services not listed are greyed out (deployed:false, no probe)
+  // instead of showing red — they were never part of this environment. Unset
+  // (compose/native default) → every service is probed, exactly as before.
+  const deployedKeys = new Set(
+    (process.env.INVENTORY_DEPLOYED_KEYS || '')
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean)
+  );
+  const filterDeployed = deployedKeys.size > 0;
+
   const services = await Promise.all(
     SERVER_INVENTORY.map(async (entry) => {
+      const deployed = !filterDeployed || deployedKeys.has(entry.key);
       const meta = {
         key: entry.key, name: entry.name, container: entry.container,
         hostPort: entry.hostPort, internalPort: entry.internalPort,
         lang: entry.lang, purpose: entry.purpose, category: entry.category,
-        probe: entry.probe,
+        probe: entry.probe, deployed,
       };
+      if (!deployed) return { ...meta, up: null };
       if (entry.probe === 'self') return { ...meta, up: true };
       if (entry.probe !== true) return { ...meta, up: null };
       return { ...meta, ...(await probeEntry(entry)) };

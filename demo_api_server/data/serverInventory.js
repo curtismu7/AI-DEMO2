@@ -24,7 +24,9 @@ const SERVER_INVENTORY = [
     key: 'ui', name: 'Banking UI', container: 'ai-demo-ui',
     hostPort: 4000, internalPort: 4000, lang: 'React/Vite + nginx', category: 'core', sourceDir: 'demo_api_ui', probe: true,
     healthPath: '/', acceptAnyStatus: true,
-    candidates: candidates('https://frontend:4000', 'https://localhost:4000'),
+    // HTTPS first (compose/native mkcert TLS), then HTTP — the K8s frontend
+    // serves plaintext, so an HTTPS-only probe false-reports it as down.
+    candidates: candidates(env('UI_URL'), 'https://frontend:4000', 'http://frontend:4000', 'https://localhost:4000'),
     purpose: 'The demo web app, served over HTTPS.',
   },
   {
@@ -73,7 +75,10 @@ const SERVER_INVENTORY = [
   {
     key: 'langchain-agent', name: 'LangChain Agent', container: 'ai-demo-langchain-agent',
     hostPort: 8888, internalPort: 8888, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'langchain_agent', probe: true,
-    candidates: candidates('http://langchain-agent:8890', 'http://localhost:8890'),
+    // acceptAnyStatus: the K8s image serves only 8888 (auth-gated → 401); a
+    // reachable 401 means up. 8890 (native health port) is tried first.
+    acceptAnyStatus: true,
+    candidates: candidates(env('LANGCHAIN_AGENT_URL'), 'http://langchain-agent:8890', 'http://langchain-agent:8888', 'http://localhost:8890', 'http://localhost:8888'),
     purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8889 WS chat, 8890 health.',
   },
   {

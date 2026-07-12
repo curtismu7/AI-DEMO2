@@ -30,4 +30,25 @@ describe('serverInventory', () => {
     expect(SERVER_INVENTORY.find((s) => s.key === 'ungoverned-agent').probe).toBe(false);
     expect(SERVER_INVENTORY.find((s) => s.key === 'api-server').probe).toBe('self');
   });
+
+  // K8s serves these over a different scheme/port than compose. The candidate
+  // list must include the K8s target so the probe stops false-reporting a
+  // running service as down (see /servers false-"down" regression).
+  describe('K8s topology candidates', () => {
+    test('ui probes HTTP frontend as well as HTTPS', () => {
+      const ui = SERVER_INVENTORY.find((s) => s.key === 'ui');
+      // HTTPS first (compose/native), then HTTP (K8s frontend is plaintext).
+      expect(ui.candidates).toContain('https://frontend:4000');
+      expect(ui.candidates).toContain('http://frontend:4000');
+      expect(ui.candidates.indexOf('https://frontend:4000'))
+        .toBeLessThan(ui.candidates.indexOf('http://frontend:4000'));
+    });
+
+    test('langchain-agent probes port 8888 and accepts any HTTP status', () => {
+      const lc = SERVER_INVENTORY.find((s) => s.key === 'langchain-agent');
+      expect(lc.candidates.some((c) => c.includes('langchain-agent:8888'))).toBe(true);
+      // K8s answers 401 (auth-gated) on 8888 — reachable means up.
+      expect(lc.acceptAnyStatus).toBe(true);
+    });
+  });
 });

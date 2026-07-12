@@ -56,6 +56,50 @@ describe('GET /api/health/inventory', () => {
     expect(gw.up).toBe(true);
     expect(gw.url).toContain('localhost:3005');
   });
+
+  // Deployment-awareness: INVENTORY_DEPLOYED_KEYS lets an environment (e.g. the
+  // lean K8s deploy) declare which services it actually runs, so the ones it
+  // does not run are greyed out (deployed:false, not probed) instead of red.
+  describe('INVENTORY_DEPLOYED_KEYS filter', () => {
+    const ORIGINAL = process.env.INVENTORY_DEPLOYED_KEYS;
+    afterEach(() => {
+      if (ORIGINAL === undefined) delete process.env.INVENTORY_DEPLOYED_KEYS;
+      else process.env.INVENTORY_DEPLOYED_KEYS = ORIGINAL;
+    });
+
+    test('unset → every service is probed (unchanged behavior)', async () => {
+      delete process.env.INVENTORY_DEPLOYED_KEYS;
+      axios.get.mockResolvedValue({ status: 200 });
+      const res = await request(buildApp()).get('/api/health/inventory');
+      const gw = res.body.services.find((s) => s.key === 'mcp-gateway');
+      expect(gw.up).toBe(true);
+      expect(gw.deployed).toBe(true);
+    });
+
+    test('set → listed keys probed, unlisted keys greyed (deployed:false, up:null, no probe)', async () => {
+      process.env.INVENTORY_DEPLOYED_KEYS = 'api-server,mcp-gateway';
+      axios.get.mockResolvedValue({ status: 200 });
+      const res = await request(buildApp()).get('/api/health/inventory');
+
+      const gw = res.body.services.find((s) => s.key === 'mcp-gateway');
+      expect(gw.deployed).toBe(true);
+      expect(gw.up).toBe(true);
+
+      const notHere = res.body.services.find((s) => s.key === 'authz-server');
+      expect(notHere.deployed).toBe(false);
+      expect(notHere.up).toBeNull();
+      expect(notHere.error).toBeUndefined();
+    });
+
+    test('set → whitespace and blank entries are tolerated', async () => {
+      process.env.INVENTORY_DEPLOYED_KEYS = ' api-server , mcp-gateway ,';
+      axios.get.mockResolvedValue({ status: 200 });
+      const res = await request(buildApp()).get('/api/health/inventory');
+      const gw = res.body.services.find((s) => s.key === 'mcp-gateway');
+      expect(gw.deployed).toBe(true);
+      expect(gw.up).toBe(true);
+    });
+  });
 });
 
 describe('GET /api/health/inventory/sizes', () => {

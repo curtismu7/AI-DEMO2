@@ -20,6 +20,11 @@ const CATEGORY_LABELS = {
 const CATEGORY_ORDER = ["core", "mcp", "agents", "authz", "ai-infra", "demo-prop"];
 
 function StatusCell({ svc }) {
+  // Not part of this deployment (e.g. compose-only services under the lean K8s
+  // deploy): grey it out rather than reporting a false "down".
+  if (svc.deployed === false) {
+    return <span className="servers-badge not-deployed" title="Not part of this deployment">not deployed</span>;
+  }
   if (svc.up === null) {
     return <span className="servers-badge">on-demand</span>;
   }
@@ -162,7 +167,7 @@ export default function ServersPage() {
                   </thead>
                   <tbody>
                     {rows.map((svc) => (
-                      <tr key={svc.key} className={svc.up === false ? "row-down" : ""}>
+                      <tr key={svc.key} className={svc.deployed === false ? "row-not-deployed" : svc.up === false ? "row-down" : ""}>
                         <td className="col-status"><StatusCell svc={svc} /></td>
                         <td className="col-name">{svc.name}</td>
                         <td className="col-container">{svc.container || "host process"}</td>

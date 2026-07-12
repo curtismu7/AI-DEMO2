@@ -125,6 +125,11 @@
   background: #fffbeb;
 }
 
+/* Services not part of this deployment — de-emphasized, not alarming. */
+.servers-table .row-not-deployed td {
+  opacity: 0.55;
+}
+
 .col-status {
   width: 60px;
   text-align: center;
@@ -181,4 +186,10 @@
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.servers-badge.not-deployed {
+  border-style: dashed;
+  background: transparent;
+  color: #9ca3af;
 }

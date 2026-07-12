@@ -68,6 +68,12 @@ spec:
           value: "-r /otel/otel-instrument.js"
         - name: JAEGER_QUERY_URL
           value: "http://jaeger:16686"
+        # /servers + /check inventory: which services this lean deploy actually
+        # runs. Anything not listed is greyed out ("not deployed") instead of
+        # false-reported as down. Keep in sync with the applied k8s manifests —
+        # add a key here when you apply the manifest that runs that service.
+        - name: INVENTORY_DEPLOYED_KEYS
+          value: "api-server,ui,mortgage-service,mcp-server,mcp-invest,mcp-gateway,ping-gateway,agent-service,langchain-agent,hitl-service,llm-proxy,ungoverned-agent"
         # secret first, configmap last → cluster URLs in the configmap win
         envFrom:
         - secretRef:
