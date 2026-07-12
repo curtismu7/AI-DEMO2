@@ -172,7 +172,7 @@ export default function OASDemoPage() {
     : allOperations.filter(({ op }) => (op.tags || []).includes(filterTag));
 
   const handleLaunchAgent = () => {
-    navigate('/?vertical=pingone-admin&msg=' + encodeURIComponent('Show me all available PingOne API operations from the OpenAPI spec'));
+    navigate('/?vertical=pingone-admin&msg=' + encodeURIComponent('Show me the tools available from the PingOne MCP server'));
   };
 
   return (
