@@ -53,11 +53,22 @@
 .tctr-ic--active { color: var(--brand-navy, #1d4ed8); }
 .tctr-ic--pending { color: #cbd5e1; }
 .tctr-ic--error { color: #dc2626; }
+.tctr-ic--notinpath { color: #94a3b8; }
 .tctr-step-title { flex: 1; min-width: 0; }
 .tctr-step[data-status="error"] > summary { color: #b91c1c; }
 /* Light shading on completed steps to show progress at a glance */
 .tctr-step[data-status="done"] > summary { background: #f4fbf6; }
 .tctr-step[data-status="done"] > summary:hover { background: #e8f7ee; }
+/* Not-in-path — the step was never applicable to this run: struck-through
+   title, muted/dashed row. Distinct from "pending" (still coming) and
+   "error" (should have run, didn't). Mirrors TokenChainDisplay's notinpath bucket. */
+.tctr-step[data-status="notinpath"] { background: #f8fafc; }
+.tctr-step-title--notinpath {
+  text-decoration: line-through; text-decoration-thickness: 1.5px; color: #64748b;
+}
+.tctr-lane--notinpath {
+  background: #f8fafc; color: #64748b; border: 1px dashed #94a3b8;
+}
 /* Disclosure caret — signals each step is expandable */
 .tctr-step-chev {
   flex: 0 0 auto; font-size: 9px; color: #94a3b8; margin-left: 2px;

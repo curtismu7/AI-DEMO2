@@ -270,3 +270,61 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(flat).toContain('0000');
   });
 });
+
+describe("buildTraceSteps — not-in-path steps once the trace completes", () => {
+  test("gateway with no evidence stays pending mid-flight, flips to notinpath once outcome is set", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.find((s) => s.id === "gateway").status).toBe("pending");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    expect(complete.find((s) => s.id === "gateway").status).toBe("notinpath");
+  });
+
+  test("gateway with only a skipped-status introspection event renders notinpath, not done", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-introspection", status: "skipped",
+        explanation: "Gateway introspection skipped (endpoint not configured)" }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("notinpath");
+    expect(gw.detail.narrative).toContain("Gateway introspection skipped");
+  });
+
+  test("real gateway evidence still marks the step done even after the trace completes", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-authorize", status: "permit", decision: "PERMIT" }],
+    });
+    expect(steps.find((s) => s.id === "gateway").status).toBe("done");
+  });
+
+  test("api-key-swap stays pending mid-flight, flips to notinpath once outcome is set on the OAuth path", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.find((s) => s.id === "api-key-swap").status).toBe("pending");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    expect(complete.find((s) => s.id === "api-key-swap").status).toBe("notinpath");
+  });
+
+  test("stepup is absent mid-flight and appears as notinpath once the trace completes without a challenge", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.map((s) => s.id)).not.toContain("stepup");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    const ids = complete.map((s) => s.id);
+    expect(ids.indexOf("stepup")).toBe(ids.indexOf("authorize") + 1);
+    expect(complete.find((s) => s.id === "stepup").status).toBe("notinpath");
+  });
+
+  test("a real step-up challenge still wins over the notinpath default", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      phases: [{ phase: "mfa_challenge_initiated", label: "HITL — MFA challenge", detail: "" }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+});

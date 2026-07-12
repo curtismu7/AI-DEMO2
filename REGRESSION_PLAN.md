@@ -150,6 +150,43 @@ rollup still treats it as neutral "~".
 **Verify:** vitest `TokenChainDisplay.haltedAt` (bucket assertions included),
 `SimpleStepperPanel`; UI build gate.
 
+### 2026-07-12 — "Not in path" extended to the embedded Token Chain rail (all verticals/agents)
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TraceStepCard.jsx` (+`.css` on
+`TokenChainTraceRail.css`), plus tests.
+
+**What was broken:** the 2026-07-11 sweep above never reached
+`TokenChainTraceRail`/`buildTraceSteps.js` — the rail embedded in every
+dashboard/vertical (`UserDashboard`, `Dashboard`, `TokenChainModal`,
+`VerticalOpsConsole`; see the 2026-07-05 entry below). Its status model only
+had `pending/active/done/error`, so a step never applicable to a run (gateway
+not in route, OAuth-bearer path with no API-key swap, no step-up demanded)
+stayed gray "pending" forever instead of resolving — same alarming-omission
+read the 07-11 fix addressed everywhere else.
+
+**What was fixed/changed:** new `notinpath` status in `buildTraceSteps.js`,
+gated on `trace.outcome` (`traceComplete`) so in-flight steps are unaffected —
+only once a trace has a terminal outcome does an evidence-free step resolve to
+`notinpath` instead of sitting `pending`. Applies to: the `gateway` step (no
+gateway evidence, or only a `status:"skipped"` `gw-introspection`/`gw-mtls`
+event — a real `gw-authorize`/`evt-inbound`/`evt-scope` signal still wins and
+marks it `done`); the `api-key-swap` step (OAuth-bearer runs with no swap
+evidence); and the `stepup` step (previously omitted entirely when not
+triggered — now appears, once the trace completes, as `notinpath` instead of
+silently vanishing). `TraceStepCard.jsx` renders `notinpath` with a
+struck-through title and a dashed "Not in path" pill in place of the lane
+badge (`.tctr-step-title--notinpath`, `.tctr-lane--notinpath`), matching the
+`TokenChainDisplay` convention.
+
+**Do not break:** `notinpath` must only ever replace a still-`pending`
+resolution, never a `done`/`active`/`error` one — real evidence always wins.
+Mid-flight (`trace.outcome === null`) behavior is unchanged; `stepup` still
+only appears in the array once a challenge phase fires or the trace completes.
+
+**Verify:** vitest `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+(22 tests), `src/components/__tests__/TokenChainTraceRail.test.jsx` (7 tests).
+
 ### 2026-07-11 — P1AZ policy-not-found handling + reliability hardening (deliberate posture change)
 
 **Files changed:** `demo_api_server/services/pingOneAuthorizeService.js`

@@ -77,3 +77,18 @@ test("token summary accordion lists tokens with change rows", () => {
   expect(summary.textContent).toContain("narrowed");
   expect(summary.textContent).toContain("rebound");
 });
+
+test("steps not in this run's path render struck-through with a Not in path badge once the trace completes", () => {
+  render(<TokenChainTraceRail />);
+  act(() => tokenChainTraceStore.beginTrace({ prompt: "show my accounts" }));
+  act(() => tokenChainTraceStore.ingestMcpResult({ tool: "get_accounts", result: { ok: true } }));
+  act(() => tokenChainTraceStore.completeTrace(true));
+
+  const gatewayStep = screen.getByText(/Agent Gateway — token validated/).closest("details");
+  expect(gatewayStep).toHaveAttribute("data-status", "notinpath");
+  expect(gatewayStep.querySelector(".tctr-step-title--notinpath")).toBeInTheDocument();
+  expect(gatewayStep.textContent).toContain("Not in path");
+
+  const stepupStep = screen.getByText(/Step-up required/).closest("details");
+  expect(stepupStep).toHaveAttribute("data-status", "notinpath");
+});
