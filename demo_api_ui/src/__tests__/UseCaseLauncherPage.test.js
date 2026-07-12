@@ -234,8 +234,16 @@ describe('UseCaseLauncherPage', () => {
   });
 
   it('clicking Run on a chip UC POSTs the use case and navigates to /dashboard with state', async () => {
-    apiClient.post.mockResolvedValue({
-      data: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip' },
+    apiClient.post.mockImplementation((url) => {
+      if (url === '/api/use-cases/demo/run') {
+        return Promise.resolve({
+          data: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip' },
+        });
+      }
+      if (url === '/api/verticals/active') {
+        return Promise.resolve({ data: { success: true } });
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
     });
     renderPage();
     await waitFor(() => expect(screen.getByText('Delegated access with proof')).toBeInTheDocument());
@@ -246,6 +254,9 @@ describe('UseCaseLauncherPage', () => {
         useCaseId: 'delegated-access-with-proof',
         vertical: 'banking',
       }),
+    );
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith('/api/verticals/active', { id: 'banking' }),
     );
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
