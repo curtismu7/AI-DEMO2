@@ -130,7 +130,13 @@ for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/vertica
         if chip.get("mode") != "both":
             continue
         cid = chip.get("id")
-        cmsg = chip["message"]
+        try:
+            cmsg = chip["message"]
+        except Exception as e:
+            failures.append(f"{vertical}/{cid or '?'}: missing required field ({e})")
+            pv = per_vertical.setdefault(vertical, [0, 0])
+            pv[1] += 1
+            continue
         body = json.dumps({"message": cmsg, "provider": "heuristic", "vertical": vertical})
         try:
             out = subprocess.run(
@@ -175,7 +181,10 @@ PYEOF
 chip_rows=()
 read_lines chip_rows python3 -c '
 import json,sys
-d=json.load(sys.stdin)
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    print("FAIL|chip replay total|aggregator crashed — see script output"); raise SystemExit
 total_ok=0; total_fail=0
 for v,(ok,fail) in sorted(d["per_vertical"].items()):
     total_ok+=ok; total_fail+=fail
