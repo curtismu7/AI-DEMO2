@@ -22,6 +22,33 @@ export default function TracingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+
+  const toggleTrace = useCallback(async (traceId) => {
+    if (expandedId === traceId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(traceId);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/health/tracing/traces/${traceId}`, { credentials: "include" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || `HTTP ${res.status}`);
+      }
+      setDetail(await res.json());
+    } catch (e) {
+      setDetailError(e.message || "Failed to load trace");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [expandedId]);
 
   const loadStatus = useCallback(async () => {
     const res = await fetch("/api/health/tracing/status", { credentials: "include" });
@@ -189,25 +216,38 @@ export default function TracingPage() {
               </tr>
             ) : (
               traces.map((t) => (
-                <tr key={t.traceId}>
-                  <td className="tracing-op">{t.operation}</td>
-                  <td className="tracing-id">
-                    <code>{t.traceId.slice(0, 16)}…</code>
-                  </td>
-                  <td>{t.spanCount}</td>
-                  <td>{t.durationMs >= 1000 ? `${(t.durationMs / 1000).toFixed(2)} s` : `${t.durationMs} ms`}</td>
-                  <td>{t.startTime ? new Date(t.startTime).toLocaleString() : "—"}</td>
-                  <td>
-                    <a
-                      className="tracing-link"
-                      href={traceUrl(t.traceId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      View in Jaeger
-                    </a>
-                  </td>
-                </tr>
+                <React.Fragment key={t.traceId}>
+                  <tr
+                    className={`tracing-row ${expandedId === t.traceId ? "tracing-row--open" : ""}`}
+                    onClick={() => toggleTrace(t.traceId)}
+                  >
+                    <td className="tracing-op">{t.operation}</td>
+                    <td className="tracing-id">
+                      <code>{t.traceId.slice(0, 16)}…</code>
+                    </td>
+                    <td>{t.spanCount}</td>
+                    <td>{t.durationMs >= 1000 ? `${(t.durationMs / 1000).toFixed(2)} s` : `${t.durationMs} ms`}</td>
+                    <td>{t.startTime ? new Date(t.startTime).toLocaleString() : "—"}</td>
+                    <td>
+                      <a
+                        className="tracing-link"
+                        href={traceUrl(t.traceId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View in Jaeger
+                      </a>
+                    </td>
+                  </tr>
+                  {expandedId === t.traceId && (
+                    <tr className="tracing-detail-row">
+                      <td colSpan={6}>
+                        <TraceDetail loading={detailLoading} error={detailError} detail={detail} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>
@@ -223,6 +263,41 @@ export default function TracingPage() {
           <li>Click <strong>View in Jaeger</strong> for the full span timeline and flame graph.</li>
         </ol>
       </section>
+    </div>
+  );
+}
+
+function TraceDetail({ loading, error, detail }) {
+  if (loading) return <div className="tracing-detail tracing-detail--msg">Loading spans…</div>;
+  if (error) return <div className="tracing-detail tracing-detail--msg tracing-detail--error">{error}</div>;
+  if (!detail || !detail.spans.length) {
+    return <div className="tracing-detail tracing-detail--msg">No spans in this trace.</div>;
+  }
+  const total = detail.durationMs || 1;
+  return (
+    <div className="tracing-detail">
+      {detail.spans.map((s) => {
+        const left = Math.min(100, (s.relativeStartMs / total) * 100);
+        const width = Math.max(0.5, (s.durationMs / total) * 100);
+        return (
+          <div className="tracing-span-row" key={s.spanID}>
+            <div className="tracing-span-label" style={{ paddingLeft: `${s.depth * 14}px` }}>
+              <span className="tracing-span-svc">{s.serviceName}</span>
+              <span className="tracing-span-op">{s.operationName}</span>
+            </div>
+            <div className="tracing-span-track">
+              <div
+                className={`tracing-span-bar tracing-span-bar--c${detail.serviceColors[s.serviceName] ?? 0}`}
+                style={{ left: `${left}%`, width: `${width}%` }}
+                title={`${s.operationName} — ${s.durationMs} ms`}
+              />
+            </div>
+            <div className="tracing-span-dur">
+              {s.durationMs >= 1000 ? `${(s.durationMs / 1000).toFixed(2)} s` : `${s.durationMs} ms`}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
