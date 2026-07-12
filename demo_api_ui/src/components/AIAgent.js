@@ -91,7 +91,7 @@ import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
-import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal } from "./demoAgentSafety";
+import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
@@ -333,6 +333,8 @@ export default function BankingAgent({
   // configured). Drives a persistent banner in the panel header. Cleared as
   // soon as a Helix-sourced answer comes back.
   const [helixDegraded, setHelixDegraded] = useState(false);
+  // Message id currently running the pre-warm-and-retry action (Task: prewarm-retry-timeout).
+  const [prewarming, setPrewarming] = useState(null);
   const [modelAdvisory, setModelAdvisory] = useState(null);
   const modelAdvisoryTimerRef = useRef(null);
   // Single-slot conversation state for clarification follow-ups.
@@ -5568,7 +5570,7 @@ export default function BankingAgent({
   }
 
   /** NL API errors: 401 is session missing on server — not a parse failure. */
-  function reportNlFailure(err) {
+  function reportNlFailure(err, retry) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
     // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
@@ -5581,9 +5583,14 @@ export default function BankingAgent({
       notifyError("⏱️ The model took too long to respond — request timed out.", {
         autoClose: agentToastMs.errShort,
       });
+      // Only llama.cpp timeouts get the pre-warm retry action — there's no
+      // local tier to pre-warm for Helix/Anthropic.
+      const offerPrewarmRetry = retry && isLocalModelTimeout(err, activeLlmProvider);
       addMessage(
         "assistant",
         "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller Ollama model).",
+        null,
+        offerPrewarmRetry ? { showPrewarmRetryAction: true, retryFn: retry } : undefined,
       );
       return;
     }
@@ -5645,6 +5652,20 @@ export default function BankingAgent({
       autoClose: agentToastMs.errShort,
     });
     addMessage("assistant", `Could not parse: ${errorMessage}`);
+  }
+
+  /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
+  async function handlePrewarmRetry(msgId, retryFn) {
+    setPrewarming(msgId);
+    try {
+      await prewarmTierAndRetry("gpt-oss-20b", retryFn);
+    } catch (_err) {
+      notifyError("Could not pre-warm the model — try switching mode instead.", {
+        autoClose: agentToastMs.errShort,
+      });
+    } finally {
+      setPrewarming(null);
+    }
   }
 
   async function handleNaturalLanguage() {
@@ -5907,7 +5928,7 @@ export default function BankingAgent({
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
     } catch (err) {
       if (isAbortError(err)) return;
-      reportNlFailure(err);
+      reportNlFailure(err, () => handleNaturalLanguageInner(text));
     } finally {
       setNlLoading(false);
     }
@@ -8809,6 +8830,26 @@ export default function BankingAgent({
                                 }}
                               >
                                 Authorize agent
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.showPrewarmRetryAction) {
+                      const isWarming = prewarming === msg.id;
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                disabled={isWarming}
+                                onClick={() => handlePrewarmRetry(msg.id, msg.retryFn)}
+                              >
+                                {isWarming ? "Warming up… (up to ~1 min)" : "Pre-warm the model & retry"}
                               </button>
                             </div>
                           </div>
