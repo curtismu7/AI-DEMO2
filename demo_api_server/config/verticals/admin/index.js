@@ -1,6 +1,7 @@
 'use strict';
 
 const { verticalManifest } = require('../../../services/verticalManifest');
+const store = require('../../../data/store');
 
 // Admin vertical heuristics — enabled when the admin vertical is active.
 // action: the native MCP tool name (must match a declared tool below — the
@@ -109,17 +110,98 @@ function getAuthz() {
   return out;
 }
 
+// Real handlers over the same demo store the deterministic Customer Admin
+// panel uses (routes/adminAgentTools.js) — same data, same shapes, so the
+// heuristic chips and the panel's buttons agree. userId/accountId are filled
+// from the dashboard's picker-selected customer upstream (see
+// applyAdminCustomerContext in demoAgentLangGraphService.js) when the
+// resolved tool declares that param and the message didn't supply one.
+async function execute(name, params) {
+  const p = params || {};
+  switch (name) {
+    case 'lookup_customer': {
+      const q = String(p.query || '').toLowerCase().trim();
+      if (!q) return { result: { error: 'query is required' }, render: 'text' };
+      const users = store.getAllUsers()
+        .filter((u) => {
+          const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+          return fullName.includes(q) || (u.email || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q);
+        })
+        .map((u) => ({ id: u.id, username: u.username, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive }));
+      return { result: { users, count: users.length }, render: 'lookup_customer' };
+    }
+    case 'get_customer_profile': {
+      const user = store.getUserById(p.userId);
+      if (!user) return { result: { error: 'customer not found' }, render: 'text' };
+      const { password, ...safeUser } = user;
+      return { result: { user: safeUser }, render: 'get_customer_profile' };
+    }
+    case 'get_customer_accounts': {
+      const accounts = store.getAccountsByUserId(p.userId) || [];
+      return { result: { accounts, count: accounts.length }, render: 'get_customer_accounts' };
+    }
+    case 'get_customer_transactions': {
+      const allTx = store.getTransactionsByUserId(p.userId) || [];
+      const transactions = allTx.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+      return { result: { transactions, count: transactions.length }, render: 'get_customer_transactions' };
+    }
+    case 'freeze_account': {
+      if (typeof p.freeze !== 'boolean') return { result: { error: 'freeze (true/false) is required' }, render: 'text' };
+      const accounts = store.getAccountsByUserId(p.userId) || [];
+      const account = accounts[0];
+      if (!account) return { result: { error: 'customer has no account to freeze' }, render: 'text' };
+      const updated = await store.updateAccount(account.id, { isActive: !p.freeze });
+      return { result: { accountId: updated.id, isActive: updated.isActive, frozen: p.freeze }, render: 'freeze_account' };
+    }
+    case 'adjust_balance': {
+      const amount = Number(p.amount);
+      if (!isFinite(amount)) return { result: { error: 'amount must be a finite number' }, render: 'text' };
+      const account = store.getAccountById(p.accountId);
+      if (!account) return { result: { error: 'account not found' }, render: 'text' };
+      const newBalance = (account.balance || 0) + amount;
+      if (newBalance < 0) return { result: { error: 'adjustment would result in a negative balance' }, render: 'text' };
+      const updated = await store.updateAccount(p.accountId, { balance: newBalance });
+      await store.createTransaction({
+        userId: account.userId,
+        fromAccountId: amount < 0 ? account.id : null,
+        toAccountId: amount >= 0 ? account.id : null,
+        amount: Math.abs(amount),
+        type: amount >= 0 ? 'deposit' : 'withdrawal',
+        description: 'Admin balance adjustment',
+        category: 'admin',
+        status: 'completed',
+      });
+      return { result: { accountId: updated.id, newBalance: updated.balance }, render: 'adjust_balance' };
+    }
+    case 'reset_customer_password': {
+      const user = store.getUserById(p.userId);
+      if (!user) return { result: { error: 'customer not found' }, render: 'text' };
+      await store.updateUser(p.userId, { passwordResetRequired: true });
+      return { result: { userId: p.userId, passwordResetRequired: true }, render: 'reset_customer_password' };
+    }
+    case 'delete_customer': {
+      const user = store.getUserById(p.userId);
+      if (!user) return { result: { error: 'customer not found' }, render: 'text' };
+      const accounts = store.getAccountsByUserId(p.userId) || [];
+      for (const account of accounts) {
+        const transactions = store.getTransactionsByAccountId(account.id) || [];
+        for (const tx of transactions) await store.deleteTransaction(tx.id);
+        await store.deleteAccount(account.id);
+      }
+      await store.deleteUser(p.userId);
+      return { result: { userId: p.userId, deleted: true }, render: 'delete_customer' };
+    }
+    default:
+      return { result: { error: `Unknown admin action "${name}"` }, render: 'text' };
+  }
+}
+
 module.exports = {
   getManifest,
   getTools: () => TOOLS,
   getHeuristics: () => HEURISTICS,
   getSystemPrompt,
-  getDataStore: () => ({ get: () => ({}) }), // Admin tools execute via the MCP gateway, not a local store
-  // Admin tools are dispatched through the MCP gateway (gateway → MCP server / BFF
-  // admin routes), not a local handler; this stub satisfies the plugin contract.
-  executeTool: async (name) => ({
-    result: { data: { message: `Admin action "${name}" executes via the MCP gateway` } },
-    render: 'card',
-  }),
+  getDataStore: () => ({ get: () => ({}) }), // Admin tools read/write the shared demo store directly, not a per-user local store
+  executeTool: (name, params) => execute(name, params),
   getAuthz,
 };
