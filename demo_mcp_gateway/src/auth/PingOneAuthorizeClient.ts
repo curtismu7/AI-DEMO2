@@ -249,7 +249,13 @@ export class PingOneAuthorizeClient {
       };
       if (outcome === 'PERMIT') return { decision: 'PERMIT', ...meta };
       if (outcome === 'INDETERMINATE') return { decision: 'INDETERMINATE', reason: 'HITL_REQUIRED', ...meta };
-      return { decision: 'DENY', reason: `PingAuthorize decision: ${outcome}`, ...meta };
+      // Preserve the engine's specific DENY reason (e.g. the mock's
+      // 'unknown_tool: no policy defined' = policy drift) instead of flattening
+      // every DENY to a generic string, so callers can distinguish drift from a
+      // genuine denial.
+      const denyReason: string =
+        typeof data?.reason === 'string' && data.reason ? data.reason : `PingAuthorize decision: ${outcome}`;
+      return { decision: 'DENY', reason: denyReason, ...meta };
     };
 
     const primary = this.config.pingAuthorizeEndpoint;
