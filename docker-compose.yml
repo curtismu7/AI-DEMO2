@@ -144,8 +144,11 @@ services:
       # (see startupConfigGuard.js + scope-topology.json).
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
       MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-      # Accept Node-gateway + PingGateway audiences (Path B dual_token when IG mode is ON).
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+      # Accept Node-gateway + PingGateway audiences (Path B dual_token when IG mode is ON),
+      # plus the A2A specialists' dedicated Exchange #2 audience (see
+      # a2aDelegationService.js resolveA2aConfig / pingoneProvisionService.js Step 37a-A2A) —
+      # tokenValidator.ts already parses this as a comma-separated list.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # Agent frameworks (langchain et al) call back into the BFF at this origin
       # to execute tools with RFC 8693 exchange — agentRun.js appends
@@ -585,8 +588,9 @@ services:
       # Accept Node-gateway + PingGateway audiences — same dual-audience pin as
       # demo-api-server above; the stale single-value demo_mcp_gateway/.env
       # entry otherwise wins via env_file and every PingGateway-minted token
-      # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+      # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud. Also
+      # includes the A2A specialists' dedicated Exchange #2 audience.
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false

@@ -136,9 +136,16 @@ function resolveA2aConfig(cfgArg, specialist) {
     cfg.getEffective('pingone_resource_a2a_intermediate_uri') ||
     cfg.getEffective('pingone_resource_agent_gateway_uri');
 
-  // Exchange #2 result audience — the MCP gateway audience the specialist tools are
-  // reached through (same audience the normal MCP path targets).
+  // Exchange #2 result audience — A2A's OWN MCP Gateway destination (RFC 8693
+  // §4.1 nested-act composer lives here, see pingoneProvisionService.js Step
+  // 37a-A2A), deliberately separate from the shared mcpgateway resource the
+  // non-A2A two-exchange flow targets. The real gateway/authz server accept
+  // this as an additional valid audience via a comma-separated
+  // MCP_GW_RESOURCE_URI (docker-compose.yml) — not a new resource server env
+  // var. Falls back to the shared audience for deployments not yet
+  // re-provisioned with the dedicated A2A gateway resource.
   const specialistAud =
+    cfg.getEffective('a2a_gateway_audience') ||
     cfg.getEffective('pingone_resource_mcp_gateway_uri') ||
     cfg.getEffective('mcp_gw_resource_uri') ||
     cfg.getEffective('pingone_resource_mcp_server_uri');
