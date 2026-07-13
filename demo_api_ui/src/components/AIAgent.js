@@ -7011,7 +7011,7 @@ export default function BankingAgent({
                               addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId });
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId, vertical: effectiveVerticalId });
                             if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
                               tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }

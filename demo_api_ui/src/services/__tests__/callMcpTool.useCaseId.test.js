@@ -25,4 +25,18 @@ describe('callMcpTool useCaseId plumbing', () => {
     const body = JSON.parse(opts.body);
     expect(body.useCaseId).toBeUndefined();
   });
+
+  test('includes vertical in the request body when provided', async () => {
+    await callMcpTool('get_balance', {}, { vertical: 'healthcare' });
+    const [, opts] = global.fetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.vertical).toBe('healthcare');
+  });
+
+  test('omits vertical when not provided (back-compat)', async () => {
+    await callMcpTool('get_balance', {});
+    const [, opts] = global.fetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.vertical).toBeUndefined();
+  });
 });
