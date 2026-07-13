@@ -1867,6 +1867,26 @@ export default function BankingAgent({
     // would re-fire this effect on unrelated renders.
   }, [aguiState.error]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // AG-UI grounding correction → visible chat bubble. Mirrors the error-bubble
+  // dedupe pattern above: useAgentState resets lastGroundingCorrection to null
+  // on RUN_STARTED, so each new correction produces exactly one bubble.
+  const aguiGroundingCorrectionRef = useRef(null);
+  useEffect(() => {
+    const correction = aguiState.lastGroundingCorrection;
+    if (!correction) {
+      aguiGroundingCorrectionRef.current = null;
+      return;
+    }
+    if (aguiGroundingCorrectionRef.current === correction) return;
+    aguiGroundingCorrectionRef.current = correction;
+    addMessage(
+      "token-event",
+      `⚠️ Correction: ${correction.corrected}`,
+    );
+    // addMessage has stable identity for the life of the component; listing it
+    // would re-fire this effect on unrelated renders.
+  }, [aguiState.lastGroundingCorrection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Run finished → close the story (unless it's an HITL/step-up interrupt,
   // in which case the agent is suspended waiting for the user — keep running).
   useEffect(() => {
