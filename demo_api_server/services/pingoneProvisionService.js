@@ -1524,6 +1524,9 @@ class PingOneProvisionService {
       '# indicators + PingOne one-scope-name-per-client-across-all-grants constraint —',
       '# a shared audience/scope across 9 unrelated specialists collides; see',
       '# docs/ACT_CLAIM_VERIFICATION.md). Not overridable via env — derived in code.',
+      '# Exchange #2 target — separate from PINGONE_RESOURCE_MCP_GATEWAY_URI so the',
+      '# nested-act composer SPEL there never touches the non-A2A two-exchange flow.',
+      `A2A_GATEWAY_AUDIENCE=${provisioned.a2aGwResourceServer?.audience?.[0] || 'mcpgateway-a2a.ping.demo'}`,
       ...Object.values((() => { try { return require('../config/a2aSpecialists').A2A_SPECIALISTS; } catch (_e) { return {}; } })()).flatMap((spec) => {
         const app = provisioned.a2aSpecialistApps && provisioned.a2aSpecialistApps[spec.appKey];
         const resource = provisioned.a2aResourceServers && provisioned.a2aResourceServers[spec.appKey];
@@ -2727,6 +2730,26 @@ class PingOneProvisionService {
         const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
         const _scopeTopology = require('./scopeTopology');
 
+        // A2A's OWN final destination resource (Exchange #2 target) — deliberately
+        // SEPARATE from mcpGwResourceResult, which the pre-existing non-A2A
+        // two-exchange flow (UC1) also targets. Composing a nested `act` claim
+        // here (below) would change UC1's existing flat act shape too if done on
+        // the shared resource; giving A2A its own audience means the composer
+        // SPEL only ever applies to A2A calls. The real gateway (tokenValidator.ts)
+        // and the mock authz server (decision.js) both already accept a
+        // comma-separated list of valid audiences via MCP_GW_RESOURCE_URI — see
+        // docker-compose.yml, which appends this resource's audience to that list.
+        const a2aGwAudience = config.a2aGatewayAudience || 'mcpgateway-a2a.ping.demo';
+        steps.push({ step: 'a2a-gateway-resource', icon: '🛡️', message: `Creating A2A MCP Gateway resource (aud: ${a2aGwAudience})...` });
+        onStep(steps[steps.length - 1]);
+        const a2aGwResourceResult = await this.createResourceServer(
+          _provisioningResourceName('Super Banking A2A MCP Gateway'),
+          'A2A specialists\' Exchange #2 destination — separate from the shared MCP Gateway resource so the nested-act composer SPEL never touches the non-A2A two-exchange flow.',
+          a2aGwAudience,
+        );
+        provisioned.a2aGwResourceServer = a2aGwResourceResult.resource;
+        onStep(steps[steps.length - 1]);
+
         provisioned.a2aSpecialistApps = {};
         provisioned.a2aResourceServers = {};
         for (const spec of Object.values(A2A_SPECIALISTS)) {
@@ -2779,24 +2802,34 @@ class PingOneProvisionService {
           pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A Intermediate scopes`, specScopeResults);
           onStep(steps[steps.length - 1]);
 
-          // Revoke the specialist's stale grant on the general Demo API/enduser
-          // resource FIRST — a pre-existing bug (predates the per-specialist
-          // redesign) granted specScopes there instead of on the MCP Gateway
-          // resource Exchange #2 actually targets. grantScopesToApplication
-          // deliberately skips creating a colliding same-name grant on another
-          // resource (PingOne enforces one scope-name per app across all its
-          // grants), so simply pointing the grant call at the right resource
-          // was not enough — the old grant had to be removed too, or PingOne
-          // kept resolving Exchange #2's token to the old (wrong) audience.
-          await this.revokeApplicationGrantOnResource(app.id, resourceResult.resource.id);
+          // Revoke the specialist's stale grants on resources that predate this
+          // resource's introduction — the general Demo API/enduser resource (the
+          // original bug, #357/#359) and the shared MCP Gateway resource (#357's
+          // fix, now superseded by this dedicated A2A gateway resource).
+          // grantScopesToApplication deliberately skips creating a colliding
+          // same-name grant on another resource (PingOne enforces one scope-name
+          // per app across all its grants), so the old grants must be removed
+          // before the new one can land.
+          await Promise.all([
+            this.revokeApplicationGrantOnResource(app.id, resourceResult.resource.id),
+            this.revokeApplicationGrantOnResource(app.id, mcpGwResourceResult.resource.id),
+          ]);
+
+          const a2aGwScopeResults = await this.createScopes(
+            a2aGwResourceResult.resource.id,
+            specScopes.map((name) => ({ name, description: `${spec.specialistName} — ${name} (A2A Exchange #2).` })),
+          );
+          pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A MCP Gateway scopes`, a2aGwScopeResults);
+          onStep(steps[steps.length - 1]);
 
           // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
           // Exchange #1 for this vertical. The specialist needs the same scope on its
           // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
-          // plus its narrow derived scope on the MCP Gateway resource (c.specialistAud).
+          // plus its narrow derived scope on the A2A MCP Gateway resource (Exchange
+          // #2's target, c.specialistAud).
           await Promise.all([
             this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
-            this.grantScopesToApplication(app.id, mcpGwResourceResult.resource.id, specScopes),
+            this.grantScopesToApplication(app.id, a2aGwResourceResult.resource.id, specScopes),
             this.grantScopesToApplication(app.id, specResourceResult.resource.id, [invokeScopeName]),
           ]);
 
@@ -2835,6 +2868,29 @@ class PingOneProvisionService {
           }
           onStep(steps[steps.length - 1]);
         }
+
+        // Wire a TRUE nested-act composer on the A2A MCP Gateway resource — ONE
+        // time, shared by all 8 specialists' Exchange #2. Unlike the flat
+        // passthrough on the ORIGINAL shared MCP Gateway resource
+        // (`${#root.context.requestData.subjectToken.act}`, untouched — still used
+        // by the non-A2A two-exchange flow), this composes a NEW map: sub = the
+        // specialist (this hop's actor), act = whatever the previous hop already
+        // produced. Result: act:{sub:specialist, act:{sub:generalist}} — true
+        // RFC 8693 §4.1 depth-2 nesting. SpEL inline-map literal syntax
+        // (`{...}`) is not proven elsewhere in this codebase — verified
+        // empirically against the live tenant before this was committed to code
+        // (see memory ai-demo2-a2a-delegation-fix.md).
+        try {
+          await this._setResourceAttribute(
+            a2aGwResourceResult.resource.id,
+            'act',
+            "${{'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act}}",
+          );
+          steps.push({ step: 'a2a-gateway-act', icon: '✅', message: 'A2A MCP Gateway nested-act composer wired' });
+        } catch (a2aActErr) {
+          steps.push({ step: 'a2a-gateway-act', icon: '⚠️', message: `A2A MCP Gateway act step: ${a2aActErr.message}` });
+        }
+        onStep(steps[steps.length - 1]);
       } catch (a2aErr) {
         steps.push({ step: 'a2a-specialists', icon: '⚠️', message: `A2A specialist provisioning skipped: ${a2aErr.message}` });
         onStep(steps[steps.length - 1]);
