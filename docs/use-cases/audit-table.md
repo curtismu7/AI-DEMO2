@@ -12,16 +12,22 @@
 | UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
+| UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
+| UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | ✅ works | 🛡️ T8 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
 | UC8 | [HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
+| UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
 | UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |
+| UC26 | [Proof of enforcement — live verdict on every use case](./proof-of-enforcement.md) | demo | ✅ works | 🛡️ T8, T9 |  |
 | UC5 | [Wrong / insufficient scope](./insufficient-scope.md) | attacks | ✅ works | 🛡️ T2, T3 |  |
 | UC10 | [Resource-ownership / account takeover](./cross-owner-account.md) | attacks | ✅ works | 🛡️ T3 |  |
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
+| UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
+| UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
 | UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -31,6 +37,10 @@
 | UC-LEARN5 | [Learning Hub](./learning-hub.md) | learn | ✅ works |  |  |
 | UC-LEARN6 | [Token Flow (Interactive)](./token-flow.md) | learn | ✅ works |  |  |
 | UC-LEARN7 | [The Ungoverned Agent (OpenCLI)](./ungoverned-agent.md) | learn | ✅ works | 🛡️ T2, T3, T8, T9 |  |
+| UC-PAM-SETUP | [Privilege Demo — SE Setup](./privilege-demo-setup.md) | learn | ✅ works |  |  |
+| UC-PAM-SCRIPT | [Privilege Demo — Request Access Script](./privilege-demo-script.md) | learn | ✅ works |  |  |
+| UC-LEARN8 | [Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) | learn | ✅ works |  |  |
+| UC-LEARN9 | [ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) | learn | ✅ works |  |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -41,25 +51,22 @@
 | UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ff_ciba) | 🛡️ T10 |  |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
 | UC14 | [RAR intent violation](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
+| UC14b | [RAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
+| UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 
 ## 🏗️ Needs build (`needs-build`)
 
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
-| UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | 🏗️ needs-build | 🛡️ T9, T13 | See plan |
-| UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | 🏗️ needs-build | 🛡️ T8 | See plan |
-| UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | 🏗️ needs-build | 🛡️ T3 | See plan |
 | UC15 | [Intent-token tampering](./intent-token-tampering.md) | attacks | 🏗️ needs-build | 🛡️ T6, T8 | See plan |
 | UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | 🏗️ needs-build | 🛡️ T9 | See plan |
-| UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | 🏗️ needs-build | 🛡️ T3, T9 | See plan |
-| UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | 🏗️ needs-build | 🛡️ T4 | See plan |
 
 ## Summary
 
 | Status | Count |
 |---|---|
-| ✅ Works | 22 |
-| 🚩 Flag-gated | 5 |
+| ✅ Works | 32 |
+| 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
-| 🏗️ Needs build | 7 |
-| **Total** | **34** |
+| 🏗️ Needs build | 2 |
+| **Total** | **41** |

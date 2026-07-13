@@ -11,15 +11,16 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 40 use cases including UC1..UC25 and UC23..UC24', () => {
-    expect(USE_CASES).toHaveLength(40);
+  test('contains all 41 use cases including UC1..UC26 and UC23..UC24', () => {
+    expect(USE_CASES).toHaveLength(41);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(40);
+    expect(new Set(ids).size).toBe(41);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
     expect(ids).toContain('UC25');
-    expect(ids).not.toContain('UC26');
+    expect(ids).toContain('UC26');
+    expect(ids).not.toContain('UC27');
   });
 
   test('every entry is schema-valid', () => {
@@ -156,9 +157,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 40 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(40);
-    expect(listUseCases()).toHaveLength(40);
+  test('listUseCases returns all 41 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(41);
+    expect(listUseCases()).toHaveLength(41);
   });
 
   test('only UC14 and UC15 are advanced', () => {

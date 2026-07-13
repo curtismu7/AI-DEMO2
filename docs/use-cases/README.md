@@ -12,22 +12,24 @@ See also: [Audit Table](./audit-table.md)
 - [**UC1** — Delegated access with proof](./delegated-access-with-proof.md) ✅ 🛡️
 - [**UC2** — A2A delegation](./a2a-delegation.md) 🚩 🛡️
 - [**UC2.5** — A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) ✅ 🛡️
-- [**UC3** — may_act gate](./may-act-gate.md) ✅ 🛡️
-- [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) 🏗️ 🛡️
-- [**UC20** — Audit trail / traceability](./audit-trail.md) 🏗️ 🛡️
+- [**UC3** — act gate](./may-act-gate.md) ✅ 🛡️
+- [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) ✅ 🛡️
+- [**UC20** — Audit trail / traceability](./audit-trail.md) ✅ 🛡️
 
 ## Demo
 
 - [**UC23** — Progressive trust demo — presenter guide](./progressive-trust-demo.md) ✅ 🛡️
 - [**UC24** — Act 1 — Public catalog access](./progressive-trust-public-access.md) ✅ 🛡️
+- [**UC26** — Proof of enforcement — live verdict on every use case](./proof-of-enforcement.md) ✅ 🛡️
 
 ## Controls
 
 - [**UC4** — Overscoped agent](./overscoped-agent.md) ✅ 🛡️
 - [**UC6** — Authz denied](./authz-denied.md) ✅ 🛡️
 - [**UC9** — Group / entitlement check](./group-entitlement-check.md) 🚩 🛡️
-- [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) 🏗️ 🛡️
-- [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) 🏗️ 🛡️
+- [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) ✅ 🛡️
+- [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) ✅ 🛡️
+- [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
 
 ## Attacks
 
@@ -39,7 +41,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC14** — RAR intent violation](./rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
-- [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) 🏗️ 🛡️
+- [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
 
 ## Hitl
 
@@ -54,6 +56,7 @@ See also: [Audit Table](./audit-table.md)
 
 ## Learn
 
+- [**UC14b** — RAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
 - [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
 - [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅
 - [**UC-LEARN3** — Demo MCP Inspector](./demo-mcp-inspector.md) ✅
@@ -63,3 +66,5 @@ See also: [Audit Table](./audit-table.md)
 - [**UC-LEARN7** — The Ungoverned Agent (OpenCLI)](./ungoverned-agent.md) ✅ 🛡️
 - [**UC-PAM-SETUP** — Privilege Demo — SE Setup](./privilege-demo-setup.md) ✅
 - [**UC-PAM-SCRIPT** — Privilege Demo — Request Access Script](./privilege-demo-script.md) ✅
+- [**UC-LEARN8** — Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) ✅
+- [**UC-LEARN9** — ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) ✅

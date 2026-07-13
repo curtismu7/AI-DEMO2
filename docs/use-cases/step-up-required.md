@@ -16,7 +16,7 @@ PingOne Authorize returns a step-up obligation → MFA before PERMIT.
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 to savings`  
+**Trigger:** Chip message: `transfer $600 from checking to savings`  
 **Expected outcome:** `STEP_UP`
 
 ## What to Say

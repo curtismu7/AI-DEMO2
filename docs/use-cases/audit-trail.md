@@ -3,7 +3,7 @@
 # UC20 — Audit trail / traceability
 
 **Track:** foundations  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T8 · Sections: §3.3.3, §8
 
 ## Buyer Story

@@ -3,7 +3,7 @@
 # UC18 — Rate-limit / resource-overload defense
 
 **Track:** attacks  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T4 · Sections: §4.2.3, §8
 
 ## Buyer Story
@@ -30,7 +30,8 @@ The agent gateway enforces per-agent / per-tool rate limits; a burst of calls is
 
 ## Code References
 
-- `demo_mcp_gateway/src/middleware/rateLimiter.ts`
+- `demo_mcp_gateway/src/rateLimit.ts`
+- `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
 
 
 

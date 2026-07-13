@@ -16,7 +16,7 @@ PingOne Authorize evaluates the user group membership claim and returns DENY whe
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 to savings`  
+**Trigger:** Chip message: `transfer $600 from checking to savings`  
 **Expected outcome:** `DENY`
 
 ## What to Say
