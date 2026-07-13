@@ -8528,6 +8528,7 @@ export default function BankingAgent({
                           err.data,
                         );
                         setStepUpMethod(stepUpMethod);
+                        setOtpContextLine("Step-up authentication required to complete this transaction");
 
                         // If P1MFA mode, fetch devices
                         if (stepUpMethod === "p1mfa") {
