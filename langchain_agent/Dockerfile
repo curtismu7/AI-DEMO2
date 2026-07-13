@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY langchain_agent/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt \
+    && guardrails configure --disable-metrics --disable-remote-inferencing --token ""
 
 # Production stage
 ARG GIT_SHA=unknown

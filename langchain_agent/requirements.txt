@@ -16,6 +16,7 @@ aiohttp>=3.8.0,<3.14  # aioresponses 0.7.8 doesn't support aiohttp 3.14's Client
 cryptography>=41.0.0
 PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
 python-dotenv>=1.0.0
+guardrails-ai==0.10.2
 
 # Development dependencies
 pytest>=7.0.0
@@ -46,6 +47,7 @@ aiohttp>=3.8.0,<3.14  # aioresponses 0.7.8 doesn't support aiohttp 3.14's Client
 cryptography>=41.0.0
 PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
 python-dotenv>=1.0.0
+guardrails-ai==0.10.2
 
 # Development dependencies
 pytest>=7.0.0
