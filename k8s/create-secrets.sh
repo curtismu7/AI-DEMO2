@@ -27,6 +27,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NS="${K8S_NAMESPACE:-ai-demo}"
 
+# Snapshot the caller's PUBLIC_APP_URL before any secret_from_envfile call can
+# clobber it: secret_from_envfile does `set -o allexport; source $env_file`,
+# which pollutes THIS script's own variable namespace with every key in each
+# service .env — including PUBLIC_APP_URL from demo_api_server/.env (the
+# local dev default). That silently overwrites a caller-supplied
+# PUBLIC_APP_URL before override_redirect_uris_for_public_origin ever reads
+# it, even when the caller exported it correctly. Broke live sign-in twice
+# (2026-07-13) via the normal se-update-code.sh path, not just standalone runs.
+CALLER_PUBLIC_APP_URL="${PUBLIC_APP_URL:-}"
+
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
 info()    { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -225,7 +235,7 @@ PY
 # target namespace's configmap instead of silently reverting to local values —
 # this happened on live (2026-07-13) and broke sign-in for every user.
 override_redirect_uris_for_public_origin() {
-  local origin="${PUBLIC_APP_URL:-}"
+  local origin="${CALLER_PUBLIC_APP_URL:-}"
   if [ -z "$origin" ]; then
     origin=$(kubectl get configmap ai-demo-config --namespace="$NS" -o jsonpath='{.data.PUBLIC_APP_URL}' 2>/dev/null || true)
     if [ -n "$origin" ]; then
