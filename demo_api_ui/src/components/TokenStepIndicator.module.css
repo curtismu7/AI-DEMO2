@@ -1,0 +1,111 @@
+.tokenStepIndicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.stepsContainer {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.step.pending {
+  background: #e2e8f0;
+  color: #94a3b8;
+  border: 1px solid #cbd5e1;
+}
+
+.step.active {
+  background: #3b82f6;
+  color: white;
+  border: 2px solid #1e40af;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.step.completed {
+  background: #10b981;
+  color: white;
+  border: 1px solid #059669;
+}
+
+.checkmark {
+  font-weight: 700;
+}
+
+.stepNumber {
+  font-weight: 600;
+}
+
+.completeLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.compact {
+  padding: 4px 8px;
+  gap: 8px;
+}
+
+.compact .label {
+  font-size: 11px;
+}
+
+.compact .step {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+.compact .completeLabel {
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+@media (max-width: 768px) {
+  .tokenStepIndicator {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stepsContainer {
+    gap: 4px;
+  }
+
+  .step {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+  }
+}

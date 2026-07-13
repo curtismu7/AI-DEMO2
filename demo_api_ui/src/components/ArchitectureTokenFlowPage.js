@@ -13,6 +13,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import apiClient from "../services/apiClient";
 import ArchitectureDiagramPage from "./ArchitectureDiagramPage";
+import TokenStepIndicator from "./TokenStepIndicator";
 import { STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from "./diagram";
 import { TOKEN_FLOW_REGIONS } from "../config/diagram-token-flow-regions";
 
@@ -1385,38 +1386,50 @@ export default function ArchitectureTokenFlowPage({ user }) {
   );
 
   return (
-    <ArchitectureDiagramPage
-      title="Token Flow Diagram"
-      imageSrc="/architecture/token-flow.png"
-      imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Invest, Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
-      regions={TOKEN_FLOW_REGIONS}
-      activeRegions={activeRegions}
-      regionLabels={regionLabels}
-      user={user}
-      onSimulate={runSimulation}
-      isSimulating={isSimulating}
-      isPaused={isPaused}
-      onPause={pause}
-      onResume={resume}
-      onPrevStep={prevStep}
-      onNextStep={nextStep}
-      onStop={stop}
-      onReset={resetSimulation}
-      stepTimeOptions={STEP_TIME_OPTIONS}
-      stepMs={stepMs}
-      onSetStepMs={setStepMs}
-      currentStep={currentStep}
-      totalSteps={totalSteps}
-      stepDetail={stepDetail}
-      stepDetail2={stepDetail2}
-      stepDetailOut={stepDetailOut}
-      isTokenExchange={isTokenExch}
-      isHitl={isHitl}
-      stepArrow={stepArrow}
-      audHops={TOKEN_FLOW_AUD_HOPS}
-      tokenHistory={history}
-      onClearHistory={clearHistory}
-      toolbarExtra={scenarioSelector}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {isSimulating && currentStep >= 0 && currentStep < totalSteps && (
+        <div style={{ padding: '0 2rem' }}>
+          <TokenStepIndicator
+            currentStep={currentStep + 1}
+            totalSteps={totalSteps}
+            compact={false}
+            showLabel={true}
+          />
+        </div>
+      )}
+      <ArchitectureDiagramPage
+        title="Token Flow Diagram"
+        imageSrc="/architecture/token-flow.png"
+        imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Invest, Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
+        regions={TOKEN_FLOW_REGIONS}
+        activeRegions={activeRegions}
+        regionLabels={regionLabels}
+        user={user}
+        onSimulate={runSimulation}
+        isSimulating={isSimulating}
+        isPaused={isPaused}
+        onPause={pause}
+        onResume={resume}
+        onPrevStep={prevStep}
+        onNextStep={nextStep}
+        onStop={stop}
+        onReset={resetSimulation}
+        stepTimeOptions={STEP_TIME_OPTIONS}
+        stepMs={stepMs}
+        onSetStepMs={setStepMs}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepDetail={stepDetail}
+        stepDetail2={stepDetail2}
+        stepDetailOut={stepDetailOut}
+        isTokenExchange={isTokenExch}
+        isHitl={isHitl}
+        stepArrow={stepArrow}
+        audHops={TOKEN_FLOW_AUD_HOPS}
+        tokenHistory={history}
+        onClearHistory={clearHistory}
+        toolbarExtra={scenarioSelector}
+      />
+    </div>
   );
 }
