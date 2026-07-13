@@ -4,6 +4,7 @@ import uuid
 from typing import AsyncIterator
 from fastapi import Request
 from fastapi.responses import StreamingResponse
+from pydantic_ai import Agent
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import UsageLimits
@@ -15,7 +16,6 @@ from . import config as cfg
 from .grounding_guardrail import CommitmentGroundingValidator, ToolCallRecord, contains_commitment_claim
 from guardrails.validator_base import FailResult
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -202,18 +202,15 @@ async def handle_run(request: Request) -> StreamingResponse:
 
             if contains_commitment_claim(final_text):
                 async def _chat_fn(prompt: str) -> str:
-                    async with httpx.AsyncClient(timeout=15.0) as http_client:
-                        resp = await http_client.post(
-                            f"{cfg.LLM_BASE_URL}/chat/completions",
-                            json={
-                                "model": model,
-                                "messages": [{"role": "user", "content": prompt}],
-                                "temperature": 0,
-                            },
-                            headers={"Authorization": f"Bearer {cfg.LLM_API_KEY}"} if cfg.LLM_API_KEY else {},
-                        )
-                    resp.raise_for_status()
-                    return resp.json()["choices"][0]["message"]["content"] or ""
+                    # Reuse the exact model object the conversation itself used
+                    # (agent.model) rather than re-deriving cfg/provider routing
+                    # here — that raw-httpx approach silently no-opped the
+                    # guardrail on Anthropic-routed sessions, since it always
+                    # posted to cfg.LLM_BASE_URL with cfg.LLM_API_KEY regardless
+                    # of which provider actually served the conversation.
+                    grounding_agent = Agent(agent.model, defer_model_check=True)
+                    result = await grounding_agent.run(prompt)
+                    return str(result.output)
 
                 validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
                 check = await validator.async_validate(

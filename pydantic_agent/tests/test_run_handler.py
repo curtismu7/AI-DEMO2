@@ -221,3 +221,46 @@ def test_run_emits_no_grounding_correction_on_grounded_reply():
     events = _parse_sse(resp.text)
     custom_events = [e for e in events if e["type"] == "CUSTOM" and e["name"] == "grounding_correction"]
     assert len(custom_events) == 0
+
+
+def test_grounding_call_reuses_conversation_model_not_cfg():
+    """Regression test for the bug where the grounding _chat_fn always POSTed
+    to cfg.LLM_BASE_URL / cfg.LLM_API_KEY via raw httpx, ignoring whatever
+    model/provider actually served the conversation (e.g. Anthropic). That
+    made the guardrail a silent no-op for Anthropic-routed sessions, since
+    the wrong backend/model id would fail and fail-open to PassResult.
+
+    The fix constructs a throwaway `Agent(agent.model, ...)` inside _chat_fn,
+    reusing the exact model object the conversation's agent was built with.
+    We verify this by patching `src.run_handler.Agent` (the class itself) and
+    asserting it gets called with the mock agent's `.model` sentinel as the
+    first positional argument -- this would fail under the old raw-httpx
+    implementation, which never touches `Agent` or `agent.model` at all.
+    """
+    sentinel_model = object()
+
+    mock_agent = _make_mock_agent_with_tool_call(
+        ["I've waived your fee!"],
+        "request_fee_waiver",
+        {"account_id": "acc_1"},
+        '{"requestId": "fwr-123", "status": "logged_for_review"}',
+    )
+    mock_agent.model = sentinel_model
+
+    fake_grounding_agent = MagicMock()
+    fake_grounding_agent.run = AsyncMock(return_value=MagicMock(output="grounded response"))
+    mock_agent_cls = MagicMock(return_value=fake_grounding_agent)
+
+    with patch("src.run_handler.build_agent", return_value=mock_agent), \
+         patch("src.run_handler.Agent", new=mock_agent_cls):
+        from src.main import app
+        client = TestClient(app)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    # The grounding Agent(...) must have been constructed with the
+    # conversation's own model object, not re-derived from cfg.
+    mock_agent_cls.assert_called_once()
+    call_args = mock_agent_cls.call_args
+    assert call_args.args[0] is sentinel_model
+    assert call_args.kwargs.get("defer_model_check") is True
