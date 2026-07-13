@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
+import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -39,6 +40,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     : snap.steps;
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   const mcpDone = steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
 
   return (
     <div className="tctr">
@@ -104,7 +106,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       )}
 
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}
-        onClose={() => setInspectType(null)} />
+        liveClaims={inspectClaims} onClose={() => setInspectType(null)} />
       <TokenLegendModal isOpen={legendOpen} onClose={() => setLegendOpen(false)} />
     </div>
   );
