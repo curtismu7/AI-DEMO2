@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./ApiKeyPathPage.css";
 
 export default function ApiKeyPathPage() {
@@ -74,6 +75,17 @@ export default function ApiKeyPathPage() {
           OAuth bearer for a service API key and stopped there. See the Token
           Chain panel for the credential swap details.
         </p>
+
+        <section className="akp-learning">
+          <h2 className="akp-learning-title">Token chain — Learning path</h2>
+          <p className="akp-learning-intro">
+            Below is the full RFC 8693 token exchange flow that just completed. Each step shows
+            how your OAuth bearer was transformed into a service-scoped API key.
+          </p>
+          <div className="akp-token-rail">
+            <TokenChainTraceRail />
+          </div>
+        </section>
       </div>
       <div className="akp-actions">
         <button className="akp-back-btn" onClick={() => navigate("/dashboard")}>

@@ -295,3 +295,24 @@
 }
 
 .vfp-back-btn:hover { background: #111827; }
+
+.vfp-card--learning {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.vfp-learning-intro {
+  font-size: 13px;
+  color: #374151;
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+}
+
+.vfp-token-rail {
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  background: #f9fdf9;
+  padding: 12px;
+  min-height: 200px;
+  overflow-y: auto;
+}

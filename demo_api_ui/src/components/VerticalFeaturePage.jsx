@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVertical } from '../vertical/useVertical';
 import { formatValue } from '../utils/formatters';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import './VerticalFeaturePage.css';
 
 export default function VerticalFeaturePage() {
@@ -143,6 +144,17 @@ export default function VerticalFeaturePage() {
           <li><strong>Auth mechanism:</strong> {raw.backend?.authMechanism || raw.authMechanism}</li>
           <li><strong>Note:</strong> {raw.backend?.note || raw.note}</li>
         </ul>
+      </section>
+
+      <section className="vfp-card vfp-card--learning">
+        <h2 className="vfp-card-title">Token chain — Learning path</h2>
+        <p className="vfp-learning-intro">
+          Below is the full RFC 8693 token exchange flow that just completed. Each step shows
+          how credentials were transformed and verified as the request passed through the system.
+        </p>
+        <div className="vfp-token-rail">
+          <TokenChainTraceRail />
+        </div>
       </section>
 
       <div className="vfp-actions">
