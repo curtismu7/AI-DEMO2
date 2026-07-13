@@ -402,6 +402,8 @@ async function runMcpToolPipeline(ctx) {
                 mcpAuthorizeEvaluation: {
                     decisionContext: mcpAuthz.block.body.decisionContext,
                     decisionId: mcpAuthz.block.body.decisionId,
+                    ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+                    ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
                 },
             } };
         }
@@ -433,10 +435,12 @@ async function runMcpToolPipeline(ctx) {
             deps.emit({
                 phase: 'authorize_permitted'
             });
-            mcpAuthorizeEvaluationThisRequest = mcpAuthz.evaluation;
+            mcpAuthorizeEvaluationThisRequest = (ctx.useCaseId || ctx.vertical)
+              ? { ...mcpAuthz.evaluation, ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}), ...(ctx.vertical ? { vertical: ctx.vertical } : {}) }
+              : mcpAuthz.evaluation;
             deps.appEventLog('authorize', 'info',
                 `Authorize gate permitted — ${tool}`,
-                { tag: 'authorize/gate-permitted', metadata: { tool } });
+                { tag: 'authorize/gate-permitted', metadata: { tool, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
         }
         if (!mcpAuthz.ran) {
             deps.emit({
@@ -445,7 +449,7 @@ async function runMcpToolPipeline(ctx) {
             });
             deps.appEventLog('authorize', 'info',
                 `Authorize gate skipped — ${mcpAuthz.reason || 'unknown'}`,
-                { tag: 'authorize/gate-skipped', metadata: { reason: mcpAuthz.reason } });
+                { tag: 'authorize/gate-skipped', metadata: { reason: mcpAuthz.reason, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
         }
     } catch (mcpAuthzErr) {
         deps.emit({
