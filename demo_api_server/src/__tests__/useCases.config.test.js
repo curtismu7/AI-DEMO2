@@ -11,10 +11,10 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 39 use cases including UC1..UC25 and UC23..UC24', () => {
-    expect(USE_CASES).toHaveLength(39);
+  test('contains all 40 use cases including UC1..UC25 and UC23..UC24', () => {
+    expect(USE_CASES).toHaveLength(40);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(39);
+    expect(new Set(ids).size).toBe(40);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -156,9 +156,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 34 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(39);
-    expect(listUseCases()).toHaveLength(39);
+  test('listUseCases returns all 40 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(40);
+    expect(listUseCases()).toHaveLength(40);
   });
 
   test('only UC14 and UC15 are advanced', () => {
