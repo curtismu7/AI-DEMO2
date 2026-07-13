@@ -817,6 +817,71 @@ function hydrate() {
 const _snapshotTimer = setInterval(() => snapshot(), SNAPSHOT_INTERVAL_MS);
 if (_snapshotTimer.unref) _snapshotTimer.unref();
 
+// Test and multi-user safety functions
+function trackEvent(event) {
+  if (!event.id) event.id = crypto.randomUUID();
+  const key = `event:${event.id}`;
+  securityEvents.set(key, event);
+  _markDirty();
+}
+
+function getEventsByClientId(clientId) {
+  return Array.from(securityEvents.values()).filter(e => e.clientId === clientId);
+}
+
+function getAllEvents() {
+  return Array.from(securityEvents.values());
+}
+
+function clearAllEvents() {
+  securityEvents.clear();
+  activeAlerts.clear();
+  clientBehavior.clear();
+  ipReputation.clear();
+  _dirty = false;
+}
+
+function getClientBehavior(clientId) {
+  return clientBehavior.get(clientId);
+}
+
+function recordFailedAttempt(clientId) {
+  if (!clientBehavior.has(clientId)) {
+    clientBehavior.set(clientId, {
+      client_id: clientId,
+      first_seen: Date.now(),
+      last_seen: Date.now(),
+      events: [],
+      ip_addresses: new Set(),
+      user_agents: new Set(),
+      scopes_used: new Set(),
+      token_requests: 0,
+      failed_attempts: 0,
+      risk_score: 0
+    });
+  }
+  const behavior = clientBehavior.get(clientId);
+  behavior.failed_attempts = (behavior.failed_attempts || 0) + 1;
+  _markDirty();
+}
+
+function recordIpReputation(ip, reputation) {
+  ipReputation.set(ip, reputation);
+  _markDirty();
+}
+
+function getIpReputation(ip) {
+  return ipReputation.get(ip);
+}
+
+function persistToDisk() {
+  return Promise.resolve(snapshot(true));
+}
+
+function reloadFromDisk() {
+  hydrate();
+}
+
 module.exports = {
   monitorTokenUsage,
   monitorAuthentication,
@@ -830,5 +895,15 @@ module.exports = {
   SECURITY_CONFIG,
   securityMetrics,
   hydrate,
-  snapshot
+  snapshot,
+  trackEvent,
+  getEventsByClientId,
+  getAllEvents,
+  clearAllEvents,
+  getClientBehavior,
+  recordFailedAttempt,
+  recordIpReputation,
+  getIpReputation,
+  persistToDisk,
+  reloadFromDisk
 };
