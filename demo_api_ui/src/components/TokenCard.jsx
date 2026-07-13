@@ -1,6 +1,5 @@
 // demo_api_ui/src/components/TokenCard.jsx
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import './TokenCard.css';
 import JsonHighlight from './shared/JsonHighlight';
 import { deriveTokenCategory, TokenColorDot } from './TokenColorSystem';
@@ -240,19 +239,3 @@ export default function TokenCard({
   );
 }
 
-TokenCard.propTypes = {
-  token: PropTypes.string,
-  decoded: PropTypes.shape({
-    header: PropTypes.object,
-    payload: PropTypes.object,
-    tokenType: PropTypes.string,
-  }),
-  title: PropTypes.string,
-  tokenType: PropTypes.oneOf(['subject', 'actor', 'mcp', null]),
-  showHeader: PropTypes.bool,
-  showIdentity: PropTypes.bool,
-  showScopes: PropTypes.bool,
-  showRaw: PropTypes.bool,
-  defaultExpanded: PropTypes.bool,
-  className: PropTypes.string,
-};
