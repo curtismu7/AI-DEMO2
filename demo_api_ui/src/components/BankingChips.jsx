@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./BankingChips.css";
 import { useVertical } from '../vertical/useVertical';
 import { useSessionToken } from "../context/SessionTokenContext";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import SecurityShowcasePanel from "./SecurityShowcasePanel";
 import { chipPermState } from "../utils/chipPermissions";
+import FallbackBadge from "./FallbackBadge";
 
 // Overlay manifest chip LABELS by key. id + message (routing keys) are never
 // changed — the chip→routing→MCP pipeline is invariant (skip-proof contract).
@@ -42,15 +43,18 @@ export const PINGONE_ADMIN_CHIP_IDS = new Set(PINGONE_ADMIN_CHIPS.map((c) => c.i
 // manifest, so they route correctly. Guarantees the agent always shows actions
 // instead of an empty dropdown. Overridden the moment a real manifest loads.
 const DEFAULT_CHIPS10 = [
-  { id: 'bk1',  label: 'My accounts',                 message: 'show my accounts',                         mode: 'both', tool: 'get_my_accounts' },
-  { id: 'bk2',  label: 'Check balance',               message: 'what is my balance',                       mode: 'both', tool: 'get_account_balance' },
-  { id: 'bk3',  label: 'Recent transactions',         message: 'recent transactions',                      mode: 'both', tool: 'get_my_transactions' },
-  { id: 'bk4',  label: 'Transfer $100',               message: 'transfer $100 from checking to savings',   mode: 'both', tool: 'create_transfer' },
-  { id: 'bk-hitl', label: '🔐 Transfer $500',         message: 'transfer $500 from checking to savings',   mode: 'both', hitlTrigger: true, tool: 'create_transfer' },
-  { id: 'bk7',  label: 'My mortgage',                 message: 'show my mortgage',                         mode: 'both', tool: 'show_mortgage' },
-  { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'llm' },
-  { id: 'bk-direct', label: 'Direct MCP',             message: 'get my accounts',                          mode: 'direct', tool: 'get_my_accounts' },
+  { id: 'bk1',  label: 'My accounts',                 message: 'show my accounts',                         mode: 'both', tool: 'get_my_accounts', useCaseId: 'view_accounts' },
+  { id: 'bk2',  label: 'Check balance',               message: 'what is my balance',                       mode: 'both', tool: 'get_account_balance', useCaseId: 'check_balance' },
+  { id: 'bk3',  label: 'Recent transactions',         message: 'recent transactions',                      mode: 'both', tool: 'get_my_transactions', useCaseId: 'view_transactions' },
+  { id: 'bk4',  label: 'Transfer $100',               message: 'transfer $100 from checking to savings',   mode: 'both', tool: 'create_transfer', useCaseId: 'transfer_funds' },
+  { id: 'bk-hitl', label: '🔐 Transfer $500',     message: 'transfer $500 from checking to savings',   mode: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'transfer_funds_high_value' },
+  { id: 'bk7',  label: 'My mortgage',                 message: 'show my mortgage',                         mode: 'both', tool: 'show_mortgage', useCaseId: 'view_mortgage' },
+  { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'llm', useCaseId: 'analyze_spending' },
+  { id: 'bk-direct', label: 'Direct MCP',             message: 'get my accounts',                          mode: 'direct', tool: 'get_my_accounts', useCaseId: 'view_accounts' },
 ];
+
+// Minimal banking fallback for last-resort use only (when API call fails)
+const DEFAULT_BANKING_CHIPS = DEFAULT_CHIPS10;
 
 export default function BankingChips({
   onChipClick,
@@ -67,9 +71,17 @@ export default function BankingChips({
   // a tool-backed chip, so we disable it rather than fail open to a doomed click.
   toolsError = false,
   onDeniedChip,
+  // User's most recent message/prompt for intent-aware fallback resolution
+  userPrompt = '',
 }) {
   const { pageManifest } = useVertical();
   const dashboard = pageManifest?.dashboard;
+
+  // State for intent-aware fallback resolution
+  const [chips10, setChips10] = useState(null);
+  const [isFallback, setIsFallback] = useState(false);
+  const [fallbackVertical, setFallbackVertical] = useState('banking');
+
   // No usable access token (same derived signal as the TopNav "No token —
   // please sign in" pill) distinguishes "not signed in" from a real authorize
   // outage, so the chips prompt sign-in instead of a misleading error.
@@ -87,12 +99,43 @@ export default function BankingChips({
   // chipPermState (shared with SecurityShowcasePanel) joins a chip with the live
   // Authorize-filtered tool list — see utils/chipPermissions.js.
   const permState = (chip) => chipPermState(chip, toolPermissions, toolsError);
-  // Always render a chip set: use the manifest's chips10 when present, else the
-  // baked-in DEFAULT_CHIPS10 fallback so the dropdown is never empty even when
-  // the vertical manifest failed to load (auth blip, network error, cold start).
-  const chips10 = Array.isArray(dashboard?.chips10) && dashboard.chips10.length
-    ? dashboard.chips10
-    : DEFAULT_CHIPS10;
+
+  // Load chips: use manifest chips10 if available, otherwise call fallback resolver
+  useEffect(() => {
+    async function loadChips() {
+      // If manifest loaded and has chips, use them
+      if (Array.isArray(dashboard?.chips10) && dashboard.chips10.length) {
+        setChips10(dashboard.chips10);
+        setIsFallback(false);
+        return;
+      }
+
+      // Manifest didn't load or empty chips — use intent-aware fallback
+      try {
+        const response = await fetch(
+          `/api/fallback/chips?${new URLSearchParams({
+            prompt: userPrompt || 'hello',
+            verticalId: 'undefined',
+          })}`
+        );
+
+        if (!response.ok) throw new Error('Failed to fetch fallback chips');
+
+        const { chips: fallbackChips, verticalId, isFallback: isUsingFallback } = await response.json();
+        setChips10(fallbackChips);
+        setIsFallback(isUsingFallback);
+        setFallbackVertical(verticalId);
+      } catch (error) {
+        console.error('[BankingChips] Fallback resolver error, using banking default:', error);
+        // Last resort: use hardcoded banking chips (but mark as fallback)
+        setChips10(DEFAULT_BANKING_CHIPS);
+        setIsFallback(true);
+        setFallbackVertical('banking');
+      }
+    }
+
+    loadChips();
+  }, [dashboard?.chips10, userPrompt]);
 
 
   const handleChipClick = (chip, requiresLlm = false) => {
@@ -101,8 +144,17 @@ export default function BankingChips({
     }
   };
 
+  if (!chips10) return <div className="chips-loading">Loading chips...</div>;
+
   return (
     <div className="banking-chips-content">
+      {isFallback && (
+        <FallbackBadge
+          isFallback={isFallback}
+          verticalId={fallbackVertical}
+          onDismiss={() => setIsFallback(false)}
+        />
+      )}
       {user?.role === 'admin' && (
         <div className="banking-chips-dropdown__section">
           <div className="banking-chips-dropdown__label">Admin Actions</div>

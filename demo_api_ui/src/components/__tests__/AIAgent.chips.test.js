@@ -827,6 +827,10 @@ describe("Action chip dispatch — MCP tool calls", () => {
       expect(svcMock.callMcpTool).toHaveBeenCalledWith(
         "get_account_nickname",
         {},
+        // 3rd arg: runAction now always forwards { useCaseId, vertical } opts
+        // (null here — this chip is clicked directly, not via a chip carrying
+        // a useCaseId) so proof-of-enforcement context threads through.
+        { useCaseId: null, vertical: null },
       ),
     );
   });
@@ -1107,6 +1111,168 @@ describe("Chip useCaseId threads through dispatchNlResult into sendAgentMessage 
       demoAgentService.sendAgentMessage.mock.calls[0];
     expect(verticalOpts).toMatchObject({
       useCaseId: "delegated-access-with-proof",
+    });
+  });
+});
+
+// ─── Chip useCaseId → dispatchNlResult's "banking" branch → runAction ───────
+// Regression: unlike the "vertical" kind branch above, dispatchNlResult's
+// "banking" branch (result.kind === "banking") calls runAction(...) directly
+// instead of sendAgentMessage — and runAction never forwarded opts.useCaseId
+// into the underlying tool-call helper (getMyAccounts/getAccountBalance/etc.),
+// so proof-of-enforcement context was silently dropped for these chips too.
+
+describe("Chip useCaseId threads through dispatchNlResult's banking branch into runAction", () => {
+  const CHIP_BANKING_USE_CASE = {
+    id: "uc_banking_chip",
+    label: "Use Case Banking Chip",
+    message: "show my accounts for this use case",
+    mode: "both",
+    useCaseId: "proof-of-enforcement-demo",
+  };
+
+  let origFetch;
+
+  beforeEach(() => {
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: { dashboard: { chips10: [CHIP_BANKING_USE_CASE] } },
+      activeId: "banking",
+    });
+    origFetch = global.fetch;
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            source: "heuristic",
+            result: {
+              kind: "banking",
+              banking: { action: "accounts", params: {} },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    demoAgentService.getMyAccounts.mockClear();
+    demoAgentService.getMyAccounts.mockResolvedValue({
+      result: { accounts: [] },
+      tokenEvents: [],
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
+  });
+
+  it("passes the chip's useCaseId into getMyAccounts when a banking-kind chip is clicked", async () => {
+    renderAgent({
+      user: customerUser,
+      mode: "inline",
+      distinctFloatingChrome: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /Action browser/i,
+    });
+    const chipBtn = within(dialog)
+      .getByText("Use Case Banking Chip")
+      .closest("button");
+    await act(async () => {
+      fireEvent.click(chipBtn);
+    });
+    await waitFor(() => {
+      expect(demoAgentService.getMyAccounts).toHaveBeenCalled();
+    });
+    const callArgs = demoAgentService.getMyAccounts.mock.calls[0];
+    expect(callArgs[0]).toMatchObject({
+      useCaseId: "proof-of-enforcement-demo",
+    });
+  });
+});
+
+// ─── Chip useCaseId → dispatchNlResult's "banking" branch → getMyTransactions ─
+// Regression: the "biggest_purchase"/"spending_summary" banking actions call
+// getMyTransactions(50) directly (bypassing runAction entirely), so unlike the
+// other banking-branch actions above, this call site never forwarded
+// useCaseId/vertical — proof-of-enforcement context was silently dropped here.
+
+describe("Chip useCaseId threads through dispatchNlResult's banking branch into getMyTransactions", () => {
+  const CHIP_BANKING_SPENDING_USE_CASE = {
+    id: "uc_banking_chip_spending",
+    label: "Use Case Spending Chip",
+    message: "what was my biggest purchase for this use case",
+    mode: "both",
+    useCaseId: "proof-of-enforcement-demo",
+  };
+
+  let origFetch;
+
+  beforeEach(() => {
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: { dashboard: { chips10: [CHIP_BANKING_SPENDING_USE_CASE] } },
+      activeId: "banking",
+    });
+    origFetch = global.fetch;
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            source: "heuristic",
+            result: {
+              kind: "banking",
+              banking: { action: "biggest_purchase", params: {} },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    demoAgentService.getMyTransactions.mockClear();
+    demoAgentService.getMyTransactions.mockResolvedValue({
+      result: {
+        transactions: [
+          { amount: -50, merchant: "Test Merchant", createdAt: "2024-01-01" },
+        ],
+      },
+      tokenEvents: [],
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
+  });
+
+  it("passes the chip's useCaseId into getMyTransactions when a biggest_purchase-kind chip is clicked", async () => {
+    renderAgent({
+      user: customerUser,
+      mode: "inline",
+      distinctFloatingChrome: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /Action browser/i,
+    });
+    const chipBtn = within(dialog)
+      .getByText("Use Case Spending Chip")
+      .closest("button");
+    await act(async () => {
+      fireEvent.click(chipBtn);
+    });
+    await waitFor(() => {
+      expect(demoAgentService.getMyTransactions).toHaveBeenCalled();
+    });
+    const callArgs = demoAgentService.getMyTransactions.mock.calls[0];
+    expect(callArgs[0]).toBe(50);
+    expect(callArgs[1]).toMatchObject({
+      useCaseId: "proof-of-enforcement-demo",
     });
   });
 });

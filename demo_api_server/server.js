@@ -199,6 +199,7 @@ const resourceServerCCRoutes = require('./routes/resourceServerCC');
 const resourceServerTesterCCRoutes = require('./routes/resourceServerTesterCC');
 const { initializeDiscovery, getDiscoveryEndpoint } = require('./services/oauthEndpointResolver');
 const { registerCallbacks } = require('./services/callbackDispatcher');
+const fallbackRoute = require('./routes/api/fallback');
 
 // Import middleware
 const {
@@ -1062,6 +1063,7 @@ app.use('/api/authorize', authorizeRoutes);
 // Pre-Demo Check — readiness checks for the demo. Any logged-in user.
 const { authenticateToken: authForCheck } = require('./middleware/auth');
 app.use('/api/check', authForCheck, require('./routes/check').router);
+app.use('/api/fallback', fallbackRoute);
 app.use('/api/admin/authorize', authorizeConfigRoutes);
 app.use('/api/introspect', introspectRoutes);
 app.use('/api/setup', setupRoutes);

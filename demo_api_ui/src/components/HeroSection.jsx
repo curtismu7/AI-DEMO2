@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 
 function HeroSectionBase({
   avatar,
@@ -23,15 +22,6 @@ function HeroSectionBase({
   );
 }
 
-HeroSectionBase.propTypes = {
-  avatar: PropTypes.node,
-  title: PropTypes.string.isRequired,
-  description: PropTypes.string.isRequired,
-  subtitle: PropTypes.string,
-  size: PropTypes.oneOf(['full', 'compact']),
-  backgroundColor: PropTypes.string,
-  avatarSize: PropTypes.oneOf(['sm', 'md', 'lg']),
-};
 
 // Custom comparison: re-render if size or backgroundColor change (title/description rarely change)
 export const HeroSection = React.memo(HeroSectionBase, (prev, next) => {

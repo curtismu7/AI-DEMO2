@@ -730,16 +730,20 @@ async function parseStreamingResponse(readableStream, tool) {
 // ─── Named tool helpers ───────────────────────────────────────────────────────
 // Each helper returns { result, tokenEvents } for the caller to consume.
 
-export function getMyAccounts() {
-  return callMcpTool("get_my_accounts");
+export function getMyAccounts({ useCaseId, vertical } = {}) {
+  return callMcpTool("get_my_accounts", {}, { useCaseId, vertical });
 }
 
-export function getAccountBalance(accountId) {
-  return callMcpTool("get_account_balance", { account_id: accountId });
+export function getAccountBalance(accountId, { useCaseId, vertical } = {}) {
+  return callMcpTool(
+    "get_account_balance",
+    { account_id: accountId },
+    { useCaseId, vertical },
+  );
 }
 
-export function getMyTransactions(limit = 10) {
-  return callMcpTool("get_my_transactions", { limit });
+export function getMyTransactions(limit = 10, { useCaseId, vertical } = {}) {
+  return callMcpTool("get_my_transactions", { limit }, { useCaseId, vertical });
 }
 
 export function createTransfer(
@@ -748,32 +752,57 @@ export function createTransfer(
   amount,
   description,
   hitlChallengeId,
+  { useCaseId, vertical } = {},
 ) {
-  return callMcpTool("create_transfer", {
-    from_account_id: fromAccountId,
-    to_account_id: toAccountId,
-    amount,
-    description: description || "Agent transfer",
-    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
-  });
+  return callMcpTool(
+    "create_transfer",
+    {
+      from_account_id: fromAccountId,
+      to_account_id: toAccountId,
+      amount,
+      description: description || "Agent transfer",
+      ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
+    },
+    { useCaseId, vertical },
+  );
 }
 
-export function createDeposit(accountId, amount, description, hitlChallengeId) {
-  return callMcpTool("create_deposit", {
-    to_account_id: accountId,
-    amount,
-    description: description || "Agent deposit",
-    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
-  });
+export function createDeposit(
+  accountId,
+  amount,
+  description,
+  hitlChallengeId,
+  { useCaseId, vertical } = {},
+) {
+  return callMcpTool(
+    "create_deposit",
+    {
+      to_account_id: accountId,
+      amount,
+      description: description || "Agent deposit",
+      ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
+    },
+    { useCaseId, vertical },
+  );
 }
 
-export function createWithdrawal(accountId, amount, description, hitlChallengeId) {
-  return callMcpTool("create_withdrawal", {
-    from_account_id: accountId,
-    amount,
-    description: description || "Agent withdrawal",
-    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
-  });
+export function createWithdrawal(
+  accountId,
+  amount,
+  description,
+  hitlChallengeId,
+  { useCaseId, vertical } = {},
+) {
+  return callMcpTool(
+    "create_withdrawal",
+    {
+      from_account_id: accountId,
+      amount,
+      description: description || "Agent withdrawal",
+      ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
+    },
+    { useCaseId, vertical },
+  );
 }
 
 // ─── Consent-challenge retry helpers (used by BankingAgent after HITL modal confirms) ───────────────

@@ -11,7 +11,6 @@
  */
 
 import React, { useState } from 'react';
-import PropTypes from 'prop-types';
 import './AuthErrorBanner.css';
 
 function AuthErrorBanner({
@@ -204,21 +203,5 @@ function AuthErrorBanner({
   );
 }
 
-AuthErrorBanner.propTypes = {
-  error: PropTypes.shape({
-    classification: PropTypes.shape({
-      category: PropTypes.oneOf(['USER', 'TRANSIENT', 'CONFIG', 'UNKNOWN']).isRequired,
-      userAction: PropTypes.string,
-      retryable: PropTypes.bool,
-    }),
-    requestId: PropTypes.string,
-    timestamp: PropTypes.string,
-    message: PropTypes.string,
-  }),
-  onDismiss: PropTypes.func,
-  onRetry: PropTypes.func,
-  onContactSupport: PropTypes.func,
-  className: PropTypes.string,
-};
 
 export default AuthErrorBanner;

@@ -1,0 +1,59 @@
+/* demo_api_ui/src/components/FallbackBadge.css */
+.fallback-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-size: 14px;
+  color: #856404;
+  animation: slideIn 0.3s ease-out;
+}
+
+.fallback-badge-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.fallback-badge-close {
+  background: none;
+  border: none;
+  color: #856404;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 12px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.fallback-badge-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .fallback-badge {
+    background-color: #332701;
+    border-color: #664d03;
+    color: #ffecb5;
+  }
+
+  .fallback-badge-close {
+    color: #ffecb5;
+  }
+}
