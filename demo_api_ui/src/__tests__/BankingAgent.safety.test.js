@@ -11,6 +11,8 @@ import {
   resolveEmbeddedFocus,
   isAbortError,
   anySignal,
+  isLocalModelTimeout,
+  prewarmTierAndRetry,
 } from "../components/demoAgentSafety";
 
 describe("claimPendingNl — atomic single-fire post-OAuth replay (Task 1)", () => {
@@ -188,5 +190,70 @@ describe("abort wiring contract (Phase 3)", () => {
     short.abort(); // simulate the timeout firing
     expect(any.aborted).toBe(true);
     expect(live.signal.aborted).toBe(false); // lifecycle signal untouched
+  });
+});
+
+describe("isLocalModelTimeout — gates the pre-warm retry action to llama.cpp timeouts", () => {
+  test("true for a TimeoutError name while on llamacpp", () => {
+    expect(isLocalModelTimeout({ name: "TimeoutError" }, "llamacpp")).toBe(true);
+  });
+
+  test("true for a message containing 'timed out' while on llamacpp", () => {
+    expect(isLocalModelTimeout({ message: "signal timed out" }, "llamacpp")).toBe(true);
+  });
+
+  test("false when the provider is not llamacpp, even if it timed out", () => {
+    expect(isLocalModelTimeout({ name: "TimeoutError" }, "helix")).toBe(false);
+    expect(isLocalModelTimeout({ name: "TimeoutError" }, "anthropic-lmstudio")).toBe(false);
+  });
+
+  test("false for a non-timeout error on llamacpp", () => {
+    expect(isLocalModelTimeout({ message: "network error" }, "llamacpp")).toBe(false);
+  });
+
+  test("false for a null/undefined error", () => {
+    expect(isLocalModelTimeout(null, "llamacpp")).toBe(false);
+    expect(isLocalModelTimeout(undefined, "llamacpp")).toBe(false);
+  });
+});
+
+describe("prewarmTierAndRetry — force-load a tier then replay the original request", () => {
+  afterEach(() => {
+    delete global.fetch;
+  });
+
+  test("POSTs the model to the prewarm endpoint and calls retry on success", async () => {
+    const calls = [];
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    const retry = vi.fn().mockResolvedValue(undefined);
+
+    await prewarmTierAndRetry("gpt-oss-20b", retry);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/langchain/llamacpp/prewarm",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "gpt-oss-20b" }),
+      }),
+    );
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  test("throws and does not call retry when the prewarm response is not ok", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false });
+    const retry = vi.fn();
+
+    await expect(prewarmTierAndRetry("gpt-oss-20b", retry)).rejects.toThrow("Pre-warm failed");
+    expect(retry).not.toHaveBeenCalled();
+  });
+
+  test("propagates a fetch rejection and does not call retry", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("network down"));
+    const retry = vi.fn();
+
+    await expect(prewarmTierAndRetry("gpt-oss-20b", retry)).rejects.toThrow("network down");
+    expect(retry).not.toHaveBeenCalled();
   });
 });
