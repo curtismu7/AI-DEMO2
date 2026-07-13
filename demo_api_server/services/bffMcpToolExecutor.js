@@ -166,6 +166,14 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
 
   const { flowTraceId, deps: callDeps } = bindTraceEmit(req, name);
 
+  // Resolve useCaseId before the pipeline runs so ctx.useCaseId is available for
+  // authorize tagging: launcher-supplied wins (if it is a known catalog slug —
+  // arbitrary client strings are rejected), else derive organically from (tool, args).
+  const clientId = req?.body?.useCaseId;
+  const useCaseId = (clientId && isValidUseCaseId(clientId))
+    ? clientId
+    : deriveUseCaseId(name, args);
+
   const ctx = {
     tool: name,
     params: args || {},
@@ -173,19 +181,13 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     startTime: Date.now(),
     req: effectiveReq,
     deps: callDeps,
+    useCaseId,
   };
 
   const outcome = await runMcpToolPipeline(ctx);
 
-  // Tag the flow's token events with a useCaseId: launcher-supplied wins (if it is a
-  // known catalog slug — arbitrary client strings are rejected), else derive organically
-  // from (tool, args). stampUseCaseId never overwrites an existing tag.
-  const clientId = req?.body?.useCaseId;
-  const useCaseId = (clientId && isValidUseCaseId(clientId))
-    ? clientId
-    : deriveUseCaseId(name, args);
-
   // Merge any token events the pipeline produced into the caller's tokenEvents array.
+  // stampUseCaseId never overwrites an existing tag.
   if (Array.isArray(outcome.tokenEvents)) {
     stampUseCaseId(outcome.tokenEvents, useCaseId);
     for (const ev of outcome.tokenEvents) {
