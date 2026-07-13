@@ -6,7 +6,6 @@
  * - "Inspect" buttons open claims modal
  */
 import React, { useState } from 'react';
-import PropTypes from 'prop-types';
 import './TokenCardGrid.css';
 
 const TOKEN_TYPES = {
@@ -56,7 +55,7 @@ function abbreviateClaim(key, value) {
   return str;
 }
 
-function TokenCardGridItem({ type, tokenData, onInspect }) {
+function TokenCardGridItem({ type, tokenData = null, onInspect }) {
   const typeConfig = TOKEN_TYPES[type];
   if (!typeConfig) return null;
 
@@ -114,17 +113,6 @@ function TokenCardGridItem({ type, tokenData, onInspect }) {
   );
 }
 
-TokenCardGridItem.propTypes = {
-  type: PropTypes.oneOf(['user', 'agent', 'mcp']).isRequired,
-  tokenData: PropTypes.shape({
-    payload: PropTypes.object,
-  }),
-  onInspect: PropTypes.func.isRequired,
-};
-
-TokenCardGridItem.defaultProps = {
-  tokenData: null,
-};
 
 /**
  * TokenCardGrid — 3-column responsive grid of token cards
@@ -171,22 +159,3 @@ export default function TokenCardGrid({
   );
 }
 
-TokenCardGrid.propTypes = {
-  userToken: PropTypes.shape({
-    payload: PropTypes.object,
-  }),
-  agentToken: PropTypes.shape({
-    payload: PropTypes.object,
-  }),
-  mcpToken: PropTypes.shape({
-    payload: PropTypes.object,
-  }),
-  onInspectToken: PropTypes.func,
-};
-
-TokenCardGrid.defaultProps = {
-  userToken: null,
-  agentToken: null,
-  mcpToken: null,
-  onInspectToken: () => {},
-};
