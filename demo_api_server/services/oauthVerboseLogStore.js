@@ -30,17 +30,20 @@ function _ensureDir() {
 
 /**
  * Append one line (already includes timestamp if desired). Sync + fire-and-forget KV.
+ * @param {string} line - The log line to append
+ * @param {string} [userId] - Optional user ID to segregate logs by user
  */
-function appendLine(line) {
+function appendLine(line, userId) {
   const text = String(line).replace(/\r?\n/g, ' ');
-  memoryLines.push(text);
+  const prefixedText = userId ? `[${userId}] ${text}` : text;
+  memoryLines.push(prefixedText);
   while (memoryLines.length > MAX_LINES) memoryLines.shift();
 
   if (!process.env.REPL_ID) {
     try {
       _ensureDir();
       const fp = _logFile();
-      fs.appendFileSync(fp, text + '\n', 'utf8');
+      fs.appendFileSync(fp, prefixedText + '\n', 'utf8');
       const st = fs.statSync(fp);
       if (st.size > MAX_FILE_BYTES) {
         const raw = fs.readFileSync(fp, 'utf8');
@@ -55,22 +58,37 @@ function appendLine(line) {
 
 /**
  * Return recent lines (oldest first for reading top-to-bottom).
+ * @param {string} [userId] - Optional user ID to filter logs by user
+ * @param {number} [limit] - Maximum number of lines to return (default 200)
  */
-async function getRecentLines(limit = 200) {
+async function getRecentLines(userId, limit = 200) {
+  // Handle overloaded signature: getRecentLines() or getRecentLines(limit) or getRecentLines(userId, limit)
+  if (typeof userId === 'number') {
+    limit = userId;
+    userId = undefined;
+  }
+
   const n = Math.min(Math.max(parseInt(limit, 10) || 200, 1), MAX_LINES);
 
   try {
     const fp = _logFile();
     if (fs.existsSync(fp)) {
       const raw = fs.readFileSync(fp, 'utf8');
-      const all = raw.split('\n').filter(Boolean);
+      let all = raw.split('\n').filter(Boolean);
+      if (userId) {
+        all = all.filter(line => line.startsWith(`[${userId}]`));
+      }
       return { lines: all.slice(-n), backend: 'file' };
     }
   } catch (e) {
     console.error('[oauthVerboseLogStore] file read failed:', e.message);
   }
 
-  return { lines: memoryLines.slice(-n), backend: 'memory' };
+  let lines = memoryLines.slice(-n);
+  if (userId) {
+    lines = lines.filter(line => line.startsWith(`[${userId}]`));
+  }
+  return { lines, backend: 'memory' };
 }
 
 async function clear() {
@@ -84,4 +102,14 @@ async function clear() {
   }
 }
 
-module.exports = { appendLine, getRecentLines, clear, MAX_LINES };
+function clearAllLogs() {
+  memoryLines.length = 0;
+  try {
+    const fp = _logFile();
+    if (fs.existsSync(fp)) fs.writeFileSync(fp, '', 'utf8');
+  } catch (e) {
+    console.error('[oauthVerboseLogStore] file clear failed:', e.message);
+  }
+}
+
+module.exports = { appendLine, getRecentLines, clear, clearAllLogs, MAX_LINES };

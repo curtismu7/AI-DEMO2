@@ -658,7 +658,12 @@ router.post('/', authenticateToken, async (req, res) => {
     // fromAccountId (if set) and credits toAccountId (if set) — matching the
     // prior per-branch updateAccountBalance behavior.
     {
-      const move = await dataStore.applyTransfer(fromAccountId || null, toAccountId || null, amount);
+      const move = await dataStore.applyTransfer({
+        fromAccountId: fromAccountId || null,
+        toAccountId: toAccountId || null,
+        amount,
+        userId: req.user?.id,
+      });
       if (!move.ok) {
         if (move.reason === 'from_not_found') return res.status(404).json({ error: 'From account not found' });
         if (move.reason === 'to_not_found') return res.status(404).json({ error: 'To account not found' });

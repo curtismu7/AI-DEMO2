@@ -28,6 +28,7 @@ class DataStore {
     this.activityLogs = new Map();
     this.subscriptions = new Map();
     this._persistPending = false;
+    this._transferLocks = new Map(); // Per-account transfer locks for concurrency safety
     this.initializeData();
     this._startAutoBackup();
   }
@@ -453,9 +454,26 @@ class DataStore {
    * @param {number} amount             positive amount; debits require sufficient funds
    * @returns {Promise<{ok:boolean, reason?:string, fromBalance?:number, toBalance?:number}>}
    */
-  async applyTransfer(fromAccountId, toAccountId, amount) {
+  _acquireLock(key) {
+    if (!this._transferLocks.has(key)) {
+      this._transferLocks.set(key, Promise.resolve());
+    }
+    const currentLock = this._transferLocks.get(key);
+    const newLock = currentLock.then(() => {
+      return new Promise(resolve => {
+        setTimeout(resolve, 0);
+      });
+    });
+    this._transferLocks.set(key, newLock);
+    return currentLock;
+  }
+
+  async applyTransfer({ fromAccountId, toAccountId, amount, userId, description }) {
     const amt = roundToCents(amount);
     if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'invalid_amount' };
+
+    const lockKey = [fromAccountId, toAccountId].filter(Boolean).sort().join('|');
+    await this._acquireLock(lockKey);
 
     // ── synchronous critical section — DO NOT add `await` inside ──────────────
     const from = fromAccountId ? this.accounts.get(fromAccountId) : null;
