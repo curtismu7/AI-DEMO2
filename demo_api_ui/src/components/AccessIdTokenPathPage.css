@@ -143,3 +143,36 @@
   padding: 20px;
   text-align: center;
 }
+
+.aitp-learning {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 18px;
+  margin-top: 20px;
+}
+
+.aitp-learning-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.aitp-learning-intro {
+  font-size: 13px;
+  color: #374151;
+  margin: 0 0 14px 0;
+  line-height: 1.6;
+}
+
+.aitp-token-rail {
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  background: #f9fdf9;
+  padding: 12px;
+  min-height: 200px;
+  overflow-y: auto;
+}
