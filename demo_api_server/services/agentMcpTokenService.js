@@ -1116,42 +1116,15 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const mayActSupported = configStore.getEffective('enableMayActSupport') === true ||
     configStore.getEffective('enableMayActSupport') === 'true';
 
-  // ── PingOne doc compliance: hard-block exchange when may_act is absent ────
-  // When ff_require_may_act=true the BFF enforces the PingOne securing-agents
-  // doc requirement that the user token MUST carry a may_act claim before the
-  // RFC 8693 exchange is attempted. Without may_act the delegated token cannot
-  // carry an act claim, breaking the delegation chain required by the consent
-  // agreement policy. Default false so existing deployments without PingOne
-  // token-policy may_act support are unaffected; enable once PingOne is
-  // configured to emit may_act (or set ff_inject_may_act=true for demo mode).
-  const ffRequireMayAct =
-    configStore.getEffective('ff_require_may_act') === true ||
-    configStore.getEffective('ff_require_may_act') === 'true';
-
-  if (ffRequireMayAct && !userAccessTokenClaims?.may_act) {
-    const err = new Error(
-      'RFC 8693 token exchange blocked: user access token is missing the may_act claim. ' +
-      'The PingOne securing-agents doc requires may_act to be present before token exchange ' +
-      'so the delegation chain (act claim) can be established. ' +
-      'Configure the PingOne token policy to emit may_act on user tokens, or disable ' +
-      'ff_require_may_act to allow exchange without it (weakens delegation audit trail).'
-    );
-    err.code = 'may_act_required';
-    err.httpStatus = 403;
-    err.tokenEvents = tokenEvents;
-    tokenEvents.push(buildTokenEvent(
-      'may-act-required-block',
-      'Token Exchange (RFC 8693) — Blocked: may_act required',
-      'error',
-      null,
-      'ff_require_may_act is ON and the user access token has no may_act claim. ' +
-        'Exchange is blocked per PingOne securing-agents doc compliance. ' +
-        'Configure PingOne to add may_act via a token policy attribute mapping, then retry.',
-      { rfc: 'RFC 8693 §4.1', blocked: true }
-    ));
-    throw err;
-  }
-  // ─────────────────────────────────────────────────────────────────────────
+  // NOTE: the RFC 8693 exchange is no longer hard-blocked here on a missing
+  // may_act claim. Authorization decisions now key on the resulting `act`
+  // claim (see demo_authz_server/routes/decision.js Rule 2.5,
+  // REQUIRE_ACT_FOR_AGENT_TOOLS) rather than pre-flighting may_act — a
+  // revoked/never-authorized agent still fails to mint `act` (PingOne's
+  // resource SPEL seeds `act` from the subject token's `may_act`), so
+  // agent-mediated tools are still denied downstream; this just moves the
+  // authorization decision to the same place the rest of the chain is
+  // evaluated instead of a separate may_act-specific pre-check.
 
   // ── ff_inject_scopes — Demo Scope Injection (Phase 146 — D-04) ───────────
   // When ON and the user access token lacks * scopes, the BFF injects
@@ -1487,27 +1460,23 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   let actorToken = null;
   if (useActor) {
     try {
-      // Per-user may_act (default on): the actor_token must be the client the user
-      // authorized (the AI Agent = may_act.sub) so PingOne emits a NATIVE `act` claim
-      // (resource SPEL: may_act.sub == actorToken.client_id). The exchange still
-      // authenticates AS the Exchanger below (it holds the mcp grant); only the
-      // actor_token identity changes. enforce_may_act=false → legacy exchanger actor.
-      const enforceMayAct = String(
-        configStore.getEffective('enforce_may_act') || process.env.ENFORCE_MAY_ACT || 'true'
-      ).toLowerCase() !== 'false';
-      actorToken = enforceMayAct
-        ? await oauthService.getAiAgentClientCredentialsToken()
-        : await oauthService.getMcpExchangerToken();
+      // The actor_token is always the AI Agent client (unconditional — the
+      // legacy enforce_may_act toggle that used to pick between the AI Agent
+      // and the MCP Token Exchanger as actor has been retired, matching the
+      // same-shape retirement already done in mcpActorBridge.js). The exchange
+      // still authenticates AS the Exchanger below (it holds the mcp grant);
+      // only the actor_token identity is fixed to the AI Agent so PingOne's
+      // resource SPEL (act ← subject's may_act) has a consistent actor to
+      // compare against when may_act is present.
+      actorToken = await oauthService.getAiAgentClientCredentialsToken();
       const a0Decoded = decodeJwtClaims(actorToken);
-      const actorClientId = enforceMayAct
-        ? (configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID)
-        : configStore.getEffective('pingone_mcp_token_exchanger_client_id');
+      const actorClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID;
       tokenEvents.push(buildTokenEvent(
         'agent-actor-token',
         'Agent access token (client credentials)',
         'active',
         a0Decoded,
-        `Client-credentials token for the ${enforceMayAct ? 'AI Agent' : 'MCP Token Exchanger'} OAuth client (${actorClientId}). ` +
+        `Client-credentials token for the AI Agent OAuth client (${actorClientId}). ` +
         'Used as actor_token in the RFC 8693 exchange — the resulting MCP access token will carry ' +
         `act: { sub: ${actorClientId} } identifying the agent as the current actor.`,
         { rfc: 'RFC 8693 §2.1 (actor_token)' }

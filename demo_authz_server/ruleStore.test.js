@@ -32,7 +32,6 @@ afterEach(() => {
 
 test('defaults come from env when no overlay exists', () => {
   assert.strictEqual(ruleStore.getHitlThreshold(), 250);
-  assert.strictEqual(ruleStore.getEnforceMayAct(), true);
   assert.strictEqual(ruleStore.getAuthorizedActorClientId(), '');
   assert.strictEqual(ruleStore.getToolDiscoveryDecision(), 'PERMIT');
 });
@@ -89,7 +88,6 @@ test('getEditableBlock reports value/default/overridden', () => {
   assert.strictEqual(block.global.hitlThresholdUsd.value, 99);
   assert.strictEqual(block.global.hitlThresholdUsd.default, 250);
   assert.strictEqual(block.global.hitlThresholdUsd.overridden, true);
-  assert.strictEqual(block.global.enforceMayAct.overridden, false);
   // allowedScopes is derived from scope-topology.json's scopes map (not hardcoded)
   assert.ok(Array.isArray(block.allowedScopes));
   assert.ok(block.allowedScopes.includes('read') && block.allowedScopes.includes('transfer'));

@@ -444,18 +444,6 @@ describe('resolveMcpAccessTokenWithEvents — on_behalf_of (PINGONE_MCP_TOKEN_EX
     expect(mockGetMcpExchangerToken).not.toHaveBeenCalled();
   });
 
-  it('uses the MCP Exchanger as actor_token when enforce_may_act=false (legacy)', async () => {
-    configStore.getEffective.mockImplementation((key) => {
-      if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
-      if (key === 'pingone_mcp_token_exchanger_client_id') return 'agent-client-id';
-      if (key === 'enforce_may_act') return 'false';
-      return null;
-    });
-    await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
-    expect(mockGetMcpExchangerToken).toHaveBeenCalledTimes(1);
-    expect(mockGetAiAgentClientCredentialsToken).not.toHaveBeenCalled();
-  });
-
   it('calls performTokenExchangeWithActor (not subject-only) when agent client is configured', async () => {
     await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
     expect(mockPerformTokenExchangeWithActor).toHaveBeenCalledWith(

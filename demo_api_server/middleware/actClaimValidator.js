@@ -46,34 +46,6 @@ function validateActClaim(actClaim) {
 }
 
 /**
- * Validate may_act claim structure
- * @param {object} mayActClaim - The may_act claim from the token
- * @param {string} expectedClientId - Expected client_id that may act
- * @returns {object} { valid: boolean, reason: string }
- */
-function validateMayActClaim(mayActClaim, expectedClientId) {
-  if (!mayActClaim) {
-    return { valid: false, reason: 'may_act claim not present' };
-  }
-
-  if (typeof mayActClaim !== 'object' || Array.isArray(mayActClaim)) {
-    return { valid: false, reason: 'may_act claim must be a JSON object' };
-  }
-
-  // Check if the expected client is authorized
-  if (expectedClientId && mayActClaim.client_id) {
-    if (mayActClaim.client_id !== expectedClientId) {
-      return {
-        valid: false,
-        reason: `may_act.client_id mismatch: expected ${expectedClientId}, got ${mayActClaim.client_id}`
-      };
-    }
-  }
-
-  return { valid: true, reason: 'may_act claim valid' };
-}
-
-/**
  * Extract delegation chain from token
  * @param {object} decodedToken - Decoded JWT payload
  * @returns {object} Delegation chain information
@@ -169,6 +141,5 @@ function actClaimValidationMiddleware(req, _res, next) {
 module.exports = {
   actClaimValidationMiddleware,
   validateActClaim,
-  validateMayActClaim,
   extractDelegationChain
 };

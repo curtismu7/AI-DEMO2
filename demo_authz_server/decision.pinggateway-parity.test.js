@@ -48,7 +48,7 @@ function groovyParams(extra = {}) {
     McpMethod:         'tools/call',
     ToolName:          'create_transfer',
     ClientId:          'user-1',
-    ActClientId:       '',
+    ActClientId:       'agent-1',
     ActChainDepth:     '0',
     MayActSub:         '',
     TokenScopes:       'read write transfer',
@@ -71,7 +71,9 @@ beforeEach(() => {
   OVERLAY = path.join(os.tmpdir(), `pg-parity-${process.pid}-${Math.floor(process.hrtime()[1])}.json`);
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.MCP_GATEWAY_RESOURCE_URI = GATEWAY_AUD;
-  process.env.ENFORCE_MAY_ACT = 'true';
+  // Rule 2 is act-only now: groovyParams' default actor ('agent-1') must be a
+  // recognized authorized actor, not just may_act-matched.
+  process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = 'agent-1';
   delete process.env.PINGONE_ENVIRONMENT_ID; // disable iss check
   try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
   fresh();

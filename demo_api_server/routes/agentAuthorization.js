@@ -30,9 +30,12 @@ function agentMayActSub() {
   );
 }
 
+// Revocation is now always enforced via the act-chain (a revoked/never-granted
+// agent's may_act is absent, so PingOne never mints an act claim, and
+// demo_authz_server's Rule 2.5 — REQUIRE_ACT_FOR_AGENT_TOOLS — denies
+// agent-mediated tools with no act claim). No longer a toggleable flag.
 function isEnforced() {
-  const v = configStore.getEffective('ff_require_may_act');
-  return v === true || v === 'true';
+  return true;
 }
 
 /** Read the may_act claim from the user's current session access token (PingOne GET omits custom attrs). */
