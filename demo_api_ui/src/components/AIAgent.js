@@ -5245,7 +5245,10 @@ export default function BankingAgent({
         return;
       }
       if (action === "biggest_purchase" || action === "spending_summary") {
-        const txRes = await getMyTransactions(50).catch(() => null);
+        const txRes = await getMyTransactions(50, {
+          useCaseId,
+          vertical: effectiveVerticalId,
+        }).catch(() => null);
         const txNorm = txRes ? normalizeAgentToolResult(txRes.result) : null;
         const txList = txNorm?.transactions;
         if (!Array.isArray(txList) || txList.length === 0) {
