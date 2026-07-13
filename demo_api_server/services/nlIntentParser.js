@@ -1162,6 +1162,63 @@ function parseHeuristic(
   return { kind: "none", message: buildCatalogMessage(verticalCtx) };
 }
 
+/**
+ * Parse intent from text specifically for fallback resolution
+ * Returns minimal intent object with vertical hint
+ */
+function parseForFallback(text, verticalCtx = {}) {
+  const t = norm(text);
+
+  // Use existing parseEducation and parseBanking for quick vertical detection
+  const bankingIntent = parseBanking(t);
+  if (bankingIntent && bankingIntent.kind !== 'none') {
+    return { ...bankingIntent, vertical: 'banking' };
+  }
+
+  const educationIntent = parseEducation(t);
+  if (educationIntent && educationIntent.kind !== 'none') {
+    return { ...educationIntent, vertical: 'banking' }; // Education uses banking vertical
+  }
+
+  // Detect retail vertical keywords
+  if (/\b(order|orders?|purchase|return|refund|cart|checkout)\b/.test(t)) {
+    return { kind: 'retail', vertical: 'retail' };
+  }
+
+  // Detect sporting-goods vertical keywords
+  if (/\b(points?|redeem|rewards?|gear|equipment|membership)\b/.test(t)) {
+    return { kind: 'sporting-goods', vertical: 'sporting-goods' };
+  }
+
+  // Detect government vertical keywords
+  if (/\b(permit|benefit|document|application|claim)\b/.test(t)) {
+    return { kind: 'government', vertical: 'government' };
+  }
+
+  // Detect workforce vertical keywords
+  if (/\b(timesheet|expense|leave|payroll|attendance)\b/.test(t)) {
+    return { kind: 'workforce', vertical: 'workforce' };
+  }
+
+  // Detect university vertical keywords
+  if (/\b(grade|course|transcript|enrollment|semester)\b/.test(t)) {
+    return { kind: 'university', vertical: 'university' };
+  }
+
+  // Detect manufacturing vertical keywords
+  if (/\b(manufacturing|factory|production|machine|inventory|equipment)\b/.test(t)) {
+    return { kind: 'manufacturing', vertical: 'manufacturing' };
+  }
+
+  // For other verticals, check if verticalCtx hints at a specific one
+  if (verticalCtx.verticalId && verticalCtx.verticalId !== 'undefined') {
+    return { kind: 'unknown', vertical: verticalCtx.verticalId };
+  }
+
+  // Default: unknown, no vertical hint
+  return { kind: 'none' };
+}
+
 module.exports = {
   parseHeuristic,
   extractIntentAndConfidence,
@@ -1173,4 +1230,5 @@ module.exports = {
   resolveVerticalRouting,
   parseVerticalParam,
   VALID_VERTICAL_RE,
+  parseForFallback,
 };
