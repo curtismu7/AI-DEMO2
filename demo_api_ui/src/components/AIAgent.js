@@ -454,9 +454,10 @@ export default function BankingAgent({
   });
   const [showCompliancePanel, setShowCompliancePanel] = useState(() => {
     try {
-      localStorage.removeItem("ba_show_compliance_panel");
-    } catch {}
-    return false;
+      return localStorage.getItem("ba_show_compliance_panel") === "1";
+    } catch {
+      return false;
+    }
   });
   const [complianceSlideout, setComplianceSlideout] = useState(() => {
     try {
@@ -8211,10 +8212,10 @@ export default function BankingAgent({
                         actionId,
                       );
                     } catch (err) {
-                      // callRestTransaction throws on non-2xx status codes, so we handle 428 (step_up_required) here
+                      // callRestTransaction throws on non-2xx status codes, so we handle 428 (step_up_required or mcp_step_up_required) here
                       if (
                         err.statusCode === 428 &&
-                        err.code === "step_up_required"
+                        (err.code === "step_up_required" || err.code === "mcp_step_up_required")
                       ) {
                         console.log(
                           "[HITL Consent] Step-up required, triggering MFA",
