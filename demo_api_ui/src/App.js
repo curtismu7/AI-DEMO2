@@ -42,6 +42,7 @@ import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
+import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
@@ -77,6 +78,7 @@ import DemoTourModal from "./components/tour/DemoTourModal";
 import UserAccounts from "./components/UserAccounts";
 import Users from "./components/Users";
 import UserTransactions from "./components/UserTransactions";
+import VerifiedBanner from "./components/VerifiedBanner";
 import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
@@ -256,6 +258,7 @@ function AppWithAuth() {
 
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
+  const [showTokenChain, setShowTokenChain] = useState(false);
 
   // Setup browser extension interference handling
   useEffect(() => {
@@ -1199,6 +1202,15 @@ function AppWithAuth() {
               {!isApiTrafficOnlyPage && <CIBAPanel />}
               {!isApiTrafficOnlyPage && <CimdSimPanel />}
               {!isApiTrafficOnlyPage && <AgentFlowDiagramPanel />}
+              {!isApiTrafficOnlyPage && (
+                <VerifiedBanner onExpand={() => setShowTokenChain(true)} />
+              )}
+              {!isApiTrafficOnlyPage && (
+                <FloatingTokenChainPanel
+                  isOpen={showTokenChain}
+                  onClose={() => setShowTokenChain(false)}
+                />
+              )}
               <LogViewer
                 isOpen={logViewerOpen}
                 onClose={() => setLogViewerOpen(false)}
