@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enterprise AI Onboarding &amp; Governance Architecture</title>
+  <title>Enterprise AI Onboarding &amp; Governance Architecture — Diagram Only</title>
   <style>
     :root {
       --artifact-background: var(--theme-background, #ffffff);
@@ -39,153 +39,156 @@
       --artifact-chip-active-text: #09131a;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--artifact-background); color: var(--artifact-text-primary); }
+    html, body {
+      margin: 0; padding: 0; height: 100%; overflow: hidden;
+      background: var(--artifact-background); color: var(--artifact-text-primary);
+    }
     body {
       font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
       background:
         linear-gradient(var(--artifact-grid) 1px, transparent 1px),
         linear-gradient(90deg, var(--artifact-grid) 1px, transparent 1px),
         var(--artifact-background);
       background-size: 24px 24px, 24px 24px, auto;
     }
-    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 24px 48px; }
-    .hero { display: grid; gap: 14px; margin-bottom: 20px; }
-    .eyebrow {
-      display: inline-flex; align-items: center; gap: 8px; width: fit-content;
-      padding: 8px 12px; border-radius: 999px; background: var(--artifact-accent-soft);
-      color: var(--artifact-accent-soft-text); border: 1px solid var(--artifact-border-light);
-      font-size: 13px; font-weight: 600;
-    }
-    h1 { margin: 0; font-size: clamp(26px, 3.6vw, 38px); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700; }
-    .subhead { max-width: 860px; font-size: 15px; line-height: 1.5; color: var(--artifact-text-secondary); margin: 0; }
 
-    .flow-tabs, .story-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    /* #fit-outer reserves the real (unscaled) box in the flex layout at its
+       SCALED size, so the browser's own centering math stays correct;
+       #fit-inner is the thing we actually transform. */
+    #fit-outer { overflow: hidden; }
+    #fit-inner { transform-origin: top center; width: 1040px; padding: 14px 20px; }
+
+    .titlebar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 999px;
+      background: var(--artifact-accent-soft); color: var(--artifact-accent-soft-text);
+      border: 1px solid var(--artifact-border-light); font-size: 11px; font-weight: 600;
+    }
+    h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: -0.01em; font-weight: 700; }
+
+    .flow-tabs, .story-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .flow-tab, .story-tab {
       appearance: none; border: 1px solid var(--artifact-border-light); background: var(--artifact-chip);
-      color: var(--artifact-chip-text); border-radius: 999px; padding: 8px 14px; font-size: 13px;
+      color: var(--artifact-chip-text); border-radius: 999px; padding: 5px 11px; font-size: 12px;
       font-weight: 600; cursor: pointer; transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
     }
     .flow-tab.active, .story-tab.active {
       background: var(--artifact-chip-active); color: var(--artifact-chip-active-text); border-color: var(--artifact-chip-active);
     }
-    .story-tabs { margin-top: -4px; }
-    .story-tab { font-size: 12px; padding: 6px 12px; }
+    .story-tabs { margin-top: -3px; }
+    .story-tab { font-size: 11px; padding: 4px 10px; }
     .story-tabs[hidden] { display: none; }
 
-    .persona { margin: 0 0 14px; font-size: 13px; color: var(--artifact-text-secondary); }
+    .persona { margin: 0 0 8px; font-size: 11.5px; color: var(--artifact-text-secondary); }
 
     .diagram { display: grid; gap: 0; }
 
-    /* ---- generic box ---- */
     .box {
       background: var(--artifact-background); border: 1px solid var(--artifact-border-light);
-      border-radius: 14px; padding: 12px 14px; box-shadow: var(--artifact-shadow-soft); opacity: 0.55;
+      border-radius: 12px; padding: 9px 11px; box-shadow: var(--artifact-shadow-soft); opacity: 0.55;
       transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
     }
     .box--wide { width: 100%; }
-    .box-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-    .box h3 { margin: 0; font-size: 13px; line-height: 1.25; }
-    .box-subtitle { margin: 2px 0 0; font-size: 11px; color: var(--artifact-text-secondary); }
-    .box-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .box-head { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
+    .box h3 { margin: 0; font-size: 11.5px; line-height: 1.2; }
+    .box-subtitle { margin: 1px 0 0; font-size: 9.5px; color: var(--artifact-text-secondary); }
+    .box-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
     .box-tag {
-      font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+      font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 999px;
       background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); color: var(--artifact-text-primary);
     }
     .box-tag--col { background: transparent; border-style: dashed; }
-    .box-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-    .box-col-heading { font-size: 11px; font-weight: 700; color: var(--artifact-primary-brand); margin-bottom: 4px; }
-    .box-col ul { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.5; color: var(--artifact-text-secondary); }
-    .box-bullets { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.55; color: var(--artifact-text-secondary); }
-    .box-note { margin: 8px 0 0; font-size: 10.5px; font-style: italic; color: var(--artifact-text-secondary); }
-    .box.active-card { opacity: 1; transform: translateY(-2px); border-color: var(--artifact-primary-brand); box-shadow: var(--artifact-shadow-focus), var(--artifact-shadow-soft); }
+    .box-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+    .box-col-heading { font-size: 9.5px; font-weight: 700; color: var(--artifact-primary-brand); margin-bottom: 3px; }
+    .box-col ul { margin: 0; padding-left: 13px; font-size: 9.5px; line-height: 1.4; color: var(--artifact-text-secondary); }
+    .box-bullets { margin: 0; padding-left: 13px; font-size: 9.5px; line-height: 1.45; color: var(--artifact-text-secondary); }
+    .box-note { margin: 6px 0 0; font-size: 9px; font-style: italic; color: var(--artifact-text-secondary); }
+    .box.active-card { opacity: 1; border-color: var(--artifact-primary-brand); box-shadow: var(--artifact-shadow-focus), var(--artifact-shadow-soft); }
     .box.visited-card { opacity: 0.85; }
 
-    /* ---- rows ---- */
-    .row-wrap { display: grid; gap: 6px; }
-    .row-triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
-    .row-split { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr); gap: 14px; align-items: stretch; }
-    .row-split-left { display: grid; gap: 10px; }
-    .row-note { margin: 2px 0 0; font-size: 11px; font-style: italic; color: var(--artifact-text-secondary); text-align: center; }
-    .row-connector { display: flex; flex-direction: column; align-items: center; height: 20px; color: var(--artifact-text-secondary); }
-    .row-connector-line { width: 1px; height: 10px; background: var(--artifact-border-light); }
-    .row-connector-chevron { font-size: 11px; line-height: 1; }
+    .row-wrap { display: grid; gap: 3px; }
+    .row-triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+    .row-split { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr); gap: 10px; align-items: stretch; }
+    .row-split-left { display: grid; gap: 8px; }
+    .row-note { margin: 1px 0 0; font-size: 9.5px; font-style: italic; color: var(--artifact-text-secondary); text-align: center; }
+    .row-connector { display: flex; flex-direction: column; align-items: center; height: 12px; color: var(--artifact-text-secondary); }
+    .row-connector-line { width: 1px; height: 6px; background: var(--artifact-border-light); }
+    .row-connector-chevron { font-size: 9px; line-height: 1; }
 
-    /* ---- orchestration bar ---- */
-    .orchestration { border: 1px dashed var(--artifact-border-light); border-radius: 14px; padding: 12px 14px; opacity: 0.55; transition: opacity 200ms ease, border-color 200ms ease; }
-    .orchestration-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--artifact-text-secondary); margin-bottom: 10px; }
-    .orchestration-items { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11.5px; }
-    .orchestration-item { background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 8px; padding: 6px 10px; }
+    .orchestration { border: 1px dashed var(--artifact-border-light); border-radius: 12px; padding: 9px 11px; opacity: 0.55; }
+    .orchestration-label { display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--artifact-text-secondary); margin-bottom: 7px; }
+    .orchestration-items { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 9.5px; }
+    .orchestration-item { background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 7px; padding: 4px 8px; }
     .orchestration-arrow { color: var(--artifact-text-secondary); }
+    .orchestration.active-card { opacity: 1; border-color: var(--artifact-primary-brand); }
 
-    /* ---- legend ---- */
-    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--artifact-border-light); font-size: 11px; color: var(--artifact-text-secondary); }
-    .legend-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; }
-    .legend-entry { display: inline-flex; align-items: center; gap: 6px; }
-    .legend-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; flex: 0 0 auto; }
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--artifact-border-light); font-size: 9.5px; color: var(--artifact-text-secondary); }
+    .legend-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+    .legend-entry { display: inline-flex; align-items: center; gap: 4px; }
+    .legend-badge { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; font-size: 8.5px; font-weight: 700; color: #fff; flex: 0 0 auto; }
     .legend-badge--1 { background: #4f8a3d; } .legend-badge--2 { background: #2f6fed; } .legend-badge--3 { background: #7c3aed; }
     .legend-badge--4 { background: #d9730d; } .legend-badge--5 { background: #a83289; } .legend-badge--6 { background: #44403c; } .legend-badge--7 { background: #0891b2; }
 
-    .controls { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--artifact-border-light); }
+    .controls { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--artifact-border-light); }
     .ctrl-btn {
       appearance: none; border: 1px solid var(--artifact-border-light); background: var(--artifact-chip);
-      color: var(--artifact-text-primary); border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+      color: var(--artifact-text-primary); border-radius: 7px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
     }
     .ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .ctrl-btn.primary { background: var(--artifact-primary-brand); color: #fff; border-color: var(--artifact-primary-brand); }
     .ctrl-btn.ghost { background: transparent; }
-    .step-count { margin-left: auto; font-size: 12px; color: var(--artifact-text-secondary); }
+    .step-count { margin-left: auto; font-size: 11px; color: var(--artifact-text-secondary); }
 
-    .step-detail { margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--artifact-border-light); background: var(--artifact-background-light); }
-    .step-detail h4 { margin: 0 0 6px; font-size: 14px; }
-    .step-detail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--artifact-text-secondary); }
+    .step-detail { margin-top: 8px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--artifact-border-light); background: var(--artifact-background-light); }
+    .step-detail h4 { margin: 0 0 3px; font-size: 12px; }
+    .step-detail p { margin: 0; font-size: 11px; line-height: 1.4; color: var(--artifact-text-secondary); }
 
-    .outcome { margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--artifact-primary-brand); font-size: 13px; line-height: 1.5; }
+    .outcome { margin-top: 6px; padding: 8px 11px; border-radius: 10px; border: 1px dashed var(--artifact-primary-brand); font-size: 11px; line-height: 1.4; }
     .outcome[hidden] { display: none; }
-
-    .footer-note { margin-top: 18px; color: var(--artifact-text-secondary); font-size: 12px; line-height: 1.5; }
 
     @media screen and (max-width: 900px) { .row-triple, .row-split { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="hero">
-      <div class="eyebrow">Proposed architecture — T. Madiraju</div>
-      <h1>Enterprise AI Onboarding &amp; Governance Architecture</h1>
-      <p class="subhead">Illustrative walkthrough of a target-state design: any AI agent should automatically become a managed enterprise identity, with governance, privileges, and security applied throughout its lifecycle. This is a scripted walkthrough, not a live trace — most of the components shown here are proposed, not yet built.</p>
-    </section>
+  <div id="fit-outer">
+    <div id="fit-inner">
+      <div class="titlebar">
+        <span class="eyebrow">Proposed architecture — T. Madiraju</span>
+        <h1>Enterprise AI Onboarding &amp; Governance Architecture</h1>
+      </div>
 
-    <div class="flow-tabs" id="flow-tabs" role="tablist" aria-label="Onboarding flow"></div>
-    <div class="story-tabs" id="story-tabs" role="tablist" aria-label="Discovery story" hidden></div>
-    <p class="persona" id="persona"></p>
+      <div class="flow-tabs" id="flow-tabs" role="tablist" aria-label="Onboarding flow"></div>
+      <div class="story-tabs" id="story-tabs" role="tablist" aria-label="Discovery story" hidden></div>
+      <p class="persona" id="persona"></p>
 
-    <section class="diagram" id="diagram" aria-label="Onboarding architecture diagram"></section>
+      <section class="diagram" id="diagram" aria-label="Onboarding architecture diagram"></section>
 
-    <div class="legend" id="legend" aria-label="Flow step legend">
-      <span class="legend-title">Legend</span>
+      <div class="legend" id="legend" aria-label="Flow step legend">
+        <span class="legend-title">Legend</span>
+      </div>
+
+      <div class="controls" role="group" aria-label="Step controls">
+        <button type="button" class="ctrl-btn" id="btn-prev">Prev</button>
+        <button type="button" class="ctrl-btn primary" id="btn-play">Play</button>
+        <button type="button" class="ctrl-btn" id="btn-next">Next</button>
+        <button type="button" class="ctrl-btn ghost" id="btn-reset">Reset</button>
+        <span class="step-count" id="step-count"></span>
+      </div>
+
+      <div class="step-detail">
+        <h4 id="step-title"></h4>
+        <p id="step-narrative"></p>
+      </div>
+
+      <div class="outcome" id="outcome" hidden><strong>Outcome:</strong> <span id="outcome-text"></span></div>
     </div>
-
-    <div class="controls" role="group" aria-label="Step controls">
-      <button type="button" class="ctrl-btn" id="btn-prev">Prev</button>
-      <button type="button" class="ctrl-btn primary" id="btn-play">Play</button>
-      <button type="button" class="ctrl-btn" id="btn-next">Next</button>
-      <button type="button" class="ctrl-btn ghost" id="btn-reset">Reset</button>
-      <span class="step-count" id="step-count"></span>
-    </div>
-
-    <div class="step-detail">
-      <h4 id="step-title"></h4>
-      <p id="step-narrative"></p>
-    </div>
-
-    <div class="outcome" id="outcome" hidden><strong>Outcome:</strong> <span id="outcome-text"></span></div>
-
-    <p class="footer-note">Standalone reference page — mirrors the "Agent Onboarding Flow" page in the AI-DEMO2 Super Banking demo (Diagrams nav). Source diagram by Tarun Madiraju. Prefer a fit-to-screen, no-scroll view? <a href="agent-onboarding-flow-compact.html">Open the compact diagram-only page →</a></p>
-  </main>
+  </div>
 
   <script>
     // Data ported from demo_api_ui/src/data/agentOnboardingFlows.js (ROWS/LEGEND/FLOWS) — keep in sync by hand.
+    // Same data/rendering as ping_agent_onboarding_flow_diagram.html; this page strips the
+    // hero/footer chrome and auto-scales to fit the viewport with no scrolling.
     const ROWS = [
       {
         id: "entry", kind: "triple",
@@ -322,6 +325,8 @@
     let playing = false;
     let playTimer = null;
 
+    const fitOuterEl = document.getElementById("fit-outer");
+    const fitInnerEl = document.getElementById("fit-inner");
     const flowTabsEl = document.getElementById("flow-tabs");
     const storyTabsEl = document.getElementById("story-tabs");
     const personaEl = document.getElementById("persona");
@@ -567,6 +572,20 @@
       });
     }
 
+    // ---- fit-to-viewport scaling: no scrollbars, ever ----
+    function fitToViewport() {
+      // Reset scale to measure natural size first.
+      fitInnerEl.style.transform = "none";
+      const naturalWidth = fitInnerEl.scrollWidth;
+      const naturalHeight = fitInnerEl.scrollHeight;
+      const availableWidth = window.innerWidth;
+      const availableHeight = window.innerHeight;
+      const scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+      fitInnerEl.style.transform = "scale(" + scale + ")";
+      fitOuterEl.style.width = (naturalWidth * scale) + "px";
+      fitOuterEl.style.height = (naturalHeight * scale) + "px";
+    }
+
     function render() {
       renderFlowTabs();
       renderStoryTabs();
@@ -587,6 +606,7 @@
       } else {
         outcomeEl.hidden = true;
       }
+      fitToViewport();
     }
 
     function selectFlow(key, subStory) {
@@ -618,6 +638,12 @@
       render();
       if (playing) playTimer = setTimeout(tick, PLAY_INTERVAL_MS);
       else if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(fitToViewport, 100);
     });
 
     render();
