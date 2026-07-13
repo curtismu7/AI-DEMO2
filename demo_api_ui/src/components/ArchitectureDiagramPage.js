@@ -22,9 +22,11 @@
  *   audHops     {Array}
  */
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import AdminSubPageShell from './AdminSubPageShell';
 import HistoryModal from './HistoryModal';
 import { DiagramControls } from './diagram';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import './ArchitectureDiagramPage.css';
 
 const ZOOM_STEP = 0.25;
@@ -303,6 +305,7 @@ export default function ArchitectureDiagramPage({
   onReset,
 }) {
   const [zoom, setZoom] = useState(1.0);
+  const [showChainPanel, setShowChainPanel] = useState(false);
   const zoomIn    = () => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
   const zoomOut   = () => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))));
   const zoomReset = () => setZoom(1.0);
@@ -337,6 +340,14 @@ export default function ArchitectureDiagramPage({
             onReset={onReset}
             extra={toolbarExtra}
           />
+          <button
+            className="arch-chain-toggle"
+            onClick={() => setShowChainPanel(!showChainPanel)}
+            title={showChainPanel ? 'Hide token chain' : 'Show token chain'}
+            aria-pressed={showChainPanel}
+          >
+            {showChainPanel ? 'Hide' : 'Show'} Token Chain
+          </button>
         </div>
 
         {/* Aud trail */}
@@ -381,6 +392,28 @@ export default function ArchitectureDiagramPage({
         <HistoryModal history={tokenHistory} onClear={onClearHistory} />
 
       </div>
+
+      {/* Token chain floating panel */}
+      {showChainPanel && createPortal(
+        <div className="arch-chain-panel">
+          <div className="arch-chain-header">
+            <h3>Token Chain Trace</h3>
+            <button
+              className="arch-chain-close"
+              onClick={() => setShowChainPanel(false)}
+              title="Close"
+              aria-label="Close token chain"
+            >
+              ×
+            </button>
+          </div>
+          <div className="arch-chain-content">
+            <TokenChainTraceRail />
+          </div>
+        </div>,
+        document.body
+      )}
+
     </AdminSubPageShell>
   );
 }
