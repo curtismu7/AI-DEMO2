@@ -126,53 +126,64 @@ describe('Public Tool Handlers', () => {
       expect(result.type).toBe('text');
       expect(result.structuredContent).toBeDefined();
       expect(result.structuredContent?.fees).toBeDefined();
-      expect(result.structuredContent?.fees?.checking).toBeDefined();
-      expect(result.structuredContent?.fees?.savings).toBeDefined();
-      expect(result.structuredContent?.fees?.transfers).toBeDefined();
-      expect(result.structuredContent?.fees?.atm).toBeDefined();
+      expect(Array.isArray(result.structuredContent?.fees)).toBe(true);
+      expect(result.structuredContent?.fees?.length).toBeGreaterThan(0);
+
+      const fees = result.structuredContent?.fees ?? [];
+      const categories = fees.map((f: any) => f.category);
+      expect(categories).toContain('checking');
+      expect(categories).toContain('savings');
+      expect(categories).toContain('transfers');
+      expect(categories).toContain('atm');
     });
 
     it('returns checking fees when category is checking', async () => {
       const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'checking' });
 
       expect(result.success).toBe(true);
-      expect(result.structuredContent?.fees?.checking).toBeDefined();
-      expect(Array.isArray(result.structuredContent?.fees?.checking)).toBe(true);
-      expect(result.structuredContent?.fees?.checking?.length).toBeGreaterThan(0);
+      expect(Array.isArray(result.structuredContent?.fees)).toBe(true);
+      expect(result.structuredContent?.fees?.length).toBeGreaterThan(0);
+
+      const fees = result.structuredContent?.fees ?? [];
+      fees.forEach((f: any) => {
+        expect(f.category).toBe('checking');
+      });
     });
 
     it('returns savings fees when category is savings', async () => {
       const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'savings' });
 
       expect(result.success).toBe(true);
-      expect(result.structuredContent?.fees?.savings).toBeDefined();
-      expect(Array.isArray(result.structuredContent?.fees?.savings)).toBe(true);
+      expect(Array.isArray(result.structuredContent?.fees)).toBe(true);
+
+      const fees = result.structuredContent?.fees ?? [];
+      fees.forEach((f: any) => {
+        expect(f.category).toBe('savings');
+      });
     });
 
     it('returns transfers fees when category is transfers', async () => {
       const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'transfers' });
 
       expect(result.success).toBe(true);
-      expect(result.structuredContent?.fees?.transfers).toBeDefined();
-      expect(Array.isArray(result.structuredContent?.fees?.transfers)).toBe(true);
+      expect(Array.isArray(result.structuredContent?.fees)).toBe(true);
+
+      const fees = result.structuredContent?.fees ?? [];
+      fees.forEach((f: any) => {
+        expect(f.category).toBe('transfers');
+      });
     });
 
     it('returns atm fees when category is atm', async () => {
       const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'atm' });
 
       expect(result.success).toBe(true);
-      expect(result.structuredContent?.fees?.atm).toBeDefined();
-      expect(Array.isArray(result.structuredContent?.fees?.atm)).toBe(true);
-    });
+      expect(Array.isArray(result.structuredContent?.fees)).toBe(true);
 
-    it('returns all fees when category is all', async () => {
-      const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'all' });
-
-      expect(result.success).toBe(true);
-      expect(result.structuredContent?.fees?.checking).toBeDefined();
-      expect(result.structuredContent?.fees?.savings).toBeDefined();
-      expect(result.structuredContent?.fees?.transfers).toBeDefined();
-      expect(result.structuredContent?.fees?.atm).toBeDefined();
+      const fees = result.structuredContent?.fees ?? [];
+      fees.forEach((f: any) => {
+        expect(f.category).toBe('atm');
+      });
     });
 
     it('returns error for invalid category', async () => {
@@ -183,16 +194,19 @@ describe('Public Tool Handlers', () => {
       expect(result.text).toContain('Invalid category');
     });
 
-    it('each fee has name, amount, and condition', async () => {
+    it('each fee has category, name, amount, and description', async () => {
       const result = await executeGetFeeSchedule(mockDeps, 'token', { category: 'checking' });
-      const fees = result.structuredContent?.fees?.checking ?? [];
+      const fees = result.structuredContent?.fees ?? [];
+      expect(fees.length).toBeGreaterThan(0);
       fees.forEach((f: any) => {
+        expect(f.category).toBeDefined();
+        expect(typeof f.category).toBe('string');
         expect(f.name).toBeDefined();
         expect(typeof f.name).toBe('string');
         expect(f.amount).toBeDefined();
         expect(typeof f.amount).toBe('number');
-        expect(f.condition).toBeDefined();
-        expect(typeof f.condition).toBe('string');
+        expect(f.description).toBeDefined();
+        expect(typeof f.description).toBe('string');
       });
     });
   });

@@ -89,28 +89,31 @@ export const executeShowSupportedCurrencies: HandlerFn = async (_deps, _token, _
 export const executeGetFeeSchedule: HandlerFn = async (_deps, _token, params) => {
   const category = params?.category;
 
-  // If no category specified, return all fees
-  if (!category) {
-    const data = { fees: FEE_SCHEDULE };
-    return createSuccessResult(JSON.stringify(data, null, 2), data);
-  }
-
-  // Validate category
-  const validCategories = ['checking', 'savings', 'transfers', 'atm', 'all'];
-  if (!validCategories.includes(category)) {
+  // Validate category if provided
+  const validCategories = ['checking', 'savings', 'transfers', 'atm'];
+  if (category && !validCategories.includes(category)) {
     return createErrorResult(
       `Invalid category: ${category}. Valid categories are: ${validCategories.join(', ')}`
     );
   }
 
-  // Return filtered fees
-  if (category === 'all') {
-    const data = { fees: FEE_SCHEDULE };
-    return createSuccessResult(JSON.stringify(data, null, 2), data);
+  // Build flat array of fees with category field
+  const allFees: Array<{ category: string; name: string; amount: number; description: string }> = [];
+
+  const categoriesToInclude = category ? [category] : validCategories;
+  for (const cat of categoriesToInclude) {
+    const categoryFees = FEE_SCHEDULE[cat as keyof typeof FEE_SCHEDULE];
+    for (const fee of categoryFees) {
+      allFees.push({
+        category: cat,
+        name: fee.name,
+        amount: fee.amount,
+        description: fee.condition,
+      });
+    }
   }
 
-  const fees = FEE_SCHEDULE[category as keyof typeof FEE_SCHEDULE];
-  const data = { fees: { [category]: fees } };
+  const data = { fees: allFees };
   return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
