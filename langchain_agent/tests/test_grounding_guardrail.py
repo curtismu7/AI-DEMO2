@@ -1,6 +1,5 @@
 import json
 import pytest
-from unittest.mock import AsyncMock
 
 from src.agent.grounding_guardrail import (
     contains_commitment_claim,
@@ -28,6 +27,25 @@ class TestContainsCommitmentClaim:
         # false-positive on the CORRECT, grounded phrasing.
         assert contains_commitment_claim(
             "I've submitted a fee waiver request (ID: fwr-123) for human review."
+        ) is False
+
+    def test_detects_the_fee_has_been_waived(self):
+        assert contains_commitment_claim("The fee has been waived.") is True
+
+    def test_detects_your_multiword_fee_has_been_waived(self):
+        assert contains_commitment_claim("Your $35 fee has been waived.") is True
+
+    def test_detects_bare_passive_fee_waived_completion(self):
+        assert contains_commitment_claim("Fee waived — you're all set.") is True
+
+    def test_detects_discount_applied(self):
+        assert contains_commitment_claim("Discount applied.") is True
+
+    def test_ignores_fee_waiver_request_already_filed(self):
+        # Past tense, but still describes a REQUEST outcome, not a grant —
+        # must not false-positive.
+        assert contains_commitment_claim(
+            "I checked and the fee waiver request was already filed yesterday."
         ) is False
 
 

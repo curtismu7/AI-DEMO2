@@ -17,10 +17,18 @@ logger = logging.getLogger(__name__)
 # First-person / completed-tense framing combined with a completion verb.
 # Deliberately generalized past the fee-waiver example so any future
 # "request-only" tool is covered without new code.
+#
+# Two extra alternatives cover framing-less overclaim phrasings the framing
+# prefix above can't reach: a bare passive completion verb ("Fee waived —
+# you're all set.") and the specific "discount applied" phrasing called out
+# in the design spec. Kept to a short, literal list rather than the full
+# completion-verb alternation above, to avoid over-broadening the pre-filter.
 _COMMITMENT_PATTERN = re.compile(
-    r"\b(I'?ve|I'?ll|I\s+will|Done[,:]?|Your\s+\S+\s+has\s+been)\b.{0,40}?\b"
+    r"\b(I'?ve|I'?ll|I\s+will|Done[,:]?|(?:Your|The)\b.{0,20}?\bhas\s+been)\b.{0,40}?\b"
     r"(waiv(?:e|ed)|grant(?:ed)?|appl(?:y|ied)|open(?:ed)?|remov(?:e|ed)|"
-    r"refund(?:ed)?|credit(?:ed)?|process(?:ed)?|approv(?:e|ed))\b",
+    r"refund(?:ed)?|credit(?:ed)?|process(?:ed)?|approv(?:e|ed))\b"
+    r"|\b(?:waived|granted|refunded|approved)\b"
+    r"|\bdiscount\s+applied\b",
     re.IGNORECASE,
 )
 
