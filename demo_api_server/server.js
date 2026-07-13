@@ -1924,9 +1924,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
       outcome.body.tokenEvents = [_itEvent, ...outcome.body.tokenEvents];
     }
 
-    // Stamp useCaseId on chip-path token events (A2.2). stampUseCaseId never
-    // overwrites a launcher-supplied tag. Resolved once, above, into ctx.useCaseId.
-    if (_resolvedUseCaseId && outcome.body && Array.isArray(outcome.body.tokenEvents)) {
+    // Stamp useCaseId/vertical on chip-path token events (A2.2). stampUseCaseId/
+    // stampVertical never overwrite a launcher-supplied tag, and each no-ops on a
+    // falsy tag argument — so call them independently (mirrors
+    // bffMcpToolExecutor.js) rather than gating both on _resolvedUseCaseId, which
+    // would otherwise skip stamping vertical for tools with no derivable useCaseId.
+    if (outcome.body && Array.isArray(outcome.body.tokenEvents)) {
       stampUseCaseId(outcome.body.tokenEvents, _resolvedUseCaseId);
       stampVertical(outcome.body.tokenEvents, req.body?.vertical);
     }
