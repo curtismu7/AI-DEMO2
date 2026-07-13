@@ -244,6 +244,9 @@ function AppWithAuth() {
   const backgroundLocation = fullLocation.state?.backgroundLocation;
   const { pathname } = useLocation();
   const pathNorm = pathname.replace(/\/$/, "") || "/";
+  // Home route hosts LandingPage (non-admin) / Dashboard (admin) full-bleed
+  // layouts — neither wants the side nav.
+  const isHomePage = pathNorm === "/";
   const isApiTrafficOnlyPage =
     pathNorm === "/api-traffic" ||
     pathNorm === "/logs" ||
@@ -412,7 +415,9 @@ function AppWithAuth() {
                   onDismiss={() => setSessionReauth(null)}
                 />
               )}
-              {user && !isApiTrafficOnlyPage && <AdminSideNav user={user} />}
+              {user && !isApiTrafficOnlyPage && !isHomePage && (
+                <AdminSideNav user={user} />
+              )}
               <Routes>
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
