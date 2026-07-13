@@ -41,6 +41,7 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 const { CircuitBreaker } = require('../utils/circuitBreaker');
+const { buildTestCasesForRule } = require('./policyTestCaseSolver');
 
 // Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
 // provider outage yields a controlled failure in the authorization-decision
@@ -837,8 +838,11 @@ function getAuthorizationPoliciesFromSnapshot() {
   if (!Array.isArray(entries)) return null;
 
   const byId = new Map();
+  const conditionIndex = new Map();
   for (const e of entries) {
-    if (e && e.id && (e.type === 'PolicySet' || e.type === 'Policy' || e.type === 'Rule')) byId.set(e.id, e);
+    if (!e || !e.id) continue;
+    if (e.type === 'PolicySet' || e.type === 'Policy' || e.type === 'Rule') byId.set(e.id, e);
+    if (e.type === 'CONDITION' || e.type === 'ATTRIBUTE') conditionIndex.set(e.id, e);
   }
   if (byId.size === 0) return null;
 
@@ -855,6 +859,7 @@ function getAuthorizationPoliciesFromSnapshot() {
       algorithm: entry.combiningAlgorithm?.algorithm || null,
       effect: entry.effectSettings?.type || null,
       children: childRefs.map((c) => toNode(byId.get(c.id), depth + 1)).filter(Boolean),
+      ...(isRule ? { testCases: buildTestCasesForRule(entry, conditionIndex) } : {}),
     };
   };
 
