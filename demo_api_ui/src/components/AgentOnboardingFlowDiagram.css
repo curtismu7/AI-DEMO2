@@ -202,11 +202,9 @@
   color: var(--aof-text-secondary);
 }
 
-.aof-box-note {
-  margin: 8px 0 0;
-  font-size: 10.5px;
-  font-style: italic;
-  color: var(--aof-text-secondary);
+.aof-box-sticky {
+  margin: 10px 0 0;
+  max-width: none;
 }
 
 .aof-active-card {
@@ -227,6 +225,19 @@
   gap: 6px;
 }
 
+.aof-row-with-sticky {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.aof-row-with-sticky > .aof-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.aof-row-sticky {
+  flex: 0 0 160px;
+}
+
 .aof-row-triple {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -243,14 +254,6 @@
 .aof-row-split-left {
   display: grid;
   gap: 10px;
-}
-
-.aof-row-note {
-  margin: 2px 0 0;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--aof-text-secondary);
-  text-align: center;
 }
 
 .aof-row-connector {
@@ -421,5 +424,13 @@
   .aof-row-triple,
   .aof-row-split {
     grid-template-columns: 1fr;
+  }
+  .aof-row-with-sticky {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .aof-row-sticky {
+    flex: none;
+    align-self: flex-start;
   }
 }

@@ -727,6 +727,8 @@ export default function AdminSideNav({ user }) {
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
         { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc" },
+        { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc" },
+        { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc" },
       ],
     },
     {
