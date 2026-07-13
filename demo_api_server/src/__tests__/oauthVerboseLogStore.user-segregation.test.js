@@ -3,9 +3,10 @@
 const oauthVerboseLogStore = require('../../services/oauthVerboseLogStore');
 
 describe('oauthVerboseLogStore user segregation', () => {
-  beforeEach(() => {
-    // Clear logs before each test
+  beforeEach(async () => {
+    // Clear logs before each test (both memory and file)
     oauthVerboseLogStore.clearAllLogs?.();
+    await oauthVerboseLogStore.clear?.();
   });
 
   it('should partition logs by userId - logs from user A should not appear in user B fetch', async () => {
@@ -139,7 +140,8 @@ describe('oauthVerboseLogStore user segregation', () => {
     // Simulate reload: clear memory and reload from disk
     if (typeof oauthVerboseLogStore.reloadFromDisk === 'function') {
       oauthVerboseLogStore.reloadFromDisk?.();
-      const reloadedLines = oauthVerboseLogStore.getRecentLines?.(userId) || [];
+      const result = await oauthVerboseLogStore.getRecentLines?.(userId);
+      const reloadedLines = result?.lines || [];
       expect(reloadedLines.some(line => line.includes(logMessage))).toBe(true);
     }
   });

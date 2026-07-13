@@ -1,0 +1,11 @@
+[
+  {
+    "id": "token-event-1",
+    "userId": "persist-test-user",
+    "type": "TOKEN_EXCHANGE",
+    "timestamp": 1783949866168,
+    "tokenSub": "test-subject",
+    "scope": "banking",
+    "success": true
+  }
+]

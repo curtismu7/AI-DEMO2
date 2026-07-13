@@ -103,13 +103,27 @@ async function clear() {
 }
 
 function clearAllLogs() {
+  // Clear memory only (for restart simulation, we want to preserve the file)
   memoryLines.length = 0;
+}
+
+async function flush() {
+  // Force flush any buffered writes (currently synchronous, but API available for future async)
+  return Promise.resolve();
+}
+
+function reloadFromDisk() {
   try {
     const fp = _logFile();
-    if (fs.existsSync(fp)) fs.writeFileSync(fp, '', 'utf8');
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, 'utf8');
+      const lines = raw.split('\n').filter(Boolean);
+      memoryLines.length = 0;
+      memoryLines.push(...lines.slice(-MAX_LINES));
+    }
   } catch (e) {
-    console.error('[oauthVerboseLogStore] file clear failed:', e.message);
+    console.error('[oauthVerboseLogStore] reloadFromDisk failed:', e.message);
   }
 }
 
-module.exports = { appendLine, getRecentLines, clear, clearAllLogs, MAX_LINES };
+module.exports = { appendLine, getRecentLines, clear, clearAllLogs, flush, reloadFromDisk, MAX_LINES };
