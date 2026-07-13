@@ -61,13 +61,40 @@ test('a fully-matched PERMIT trace verdicts as verified', async () => {
   act(() => {
     tokenChainTraceStore.ingestTokenEvents([
       { id: 'user-token', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
-      { id: 'token-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-exchange1', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
     ]);
     tokenChainTraceStore.ingestAuthorize({ decisionId: 'd1', decision: 'PERMIT', useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
     tokenChainTraceStore.ingestMcpResult({ toolName: 'get_balance', status: 'success' });
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('delegated-access-with-proof:verified'));
   expect(getByTestId('vertical').textContent).toBe('banking');
+});
+
+test('a real RFC 8693 two-exchange trace (no literal "token-exchange" id) still matches the token-exchange evidence step', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    // Mirrors the real backend's two-exchange tokenEvents shape (live-captured
+    // from /api/mcp/tool): none of these ids is literally 'token-exchange', but
+    // several carry a structured exchangeStep field marking an actual exchange.
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: 'user-token', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-agent-actor', exchangeStep: '1-actor', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-agent-actor-verified', exchangeStep: '1-actor', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-exchange1', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-exchange1-verified', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-mcp-actor', exchangeStep: '2-actor', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-final-token', exchangeStep: '2-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-final-token-verified', exchangeStep: '2-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+    ]);
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'd1b', decision: 'PERMIT', useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+    tokenChainTraceStore.ingestMcpResult({ toolName: 'get_my_accounts', status: 'success' });
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('delegated-access-with-proof:verified'));
 });
 
 test('a DENY outcome for an attack use case verdicts as denied-as-expected', async () => {
