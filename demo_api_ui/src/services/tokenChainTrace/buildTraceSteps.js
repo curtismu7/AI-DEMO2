@@ -4,6 +4,7 @@
 export const LANES = {
   signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
+  "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
 };
 
@@ -22,6 +23,7 @@ const TITLES = {
   exchange: "Token exchange — delegation",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
+  "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   mcp: "MCP server — tool executes",
@@ -42,6 +44,7 @@ const NARRATIVES = {
   exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
+  "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
@@ -211,6 +214,21 @@ export function buildTraceSteps(trace) {
       narrative: "PingOne Authorize did not demand step-up for this action — no HITL/CIBA/MFA challenge was required.",
     }));
   }
+
+  // 7b. intent-binding — RAR (RFC 9396) intent verification, conceptually part
+  // of the authorize decision; kept as its own step in the AUTHZ lane.
+  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified");
+  const intentDeniedEvent = (tokenEvents || []).find(
+    (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
+  );
+  const intentBindingStatus = intentVerifiedEvent
+    ? "done"
+    : intentDeniedEvent
+    ? "error"
+    : traceComplete
+    ? "notinpath"
+    : "pending";
+  steps.push(makeStep("intent-binding", intentBindingStatus, { tokenEvent: intentVerifiedEvent || intentDeniedEvent || null }));
 
   // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
   // (the BFF's own signal that this leg was never part of the run: mTLS off,

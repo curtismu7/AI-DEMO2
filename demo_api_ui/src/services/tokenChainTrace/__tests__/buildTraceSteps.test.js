@@ -7,14 +7,14 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 12 happy-path steps, all pending", () => {
+  test("returns the 13 happy-path steps, all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
       "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "authorize", "intent-binding", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
   });
 });
 
@@ -326,5 +326,35 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
       phases: [{ phase: "mfa_challenge_initiated", label: "HITL — MFA challenge", detail: "" }],
     });
     expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+});
+
+describe("buildTraceSteps — intent-binding step", () => {
+  test("pending with no tokenEvents", () => {
+    const steps = buildTraceSteps(EMPTY_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("pending");
+  });
+
+  test("done when an intent-binding-verified event is present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "intent-binding-verified", label: "Intent Verified (RAR — RFC 9396)", status: "active" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("done");
+  });
+
+  test("error when a gateway deny carries rar_unexpected_deny or rar_amount_exceeded", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "sim-gateway-deny", label: "Gateway DENY (rar_amount_exceeded)", status: "error", error: "rar_amount_exceeded" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("error");
   });
 });
