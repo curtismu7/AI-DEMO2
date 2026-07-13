@@ -144,6 +144,9 @@ const S = {
     color: /DENY/.test(effect || '') ? '#991b1b' : '#166534',
   }),
   polDisabled: { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: '#f3f4f6', color: '#6b7280' },
+  polTestActions: { display: 'flex', gap: '10px', marginTop: '6px' },
+  polTestBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline' },
+  pendingLabel: { fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' },
 };
 
 const TX_TYPES = ['transfer', 'withdrawal', 'deposit'];
@@ -558,7 +561,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
 // ---------------------------------------------------------------------------
 // Authorization policy tree — one recursive node (Policy Set → Policy → Rule)
 // ---------------------------------------------------------------------------
-function PolicyNode({ node }) {
+function PolicyNode({ node, onTestRule }) {
   if (!node) return null;
   const kindLabel = { POLICY_SET: 'Policy Set', POLICY: 'Policy', RULE: 'Rule' }[node.kind] || node.kind;
   return (
@@ -571,9 +574,15 @@ function PolicyNode({ node }) {
         {!node.enabled && <span style={S.polDisabled}>disabled</span>}
       </div>
       {node.description && <p style={S.polDesc}>{node.description}</p>}
+      {node.kind === 'RULE' && node.testCases && (
+        <div style={S.polTestActions}>
+          <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'trigger', ...node.testCases.trigger })}>Trigger →</button>
+          <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'avoid', ...node.testCases.avoid })}>Avoid →</button>
+        </div>
+      )}
       {node.children?.length > 0 && (
         <div style={S.polChildren}>
-          {node.children.map((c) => <PolicyNode key={c.id} node={c} />)}
+          {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} />)}
         </div>
       )}
     </div>
@@ -584,7 +593,7 @@ function PolicyNode({ node }) {
 // decision endpoints actually enforce — distinct from the endpoints themselves.
 // The tree is fetched once at the page level and passed in via `state` so the
 // Evaluate panel's decision-trace diagram can reuse it without a second fetch.
-function PoliciesCard({ state }) {
+function PoliciesCard({ state, onTestRule }) {
   const ruleCount = (nodes) => nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
 
   return (
@@ -612,7 +621,7 @@ function PoliciesCard({ state }) {
                 source (e.g. the repo snapshot) — show it above, don't hide the tree. */}
             {state.note ? <div style={{ ...S.empty, marginBottom: '10px' }}>{state.note}</div> : null}
             <div style={S.polTree}>
-              {state.policies.map((p) => <PolicyNode key={p.id} node={p} />)}
+              {state.policies.map((p) => <PolicyNode key={p.id} node={p} onTestRule={onTestRule} />)}
             </div>
           </>
         )}
