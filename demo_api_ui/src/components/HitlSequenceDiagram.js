@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
+import TokenStepIndicator from "./TokenStepIndicator";
 
 // ─── Token card components (copied from SequenceDiagramPage.js) ─────────────
 
@@ -345,16 +346,12 @@ function StepInfoPanel({
           marginBottom: "0.5rem",
         }}
       >
-        <div
-          style={{
-            fontSize: "1.1rem",
-            fontWeight: 700,
-            color: "#0f172a",
-            marginBottom: "0.25rem",
-          }}
-        >
-          Step {activeStep.step} of {totalSteps}
-        </div>
+        <TokenStepIndicator
+          currentStep={activeStep.step}
+          totalSteps={totalSteps}
+          compact={false}
+          showLabel={true}
+        />
         <div
           style={{
             fontSize: "1.25rem",
