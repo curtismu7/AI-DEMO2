@@ -1,0 +1,30 @@
+/* demo_api_ui/src/components/ProofStrip.css */
+.proof-strip {
+  margin-top: 8px;
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+  border: 1px solid #16a34a;
+  background: #e9f7ef;
+}
+.proof-strip--mismatch, .proof-strip--incomplete {
+  border-color: #d97706;
+  background: #fdf1e0;
+}
+.proof-strip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 650;
+  margin-bottom: 6px;
+}
+.proof-strip-chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  color: #57667a;
+}
+.proof-strip-step { color: #17212e; }
+.proof-strip-arrow { color: #8695a8; }

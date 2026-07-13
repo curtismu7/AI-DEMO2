@@ -23,6 +23,7 @@ import {
 import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../AIAgent";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
+import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
 import * as demoAgentNlService from "../../services/demoAgentNlService";
 import * as configService from "../../services/configService";
 import * as demoAgentService from "../../services/demoAgentService";
@@ -194,9 +195,11 @@ const adminUser = {
 function renderAgent(props = {}) {
   return render(
     <MemoryRouter>
-      <ActivityNarrativeProvider>
-        <AIAgent {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }
@@ -629,9 +632,11 @@ describe("Chips when not logged in", () => {
 function renderAgentAtAccounts(props = {}) {
   return render(
     <MemoryRouter initialEntries={["/accounts"]}>
-      <ActivityNarrativeProvider>
-        <AIAgent {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }

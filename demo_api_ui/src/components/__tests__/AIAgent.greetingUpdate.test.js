@@ -12,6 +12,7 @@ import { MemoryRouter } from "react-router-dom";
 import React from "react";
 import AIAgent from "../AIAgent";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
+import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
 
 const customerUser = {
   id: "u1",
@@ -90,7 +91,7 @@ vi.mock("../../utils/appToast", () => ({
 vi.mock("../BankingAgent.css", () => ({}), { virtual: true });
 
 function renderAgent(props = {}) {
-  return render(<MemoryRouter><ActivityNarrativeProvider><AIAgent {...props} /></ActivityNarrativeProvider></MemoryRouter>);
+  return render(<MemoryRouter><ProofOfEnforcementProvider><ActivityNarrativeProvider><AIAgent {...props} /></ActivityNarrativeProvider></ProofOfEnforcementProvider></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -106,7 +107,7 @@ test("greeting updates to vertical manifest greeting when themeAgent resolves af
 
   // Simulate manifest arriving: set themeAgent and re-render
   mockThemeAgent = { greeting: "Hi {name}! Browse our products. What would you like to do?" };
-  rerender(<MemoryRouter><ActivityNarrativeProvider><AIAgent user={customerUser} mode="inline" /></ActivityNarrativeProvider></MemoryRouter>);
+  rerender(<MemoryRouter><ProofOfEnforcementProvider><ActivityNarrativeProvider><AIAgent user={customerUser} mode="inline" /></ActivityNarrativeProvider></ProofOfEnforcementProvider></MemoryRouter>);
 
   expect(screen.getByText(/browse our products/i)).toBeInTheDocument();
   expect(screen.queryByText(/check your balances/i)).not.toBeInTheDocument();

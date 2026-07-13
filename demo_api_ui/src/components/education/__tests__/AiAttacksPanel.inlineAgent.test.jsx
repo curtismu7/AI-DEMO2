@@ -18,6 +18,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../../AIAgent";
 import { ActivityNarrativeProvider } from "../../../context/ActivityNarrativeContext";
+import { ProofOfEnforcementProvider } from "../../../context/ProofOfEnforcementContext";
 import * as demoAgentNlService from "../../../services/demoAgentNlService";
 import * as configService from "../../../services/configService";
 import * as demoAgentService from "../../../services/demoAgentService";
@@ -134,9 +135,11 @@ const customerUser = {
 function renderInlineAgent(props = {}) {
   return render(
     <MemoryRouter>
-      <ActivityNarrativeProvider>
-        <AIAgent user={customerUser} mode="inline" {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent user={customerUser} mode="inline" {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }

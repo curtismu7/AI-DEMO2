@@ -17,6 +17,7 @@ import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
+import ProofStrip from './ProofStrip';
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
@@ -8750,7 +8751,12 @@ export default function BankingAgent({
                       msg.role === "error" ||
                       (showRfcInfo && msg.role === "token-event"),
                   )
-                  .map((msg) => {
+                  .map((msg, msgIdx, filteredMsgs) => {
+                    const isLastAssistantMsg =
+                      msg.role === "assistant" &&
+                      !filteredMsgs
+                        .slice(msgIdx + 1)
+                        .some((m) => m.role === "assistant");
                     if (msg.role === "reasoning") {
                       return (
                         <div
@@ -8972,6 +8978,7 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
+                          {isLastAssistantMsg && <ProofStrip />}
                         </div>
                       </div>
                     );
