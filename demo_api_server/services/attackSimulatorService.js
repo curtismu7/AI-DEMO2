@@ -502,7 +502,10 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       reason,
       { error: errorCode }
     ));
-    return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
+    return {
+      sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents,
+      triedAudience: wrongAud, allowedAudience: gatewayAud,
+    };
   }
 
   const decoded = decodeJwtClaims(exchangedToken);
@@ -542,6 +545,7 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — audience validation may not be active',
       tokenChainEvents,
+      triedAudience: wrongAud, allowedAudience: gatewayAud,
     };
   } catch (err) {
     const { errorCode: rawCode, httpStatus, reason } = _parseGatewayError(err, 401);
@@ -556,7 +560,10 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       { error: errorCode, httpStatus }
     ));
     _stampUseCaseId(tokenChainEvents, useCaseId);
-    return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+    return {
+      sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
+      triedAudience: wrongAud, allowedAudience: gatewayAud,
+    };
   }
 }
 
