@@ -1,6 +1,6 @@
 'use strict';
 
-const {deriveUseCaseId, isValidUseCaseId} = require('../../config/useCases');
+const {deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId} = require('../../config/useCases');
 
 describe('deriveUseCaseId (organic reverse-map)', () => {
   test('transfer amounts map to the authorize bands', () => {
@@ -44,6 +44,24 @@ describe('isValidUseCaseId (catalog guard)', () => {
 
   test('rejects the numeric id form (UC7) — only slugs are valid', () => {
     expect(isValidUseCaseId('UC7')).toBe(false);
+  });
+});
+
+describe('resolveChipUseCaseId (client-supplied wins, else organic derivation)', () => {
+  test('a valid client-supplied id wins outright', () => {
+    expect(resolveChipUseCaseId('step-up-required', 'get_balance', {}, 'banking')).toBe('step-up-required');
+  });
+
+  test('an invalid client-supplied id is ignored in favor of derivation', () => {
+    expect(resolveChipUseCaseId('not-a-real-slug', 'get_balance', {}, 'banking')).toBe('delegated-access-with-proof');
+  });
+
+  test('no client-supplied id falls back to organic derivation', () => {
+    expect(resolveChipUseCaseId('', 'create_transfer', { amount: 600 }, 'banking')).toBe('step-up-required');
+  });
+
+  test('empty/undefined client id and an unmapped tool returns undefined', () => {
+    expect(resolveChipUseCaseId(undefined, 'list_branches', {}, 'banking')).toBeUndefined();
   });
 });
 

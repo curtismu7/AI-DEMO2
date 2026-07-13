@@ -28,8 +28,8 @@ const structuredLogger = require('./services/structuredLogger');
 const {
     mcpNoBearerResponse
 } = require('./services/bffSessionGating');
-const { stampUseCaseId } = require('./services/useCaseTagging');
-const { deriveUseCaseId } = require('./config/useCases');
+const { stampUseCaseId, stampVertical } = require('./services/useCaseTagging');
+const { deriveUseCaseId, resolveChipUseCaseId } = require('./config/useCases');
 
 const express = require('express');
 const cors = require('cors');
@@ -1777,8 +1777,10 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
 
     const _gwEnabled = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url'));
     const gatewayUrl = _gwEnabled ? mcpGatewayClient.getMcpGatewayHttpUrl() : null;
+    const _resolvedUseCaseId = resolveChipUseCaseId(useCaseId, tool, params, req.body?.vertical);
     const ctx = {
       tool, params, flowTraceId, startTime, req,
+      useCaseId: _resolvedUseCaseId, vertical: req.body?.vertical,
       deps: {
         resolveMcpAccessTokenWithEvents,
         evaluateMcpFirstToolGate: (a) => mcpToolAuthorizationService.evaluateMcpFirstToolGate(a),
@@ -1922,12 +1924,11 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
       outcome.body.tokenEvents = [_itEvent, ...outcome.body.tokenEvents];
     }
 
-    // Stamp useCaseId on chip-path token events (A2.2).
-    // Derive from tool name if the caller didn't supply one.
-    // stampUseCaseId never overwrites a launcher-supplied tag.
-    const _chipUseCaseId = useCaseId || deriveUseCaseId(tool, params, req.body?.vertical);
-    if (_chipUseCaseId && outcome.body && Array.isArray(outcome.body.tokenEvents)) {
-      stampUseCaseId(outcome.body.tokenEvents, _chipUseCaseId);
+    // Stamp useCaseId on chip-path token events (A2.2). stampUseCaseId never
+    // overwrites a launcher-supplied tag. Resolved once, above, into ctx.useCaseId.
+    if (_resolvedUseCaseId && outcome.body && Array.isArray(outcome.body.tokenEvents)) {
+      stampUseCaseId(outcome.body.tokenEvents, _resolvedUseCaseId);
+      stampVertical(outcome.body.tokenEvents, req.body?.vertical);
     }
 
     return renderOutcome(res, outcome);
