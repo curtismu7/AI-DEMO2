@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './ActorTokenEducation.module.css';
+import TokenChainTraceRail from './TokenChainTraceRail';
 
 /**
  * ActorTokenEducation Component
@@ -177,6 +178,20 @@ export const ActorTokenEducation: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className={styles.liveDemo}>
+        <h3>Live Actor Token Flow</h3>
+        <p>
+          Below is the real token transformation happening as agents act on your behalf. Watch the delegation chain
+          build as the agent performs actions. Notice how the "act" claim tracks the agent's identity throughout the chain.
+        </p>
+        <div style={{ borderRadius: '8px', border: '1px solid #bbf7d0', background: '#f0fdf4', padding: '12px', marginTop: '12px', maxHeight: '400px', overflowY: 'auto' }}>
+          <TokenChainTraceRail />
+        </div>
+        <p style={{ fontSize: '13px', color: '#64748b', marginTop: '12px' }}>
+          Go to the dashboard and request an agent action (e.g., "Check my balance") to see the actor token transform in real time above.
+        </p>
       </div>
 
       <div className={styles.relatedResources}>
