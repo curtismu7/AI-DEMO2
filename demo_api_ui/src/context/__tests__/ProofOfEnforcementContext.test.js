@@ -28,6 +28,12 @@ const CATALOG = [
     expectedOutcome: 'HITL_REQUIRED',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
   },
+  {
+    useCaseId: 'ranked-results-demo',
+    title: 'Ranked results demo',
+    expectedOutcome: 'RANKED_RESULTS',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+  },
 ];
 
 function Probe() {
@@ -117,6 +123,22 @@ test('a HITL_REQUIRED block outcome (no decision field) verdicts as denied-as-ex
     tokenChainTraceStore.ingestAuthorize({ decisionId: 'd5', decisionContext: 'McpFirstTool', useCaseId: 'hitl-consent' });
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('hitl-consent:denied-as-expected'));
+});
+
+test('a RANKED_RESULTS success outcome with a real PERMIT decision verdicts as verified, not mismatch', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    // The backend always emits 'PERMIT' as trace.authorize.decision for permits,
+    // regardless of the catalog's specific non-PERMIT success-outcome label
+    // (RANKED_RESULTS here). This must NOT read as a mismatch.
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'd6', decision: 'PERMIT', useCaseId: 'ranked-results-demo' });
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('ranked-results-demo:verified'));
 });
 
 test('untagged events produce no verdict', async () => {

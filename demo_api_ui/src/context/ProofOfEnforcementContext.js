@@ -70,12 +70,25 @@ export function computeVerdict(trace, catalogEntry) {
 
   const decision = decisionOf(trace);
   const expected = catalogEntry.expectedOutcome;
-  const outcomeMatches = !expected || !decision || expected === decision;
+  // The catalog's expectedOutcome is a narrative label (e.g. RANKED_RESULTS,
+  // CODE_CONTEXT, DELEGATE_AND_EXECUTE, GUIDED_DEMO, GUIDED_LEARNING,
+  // LIVE_MCP_TOOLS, PERMIT for successes; DENY/DENY_401/DENY_403/DENY_429/
+  // STEP_UP/HITL_REQUIRED for denials) — but the real backend only ever emits
+  // 'PERMIT' on trace.authorize.decision for a permit, never the specific
+  // success label. So "does the real decision satisfy expectations" is a
+  // binary question keyed on DENIED_LIKE_OUTCOMES membership, not a literal
+  // string match against `expected`.
+  const expectedIsDenyLike = !!expected && DENIED_LIKE_OUTCOMES.has(expected);
+  const outcomeMatches = !expected || !decision
+    ? true
+    : expectedIsDenyLike
+      ? decision !== 'PERMIT'
+      : decision === 'PERMIT';
   return {
     useCaseId,
     title: catalogEntry.title,
     state: outcomeMatches
-      ? (DENIED_LIKE_OUTCOMES.has(expected) ? 'denied-as-expected' : 'verified')
+      ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
       : 'mismatch',
     matchedSteps,
     missingSteps: [],
