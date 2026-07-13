@@ -3,7 +3,7 @@
 # UC19 — Non-human (agent) identity lifecycle
 
 **Track:** foundations  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T9, T13 · Sections: §3.3.6, §8
 
 ## Buyer Story

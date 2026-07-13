@@ -3,7 +3,7 @@
 # UC21 — Entitlement-tiered capability
 
 **Track:** controls  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T3 · Sections: §4.1.1, §5.1
 
 ## Buyer Story
@@ -16,7 +16,7 @@ PingOne group membership drives a per-tier tool set and amount limits; the user'
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 to savings`  
+**Trigger:** Chip message: `transfer $600 from checking to savings`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say

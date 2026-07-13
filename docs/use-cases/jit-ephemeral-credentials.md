@@ -3,7 +3,7 @@
 # UC17 — JIT / ephemeral credentials
 
 **Track:** controls  
-**Maturity:** 🏗️ `needs-build`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T3, T9 · Sections: §3.2.8, §4.1.1
 
 ## Buyer Story

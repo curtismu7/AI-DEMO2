@@ -16,7 +16,7 @@ PingOne Authorize evaluates the request and returns DENY; the gateway stops the 
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $2500 to savings`  
+**Trigger:** Chip message: `transfer $2500 from checking to savings`  
 **Expected outcome:** `DENY`
 
 ## What to Say

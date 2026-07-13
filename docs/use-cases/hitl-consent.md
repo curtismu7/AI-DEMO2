@@ -16,7 +16,7 @@ PingOne Authorize returns a HITL obligation; the agent pauses until a verified h
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $300 to savings`  
+**Trigger:** Chip message: `transfer $300 from checking to savings`  
 **Expected outcome:** `HITL_REQUIRED`
 
 ## What to Say

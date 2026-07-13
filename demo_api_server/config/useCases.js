@@ -490,6 +490,35 @@ const RAW_USE_CASES = [
       manufacturing: 'What plant locations are near me?',
     }),
   },
+  {
+    id: 'UC26',
+    useCaseId: 'proof-of-enforcement',
+    track: 'demo',
+    title: 'Proof of enforcement — live verdict on every use case',
+    buyerStory: "Buyers shouldn't have to trust the chat reply — every enforcement decision should be visibly, verifiably proven on screen, not just claimed.",
+    pingOneSolution: 'Every tool call is tagged end-to-end with the triggering useCaseId and active vertical (chip, launcher, or attack sim; any agent mode), stamped onto the token chain, the PingOne Authorize decision, and the activity log. A client-side verdict engine compares what actually happened against each use case\'s declared evidence and expected outcome, then renders the result live.',
+    trigger: { type: 'link', path: '/use-cases', label: 'Trigger any use case below and watch the verdict appear' },
+    expectedOutcome: 'GUIDED_DEMO',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_ui/src/context/ProofOfEnforcementContext.js',
+      'demo_api_ui/src/components/ProofStrip.jsx',
+      'demo_api_ui/src/components/VerifiedBanner.jsx',
+      'demo_api_ui/src/components/education/TokenChainPanel.js',
+      'demo_api_server/services/useCaseTagging.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§8'] },
+    whatToSay: 'You don\'t have to take the agent\'s word for it — watch the verdict prove it, live, for whatever you just triggered.',
+    advanced: false,
+    whatLong: 'A cross-cutting capability, not a single narrative: whenever any of the use cases above fires (chip, Use-Case Launcher, or attack simulation, in Heuristics or any LLM mode), three surfaces render a verdict comparing the real trace against that use case\'s declared evidence — an inline strip under the chat reply, a use-case-aware checklist card in the Token Chain panel, and a room-facing "Verified" banner that expands into the full trace. States: verified, denied-as-expected (for attacks/step-up/HITL), mismatch (the real outcome contradicted what was expected — the signal this feature exists to surface), and incomplete (evidence still arriving).',
+    businessValue: 'Turns "trust the demo" into "watch the proof" — every enforcement claim in every other use case on this page is independently, visibly verified rather than asserted.',
+    productRoles: {
+      idp:   'PingOne Authorize\'s real decision is what the verdict is checked against — nothing is simulated for this capability.',
+      gw:    'Every tool call is tagged with useCaseId + vertical before dispatch, so the authorize decision and activity log carry it end to end.',
+    },
+    primaryTool: null,
+  },
 
   // --- ATTACKS ---
   {

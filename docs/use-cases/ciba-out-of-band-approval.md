@@ -16,7 +16,7 @@ PingOne CIBA sends a backchannel auth request; the agent polls for the auth_req_
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 to savings`  
+**Trigger:** Chip message: `transfer $600 from checking to savings`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say
