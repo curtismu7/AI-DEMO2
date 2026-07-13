@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./AccessIdTokenPathPage.css";
 
 function ClaimsList({ title, claims }) {
@@ -119,6 +120,17 @@ export default function AccessIdTokenPathPage() {
           />
           <ClaimsList title="ID Token Claims" claims={data.idTokenClaims} />
         </div>
+
+        <section className="aitp-learning">
+          <h2 className="aitp-learning-title">Token chain — Learning path</h2>
+          <p className="aitp-learning-intro">
+            Below is the full token flow that just completed. Each step shows how both your
+            access token and id_token were validated and their claims decoded by the backend.
+          </p>
+          <div className="aitp-token-rail">
+            <TokenChainTraceRail />
+          </div>
+        </section>
       </div>
       <div className="aitp-actions">
         <button

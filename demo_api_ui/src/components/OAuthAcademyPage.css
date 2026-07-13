@@ -307,7 +307,25 @@
   max-width: 780px;
   width: 100%;
   margin: 0 auto;
-  padding: 0 1.5rem 1.25rem;
+  padding: 1.25rem 1.5rem;
   box-sizing: border-box;
   flex-shrink: 0;
+  border-top: 1px solid #e2e8f0;
+  background: #f0fdf4;
+}
+
+.oauth-academy-page .oa-token-chain-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.oauth-academy-page .oa-token-chain-wrapper .tctr {
+  background: #fff;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 12px;
 }

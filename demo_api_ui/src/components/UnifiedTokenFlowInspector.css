@@ -1202,3 +1202,46 @@
 .utfi-detailed-steps-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Tab navigation */
+.utfi-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0;
+  margin: 0;
+}
+
+.utfi-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 150ms ease;
+}
+
+.utfi-tab:hover {
+  color: #1e40af;
+  background: #fff;
+}
+
+.utfi-tab--active {
+  color: #1e40af;
+  border-bottom-color: #1e40af;
+  background: #fff;
+}
+
+/* Chain view */
+.utfi-chain-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}

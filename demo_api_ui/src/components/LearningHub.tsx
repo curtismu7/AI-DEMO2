@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useEducationUI } from "../context/EducationUIContext";
 import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./LearningHub.css";
 
 interface LearningCategory {
@@ -575,6 +576,20 @@ export default function LearningHub() {
           </section>
         ))}
       </div>
+
+      {!searchQuery && (
+        <section className="learning-hub__live-demo">
+          <h2 className="learning-hub__live-demo-title">Live Token Chain Demo</h2>
+          <p className="learning-hub__live-demo-description">
+            As you explore the topics above and request agent actions from the dashboard,
+            watch the token transformation happen in real-time below. This shows exactly
+            how tokens flow through the system during OAuth flows, token exchange, and delegation.
+          </p>
+          <div className="learning-hub__chain-container">
+            <TokenChainTraceRail />
+          </div>
+        </section>
+      )}
 
       {filteredCategories.length === 0 && (
         <div className="learning-hub__no-results">

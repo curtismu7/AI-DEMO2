@@ -1,6 +1,9 @@
 // banking_api_ui/src/components/education/TokenChainEducationPanel.js
+import React, { useState, useEffect } from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
+import TokenChainTraceRail from '../TokenChainTraceRail';
+import TokenStepIndicator from '../TokenStepIndicator';
 
 function OverviewTab() {
   return (
@@ -391,17 +394,55 @@ function TransactionTokensTab() {
 }
 
 
+function LiveDemoTab() {
+  return (
+    <div>
+      <h3 style={{ marginTop: 0 }}>Live Token Chain Visualization</h3>
+      <p>
+        The <strong>Token Chain Trace Rail</strong> below shows the complete RFC 8693 token exchange flow in real time
+        as you interact with the agent. Watch each step:
+      </p>
+      <ul>
+        <li><strong>User Token</strong> — Your login token with initial scopes</li>
+        <li><strong>Agent Token</strong> — Agent's client_credentials (if 2-exchange mode)</li>
+        <li><strong>Exchange Steps</strong> — RFC 8693 exchanges narrowing scopes</li>
+        <li><strong>MCP Token</strong> — Final delegated token for the tool call</li>
+      </ul>
+      <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem' }}>
+        Go back to the dashboard and perform a tool action (e.g., "Check my balance") to see the token chain update in real time.
+      </p>
+      <div style={{ marginTop: '1rem', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', padding: '12px', maxHeight: '400px', overflow: 'auto' }}>
+        <TokenChainTraceRail />
+      </div>
+    </div>
+  );
+}
+
 export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId }) {
   const tokenChain = useTokenChainOptional();
   const liveIdentity = tokenChain?.resolvedIdentity ?? null;
+  const [activeTabId, setActiveTabId] = useState(null);
 
   const tabs = [
     { id: 'overview', label: 'Overview', content: <OverviewTab /> },
     { id: 'jwt-claims', label: 'JWT Claims', content: <JwtClaimsTab liveIdentity={liveIdentity} /> },
     { id: 'exchange-paths', label: 'Exchange Paths', content: <ExchangePathsTab /> },
     { id: 'examples', label: 'Examples', content: <ExamplesTab /> },
+    { id: 'live-demo', label: 'Live Demo', content: <LiveDemoTab /> },
     { id: 'transaction-tokens', label: 'Transaction Tokens', content: <TransactionTokensTab /> },
   ];
+
+  const activeTabIndex = activeTabId ? tabs.findIndex(t => t.id === activeTabId) : 0;
+
+  const stepIndicator = (
+    <TokenStepIndicator
+      currentStep={activeTabIndex + 1}
+      totalSteps={tabs.length}
+      stepLabels={tabs.map(t => t.label)}
+      compact={true}
+      showLabel={true}
+    />
+  );
 
   return (
     <EducationDrawer
@@ -411,6 +452,8 @@ export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId
       tabs={tabs}
       initialTabId={initialTabId}
       width="min(680px, 100vw)"
+      stepIndicator={stepIndicator}
+      onTabChange={setActiveTabId}
     />
   );
 }

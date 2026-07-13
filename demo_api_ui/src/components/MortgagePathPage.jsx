@@ -18,6 +18,7 @@
  */
 import { useNavigate, useLocation } from 'react-router-dom';
 import { formatCurrency, formatPercent } from '../utils/formatters';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import './MortgagePathPage.css';
 
 export default function MortgagePathPage() {
@@ -111,6 +112,17 @@ export default function MortgagePathPage() {
           <li><strong>Auth mechanism:</strong> {data.backend?.authMechanism || 'X-API-Key (shared secret)'}</li>
           <li><strong>Note:</strong> {data.backend?.note}</li>
         </ul>
+      </section>
+
+      <section className="mpp-card mpp-card--learning">
+        <h2 className="mpp-card-title">Token chain — Learning path</h2>
+        <p className="mpp-learning-intro">
+          Below is the full RFC 8693 token exchange flow that just completed. Each step shows
+          how credentials were transformed and verified as the request passed through the system.
+        </p>
+        <div className="mpp-token-rail">
+          <TokenChainTraceRail />
+        </div>
       </section>
 
       <div className="mpp-actions">
