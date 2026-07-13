@@ -1,0 +1,77 @@
+.intent-binding-page { max-width: 980px; margin: 0 auto; padding: 24px; }
+
+.ib-header-band {
+  background: linear-gradient(135deg, var(--brand-navy, #1d4ed8), var(--brand-navy-dark, #1e3a8a));
+  color: #fff;
+  border-radius: 12px;
+  padding: 24px 26px;
+}
+.ib-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd; }
+.ib-header-band h1 { margin: 8px 0 6px; font-size: 1.4rem; }
+.ib-header-band p { margin: 0; color: #cbd5e1; font-size: 0.9rem; max-width: 62ch; }
+
+.ib-pipeline {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.ib-step {
+  background: var(--surface-color, #fff);
+  border: 1px solid var(--border-color, #d8dde5);
+  border-radius: 9px;
+  padding: 12px;
+}
+.ib-step-num { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-secondary, #8991a0); }
+.ib-step h3 { margin: 4px 0 4px; font-size: 0.85rem; }
+.ib-step p { margin: 0; font-size: 0.76rem; color: var(--text-secondary, #5b6472); line-height: 1.4; }
+
+.ib-grant-card {
+  margin-top: 16px;
+  background: var(--surface-color, #fff);
+  border: 1px solid var(--border-color, #d8dde5);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.ib-grant-json {
+  margin: 8px 0 0;
+  background: #12182380;
+  color: #e6eaf1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  overflow-x: auto;
+}
+
+.ib-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 720px) { .ib-split { grid-template-columns: 1fr; } }
+
+.ib-col { border-radius: 10px; padding: 16px; border: 1px solid var(--border-color, #d8dde5); background: var(--surface-color, #fff); }
+.ib-col--permit { border-top: 3px solid var(--brand-success, #4caf50); }
+.ib-col--drift { border-top: 3px solid var(--brand-error, #f44336); }
+.ib-col-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.ib-col-head h2 { margin: 0; font-size: 0.95rem; }
+
+.ib-pill { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
+.ib-pill--permit { background: rgba(76, 175, 80, 0.12); color: var(--brand-success, #4caf50); border: 1px solid rgba(76, 175, 80, 0.3); }
+.ib-pill--drift { background: rgba(244, 67, 54, 0.12); color: var(--brand-error, #f44336); border: 1px solid rgba(244, 67, 54, 0.3); }
+
+.ib-amount { font-size: 1.4rem; font-weight: 700; font-family: var(--font-family-mono); margin: 4px 0; }
+.ib-amount small { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary, #8991a0); font-weight: 500; }
+.ib-rationale { font-size: 0.82rem; color: var(--text-secondary, #5b6472); line-height: 1.5; min-height: 3.2em; }
+
+.ib-controls { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.ib-controls input[type="number"] { width: 84px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color, #d8dde5); }
+.ib-controls button { font-weight: 600; font-size: 0.85rem; padding: 8px 14px; border-radius: 7px; border: none; cursor: pointer; color: #fff; background: var(--brand-navy, #1d4ed8); }
+.ib-controls button:disabled { opacity: 0.6; cursor: default; }
+
+.ib-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.82rem; }
+.ib-status--permit { background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); }
+.ib-status--deny, .ib-status--error { background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); }
+.ib-status ul { margin: 6px 0 0; padding-left: 18px; }
+
+.ib-live-toggle { margin-top: 16px; padding: 12px 16px; background: var(--surface-secondary, #eef1f5); border-radius: 8px; font-size: 0.85rem; }
+.ib-edu-link { margin-top: 12px; font-size: 0.85rem; }
+.ib-link-btn { background: none; border: none; padding: 0; color: var(--brand-navy, #1d4ed8); text-decoration: underline; cursor: pointer; font: inherit; }

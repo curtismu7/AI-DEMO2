@@ -135,6 +135,7 @@ import PublicRoutes, {
   ConfigurePage,
   CopilotPageRoute,
   GraphifyPageRoute,
+  IntentBindingLearningPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
@@ -440,6 +441,12 @@ function AppWithAuth() {
                 <Route
                   path="/authz-test"
                   element={<AuthzTestPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/intent-binding-learning"
+                  element={
+                    <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"

@@ -266,9 +266,14 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
  *
  * @param {string} sim - The attack sim id ('insufficient-scope' or 'wrong-aud')
  * @param {object} req - Express request (for session + useCaseId)
+ * @param {number} [attackAmount] - Optional override for the rar-exceeded attack
+ *   amount (Intent Binding demo's 'drift' column). Ignored by every other sim.
+ *   When omitted, _runRarExceeded falls back to its default of 500 — so the
+ *   UC14 attack-sim entry point (routes/attackSimulator.js, which never passes
+ *   this arg) is unaffected.
  * @returns {Promise<{sim, status, errorCode, reason, tokenChainEvents, useCaseId}>}
  */
-async function runAttackSim(sim, req) {
+async function runAttackSim(sim, req, attackAmount) {
   const subjectToken = req?.session?.oauthTokens?.accessToken;
   if (!subjectToken) {
     return {
@@ -310,7 +315,7 @@ async function runAttackSim(sim, req) {
   }
 
   if (sim === 'rar-exceeded') {
-    return _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req);
+    return _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, attackAmount);
   }
 
   if (sim === 'tampered-intent-token') {
@@ -843,11 +848,16 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents) {
 
 /**
  * UC14 rar-exceeded: TraT/RAR grants $100 but the agent attempts a larger transfer.
+ *
+ * @param {number} [attackAmount] - Amount to attempt in the create_transfer call.
+ *   Defaults to 500 (the original UC14 hardcoded value) when not a finite positive
+ *   number — this is what keeps routes/attackSimulator.js's existing callers
+ *   (which never pass this arg) behaving exactly as before.
  */
-async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
+async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, attackAmount) {
   const sim = 'rar-exceeded';
   const grantedAmount = 100;
-  const attackAmount = 500;
+  const finalAttackAmount = Number.isFinite(attackAmount) && attackAmount > 0 ? attackAmount : 500;
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -901,7 +911,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
     'active',
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
-    `Attack attempts create_transfer for $${attackAmount}.`,
+    `Attack attempts create_transfer for $${finalAttackAmount}.`,
     { authorization_details: rarDetails },
   ));
 
@@ -910,7 +920,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
       null,
       exchanged.token,
       'create_transfer',
-      { amount: attackAmount, to_account_id: 'sim-acc-001' },
+      { amount: finalAttackAmount, to_account_id: 'sim-acc-001' },
       { tratContextHeader },
     );
     tokenChainEvents.push(buildTokenEvent(
@@ -932,6 +942,128 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
       'Gateway DENY (rar_amount_exceeded)',
     );
   }
+}
+
+/**
+ * Intent Binding demo (PERMIT path): mints the same $100 RAR grant UC14's
+ * attack path denies, but requests a transfer within the granted cap. The
+ * gateway/authz PERMIT and the response carries an 'intent-binding-verified'
+ * token event — the legitimate counterpart to UC14's DENY.
+ */
+async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, requestedAmount) {
+  const sim = 'rar-permit';
+  const grantedAmount = 100;
+  const amount = Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : grantedAmount;
+
+  try {
+    await configStore.setRaw({ ff_rar: 'true' });
+  } catch (err) {
+    return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
+  }
+
+  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  if (!pushResult.ok) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-arm-failed',
+      'Gateway RAR arm failed (non-fatal)',
+      'warning',
+      null,
+      pushResult.error || 'Could not arm requireRarIntent on gateway',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'Gateway RAR enforcement armed (Intent Binding demo)',
+      'active',
+      null,
+      'requireRarIntent enabled on Demo Agent Gateway for this call.',
+    ));
+  }
+
+  const exchanged = await _exchangeGatewayToken(
+    subjectToken, ['read', 'write', 'transfer'], useCaseId, tokenChainEvents, sim,
+  );
+  if (!exchanged.ok) return exchanged.result;
+
+  const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+  const rarDetails = buildRarAuthorizationDetails(
+    'create_transfer',
+    { amount: grantedAmount, to_account_id: 'sim-acc-001' },
+    userSub,
+  );
+  const tratCtx = buildTratContext(
+    req,
+    'create_transfer',
+    userSub,
+    configStore.getEffective('pingone_ai_agent_actor_client_id') || '',
+    configStore.getEffective('admin_client_id') || '',
+    { rarDetails },
+  );
+  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-rar-grant',
+    `RAR grant ($${grantedAmount})`,
+    'active',
+    null,
+    `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
+    `This call requests $${amount}, within the granted cap.`,
+    { authorization_details: rarDetails },
+  ));
+
+  try {
+    await callToolViaGateway(
+      null,
+      exchanged.token,
+      'create_transfer',
+      { amount, to_account_id: 'sim-acc-001' },
+      { tratContextHeader },
+    );
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
+      'Gateway DENY (unexpected — requested amount was within the granted cap)',
+    );
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'intent-binding-verified',
+    'Intent Verified (RAR — RFC 9396)',
+    'active',
+    null,
+    `Gateway PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
+    'The MCP gateway and PingOne Authorize confirmed the transfer matches the declared intent.',
+    { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
+  ));
+  _stampUseCaseId(tokenChainEvents, useCaseId);
+  return { sim, useCaseId, status: 200, errorCode: null, reason: 'PERMIT — within granted RAR cap', tokenChainEvents };
+}
+
+/**
+ * Public entry point for the Intent Binding learning-page demo. 'drift' reuses
+ * the existing UC14 attack path unchanged (it already demonstrates the DENY
+ * side); 'permit' is the new legitimate counterpart above.
+ */
+async function runIntentBindingDemo(action, req, requestedAmount) {
+  if (action === 'drift') {
+    return runAttackSim('rar-exceeded', req, requestedAmount);
+  }
+  if (action !== 'permit') {
+    return {
+      sim: null, useCaseId: null, status: 400, errorCode: 'unknown_action',
+      reason: `Unknown action: ${action}`, tokenChainEvents: [],
+    };
+  }
+  const subjectToken = req?.session?.oauthTokens?.accessToken;
+  if (!subjectToken) {
+    return {
+      sim: 'rar-permit', useCaseId: null, status: 401, errorCode: 'no_session_token',
+      reason: 'No access token in session — user must be logged in', tokenChainEvents: [],
+    };
+  }
+  const useCaseId = 'rar-intent-verified';
+  const tokenChainEvents = [];
+  return _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, requestedAmount);
 }
 
 /**
@@ -1073,4 +1205,4 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 }
 
-module.exports = { runAttackSim, _exchangeSimToken };
+module.exports = { runAttackSim, runIntentBindingDemo, _exchangeSimToken };
