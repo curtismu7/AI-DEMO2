@@ -140,24 +140,33 @@ async def _stream(
             async for event in result.stream_events():
                 await _handle_sdk_event(event, emitter)
             if contains_commitment_claim(emitter._turn_reply_text):
-                async def _chat_fn(prompt: str) -> str:
-                    completion = await client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0,
-                    )
-                    return completion.choices[0].message.content or ""
+                try:
+                    async def _chat_fn(prompt: str) -> str:
+                        completion = await client.chat.completions.create(
+                            model=model,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=0,
+                        )
+                        return completion.choices[0].message.content or ""
 
-                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
-                check = await validator.async_validate(
-                    emitter._turn_reply_text, {"tool_calls": emitter._turn_tool_calls}
-                )
-                if isinstance(check, FailResult):
-                    await emitter.on_grounding_correction(
-                        original=emitter._turn_reply_text,
-                        corrected=check.fix_value,
-                        note=check.error_message,
+                    validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                    check = await validator.async_validate(
+                        emitter._turn_reply_text, {"tool_calls": emitter._turn_tool_calls}
                     )
+                    if isinstance(check, FailResult):
+                        await emitter.on_grounding_correction(
+                            original=emitter._turn_reply_text,
+                            corrected=check.fix_value,
+                            note=check.error_message,
+                        )
+                except Exception:
+                    # Fail open on ANY error in the grounding-check block (not
+                    # just the LLM call, which the validator itself already
+                    # fails open on internally) -- e.g. CommitmentGroundingValidator
+                    # construction raising ValueError when ~/.guardrailsrc is
+                    # missing. Never block or alter an already-streamed reply
+                    # on a grounding-check error.
+                    logger.exception("[grounding] guardrail check failed; failing open")
             usage = getattr(result, "usage", None)
             if usage:
                 await emitter.on_usage(

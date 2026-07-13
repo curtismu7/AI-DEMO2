@@ -1106,20 +1106,29 @@ class MessageProcessor:
             await emitter.on_llm_end()
 
         if contains_commitment_claim(turn_reply_text):
-            async def _chat_fn(prompt: str) -> str:
-                resp = await run_llm.ainvoke([HumanMessage(content=prompt)])
-                return _content_to_text(getattr(resp, "content", ""))
+            try:
+                async def _chat_fn(prompt: str) -> str:
+                    resp = await run_llm.ainvoke([HumanMessage(content=prompt)])
+                    return _content_to_text(getattr(resp, "content", ""))
 
-            validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
-            check = await validator.async_validate(
-                turn_reply_text, {"tool_calls": turn_tool_calls}
-            )
-            if isinstance(check, FailResult):
-                await emitter.on_grounding_correction(
-                    original=turn_reply_text,
-                    corrected=check.fix_value,
-                    note=check.error_message,
+                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                check = await validator.async_validate(
+                    turn_reply_text, {"tool_calls": turn_tool_calls}
                 )
+                if isinstance(check, FailResult):
+                    await emitter.on_grounding_correction(
+                        original=turn_reply_text,
+                        corrected=check.fix_value,
+                        note=check.error_message,
+                    )
+            except Exception:
+                # Fail open on ANY error in the grounding-check block (not
+                # just the LLM call, which the validator itself already
+                # fails open on internally) -- e.g. CommitmentGroundingValidator
+                # construction raising ValueError when ~/.guardrailsrc is
+                # missing. Never block or alter an already-streamed reply on
+                # a grounding-check error.
+                logger.exception("[grounding] guardrail check failed; failing open")
 
         if total_input_tokens or total_output_tokens:
             await emitter.on_usage(total_input_tokens, total_output_tokens)
