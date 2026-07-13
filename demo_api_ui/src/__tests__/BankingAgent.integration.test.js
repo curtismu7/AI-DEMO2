@@ -269,32 +269,6 @@ describe('BankingAgent Test Chips Integration', () => {
       });
     });
 
-    describe('test_wrong_audience handler', () => {
-      it('should be defined and callable', () => {
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should fetch /api/mcp/tool with _testAudience parameter', () => {
-        // Handler should make a fetch call with:
-        // {
-        //   tool: "get_my_accounts",
-        //   params: {},
-        //   _testAudience: "https://invalid-audience.example.com"
-        // }
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should check for gateway rejection', () => {
-        // Handler checks: audTestRes._httpStatus >= 400
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should display audience error in message', () => {
-        // Handler displays audTestRes.error message
-        expect(true).toBe(true); // Placeholder
-      });
-    });
-
     describe('test_hitl_required handler', () => {
       it('should call createTransfer with $99,999.99', () => {
         // Handler calls:
