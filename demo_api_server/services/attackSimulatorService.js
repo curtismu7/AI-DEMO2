@@ -266,9 +266,14 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
  *
  * @param {string} sim - The attack sim id ('insufficient-scope' or 'wrong-aud')
  * @param {object} req - Express request (for session + useCaseId)
+ * @param {number} [attackAmount] - Optional override for the rar-exceeded attack
+ *   amount (Intent Binding demo's 'drift' column). Ignored by every other sim.
+ *   When omitted, _runRarExceeded falls back to its default of 500 — so the
+ *   UC14 attack-sim entry point (routes/attackSimulator.js, which never passes
+ *   this arg) is unaffected.
  * @returns {Promise<{sim, status, errorCode, reason, tokenChainEvents, useCaseId}>}
  */
-async function runAttackSim(sim, req) {
+async function runAttackSim(sim, req, attackAmount) {
   const subjectToken = req?.session?.oauthTokens?.accessToken;
   if (!subjectToken) {
     return {
@@ -310,7 +315,7 @@ async function runAttackSim(sim, req) {
   }
 
   if (sim === 'rar-exceeded') {
-    return _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req);
+    return _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, attackAmount);
   }
 
   if (sim === 'tampered-intent-token') {
@@ -843,11 +848,16 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents) {
 
 /**
  * UC14 rar-exceeded: TraT/RAR grants $100 but the agent attempts a larger transfer.
+ *
+ * @param {number} [attackAmount] - Amount to attempt in the create_transfer call.
+ *   Defaults to 500 (the original UC14 hardcoded value) when not a finite positive
+ *   number — this is what keeps routes/attackSimulator.js's existing callers
+ *   (which never pass this arg) behaving exactly as before.
  */
-async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
+async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, attackAmount) {
   const sim = 'rar-exceeded';
   const grantedAmount = 100;
-  const attackAmount = 500;
+  const finalAttackAmount = Number.isFinite(attackAmount) && attackAmount > 0 ? attackAmount : 500;
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -901,7 +911,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
     'active',
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
-    `Attack attempts create_transfer for $${attackAmount}.`,
+    `Attack attempts create_transfer for $${finalAttackAmount}.`,
     { authorization_details: rarDetails },
   ));
 
@@ -910,7 +920,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
       null,
       exchanged.token,
       'create_transfer',
-      { amount: attackAmount, to_account_id: 'sim-acc-001' },
+      { amount: finalAttackAmount, to_account_id: 'sim-acc-001' },
       { tratContextHeader },
     );
     tokenChainEvents.push(buildTokenEvent(
@@ -1036,7 +1046,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
  */
 async function runIntentBindingDemo(action, req, requestedAmount) {
   if (action === 'drift') {
-    return runAttackSim('rar-exceeded', req);
+    return runAttackSim('rar-exceeded', req, requestedAmount);
   }
   if (action !== 'permit') {
     return {
