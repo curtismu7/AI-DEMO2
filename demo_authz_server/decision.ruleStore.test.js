@@ -31,6 +31,7 @@ function baseParams(extra = {}) {
     DecisionContext: 'McpToolCall',
     ToolName: 'create_transfer',
     ClientId: 'user-1',
+    ActClientId: 'agent-1',
     TokenScopes: 'read write transfer',
     TokenAudience: 'test-aud',
     TransactionAmount: '10',
@@ -43,7 +44,9 @@ beforeEach(() => {
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.MCP_GATEWAY_RESOURCE_URI = 'test-aud';
   process.env.CONFIRM_THRESHOLD_USD = '250';
-  process.env.ENFORCE_MAY_ACT = 'true';
+  // Rule 2 is act-only now: baseParams' default actor ('agent-1') must be a
+  // recognized authorized actor, not just may_act-matched.
+  process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = 'agent-1';
   // NNP-6 thresholds — reset to defaults so tests don't bleed into each other.
   process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT = '250';
   process.env.SIMULATED_AUTHORIZE_STEPUP_AMOUNT = '500';
@@ -93,8 +96,8 @@ test('toolDiscoveryDecision=DENY denies McpToolsList', async () => {
   assert.strictEqual(res.body.decision, 'DENY');
 });
 
-test('enforceMayAct=false + actor != authorized actor denies', async () => {
-  ruleStore.applyPatch({ global: { enforceMayAct: false, authorizedActorClientId: 'agent-good' } });
+test('act-only Rule 2: actor != authorized actor denies', async () => {
+  ruleStore.applyPatch({ global: { authorizedActorClientId: 'agent-good' } });
   const res = makeRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ ActClientId: 'agent-bad' }) } }, res);
   assert.strictEqual(res.body.decision, 'DENY');

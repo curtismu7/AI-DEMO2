@@ -116,12 +116,13 @@ function extractActorIdentity(decoded) {
 /**
  * Check if a token has the agent (actor) delegation pattern
  *
- * A token has agent/actor delegation if it contains:
- * - 'act' claim: Identifies the agent/actor (RFC 8693 §4.2)
- * - 'may_act' claim: Defines agent permissions (RFC 8693 §4.3)
+ * A token has agent/actor delegation if it contains an 'act' claim
+ * (RFC 8693 §4.2) identifying the agent/actor. Checked on 'act' alone —
+ * not 'may_act' — since authorization decisions key on the act chain, not
+ * the (optional, seed-only) may_act claim.
  *
  * @param {Object} decoded - Decoded JWT token object
- * @returns {boolean} True if token contains both 'act' and 'may_act' claims
+ * @returns {boolean} True if token contains an 'act' claim
  *
  * @example
  * const decoded = jwt.decode(token);
@@ -130,7 +131,7 @@ function extractActorIdentity(decoded) {
  * }
  */
 function hasAgentActorPattern(decoded) {
-  return !!(decoded && decoded.act && decoded.may_act);
+  return !!(decoded && decoded.act);
 }
 
 /**
@@ -164,37 +165,9 @@ function getAgentActorContextString(decoded) {
   return `User ${userId} (direct token, no delegation)`;
 }
 
-/**
- * Validate that an agent (actor) has permission for a requested scope
- *
- * Checks that the requested scope is listed in the token's 'may_act' claim
- * (RFC 8693 §4.3: the claim that defines agent permissions).
- *
- * @param {Object} decoded - Decoded JWT token object
- * @param {string} requestedScope - Scope being requested (e.g., 'transfer')
- * @returns {boolean} True if agent has permission for this scope via may_act claim
- *
- * @example
- * const decoded = jwt.decode(token);
- * if (canAgentActorPerformAction(decoded, 'transfer')) {
- *   // Agent (actor) has permission to transfer
- * }
- */
-function canAgentActorPerformAction(decoded, requestedScope) {
-  if (!decoded || !decoded.may_act) {
-    return false; // No delegated permissions
-  }
-
-  const allowedScopes = decoded.may_act.scope || [];
-  const scopeArray = Array.isArray(allowedScopes) ? allowedScopes : [allowedScopes];
-
-  return scopeArray.includes(requestedScope);
-}
-
 module.exports = {
   validateAgentActorToken,
   extractActorIdentity,
   hasAgentActorPattern,
-  getAgentActorContextString,
-  canAgentActorPerformAction
+  getAgentActorContextString
 };

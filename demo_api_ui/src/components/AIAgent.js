@@ -17,8 +17,7 @@ import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
-import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
-import { setAgentAuthorization } from "../services/agentAuthorizationService";
+import { navigateToCustomerOAuthForceLogin } from "../utils/authUi";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
   isAgentBlockedByConsentDecline,
@@ -4455,17 +4454,6 @@ export default function BankingAgent({
           ].join("\n"),
           actionId,
         );
-      } else if (err?.code === "may_act_required") {
-        // ff_require_may_act is ON and the user revoked the agent: the RFC 8693
-        // exchange is blocked with a 403 (code: may_act_required). Render a clean,
-        // actionable re-authorize state instead of a raw error — the button grants
-        // may_act and silently re-auths so the new token reflects the change.
-        addMessage(
-          "error",
-          "The agent isn't authorized to act on your behalf. Authorize it to continue.",
-          actionId,
-          { showReauthAgentAction: true },
-        );
       } else if (err?.code === "policy_not_found") {
         // P1AZ has no policy matching this action (missing decision endpoint or
         // NOT_APPLICABLE) — config drift, not a deny. Tell the user plainly and
@@ -4678,10 +4666,7 @@ export default function BankingAgent({
               String(err?.message || ""),
             )));
 
-      if (err?.code === "may_act_required") {
-        // Clean re-authorize state already rendered above — do not append a raw
-        // error bubble for this case.
-      } else if (showSessionFixBubble) {
+      if (showSessionFixBubble) {
         if (!sessionFixBubbleShownRef.current) {
           sessionFixBubbleShownRef.current = true;
           addMessage("error", SESSION_NOT_HYDRATED_CHAT, actionId, {
@@ -8809,33 +8794,6 @@ export default function BankingAgent({
                           </span>
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--toolsteps">
                             <ToolProgressChips steps={msg.steps} />
-                          </div>
-                        </div>
-                      );
-                    }
-                    if (msg.role === "error" && msg.showReauthAgentAction) {
-                      return (
-                        <div key={msg.id} className="banking-agent-msg error">
-                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
-                            <MessageContent text={msg.content} terminology={terminology} />
-                            <div className="ba-session-fix-actions">
-                              <button
-                                type="button"
-                                className="ba-session-fix-btn"
-                                onClick={async () => {
-                                  try {
-                                    const data = await setAgentAuthorization(true);
-                                    if (data.reauthRequired) {
-                                      requestSilentReauth(window.location.pathname);
-                                    }
-                                  } catch (_) {
-                                    /* leave the message in place if the grant fails */
-                                  }
-                                }}
-                              >
-                                Authorize agent
-                              </button>
-                            </div>
                           </div>
                         </div>
                       );

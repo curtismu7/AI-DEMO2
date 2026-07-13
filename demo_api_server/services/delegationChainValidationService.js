@@ -320,16 +320,10 @@ class DelegationChainValidationService {
       }
     }
 
-    // Agent authorization check
-    if (this.rules.integrity_checks.agent_authorization && userNode && agentNode) {
-      const authorizedAgent = userNode.may_act?.sub;
-      const actualAgent = agentNode.sub;
-
-      if (authorizedAgent && actualAgent && authorizedAgent !== actualAgent) {
-        validation.valid = false;
-        validation.errors.push(`Agent not authorized: expected ${authorizedAgent}, got ${actualAgent}`);
-      }
-    }
+    // Agent authorization is no longer decided via may_act here — the act
+    // chain itself (act.sub / nested act.act.sub, validated elsewhere in this
+    // service and in demo_authz_server's Rule 1c/2) is the authorization
+    // signal now.
 
     // MCP server identity check
     if (this.rules.integrity_checks.mcp_server_identity) {

@@ -11,7 +11,7 @@
 |---|---|---|---|---|---|
 | UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
-| UC3 | [may_act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
+| UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |

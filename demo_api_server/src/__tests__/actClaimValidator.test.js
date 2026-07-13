@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const {
   actClaimValidationMiddleware,
   validateActClaim,
-  validateMayActClaim,
   extractDelegationChain
 } = require('../../middleware/actClaimValidator');
 
@@ -99,48 +98,6 @@ describe('act/may_act Claims Validation', () => {
       expect(result.actor.client_id).toBe('bff-client');
       expect(result.actor.sub).toBe('user123');
       expect(result.actor.iss).toBe('https://auth.pingone.com');
-    });
-  });
-
-  describe('validateMayActClaim', () => {
-    it('should validate may_act claim with matching client_id', () => {
-      const mayActClaim = { client_id: 'bff-client' };
-
-      const result = validateMayActClaim(mayActClaim, 'bff-client');
-
-      expect(result.valid).toBe(true);
-      expect(result.reason).toBe('may_act claim valid');
-    });
-
-    it('should reject may_act claim with mismatched client_id', () => {
-      const mayActClaim = { client_id: 'wrong-client' };
-
-      const result = validateMayActClaim(mayActClaim, 'bff-client');
-
-      expect(result.valid).toBe(false);
-      expect(result.reason).toContain('mismatch');
-    });
-
-    it('should reject missing may_act claim', () => {
-      const result = validateMayActClaim(null, 'bff-client');
-
-      expect(result.valid).toBe(false);
-      expect(result.reason).toBe('may_act claim not present');
-    });
-
-    it('should reject non-object may_act claim', () => {
-      const result = validateMayActClaim('invalid', 'bff-client');
-
-      expect(result.valid).toBe(false);
-      expect(result.reason).toBe('may_act claim must be a JSON object');
-    });
-
-    it('should accept may_act without expected client_id check', () => {
-      const mayActClaim = { client_id: 'any-client' };
-
-      const result = validateMayActClaim(mayActClaim, null);
-
-      expect(result.valid).toBe(true);
     });
   });
 

@@ -76,7 +76,9 @@ beforeEach(() => {
   OVERLAY = path.join(os.tmpdir(), 'dec-rar-' + process.pid + '-' + Math.floor(process.hrtime()[1]) + '.json');
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.MCP_GATEWAY_RESOURCE_URI = 'test-aud';
-  process.env.ENFORCE_MAY_ACT = 'true';
+  // Rule 2 is act-only now: the fixtures' baseline actor ('agent-1') must be
+  // a recognized authorized actor, not just may_act-matched.
+  process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = 'agent-1';
   process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT = '2000';
   process.env.SIMULATED_AUTHORIZE_STEPUP_AMOUNT = '500';
   process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT = '250';

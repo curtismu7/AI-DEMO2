@@ -13,11 +13,8 @@
  *       McpMethod:         'tools/call' | 'tools/list' | ...
  *       ToolName:          string
  *       ClientId:          string   — token's sub (the user)
- *       ActClientId:       string   — token's act.sub (the actor / AI Agent)
- *       MayActSub:         string   — user token's may_act.sub (the actor the USER
- *                                     authorized). BFF-bridged (X-May-Act-Sub header)
- *                                     since the exchanged token doesn't carry may_act.
- *                                     Enforced by default; ENFORCE_MAY_ACT=false disables.
+ *       ActClientId:       string   — token's act.sub (the actor / AI Agent) — this,
+ *                                     not may_act, is what authorization decisions key on
  *       TokenScopes:       string   — space-separated scopes from token
  *       TokenAudience:     string   — audience claim
  *       TransactionAmount: string   — numeric, '' if not applicable
@@ -119,7 +116,6 @@ module.exports = async function decisionHandler(req, res) {
     ToolName = '',
     ClientId = '',
     ActClientId = '',
-    MayActSub = '',
     TokenScopes = '',
     TokenAudience = '',
     TokenAudActual = '',
@@ -197,7 +193,7 @@ module.exports = async function decisionHandler(req, res) {
     workerId: workerId || null,
   });
 
-  log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} mayActSub=${MayActSub || '(none)'} enforceMayAct=${ruleStore.getEnforceMayAct()} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
+  log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
 
   // ── Rule 0a: sub (user identity) must be present ──────────────────────────
   if (!ClientId || !asStr(ClientId).trim()) {
@@ -408,62 +404,39 @@ module.exports = async function decisionHandler(req, res) {
     log(`[AuthzServer/decision] A2A OK — "${ToolName}" reached via specialist delegation (depth ${chainDepth}, generalist ${NestedActClientId})`);
   }
 
-  // ── Rule 2: act claim validation ─────────────────────────────────────────
-  // Two modes:
-  //  - ENFORCE_MAY_ACT (per-user): the actor MUST equal the user's own may_act.sub —
-  //    the delegation the USER granted. This is the RFC 8693 may_act semantic, validated
-  //    in authorize because PingOne can't emit `act` from the actor token (see
-  //    docs/ACT_CLAIM_VERIFICATION.md). Supersedes the static check below.
-  //  - default (static): the actor MUST equal the single AUTHORIZED_ACTOR_CLIENT_ID.
-  //    When no authorized actor is configured, any delegation is denied (fail-closed).
-  // Empty ActClientId means no delegation (simple exchange) — allowed in both modes.
+  // ── Rule 2: act claim validation (act-only — no may_act) ──────────────────
+  // The actor MUST be one of the registered chain identities: the MCP
+  // Exchanger (the terminal actor of the standard two-exchange flow) or the
+  // AI Agent (a single-hop terminal actor). When neither is configured, any
+  // delegation is denied (fail-closed). Empty ActClientId means no
+  // delegation (simple exchange) — allowed. This used to have a second mode
+  // (ENFORCE_MAY_ACT) that cross-referenced the user's may_act.sub instead of
+  // checking the actor identity directly — removed in favor of act-only
+  // validation; the permitted identity set is unchanged (same two client ids
+  // the old may_act branch's "single-hop" and "2-exchange" cases allowed).
+  // Rule 2.5 below is what actually requires an act claim to be present at
+  // all for agent-mediated tools.
   const authorizedActor = ruleStore.getAuthorizedActorClientId();
+  const authorizedAiAgent = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
   if (a2aDelegated) {
-    // A2A tools are authorized by the act chain (Rule 1c), not may_act. Skip Rule 2.
-  } else if (ruleStore.getEnforceMayAct()) {
-    if (ActClientId) {
-      if (!MayActSub) {
-        warn(`[AuthzServer/decision] DENY — actor "${ActClientId}" present but user token carries no may_act (no delegation authorized)`);
-        return deny(res, `may_act_missing: actor present but user authorized no delegate`);
-      }
-      if (ActClientId !== MayActSub) {
-        // Two-exchange delegation (docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md): the
-        // final token's act.sub is the MCP Service exchanger, NOT the agent the user
-        // authorized — the chain is user -> AI Agent (may_act) -> MCP Service (act.sub).
-        // PingOne cryptographically validated the middle hop during Exchange #2
-        // (Exchange #2 actor's aud == Exchange #1 token's may_act), so a token whose
-        // act.sub is the registered MCP exchanger AND whose may_act.sub is the
-        // registered AI Agent is a valid 2-hop chain. A single-hop token (act.sub ==
-        // may_act) still passes above; anything else is DENY (fail closed).
-        const mcpExchanger = ruleStore.getAuthorizedActorClientId();
-        const aiAgent = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
-        const validTwoExchange =
-          mcpExchanger && aiAgent && ActClientId === mcpExchanger && MayActSub === aiAgent;
-        if (!validTwoExchange) {
-          warn(`[AuthzServer/decision] DENY — actor "${ActClientId}" != user may_act.sub "${MayActSub}" (and not a registered 2-exchange chain)`);
-          return deny(res, `actor_not_authorized: act.sub "${ActClientId}" is not the user's may_act.sub`);
-        }
-        log(`[AuthzServer/decision] may_act OK — 2-exchange chain: act.sub is the registered MCP exchanger, may_act.sub is the registered AI Agent (${MayActSub})`);
-      } else {
-        log(`[AuthzServer/decision] may_act OK — actor "${ActClientId}" matches user may_act.sub`);
-      }
-    }
+    // A2A tools are authorized by the act chain (Rule 1c). Skip Rule 2.
   } else if (ActClientId) {
-    // Static mode: actor must match the configured authorized actor.
-    // If no actor is configured, deny all delegated requests (fail-closed).
-    if (!authorizedActor || ActClientId !== authorizedActor) {
-      warn(`[AuthzServer/decision] DENY — act.sub "${ActClientId}" != authorized actor "${authorizedActor || '(none configured)'}"`);
-      return deny(res, `act.sub "${ActClientId}" is not the authorized actor`);
+    const isAuthorizedActor = !!authorizedActor && ActClientId === authorizedActor;
+    const isAuthorizedAiAgent = !!authorizedAiAgent && ActClientId === authorizedAiAgent;
+    if (!isAuthorizedActor && !isAuthorizedAiAgent) {
+      warn(`[AuthzServer/decision] DENY — act.sub "${ActClientId}" != authorized actor "${authorizedActor || '(none configured)'}" or AI Agent "${authorizedAiAgent || '(none configured)'}"`);
+      return deny(res, `act.sub "${ActClientId}" is not an authorized actor`);
     }
   }
 
   // ── Rule 2.5: UC16 — Require-act for agent-mediated tools ─────────────────
-  // When REQUIRE_ACT_FOR_AGENT_TOOLS=true, tools flagged requiresAgentMediation
-  // in scope-topology.json MUST carry an ActClientId (act claim). A no-act call
-  // to these tools is impersonation — the agent identity is erased from the token.
-  // Flag-gated (default OFF) so existing flows are unaffected.
+  // Tools flagged requiresAgentMediation in scope-topology.json MUST carry an
+  // ActClientId (act claim). A no-act call to these tools is impersonation —
+  // the agent identity is erased from the token. Default ON — this is now the
+  // primary act-based replacement for the may_act-based Rule 2 check removed
+  // above (set REQUIRE_ACT_FOR_AGENT_TOOLS=false to opt out).
   // Parity: simulatedAuthorizeService.js evaluateMcpFirstTool mirrors this rule.
-  const requireActForAgentTools = process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true';
+  const requireActForAgentTools = process.env.REQUIRE_ACT_FOR_AGENT_TOOLS !== 'false';
   if (requireActForAgentTools && DecisionContext === 'McpToolCall') {
     if (scopeTopology.isAgentMediatedTool(ToolName) && !ActClientId) {
       warn(`[AuthzServer/decision] DENY — missing_act: tool "${ToolName}" requires agent delegation`);

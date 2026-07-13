@@ -30,9 +30,6 @@ function envDefaults() {
     hitlThresholdUsd: parseFloat(
       process.env.CONFIRM_THRESHOLD_USD || process.env.confirm_threshold_usd || '250'
     ),
-    enforceMayAct:
-      String(process.env.ENFORCE_MAY_ACT || process.env.AUTHZ_ENFORCE_MAY_ACT || 'true')
-        .toLowerCase() !== 'false',
     authorizedActorClientId:
       process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID
         || process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
@@ -68,9 +65,6 @@ function persist() {
 
 function getHitlThreshold() {
   return overlay.global.hitlThresholdUsd ?? envDefaults().hitlThresholdUsd;
-}
-function getEnforceMayAct() {
-  return overlay.global.enforceMayAct ?? envDefaults().enforceMayAct;
 }
 function getAuthorizedActorClientId() {
   return overlay.global.authorizedActorClientId ?? envDefaults().authorizedActorClientId;
@@ -118,7 +112,6 @@ function getEditableBlock() {
   return {
     global: {
       hitlThresholdUsd: field(getHitlThreshold(), d.hitlThresholdUsd, g.hitlThresholdUsd !== undefined),
-      enforceMayAct: field(getEnforceMayAct(), d.enforceMayAct, g.enforceMayAct !== undefined),
       authorizedActorClientId: field(getAuthorizedActorClientId(), d.authorizedActorClientId, g.authorizedActorClientId !== undefined),
       toolDiscoveryDecision: field(getToolDiscoveryDecision(), d.toolDiscoveryDecision, g.toolDiscoveryDecision !== undefined),
     },
@@ -147,9 +140,6 @@ function applyPatch(patch) {
         if (key === 'hitlThresholdUsd') {
           if (typeof val !== 'number' || !Number.isFinite(val) || val < 0) errors.push('hitlThresholdUsd must be a finite number >= 0');
           else next.global.hitlThresholdUsd = val;
-        } else if (key === 'enforceMayAct') {
-          if (typeof val !== 'boolean') errors.push('enforceMayAct must be boolean');
-          else next.global.enforceMayAct = val;
         } else if (key === 'authorizedActorClientId') {
           if (typeof val !== 'string') errors.push('authorizedActorClientId must be a string');
           else next.global.authorizedActorClientId = val.trim();
@@ -209,7 +199,6 @@ function reset() {
 
 module.exports = {
   getHitlThreshold,
-  getEnforceMayAct,
   getAuthorizedActorClientId,
   getToolDiscoveryDecision,
   requiredScopesForTool,
