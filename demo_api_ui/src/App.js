@@ -152,7 +152,9 @@ import {
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
+import { useVertical } from "./vertical/useVertical";
 import { EventStreamProvider } from "./context/EventStreamContext";
+import { ProofOfEnforcementProvider } from "./context/ProofOfEnforcementContext";
 import "./App.css";
 
 // Browser extension interference detection and handling
@@ -246,6 +248,7 @@ function AppWithAuth() {
   } = useAgentUiMode();
 
   const { user, loading, logout, sessionReauth, setSessionReauth } = useAuth();
+  const { activeId: activeVerticalId } = useVertical();
   useAdminSkin();
   const { appFlags } = useAppFlags();
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
@@ -375,6 +378,7 @@ function AppWithAuth() {
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
+          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined}>
           <ActivityNarrativeProvider>
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
@@ -1241,6 +1245,7 @@ function AppWithAuth() {
               <SpinnerHost />
             </div>
           </ActivityNarrativeProvider>
+          </ProofOfEnforcementProvider>
         </TokenChainProvider>
       </EducationUIProvider>
     </DemoTourProvider>
