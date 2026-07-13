@@ -1149,6 +1149,27 @@ class PingOneProvisionService {
   }
 
   /**
+   * Delete an app's grant on a specific resource, if one exists. Needed before
+   * re-granting a scope NAME on a DIFFERENT resource — grantScopesToApplication
+   * deliberately skips creating a colliding grant (PingOne enforces one
+   * scope-name per app across all its grants), so a scope migrated to a new
+   * resource must have its old grant explicitly removed first, or the skip
+   * logic silently keeps returning the old (wrong) resource's token.
+   */
+  async revokeApplicationGrantOnResource(appId, resourceId) {
+    try {
+      const existingGrants = (await this.makeRequest('GET', `/applications/${appId}/grants`))
+        .data._embedded?.grants || [];
+      const match = existingGrants.find((g) => g.resource?.id === resourceId);
+      if (!match) return { success: true, action: 'none' };
+      await this.makeRequest('DELETE', `/applications/${appId}/grants/${match.id}`);
+      return { success: true, action: 'revoked', grantId: match.id };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Create user
    */
   async createUser(username, firstName, lastName, email) {
@@ -2758,17 +2779,21 @@ class PingOneProvisionService {
           pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A Intermediate scopes`, specScopeResults);
           onStep(steps[steps.length - 1]);
 
+          // Revoke the specialist's stale grant on the general Demo API/enduser
+          // resource FIRST — a pre-existing bug (predates the per-specialist
+          // redesign) granted specScopes there instead of on the MCP Gateway
+          // resource Exchange #2 actually targets. grantScopesToApplication
+          // deliberately skips creating a colliding same-name grant on another
+          // resource (PingOne enforces one scope-name per app across all its
+          // grants), so simply pointing the grant call at the right resource
+          // was not enough — the old grant had to be removed too, or PingOne
+          // kept resolving Exchange #2's token to the old (wrong) audience.
+          await this.revokeApplicationGrantOnResource(app.id, resourceResult.resource.id);
+
           // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
           // Exchange #1 for this vertical. The specialist needs the same scope on its
           // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
-          // plus its narrow derived scope on the MCP Gateway resource — Exchange #2
-          // targets mcpGwResourceResult (c.specialistAud), NOT the general Demo API/
-          // enduser resource. Granting specScopes on the wrong resource was a
-          // pre-existing bug (predates the per-specialist redesign): PingOne resolves
-          // a token-exchange scope to whichever resource that scope NAME is granted
-          // on, so requesting mcpgateway.ping.demo with a scope only granted on
-          // enduser.ping.demo silently returned a token audienced to enduser instead
-          // (confirmed live — Exchange #2's act claim never appeared as a result).
+          // plus its narrow derived scope on the MCP Gateway resource (c.specialistAud).
           await Promise.all([
             this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
             this.grantScopesToApplication(app.id, mcpGwResourceResult.resource.id, specScopes),
