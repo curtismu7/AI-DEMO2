@@ -20,6 +20,11 @@ import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
 import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
+import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
+import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
+import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
+import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
+import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
@@ -1032,6 +1037,26 @@ function AppWithAuth() {
                             <Route
                               path="/agent-onboarding-flow"
                               element={<AgentOnboardingFlowDiagram />}
+                            />
+                            <Route
+                              path="/agent-studio-preview"
+                              element={<AgentStudioPreviewPage />}
+                            />
+                            <Route
+                              path="/discovery-preview"
+                              element={<DiscoveryPreviewPage />}
+                            />
+                            <Route
+                              path="/iga-for-ai"
+                              element={<IgaForAiPage />}
+                            />
+                            <Route
+                              path="/privileges-gateway-preview"
+                              element={<PrivilegesGatewayPreviewPage />}
+                            />
+                            <Route
+                              path="/platform-gaps"
+                              element={<PlatformGapsPage />}
                             />
                             <Route
                               path="/actor-token-education"

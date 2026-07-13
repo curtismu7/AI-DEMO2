@@ -1,0 +1,113 @@
+/* WizardStepper.css — depends on the .asp-* tokens defined in
+   agentStudioPreview.css (must be rendered inside an .asp-root ancestor). */
+
+.asp-wiz-progress {
+  display: flex;
+  align-items: flex-start;
+  margin: 24px 0 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.asp-wiz-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 84px;
+  position: relative;
+}
+.asp-wiz-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--asp-panel-2);
+  border: 2px solid var(--asp-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 12px inherit;
+  color: var(--asp-ink-3);
+}
+.asp-wiz-node.done .asp-wiz-circle {
+  background: var(--asp-good);
+  border-color: var(--asp-good);
+  color: var(--asp-accent-ink);
+}
+.asp-wiz-node.current .asp-wiz-circle {
+  background: var(--asp-accent);
+  border-color: var(--asp-accent);
+  color: var(--asp-accent-ink);
+}
+.asp-wiz-line {
+  position: absolute;
+  top: 15px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: var(--asp-border);
+  z-index: -1;
+}
+.asp-wiz-node.done .asp-wiz-line {
+  background: var(--asp-good);
+}
+.asp-wiz-lbl {
+  font-size: 10px;
+  color: var(--asp-ink-3);
+  margin-top: 6px;
+  text-align: center;
+  max-width: 88px;
+  line-height: 1.3;
+}
+
+.asp-wiz-card {
+  background: var(--asp-panel);
+  border: 1px solid var(--asp-border);
+  border-radius: var(--asp-radius);
+  box-shadow: var(--asp-shadow);
+  padding: 26px;
+  margin-top: 18px;
+  text-align: center;
+}
+.asp-wiz-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--asp-accent-wash);
+  color: var(--asp-accent);
+  font: 800 16px inherit;
+  margin-bottom: 14px;
+}
+.asp-wiz-card h2 {
+  font-size: 19px;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+.asp-wiz-card p {
+  font-size: 14px;
+  color: var(--asp-ink-2);
+  line-height: 1.6;
+  max-width: 52ch;
+  margin: 0 auto 20px;
+}
+.asp-wiz-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.asp-outcome {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: var(--asp-radius);
+  border: 1px dashed var(--asp-accent);
+  background: var(--asp-accent-wash);
+  font-size: 13.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+.asp-outcome strong {
+  color: var(--asp-accent);
+}

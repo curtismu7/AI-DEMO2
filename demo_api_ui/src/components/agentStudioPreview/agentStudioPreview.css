@@ -1,0 +1,288 @@
+/* agentStudioPreview.css — shared tokens + primitives for all 5
+   "Agent Studio (Preview)" pages. Warm/amber palette (chosen for the
+   step-by-step onboarding pages; a nod to the yellow sticky notes in the
+   source diagram), scoped under .asp-root so it ships its own palette
+   without leaking into the rest of demo_api_ui — same convention as
+   AgentOnboardingFlowDiagram.css / TokenDisplay.css. */
+
+.asp-root {
+  --asp-bg: #fbf6ec;
+  --asp-panel: #ffffff;
+  --asp-panel-2: #f6efdf;
+  --asp-border: #e8dcc0;
+  --asp-ink: #2b2416;
+  --asp-ink-2: #6b6148;
+  --asp-ink-3: #a29873;
+  --asp-accent: #ad7509;
+  --asp-accent-ink: #fffaf0;
+  --asp-accent-wash: #fdf1d6;
+  --asp-good: #4f7a2e;
+  --asp-good-fill: #eef4e0;
+  --asp-good-border: #c3d9a0;
+  --asp-bad: #b6431e;
+  --asp-bad-fill: #fbeadf;
+  --asp-bad-border: #e6b995;
+  --asp-shadow: 0 1px 3px rgba(60, 48, 10, 0.05), 0 8px 24px rgba(60, 48, 10, 0.06);
+  --asp-radius: 14px;
+
+  background: var(--asp-bg);
+  color: var(--asp-ink);
+  min-height: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .asp-root {
+    --asp-bg: #1a1610;
+    --asp-panel: #231d14;
+    --asp-panel-2: #2b2318;
+    --asp-border: #3a3120;
+    --asp-ink: #f3ead4;
+    --asp-ink-2: #c9bb92;
+    --asp-ink-3: #8d8262;
+    --asp-accent: #e8ae3d;
+    --asp-accent-ink: #241a06;
+    --asp-accent-wash: #332809;
+    --asp-good: #9fd06c;
+    --asp-good-fill: #1f2914;
+    --asp-good-border: #3d4d26;
+    --asp-bad: #f19a70;
+    --asp-bad-fill: #2c1a10;
+    --asp-bad-border: #5a3320;
+    --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
+  }
+}
+
+.asp-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+}
+.asp-page.asp-page--wide {
+  max-width: 1080px;
+}
+
+/* ---------- banner ---------- */
+.asp-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--asp-accent);
+  background: var(--asp-accent-wash);
+  border: 1px solid var(--asp-accent);
+  border-radius: 999px;
+  padding: 8px 16px;
+  margin-bottom: 22px;
+}
+.asp-banner a {
+  color: var(--asp-accent);
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+/* ---------- hero ---------- */
+.asp-hero {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.asp-eyebrow {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--asp-accent);
+  margin-bottom: 8px;
+}
+.asp-hero h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.asp-hero p {
+  font-size: 14.5px;
+  color: var(--asp-ink-2);
+  max-width: 58ch;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ---------- pill tabs (persona / story selector) ---------- */
+.asp-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.asp-tab {
+  appearance: none;
+  border: 1px solid var(--asp-border);
+  background: var(--asp-panel);
+  color: var(--asp-ink-2);
+  font: 700 12.5px inherit;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: var(--asp-shadow);
+}
+.asp-tab.active {
+  background: var(--asp-accent);
+  color: var(--asp-accent-ink);
+  border-color: var(--asp-accent);
+}
+
+/* ---------- stat tiles ---------- */
+.asp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.asp-stat {
+  background: var(--asp-panel);
+  border: 1px solid var(--asp-border);
+  border-radius: var(--asp-radius);
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--asp-shadow);
+}
+.asp-stat .n {
+  font: 800 26px inherit;
+  color: var(--asp-accent);
+}
+.asp-stat .l {
+  font-size: 11.5px;
+  color: var(--asp-ink-2);
+  margin-top: 4px;
+}
+
+/* ---------- row cards (tables reimagined as scan-friendly rows) ---------- */
+.asp-subhdr {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--asp-ink-3);
+  margin: 28px 0 12px;
+}
+.asp-rowlist {
+  display: grid;
+  gap: 10px;
+}
+.asp-rowcard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--asp-panel);
+  border: 1px solid var(--asp-border);
+  border-radius: 12px;
+  padding: 13px 16px;
+  box-shadow: var(--asp-shadow);
+  flex-wrap: wrap;
+}
+.asp-rowcard .t {
+  font-weight: 700;
+  font-size: 13.5px;
+  flex: 1 1 auto;
+  min-width: 160px;
+}
+.asp-rowcard .s {
+  font-size: 12px;
+  color: var(--asp-ink-2);
+}
+.asp-rowcard .empty {
+  color: var(--asp-ink-3);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  width: 100%;
+  padding: 18px 0;
+}
+
+.asp-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.asp-badge--governed,
+.asp-badge--permit,
+.asp-badge--certified {
+  background: var(--asp-good-fill);
+  color: var(--asp-good);
+  border: 1px solid var(--asp-good-border);
+}
+.asp-badge--pending,
+.asp-badge--deny {
+  background: var(--asp-bad-fill);
+  color: var(--asp-bad);
+  border: 1px solid var(--asp-bad-border);
+}
+
+.asp-btn {
+  appearance: none;
+  border: 1px solid var(--asp-border);
+  background: var(--asp-panel-2);
+  color: var(--asp-ink);
+  font: 700 13px inherit;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.asp-btn:hover {
+  border-color: var(--asp-ink-3);
+}
+.asp-btn.asp-btn--primary {
+  background: var(--asp-accent);
+  color: var(--asp-accent-ink);
+  border-color: var(--asp-accent);
+}
+.asp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------- gap cards (Platform Gaps page) ---------- */
+.asp-gapgrid {
+  display: grid;
+  gap: 14px;
+}
+.asp-gapcard {
+  background: var(--asp-panel);
+  border: 1px solid var(--asp-border);
+  border-radius: var(--asp-radius);
+  padding: 20px;
+  box-shadow: var(--asp-shadow);
+}
+.asp-gapcard h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.asp-gapcard p {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--asp-ink-2);
+  line-height: 1.6;
+}
+.asp-gapstatus {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--asp-bad-fill);
+  color: var(--asp-bad);
+  border: 1px solid var(--asp-bad-border);
+}
+
+@media screen and (max-width: 640px) {
+  .asp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
