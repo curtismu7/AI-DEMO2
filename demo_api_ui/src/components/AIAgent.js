@@ -8230,7 +8230,7 @@ export default function BankingAgent({
                       // callRestTransaction throws on non-2xx status codes, so we handle 428 (step_up_required) here
                       if (
                         err.statusCode === 428 &&
-                        err.code === "step_up_required"
+                        (err.code === "step_up_required" || err.code === "mcp_step_up_required")
                       ) {
                         console.log(
                           "[HITL Consent] Step-up required, triggering MFA",
@@ -8252,6 +8252,7 @@ export default function BankingAgent({
                           err.data,
                         );
                         setStepUpMethod(stepUpMethod);
+                        setOtpContextLine("Step-up authentication required to complete this transaction");
 
                         // If P1MFA mode, fetch devices
                         if (stepUpMethod === "p1mfa") {
