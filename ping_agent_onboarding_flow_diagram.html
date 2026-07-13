@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise AI Onboarding &amp; Governance Architecture</title>
+  <style>
+    :root {
+      --artifact-background: var(--theme-background, #ffffff);
+      --artifact-background-light: var(--theme-background-light, #f6f6f6);
+      --artifact-border-light: var(--theme-border-light, #e5e5e5);
+      --artifact-primary-brand: var(--theme-primary-brand, #343ced);
+      --artifact-text-primary: var(--theme-text-primary, #1b1b1b);
+      --artifact-text-secondary: var(--theme-text-secondary, #6b7280);
+      --artifact-accent-soft: #f6f3eb;
+      --artifact-accent-soft-text: #1b1b1b;
+      --artifact-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --artifact-shadow-focus: 0 0 0 3px rgba(52, 60, 237, 0.16);
+      --artifact-grid: #eceff3;
+      --artifact-chip: #f3f5f8;
+      --artifact-chip-text: #1b1b1b;
+      --artifact-chip-active: #343ced;
+      --artifact-chip-active-text: #ffffff;
+    }
+    html[data-theme='dark'] {
+      --artifact-background: #0f1115;
+      --artifact-background-light: #161a21;
+      --artifact-border-light: #2a313c;
+      --artifact-text-primary: #e9ecf3;
+      --artifact-text-secondary: #9aa2b4;
+      --artifact-accent-soft: #2a2a2a;
+      --artifact-accent-soft-text: #f3f3f3;
+      --artifact-shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
+      --artifact-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
+      --artifact-grid: #232831;
+      --artifact-chip: #22252b;
+      --artifact-chip-text: #f3f3f3;
+      --artifact-chip-active: #a9e0ff;
+      --artifact-chip-active-text: #09131a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--artifact-background); color: var(--artifact-text-primary); }
+    body {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      background:
+        linear-gradient(var(--artifact-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--artifact-grid) 1px, transparent 1px),
+        var(--artifact-background);
+      background-size: 24px 24px, 24px 24px, auto;
+    }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 24px 48px; }
+    .hero { display: grid; gap: 14px; margin-bottom: 20px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; width: fit-content;
+      padding: 8px 12px; border-radius: 999px; background: var(--artifact-accent-soft);
+      color: var(--artifact-accent-soft-text); border: 1px solid var(--artifact-border-light);
+      font-size: 13px; font-weight: 600;
+    }
+    h1 { margin: 0; font-size: clamp(26px, 3.6vw, 38px); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700; }
+    .subhead { max-width: 860px; font-size: 15px; line-height: 1.5; color: var(--artifact-text-secondary); margin: 0; }
+
+    .flow-tabs, .story-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .flow-tab, .story-tab {
+      appearance: none; border: 1px solid var(--artifact-border-light); background: var(--artifact-chip);
+      color: var(--artifact-chip-text); border-radius: 999px; padding: 8px 14px; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+    }
+    .flow-tab.active, .story-tab.active {
+      background: var(--artifact-chip-active); color: var(--artifact-chip-active-text); border-color: var(--artifact-chip-active);
+    }
+    .story-tabs { margin-top: -4px; }
+    .story-tab { font-size: 12px; padding: 6px 12px; }
+    .story-tabs[hidden] { display: none; }
+
+    .persona { margin: 0 0 14px; font-size: 13px; color: var(--artifact-text-secondary); }
+
+    .diagram { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 14px; align-items: start; }
+    .lane { display: grid; gap: 10px; }
+    .lane-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--artifact-text-secondary); padding-left: 2px;
+    }
+    .card {
+      background: var(--artifact-background); border: 1px solid var(--artifact-border-light);
+      border-radius: 14px; padding: 12px; box-shadow: var(--artifact-shadow-soft); opacity: 0.55;
+      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 13px; line-height: 1.25; }
+    .card p { margin: 0; font-size: 11px; line-height: 1.4; color: var(--artifact-text-secondary); }
+    .card.active-card { opacity: 1; transform: translateY(-2px); border-color: var(--artifact-primary-brand); box-shadow: var(--artifact-shadow-focus), var(--artifact-shadow-soft); }
+    .card.visited-card { opacity: 0.85; }
+
+    .controls { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--artifact-border-light); }
+    .ctrl-btn {
+      appearance: none; border: 1px solid var(--artifact-border-light); background: var(--artifact-chip);
+      color: var(--artifact-text-primary); border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ctrl-btn.primary { background: var(--artifact-primary-brand); color: #fff; border-color: var(--artifact-primary-brand); }
+    .ctrl-btn.ghost { background: transparent; }
+    .step-count { margin-left: auto; font-size: 12px; color: var(--artifact-text-secondary); }
+
+    .step-detail { margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--artifact-border-light); background: var(--artifact-background-light); }
+    .step-detail h4 { margin: 0 0 6px; font-size: 14px; }
+    .step-detail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--artifact-text-secondary); }
+
+    .outcome { margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--artifact-primary-brand); font-size: 13px; line-height: 1.5; }
+    .outcome[hidden] { display: none; }
+
+    .footer-note { margin-top: 18px; color: var(--artifact-text-secondary); font-size: 12px; line-height: 1.5; }
+
+    @media screen and (max-width: 900px) { .diagram { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Proposed architecture — T. Madiraju</div>
+      <h1>Enterprise AI Onboarding &amp; Governance Architecture</h1>
+      <p class="subhead">Illustrative walkthrough of a target-state design: any AI agent should automatically become a managed enterprise identity, with governance, privileges, and security applied throughout its lifecycle. This is a scripted walkthrough, not a live trace — most of the components shown here are proposed, not yet built.</p>
+    </section>
+
+    <div class="flow-tabs" id="flow-tabs" role="tablist" aria-label="Onboarding flow"></div>
+    <div class="story-tabs" id="story-tabs" role="tablist" aria-label="Discovery story" hidden></div>
+    <p class="persona" id="persona"></p>
+
+    <section class="diagram" id="diagram" aria-label="Onboarding architecture diagram"></section>
+
+    <div class="controls" role="group" aria-label="Step controls">
+      <button type="button" class="ctrl-btn" id="btn-prev">Prev</button>
+      <button type="button" class="ctrl-btn primary" id="btn-play">Play</button>
+      <button type="button" class="ctrl-btn" id="btn-next">Next</button>
+      <button type="button" class="ctrl-btn ghost" id="btn-reset">Reset</button>
+      <span class="step-count" id="step-count"></span>
+    </div>
+
+    <div class="step-detail">
+      <h4 id="step-title"></h4>
+      <p id="step-narrative"></p>
+    </div>
+
+    <div class="outcome" id="outcome" hidden><strong>Outcome:</strong> <span id="outcome-text"></span></div>
+
+    <p class="footer-note">Standalone reference page — mirrors the "Agent Onboarding Flow" page in the AI-DEMO2 Super Banking demo (Diagrams nav). Source diagram by Tarun Madiraju.</p>
+  </main>
+
+  <script>
+    // Data ported from demo_api_ui/src/data/agentOnboardingFlows.js — keep in sync by hand.
+    const LANES = [
+      { id: "actors", title: "Actors", cards: [
+        { key: "actor-user", title: "Enterprise AI User", body: "Claude Desktop, Cursor, ChatGPT Enterprise, Copilot — an enterprise employee using an AI client." },
+        { key: "actor-dev", title: "Developer / Agent Builder", body: "Builds agents on Foundry, AWS, Vertex, or another platform." },
+        { key: "actor-admin", title: "Security / Identity Administrator", body: "Reviews and approves agents into enterprise governance." },
+        { key: "discovered-agent", title: "Unmanaged / Discovered AI Agent", body: "An agent already running — in a browser, on a device, or in a cloud platform — outside enterprise governance." },
+      ]},
+      { id: "onboarding", title: "Onboarding", cards: [
+        { key: "agent-studio", title: "Agent Studio", body: "Enterprise AI Onboarding Portal — orchestrates identity, MCP, and tool registration across the Ping platform." },
+      ]},
+      { id: "governance", title: "Governance & Enforcement", cards: [
+        { key: "iga-ai", title: "IGA for AI", body: "Inventory & cataloging, ownership & lifecycle, certification & review, governance & audit — single source of truth for all AI agents and MCPs." },
+        { key: "privileges-gw", title: "P1 Privileges MCP Gateway", body: "Policy enforcement for MCP access, step-up enforcement, session & activity logging, audits all actor activity." },
+        { key: "pinggateway", title: "PingGateway MCP Security Gateway", body: "Secures API access for MCP servers, performs token exchange/validation, routes authorization to PingAuthorize." },
+        { key: "pingauthorize", title: "PingAuthorize / PingOne Authorize", body: "Fine-grained, real-time policy decisions for agents, users, and resources." },
+      ]},
+      { id: "runtime", title: "Enterprise Runtime", cards: [
+        { key: "runtime", title: "Enterprise Runtime & Resources", body: "Applications, databases, APIs, files & storage, SaaS, enterprise systems — all traffic validated, authorized, and governed." },
+      ]},
+    ];
+
+    const FLOWS = {
+      enterpriseUser: { label: "Enterprise AI User", persona: "Enterprise Employee / AI Consumer / Knowledge Worker",
+        outcome: "Personal AI clients become enterprise-managed without changing the user's experience.",
+        steps: [
+          { title: "Open an AI Client", narrative: "Launch Claude Desktop, Cursor, ChatGPT Enterprise, Copilot, etc.", activeCardKeys: ["actor-user"] },
+          { title: "Configure AI Capabilities", narrative: "Configure enterprise or personal AI workflows.", activeCardKeys: ["actor-user"] },
+          { title: "Open Agent Studio", narrative: "Sign in using enterprise identity; discover configured MCPs or onboard MCPs into the privilege gateway.", activeCardKeys: ["actor-user", "agent-studio"] },
+          { title: "Register MCPs", narrative: "Select the MCPs for access; register them with the privilege gateway.", activeCardKeys: ["agent-studio"] },
+          { title: "Enterprise Registration", narrative: "MCPs are registered in the PingOne Privilege identity platform; metadata is created across PF, P1, AIC, AIS.", activeCardKeys: ["agent-studio", "privileges-gw"] },
+          { title: "Governance", narrative: "IGA for AI discovers the registered MCPs from the privilege gateway; identity, lifecycle, and entitlements are established.", activeCardKeys: ["iga-ai", "privileges-gw"] },
+          { title: "Secure Runtime", narrative: "MCP requests flow through the Privileges MCP Gateway; enterprise policies control access to tools, APIs, and resources.", activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
+        ]},
+      developer: { label: "Developer / Agent Builder", persona: "Developer / AI Engineer / Agent Builder",
+        outcome: "Every enterprise-built agent is governed, discoverable, and secured from day one.",
+        steps: [
+          { title: "Build an AI Agent", narrative: "Create an agent using Foundry, AWS, Vertex, or another platform.", activeCardKeys: ["actor-dev"] },
+          { title: "Open Agent Studio", narrative: "Sign in using enterprise identity.", activeCardKeys: ["actor-dev", "agent-studio"] },
+          { title: "Register the Agent", narrative: "Create the enterprise identity for the agent (PF, AIC, P1); register agent metadata.", activeCardKeys: ["agent-studio"] },
+          { title: "Register Assets", narrative: "Register MCP servers, MCP resources, and MCP tools.", activeCardKeys: ["agent-studio"] },
+          { title: "Publish to Enterprise", narrative: "Register with the Ping Identity Platform; publish MCPs to the Privileges Gateway.", activeCardKeys: ["agent-studio", "privileges-gw"] },
+          { title: "Governance", narrative: "IGA for AI discovers the agent; establishes ownership; applies lifecycle management; assigns entitlements.", activeCardKeys: ["iga-ai"] },
+          { title: "Runtime", narrative: "The agent securely accesses enterprise resources through the Privileges MCP Gateway.", activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
+        ]},
+      admin: { label: "Security / Identity Administrator", persona: "Identity Administrator / Security Administrator / Governance Administrator",
+        stories: {
+          browserDevice: { label: "Story A — Browser & Device Discovery", outcome: "The browser/device AI agent becomes a managed enterprise AI asset.",
+            steps: [
+              { title: "Browser and device AI agents are discovered", narrative: "Claude Desktop, Cursor, Browser AI, and Device AI clients are running unmanaged, outside enterprise governance.", activeCardKeys: ["discovered-agent", "actor-user"] },
+              { title: "Privilege MCP Gateway detects unmanaged AI activity", narrative: "The Privileges MCP Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.", activeCardKeys: ["privileges-gw", "discovered-agent"] },
+              { title: "Administrator is notified", narrative: "The Privileges MCP Gateway raises an alert to the Identity/Security Administrator.", activeCardKeys: ["actor-admin", "privileges-gw"] },
+              { title: "Administrator reviews the discovered AI assets", narrative: "The administrator reviews the discovered assets in the Privilege Admin console.", activeCardKeys: ["actor-admin"] },
+              { title: "Administrator approves onboarding into enterprise governance", narrative: "The administrator approves bringing the discovered agent into enterprise governance.", activeCardKeys: ["actor-admin", "agent-studio"] },
+              { title: "Agent metadata is synchronized to IGA", narrative: "Agent metadata is synchronized to IGA for AI.", activeCardKeys: ["iga-ai"] },
+              { title: "IGA establishes ownership, lifecycle, and entitlements", narrative: "IGA for AI establishes ownership, lifecycle, inventory, governance, and entitlements for the agent.", activeCardKeys: ["iga-ai"] },
+              { title: "Browser/Device AI becomes a managed enterprise AI asset", narrative: "The agent is now subject to the same runtime enforcement as any other enterprise agent.", activeCardKeys: ["discovered-agent", "privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
+            ]},
+          cloud: { label: "Story B — Cloud AI Discovery", outcome: "The agent becomes governed and managed across the enterprise.",
+            steps: [
+              { title: "IGA discovers cloud-native AI agents", narrative: "IGA for AI discovers agents already running in Foundry, AWS, Vertex, or other cloud platforms.", activeCardKeys: ["iga-ai", "discovered-agent"] },
+              { title: "Administrator reviews the discovered agents", narrative: "The administrator reviews the discovered agents.", activeCardKeys: ["actor-admin"] },
+              { title: "Administrator approves enterprise registration", narrative: "The administrator approves enterprise registration for the discovered agent.", activeCardKeys: ["actor-admin"] },
+              { title: "IGA / Agent Studio requests Agent Identity creation", narrative: "IGA and Agent Studio request creation of an Agent Identity in PingOne / PingFederate / AIC.", activeCardKeys: ["iga-ai", "agent-studio"] },
+              { title: "Agent Studio creates the enterprise Agent Identity", narrative: "Agent Studio creates the enterprise Agent Identity.", activeCardKeys: ["agent-studio"] },
+              { title: "Agent metadata and identity are synchronized back to IGA", narrative: "Agent metadata and identity are synchronized back to IGA for AI.", activeCardKeys: ["iga-ai"] },
+              { title: "MCP resources are associated with the Agent Identity", narrative: "MCP resources are associated with the Agent Identity.", activeCardKeys: ["agent-studio", "privileges-gw"] },
+              { title: "Agent becomes governed and managed across the enterprise", narrative: "All runtime traffic is validated, authorized, and governed before accessing any resource.", activeCardKeys: ["discovered-agent", "privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
+            ]},
+        }},
+    };
+
+    const FLOW_ORDER = ["enterpriseUser", "developer", "admin"];
+    const PLAY_INTERVAL_MS = 2500;
+
+    let flowKey = FLOW_ORDER[0];
+    let story = "browserDevice";
+    let stepIndex = 0;
+    let playing = false;
+    let playTimer = null;
+
+    const flowTabsEl = document.getElementById("flow-tabs");
+    const storyTabsEl = document.getElementById("story-tabs");
+    const personaEl = document.getElementById("persona");
+    const diagramEl = document.getElementById("diagram");
+    const stepCountEl = document.getElementById("step-count");
+    const stepTitleEl = document.getElementById("step-title");
+    const stepNarrativeEl = document.getElementById("step-narrative");
+    const outcomeEl = document.getElementById("outcome");
+    const outcomeTextEl = document.getElementById("outcome-text");
+    const btnPrev = document.getElementById("btn-prev");
+    const btnNext = document.getElementById("btn-next");
+    const btnPlay = document.getElementById("btn-play");
+    const btnReset = document.getElementById("btn-reset");
+
+    function currentSteps() {
+      const flow = FLOWS[flowKey];
+      return flowKey === "admin" ? flow.stories[story].steps : flow.steps;
+    }
+    function currentOutcome() {
+      return flowKey === "admin" ? FLOWS.admin.stories[story].outcome : FLOWS[flowKey].outcome;
+    }
+
+    function renderFlowTabs() {
+      flowTabsEl.innerHTML = "";
+      FLOW_ORDER.forEach((key) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "flow-tab" + (key === flowKey ? " active" : "");
+        btn.textContent = FLOWS[key].label;
+        btn.addEventListener("click", () => selectFlow(key));
+        flowTabsEl.appendChild(btn);
+      });
+    }
+
+    function renderStoryTabs() {
+      if (flowKey !== "admin") { storyTabsEl.hidden = true; storyTabsEl.innerHTML = ""; return; }
+      storyTabsEl.hidden = false;
+      storyTabsEl.innerHTML = "";
+      Object.entries(FLOWS.admin.stories).forEach(([key, s]) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "story-tab" + (key === story ? " active" : "");
+        btn.textContent = s.label;
+        btn.addEventListener("click", () => selectFlow("admin", key));
+        storyTabsEl.appendChild(btn);
+      });
+    }
+
+    function renderDiagram() {
+      diagramEl.innerHTML = "";
+      const steps = currentSteps();
+      const active = new Set(steps[stepIndex].activeCardKeys);
+      const visited = new Set();
+      for (let i = 0; i < stepIndex; i += 1) steps[i].activeCardKeys.forEach((k) => visited.add(k));
+
+      LANES.forEach((lane) => {
+        const laneEl = document.createElement("div");
+        laneEl.className = "lane";
+        const laneTitle = document.createElement("div");
+        laneTitle.className = "lane-title";
+        laneTitle.textContent = lane.title;
+        laneEl.appendChild(laneTitle);
+
+        lane.cards.forEach((card) => {
+          const isActive = active.has(card.key);
+          const isVisited = !isActive && visited.has(card.key);
+          const cardEl = document.createElement("article");
+          cardEl.className = "card" + (isActive ? " active-card" : "") + (isVisited ? " visited-card" : "");
+          const h3 = document.createElement("h3");
+          h3.textContent = card.title;
+          const p = document.createElement("p");
+          p.textContent = card.body;
+          cardEl.appendChild(h3);
+          cardEl.appendChild(p);
+          laneEl.appendChild(cardEl);
+        });
+        diagramEl.appendChild(laneEl);
+      });
+    }
+
+    function render() {
+      renderFlowTabs();
+      renderStoryTabs();
+      personaEl.textContent = "Persona: " + FLOWS[flowKey].persona;
+      const steps = currentSteps();
+      const step = steps[stepIndex];
+      renderDiagram();
+      stepCountEl.textContent = "Step " + (stepIndex + 1) + " of " + steps.length;
+      stepTitleEl.textContent = (stepIndex + 1) + ". " + step.title;
+      stepNarrativeEl.textContent = step.narrative;
+      btnPrev.disabled = stepIndex === 0;
+      btnNext.disabled = stepIndex === steps.length - 1;
+      btnPlay.textContent = playing ? "Pause" : "Play";
+      if (stepIndex === steps.length - 1) {
+        outcomeEl.hidden = false;
+        outcomeTextEl.textContent = currentOutcome();
+      } else {
+        outcomeEl.hidden = true;
+      }
+    }
+
+    function selectFlow(key, subStory) {
+      stopPlaying();
+      flowKey = key;
+      if (subStory) story = subStory;
+      stepIndex = 0;
+      render();
+    }
+
+    function stopPlaying() {
+      playing = false;
+      if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+    }
+
+    function tick() {
+      const steps = currentSteps();
+      if (stepIndex >= steps.length - 1) { stopPlaying(); render(); return; }
+      stepIndex += 1;
+      render();
+      if (playing) playTimer = setTimeout(tick, PLAY_INTERVAL_MS);
+    }
+
+    btnPrev.addEventListener("click", () => { stopPlaying(); stepIndex = Math.max(0, stepIndex - 1); render(); });
+    btnNext.addEventListener("click", () => { stopPlaying(); const steps = currentSteps(); stepIndex = Math.min(steps.length - 1, stepIndex + 1); render(); });
+    btnReset.addEventListener("click", () => { stopPlaying(); stepIndex = 0; render(); });
+    btnPlay.addEventListener("click", () => {
+      playing = !playing;
+      render();
+      if (playing) playTimer = setTimeout(tick, PLAY_INTERVAL_MS);
+      else if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+    });
+
+    render();
+  </script>
+</body>
+</html>
