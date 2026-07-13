@@ -7,14 +7,14 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 12 happy-path steps, all pending", () => {
+  test("returns the 13 happy-path steps, all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
       "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "authorize", "intent-binding", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
   });
 });
 
@@ -268,5 +268,93 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const flat = JSON.stringify(byId.api.detail);
     expect(flat).toContain('GET /invest');
     expect(flat).toContain('0000');
+  });
+});
+
+describe("buildTraceSteps — not-in-path steps once the trace completes", () => {
+  test("gateway with no evidence stays pending mid-flight, flips to notinpath once outcome is set", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.find((s) => s.id === "gateway").status).toBe("pending");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    expect(complete.find((s) => s.id === "gateway").status).toBe("notinpath");
+  });
+
+  test("gateway with only a skipped-status introspection event renders notinpath, not done", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-introspection", status: "skipped",
+        explanation: "Gateway introspection skipped (endpoint not configured)" }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("notinpath");
+    expect(gw.detail.narrative).toContain("Gateway introspection skipped");
+  });
+
+  test("real gateway evidence still marks the step done even after the trace completes", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-authorize", status: "permit", decision: "PERMIT" }],
+    });
+    expect(steps.find((s) => s.id === "gateway").status).toBe("done");
+  });
+
+  test("api-key-swap stays pending mid-flight, flips to notinpath once outcome is set on the OAuth path", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.find((s) => s.id === "api-key-swap").status).toBe("pending");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    expect(complete.find((s) => s.id === "api-key-swap").status).toBe("notinpath");
+  });
+
+  test("stepup is absent mid-flight and appears as notinpath once the trace completes without a challenge", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.map((s) => s.id)).not.toContain("stepup");
+
+    const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
+    const ids = complete.map((s) => s.id);
+    expect(ids.indexOf("stepup")).toBe(ids.indexOf("authorize") + 1);
+    expect(complete.find((s) => s.id === "stepup").status).toBe("notinpath");
+  });
+
+  test("a real step-up challenge still wins over the notinpath default", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      phases: [{ phase: "mfa_challenge_initiated", label: "HITL — MFA challenge", detail: "" }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+});
+
+describe("buildTraceSteps — intent-binding step", () => {
+  test("pending with no tokenEvents", () => {
+    const steps = buildTraceSteps(EMPTY_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("pending");
+  });
+
+  test("done when an intent-binding-verified event is present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "intent-binding-verified", label: "Intent Verified (RAR — RFC 9396)", status: "active" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("done");
+  });
+
+  test("error when a gateway deny carries rar_unexpected_deny or rar_amount_exceeded", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "sim-gateway-deny", label: "Gateway DENY (rar_amount_exceeded)", status: "error", error: "rar_amount_exceeded" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("error");
   });
 });

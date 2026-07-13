@@ -12,8 +12,9 @@ truth — if the skill and this file disagree, this file wins.
 - **Emoji rule (project-wide):** the only emojis allowed in skills, commands,
   code, and UI text are `⚠️` (warning), `✅` (green check), `❌` (red X),
   `🔐` (security/lock — HITL trigger chips), `✕` (close / dismiss), `✓`
-  (check / confirm), `👤` (HITL consent marker), and `🔑` (step-up / MFA
-  marker). Everything else is plain text or CSS icons / semantic HTML.
+  (check / confirm), `👤` (HITL consent marker), `🔑` (step-up / MFA
+  marker), and `🪟` (pop out to new window — draggable modals/panels).
+  Everything else is plain text or CSS icons / semantic HTML.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
 - **Minimal diff:** name the component, name the element, change only that. No
@@ -82,6 +83,47 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-12 — Chat-driven transfer used wrong tool name, bypassing amount-aware HITL step-up
+
+**Files changed:** `demo_api_server/config/verticals/banking/index.js`,
+`demo_api_server/services/verticalDispatch.js`.
+
+**What was broken:** `getToolsWithActionAliases()` returns both the real MCP
+tool defs (`create_transfer`, `create_deposit`, `create_withdrawal`, ...) and a
+parallel set of legacy action-alias tools (`transfer`, `deposit`, `withdraw`,
+...) meant only for the heuristic parser's `dispatchVerticalIntent` name
+lookups. `verticalDispatch.js`'s `toolSchemasFor()` exposed both sets to the
+LLM's chat tool-calling schema. When the LLM picked the alias `transfer`
+instead of `create_transfer`: (1) PingGateway's `mcp-tool-schemas.json` doesn't
+recognize `transfer`, so `McpRequestValidation` rejected it with a plain 400
+before the request ever reached PingOne Authorize; (2) even on the local
+`McpFirstTool` gate (`mcpToolAuthorizationService.js`), `WRITE_TOOL_TYPE_MAP`
+is keyed by the real tool names only, so the wrong name made `transactionType`
+resolve to `null` and the amount never got extracted or evaluated — Authorize
+PERMITted with no step-up obligation, and the $500 HITL threshold was
+silently bypassed for chat-driven transfers.
+
+**What was fixed:** tagged `actionAliases` entries with `heuristicOnly: true`
+in `banking/index.js`, and filtered on that flag in `verticalDispatch.js`'s
+`toolSchemasFor()` before building the LLM-facing tool schema (all three
+merge points: base vertical, admin overlay, A2A overlay). Aliases remain
+available to `getTools()`/`getAuthz()` for heuristic dispatch — only the
+LLM-callable schema is filtered. No changes to the amount-aware gate itself:
+`evaluateMcpFirstToolGate` and `WRITE_TOOL_TYPE_MAP` were already correct once
+they receive the real tool name.
+
+**Do not break:** `getTools()` must still return the full alias set for
+heuristic-path lookups (`dispatchVerticalIntent`, `getAuthz()`) — only the LLM
+schema seam (`toolSchemasFor`) filters by `heuristicOnly`. Any new vertical
+adding its own action-alias pattern should tag aliases the same way rather
+than adding per-vertical filtering logic.
+
+**Verify:** `verticalDispatch.noFallback.test.js`,
+`verticalDispatch.fallback.test.js`, `agentTool.verticalDispatch.test.js`,
+`verticalDispatch.oas.test.js` — all pass. Live: chat "Transfer $600 from
+checking to savings" now resolves through `create_transfer` and correctly
+triggers the HITL step-up challenge instead of a 400.
+
 ### 2026-07-11 — Restored clobbered AI-Attacks inline-agent fix; UI suite back to green
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
@@ -149,6 +191,43 @@ rollup still treats it as neutral "~".
 
 **Verify:** vitest `TokenChainDisplay.haltedAt` (bucket assertions included),
 `SimpleStepperPanel`; UI build gate.
+
+### 2026-07-12 — "Not in path" extended to the embedded Token Chain rail (all verticals/agents)
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TraceStepCard.jsx` (+`.css` on
+`TokenChainTraceRail.css`), plus tests.
+
+**What was broken:** the 2026-07-11 sweep above never reached
+`TokenChainTraceRail`/`buildTraceSteps.js` — the rail embedded in every
+dashboard/vertical (`UserDashboard`, `Dashboard`, `TokenChainModal`,
+`VerticalOpsConsole`; see the 2026-07-05 entry below). Its status model only
+had `pending/active/done/error`, so a step never applicable to a run (gateway
+not in route, OAuth-bearer path with no API-key swap, no step-up demanded)
+stayed gray "pending" forever instead of resolving — same alarming-omission
+read the 07-11 fix addressed everywhere else.
+
+**What was fixed/changed:** new `notinpath` status in `buildTraceSteps.js`,
+gated on `trace.outcome` (`traceComplete`) so in-flight steps are unaffected —
+only once a trace has a terminal outcome does an evidence-free step resolve to
+`notinpath` instead of sitting `pending`. Applies to: the `gateway` step (no
+gateway evidence, or only a `status:"skipped"` `gw-introspection`/`gw-mtls`
+event — a real `gw-authorize`/`evt-inbound`/`evt-scope` signal still wins and
+marks it `done`); the `api-key-swap` step (OAuth-bearer runs with no swap
+evidence); and the `stepup` step (previously omitted entirely when not
+triggered — now appears, once the trace completes, as `notinpath` instead of
+silently vanishing). `TraceStepCard.jsx` renders `notinpath` with a
+struck-through title and a dashed "Not in path" pill in place of the lane
+badge (`.tctr-step-title--notinpath`, `.tctr-lane--notinpath`), matching the
+`TokenChainDisplay` convention.
+
+**Do not break:** `notinpath` must only ever replace a still-`pending`
+resolution, never a `done`/`active`/`error` one — real evidence always wins.
+Mid-flight (`trace.outcome === null`) behavior is unchanged; `stepup` still
+only appears in the array once a challenge phase fires or the trace completes.
+
+**Verify:** vitest `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+(22 tests), `src/components/__tests__/TokenChainTraceRail.test.jsx` (7 tests).
 
 ### 2026-07-11 — P1AZ policy-not-found handling + reliability hardening (deliberate posture change)
 

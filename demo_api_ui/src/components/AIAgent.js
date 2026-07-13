@@ -92,7 +92,7 @@ import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
-import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal } from "./demoAgentSafety";
+import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
@@ -334,6 +334,10 @@ export default function BankingAgent({
   // configured). Drives a persistent banner in the panel header. Cleared as
   // soon as a Helix-sourced answer comes back.
   const [helixDegraded, setHelixDegraded] = useState(false);
+  // Message id currently running the pre-warm-and-retry action (Task: prewarm-retry-timeout).
+  const [prewarming, setPrewarming] = useState(null);
+  const prewarmGuardRef = useRef(null);
+  if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
   const [modelAdvisory, setModelAdvisory] = useState(null);
   const modelAdvisoryTimerRef = useRef(null);
   // Single-slot conversation state for clarification follow-ups.
@@ -1710,7 +1714,7 @@ export default function BankingAgent({
   }, [isOpen, isLoggedIn]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const el = messagesContainerRef.current;
     if (!el) return;
     // requestAnimationFrame ensures scrollHeight is measured after the browser paints new content
@@ -1719,7 +1723,7 @@ export default function BankingAgent({
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isOpen, loading, nlLoading]);
+  }, [messages, isOpen, isInline, loading, nlLoading]);
 
   useEffect(() => {
     if (!isOpen && !isInline) return;
@@ -3052,7 +3056,7 @@ export default function BankingAgent({
               "   A token issued for `banking-api.example.com` MUST be rejected by `mcp-server.example.com`.",
               "   The `aud` claim in the MCP token must exactly match the MCP server's registered audience.",
               "",
-              "Open Token Chain ↗ → MCP access token → `aud` claim to see the audience after exchange.",
+              "Open Token Chain 🪟 → MCP access token → `aud` claim to see the audience after exchange.",
             ].join("\n"),
             actionId,
           );
@@ -4053,7 +4057,7 @@ export default function BankingAgent({
               `HITL gate (RFC 8693 §2.1) — Transfers over the threshold require your explicit consent before the agent proceeds. The agent cannot self-approve: enforcement is server-side, before tool execution.`,
               "",
               `RFCs in play — \`RFC 8693\` (token exchange) · \`RFC 6749 §3.3\` (scope) · \`RFC 8707\` (audience binding)`,
-              `Open Token Chain ↗ to inspect the MCP access token's \`act\`, \`aud\`, and \`scope\` claims.`,
+              `Open Token Chain 🪟 to inspect the MCP access token's \`act\`, \`aud\`, and \`scope\` claims.`,
             ].join("\n"),
             actionId,
           );
@@ -4452,17 +4456,6 @@ export default function BankingAgent({
           ].join("\n"),
           actionId,
         );
-      } else if (err?.code === "may_act_required") {
-        // ff_require_may_act is ON and the user revoked the agent: the RFC 8693
-        // exchange is blocked with a 403 (code: may_act_required). Render a clean,
-        // actionable re-authorize state instead of a raw error — the button grants
-        // may_act and silently re-auths so the new token reflects the change.
-        addMessage(
-          "error",
-          "The agent isn't authorized to act on your behalf. Authorize it to continue.",
-          actionId,
-          { showReauthAgentAction: true },
-        );
       } else if (err?.code === "policy_not_found") {
         // P1AZ has no policy matching this action (missing decision endpoint or
         // NOT_APPLICABLE) — config drift, not a deny. Tell the user plainly and
@@ -4675,10 +4668,7 @@ export default function BankingAgent({
               String(err?.message || ""),
             )));
 
-      if (err?.code === "may_act_required") {
-        // Clean re-authorize state already rendered above — do not append a raw
-        // error bubble for this case.
-      } else if (showSessionFixBubble) {
+      if (showSessionFixBubble) {
         if (!sessionFixBubbleShownRef.current) {
           sessionFixBubbleShownRef.current = true;
           addMessage("error", SESSION_NOT_HYDRATED_CHAT, actionId, {
@@ -5570,7 +5560,7 @@ export default function BankingAgent({
   }
 
   /** NL API errors: 401 is session missing on server — not a parse failure. */
-  function reportNlFailure(err) {
+  function reportNlFailure(err, retry) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
     // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
@@ -5583,9 +5573,14 @@ export default function BankingAgent({
       notifyError("⏱️ The model took too long to respond — request timed out.", {
         autoClose: agentToastMs.errShort,
       });
+      // Only llama.cpp timeouts get the pre-warm retry action — there's no
+      // local tier to pre-warm for Helix/Anthropic.
+      const offerPrewarmRetry = retry && isLocalModelTimeout(err, activeLlmProvider);
       addMessage(
         "assistant",
         "That took too long to answer — the local model timed out. Try again (the model is faster once warmed up), or switch to a quicker mode (Helix/Anthropic, or a smaller Ollama model).",
+        null,
+        offerPrewarmRetry ? { showPrewarmRetryAction: true, retryFn: retry } : undefined,
       );
       return;
     }
@@ -5647,6 +5642,22 @@ export default function BankingAgent({
       autoClose: agentToastMs.errShort,
     });
     addMessage("assistant", `Could not parse: ${errorMessage}`);
+  }
+
+  /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
+  async function handlePrewarmRetry(msgId, retryFn) {
+    if (!prewarmGuardRef.current.tryAcquire()) return;
+    setPrewarming(msgId);
+    try {
+      await prewarmTierAndRetry("gpt-oss-20b", retryFn);
+    } catch (_err) {
+      notifyError("Could not pre-warm the model — try switching mode instead.", {
+        autoClose: agentToastMs.errShort,
+      });
+    } finally {
+      setPrewarming(null);
+      prewarmGuardRef.current.release();
+    }
   }
 
   async function handleNaturalLanguage() {
@@ -5909,7 +5920,7 @@ export default function BankingAgent({
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
     } catch (err) {
       if (isAbortError(err)) return;
-      reportNlFailure(err);
+      reportNlFailure(err, () => handleNaturalLanguageInner(text));
     } finally {
       setNlLoading(false);
     }
@@ -8796,27 +8807,20 @@ export default function BankingAgent({
                         </div>
                       );
                     }
-                    if (msg.role === "error" && msg.showReauthAgentAction) {
+                    if (msg.role === "assistant" && msg.showPrewarmRetryAction) {
+                      const isWarming = prewarming === msg.id;
                       return (
-                        <div key={msg.id} className="banking-agent-msg error">
+                        <div key={msg.id} className="banking-agent-msg assistant">
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
                             <MessageContent text={msg.content} terminology={terminology} />
                             <div className="ba-session-fix-actions">
                               <button
                                 type="button"
                                 className="ba-session-fix-btn"
-                                onClick={async () => {
-                                  try {
-                                    const data = await setAgentAuthorization(true);
-                                    if (data.reauthRequired) {
-                                      requestSilentReauth(window.location.pathname);
-                                    }
-                                  } catch (_) {
-                                    /* leave the message in place if the grant fails */
-                                  }
-                                }}
+                                disabled={isWarming}
+                                onClick={() => handlePrewarmRetry(msg.id, msg.retryFn)}
                               >
-                                Authorize agent
+                                {isWarming ? "Warming up… (up to ~1 min)" : "Pre-warm the model & retry"}
                               </button>
                             </div>
                           </div>

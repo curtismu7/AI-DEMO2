@@ -507,6 +507,11 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
  * specialist, pushing the a2a-* events onto the shared tokenEvents (→ SSE/UI).
  * Returns a JSON string for the reason loop.
  */
+// Specialist tools that have a real return shape wired to a manifest render key
+// (config/verticals/investment/manifest.json). Tools not in this map still get
+// delegated and executed, just without a rendered card — text reply only.
+const A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' };
+
 async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
@@ -520,6 +525,18 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     return JSON.stringify({ delegated: false, error: result.error || 'delegation_failed' });
   }
 
+  // Default account_id for specialist tools that require one — the demo has a
+  // single portfolio per user, same "first held record" convention used elsewhere
+  // (see applyAdminCustomerContext). Only get_portfolio_summary needs it today.
+  const toolArgs = { ...((args && args.args) || {}) };
+  if (result.tool === 'get_portfolio_summary' && toolArgs.account_id == null) {
+    try {
+      const plugin = verticalDispatch.resolvePlugin('investment');
+      const portfolios = plugin?.getDataStore()?.get(req?.session?.user?.id)?.portfolios || [];
+      if (portfolios[0]) toolArgs.account_id = portfolios[0].id;
+    } catch (_) { /* best-effort default only */ }
+  }
+
   // Execute the specialist's tool WITH the minted nested-act token. The pipeline
   // skips the user→agent exchange (suppliedToken) and runs Authorize + the gateway
   // call; Authorize PERMITs the depth-2 act chain (the generalist alone is DENIED).
@@ -527,7 +544,7 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   if (result.tool) {
     const raw = await executeBffToolWithToken({
       name: result.tool,
-      args: (args && args.args) || {},
+      args: toolArgs,
       req,
       tokenEvents: events,
       sessionId: sessionId || req?.sessionID || '',
@@ -537,6 +554,12 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
   }
 
+  // "Delegated" only means the nested-act token was minted — it is NOT proof the
+  // specialist's tool call actually succeeded. Report that separately so a tool-call
+  // failure (e.g. a gateway DENY, a missing BFF route) surfaces instead of being
+  // masked by an unconditional "Delegation complete" text.
+  const toolError = toolResult && typeof toolResult === 'object' && toolResult.error;
+
   return JSON.stringify({
     delegated: true,
     specialist: result.specialist,
@@ -545,11 +568,42 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     actChainDepth: result.actChainDepth,
     scopes: result.scopes,
     result: toolResult,
+    toolError: toolError || null,
+    render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
     note:
       `Delegated to the ${result.specialist}. A nested act chain ` +
       `(act:{${result.specialist} → generalist}) bound to the user was minted, and ` +
       `PingOne Authorize permitted the specialist to run ${result.tool}.`,
   });
+}
+
+// Shared reply/envelope builder for both delegate_to_specialist call sites (the
+// A2A fast-path and the explicit action). A minted token (`a2aResult.delegated`)
+// is proof of the chain, NOT proof the specialist's tool call succeeded — only
+// report "Delegation complete" when the tool actually returned data, and attach
+// a verticalResult card when the tool has a wired render (A2A_TOOL_RENDER).
+function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
+  const toolOk = a2aResult.delegated && a2aResult.tool && !a2aResult.toolError;
+  let reply;
+  if (toolOk) {
+    reply = `Delegation complete — ${a2aResult.specialist} retrieved ${a2aResult.tool.replace(/_/g, ' ')} on your behalf (act-chain depth ${a2aResult.actChainDepth}).`;
+  } else if (a2aResult.delegated) {
+    reply = `❌ Delegated to ${a2aResult.specialist}, but ${a2aResult.tool || 'the tool call'} failed: ${a2aResult.toolError || 'no result returned'}.`;
+  } else {
+    reply = `❌ ${a2aResult.error || 'A2A delegation failed'}`;
+  }
+  return {
+    reply,
+    success: toolOk,
+    toolsCalled: ['delegate_to_specialist'],
+    tokensUsed: 0,
+    requiresConsent: false,
+    agentConfigured: true,
+    tokenEvents,
+    ...(toolOk && a2aResult.render
+      ? { verticalResult: { action: a2aResult.tool, render: a2aResult.render, data: a2aResult.result } }
+      : {}),
+  };
 }
 
 // Plugin-first executeTool. Returns a function with the reason-loop signature
@@ -750,18 +804,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId });
       let a2aResult;
       try { a2aResult = JSON.parse(a2aJson); } catch (_) { a2aResult = { delegated: false, error: a2aJson }; }
-      const a2aReply = a2aResult.delegated
-        ? `Delegation complete — ${a2aResult.specialist} retrieved ${a2aResult.tool ? a2aResult.tool.replace(/_/g, ' ') : 'the requested data'} on your behalf (act-chain depth ${a2aResult.actChainDepth}).`
-        : `❌ ${a2aResult.error || 'A2A delegation failed'}`;
-      return {
-        reply: a2aReply,
-        success: a2aResult.delegated === true,
-        toolsCalled: ['delegate_to_specialist'],
-        tokensUsed: 0,
-        requiresConsent: false,
-        agentConfigured: true,
-        tokenEvents,
-      };
+      return buildA2aReplyEnvelope(a2aResult, tokenEvents);
     }
   }
 
@@ -877,18 +920,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
     const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
-    const reply = a2a.delegated
-      ? `Delegation complete — ${a2a.specialist} retrieved ${a2a.tool ? a2a.tool.replace(/_/g, ' ') : 'the requested data'} on your behalf (act-chain depth ${a2a.actChainDepth}).`
-      : `❌ ${a2a.error || 'A2A delegation failed'}`;
-    return {
-      reply,
-      success: a2a.delegated === true,
-      toolsCalled: ['delegate_to_specialist'],
-      tokensUsed: 0,
-      requiresConsent: false,
-      agentConfigured: true,
-      tokenEvents,
-    };
+    return buildA2aReplyEnvelope(a2a, tokenEvents);
   }
 
   // Cross-vertical banking MCP: account nickname always routes through dispatchBankingAction.

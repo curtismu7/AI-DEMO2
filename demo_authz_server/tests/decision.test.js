@@ -98,7 +98,9 @@ beforeEach(() => {
   OVERLAY = path.join(os.tmpdir(), 'dec-partA-' + process.pid + '-' + Math.floor(process.hrtime()[1]) + '.json');
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.MCP_GATEWAY_RESOURCE_URI = 'test-aud';
-  process.env.ENFORCE_MAY_ACT = 'true';
+  // Rule 2 is act-only now: the fixtures' baseline actor ('agent-1') must be
+  // a recognized authorized actor, not just may_act-matched.
+  process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = 'agent-1';
   process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT = '2000';
   process.env.SIMULATED_AUTHORIZE_STEPUP_AMOUNT = '500';
   process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT = '250';
@@ -399,7 +401,8 @@ test('UC16 B-2: flag ON + agent-mediated tool + ActClientId present -> not denie
 });
 
 test('UC16 B-3: flag OFF + agent-mediated tool + no ActClientId -> not denied by UC16 rule', async () => {
-  // REQUIRE_ACT_FOR_AGENT_TOOLS is deleted in beforeEach → flag is OFF
+  // Flag now defaults ON — explicitly opt out to test the OFF case.
+  process.env.REQUIRE_ACT_FOR_AGENT_TOOLS = 'false';
   fresh();
   // No ActClientId but flag off — falls through to normal path
   const result = await decide(writeParams({ ActClientId: '', MayActSub: '', TransactionAmount: '100' }));

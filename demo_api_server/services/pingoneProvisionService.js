@@ -1149,6 +1149,27 @@ class PingOneProvisionService {
   }
 
   /**
+   * Delete an app's grant on a specific resource, if one exists. Needed before
+   * re-granting a scope NAME on a DIFFERENT resource — grantScopesToApplication
+   * deliberately skips creating a colliding grant (PingOne enforces one
+   * scope-name per app across all its grants), so a scope migrated to a new
+   * resource must have its old grant explicitly removed first, or the skip
+   * logic silently keeps returning the old (wrong) resource's token.
+   */
+  async revokeApplicationGrantOnResource(appId, resourceId) {
+    try {
+      const existingGrants = (await this.makeRequest('GET', `/applications/${appId}/grants`))
+        .data._embedded?.grants || [];
+      const match = existingGrants.find((g) => g.resource?.id === resourceId);
+      if (!match) return { success: true, action: 'none' };
+      await this.makeRequest('DELETE', `/applications/${appId}/grants/${match.id}`);
+      return { success: true, action: 'revoked', grantId: match.id };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Create user
    */
   async createUser(username, firstName, lastName, email) {
@@ -1498,16 +1519,22 @@ class PingOneProvisionService {
       `PINGONE_RESOURCE_TWO_EXCHANGE_URI=${provisioned.mcpGwResourceServer?.audience?.[0] || 'mcpgateway.ping.demo'}`,
       `# Exchange #1 scope — must match the scope granted to AI Agent on the Agent Gateway resource`,
       `TWO_EXCHANGE_INTERMEDIATE_SCOPE=agent:invoke`,
-      '# Agent-to-Agent (A2A) — per-vertical specialist agents (Agent 2) + intermediate audience',
-      `PINGONE_RESOURCE_A2A_INTERMEDIATE_URI=${provisioned.a2aResourceServer?.audience?.[0] || 'a2a-intermediate.ping.demo'}`,
-      `A2A_INTERMEDIATE_AUDIENCE=${provisioned.a2aResourceServer?.audience?.[0] || 'a2a-intermediate.ping.demo'}`,
-      `A2A_INTERMEDIATE_SCOPE=agent:invoke`,
+      '# Agent-to-Agent (A2A) — per-vertical specialist agents (Agent 2), each with its',
+      '# OWN intermediate audience AND uniquely-named invoke scope (RFC 8707 resource',
+      '# indicators + PingOne one-scope-name-per-client-across-all-grants constraint —',
+      '# a shared audience/scope across 9 unrelated specialists collides; see',
+      '# docs/ACT_CLAIM_VERIFICATION.md). Not overridable via env — derived in code.',
+      '# Exchange #2 target — separate from PINGONE_RESOURCE_MCP_GATEWAY_URI so the',
+      '# nested-act composer SPEL there never touches the non-A2A two-exchange flow.',
+      `A2A_GATEWAY_AUDIENCE=${provisioned.a2aGwResourceServer?.audience?.[0] || 'mcpgateway-a2a.ping.demo'}`,
       ...Object.values((() => { try { return require('../config/a2aSpecialists').A2A_SPECIALISTS; } catch (_e) { return {}; } })()).flatMap((spec) => {
         const app = provisioned.a2aSpecialistApps && provisioned.a2aSpecialistApps[spec.appKey];
+        const resource = provisioned.a2aResourceServers && provisioned.a2aResourceServers[spec.appKey];
         const key = spec.appKey.toUpperCase();
         return [
           `PINGONE_A2A_${key}_AGENT_CLIENT_ID=${app?.clientId || ''}`,
           `PINGONE_A2A_${key}_AGENT_CLIENT_SECRET=${app?.clientSecret || '<set-in-pingone-console>'}`,
+          `A2A_INTERMEDIATE_AUDIENCE_${key}=${resource?.audience?.[0] || `a2a-intermediate-${spec.appKey}.ping.demo`}`,
         ];
       }),
       '# Admin Token Exchange',
@@ -2681,40 +2708,55 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
-      // Step 37a-A2A: Agent-to-Agent (A2A) — the A2A Intermediate resource + one
-      // specialist app per vertical (Agent 2). The generalist (AI Agent = Agent 1)
-      // performs Exchange #1 (user → intermediate); the specialist performs
-      // Exchange #2 (intermediate + specialist actor → gateway), nesting the act
-      // chain. Each specialist is granted ONLY its derived scope (least privilege);
-      // the scope is read from the SoT (scope-topology.json) via its tools — never
-      // re-declared here. Fully wrapped so a failure never breaks bootstrap.
+      // Step 37a-A2A: Agent-to-Agent (A2A) — one specialist app (Agent 2) PER VERTICAL,
+      // each with its OWN A2A Intermediate resource/audience. The generalist (AI Agent =
+      // Agent 1) performs Exchange #1 (user → that specialist's intermediate); the
+      // specialist performs Exchange #2 (intermediate + specialist actor → gateway),
+      // nesting the act chain. Each specialist is granted ONLY its derived scope
+      // (least privilege); the scope is read from the SoT (scope-topology.json) via
+      // its tools — never re-declared here.
+      //
+      // A DEDICATED resource per specialist (not one shared "A2A Intermediate" resource)
+      // is deliberate: RFC 8707 resource indicators warn that a token valid for multiple
+      // audiences "can be used by any one of those resources to access any of the
+      // others" — sharing one audience across 9 unrelated specialists would let any
+      // specialist's Exchange #1 token be replayed toward another's Exchange #2. Each
+      // resource also gets a literal `may_act = {sub: <that specialist's client id>}`
+      // attribute (the exact proven pattern from Step 35.5's agentGwMayActValue above)
+      // so PingOne emits a native `act` claim on this vertical's chain — no untested
+      // list/array SPEL needed, since the resource is 1:1 with the specialist.
+      // Fully wrapped so a failure never breaks bootstrap.
       try {
         const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
         const _scopeTopology = require('./scopeTopology');
 
-        const a2aAud = config.a2aIntermediateAudience || 'a2a-intermediate.ping.demo';
-        steps.push({ step: 'a2a-resource', icon: '🛡️', message: `Creating A2A Intermediate resource (aud: ${a2aAud})...` });
+        // A2A's OWN final destination resource (Exchange #2 target) — deliberately
+        // SEPARATE from mcpGwResourceResult, which the pre-existing non-A2A
+        // two-exchange flow (UC1) also targets. Composing a nested `act` claim
+        // here (below) would change UC1's existing flat act shape too if done on
+        // the shared resource; giving A2A its own audience means the composer
+        // SPEL only ever applies to A2A calls. The real gateway (tokenValidator.ts)
+        // and the mock authz server (decision.js) both already accept a
+        // comma-separated list of valid audiences via MCP_GW_RESOURCE_URI — see
+        // docker-compose.yml, which appends this resource's audience to that list.
+        const a2aGwAudience = config.a2aGatewayAudience || 'mcpgateway-a2a.ping.demo';
+        steps.push({ step: 'a2a-gateway-resource', icon: '🛡️', message: `Creating A2A MCP Gateway resource (aud: ${a2aGwAudience})...` });
         onStep(steps[steps.length - 1]);
-        const a2aResourceResult = await this.createResourceServer(
-          _provisioningResourceName('Super Banking A2A Intermediate'),
-          'A2A intermediate audience — Exchange #1 result of the agent-to-agent chained RFC 8693 delegation.',
-          a2aAud,
+        const a2aGwResourceResult = await this.createResourceServer(
+          _provisioningResourceName('Super Banking A2A MCP Gateway'),
+          'A2A specialists\' Exchange #2 destination — separate from the shared MCP Gateway resource so the nested-act composer SPEL never touches the non-A2A two-exchange flow.',
+          a2aGwAudience,
         );
-        provisioned.a2aResourceServer = a2aResourceResult.resource;
-        const a2aScopeResults = await this.createScopes(
-          a2aResourceResult.resource.id,
-          topologyResourceScopeObjects('Super Banking A2A Intermediate'),
-        );
-        pushScopeResultStep(steps, 'a2a-resource', 'A2A Intermediate scopes', a2aScopeResults);
+        provisioned.a2aGwResourceServer = a2aGwResourceResult.resource;
         onStep(steps[steps.length - 1]);
 
-        // Agent 1 (AI Agent) needs agent:invoke on the A2A intermediate to mint Exchange #1.
-        await this.grantScopesToApplication(aiAgentAppResult.application.id, a2aResourceResult.resource.id, ['agent:invoke']);
-
-        // One specialist app per vertical (Agent 2), each granted ONLY its derived scope.
         provisioned.a2aSpecialistApps = {};
+        provisioned.a2aResourceServers = {};
         for (const spec of Object.values(A2A_SPECIALISTS)) {
           const specScopes = [...new Set((spec.tools || []).flatMap((t) => _scopeTopology.toolScopes(t)))];
+
+          // Agent 2 app first — its client id is needed to wire this vertical's
+          // dedicated intermediate resource's may_act below.
           steps.push({ step: `a2a-${spec.appKey}-app`, icon: '🤖', message: `Creating ${spec.specialistName} (A2A specialist)...` });
           onStep(steps[steps.length - 1]);
           const specResult = await this.createApplication(
@@ -2729,15 +2771,126 @@ class PingOneProvisionService {
           if (!specResult.exists) {
             await this.updateApplication(app.id, { tokenEndpointAuthMethod: 'client_secret_post' });
           }
-          // Narrow scope on Demo API (mints the Exchange #2 token) + agent:invoke on the
-          // A2A intermediate (accept the Exchange #1 subject token, aud=a2a-intermediate).
-          await Promise.all([
-            this.grantScopesToApplication(app.id, resourceResult.resource.id, specScopes),
-            this.grantScopesToApplication(app.id, a2aResourceResult.resource.id, ['agent:invoke']),
-          ]);
           pushAppResultStep(steps, `a2a-${spec.appKey}-app`, spec.specialistName, specResult);
           onStep(steps[steps.length - 1]);
+
+          // This specialist's OWN A2A Intermediate resource (Exchange #1 result audience).
+          const specAud = config.a2aIntermediateAudience
+            ? `${spec.appKey}.${config.a2aIntermediateAudience}`
+            : `a2a-intermediate-${spec.appKey}.ping.demo`;
+          steps.push({ step: `a2a-${spec.appKey}-resource`, icon: '🛡️', message: `Creating A2A Intermediate resource for ${spec.specialistName} (aud: ${specAud})...` });
+          onStep(steps[steps.length - 1]);
+          const specResourceResult = await this.createResourceServer(
+            _provisioningResourceName(`Super Banking A2A Intermediate - ${spec.specialistName}`),
+            `A2A intermediate audience for ${spec.specialistName} — Exchange #1 result of the agent-to-agent chained RFC 8693 delegation, scoped to this specialist only (RFC 8707).`,
+            specAud,
+          );
+          provisioned.a2aResourceServers[spec.appKey] = specResourceResult.resource;
+          // Scope name is UNIQUELY PER SPECIALIST ("agent:invoke:<appKey>"), not the
+          // shared "agent:invoke" — PingOne enforces one scope-name per client across
+          // ALL its grants (see Step 37a's Agent Gateway grant comment above), and
+          // Agent 1 (AI Agent) holds a grant on every one of these 8 resources. Reusing
+          // "agent:invoke" for all of them collides silently: PingOne mints the
+          // Exchange #1 token against the WRONG resource's audience regardless of the
+          // audience actually requested (confirmed live — every exchange came back
+          // audienced to whichever resource "agent:invoke" first bound to).
+          const invokeScopeName = `agent:invoke:${spec.appKey}`;
+          const specScopeResults = await this.createScopes(
+            specResourceResult.resource.id,
+            [{ name: invokeScopeName, description: `Invoke the ${spec.specialistName} A2A intermediate (Exchange #1 actor).` }],
+          );
+          pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A Intermediate scopes`, specScopeResults);
+          onStep(steps[steps.length - 1]);
+
+          // Revoke the specialist's stale grants on resources that predate this
+          // resource's introduction — the general Demo API/enduser resource (the
+          // original bug, #357/#359) and the shared MCP Gateway resource (#357's
+          // fix, now superseded by this dedicated A2A gateway resource).
+          // grantScopesToApplication deliberately skips creating a colliding
+          // same-name grant on another resource (PingOne enforces one scope-name
+          // per app across all its grants), so the old grants must be removed
+          // before the new one can land.
+          await Promise.all([
+            this.revokeApplicationGrantOnResource(app.id, resourceResult.resource.id),
+            this.revokeApplicationGrantOnResource(app.id, mcpGwResourceResult.resource.id),
+          ]);
+
+          const a2aGwScopeResults = await this.createScopes(
+            a2aGwResourceResult.resource.id,
+            specScopes.map((name) => ({ name, description: `${spec.specialistName} — ${name} (A2A Exchange #2).` })),
+          );
+          pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A MCP Gateway scopes`, a2aGwScopeResults);
+          onStep(steps[steps.length - 1]);
+
+          // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
+          // Exchange #1 for this vertical. The specialist needs the same scope on its
+          // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
+          // plus its narrow derived scope on the A2A MCP Gateway resource (Exchange
+          // #2's target, c.specialistAud).
+          await Promise.all([
+            this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
+            this.grantScopesToApplication(app.id, a2aGwResourceResult.resource.id, specScopes),
+            this.grantScopesToApplication(app.id, specResourceResult.resource.id, [invokeScopeName]),
+          ]);
+
+          // Wire may_act on this specialist's own intermediate resource — the proven
+          // single-value literal form (Step 35.5), safe because the resource is 1:1
+          // with this one specialist.
+          try {
+            await this._setResourceAttribute(
+              specResourceResult.resource.id,
+              'may_act',
+              JSON.stringify({ sub: app.clientId }),
+            );
+            steps.push({ step: `a2a-${spec.appKey}-may-act`, icon: '✅', message: `${spec.specialistName} may_act wired on its own A2A Intermediate resource` });
+          } catch (mayActErr) {
+            steps.push({ step: `a2a-${spec.appKey}-may-act`, icon: '⚠️', message: `${spec.specialistName} may_act step: ${mayActErr.message}` });
+          }
+          onStep(steps[steps.length - 1]);
+
+          // Wire act on this specialist's own intermediate resource — the SAME
+          // SPEL already live on the Agent Gateway resource (Exchange #1 target
+          // of the original two-exchange flow): copies the SUBJECT token's
+          // (the user token's) may_act claim onto this hop's act claim. Without
+          // this, Exchange #1's result carries no act at all, and Exchange #2's
+          // act SPEL — a straight passthrough of subjectToken.act — has nothing
+          // to propagate (confirmed live: actChainDepth stayed 0 until this was
+          // added; adding it alone brought depth to 1, actPresent true).
+          try {
+            await this._setResourceAttribute(
+              specResourceResult.resource.id,
+              'act',
+              '${#root.context.requestData.subjectToken.may_act}',
+            );
+            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '✅', message: `${spec.specialistName} act wired on its own A2A Intermediate resource` });
+          } catch (actErr) {
+            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '⚠️', message: `${spec.specialistName} act step: ${actErr.message}` });
+          }
+          onStep(steps[steps.length - 1]);
         }
+
+        // Wire a TRUE nested-act composer on the A2A MCP Gateway resource — ONE
+        // time, shared by all 8 specialists' Exchange #2. Unlike the flat
+        // passthrough on the ORIGINAL shared MCP Gateway resource
+        // (`${#root.context.requestData.subjectToken.act}`, untouched — still used
+        // by the non-A2A two-exchange flow), this composes a NEW map: sub = the
+        // specialist (this hop's actor), act = whatever the previous hop already
+        // produced. Result: act:{sub:specialist, act:{sub:generalist}} — true
+        // RFC 8693 §4.1 depth-2 nesting. SpEL inline-map literal syntax
+        // (`{...}`) is not proven elsewhere in this codebase — verified
+        // empirically against the live tenant before this was committed to code
+        // (see memory ai-demo2-a2a-delegation-fix.md).
+        try {
+          await this._setResourceAttribute(
+            a2aGwResourceResult.resource.id,
+            'act',
+            "${{'sub': #root.context.requestData.actorToken.client_id, 'act': #root.context.requestData.subjectToken.act}}",
+          );
+          steps.push({ step: 'a2a-gateway-act', icon: '✅', message: 'A2A MCP Gateway nested-act composer wired' });
+        } catch (a2aActErr) {
+          steps.push({ step: 'a2a-gateway-act', icon: '⚠️', message: `A2A MCP Gateway act step: ${a2aActErr.message}` });
+        }
+        onStep(steps[steps.length - 1]);
       } catch (a2aErr) {
         steps.push({ step: 'a2a-specialists', icon: '⚠️', message: `A2A specialist provisioning skipped: ${a2aErr.message}` });
         onStep(steps[steps.length - 1]);

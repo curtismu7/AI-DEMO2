@@ -19,6 +19,14 @@ import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
 import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
+import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
+import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
+import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
+import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
+import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
+import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
+import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
+import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
@@ -131,6 +139,7 @@ import PublicRoutes, {
   ConfigurePage,
   CopilotPageRoute,
   GraphifyPageRoute,
+  IntentBindingLearningPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
@@ -441,6 +450,12 @@ function AppWithAuth() {
                 <Route
                   path="/authz-test"
                   element={<AuthzTestPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/intent-binding-learning"
+                  element={
+                    <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"
@@ -1034,6 +1049,38 @@ function AppWithAuth() {
                             <Route
                               path="/agent-guardrails"
                               element={<AgentGuardrailsPage />}
+                            />
+                            <Route
+                              path="/agent-onboarding-flow"
+                              element={<AgentOnboardingFlowDiagram />}
+                            />
+                            <Route
+                              path="/agent-onboarding-flow-subway"
+                              element={<AgentOnboardingSubwayPage />}
+                            />
+                            <Route
+                              path="/agent-onboarding-flow-mermaid"
+                              element={<AgentOnboardingMermaidPage />}
+                            />
+                            <Route
+                              path="/agent-studio-preview"
+                              element={<AgentStudioPreviewPage />}
+                            />
+                            <Route
+                              path="/discovery-preview"
+                              element={<DiscoveryPreviewPage />}
+                            />
+                            <Route
+                              path="/iga-for-ai"
+                              element={<IgaForAiPage />}
+                            />
+                            <Route
+                              path="/privileges-gateway-preview"
+                              element={<PrivilegesGatewayPreviewPage />}
+                            />
+                            <Route
+                              path="/platform-gaps"
+                              element={<PlatformGapsPage />}
                             />
                             <Route
                               path="/actor-token-education"

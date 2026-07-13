@@ -18,11 +18,18 @@
  *                               aud: <gateway/invest>, scope: invest:read }
  *
  * Design notes:
- *  - NO `may_act`. The token endpoint just BUILDS the act chain. Whether the
- *    delegation is *allowed* is a policy decision made by PingOne Authorize over
- *    the `act` chain at tool-call time (see authorize-pipeline / Slice 2). This is
- *    deliberately separate from the legacy `ff_require_may_act` gate, which is why
- *    A2A lives in its own service rather than resolveMcpAccessTokenWithEvents().
+ *  - `may_act` IS used (unlike the header comment used to say) — it's what makes
+ *    PingOne emit a native `act` claim at all (see docs/ACT_CLAIM_VERIFICATION.md).
+ *    Each specialist gets its OWN A2A Intermediate resource/audience with a literal
+ *    `may_act = {sub: <that specialist's client id>}` (pingoneProvisionService.js
+ *    Step 37a-A2A) — RFC 8707 resource indicators: a single audience shared across
+ *    all 9 specialists would let one specialist's token be replayed toward another's
+ *    exchange. Whether the delegation is *allowed* (beyond act-claim mechanics) is
+ *    still a separate policy decision made by PingOne Authorize over the `act` chain
+ *    at tool-call time (see authorize-pipeline / Slice 2) — deliberately separate
+ *    from resolveMcpAccessTokenWithEvents()'s exchange path, which is why A2A lives
+ *    in its own service. (The `ff_require_may_act` pre-flight gate that path used to
+ *    have was removed — authorization now keys on the `act` chain end to end.)
  *  - Least-privilege: Agent 2 is granted ONLY `invest:read`, so T_invest cannot
  *    read checking accounts or move money — provable at the gateway/Authorize gate.
  *  - Gated behind ff_a2a_delegation; additive and isolated from the single- and
@@ -38,6 +45,7 @@ const {
   specialistForVertical,
   clientIdKey,
   clientSecretKey,
+  intermediateAudienceKey,
 } = require('../config/a2aSpecialists');
 
 // Heavy runtime deps (oauthService→axios, configStore→lmdb, mcpWebSocketClient→ws)
@@ -119,22 +127,37 @@ function resolveA2aConfig(cfgArg, specialist) {
   const agent2ClientId = cfg.getEffective(clientIdKey(specialist.appKey));
   const agent2Secret = cfg.getEffective(clientSecretKey(specialist.appKey));
 
-  // Exchange #1 result audience (intermediate). Falls back to the agent-gateway
-  // audience for single-resource deployments that have not provisioned a dedicated
-  // A2A intermediate resource yet.
+  // Exchange #1 result audience (intermediate) — THIS SPECIALIST'S OWN dedicated
+  // resource (RFC 8707; pingoneProvisionService.js Step 37a-A2A provisions one per
+  // appKey, each carrying its own may_act). Falls back to the legacy shared
+  // key/agent-gateway audience for deployments that haven't been re-provisioned yet.
   const intermediateAud =
+    cfg.getEffective(intermediateAudienceKey(specialist.appKey)) ||
     cfg.getEffective('a2a_intermediate_audience') ||
     cfg.getEffective('pingone_resource_a2a_intermediate_uri') ||
     cfg.getEffective('pingone_resource_agent_gateway_uri');
 
-  // Exchange #2 result audience — the MCP gateway audience the specialist tools are
-  // reached through (same audience the normal MCP path targets).
+  // Exchange #2 result audience — A2A's OWN MCP Gateway destination (RFC 8693
+  // §4.1 nested-act composer lives here, see pingoneProvisionService.js Step
+  // 37a-A2A), deliberately separate from the shared mcpgateway resource the
+  // non-A2A two-exchange flow targets. The real gateway/authz server accept
+  // this as an additional valid audience via a comma-separated
+  // MCP_GW_RESOURCE_URI (docker-compose.yml) — not a new resource server env
+  // var. Falls back to the shared audience for deployments not yet
+  // re-provisioned with the dedicated A2A gateway resource.
   const specialistAud =
+    cfg.getEffective('a2a_gateway_audience') ||
     cfg.getEffective('pingone_resource_mcp_gateway_uri') ||
     cfg.getEffective('mcp_gw_resource_uri') ||
     cfg.getEffective('pingone_resource_mcp_server_uri');
 
-  const intermediateScope = (cfg.getEffective('a2a_intermediate_scope') || 'agent:invoke').trim();
+  // Scope name is unique per specialist ("agent:invoke:<appKey>"), NOT overridable
+  // via a shared config key — PingOne enforces one scope-name per client across ALL
+  // its grants, and Agent 1 holds a grant on every specialist's intermediate
+  // resource. A shared name collides silently (confirmed live: the exchanged token
+  // comes back audienced to whichever resource that name first bound to, ignoring
+  // the requested audience). See pingoneProvisionService.js Step 37a-A2A.
+  const intermediateScope = `agent:invoke:${specialist.appKey}`;
 
   // Agent 2 actor-token auth method (PingOne app token-endpoint auth). 'post' by
   // default to match the AI Agent actor convention.
@@ -270,12 +293,12 @@ async function delegateToSpecialist(req, opts = {}) {
     ));
 
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
-    // Agent 2's actor token targets the INTERMEDIATE audience (a2a-intermediate.ping.demo)
-    // rather than the final specialist audience. PingOne enforces scope-name uniqueness
-    // across all grants for a given app, so a specialist that already has `read` on
-    // Demo API cannot also hold `read` on MCP Gateway. Using the intermediate audience
-    // (where every specialist has `agent:invoke`) sidesteps this constraint while still
-    // proving Agent 2's identity for the nested-act chain.
+    // Agent 2's actor token targets its OWN intermediate audience (not the final
+    // specialist/gateway audience) using its uniquely-named invoke scope. PingOne
+    // enforces scope-name uniqueness across all grants for a given app, so a
+    // specialist that already has `read` on Demo API cannot also hold `read` on MCP
+    // Gateway — using the (per-specialist) intermediate audience + scope sidesteps
+    // this constraint while still proving Agent 2's identity for the nested-act chain.
     const agent2Actor = await oauth.getClientCredentialsTokenAs(
       c.agent2ClientId,
       c.agent2Secret,

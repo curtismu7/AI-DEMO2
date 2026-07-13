@@ -4,6 +4,7 @@
 export const LANES = {
   signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
+  "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
 };
 
@@ -22,6 +23,7 @@ const TITLES = {
   exchange: "Token exchange — delegation",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
+  "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   mcp: "MCP server — tool executes",
@@ -42,6 +44,7 @@ const NARRATIVES = {
   exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
+  "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
@@ -76,8 +79,13 @@ function makeStep(id, status, detail) {
 }
 
 export function buildTraceSteps(trace) {
-  const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize } = trace;
+  const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, outcome } = trace;
   const isHeuristic = routingMode === "heuristic";
+  // Once the trace has a terminal outcome, any step that's still evidence-free
+  // is no longer "still coming" — it was genuinely never part of this run's
+  // path (mTLS off, gateway not in route, OAuth-bearer path with no API-key
+  // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
+  const traceComplete = outcome === "ok" || outcome === "error";
   const steps = [];
 
   // 1. signin — evidence: user-token / session-token-introspection events
@@ -189,7 +197,9 @@ export function buildTraceSteps(trace) {
       ].filter(([, v]) => v),
     } : {}));
 
-  // 7a. step-up (conditional)
+  // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
+  // for runs that will never need it; once the trace completes without a
+  // challenge, show it as notinpath rather than silently disappearing.
   const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated");
   const stepUpDone = hasPhase(phases, "mfa_challenge_completed");
   const stepUpFailed = hasPhase(phases, "mfa_challenge_failed");
@@ -199,18 +209,43 @@ export function buildTraceSteps(trace) {
         kv: phases.filter((p) => p.phase && p.phase.startsWith("mfa_challenge"))
           .map((p) => [p.phase, p.label || ""]),
       }));
+  } else if (traceComplete) {
+    steps.push(makeStep("stepup", "notinpath", {
+      narrative: "PingOne Authorize did not demand step-up for this action — no HITL/CIBA/MFA challenge was required.",
+    }));
   }
 
-  // 8. gateway
+  // 7b. intent-binding — RAR (RFC 9396) intent verification, conceptually part
+  // of the authorize decision; kept as its own step in the AUTHZ lane.
+  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified");
+  const intentDeniedEvent = (tokenEvents || []).find(
+    (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
+  );
+  const intentBindingStatus = intentVerifiedEvent
+    ? "done"
+    : intentDeniedEvent
+    ? "error"
+    : traceComplete
+    ? "notinpath"
+    : "pending";
+  steps.push(makeStep("intent-binding", intentBindingStatus, { tokenEvent: intentVerifiedEvent || intentDeniedEvent || null }));
+
+  // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
+  // (the BFF's own signal that this leg was never part of the run: mTLS off,
+  // introspection not enabled). That alone must not count as "seen" — only
+  // real activity does.
   const gwAz = findEvent(tokenEvents, "gw-authorize");
-  const gwIntro = findEvent(tokenEvents, "gw-introspection");
+  const gwIntroRaw = findEvent(tokenEvents, "gw-introspection");
+  const gwIntro = gwIntroRaw && gwIntroRaw.status !== "skipped" ? gwIntroRaw : null;
+  const gwMtls = findEvent(tokenEvents, "gw-mtls");
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
   const gwDenied = !!gwDeniedPhase;
   const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
+  const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
-    gwDenied ? "error" : gwSeen ? "done" : "pending",
+    gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
       decision: gwDenied
         ? { outcome: "DENY",
@@ -228,6 +263,9 @@ export function buildTraceSteps(trace) {
         ? { title: "Gateway authorize response", text: asJson(gwAz.rawResponse) }
         : gwIntro && gwIntro.rawResponse
           ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) } : undefined,
+    } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
+      narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
+        "The Agent Gateway was not in this run's path.",
     } : {}));
 
   // 8b. api-key-swap — Path A credential swap (evt-swap / evt-backend from gateway _meta)
@@ -238,8 +276,9 @@ export function buildTraceSteps(trace) {
     apiMetaEarly.credentialPath === "api_key" ||
     !!(evtSwap || evtBackend) ||
     tokenEvents.some((e) => e && e.credentialPath === "api_key");
+  const apiKeySwapDone = apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key");
   steps.push(makeStep("api-key-swap",
-    apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key") ? "done" : "pending",
+    apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
     apiKeyPath ? {
       kv: [
         evtSwap ? ["swap", evtSwap.label || "OAuth bearer → service API key"] : null,
@@ -251,6 +290,8 @@ export function buildTraceSteps(trace) {
       response: evtSwap || evtBackend
         ? { title: "API-key path events", text: asJson([evtSwap, evtBackend].filter(Boolean)) }
         : undefined,
+    } : !apiKeySwapDone && traceComplete ? {
+      narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
   // 9. mcp + 10. api — a gateway denial means the call never reached the MCP

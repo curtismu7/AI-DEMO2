@@ -1,0 +1,273 @@
+'use strict';
+
+// Established pattern for testing authenticateToken-gated routes booted via
+// server.js + supertest (see src/__tests__/thresholds.route.test.js and 30+
+// other route test files) — server.js mounts many routers that each pull in
+// middleware/auth, so the mock must cover the full export surface, not just
+// authenticateToken, or unrelated routes fail to load.
+jest.mock('../../middleware/auth', () => ({
+  requireNotBankDelegate: () => (req, res, next) => next(),
+  authenticateToken: (req, res, next) => {
+    if (!req.session) req.session = {};
+    if (!req.session.user) {
+      req.session.user = { id: 'test-user', role: 'admin', username: 'testadmin' };
+    }
+    req.user = req.session.user;
+    next();
+  },
+  requireSession: (req, res, next) => {
+    if (!req.session) req.session = {};
+    if (!req.session.user) {
+      req.session.user = { id: 'test-user', role: 'admin', username: 'testadmin' };
+      req.user = req.session.user;
+    }
+    next();
+  },
+  requireAdmin: (req, res, next) => {
+    if (!req.session) req.session = {};
+    if (!req.session.user) {
+      req.session.user = { id: 'test-user', role: 'admin', username: 'testadmin' };
+    }
+    if (req.session.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    next();
+  },
+  requireOwnershipOrAdmin: (req, res, next) => next(),
+  requireEndUser: (req, res, next) => next(),
+  requireAIAgent: (req, res, next) => next(),
+  requireDelegation: (req, res, next) => next(),
+  requireScopes: () => (req, res, next) => next(),
+  requireNotAdmin: (_req, _res, next) => next(),
+  verifyPassword: jest.fn(() => true),
+  hashPassword: jest.fn((pwd) => pwd),
+  determineClientType: jest.fn(() => 'enduser'),
+  determineUserTypeFromToken: jest.fn(() => 'customer'),
+  parseTokenScopes: jest.fn(() => []),
+  hasRequiredScopes: jest.fn(() => true),
+}));
+
+const request = require('supertest');
+const { runIntentBindingDemo } = require('../../services/attackSimulatorService');
+
+describe('runIntentBindingDemo — structural (no creds needed)', () => {
+  test('returns no_session_token when session is missing (permit action)', async () => {
+    const result = await runIntentBindingDemo('permit', { session: { oauthTokens: {} } });
+    expect(result.status).toBe(401);
+    expect(result.errorCode).toBe('no_session_token');
+  });
+
+  test('returns unknown_action for an unrecognized action', async () => {
+    const result = await runIntentBindingDemo('nonsense', { session: { oauthTokens: { accessToken: 'x' } } });
+    expect(result.status).toBe(400);
+    expect(result.errorCode).toBe('unknown_action');
+  });
+
+  test('drift action delegates to the existing rar-exceeded attack sim', async () => {
+    const result = await runIntentBindingDemo('drift', { session: { oauthTokens: {} } });
+    // Same session-missing guard as runAttackSim('rar-exceeded', ...) — proves delegation, not a parallel no-op.
+    expect(result.sim).toBe('rar-exceeded');
+    expect(result.status).toBe(401);
+    expect(result.errorCode).toBe('no_session_token');
+  });
+});
+
+describe('POST /api/demo/intent-binding/run — route guards', () => {
+  let app;
+  beforeAll(() => {
+    // server.js boots the full app; reuse it the same way other route-guard
+    // tests do (e.g. thresholds.route.test.js) — requires the middleware/auth
+    // mock above so authenticateToken doesn't reject the request before the
+    // action-validation guard under test ever runs.
+    app = require('../../server');
+  });
+
+  test('rejects an unknown action with 400', async () => {
+    const res = await request(app)
+      .post('/api/demo/intent-binding/run')
+      .send({ action: 'nonsense' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('unknown_action');
+  });
+});
+
+// ── Finding 1 (drift amount no-op) regression coverage ──────────────────────
+//
+// The structural tests above never reach the gateway call (they exit at the
+// no-session-token guard), so they cannot prove the drift path actually
+// forwards `requestedAmount` down to the create_transfer call instead of the
+// old hardcoded 500. Reaching that far requires mocking the gateway/token
+// dependencies attackSimulatorService.js pulls in — mocking that the
+// pre-existing structural tests did not need. Per the jest.isolateModules +
+// jest.doMock pattern already used in this codebase (see
+// configStore.envReconcile.test.js), each test below gets a fresh, isolated
+// copy of attackSimulatorService with just enough mocked to reach
+// _runRarExceeded's callToolViaGateway call without touching a real network,
+// LMDB, or the gateway-admin-push path (short-circuited via
+// ff_mcp_gateway_pinggateway: 'true').
+describe('runIntentBindingDemo / runAttackSim — drift honors requestedAmount (Finding 1)', () => {
+  /** Minimal unsigned JWT (header.payload.sig) — decodeJwt only needs 3 base64url segments. */
+  function fakeJwt(payload) {
+    const header = Buffer.from(JSON.stringify({ alg: 'none' }), 'utf8').toString('base64url');
+    const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    return `${header}.${body}.sig`;
+  }
+  const FAKE_EXCHANGED_TOKEN = fakeJwt({ sub: 'user-1', aud: 'https://gateway.example/mcp' });
+
+  function mockDeps({ callToolImpl }) {
+    jest.doMock('../../services/configStore', () => ({
+      getEffective: jest.fn((key) => {
+        if (key === 'ff_mcp_gateway_pinggateway') return 'true'; // skip real gateway-admin push
+        if (key === 'pingone_resource_mcp_gateway_uri') return 'https://gateway.example/mcp';
+        return '';
+      }),
+      setRaw: jest.fn().mockResolvedValue(undefined),
+    }));
+    jest.doMock('../../services/oauthService', () => ({
+      performTokenExchange: jest.fn().mockResolvedValue(FAKE_EXCHANGED_TOKEN),
+      performTokenExchangeAs: jest.fn().mockResolvedValue(FAKE_EXCHANGED_TOKEN),
+    }));
+    jest.doMock('../../services/mcpGatewayClient', () => ({
+      callToolViaGateway: jest.fn(callToolImpl),
+      getMcpGatewayHttpUrl: jest.fn(() => 'https://gateway.example'),
+    }));
+  }
+
+  const req = {
+    session: { oauthTokens: { accessToken: 'user-access-token' }, user: { sub: 'user-1' } },
+  };
+
+  test('drift action forwards a low requestedAmount to create_transfer — and it actually PERMITs (≤ $100 cap)', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        mockDeps({ callToolImpl: jest.fn().mockResolvedValue({ ok: true }) });
+        const { runIntentBindingDemo: isolatedRun } = require('../../services/attackSimulatorService');
+        const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+
+        isolatedRun('drift', req, 50)
+          .then((result) => {
+            // callToolViaGateway signature: (gatewayUrl, token, tool, params, opts)
+            expect(callToolViaGateway).toHaveBeenCalledTimes(1);
+            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 50, to_account_id: 'sim-acc-001' });
+            // The gateway call did not throw → this is the "unexpected permit" branch,
+            // proving a $50 request against a $100 cap actually succeeds once the
+            // amount is real (the UX implication flagged for the controller).
+            expect(result.status).toBe(200);
+            expect(result.errorCode).toBe('unexpected_permit');
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('drift action with no requestedAmount still defaults to 500 (UC14 attack-sim backward compat)', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const denyErr = Object.assign(new Error('rar exceeded'), { code: 'rar_amount_exceeded', httpStatus: 403 });
+        mockDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr) });
+        const { runAttackSim: isolatedRunAttackSim } = require('../../services/attackSimulatorService');
+        const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+
+        // No 3rd arg — mirrors routes/attackSimulator.js's existing call site exactly.
+        isolatedRunAttackSim('rar-exceeded', req)
+          .then((result) => {
+            expect(callToolViaGateway).toHaveBeenCalledTimes(1);
+            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 500, to_account_id: 'sim-acc-001' });
+            expect(result.status).toBe(403);
+            expect(result.errorCode).toBe('rar_amount_exceeded');
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+});
+
+// ── Finding 2 (live-mode flag leak) regression coverage ──────────────────────
+describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_simulated (Finding 2)', () => {
+  function bootIsolatedApp({ runResult, runError }) {
+    jest.doMock('../../services/configStore', () => ({
+      getEffective: jest.fn((key) => {
+        if (key === 'ff_use_cases_launcher') return 'true';
+        if (key === 'ff_authorize_simulated') return 'true'; // pre-existing value to be restored
+        return '';
+      }),
+      setRaw: jest.fn().mockResolvedValue(undefined),
+    }));
+    jest.doMock('../../services/attackSimulatorService', () => ({
+      runIntentBindingDemo: jest.fn(() => (runError ? Promise.reject(runError) : Promise.resolve(runResult))),
+    }));
+    const express = require('express');
+    const supertest = require('supertest');
+    const intentBindingRouter = require('../../routes/intentBinding');
+    const configStore = require('../../services/configStore');
+    const app = express();
+    app.use(express.json());
+    app.use('/api/demo/intent-binding', intentBindingRouter);
+    return { app, supertest, configStore };
+  }
+
+  test('live:true snapshots the current flag, arms simulated=false, then restores the snapshot on success', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest, configStore } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 50, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.live).toBe(true);
+            expect(configStore.setRaw.mock.calls).toEqual([
+              [{ ff_authorize_simulated: 'false' }],
+              [{ ff_authorize_simulated: 'true' }],
+            ]);
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true restores the snapshot even when runIntentBindingDemo throws (finally runs on the error path)', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest, configStore } = bootIsolatedApp({ runError: new Error('boom') });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 50, live: true })
+          .then((res) => {
+            expect(res.status).toBe(500);
+            expect(configStore.setRaw.mock.calls).toEqual([
+              [{ ff_authorize_simulated: 'false' }],
+              [{ ff_authorize_simulated: 'true' }],
+            ]);
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live unset (false/absent) never touches ff_authorize_simulated', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest, configStore } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 50 })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.live).toBe(false);
+            expect(configStore.setRaw).not.toHaveBeenCalled();
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+});

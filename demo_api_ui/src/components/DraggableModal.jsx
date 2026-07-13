@@ -15,7 +15,7 @@ function PopOutPortal({ win, children }) {
  * Features:
  *   - Drag from title bar
  *   - 8-direction resize from edges/corners
- *   - ↗ pop-out to new browser window (React portal keeps state intact)
+ *   - 🪟 pop-out to new browser window (React portal keeps state intact)
  *   - ✕ close button in title bar
  *   - Close button at bottom (default footer; pass footer={<…>} to customise,
  *     or footer={null} to suppress)
@@ -188,7 +188,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
       <>
         <PopOutPortal win={popoutWin}>{popoutContent}</PopOutPortal>
         <div className="dm-popout-placeholder">
-          <span>↗ {title} — open in separate window</span>
+          <span>🪟 {title} — open in separate window</span>
           <button
             type="button"
             className="dm-placeholder-btn"
@@ -255,7 +255,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               onClick={handlePopOut}
               title="Pop out to new window"
             >
-              ↗
+              🪟
             </button>
             {onClose && (
               <button

@@ -575,11 +575,20 @@ function getMcpGatewayHttpUrl() {
         }
         // No PingGateway URL configured — fall through to the Node gateway below.
     }
-    const url = process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url');
+    // Resolve the demo/Node gateway from its own key first (mcp_demo_gateway_url /
+    // MCP_DEMO_GATEWAY_URL) — MCP_GATEWAY_HTTP_URL is baked per-container in
+    // docker-compose.yml to whichever gateway the container was started against
+    // (often PingGateway's address), so trusting it here silently defeats the flag
+    // flip above: toggling ff_mcp_gateway_pinggateway to false would resolve right
+    // back to the same PingGateway URL via this "fallback" (issue #375).
+    const url = process.env.MCP_DEMO_GATEWAY_URL
+        || configStore.getEffective('mcp_demo_gateway_url')
+        || process.env.MCP_GATEWAY_HTTP_URL
+        || configStore.getEffective('mcp_gateway_http_url');
     if (!url) {
         throw new Error(
             'MCP gateway URL not configured. ' +
-            'Set mcp_gateway_http_url via /config or set MCP_GATEWAY_HTTP_URL in .env.'
+            'Set mcp_demo_gateway_url via /config or set MCP_DEMO_GATEWAY_URL in .env.'
         );
     }
     return url.replace(/\/$/, '');

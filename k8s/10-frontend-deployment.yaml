@@ -8,13 +8,15 @@ metadata:
     component: frontend
 spec:
   replicas: 1
-  # Quota-safe restarts: terminate the old pod before creating the new one so a
-  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  # Surge one pod during rollout so the site never has zero frontend pods
+  # (previously maxSurge:0/maxUnavailable:1 caused a brief 503 window on every
+  # restart). Frontend's request footprint (50m CPU/64Mi mem) is negligible
+  # against the namespace CPU quota (k8s/01-namespace.yaml).
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: ai-demo

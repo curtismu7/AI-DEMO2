@@ -279,12 +279,11 @@ const FIELD_DEFS = {
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
-  ff_require_act_for_agent_tools: { public: true, default: 'false' }, // UC16: deny agent-mediated tool calls that carry no act claim (impersonation block); default OFF
+  ff_require_act_for_agent_tools: { public: true, default: 'true' }, // UC16: deny agent-mediated tool calls that carry no act claim (impersonation block); default ON — the act-based replacement for the removed may_act-based checks
   ff_a2a_delegation:       { public: true, default: 'false' }, // Enable agent-to-agent (A2A) specialist delegation — Investment Advisor (Agent 2) via chained RFC 8693 nested act; authorization decided by Authorize over the act chain (no may_act)
   ff_inject_may_act:       { public: true, default: 'false' }, // BFF-synthesise may_act when absent from user token (demo/dev — no PingOne change needed)
   // DEPRECATED: ff_inject_may_act. Use enableMayActSupport instead (RFC 8693 configuration-based approach).
   enableMayActSupport:     { public: true, default: 'true'  }, // Enable validation of RFC 8693 may_act claims from PingOne token policies (not synthetic injection)
-  ff_require_may_act:      { public: true, default: 'true'  }, // Default ON: a revoked agent (no may_act) is hard-blocked at the RFC 8693 exchange. Toggle off in Feature Flags. (PingOne doc §consent-gate compliance)
   ff_inject_audience:      { public: true, default: 'false' }, // BFF-add mcp_resource_uri to aud claim snapshot when absent (demo/dev — no PingOne change needed)
   ff_inject_scopes:        { public: true, default: 'false' }, // BFF-inject read write scopes when absent from user token (demo/dev — no PingOne change needed)
   ff_skip_token_exchange:  { public: true, default: 'false' }, // Skip RFC 8693 — pass user access token directly to MCP (demo mode; token exchange not required)
@@ -327,6 +326,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic 
   enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
   mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
+  // URL of the demo/Node MCP gateway — used when ff_mcp_gateway_pinggateway is false.
+  // Kept separate from mcp_gateway_http_url/MCP_GATEWAY_HTTP_URL, which is baked
+  // per-container in docker-compose.yml and can point at PingGateway instead (#375).
+  mcp_demo_gateway_url:            { public: true, default: 'http://mcp-gateway:3005' },
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
   ff_mcp_rate_limit:               { public: true, default: 'false' }, // UC18: per-agent/per-tool sliding-window rate limiting. Demo Agent Gateway: in-process (before P1AZ). PingOne Agent Gateway (IG): PingGateway uc18-rate-limit.groovy (429 before P1AZ; armed via X-UC18-Rate-Limit from BFF).
   ff_bedrock_agentcore_gateway:    { public: false, default: 'false' }, // EKS: route MCP via AgentCore Gateway (requires AWS_DEPLOYMENT=1)
@@ -1120,6 +1123,21 @@ class ConfigStore {
       pingone_membership_agent_client_secret: ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
       pingone_payroll_agent_client_id:        ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID'],
       pingone_payroll_agent_client_secret:    ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
+      // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
+      // specialist, not one shared across all of them; see a2aSpecialists.js).
+      a2a_intermediate_audience_investment:   ['A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
+      a2a_intermediate_audience_records:      ['A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
+      a2a_intermediate_audience_purchase:     ['A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
+      a2a_intermediate_audience_membership:   ['A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
+      a2a_intermediate_audience_payroll:      ['A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
+      a2a_intermediate_audience_tax:          ['A2A_INTERMEDIATE_AUDIENCE_TAX'],
+      a2a_intermediate_audience_finaid:       ['A2A_INTERMEDIATE_AUDIENCE_FINAID'],
+      a2a_intermediate_audience_supplier:     ['A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
+      // A2A specialists' Exchange #2 (final) destination — separate from
+      // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
+      // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
+      // Step 37a-A2A).
+      a2a_gateway_audience:                   ['A2A_GATEWAY_AUDIENCE'],
       pingone_resource_a2a_intermediate_uri:  ['PINGONE_RESOURCE_A2A_INTERMEDIATE_URI', 'A2A_INTERMEDIATE_AUDIENCE'],
       a2a_intermediate_audience:              ['A2A_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_A2A_INTERMEDIATE_URI'],
       a2a_intermediate_scope:                 ['A2A_INTERMEDIATE_SCOPE'],
@@ -1249,6 +1267,7 @@ class ConfigStore {
       // MCP gateway HTTP URL
       mcp_gateway_http_url:                 ['MCP_GATEWAY_HTTP_URL'],
       mcp_pinggateway_url:                  ['MCP_PINGGATEWAY_URL'],
+      mcp_demo_gateway_url:                 ['MCP_DEMO_GATEWAY_URL'],
       mcp_step9_resource_uri:               ['MCP_STEP9_RESOURCE_URI'],
 
       // CIBA additional config fields

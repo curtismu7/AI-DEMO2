@@ -206,6 +206,25 @@ PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
   bash "$BASEDIR/k8s/aws/deploy.sh" \
   || warn "deploy.sh exited nonzero (usually the llm-proxy rollout wait) — smoke checks will verify what actually landed"
 
+# ── Force pod refresh for what we actually built ─────────────────────────────
+# kubectl apply is a no-op when the k8s YAML is unchanged, which is the common
+# case — only the image tag moved, under a mutable `:latest` tag. That leaves
+# the deployment "successfully rolled out" (nothing to roll) while its pod
+# still runs the pre-push image. Force a restart of exactly what we built so a
+# fresh push always lands, regardless of whether the manifest also changed.
+if [[ -n "$SERVICE" ]]; then
+  roll_deployment "$SERVICE"
+else
+  info "Force-restarting deployments to pick up freshly pushed images..."
+  seen=""
+  for key in $ALL_KEYS; do
+    dep="$(k8s_dep "$key")"
+    case " $seen " in *" $dep "*) continue ;; esac
+    seen="$seen $dep"
+    roll_deployment "$key"
+  done
+fi
+
 # ── Post-deploy smoke checks (fail at deploy time, not demo time) ─────────────
 info "Running post-deploy smoke checks..."
 SE_NAMESPACE="$NS" DEPLOY_START_EPOCH="$DEPLOY_START_EPOCH" bash "$BASEDIR/k8s/smoke.sh" \

@@ -209,8 +209,11 @@ function getToolsWithActionAliases() {
       authz: {},
     },
   ];
-  // Return both real MCP tool defs + action aliases for dispatchVerticalIntent routing
-  return [...bankingTools, ...actionAliases];
+  // Return both real MCP tool defs + action aliases for dispatchVerticalIntent routing.
+  // Aliases are tagged heuristicOnly: they exist so the heuristic parser can look up
+  // authz/scopes by action name, and must never be exposed as LLM-callable functions —
+  // the gateway's mcp-tool-schemas.json only recognizes the real MCP tool names.
+  return [...bankingTools, ...actionAliases.map((t) => ({ ...t, heuristicOnly: true }))];
 }
 
 function getAuthz() {

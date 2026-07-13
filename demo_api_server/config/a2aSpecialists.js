@@ -103,10 +103,21 @@ function clientSecretKey(appKey) {
   return `pingone_${appKey}_agent_client_secret`;
 }
 
+/**
+ * configStore key (lowercase) for a specialist's OWN A2A Intermediate audience.
+ * Each specialist gets a dedicated resource/audience (RFC 8707 — see
+ * pingoneProvisionService.js Step 37a-A2A and docs/ACT_CLAIM_VERIFICATION.md),
+ * never a value shared across specialists.
+ */
+function intermediateAudienceKey(appKey) {
+  return `a2a_intermediate_audience_${appKey}`;
+}
+
 module.exports = {
   A2A_SPECIALISTS,
   verticalsWithSpecialist,
   specialistForVertical,
   clientIdKey,
   clientSecretKey,
+  intermediateAudienceKey,
 };

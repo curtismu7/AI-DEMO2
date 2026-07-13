@@ -107,3 +107,31 @@ export function anySignal(signals) {
   }
   return c.signal;
 }
+
+/**
+ * True when a caught error should offer the in-place "pre-warm & retry"
+ * action. Only meaningful for the local llama.cpp backend — Helix/Anthropic
+ * timeouts have no local tier to pre-warm.
+ */
+export function isLocalModelTimeout(err, provider) {
+  const isTimeout =
+    err?.name === "TimeoutError" ||
+    (typeof err?.message === "string" && err.message.includes("timed out"));
+  return isTimeout && provider === "llamacpp";
+}
+
+/**
+ * Force-load the given llama.cpp tier (swap mode — see demo_llm_proxy),
+ * then re-run the request that timed out. Throws without calling `retry`
+ * if the pre-warm call itself fails; the caller surfaces that to the user.
+ */
+export async function prewarmTierAndRetry(model, retry) {
+  const res = await fetch("/api/langchain/llamacpp/prewarm", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+  if (!res.ok) throw new Error("Pre-warm failed");
+  await retry();
+}

@@ -16,6 +16,9 @@ const { runWithCorrelation, getCorrelationId } = require('./correlationContext')
 const decisionHandler = require('./routes/decision');
 
 const AUD = process.env.MCP_GATEWAY_RESOURCE_URI || 'mcpgateway.ping.demo';
+// Rule 2 is act-only now: the fixtures' baseline actor ('agent-1') must be a
+// recognized authorized actor, not just may_act-matched.
+process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID || 'agent-1';
 
 function mkRes() {
   return {

@@ -747,28 +747,32 @@ export function createTransfer(
   toAccountId,
   amount,
   description,
+  hitlChallengeId,
 ) {
   return callMcpTool("create_transfer", {
     from_account_id: fromAccountId,
     to_account_id: toAccountId,
     amount,
     description: description || "Agent transfer",
+    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
   });
 }
 
-export function createDeposit(accountId, amount, description) {
+export function createDeposit(accountId, amount, description, hitlChallengeId) {
   return callMcpTool("create_deposit", {
     to_account_id: accountId,
     amount,
     description: description || "Agent deposit",
+    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
   });
 }
 
-export function createWithdrawal(accountId, amount, description) {
+export function createWithdrawal(accountId, amount, description, hitlChallengeId) {
   return callMcpTool("create_withdrawal", {
     from_account_id: accountId,
     amount,
     description: description || "Agent withdrawal",
+    ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
   });
 }
 

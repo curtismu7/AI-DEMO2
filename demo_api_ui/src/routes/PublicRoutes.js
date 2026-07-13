@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import AuthzTestPage from "../components/AuthzTestPage";
+import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
 import GraphifyPage from "../components/GraphifyPage";
@@ -96,6 +97,14 @@ export function AuthzTestPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <AuthzTestPage />
+    </AppShell>
+  );
+}
+
+export function IntentBindingLearningPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <IntentBindingLearningPage />
     </AppShell>
   );
 }

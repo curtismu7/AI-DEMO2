@@ -67,13 +67,14 @@ test('POST /revoke clears mayAct and signals reauth', async () => {
   expect(res.body).toEqual({ ok: true, reauthRequired: true });
 });
 
-test('GET /status authorized=true when an active LMDB delegation record exists; enforced from flag', async () => {
+test('GET /status authorized=true when an active LMDB delegation record exists; enforced is always true', async () => {
   // Status no longer trusts the JWT may_act claim — it checks the LMDB
   // delegation record (see routes/agentAuthorization.js GET /status and
   // commit c6c6dbc43 "fix(agent-revocation): ... Status endpoint checks
   // LMDB record via delegationStore, not JWT may_act claim").
+  // `enforced` is no longer a toggleable flag — revocation is always
+  // enforced via the act-chain (demo_authz_server Rule 2.5).
   configStore.getEffective.mockImplementation((k) => {
-    if (k === 'ff_require_may_act') return 'true';
     if (k === 'ai_agent_client_id') return 'agent-uuid';
     return null;
   });
@@ -88,7 +89,7 @@ test('GET /status authorized=false when the token has no may_act', async () => {
   configStore.getEffective.mockReturnValue(null);
   const session = { oauthTokens: { accessToken: tokenWith({ sub: 'user-5' }) } };
   const res = await request(buildApp(session)).get('/api/agent-authorization/status').expect(200);
-  expect(res.body).toEqual({ authorized: false, enforced: false });
+  expect(res.body).toEqual({ authorized: false, enforced: true });
 });
 
 test('POST /grant → 502 when the PingOne write fails', async () => {
