@@ -1,5 +1,3 @@
-const path = require('path');
-
 const FALLBACK_CHIPS = {
   banking: require('./banking'),
   retail: require('./retail'),

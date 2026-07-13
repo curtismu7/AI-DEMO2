@@ -22,14 +22,14 @@ export default function FallbackBadge({ isFallback, verticalId, onDismiss }) {
   return (
     <div className="fallback-badge" role="alert" aria-live="polite">
       <span className="fallback-badge-text">
-        ⚠️ Fallback mode ({verticalLabel}) — fix manifest loading
+        ⚠️ Fallback mode ({verticalLabel}) — manifest unavailable
       </span>
       <button
         className="fallback-badge-close"
         onClick={handleDismiss}
         aria-label="Dismiss fallback badge"
       >
-        ×
+        ✕
       </button>
     </div>
   );

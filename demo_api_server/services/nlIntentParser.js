@@ -1196,12 +1196,12 @@ function parseForFallback(text, verticalCtx = {}) {
   }
 
   // Detect workforce vertical keywords
-  if (/\b(timesheet|expense|leave|payroll|attendance)\b/.test(t)) {
+  if (/\b(schedule|time\s*off|timeoff|paycheck|coworker|directory|timesheet|expense|leave|payroll|attendance)\b/.test(t)) {
     return { kind: 'workforce', vertical: 'workforce' };
   }
 
   // Detect university vertical keywords
-  if (/\b(grade|course|transcript|enrollment|semester)\b/.test(t)) {
+  if (/\b(grades?|courses?|transcript|enrollment|semester|schedule|tuition)\b/.test(t)) {
     return { kind: 'university', vertical: 'university' };
   }
 

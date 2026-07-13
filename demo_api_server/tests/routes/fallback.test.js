@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../demo_api_server/server');
+const app = require('../../server');
 
 describe('GET /api/fallback/chips', () => {
   it('should return retail chips when prompt indicates retail intent', async () => {

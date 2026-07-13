@@ -1,4 +1,4 @@
-const fallbackDataResolver = require('../../demo_api_server/services/fallbackDataResolver');
+const fallbackDataResolver = require('../../services/fallbackDataResolver');
 
 describe('fallbackDataResolver', () => {
   describe('resolveFallbackChips', () => {

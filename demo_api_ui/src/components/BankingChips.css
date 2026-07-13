@@ -316,3 +316,8 @@
   font-size: 11px;
   color: #c0600a;
 }
+
+/* Loading flash is too fast to see — hide to prevent layout jank */
+.chips-loading {
+  display: none;
+}
