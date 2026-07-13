@@ -162,7 +162,7 @@ describe('All chips — cross-vertical pipeline coverage (real)', () => {
             // the BFF drives RFC 8693 → gateway → MCP, then confirm the legs in
             // the admin app-events feed. Admin context required to read events.
             if (bearer) {
-              const inv = await client.post('/api/agent/invoke', { prompt: chip.message, forceHeuristic: true, useCaseId: chip.useCaseId }, {
+              const inv = await client.post('/api/agent/invoke', { prompt: chip.message, forceHeuristic: true, useCaseId: chip.useCaseId, vertical }, {
                 headers: { Authorization: `Bearer ${bearer}` },
               });
               // 200 (executed), 428 (HITL consent), or 403 (Authorize DENY) all
