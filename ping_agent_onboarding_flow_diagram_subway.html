@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise AI Onboarding — Subway Map</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      --bg: #0b0d12; --panel: #12151c; --ink: #e7ebf2; --ink-2: #8892a3; --ink-3: #565f70;
+      --accent: #5be6c9; --accent-ink: #04120e; --border: #1f2430;
+      background: var(--bg); color: var(--ink); min-height: 100vh; padding: 36px 24px 60px;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .sub { color: var(--ink-2); font-size: 13.5px; margin: 0 0 24px; max-width: 66ch; line-height: 1.5; }
+
+    .flow-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .flow-tab {
+      appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--ink-2);
+      padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+    .flow-tab.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .story-tabs { display: flex; gap: 6px; margin-bottom: 26px; }
+    .story-tabs[hidden] { display: none; }
+    .story-tab {
+      appearance: none; border: 1px solid var(--border); background: transparent; color: var(--ink-3);
+      padding: 5px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+    }
+    .story-tab.active { color: var(--accent); border-color: var(--accent); }
+
+    .persona { color: var(--ink-3); font-size: 12px; margin: 0 0 22px; }
+
+    .line-wrap { position: relative; margin: 0 0 34px; padding: 0 10px; }
+    .line-track { position: absolute; left: 34px; right: 34px; top: 17px; height: 2px; background: var(--border); }
+    .line-fill { position: absolute; left: 34px; top: 17px; height: 2px; background: var(--accent); transition: width 300ms ease; }
+    .stations { display: flex; justify-content: space-between; position: relative; }
+    .station { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; }
+    .dot { width: 15px; height: 15px; border-radius: 50%; background: var(--panel); border: 2px solid var(--border); transition: all 200ms ease; z-index: 2; }
+    .station.done .dot { background: var(--accent); border-color: var(--accent); }
+    .station.current .dot { background: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(91, 230, 201, 0.22); transform: scale(1.3); }
+    .station .lbl { font-size: 10px; color: var(--ink-3); text-align: center; line-height: 1.25; max-width: 80px; }
+    .station.current .lbl { color: var(--accent); font-weight: 700; }
+    .station.done .lbl { color: var(--ink-2); }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 36px 32px; text-align: center; margin-bottom: 24px; }
+    .card .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+    .card h2 { margin: 0 0 14px; font-size: 21px; letter-spacing: -0.01em; line-height: 1.3; }
+    .card p { margin: 0 auto; color: var(--ink-2); font-size: 14px; line-height: 1.65; max-width: 54ch; }
+
+    .outcome { max-width: 540px; margin: 0 auto 20px; text-align: center; padding: 12px 18px; border-radius: 12px; border: 1px dashed var(--accent); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); display: none; }
+    .outcome.show { display: block; }
+    .outcome b { color: var(--accent); }
+
+    .ctrls { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .btn-pill { appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--ink); padding: 12px 26px; border-radius: 99px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-pill.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .btn-pill:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-icon { appearance: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--panel); color: var(--ink-2); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-icon.playing { color: var(--accent); border-color: var(--accent); }
+
+    .footer-note { margin-top: 28px; color: var(--ink-3); font-size: 12px; line-height: 1.5; text-align: center; }
+    .footer-note a { color: var(--accent); text-decoration: none; }
+    .footer-note a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Enterprise AI Onboarding — Subway Map</h1>
+  <p class="sub">Same onboarding flows as the box+arrow diagram, oriented as a pipeline — walk one persona's journey station by station.</p>
+
+  <div class="flow-tabs" id="flow-tabs" role="tablist" aria-label="Onboarding flow"></div>
+  <div class="story-tabs" id="story-tabs" role="tablist" aria-label="Discovery story" hidden></div>
+  <p class="persona" id="persona"></p>
+
+  <div class="line-wrap">
+    <div class="line-track"></div>
+    <div class="line-fill" id="fill" style="width:0%"></div>
+    <div class="stations" id="stations"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h2 id="title"></h2>
+    <p id="narrative"></p>
+  </div>
+
+  <div class="outcome" id="outcome"><b>Outcome:</b> <span id="outcome-text"></span></div>
+
+  <div class="ctrls" role="group" aria-label="Step controls">
+    <button type="button" class="btn-pill" id="prev">&larr; Back</button>
+    <button type="button" class="btn-icon" id="play" title="Autoplay">&#9654;</button>
+    <button type="button" class="btn-pill primary" id="next">Continue &rarr;</button>
+  </div>
+
+  <p class="footer-note">Standalone reference page — mirrors the "Agent Onboarding Flow (Subway)" page in the AI-DEMO2 Super Banking demo (Diagrams nav). Prefer boxes and arrows? <a href="ping_agent_onboarding_flow_diagram.html">Open the full box+arrow diagram &rarr;</a></p>
+</div>
+
+<script>
+(function () {
+  var STATION_LABELS = {
+    "entry-user": "Enterprise User",
+    "entry-dev": "Developer",
+    "entry-admin": "Admin",
+    "agent-studio": "Agent Studio",
+    "orchestration": "Orchestration",
+    "privileges-gw": "Privileges Gateway",
+    "pinggateway": "PingGateway",
+    "pingauthorize": "PingAuthorize",
+    "privilege-discovery": "Browser/Device Discovery",
+    "cloud-discovery-iga": "Cloud Discovery",
+    "iga-ai": "IGA for AI",
+    "runtime": "Enterprise Runtime",
+  };
+
+  // Real data ported from demo_api_ui/src/data/agentOnboardingFlows.js, reordered
+  // so activeCardKeys[0] (here: "station") = the intended primary station per step.
+  var FLOWS = {
+    enterpriseUser: { label: "Enterprise AI User", persona: "Enterprise Employee / AI Consumer / Knowledge Worker",
+      outcome: "Personal AI clients become enterprise-managed without changing the user's experience.",
+      steps: [
+        { title: "Open an AI Client", narrative: "Launch Claude Desktop, Cursor, ChatGPT Enterprise, Copilot, etc.", station: "entry-user" },
+        { title: "Configure AI Capabilities", narrative: "Configure enterprise or personal AI workflows.", station: "entry-user" },
+        { title: "Open Agent Studio", narrative: "Sign in using enterprise identity; discover configured MCPs or onboard MCPs into the privilege gateway.", station: "agent-studio" },
+        { title: "Register MCPs", narrative: "Select the MCPs for access; register them with the privilege gateway.", station: "agent-studio" },
+        { title: "Enterprise Registration", narrative: "MCPs are registered in the PingOne Privilege identity platform; metadata is created across PF, P1, AIC, AIS.", station: "orchestration" },
+        { title: "Governance", narrative: "IGA for AI discovers the registered MCPs from the privilege gateway; identity, lifecycle, and entitlements are established.", station: "iga-ai" },
+        { title: "Secure Runtime", narrative: "MCP requests flow through the Privileges MCP Gateway; enterprise policies control access to tools, APIs, and resources.", station: "runtime" },
+      ]},
+    developer: { label: "Developer / Agent Builder", persona: "Developer / AI Engineer / Agent Builder",
+      outcome: "Every enterprise-built agent is governed, discoverable, and secured from day one.",
+      steps: [
+        { title: "Build an AI Agent", narrative: "Create an agent using Foundry, AWS, Vertex, or another platform.", station: "entry-dev" },
+        { title: "Open Agent Studio", narrative: "Sign in using enterprise identity.", station: "agent-studio" },
+        { title: "Register the Agent", narrative: "Create the enterprise identity for the agent (PF, AIC, P1); register agent metadata.", station: "agent-studio" },
+        { title: "Register Assets", narrative: "Register MCP servers, MCP resources, and MCP tools.", station: "agent-studio" },
+        { title: "Publish to Enterprise", narrative: "Register with the Ping Identity Platform; publish MCPs to the Privileges Gateway.", station: "orchestration" },
+        { title: "Governance", narrative: "IGA for AI discovers the agent; establishes ownership; applies lifecycle management; assigns entitlements.", station: "iga-ai" },
+        { title: "Runtime", narrative: "The agent securely accesses enterprise resources through the Privileges MCP Gateway.", station: "runtime" },
+      ]},
+    admin: { label: "Security / Identity Administrator", persona: "Identity Administrator / Security Administrator / Governance Administrator",
+      stories: {
+        browserDevice: { label: "Story A — Browser & Device", outcome: "The browser/device AI agent becomes a managed enterprise AI asset.",
+          steps: [
+            { title: "Browser and device AI agents are discovered", narrative: "Claude Desktop, Cursor, Browser AI, and Device AI clients are running unmanaged, outside enterprise governance.", station: "privilege-discovery" },
+            { title: "Privilege MCP Gateway detects unmanaged AI activity", narrative: "The Privileges MCP Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.", station: "privileges-gw" },
+            { title: "Administrator is notified", narrative: "The Privileges MCP Gateway raises an alert to the Identity/Security Administrator.", station: "entry-admin" },
+            { title: "Administrator reviews the discovered AI assets", narrative: "The administrator reviews the discovered assets in the Privilege Admin console.", station: "entry-admin" },
+            { title: "Administrator approves onboarding into enterprise governance", narrative: "The administrator approves bringing the discovered agent into enterprise governance.", station: "agent-studio" },
+            { title: "Agent metadata is synchronized to IGA", narrative: "Agent metadata is synchronized to IGA for AI.", station: "iga-ai" },
+            { title: "IGA establishes ownership, lifecycle, and entitlements", narrative: "IGA for AI establishes ownership, lifecycle, inventory, governance, and entitlements for the agent.", station: "iga-ai" },
+            { title: "Browser/Device AI becomes a managed enterprise AI asset", narrative: "The agent is now subject to the same runtime enforcement as any other enterprise agent.", station: "runtime" },
+          ]},
+        cloud: { label: "Story B — Cloud Discovery", outcome: "The agent becomes governed and managed across the enterprise.",
+          steps: [
+            { title: "IGA discovers cloud-native AI agents", narrative: "IGA for AI discovers agents already running in Foundry, AWS, Vertex, or other cloud platforms.", station: "cloud-discovery-iga" },
+            { title: "Administrator reviews the discovered agents", narrative: "The administrator reviews the discovered agents.", station: "entry-admin" },
+            { title: "Administrator approves enterprise registration", narrative: "The administrator approves enterprise registration for the discovered agent.", station: "entry-admin" },
+            { title: "IGA / Agent Studio requests Agent Identity creation", narrative: "IGA and Agent Studio request creation of an Agent Identity in PingOne / PingFederate / AIC.", station: "iga-ai" },
+            { title: "Agent Studio creates the enterprise Agent Identity", narrative: "Agent Studio creates the enterprise Agent Identity.", station: "agent-studio" },
+            { title: "Agent metadata and identity are synchronized back to IGA", narrative: "Agent metadata and identity are synchronized back to IGA for AI.", station: "iga-ai" },
+            { title: "MCP resources are associated with the Agent Identity", narrative: "MCP resources are associated with the Agent Identity.", station: "orchestration" },
+            { title: "Agent becomes governed and managed across the enterprise", narrative: "All runtime traffic is validated, authorized, and governed before accessing any resource.", station: "runtime" },
+          ]},
+      }},
+  };
+  var FLOW_ORDER = ["enterpriseUser", "developer", "admin"];
+  var PLAY_MS = 2200;
+
+  var flowKey = FLOW_ORDER[0], story = "browserDevice", idx = 0, playing = false, timer = null;
+
+  var flowTabsEl = document.getElementById("flow-tabs");
+  var storyTabsEl = document.getElementById("story-tabs");
+
+  function currentSteps() {
+    var flow = FLOWS[flowKey];
+    return flowKey === "admin" ? flow.stories[story].steps : flow.steps;
+  }
+  function currentOutcome() {
+    return flowKey === "admin" ? FLOWS.admin.stories[story].outcome : FLOWS[flowKey].outcome;
+  }
+  function collapsedStations(steps) {
+    var slots = [];
+    var slotForStep = [];
+    steps.forEach(function (s) {
+      if (slots.length === 0 || slots[slots.length - 1] !== s.station) slots.push(s.station);
+      slotForStep.push(slots.length - 1);
+    });
+    return { slots: slots, slotForStep: slotForStep };
+  }
+
+  function renderFlowTabs() {
+    flowTabsEl.innerHTML = "";
+    FLOW_ORDER.forEach(function (key) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "flow-tab" + (key === flowKey ? " active" : "");
+      btn.textContent = FLOWS[key].label;
+      btn.addEventListener("click", function () { selectFlow(key); });
+      flowTabsEl.appendChild(btn);
+    });
+  }
+  function renderStoryTabs() {
+    if (flowKey !== "admin") { storyTabsEl.hidden = true; storyTabsEl.innerHTML = ""; return; }
+    storyTabsEl.hidden = false;
+    storyTabsEl.innerHTML = "";
+    Object.entries(FLOWS.admin.stories).forEach(function (entry) {
+      var key = entry[0], s = entry[1];
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "story-tab" + (key === story ? " active" : "");
+      btn.textContent = s.label;
+      btn.addEventListener("click", function () { selectFlow("admin", key); });
+      storyTabsEl.appendChild(btn);
+    });
+  }
+
+  function render() {
+    renderFlowTabs();
+    renderStoryTabs();
+    document.getElementById("persona").textContent = "Persona: " + FLOWS[flowKey].persona;
+
+    var steps = currentSteps();
+    var cs = collapsedStations(steps);
+    var currentSlot = cs.slotForStep[idx];
+
+    var stationsEl = document.getElementById("stations");
+    stationsEl.innerHTML = "";
+    cs.slots.forEach(function (stKey, i) {
+      var st = document.createElement("div");
+      st.className = "station" + (i < currentSlot ? " done" : "") + (i === currentSlot ? " current" : "");
+      var dot = document.createElement("div");
+      dot.className = "dot";
+      var lbl = document.createElement("div");
+      lbl.className = "lbl";
+      lbl.textContent = STATION_LABELS[stKey];
+      st.appendChild(dot);
+      st.appendChild(lbl);
+      stationsEl.appendChild(st);
+    });
+    document.getElementById("fill").style.width = (cs.slots.length <= 1 ? 100 : (currentSlot / (cs.slots.length - 1) * 100)) + "%";
+
+    document.getElementById("eyebrow").textContent = "Step " + (idx + 1) + " of " + steps.length + " — " + STATION_LABELS[steps[idx].station];
+    document.getElementById("title").textContent = steps[idx].title;
+    document.getElementById("narrative").textContent = steps[idx].narrative;
+    document.getElementById("prev").disabled = idx === 0;
+    document.getElementById("next").disabled = idx === steps.length - 1;
+    document.getElementById("next").textContent = idx === steps.length - 1 ? "Done ✓" : "Continue →";
+    document.getElementById("play").classList.toggle("playing", playing);
+    document.getElementById("play").innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
+
+    var outcomeEl = document.getElementById("outcome");
+    if (idx === steps.length - 1) {
+      outcomeEl.classList.add("show");
+      document.getElementById("outcome-text").textContent = currentOutcome();
+    } else {
+      outcomeEl.classList.remove("show");
+    }
+  }
+
+  function selectFlow(key, subStory) {
+    stop();
+    flowKey = key;
+    if (subStory) story = subStory;
+    idx = 0;
+    render();
+  }
+  function stop() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
+  function tick() {
+    var steps = currentSteps();
+    if (idx >= steps.length - 1) { stop(); render(); return; }
+    idx += 1; render();
+    if (playing) timer = setTimeout(tick, PLAY_MS);
+  }
+  document.getElementById("prev").addEventListener("click", function () { stop(); idx = Math.max(0, idx - 1); render(); });
+  document.getElementById("next").addEventListener("click", function () { stop(); var steps = currentSteps(); idx = Math.min(steps.length - 1, idx + 1); render(); });
+  document.getElementById("play").addEventListener("click", function () {
+    playing = !playing; render();
+    if (playing) timer = setTimeout(tick, PLAY_MS); else stop();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

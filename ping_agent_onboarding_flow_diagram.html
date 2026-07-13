@@ -93,20 +93,40 @@
       background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); color: var(--artifact-text-primary);
     }
     .box-tag--col { background: transparent; border-style: dashed; }
+    .box-tag { display: inline-flex; align-items: center; gap: 4px; }
+    .box-tag-icon { width: 12px; height: 12px; display: inline-block; flex: 0 0 auto; }
     .box-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
     .box-col-heading { font-size: 11px; font-weight: 700; color: var(--artifact-primary-brand); margin-bottom: 4px; }
     .box-col ul { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.5; color: var(--artifact-text-secondary); }
     .box-bullets { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.55; color: var(--artifact-text-secondary); }
-    .box-note { margin: 8px 0 0; font-size: 10.5px; font-style: italic; color: var(--artifact-text-secondary); }
     .box.active-card { opacity: 1; transform: translateY(-2px); border-color: var(--artifact-primary-brand); box-shadow: var(--artifact-shadow-focus), var(--artifact-shadow-soft); }
     .box.visited-card { opacity: 0.85; }
+
+    /* ---- editable sticky notes ---- */
+    .sticky {
+      position: relative; background: #fff3a0; border: 1px solid #e8d24a; border-radius: 4px;
+      padding: 10px 26px 10px 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transform: rotate(var(--sticky-rotate, -1deg)); transition: transform 160ms ease, box-shadow 160ms ease;
+      font-size: 11px; line-height: 1.4; color: #4a3c00;
+    }
+    .sticky:hover { transform: rotate(0deg) scale(1.03); }
+    .sticky--editing { transform: rotate(0deg); box-shadow: var(--artifact-shadow-focus), 0 4px 10px rgba(0, 0, 0, 0.15); }
+    .sticky--tan { background: #f5dfc0; border-color: #e0b57a; }
+    .sticky-text { outline: none; white-space: pre-wrap; cursor: text; }
+    .sticky-edit-btn {
+      position: absolute; top: 4px; right: 4px; font-size: 9px; line-height: 1; padding: 3px 6px;
+      border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.15); background: rgba(255, 255, 255, 0.6);
+      color: #4a3c00; cursor: pointer; opacity: 0; transition: opacity 120ms ease;
+    }
+    .sticky:hover .sticky-edit-btn, .sticky:focus-within .sticky-edit-btn { opacity: 1; }
+    .sticky--box { margin-top: 8px; max-width: 280px; }
+    .sticky--row { margin: 2px auto 0; max-width: 480px; text-align: left; }
 
     /* ---- rows ---- */
     .row-wrap { display: grid; gap: 6px; }
     .row-triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
     .row-split { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr); gap: 14px; align-items: stretch; }
     .row-split-left { display: grid; gap: 10px; }
-    .row-note { margin: 2px 0 0; font-size: 11px; font-style: italic; color: var(--artifact-text-secondary); text-align: center; }
     .row-connector { display: flex; flex-direction: column; align-items: center; height: 20px; color: var(--artifact-text-secondary); }
     .row-connector-line { width: 1px; height: 10px; background: var(--artifact-border-light); }
     .row-connector-chevron { font-size: 11px; line-height: 1; }
@@ -125,6 +145,7 @@
     .legend-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; flex: 0 0 auto; }
     .legend-badge--1 { background: #4f8a3d; } .legend-badge--2 { background: #2f6fed; } .legend-badge--3 { background: #7c3aed; }
     .legend-badge--4 { background: #d9730d; } .legend-badge--5 { background: #a83289; } .legend-badge--6 { background: #44403c; } .legend-badge--7 { background: #0891b2; }
+    .legend-badge--8 { background: #c8860a; }
 
     .controls { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--artifact-border-light); }
     .ctrl-btn {
@@ -181,23 +202,35 @@
 
     <div class="outcome" id="outcome" hidden><strong>Outcome:</strong> <span id="outcome-text"></span></div>
 
-    <p class="footer-note">Standalone reference page — mirrors the "Agent Onboarding Flow" page in the AI-DEMO2 Super Banking demo (Diagrams nav). Source diagram by Tarun Madiraju. Prefer a fit-to-screen, no-scroll view? <a href="agent-onboarding-flow-compact.html">Open the compact diagram-only page →</a></p>
+    <p class="footer-note">Standalone reference page — mirrors the "Agent Onboarding Flow" page in the AI-DEMO2 Super Banking demo (Diagrams nav). Source diagram by Tarun Madiraju. Prefer a fit-to-screen, no-scroll view? <a href="agent-onboarding-flow-compact.html">Open the compact diagram-only page →</a> Prefer a step-by-step pipeline view? <a href="ping_agent_onboarding_flow_diagram_subway.html">Open the subway map page →</a></p>
   </main>
 
   <script>
+    // Icons: CC0-licensed SVGs from Simple Icons, inlined as base64 data URIs (no external requests).
+    const ICON_URIS = {
+      claude: "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRDk3NzU3IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q2xhdWRlPC90aXRsZT48cGF0aCBkPSJtNC43MTQ0IDE1Ljk1NTUgNC43MTc0LTIuNjQ3MS4wNzktLjIzMDctLjA3OS0uMTI3NWgtLjIzMDdsLS43ODkzLS4wNDg2LTIuNjk1Ni0uMDcyOS0yLjMzNzUtLjA5NzEtMi4yNjQ2LS4xMjE0LS41NzA3LS4xMjE1LS41MzQzLS43MDQyLjA1NDYtLjM1MjIuNDc5Ny0uMzIxOC42ODYuMDYwOCAxLjUxNzkuMTAzMiAyLjI3NjcuMTU3OCAxLjY1MTQuMDk3MiAyLjQ0NjguMjU1aC4zODg2bC4wNTQ2LS4xNTc5LS4xMzM2LS4wOTcxLS4xMDMyLS4wOTcyTDYuOTczIDkuODM1NmwtMi41NS0xLjY4NzktMS4zMzU2LS45NzE0LS43MjI1LS40OTE4LS4zNjQzLS40NjE0LS4xNTc4LTEuMDA3OC42NTU3LS43MjI1Ljg4MDMuMDYwNy4yMjQ2LjA2MDcuODkyNS42ODYgMS45MDY0IDEuNDc1NCAyLjQ4OTMgMS44MzM2LjM2NDMuMzAzNS4xNDU3LS4xMDMyLjAxODItLjA3MjgtLjE2NC0uMjczMy0xLjM1MzktMi40NDY3LTEuNDQ1LTIuNDg5My0uNjQzNS0xLjAzMi0uMTctLjYxOTRjLS4wNjA3LS4yNTUtLjEwMzItLjQ2NzQtLjEwMzItLjcyODVMNi4yODcuMTMzNSA2LjY5OTcgMGwuOTk1Ny4xMzM2LjQxOS4zNjQyLjYxOTIgMS40MTQ3IDEuMDAxOCAyLjIyODIgMS41NTQzIDMuMDI5Ni40NTUzLjg5ODUuMjQyOS44MzE4LjA5MS4yNTVoLjE1Nzl2LS4xNDU3bC4xMjc1LTEuNzA2LjIzNjgtMi4wOTQ3LjIzMDctMi42OTU3LjA3ODktLjc1ODkuMzc2NC0uOTEwNy43NDY4LS40OTE4LjU4MjguMjc5My40Nzk3LjY4Ni0uMDY2OC40NDMzLS4yODUzIDEuODUxNy0uNTU4NiAyLjkwMjEtLjM2NDMgMS45NDI5aC4yMTI1bC4yNDI5LS4yNDI5Ljk4MzUtMS4zMDUzIDEuNjUxNC0yLjA2NDMuNzI4Ni0uODE5Ni44NS0uOTA0Ni41NDY0LS40MzExaDEuMDMyMWwuNzU5IDEuMTI5My0uMzQgMS4xNjU3LTEuMDYyNSAxLjM0NzgtLjg4MDQgMS4xNDE0LTEuMjYyOCAxLjctLjc4OTMgMS4zNi4wNzI5LjEwOTMuMTg4Mi0uMDE4MyAyLjg1MzUtLjYwNyAxLjU0MjEtLjI3OTQgMS44Mzk2LS4zMTU3LjgzMTguMzg4Ni4wOTEuMzk0Ni0uMzI3OC44MDc1LTEuOTY3LjQ4NTctMi4zMDcyLjQ2MTQtMy40MzY0LjgxMzYtLjA0MjUuMDMwNC4wNDg2LjA2MDcgMS41NDgyLjE0NTcuNjYxOC4wMzY0aDEuNjIxbDMuMDE3NS4yMjQ3Ljc4OTIuNTIyLjQ3MzYuNjM3Ni0uMDc5LjQ4NTctMS4yMTQyLjYxOTMtMS42MzkzLS4zODg2LTMuODI1LS45MTA3LTEuMzExMy0uMzI3OWgtLjE4MjJ2LjEwOTNsMS4wOTI5IDEuMDY4NiAyLjAwMzUgMS44MDkyIDIuNTA3NSAyLjMzMTQuMTI3NS41NzY4LS4zMjE4LjQ1NTQtLjM0LS4wNDg2LTIuMjAzOS0xLjY1NzUtLjg1LS43NDY4LTEuOTI0Ni0xLjYyMWgtLjEyNzV2LjE3bC40NDMyLjY0OTYgMi4zNDM2IDMuNTIxNC4xMjE0IDEuMDgwNy0uMTcuMzUyMS0uNjA3MS4yMTI1LS42Njc5LS4xMjE0LTEuMzcyMS0xLjkyNDZMMTQuMzggMTcuOTU5bC0xLjE0MTQtMS45NDI4LS4xMzk3LjA3OS0uNjc0IDcuMjU1Mi0uMzE1Ni4zNzAzLS43Mjg2LjI3OTMtLjYwNzEtLjQ2MTQtLjMyMTgtLjc0NjguMzIxOC0xLjQ3NTMuMzg4Ni0xLjkyNDYuMzE1Ny0xLjUzLjI4NTMtMS45MDA0LjE3LS42MzE0LS4wMTIxLS4wNDI1LS4xMzk3LjAxODItMS40MzI4IDEuOTY3Mi0yLjE3OTYgMi45NDQ2LTEuNzI0MyAxLjg0NTYtLjQxMjguMTY0LS43MTY0LS4zNzA0LjA2NjctLjY2MTguNDAwOC0uNTg4OSAyLjM4Ni0zLjAzNTcgMS40Mzg5LTEuODgyLjkyOS0xLjA4NjgtLjAwNjItLjE1NzloLS4wNTQ2bC02LjMzODUgNC4xMTY0LTEuMTI5My4xNDU3LS40ODU3LS40NTU0LjA2MDgtLjc0NjcuMjMwNy0uMjQyOSAxLjkwNjQtMS4zMTE0WiIvPjwvc3ZnPg==",
+      openai: "data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+T3BlbkFJPC90aXRsZT48cGF0aCBkPSJNMjIuMjgxOSA5LjgyMTFhNS45ODQ3IDUuOTg0NyAwIDAgMC0uNTE1Ny00LjkxMDggNi4wNDYyIDYuMDQ2MiAwIDAgMC02LjUwOTgtMi45QTYuMDY1MSA2LjA2NTEgMCAwIDAgNC45ODA3IDQuMTgxOGE1Ljk4NDcgNS45ODQ3IDAgMCAwLTMuOTk3NyAyLjkgNi4wNDYyIDYuMDQ2MiAwIDAgMCAuNzQyNyA3LjA5NjYgNS45OCA1Ljk4IDAgMCAwIC41MTEgNC45MTA3IDYuMDUxIDYuMDUxIDAgMCAwIDYuNTE0NiAyLjkwMDFBNS45ODQ3IDUuOTg0NyAwIDAgMCAxMy4yNTk5IDI0YTYuMDU1NyA2LjA1NTcgMCAwIDAgNS43NzE4LTQuMjA1OCA1Ljk4OTQgNS45ODk0IDAgMCAwIDMuOTk3Ny0yLjkwMDEgNi4wNTU3IDYuMDU1NyAwIDAgMC0uNzQ3NS03LjA3Mjl6bS05LjAyMiAxMi42MDgxYTQuNDc1NSA0LjQ3NTUgMCAwIDEtMi44NzY0LTEuMDQwOGwuMTQxOS0uMDgwNCA0Ljc3ODMtMi43NTgyYS43OTQ4Ljc5NDggMCAwIDAgLjM5MjctLjY4MTN2LTYuNzM2OWwyLjAyIDEuMTY4NmEuMDcxLjA3MSAwIDAgMSAuMDM4LjA1MnY1LjU4MjZhNC41MDQgNC41MDQgMCAwIDEtNC40OTQ1IDQuNDk0NHptLTkuNjYwNy00LjEyNTRhNC40NzA4IDQuNDcwOCAwIDAgMS0uNTM0Ni0zLjAxMzdsLjE0Mi4wODUyIDQuNzgzIDIuNzU4MmEuNzcxMi43NzEyIDAgMCAwIC43ODA2IDBsNS44NDI4LTMuMzY4NXYyLjMzMjRhLjA4MDQuMDgwNCAwIDAgMS0uMDMzMi4wNjE1TDkuNzQgMTkuOTUwMmE0LjQ5OTIgNC40OTkyIDAgMCAxLTYuMTQwOC0xLjY0NjR6TTIuMzQwOCA3Ljg5NTZhNC40ODUgNC40ODUgMCAwIDEgMi4zNjU1LTEuOTcyOFYxMS42YS43NjY0Ljc2NjQgMCAwIDAgLjM4NzkuNjc2NWw1LjgxNDQgMy4zNTQzLTIuMDIwMSAxLjE2ODVhLjA3NTcuMDc1NyAwIDAgMS0uMDcxIDBsLTQuODMwMy0yLjc4NjVBNC41MDQgNC41MDQgMCAwIDEgMi4zNDA4IDcuODcyem0xNi41OTYzIDMuODU1OEwxMy4xMDM4IDguMzY0IDE1LjExOTIgNy4yYS4wNzU3LjA3NTcgMCAwIDEgLjA3MSAwbDQuODMwMyAyLjc5MTNhNC40OTQ0IDQuNDk0NCAwIDAgMS0uNjc2NSA4LjEwNDJ2LTUuNjc3MmEuNzkuNzkgMCAwIDAtLjQwNy0uNjY3em0yLjAxMDctMy4wMjMxbC0uMTQyLS4wODUyLTQuNzczNS0yLjc4MThhLjc3NTkuNzc1OSAwIDAgMC0uNzg1NCAwTDkuNDA5IDkuMjI5N1Y2Ljg5NzRhLjA2NjIuMDY2MiAwIDAgMSAuMDI4NC0uMDYxNWw0LjgzMDMtMi43ODY2YTQuNDk5MiA0LjQ5OTIgMCAwIDEgNi42ODAyIDQuNjZ6TTguMzA2NSAxMi44NjNsLTIuMDItMS4xNjM4YS4wODA0LjA4MDQgMCAwIDEtLjAzOC0uMDU2N1Y2LjA3NDJhNC40OTkyIDQuNDk5MiAwIDAgMSA3LjM3NTctMy40NTM3bC0uMTQyLjA4MDVMOC43MDQgNS40NTlhLjc5NDguNzk0OCAwIDAgMC0uMzkyNy42ODEzem0xLjA5NzYtMi4zNjU0bDIuNjAyLTEuNDk5OCAyLjYwNjkgMS40OTk4djIuOTk5NGwtMi41OTc0IDEuNDk5Ny0yLjYwNjctMS40OTk3WiIvPjwvc3ZnPg==",
+      aws: "data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+QW1hem9uIFdlYiBTZXJ2aWNlczwvdGl0bGU+PHBhdGggZD0iTTYuNzYzIDEwLjAzNmMwIC4yOTYuMDMyLjUzNS4wODguNzEuMDY0LjE3Ni4xNDQuMzY4LjI1Ni41NzYuMDQuMDYzLjA1Ni4xMjcuMDU2LjE4MyAwIC4wOC0uMDQ4LjE2LS4xNTIuMjRsLS41MDMuMzM1YS4zODMuMzgzIDAgMCAxLS4yMDguMDcyYy0uMDggMC0uMTYtLjA0LS4yMzktLjExMmEyLjQ3IDIuNDcgMCAwIDEtLjI4Ny0uMzc1IDYuMTggNi4xOCAwIDAgMS0uMjQ4LS40NzFjLS42MjIuNzM0LTEuNDA1IDEuMTAxLTIuMzQ3IDEuMTAxLS42NyAwLTEuMjA1LS4xOTEtMS41OTYtLjU3NC0uMzkxLS4zODQtLjU5LS44OTQtLjU5LTEuNTMzIDAtLjY3OC4yMzktMS4yMy43MjYtMS42NDQuNDg3LS40MTUgMS4xMzMtLjYyMyAxLjk1NS0uNjIzLjI3MiAwIC41NTEuMDI0Ljg0Ni4wNjQuMjk2LjA0LjYuMTA0LjkxOC4xNzZ2LS41ODNjMC0uNjA3LS4xMjctMS4wMy0uMzc1LTEuMjc3LS4yNTUtLjI0OC0uNjg2LS4zNjctMS4zLS4zNjctLjI4IDAtLjU2OC4wMzEtLjg2My4xMDMtLjI5NS4wNzItLjU4My4xNi0uODYyLjI3MmEyLjI4NyAyLjI4NyAwIDAgMS0uMjguMTA0LjQ4OC40ODggMCAwIDEtLjEyNy4wMjNjLS4xMTIgMC0uMTY4LS4wOC0uMTY4LS4yNDd2LS4zOTFjMC0uMTI4LjAxNi0uMjI0LjA1Ni0uMjhhLjU5Ny41OTcgMCAwIDEgLjIyNC0uMTY3Yy4yNzktLjE0NC42MTQtLjI2NCAxLjAwNS0uMzZhNC44NCA0Ljg0IDAgMCAxIDEuMjQ2LS4xNTFjLjk1IDAgMS42NDQuMjE2IDIuMDkxLjY0Ny40MzkuNDMuNjYyIDEuMDg1LjY2MiAxLjk2M3YyLjU4NnptLTMuMjQgMS4yMTRjLjI2MyAwIC41MzQtLjA0OC44MjItLjE0NC4yODctLjA5Ni41NDMtLjI3MS43NTgtLjUxLjEyOC0uMTUyLjIyNC0uMzIuMjcyLS41MTIuMDQ3LS4xOTEuMDgtLjQyMy4wOC0uNjk0di0uMzM1YTYuNjYgNi42NiAwIDAgMC0uNzM1LS4xMzYgNi4wMiA2LjAyIDAgMCAwLS43NS0uMDQ4Yy0uNTM1IDAtLjkyNi4xMDQtMS4xOS4zMi0uMjYzLjIxNS0uMzkuNTE4LS4zOS45MTcgMCAuMzc1LjA5NS42NTUuMjk1Ljg0Ni4xOTEuMi40Ny4yOTYuODM4LjI5NnptNi40MS44NjJjLS4xNDQgMC0uMjQtLjAyNC0uMzA0LS4wOC0uMDY0LS4wNDgtLjEyLS4xNi0uMTY4LS4zMTFMNy41ODYgNS41NWExLjM5OCAxLjM5OCAwIDAgMS0uMDcyLS4zMmMwLS4xMjguMDY0LS4yLjE5MS0uMmguNzgzYy4xNTEgMCAuMjU1LjAyNS4zMS4wOC4wNjUuMDQ4LjExMy4xNi4xNi4zMTJsMS4zNDIgNS4yODQgMS4yNDUtNS4yODRjLjA0LS4xNi4wODgtLjI2NC4xNTEtLjMxMmEuNTQ5LjU0OSAwIDAgMSAuMzItLjA4aC42MzhjLjE1MiAwIC4yNTYuMDI1LjMyLjA4LjA2My4wNDguMTIuMTYuMTUxLjMxMmwxLjI2MSA1LjM0OCAxLjM4MS01LjM0OGMuMDQ4LS4xNi4xMDQtLjI2NC4xNi0uMzEyYS41Mi41MiAwIDAgMSAuMzExLS4wOGguNzQzYy4xMjcgMCAuMi4wNjUuMi4yIDAgLjA0LS4wMDkuMDgtLjAxNy4xMjhhMS4xMzcgMS4xMzcgMCAwIDEtLjA1Ni4ybC0xLjkyMyA2LjE3Yy0uMDQ4LjE2LS4xMDQuMjYzLS4xNjguMzExYS41MS41MSAwIDAgMS0uMzAzLjA4aC0uNjg3Yy0uMTUxIDAtLjI1NS0uMDI0LS4zMi0uMDgtLjA2My0uMDU2LS4xMTktLjE2LS4xNS0uMzJsLTEuMjM4LTUuMTQ4LTEuMjMgNS4xNGMtLjA0LjE2LS4wODcuMjY0LS4xNS4zMi0uMDY1LjA1Ni0uMTc3LjA4LS4zMi4wOHptMTAuMjU2LjIxNWMtLjQxNSAwLS44My0uMDQ4LTEuMjI5LS4xNDMtLjM5OS0uMDk2LS43MS0uMi0uOTE4LS4zMi0uMTI4LS4wNzEtLjIxNS0uMTUxLS4yNDctLjIyM2EuNTYzLjU2MyAwIDAgMS0uMDQ4LS4yMjR2LS40MDdjMC0uMTY3LjA2NC0uMjQ3LjE4My0uMjQ3LjA0OCAwIC4wOTYuMDA4LjE0NC4wMjQuMDQ4LjAxNi4xMi4wNDguMi4wOC4yNzEuMTIuNTY2LjIxNS44NzguMjc5LjMxOS4wNjQuNjMuMDk2Ljk1LjA5Ni41MDIgMCAuODk0LS4wODggMS4xNjUtLjI2NGEuODYuODYgMCAwIDAgLjQxNS0uNzU4Ljc3Ny43NzcgMCAwIDAtLjIxNS0uNTU5Yy0uMTQ0LS4xNTEtLjQxNi0uMjg3LS44MDctLjQxNWwtMS4xNTctLjM2Yy0uNTgzLS4xODMtMS4wMTQtLjQ1NC0xLjI3Ny0uODEzYTEuOTAyIDEuOTAyIDAgMCAxLS40LTEuMTU4YzAtLjMzNS4wNzMtLjYzLjIxNi0uODg2LjE0NC0uMjU1LjMzNS0uNDc5LjU3NS0uNjU0LjI0LS4xODQuNTEtLjMyLjgzLS40MTUuMzItLjA5Ni42NTUtLjEzNiAxLjAwNi0uMTM2LjE3NSAwIC4zNTkuMDA4LjUzNS4wMzIuMTgzLjAyNC4zNS4wNTYuNTE4LjA4OC4xNi4wNC4zMTIuMDguNDU1LjEyNy4xNDQuMDQ4LjI1Ni4wOTYuMzM2LjE0NGEuNjkuNjkgMCAwIDEgLjI0LjIuNDMuNDMgMCAwIDEgLjA3MS4yNjN2LjM3NWMwIC4xNjgtLjA2NC4yNTYtLjE4NC4yNTZhLjgzLjgzIDAgMCAxLS4zMDMtLjA5NiAzLjY1MiAzLjY1MiAwIDAgMC0xLjUzMi0uMzExYy0uNDU1IDAtLjgxNS4wNzEtMS4wNjIuMjIzLS4yNDguMTUyLS4zNzUuMzgzLS4zNzUuNzEgMCAuMjI0LjA4LjQxNi4yNC41NjcuMTU5LjE1Mi40NTQuMzA0Ljg3Ny40NGwxLjEzNC4zNThjLjU3NC4xODQuOTkuNDQgMS4yMzcuNzY3LjI0Ny4zMjcuMzY3LjcwMi4zNjcgMS4xMTcgMCAuMzQzLS4wNzIuNjU1LS4yMDcuOTI2LS4xNDQuMjcyLS4zMzYuNTExLS41ODMuNzAzLS4yNDguMi0uNTQzLjM0My0uODg2LjQ0Ny0uMzYuMTExLS43MzQuMTY3LTEuMTQyLjE2N3pNMjEuNjk4IDE2LjIwN2MtMi42MjYgMS45NC02LjQ0MiAyLjk2OS05LjcyMiAyLjk2OS00LjU5OCAwLTguNzQtMS43LTExLjg3LTQuNTI2LS4yNDctLjIyMy0uMDI0LS41MjcuMjcyLS4zNTEgMy4zODQgMS45NjMgNy41NTkgMy4xNTMgMTEuODc3IDMuMTUzIDIuOTE0IDAgNi4xMTQtLjYwNyA5LjA2LTEuODUyLjQzOS0uMi44MTQuMjg3LjM4My42MDd6TTIyLjc5MiAxNC45NjFjLS4zMzYtLjQzLTIuMjItLjIwNy0zLjA3NC0uMTAzLS4yNTUuMDMyLS4yOTUtLjE5Mi0uMDYzLS4zNiAxLjUtMS4wNTMgMy45NjctLjc1IDQuMjU0LS4zOTkuMjg3LjM2LS4wOCAyLjgyNi0xLjQ4NSA0LjAwNy0uMjE1LjE4NC0uNDIzLjA4OC0uMzI3LS4xNTEuMzItLjc5IDEuMDMtMi41Ny42OTUtMi45OTR6Ii8+PC9zdmc+",
+      googlecloud: "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNDI4NUY0IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+R29vZ2xlIENsb3VkPC90aXRsZT48cGF0aCBkPSJNMTIuMTkgMi4zOGE5LjM0NCA5LjM0NCAwIDAgMC05LjIzNCA2Ljg5M2MuMDUzLS4wMi0uMDU1LjAxMyAwIDAtMy44NzUgMi41NTEtMy45MjIgOC4xMS0uMjQ3IDEwLjk0MWwuMDA2LS4wMDctLjAwNy4wM2E2LjcxNyA2LjcxNyAwIDAgMCA0LjA3NyAxLjM1Nmg1LjE3M2wuMDMuMDNoNS4xOTJjNi42ODcuMDUzIDkuMzc2LTguNjA1IDMuODM1LTEyLjM1YTkuMzY1IDkuMzY1IDAgMCAwLTIuODIxLTQuNTUybC0uMDQzLjA0My4wMDYtLjA1QTkuMzQ0IDkuMzQ0IDAgMCAwIDEyLjE5IDIuMzh6bS0uMzU4IDQuMTQ2YzEuMjQ0LS4wNCAyLjUxOC4zNjggMy40ODYgMS4xNWE1LjE4NiA1LjE4NiAwIDAgMSAxLjg2MiA0LjA3OHYuNTE4YzMuNTMtLjA3IDMuNTMgNS4yNjIgMCA1LjE5M2gtNS4xOTNsLS4wMDguMDA5di0uMDRINi43ODVhMi41OSAyLjU5IDAgMCAxLTEuMDY3LS4yM2guMDAxYTIuNTk3IDIuNTk3IDAgMSAxIDMuNDM3LTMuNDM3bDMuMDEzLTMuMDEyQTYuNzQ3IDYuNzQ3IDAgMCAwIDguMTEgOC4yNGMuMDE4LS4wMS4wNC0uMDI2LjA1NC0uMDIzYTUuMTg2IDUuMTg2IDAgMCAxIDMuNjctMS42OXoiLz48L3N2Zz4=",
+      vscode: "data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+VmlzdWFsIFN0dWRpbyBDb2RlPC90aXRsZT48cGF0aCBkPSJNMjMuMTUgMi41ODdMMTguMjEuMjFhMS40OTQgMS40OTQgMCAwIDAtMS43MDUuMjlsLTkuNDYgOC42My00LjEyLTMuMTI4YS45OTkuOTk5IDAgMCAwLTEuMjc2LjA1N0wuMzI3IDcuMjYxQTEgMSAwIDAgMCAuMzI2IDguNzRMMy44OTkgMTIgLjMyNiAxNS4yNmExIDEgMCAwIDAgLjAwMSAxLjQ3OUwxLjY1IDE3Ljk0YS45OTkuOTk5IDAgMCAwIDEuMjc2LjA1N2w0LjEyLTMuMTI4IDkuNDYgOC42M2ExLjQ5MiAxLjQ5MiAwIDAgMCAxLjcwNC4yOWw0Ljk0Mi0yLjM3N0ExLjUgMS41IDAgMCAwIDI0IDIwLjA2VjMuOTM5YTEuNSAxLjUgMCAwIDAtLjg1LTEuMzUyem0tNS4xNDYgMTQuODYxTDEwLjgyNiAxMmw3LjE3OC01LjQ0OHYxMC44OTZ6Ii8+PC9zdmc+",
+      azure: "data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+TWljcm9zb2Z0IEF6dXJlPC90aXRsZT48cGF0aCBkPSJNMjIuMzc5IDIzLjM0M2ExLjYyIDEuNjIgMCAwIDAgMS41MzYtMi4xNHYuMDAyTDE3LjM1IDEuNzZBMS42MiAxLjYyIDAgMCAwIDE1LjgxNi42NTdIOC4xODRBMS42MiAxLjYyIDAgMCAwIDYuNjUgMS43NkwuMDg2IDIxLjIwNGExLjYyIDEuNjIgMCAwIDAgMS41MzYgMi4xMzloNC43NDFhMS42MiAxLjYyIDAgMCAwIDEuNTM1LTEuMTAzbC45NzctMi44OTIgNC45NDcgMy42NzVjLjI4LjIwOC42MTguMzIuOTY2LjMybS0zLjA4NC0xMi41MzEgMy42MjQgMTAuNzM5YS41NC41NCAwIDAgMS0uNTEuNzEzdi0uMDAxaC0uMDNhLjU0LjU0IDAgMCAxLS4zMjItLjEwNmwtOS4yODctNi45aDQuODUzbTYuMzEzIDcuMDA2Yy4xMTYtLjMyNi4xMy0uNjk0LjAwNy0xLjA1OEw5Ljc5IDEuNzZhMS43MjIgMS43MjIgMCAwIDAtLjAwNy0uMDJoNi4wMzRhLjU0LjU0IDAgMCAxIC41MTIuMzY2bDYuNTYyIDE5LjQ0NWEuNTQuNTQgMCAwIDEtLjMzOC42ODQiLz48L3N2Zz4=",
+      cursor: "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMDAwMDAwIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q3Vyc29yPC90aXRsZT48cGF0aCBkPSJNMTEuNTAzLjEzMSAxLjg5MSA1LjY3OGEuODQuODQgMCAwIDAtLjQyLjcyNnYxMS4xODhjMCAuMy4xNjIuNTc1LjQyLjcyNGw5LjYwOSA1LjU1YTEgMSAwIDAgMCAuOTk4IDBsOS42MS01LjU1YS44NC44NCAwIDAgMCAuNDItLjcyNFY2LjQwNGEuODQuODQgMCAwIDAtLjQyLS43MjZMMTIuNDk3LjEzMWExLjAxIDEuMDEgMCAwIDAtLjk5NiAwTTIuNjU3IDYuMzM4aDE4LjU1Yy4yNjMgMCAuNDMuMjg3LjI5Ny41MTVMMTIuMjMgMjIuOTE4Yy0uMDYyLjEwNy0uMjI5LjA2NC0uMjI5LS4wNlYxMi4zMzVhLjU5LjU5IDAgMCAwLS4yOTUtLjUxbC05LjExLTUuMjU3Yy0uMTA5LS4wNjMtLjA2NC0uMjMuMDYxLS4yMyIvPjwvc3ZnPg==",
+    };
+    const STICKY_STORAGE_PREFIX = "aiDemo.agentOnboardingSticky.";
+
     // Data ported from demo_api_ui/src/data/agentOnboardingFlows.js (ROWS/LEGEND/FLOWS) — keep in sync by hand.
     const ROWS = [
       {
         id: "entry", kind: "triple",
         boxes: [
           { key: "entry-user", legendNum: 1, title: "1. Enterprise Users (AI Consumers)", subtitle: "Use AI clients and add MCPs",
-            tags: ["Claude Desktop", "Cursor", "VS Code (Copilot)", "ChatGPT Enterprise"],
+            tags: [{ icon: "claude", label: "Claude Desktop" }, { icon: "cursor", label: "Cursor" }, { icon: "vscode", label: "VS Code (Copilot)" }, { icon: "openai", label: "ChatGPT Enterprise" }],
             bullets: ["User adds/configures MCP servers in their AI client", "Open Agent Studio to register MCPs"] },
           { key: "entry-dev", legendNum: 2, title: "2. Developers / Agent Builders", subtitle: "Build agents and publish MCPs",
-            tags: ["Foundry", "AWS", "Vertex", "Other Platforms"],
+            tags: [{ icon: "azure", label: "Foundry" }, { icon: "aws", label: "AWS" }, { icon: "googlecloud", label: "Vertex" }, { label: "Other Platforms" }],
             bullets: ["Build AI Agent on any platform", "Open Agent Studio", "Register Agent", "Register MCPs, Tools & Resources", "Publish MCP to PingGateway MCP Security Gateway (automatic orchestration)"] },
           { key: "entry-admin", legendNum: 3, title: "3. Cloud Discovery (Admin)", subtitle: "Discover unmanaged agents in cloud",
-            tags: ["Foundry", "AWS", "Vertex", "Other Platforms"],
+            tags: [{ icon: "azure", label: "Foundry" }, { icon: "aws", label: "AWS" }, { icon: "googlecloud", label: "Vertex" }, { label: "Other Platforms" }],
             bullets: ["Agents discovered in cloud platforms", "Admin notified", "Admin reviews and imports to Agent Studio"] },
         ],
         note: "Discovered agents in cloud that were not created through Agent Studio are brought in by administrators.",
@@ -218,6 +251,12 @@
         box: { key: "orchestration", legendNum: 6,
           items: ["Create identity & metadata", "Publish MCP to PingGateway MCP Security Gateway", "Publish FGA rules to PingAuthorize (as applies)", "Register in IGA for AI for governance", "Keep metadata synchronized across platforms"] },
         note: "Agent Studio eliminates siloed admin experiences and automates configuration across products.",
+      },
+      {
+        id: "idm", kind: "single",
+        box: { key: "idm", legendNum: 8, title: "Identity & Metadata (Ping Identity Platform)", subtitle: "PingFederate · PingOne · PingDirectory",
+          bullets: ["Stores Agent Identity, MCP, Tool & Resource metadata", "Single identity plane for users, agents, and devices", "Synchronized by Agent Studio during onboarding"] },
+        note: "Every registered agent, MCP, and tool gets a durable identity and metadata record here.",
       },
       {
         id: "governance", kind: "triple",
@@ -261,6 +300,7 @@
       { num: 5, label: "Cloud Discovery (IGA)" },
       { num: 6, label: "Orchestration / Governance" },
       { num: 7, label: "Runtime" },
+      { num: 8, label: "Identity & Metadata (Ping Identity Platform)" },
     ];
 
     const FLOWS = {
@@ -271,7 +311,7 @@
           { title: "Configure AI Capabilities", narrative: "Configure enterprise or personal AI workflows.", activeCardKeys: ["entry-user"] },
           { title: "Open Agent Studio", narrative: "Sign in using enterprise identity; discover configured MCPs or onboard MCPs into the privilege gateway.", activeCardKeys: ["entry-user", "agent-studio"] },
           { title: "Register MCPs", narrative: "Select the MCPs for access; register them with the privilege gateway.", activeCardKeys: ["agent-studio"] },
-          { title: "Enterprise Registration", narrative: "MCPs are registered in the PingOne Privilege identity platform; metadata is created across PF, P1, AIC, AIS.", activeCardKeys: ["agent-studio", "orchestration", "privileges-gw"] },
+          { title: "Enterprise Registration", narrative: "MCPs are registered in the PingOne Privilege identity platform; metadata is created across PF, P1, AIC, AIS.", activeCardKeys: ["agent-studio", "orchestration", "privileges-gw", "idm"] },
           { title: "Governance", narrative: "IGA for AI discovers the registered MCPs from the privilege gateway; identity, lifecycle, and entitlements are established.", activeCardKeys: ["iga-ai", "privileges-gw"] },
           { title: "Secure Runtime", narrative: "MCP requests flow through the Privileges MCP Gateway; enterprise policies control access to tools, APIs, and resources.", activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
         ]},
@@ -282,7 +322,7 @@
           { title: "Open Agent Studio", narrative: "Sign in using enterprise identity.", activeCardKeys: ["entry-dev", "agent-studio"] },
           { title: "Register the Agent", narrative: "Create the enterprise identity for the agent (PF, AIC, P1); register agent metadata.", activeCardKeys: ["agent-studio"] },
           { title: "Register Assets", narrative: "Register MCP servers, MCP resources, and MCP tools.", activeCardKeys: ["agent-studio"] },
-          { title: "Publish to Enterprise", narrative: "Register with the Ping Identity Platform; publish MCPs to the Privileges Gateway.", activeCardKeys: ["agent-studio", "orchestration", "privileges-gw"] },
+          { title: "Publish to Enterprise", narrative: "Register with the Ping Identity Platform; publish MCPs to the Privileges Gateway.", activeCardKeys: ["agent-studio", "orchestration", "privileges-gw", "idm"] },
           { title: "Governance", narrative: "IGA for AI discovers the agent; establishes ownership; applies lifecycle management; assigns entitlements.", activeCardKeys: ["iga-ai"] },
           { title: "Runtime", narrative: "The agent securely accesses enterprise resources through the Privileges MCP Gateway.", activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
         ]},
@@ -295,7 +335,7 @@
               { title: "Administrator is notified", narrative: "The Privileges MCP Gateway raises an alert to the Identity/Security Administrator.", activeCardKeys: ["entry-admin", "privileges-gw"] },
               { title: "Administrator reviews the discovered AI assets", narrative: "The administrator reviews the discovered assets in the Privilege Admin console.", activeCardKeys: ["entry-admin"] },
               { title: "Administrator approves onboarding into enterprise governance", narrative: "The administrator approves bringing the discovered agent into enterprise governance.", activeCardKeys: ["entry-admin", "agent-studio"] },
-              { title: "Agent metadata is synchronized to IGA", narrative: "Agent metadata is synchronized to IGA for AI.", activeCardKeys: ["iga-ai"] },
+              { title: "Agent metadata is synchronized to IGA", narrative: "Agent metadata is synchronized to IGA for AI.", activeCardKeys: ["iga-ai", "idm"] },
               { title: "IGA establishes ownership, lifecycle, and entitlements", narrative: "IGA for AI establishes ownership, lifecycle, inventory, governance, and entitlements for the agent.", activeCardKeys: ["iga-ai"] },
               { title: "Browser/Device AI becomes a managed enterprise AI asset", narrative: "The agent is now subject to the same runtime enforcement as any other enterprise agent.", activeCardKeys: ["privilege-discovery", "privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
             ]},
@@ -305,7 +345,7 @@
               { title: "Administrator reviews the discovered agents", narrative: "The administrator reviews the discovered agents.", activeCardKeys: ["entry-admin", "cloud-discovery-iga"] },
               { title: "Administrator approves enterprise registration", narrative: "The administrator approves enterprise registration for the discovered agent.", activeCardKeys: ["entry-admin"] },
               { title: "IGA / Agent Studio requests Agent Identity creation", narrative: "IGA and Agent Studio request creation of an Agent Identity in PingOne / PingFederate / AIC.", activeCardKeys: ["iga-ai", "agent-studio"] },
-              { title: "Agent Studio creates the enterprise Agent Identity", narrative: "Agent Studio creates the enterprise Agent Identity.", activeCardKeys: ["agent-studio"] },
+              { title: "Agent Studio creates the enterprise Agent Identity", narrative: "Agent Studio creates the enterprise Agent Identity.", activeCardKeys: ["agent-studio", "idm"] },
               { title: "Agent metadata and identity are synchronized back to IGA", narrative: "Agent metadata and identity are synchronized back to IGA for AI.", activeCardKeys: ["iga-ai"] },
               { title: "MCP resources are associated with the Agent Identity", narrative: "MCP resources are associated with the Agent Identity.", activeCardKeys: ["agent-studio", "orchestration", "privileges-gw"] },
               { title: "Agent becomes governed and managed across the enterprise", narrative: "All runtime traffic is validated, authorized, and governed before accessing any resource.", activeCardKeys: ["cloud-discovery-iga", "privileges-gw", "pinggateway", "pingauthorize", "runtime"] },
@@ -371,6 +411,76 @@
       });
     }
 
+    function stickyStoredText(id, defaultText) {
+      try {
+        const saved = window.localStorage.getItem(STICKY_STORAGE_PREFIX + id);
+        return saved !== null ? saved : defaultText;
+      } catch (e) { return defaultText; }
+    }
+
+    function createSticky(id, defaultText, rotateDeg, extraClass) {
+      const wrap = document.createElement("div");
+      wrap.className = "sticky" + (extraClass ? " " + extraClass : "");
+      wrap.style.setProperty("--sticky-rotate", rotateDeg + "deg");
+
+      const textEl = document.createElement("div");
+      textEl.className = "sticky-text";
+      textEl.textContent = stickyStoredText(id, defaultText);
+      wrap.appendChild(textEl);
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "sticky-edit-btn";
+      editBtn.textContent = "Edit";
+      editBtn.title = "Edit note";
+      editBtn.setAttribute("aria-label", "Edit note");
+      wrap.appendChild(editBtn);
+
+      function startEdit() {
+        textEl.contentEditable = "true";
+        wrap.classList.add("sticky--editing");
+        editBtn.style.display = "none";
+        textEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(textEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      function commit() {
+        textEl.contentEditable = "false";
+        wrap.classList.remove("sticky--editing");
+        editBtn.style.display = "";
+        const next = textEl.textContent.trim() || defaultText;
+        textEl.textContent = next;
+        try { window.localStorage.setItem(STICKY_STORAGE_PREFIX + id, next); } catch (e) {}
+      }
+      textEl.addEventListener("click", () => { if (textEl.contentEditable !== "true") startEdit(); });
+      editBtn.addEventListener("click", startEdit);
+      textEl.addEventListener("blur", commit);
+      textEl.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { textEl.textContent = stickyStoredText(id, defaultText); textEl.blur(); }
+        else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); textEl.blur(); }
+      });
+      return wrap;
+    }
+
+    function tagEl(t) {
+      const tag = document.createElement("span");
+      tag.className = "box-tag";
+      if (typeof t === "object" && t.icon && ICON_URIS[t.icon]) {
+        const img = document.createElement("img");
+        img.src = ICON_URIS[t.icon];
+        img.alt = "";
+        img.className = "box-tag-icon";
+        tag.appendChild(img);
+        tag.appendChild(document.createTextNode(t.label));
+      } else {
+        tag.textContent = typeof t === "object" ? t.label : t;
+      }
+      return tag;
+    }
+
     function boxEl(box, active, visited, extraClass) {
       const isActive = active.has(box.key);
       const isVisited = !isActive && visited.has(box.key);
@@ -401,12 +511,7 @@
       if (box.tags) {
         const tagsEl = document.createElement("div");
         tagsEl.className = "box-tags";
-        box.tags.forEach((t) => {
-          const tag = document.createElement("span");
-          tag.className = "box-tag";
-          tag.textContent = t;
-          tagsEl.appendChild(tag);
-        });
+        box.tags.forEach((t) => tagsEl.appendChild(tagEl(t)));
         el.appendChild(tagsEl);
       }
 
@@ -454,10 +559,9 @@
       }
 
       if (box.note) {
-        const note = document.createElement("p");
-        note.className = "box-note";
-        note.textContent = box.note;
-        el.appendChild(note);
+        const rotate = box.key.length % 2 === 0 ? 1.5 : -1.5;
+        const tan = box.key === "privilege-discovery" ? " sticky--tan" : "";
+        el.appendChild(createSticky("box-" + box.key, box.note, rotate, "sticky--box" + tan));
       }
 
       return el;
@@ -529,10 +633,8 @@
         wrap.appendChild(rowEl);
 
         if (row.note) {
-          const note = document.createElement("p");
-          note.className = "row-note";
-          note.textContent = row.note;
-          wrap.appendChild(note);
+          const rotate = row.id.length % 2 === 0 ? 1.5 : -1.5;
+          wrap.appendChild(createSticky("row-" + row.id, row.note, rotate, "sticky--row"));
         }
 
         if (i < ROWS.length - 1) {
