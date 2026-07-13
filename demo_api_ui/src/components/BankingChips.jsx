@@ -97,7 +97,7 @@ export default function BankingChips({
 
   const handleChipClick = (chip, requiresLlm = false) => {
     if (onChipClick) {
-      onChipClick({ message: chip.message, label: chip.label, requiresLlm, chipId: chip.id, direct: chip.direct });
+      onChipClick({ message: chip.message, label: chip.label, requiresLlm, chipId: chip.id, direct: chip.direct, useCaseId: chip.useCaseId });
     }
   };
 
@@ -186,7 +186,7 @@ export default function BankingChips({
                       return;
                     }
                     handleChipClick(
-                      { id: chip.id, label: chip.label, message: chip.message, direct: isDirect },
+                      { id: chip.id, label: chip.label, message: chip.message, direct: isDirect, useCaseId: chip.useCaseId },
                       isLlm,
                     );
                   }}

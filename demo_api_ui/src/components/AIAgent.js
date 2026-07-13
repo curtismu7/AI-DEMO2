@@ -6752,7 +6752,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool }) => {
+                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -7009,7 +7009,7 @@ export default function BankingAgent({
                               addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams);
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId });
                             if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
                               tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }
