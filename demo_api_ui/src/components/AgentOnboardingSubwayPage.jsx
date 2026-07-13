@@ -6,6 +6,7 @@
 // pacing — see docs/superpowers/specs for the earlier box+arrow spec; this
 // page's rationale is captured in its own commit message).
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import TokenStepIndicator from "./TokenStepIndicator";
 import { FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
 import { STATION_LABELS, collapseStations } from "../data/agentOnboardingStations";
 import "./AgentOnboardingSubwayPage.css";
@@ -128,7 +129,15 @@ export default function AgentOnboardingSubwayPage() {
 
       <div className="aos-card">
         <div className="aos-eyebrow">
-          Step {stepIndex + 1} of {steps.length} — {STATION_LABELS[step.activeCardKeys[0]]}
+          <TokenStepIndicator
+            currentStep={stepIndex + 1}
+            totalSteps={steps.length}
+            compact={true}
+            showLabel={true}
+          />
+          <span style={{ marginLeft: '12px', color: '#64748b', fontSize: '0.9rem' }}>
+            {STATION_LABELS[step.activeCardKeys[0]]}
+          </span>
         </div>
         <h2>{step.title}</h2>
         <p>{step.narrative}</p>
