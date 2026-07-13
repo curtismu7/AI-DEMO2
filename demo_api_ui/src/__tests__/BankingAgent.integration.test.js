@@ -236,39 +236,6 @@ describe('BankingAgent Test Chips Integration', () => {
    * Handler implementation expectations
    */
   describe('Handler implementations', () => {
-    describe('test_wrong_scope handler', () => {
-      it('should be defined and callable', () => {
-        // This is verified by the BankingAgent.js switch statement
-        expect(true).toBe(true); // Placeholder - actual verification is in code review
-      });
-
-      it('should fetch /api/mcp/tool with _testScope parameter', () => {
-        // Handler should make a fetch call with:
-        // {
-        //   tool: "get_my_accounts",
-        //   params: {},
-        //   _testScope: "admin:read"  // Invalid scope
-        // }
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should check response._httpStatus >= 400', () => {
-        // Handler checks: scopeTestRes._httpStatus >= 400
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should capture missingScopes from response', () => {
-        // Handler captures: scopeTestRes.missingScopes
-        expect(true).toBe(true); // Placeholder
-      });
-
-      it('should display gateway denial metadata in message', () => {
-        // Handler adds message with:
-        // `required_scopes=[${(scopeTestRes.missingScopes || []).join(", ")}]`
-        expect(true).toBe(true); // Placeholder
-      });
-    });
-
     describe('test_hitl_required handler', () => {
       it('should call createTransfer with $99,999.99', () => {
         // Handler calls:

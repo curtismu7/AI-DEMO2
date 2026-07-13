@@ -2980,6 +2980,8 @@ export default function BankingAgent({
               error: scopeErr.code || scopeErr.message,
               status: scopeErr.status,
               missingScopes: scopeErr.missingScopes,
+              requiredScopes: scopeErr.requiredScopes,
+              availableScopes: scopeErr.availableScopes,
               tokenEvents: scopeErr.tokenEvents || [],
             };
           }
@@ -2990,11 +2992,20 @@ export default function BankingAgent({
           const scopeOutcome = scopeRejected
             ? `✅ Gateway correctly rejected (403): required_scopes=[${(scopeTestRes.missingScopes || []).join(", ") || "admin"}]`
             : `❌ Expected 403 denial, got: ${scopeTestRes?.error || scopeTestRes?.status || "success"}`;
+          const scopeComparisonLines =
+            scopeTestRes?.availableScopes?.length || scopeTestRes?.requiredScopes?.length
+              ? [
+                  `Tried: token scopes=[${(scopeTestRes.availableScopes || []).join(", ") || "none"}]`,
+                  `Allowed (required): scopes=[${(scopeTestRes.requiredScopes || []).join(", ") || "unknown"}]`,
+                  "",
+                ]
+              : [];
           addMessage(
             "token-event",
             [
               "⚠️ Authorization Test: Insufficient Scope (RFC 6749 §3.3)",
               "",
+              ...scopeComparisonLines,
               scopeOutcome,
               "",
               "Step 4b-c: Gateway denial includes required_scopes metadata",
