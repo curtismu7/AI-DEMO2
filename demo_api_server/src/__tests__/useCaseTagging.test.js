@@ -47,7 +47,7 @@ describe('isValidUseCaseId (catalog guard)', () => {
   });
 });
 
-const { stampUseCaseId } = require('../../services/useCaseTagging');
+const { stampUseCaseId, stampVertical } = require('../../services/useCaseTagging');
 
 describe('stampUseCaseId', () => {
   test('stamps events that lack a useCaseId', () => {
@@ -67,5 +67,26 @@ describe('stampUseCaseId', () => {
     stampUseCaseId(events, undefined);
     expect(events[0].useCaseId).toBeUndefined();
     expect(() => stampUseCaseId(null, 'x')).not.toThrow();
+  });
+});
+
+describe('stampVertical', () => {
+  test('stamps events that lack a vertical', () => {
+    const events = [{ id: 'a' }, { id: 'b' }];
+    stampVertical(events, 'banking');
+    expect(events.every((e) => e.vertical === 'banking')).toBe(true);
+  });
+
+  test('does not overwrite an existing vertical', () => {
+    const events = [{ id: 'a', vertical: 'launcher-set' }];
+    stampVertical(events, 'healthcare');
+    expect(events[0].vertical).toBe('launcher-set');
+  });
+
+  test('no-op when vertical is falsy or events is not an array', () => {
+    const events = [{ id: 'a' }];
+    stampVertical(events, undefined);
+    expect(events[0].vertical).toBeUndefined();
+    expect(() => stampVertical(null, 'x')).not.toThrow();
   });
 });
