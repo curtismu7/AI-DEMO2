@@ -1,7 +1,9 @@
 // banking_api_ui/src/components/education/TokenChainEducationPanel.js
+import React, { useState, useEffect } from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
 import TokenChainTraceRail from '../TokenChainTraceRail';
+import TokenStepIndicator from '../TokenStepIndicator';
 
 function OverviewTab() {
   return (
@@ -419,6 +421,7 @@ function LiveDemoTab() {
 export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId }) {
   const tokenChain = useTokenChainOptional();
   const liveIdentity = tokenChain?.resolvedIdentity ?? null;
+  const [activeTabId, setActiveTabId] = useState(null);
 
   const tabs = [
     { id: 'overview', label: 'Overview', content: <OverviewTab /> },
@@ -429,6 +432,18 @@ export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId
     { id: 'transaction-tokens', label: 'Transaction Tokens', content: <TransactionTokensTab /> },
   ];
 
+  const activeTabIndex = activeTabId ? tabs.findIndex(t => t.id === activeTabId) : 0;
+
+  const stepIndicator = (
+    <TokenStepIndicator
+      currentStep={activeTabIndex + 1}
+      totalSteps={tabs.length}
+      stepLabels={tabs.map(t => t.label)}
+      compact={true}
+      showLabel={true}
+    />
+  );
+
   return (
     <EducationDrawer
       isOpen={isOpen}
@@ -437,6 +452,8 @@ export default function TokenChainEducationPanel({ isOpen, onClose, initialTabId
       tabs={tabs}
       initialTabId={initialTabId}
       width="min(680px, 100vw)"
+      stepIndicator={stepIndicator}
+      onTabChange={setActiveTabId}
     />
   );
 }

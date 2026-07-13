@@ -12,6 +12,8 @@ export default function EducationDrawer({
   tabs,
   initialTabId,
   width = "clamp(320px, 50vw, 100vw)",
+  stepIndicator = null,
+  onTabChange = null,
 }) {
   const [activeId, setActiveId] = useState(tabs[0]?.id);
   /** Only apply initialTabId when the drawer opens — not on every render (tabs[] is often a new array reference per parent render). */
@@ -43,6 +45,12 @@ export default function EducationDrawer({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (onTabChange && activeId) {
+      onTabChange(activeId);
+    }
+  }, [activeId, onTabChange]);
 
   if (!isOpen) return null;
 
@@ -88,9 +96,16 @@ export default function EducationDrawer({
           </button>
         </div>
         <div className="edu-drawer-title-row">
-          <h2 id="edu-drawer-title" className="edu-drawer-title">
-            {title}
-          </h2>
+          <div>
+            <h2 id="edu-drawer-title" className="edu-drawer-title">
+              {title}
+            </h2>
+            {stepIndicator && (
+              <div style={{ marginTop: '8px' }}>
+                {stepIndicator}
+              </div>
+            )}
+          </div>
         </div>
         <div className="edu-drawer-body scroll-area">
           {typeof active?.content === "function"
