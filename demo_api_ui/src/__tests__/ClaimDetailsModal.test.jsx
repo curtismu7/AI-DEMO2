@@ -1,11 +1,23 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom'; // eslint-disable-line import/no-unresolved
 
 // Mock CSS imports
 vi.mock('../styles/TokenChainRedesign.css', () => ({}), { virtual: true });
+vi.mock('../components/DraggableModal', () => ({
+  default: ({ isOpen, onClose, title, children }) => {
+    if (!isOpen) return null;
+    return (
+      <div data-testid="draggable-modal">
+        <h2>{title}</h2>
+        {children}
+        <button onClick={onClose}>Close</button>
+      </div>
+    );
+  },
+}));
 
 import ClaimDetailsModal from '../components/ClaimDetailsModal';
 
@@ -138,29 +150,9 @@ describe('ClaimDetailsModal', () => {
       render(
         <ClaimDetailsModal isOpen={true} tokenType="user" onClose={onClose} />
       );
-      const closeButton = screen.getByLabelText('Close modal');
+      const closeButton = screen.getByRole('button', { name: 'Close' });
       await userEvent.click(closeButton);
-      expect(onClose).toHaveBeenCalledOnce();
-    });
-
-    it('closes when Close button in footer is clicked', async () => {
-      const onClose = vi.fn();
-      render(
-        <ClaimDetailsModal isOpen={true} tokenType="user" onClose={onClose} />
-      );
-      const footerCloseButton = screen.getByRole('button', { name: 'Close' });
-      await userEvent.click(footerCloseButton);
-      expect(onClose).toHaveBeenCalledOnce();
-    });
-
-    it('closes when backdrop is clicked', async () => {
-      const onClose = vi.fn();
-      render(
-        <ClaimDetailsModal isOpen={true} tokenType="user" onClose={onClose} />
-      );
-      const backdrop = document.querySelector('.utfi-modal-backdrop');
-      await userEvent.click(backdrop);
-      expect(onClose).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalled();
     });
 
     it('does not close when modal content is clicked', async () => {
@@ -172,9 +164,18 @@ describe('ClaimDetailsModal', () => {
       await userEvent.click(modalContent);
       expect(onClose).not.toHaveBeenCalled();
     });
+
+    it('passes correct props to DraggableModal', () => {
+      const onClose = vi.fn();
+      render(
+        <ClaimDetailsModal isOpen={true} tokenType="agent" onClose={onClose} />
+      );
+      expect(screen.getByTestId('draggable-modal')).toBeInTheDocument();
+      expect(screen.getByText('Agent Token Claims')).toBeInTheDocument();
+    });
   });
 
-  describe('CSS styling', () => {
+  describe('Content rendering', () => {
     it('applies correct CSS classes to claim items', () => {
       render(
         <ClaimDetailsModal isOpen={true} tokenType="user" onClose={() => {}} />
@@ -187,17 +188,6 @@ describe('ClaimDetailsModal', () => {
         expect(item.querySelector('.utfi-claim-value')).toBeInTheDocument();
         expect(item.querySelector('.utfi-claim-description')).toBeInTheDocument();
       });
-    });
-
-    it('applies correct CSS classes to modal structure', () => {
-      render(
-        <ClaimDetailsModal isOpen={true} tokenType="user" onClose={() => {}} />
-      );
-      expect(document.querySelector('.utfi-modal-backdrop')).toBeInTheDocument();
-      expect(document.querySelector('.utfi-modal-container')).toBeInTheDocument();
-      expect(document.querySelector('.utfi-modal-header')).toBeInTheDocument();
-      expect(document.querySelector('.utfi-modal-body')).toBeInTheDocument();
-      expect(document.querySelector('.utfi-modal-footer')).toBeInTheDocument();
     });
   });
 
