@@ -935,6 +935,128 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req) {
 }
 
 /**
+ * Intent Binding demo (PERMIT path): mints the same $100 RAR grant UC14's
+ * attack path denies, but requests a transfer within the granted cap. The
+ * gateway/authz PERMIT and the response carries an 'intent-binding-verified'
+ * token event — the legitimate counterpart to UC14's DENY.
+ */
+async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, requestedAmount) {
+  const sim = 'rar-permit';
+  const grantedAmount = 100;
+  const amount = Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : grantedAmount;
+
+  try {
+    await configStore.setRaw({ ff_rar: 'true' });
+  } catch (err) {
+    return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
+  }
+
+  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  if (!pushResult.ok) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-arm-failed',
+      'Gateway RAR arm failed (non-fatal)',
+      'warning',
+      null,
+      pushResult.error || 'Could not arm requireRarIntent on gateway',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'Gateway RAR enforcement armed (Intent Binding demo)',
+      'active',
+      null,
+      'requireRarIntent enabled on Demo Agent Gateway for this call.',
+    ));
+  }
+
+  const exchanged = await _exchangeGatewayToken(
+    subjectToken, ['read', 'write', 'transfer'], useCaseId, tokenChainEvents, sim,
+  );
+  if (!exchanged.ok) return exchanged.result;
+
+  const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+  const rarDetails = buildRarAuthorizationDetails(
+    'create_transfer',
+    { amount: grantedAmount, to_account_id: 'sim-acc-001' },
+    userSub,
+  );
+  const tratCtx = buildTratContext(
+    req,
+    'create_transfer',
+    userSub,
+    configStore.getEffective('pingone_ai_agent_actor_client_id') || '',
+    configStore.getEffective('admin_client_id') || '',
+    { rarDetails },
+  );
+  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-rar-grant',
+    `RAR grant ($${grantedAmount})`,
+    'active',
+    null,
+    `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
+    `This call requests $${amount}, within the granted cap.`,
+    { authorization_details: rarDetails },
+  ));
+
+  try {
+    await callToolViaGateway(
+      null,
+      exchanged.token,
+      'create_transfer',
+      { amount, to_account_id: 'sim-acc-001' },
+      { tratContextHeader },
+    );
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
+      'Gateway DENY (unexpected — requested amount was within the granted cap)',
+    );
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'intent-binding-verified',
+    'Intent Verified (RAR — RFC 9396)',
+    'active',
+    null,
+    `Gateway PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
+    'The MCP gateway and PingOne Authorize confirmed the transfer matches the declared intent.',
+    { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
+  ));
+  _stampUseCaseId(tokenChainEvents, useCaseId);
+  return { sim, useCaseId, status: 200, errorCode: null, reason: 'PERMIT — within granted RAR cap', tokenChainEvents };
+}
+
+/**
+ * Public entry point for the Intent Binding learning-page demo. 'drift' reuses
+ * the existing UC14 attack path unchanged (it already demonstrates the DENY
+ * side); 'permit' is the new legitimate counterpart above.
+ */
+async function runIntentBindingDemo(action, req, requestedAmount) {
+  if (action === 'drift') {
+    return runAttackSim('rar-exceeded', req);
+  }
+  if (action !== 'permit') {
+    return {
+      sim: null, useCaseId: null, status: 400, errorCode: 'unknown_action',
+      reason: `Unknown action: ${action}`, tokenChainEvents: [],
+    };
+  }
+  const subjectToken = req?.session?.oauthTokens?.accessToken;
+  if (!subjectToken) {
+    return {
+      sim: 'rar-permit', useCaseId: null, status: 401, errorCode: 'no_session_token',
+      reason: 'No access token in session — user must be logged in', tokenChainEvents: [],
+    };
+  }
+  const useCaseId = 'rar-intent-verified';
+  const tokenChainEvents = [];
+  return _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, requestedAmount);
+}
+
+/**
  * UC15 tampered-intent-token: valid intent JWT with a corrupted signature.
  */
 async function _runTamperedIntentToken(subjectToken, useCaseId, tokenChainEvents, req) {
@@ -1073,4 +1195,4 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 }
 
-module.exports = { runAttackSim, _exchangeSimToken };
+module.exports = { runAttackSim, runIntentBindingDemo, _exchangeSimToken };
