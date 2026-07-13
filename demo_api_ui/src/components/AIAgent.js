@@ -6758,6 +6758,7 @@ export default function BankingAgent({
                     isHelixMode={agentProviderMode === 'helix_google'}
                     toolPermissions={toolPermissions}
                     toolsError={agentToolsError}
+                    userPrompt={messages[messages.length - 1]?.content || ''}
                     onDeniedChip={(chip, reason) => {
                       addMessage("user", chip.label);
                       addMessage(
