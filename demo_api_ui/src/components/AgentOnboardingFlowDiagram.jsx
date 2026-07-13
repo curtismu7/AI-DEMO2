@@ -6,10 +6,133 @@
 // Spec: docs/superpowers/specs/2026-07-12-agent-onboarding-flow-diagram-design.md
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import FloatingPanel from "./FloatingPanel";
-import { LANES, FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
+import { ROWS, LEGEND, FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
 import "./AgentOnboardingFlowDiagram.css";
 
 const PLAY_INTERVAL_MS = 2500;
+
+function boxClass(key, activeKeys, visitedKeys, extra = "") {
+  const isActive = activeKeys.has(key);
+  const isVisited = !isActive && visitedKeys.has(key);
+  return `aof-box${isActive ? " aof-active-card" : ""}${isVisited ? " aof-visited-card" : ""}${
+    extra ? ` ${extra}` : ""
+  }`;
+}
+
+function LegendBadge({ num }) {
+  if (!num) return null;
+  return <span className={`aof-legend-badge aof-legend-badge--${num}`}>{num}</span>;
+}
+
+function Box({ box, activeKeys, visitedKeys, className = "" }) {
+  return (
+    <article className={boxClass(box.key, activeKeys, visitedKeys, className)} aria-current={activeKeys.has(box.key) ? "true" : undefined}>
+      <div className="aof-box-head">
+        <LegendBadge num={box.legendNum} />
+        <div>
+          <h3>{box.title}</h3>
+          {box.subtitle && <p className="aof-box-subtitle">{box.subtitle}</p>}
+        </div>
+      </div>
+      {box.tags && (
+        <div className="aof-box-tags">
+          {box.tags.map((t) => (
+            <span key={t} className="aof-box-tag">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+      {box.columns && Array.isArray(box.columns) && typeof box.columns[0] === "string" && (
+        <div className="aof-box-tags">
+          {box.columns.map((c) => (
+            <span key={c} className="aof-box-tag aof-box-tag--col">
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
+      {box.columns && Array.isArray(box.columns) && typeof box.columns[0] === "object" && (
+        <div className="aof-box-columns">
+          {box.columns.map((col) => (
+            <div key={col.heading} className="aof-box-col">
+              <div className="aof-box-col-heading">{col.heading}</div>
+              <ul>
+                {col.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      {box.bullets && (
+        <ul className="aof-box-bullets">
+          {box.bullets.map((b) => (
+            <li key={b}>{b}</li>
+          ))}
+        </ul>
+      )}
+      {box.note && <p className="aof-box-note">{box.note}</p>}
+    </article>
+  );
+}
+
+function DiagramRow({ row, activeKeys, visitedKeys, isLast }) {
+  return (
+    <div className="aof-row-wrap">
+      <div className={`aof-row aof-row--${row.kind}`}>
+        {row.kind === "triple" && (
+          <div className="aof-row-triple">
+            {row.boxes.map((box) => (
+              <Box key={box.key} box={box} activeKeys={activeKeys} visitedKeys={visitedKeys} />
+            ))}
+          </div>
+        )}
+
+        {row.kind === "single" && (
+          <Box box={row.box} activeKeys={activeKeys} visitedKeys={visitedKeys} className="aof-box--wide" />
+        )}
+
+        {row.kind === "orchestration" && (
+          <div className={boxClass(row.box.key, activeKeys, visitedKeys, "aof-orchestration")}>
+            <div className="aof-orchestration-label">
+              <LegendBadge num={row.box.legendNum} />
+              {row.label}
+            </div>
+            <div className="aof-orchestration-items">
+              {row.box.items.map((item, i) => (
+                <React.Fragment key={item}>
+                  {i > 0 && <span className="aof-orchestration-arrow">→</span>}
+                  <span className="aof-orchestration-item">{item}</span>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {row.kind === "split" && (
+          <div className="aof-row-split">
+            <div className="aof-row-split-left">
+              {row.left.map((box) => (
+                <Box key={box.key} box={box} activeKeys={activeKeys} visitedKeys={visitedKeys} />
+              ))}
+            </div>
+            <Box box={row.right} activeKeys={activeKeys} visitedKeys={visitedKeys} className="aof-box--wide" />
+          </div>
+        )}
+      </div>
+
+      {row.note && <p className="aof-row-note">{row.note}</p>}
+      {!isLast && (
+        <div className="aof-row-connector" aria-hidden="true">
+          <span className="aof-row-connector-line" />
+          <span className="aof-row-connector-chevron">▾</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function useFlowSteps(flowKey, story) {
   return useMemo(() => {
@@ -136,8 +259,8 @@ export default function AgentOnboardingFlowDiagram() {
 
       <FloatingPanel
         title="Agent Onboarding Flow — Step Through"
-        defaultWidth={1180}
-        defaultHeight={760}
+        defaultWidth={1280}
+        defaultHeight={840}
         defaultX={20}
         defaultY={20}
         minWidth={620}
@@ -180,28 +303,26 @@ export default function AgentOnboardingFlowDiagram() {
           <p className="aof-persona">Persona: {persona}</p>
 
           <section className="aof-diagram" aria-label="Onboarding architecture diagram">
-            {LANES.map((lane) => (
-              <div key={lane.id} className="aof-lane">
-                <div className="aof-lane-title">{lane.title}</div>
-                {lane.cards.map((card) => {
-                  const isActive = activeKeys.has(card.key);
-                  const isVisited = !isActive && visitedKeys.has(card.key);
-                  return (
-                    <article
-                      key={card.key}
-                      className={`aof-card${isActive ? " aof-active-card" : ""}${
-                        isVisited ? " aof-visited-card" : ""
-                      }`}
-                      aria-current={isActive ? "true" : undefined}
-                    >
-                      <h3>{card.title}</h3>
-                      <p>{card.body}</p>
-                    </article>
-                  );
-                })}
-              </div>
+            {ROWS.map((row, i) => (
+              <DiagramRow
+                key={row.id}
+                row={row}
+                activeKeys={activeKeys}
+                visitedKeys={visitedKeys}
+                isLast={i === ROWS.length - 1}
+              />
             ))}
           </section>
+
+          <div className="aof-legend" aria-label="Flow step legend">
+            <span className="aof-legend-title">Legend</span>
+            {LEGEND.map((l) => (
+              <span key={l.num} className="aof-legend-entry">
+                <span className={`aof-legend-badge aof-legend-badge--${l.num}`}>{l.num}</span>
+                {l.label}
+              </span>
+            ))}
+          </div>
 
           <StepControls
             stepIndex={stepIndex}
