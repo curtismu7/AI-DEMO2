@@ -261,6 +261,9 @@ export default function OtpStepUpModal({
     const useDaId = daIdOverride || daId;
     // Decode base64url string -> Uint8Array for WebAuthn input fields.
     const b64ToBytes = (s) => {
+      if (!s || typeof s !== 'string') {
+        throw new Error('Invalid base64url string');
+      }
       const p = s.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
       return Uint8Array.from(atob(p + '='.repeat((4 - (p.length % 4)) % 4)), (c) => c.charCodeAt(0));
     };
@@ -318,8 +321,15 @@ export default function OtpStepUpModal({
       }
     } catch (err) {
       console.error('[OtpStepUpModal] FIDO assertion error:', err);
-      setP1Step('error');
-      setP1Error('Passkey verification failed. Try another method.');
+      // When NotAllowedError occurs and user has no passkey yet, offer registration
+      if ((err?.name === 'NotAllowedError' || err?.message?.includes('No credential')) && !hasFido && onPasskeyRegistered) {
+        setP1Step('pick-device');
+        setP1Error('');
+        setOtp('');
+      } else {
+        setP1Step('error');
+        setP1Error('Passkey verification failed. Try another method.');
+      }
     }
   };
 
