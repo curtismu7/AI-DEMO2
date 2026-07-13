@@ -36,6 +36,8 @@ const HEURISTICS = [
   { re: /\b(afford|cover)\b.*\b(expense|purchase|cost)|savings?\s+cover|big\s+upcoming\s+expense|can i afford/i, action: 'afford_check' },
   // transactions (includes catalog phrase "account history")
   { re: /\b(transactions?|history|activity|recent|account\s+history)\b/, action: 'transactions' },
+  // transfer_600_test (must precede generic transfer for specificity)
+  { re: /\btransfer\s+\$?600\b|\$600\s+transfer\b/, action: 'transfer_600_test' },
   // transfer (must precede deposit/withdraw for specificity)
   { re: /\btransfer\b/, action: 'transfer', extractsAmount: true, extractsFromId: true, extractsToId: true },
   // deposit
@@ -44,6 +46,14 @@ const HEURISTICS = [
   { re: /\b(withdraw|withdrawal)\b/, action: 'withdraw', extractsAmount: true, extractsFromId: true },
   // logout
   { re: /\b(logout|log out|sign out|signout)\b/, action: 'logout' },
+  // Testing compliance scenarios — all API-DIRECT chips, no LLM routing needed
+  { re: /\btest\s+wrong\s+scope\b/, action: 'test_wrong_scope' },
+  { re: /\btest\s+wrong\s+audience\b/, action: 'test_wrong_audience' },
+  { re: /\btest\s+hitl\b|\btest.*consent\b/, action: 'test_hitl_required' },
+  { re: /\btest\s+otp\b|\btest.*step[- ]?up\b|\btest.*mfa\b/, action: 'test_otp_required' },
+  { re: /\bfull\s+compliance\b|\bcomprehensive\s+flow\b|\b12[- ]?step/, action: 'test_full_compliance_flow' },
+  { re: /\bintent[- ]?bound\b|\bintent\s+delegation\b/, action: 'demo_intent_delegation' },
+  { re: /\bnl\s+routing\b|\bnl\s+demo\b/, action: 'demo_nl_routing' },
 ];
 
 const ALL_HEURISTICS = [...HEURISTICS, ...EDUCATION_HEURISTICS];
@@ -208,6 +218,62 @@ function getToolsWithActionAliases() {
       scopes: ['read'],
       authz: {},
     },
+    {
+      name: 'test_wrong_scope',
+      description: 'Test wrong scope scenario.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'test_wrong_audience',
+      description: 'Test wrong audience scenario.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'test_hitl_required',
+      description: 'Test HITL consent flow.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['write'],
+      authz: { consent: true },
+    },
+    {
+      name: 'test_otp_required',
+      description: 'Test OTP/step-up flow.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'test_full_compliance_flow',
+      description: 'Test full 12-step compliance flow.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['write'],
+      authz: { consent: true },
+    },
+    {
+      name: 'demo_intent_delegation',
+      description: 'Demo intent-bound delegation.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['write'],
+      authz: { consent: true },
+    },
+    {
+      name: 'demo_nl_routing',
+      description: 'Demo NL routing.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'transfer_600_test',
+      description: 'Test $600 transfer.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['write'],
+      authz: { consent: true },
+    },
   ];
   // Return both real MCP tool defs + action aliases for dispatchVerticalIntent routing.
   // Aliases are tagged heuristicOnly: they exist so the heuristic parser can look up
@@ -252,7 +318,7 @@ module.exports = {
 
     // Placeholder actions (demos, etc.) return success with empty result
     // These are captured by the heuristic path and handled elsewhere
-    const placeholderActions = ['mcp_tools', 'mortgage_demo', 'branch_hours', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo'];
+    const placeholderActions = ['mcp_tools', 'mortgage_demo', 'branch_hours', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo', 'test_wrong_scope', 'test_wrong_audience', 'test_hitl_required', 'test_otp_required', 'test_full_compliance_flow', 'demo_intent_delegation', 'demo_nl_routing', 'transfer_600_test'];
     if (placeholderActions.includes(name)) {
       return { result: { data: {} }, render: 'text' };
     }
