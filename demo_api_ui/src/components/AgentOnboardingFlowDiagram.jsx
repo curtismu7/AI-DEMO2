@@ -6,6 +6,7 @@
 // Spec: docs/superpowers/specs/2026-07-12-agent-onboarding-flow-diagram-design.md
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import FloatingPanel from "./FloatingPanel";
+import EditableSticky from "./EditableSticky";
 import { ROWS, LEGEND, FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
 import "./AgentOnboardingFlowDiagram.css";
 
@@ -73,7 +74,14 @@ function Box({ box, activeKeys, visitedKeys, className = "" }) {
           ))}
         </ul>
       )}
-      {box.note && <p className="aof-box-note">{box.note}</p>}
+      {box.note && (
+        <EditableSticky
+          id={`box-${box.key}`}
+          defaultText={box.note}
+          rotate={-1.5}
+          className="sticky--tan aof-box-sticky"
+        />
+      )}
     </article>
   );
 }
@@ -81,6 +89,7 @@ function Box({ box, activeKeys, visitedKeys, className = "" }) {
 function DiagramRow({ row, activeKeys, visitedKeys, isLast }) {
   return (
     <div className="aof-row-wrap">
+      <div className="aof-row-with-sticky">
       <div className={`aof-row aof-row--${row.kind}`}>
         {row.kind === "triple" && (
           <div className="aof-row-triple">
@@ -123,7 +132,10 @@ function DiagramRow({ row, activeKeys, visitedKeys, isLast }) {
         )}
       </div>
 
-      {row.note && <p className="aof-row-note">{row.note}</p>}
+      {row.note && (
+        <EditableSticky id={`row-${row.id}`} defaultText={row.note} rotate={row.id.length % 2 === 0 ? 1.5 : -1.5} className="aof-row-sticky" />
+      )}
+      </div>
       {!isLast && (
         <div className="aof-row-connector" aria-hidden="true">
           <span className="aof-row-connector-line" />

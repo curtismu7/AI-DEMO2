@@ -141,7 +141,7 @@ export const ROWS = [
         ],
       },
     ],
-    note: "No duplicate routing: Privilege MCPs go directly to Privilege. Cloud/Platform MCPs go through PingGateway and PingAuthorize.",
+    note: "No duplicate routing. Privilege MCPs go directly to Privilege. Cloud/Platform MCPs go through PingGateway and PingAuthorize.",
   },
   {
     id: "discovery-iga",
@@ -158,7 +158,7 @@ export const ROWS = [
           "Admin reviews & approves onboarding",
           "Metadata synchronized to IGA",
         ],
-        note: "Privilege is the gateway for these MCPs — traffic goes directly to the Privilege MCP Gateway.",
+        note: "Privilege is the gateway for these MCPs. Traffic goes directly to Privilege MCP Gateway.",
       },
       {
         key: "cloud-discovery-iga",
@@ -240,7 +240,7 @@ export const FLOWS = {
         id: "eu-3",
         title: "Open Agent Studio",
         narrative: "Sign in using enterprise identity; discover configured MCPs or onboard MCPs into the privilege gateway.",
-        activeCardKeys: ["entry-user", "agent-studio"],
+        activeCardKeys: ["agent-studio", "entry-user"],
       },
       {
         id: "eu-4",
@@ -252,7 +252,7 @@ export const FLOWS = {
         id: "eu-5",
         title: "Enterprise Registration",
         narrative: "MCPs are registered in the PingOne Privilege identity platform; metadata is created across PF, P1, AIC, AIS.",
-        activeCardKeys: ["agent-studio", "orchestration", "privileges-gw"],
+        activeCardKeys: ["orchestration", "agent-studio", "privileges-gw"],
       },
       {
         id: "eu-6",
@@ -264,7 +264,7 @@ export const FLOWS = {
         id: "eu-7",
         title: "Secure Runtime",
         narrative: "MCP requests flow through the Privileges MCP Gateway; enterprise policies control access to tools, APIs, and resources.",
-        activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"],
+        activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
   },
@@ -284,7 +284,7 @@ export const FLOWS = {
         id: "dev-2",
         title: "Open Agent Studio",
         narrative: "Sign in using enterprise identity.",
-        activeCardKeys: ["entry-dev", "agent-studio"],
+        activeCardKeys: ["agent-studio", "entry-dev"],
       },
       {
         id: "dev-3",
@@ -302,7 +302,7 @@ export const FLOWS = {
         id: "dev-5",
         title: "Publish to Enterprise",
         narrative: "Register with the Ping Identity Platform; publish MCPs to the Privileges Gateway.",
-        activeCardKeys: ["agent-studio", "orchestration", "privileges-gw"],
+        activeCardKeys: ["orchestration", "agent-studio", "privileges-gw"],
       },
       {
         id: "dev-6",
@@ -314,7 +314,7 @@ export const FLOWS = {
         id: "dev-7",
         title: "Runtime",
         narrative: "The agent securely accesses enterprise resources through the Privileges MCP Gateway.",
-        activeCardKeys: ["privileges-gw", "pinggateway", "pingauthorize", "runtime"],
+        activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
   },

@@ -1,0 +1,65 @@
+/* EditableSticky.css — yellow sticky-note callout, matching the reference
+   diagram's annotation style. Rotation via --sticky-rotate custom property
+   set inline per instance for a hand-placed feel. */
+
+.sticky {
+  position: relative;
+  background: #fff3a0;
+  border: 1px solid #e8d24a;
+  border-radius: 2px;
+  padding: 10px 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transform: rotate(var(--sticky-rotate, -1deg));
+  transition: transform 150ms ease, box-shadow 150ms ease;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #4a4318;
+  max-width: 200px;
+}
+.sticky:hover {
+  transform: rotate(0deg) scale(1.03);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+}
+.sticky--editing {
+  transform: rotate(0deg);
+  box-shadow: 0 0 0 2px #343ced, 0 6px 14px rgba(0, 0, 0, 0.22);
+  z-index: 6;
+}
+
+.sticky-text {
+  outline: none;
+  cursor: text;
+  white-space: pre-wrap;
+}
+.sticky--editing .sticky-text {
+  cursor: text;
+}
+
+.sticky-edit-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  appearance: none;
+  border: 1px solid #e8d24a;
+  background: #fffbe0;
+  color: #7a6f1f;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.sticky:hover .sticky-edit-btn {
+  opacity: 1;
+}
+
+/* Tan variant for the "Privilege is the gateway..." callout, which is a
+   slightly different color in the reference image (attached under a
+   specific box rather than floating beside a row). */
+.sticky--tan {
+  background: #f5dfc0;
+  border-color: #e0b57a;
+}
