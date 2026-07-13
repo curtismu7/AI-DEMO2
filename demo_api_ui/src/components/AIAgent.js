@@ -6894,10 +6894,13 @@ export default function BankingAgent({
                               });
                               const data = await r.json().catch(() => ({}));
                               const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
+                              const allowedActorLine = data?.allowedActor
+                                ? `\nAllowed actor: "${data.allowedActor}"`
+                                : "";
                               addMessage(
                                 "token-event",
                                 denied
-                                  ? `⛔ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
+                                  ? `⛔ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nTried: actor "${rogue}"${allowedActorLine}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
                                   : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
                                 null,
                               );
