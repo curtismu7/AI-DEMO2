@@ -6,7 +6,7 @@ import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
 import AgentConsentModal from "./AgentConsentModal";
-import SimpleStepperBar from "./SimpleStepperBar";
+import TokenChainTraceRail from "./TokenChainTraceRail";
 
 // OAuth Academy is its own page (modeled on Code Explorer) but its agent IS the
 // real `oauth-teaching` vertical: every message is pinned to that vertical via the
@@ -384,9 +384,10 @@ const OAuthAcademyPage = () => {
         ))}
       </div>
 
-      {/* Token chain — shows live token hop steps after a flow runs */}
+      {/* Token chain — shows live RFC 8693 token flow during demonstrations */}
       <div className="oa-token-chain-wrapper">
-        <SimpleStepperBar />
+        <div className="oa-token-chain-label">Live Token Flow</div>
+        <TokenChainTraceRail />
       </div>
 
       {/* HITL approve-and-retry modal — same component the dashboard agent uses. */}

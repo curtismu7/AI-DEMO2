@@ -24,6 +24,7 @@ import TokenLegendModal from './TokenLegendModal';
 import ScopeChangesCallout from './ScopeChangesCallout';
 import StepDetailsSection from './StepDetailsSection';
 import ClaimDetailsModal from './ClaimDetailsModal';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import { STEP_DETAILS } from '../data/stepDetails';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
@@ -886,6 +887,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [showLegendModal, setShowLegendModal] = useState(false);
   const [showClaimsModal, setShowClaimsModal] = useState(false);
   const [selectedTokenType, setSelectedTokenType] = useState(null);
+  const [activeTab, setActiveTab] = useState('flow'); // 'flow' or 'chain'
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -991,15 +993,43 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         </div>
       </div>
 
-      <div className="utfi-content">
-        <div className="utfi-left">
-          <AgentFlowSection onSelectToken={setSelectedToken} selectedTokenId={selectedToken?.id} />
-        </div>
-        <div className="utfi-divider"></div>
-        <div className="utfi-right">
-          <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
-        </div>
+      <div className="utfi-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'flow'}
+          className={`utfi-tab${activeTab === 'flow' ? ' utfi-tab--active' : ''}`}
+          onClick={() => setActiveTab('flow')}
+        >
+          Flow & Tokens
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'chain'}
+          className={`utfi-tab${activeTab === 'chain' ? ' utfi-tab--active' : ''}`}
+          onClick={() => setActiveTab('chain')}
+        >
+          Token Chain
+        </button>
       </div>
+
+      {activeTab === 'flow' ? (
+        <div className="utfi-content">
+          <div className="utfi-left">
+            <AgentFlowSection onSelectToken={setSelectedToken} selectedTokenId={selectedToken?.id} />
+          </div>
+          <div className="utfi-divider"></div>
+          <div className="utfi-right">
+            <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
+          </div>
+        </div>
+      ) : (
+        <div className="utfi-chain-view">
+          <TokenChainTraceRail />
+        </div>
+      )}
+
       <ClaimDetailsModal isOpen={showClaimsModal} tokenType={selectedTokenType} onClose={closeClaimsModal} />
       <TokenLegendModal isOpen={showLegendModal} onClose={() => setShowLegendModal(false)} />
     </div>

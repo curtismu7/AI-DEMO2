@@ -240,6 +240,25 @@
   }
 }
 
+.liveDemo {
+  background: #f0fdf4;
+  padding: 16px;
+  border-radius: 6px;
+  margin: 20px 0;
+  border-left: 4px solid #16a34a;
+}
+
+.liveDemo h3 {
+  margin-top: 0;
+  color: #16a34a;
+}
+
+.liveDemo p {
+  color: #374151;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
 .relatedResources {
   background: #e3f2fd;
   padding: 16px;
