@@ -219,17 +219,28 @@ PY
 # bootstrap-authoritative (env beats the runtime config store), so the BFF sends
 # PingOne a redirect_uri that only resolves on the dev machine. When
 # PUBLIC_APP_URL is set (required for SE/EKS deploys), derive them from it.
+#
+# If this script is run standalone (e.g. to patch a single secret) without
+# PUBLIC_APP_URL exported, fall back to whatever origin is already live in the
+# target namespace's configmap instead of silently reverting to local values —
+# this happened on live (2026-07-13) and broke sign-in for every user.
 override_redirect_uris_for_public_origin() {
   local origin="${PUBLIC_APP_URL:-}"
   if [ -z "$origin" ]; then
-    warn "  PUBLIC_APP_URL not set — PINGONE_*_REDIRECT_URI shipped as-is from .env (local values; sign-in will break on a public deployment)"
+    origin=$(kubectl get configmap ai-demo-config --namespace="$NS" -o jsonpath='{.data.PUBLIC_APP_URL}' 2>/dev/null || true)
+    if [ -n "$origin" ]; then
+      warn "  PUBLIC_APP_URL not set — falling back to existing configmap origin $origin"
+    fi
+  fi
+  if [ -z "$origin" ]; then
+    warn "  PUBLIC_APP_URL not set and no existing configmap origin found — PINGONE_*_REDIRECT_URI/PUBLIC_APP_URL shipped as-is from .env (local values; sign-in will break on a public deployment)"
     return
   fi
   origin="${origin%/}"
   local patch
-  patch=$(printf '{"stringData":{"PINGONE_ADMIN_REDIRECT_URI":"%s/api/auth/oauth/callback","PINGONE_USER_REDIRECT_URI":"%s/api/auth/oauth/user/callback"}}' "$origin" "$origin")
+  patch=$(printf '{"stringData":{"PUBLIC_APP_URL":"%s","PINGONE_PUBLIC_APP_URL":"%s","PINGONE_ADMIN_REDIRECT_URI":"%s/api/auth/oauth/callback","PINGONE_USER_REDIRECT_URI":"%s/api/auth/oauth/user/callback"}}' "$origin" "$origin" "$origin" "$origin")
   printf '%s' "$patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
-  info "  PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
+  info "  PUBLIC_APP_URL/PINGONE_PUBLIC_APP_URL/PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
 }
 
 # ── Demo service API key (apikey-dispatch path) ──────────────────────────────
