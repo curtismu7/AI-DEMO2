@@ -223,7 +223,7 @@ function DecisionRow({ d, idx }) {
 // Evaluate panel — preset-driven parameter builders, all routed through the
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
-function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest }) {
+function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest }) {
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -263,7 +263,8 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest }) {
     setErr(null);
     setLastTrace(null);
     setLastParameters(null);
-  }, [endpointId, autoPreset]);
+    onClearPendingTest?.();
+  }, [endpointId, autoPreset, onClearPendingTest]);
 
   // Apply a rule-generated test case (from the Authorization Policies tree):
   // switch to its preset and populate that preset's fields. Never auto-runs —
@@ -402,9 +403,9 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest }) {
         <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
       )}
       <div style={S.tabs}>
-        <span style={S.tab(preset === 'transaction')} onClick={() => setPreset('transaction')}>Transaction</span>
-        <span style={S.tab(preset === 'mcp')} onClick={() => setPreset('mcp')}>MCP First Tool</span>
-        <span style={S.tab(preset === 'custom')} onClick={() => setPreset('custom')}>Custom parameters</span>
+        <span style={S.tab(preset === 'transaction')} onClick={() => { setPreset('transaction'); onClearPendingTest?.(); }}>Transaction</span>
+        <span style={S.tab(preset === 'mcp')} onClick={() => { setPreset('mcp'); onClearPendingTest?.(); }}>MCP First Tool</span>
+        <span style={S.tab(preset === 'custom')} onClick={() => { setPreset('custom'); onClearPendingTest?.(); }}>Custom parameters</span>
         <span style={S.presetPill}>preset: {presetLabel}</span>
       </div>
 
@@ -712,6 +713,8 @@ export default function PingOneAuthorizePage() {
     document.getElementById('evaluate-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  const clearPendingTest = useCallback(() => setPendingTest(null), []);
+
   const endpoints = data?.endpoints || [];
   const selected = useMemo(() => endpoints.find(e => e.id === selectedId) || null, [endpoints, selectedId]);
   const recordingOn = !!selected?.recordRecentRequests;
@@ -846,7 +849,7 @@ export default function PingOneAuthorizePage() {
         <div style={S.cardHead}><span style={S.cardTitle}>Evaluate</span></div>
         <div style={S.cardBody}>
           {selectedId
-            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} />
+            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} />
             : <div style={S.empty}>Select a decision endpoint to evaluate.</div>}
         </div>
       </div>
