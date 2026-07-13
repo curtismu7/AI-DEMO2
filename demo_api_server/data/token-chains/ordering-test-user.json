@@ -1,0 +1,20 @@
+[
+  {
+    "id": "e1",
+    "userId": "ordering-test-user",
+    "type": "TOKEN_REQUEST",
+    "timestamp": 1000
+  },
+  {
+    "id": "e2",
+    "userId": "ordering-test-user",
+    "type": "TOKEN_EXCHANGE",
+    "timestamp": 2000
+  },
+  {
+    "id": "e3",
+    "userId": "ordering-test-user",
+    "type": "SCOPE_CHANGE",
+    "timestamp": 3000
+  }
+]
