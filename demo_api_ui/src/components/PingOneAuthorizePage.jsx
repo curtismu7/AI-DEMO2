@@ -223,7 +223,7 @@ function DecisionRow({ d, idx }) {
 // Evaluate panel — preset-driven parameter builders, all routed through the
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
-function EvaluatePanel({ endpointId, autoPreset, policies }) {
+function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest }) {
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -264,6 +264,34 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
     setLastTrace(null);
     setLastParameters(null);
   }, [endpointId, autoPreset]);
+
+  // Apply a rule-generated test case (from the Authorization Policies tree):
+  // switch to its preset and populate that preset's fields. Never auto-runs —
+  // the user still clicks "Evaluate (live)".
+  useEffect(() => {
+    if (!pendingTest) return;
+    setPreset(pendingTest.preset);
+    setResult(null);
+    setErr(null);
+    const p = pendingTest.parameters;
+    if (pendingTest.preset === 'transaction') {
+      if (p.Amount !== undefined) setAmount(String(p.Amount));
+      if (p.TransactionType !== undefined) setTxType(p.TransactionType);
+      if (p.Acr !== undefined) setAcr(p.Acr);
+      if (p.UserId !== undefined) setUserId(p.UserId);
+    } else if (pendingTest.preset === 'mcp') {
+      if (p.ToolName !== undefined) setToolName(p.ToolName);
+      if (p.TokenAudience !== undefined) setTokenAudience(p.TokenAudience);
+      if (p.ActClientId !== undefined) setActClientId(p.ActClientId);
+      if (p.McpResourceUri !== undefined) setMcpResourceUri(p.McpResourceUri);
+      if (p.HitlApproved !== undefined) setHitlApproved(!!p.HitlApproved);
+      if (p.UserId !== undefined) setUserId(p.UserId);
+    } else {
+      const rows = Object.entries(p).map(([key, value]) => ({ key, value: String(value) }));
+      rows.push({ key: '', value: '' });
+      setCustomRows(rows);
+    }
+  }, [pendingTest]);
 
   // Pre-fill the MCP First Tool fields from config (the real delegated actor +
   // the expected resource URI for the active exchange mode) so a default Evaluate
@@ -370,6 +398,9 @@ function EvaluatePanel({ endpointId, autoPreset, policies }) {
 
   return (
     <div>
+      {pendingTest && (
+        <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
+      )}
       <div style={S.tabs}>
         <span style={S.tab(preset === 'transaction')} onClick={() => setPreset('transaction')}>Transaction</span>
         <span style={S.tab(preset === 'mcp')} onClick={() => setPreset('mcp')}>MCP First Tool</span>
@@ -640,6 +671,7 @@ export default function PingOneAuthorizePage() {
   const [selectedId, setSelectedId] = useState('');
   const [recent, setRecent] = useState({ decisions: [], error: null, loading: false });
   const [enabling, setEnabling] = useState(false);
+  const [pendingTest, setPendingTest] = useState(null);
   // Live policy tree — fetched once and shared by the read-only PoliciesCard and
   // the Evaluate panel's decision-trace diagram (avoids a duplicate fetch).
   const [policiesState, setPoliciesState] = useState({ policies: [], loading: true, error: null, note: null });
@@ -674,6 +706,11 @@ export default function PingOneAuthorizePage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleTestRule = useCallback((testCase) => {
+    setPendingTest(testCase);
+    document.getElementById('evaluate-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const endpoints = data?.endpoints || [];
   const selected = useMemo(() => endpoints.find(e => e.id === selectedId) || null, [endpoints, selectedId]);
@@ -802,14 +839,14 @@ export default function PingOneAuthorizePage() {
       </div>
 
       {/* Authorization policies (read-only tree) */}
-      <PoliciesCard state={policiesState} />
+      <PoliciesCard state={policiesState} onTestRule={handleTestRule} />
 
       {/* Evaluate */}
-      <div style={S.card}>
+      <div style={S.card} id="evaluate-card">
         <div style={S.cardHead}><span style={S.cardTitle}>Evaluate</span></div>
         <div style={S.cardBody}>
           {selectedId
-            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} />
+            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} />
             : <div style={S.empty}>Select a decision endpoint to evaluate.</div>}
         </div>
       </div>
