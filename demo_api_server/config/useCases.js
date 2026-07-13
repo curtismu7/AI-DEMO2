@@ -1121,4 +1121,20 @@ function deriveUseCaseId(toolName, args = {}) {
   return undefined;
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId };
+/**
+ * Single entry point for "which useCaseId applies to this call" — client-supplied
+ * wins when it's a real catalog slug, else fall back to the organic tool+amount
+ * derivation. Centralizes the pattern already duplicated across server.js and
+ * bffMcpToolExecutor.js so both call sites resolve identically.
+ * @param {string|undefined} clientId
+ * @param {string} toolName
+ * @param {object} args
+ * @param {string} [vertical]
+ * @returns {string|undefined}
+ */
+function resolveChipUseCaseId(clientId, toolName, args, vertical) {
+  if (clientId && isValidUseCaseId(clientId)) return clientId;
+  return deriveUseCaseId(toolName, args, vertical);
+}
+
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId };

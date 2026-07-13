@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/education/TokenChainPanel.js
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
+import { useProofOfEnforcement } from '../../context/ProofOfEnforcementContext';
 import './TokenChainPanel.css';
 
 /**
@@ -121,6 +122,7 @@ export default function TokenChainPanel() {
   const mcpToolCalls = tokenChain?.mcpToolCalls || [];
   const resolvedIdentity = tokenChain?.resolvedIdentity ?? null;
   const liveEvents = tokenChain?.events || [];
+  const { verdict } = useProofOfEnforcement();
 
   // Derive active step from live events
   const activeStepId = useMemo(() => deriveActiveStepId(liveEvents), [liveEvents]);
@@ -267,6 +269,38 @@ export default function TokenChainPanel() {
           </ul>
         )}
       </div>
+
+      {verdict && (
+        <div className="token-chain-card">
+          <div className="token-chain-card-head" style={{ cursor: 'default' }}>
+            <div>
+              <div className="token-chain-card-title">
+                {verdict.title} <span className="token-chain-badge">{verdict.useCaseId.toUpperCase()}</span>
+              </div>
+              <div className="token-chain-card-sub">
+                {verdict.matchedSteps.length} / {verdict.matchedSteps.length + verdict.missingSteps.length} steps matched
+                {(verdict.state === 'verified' || verdict.state === 'denied-as-expected') ? ' ✅' : ' ⚠️'}
+              </div>
+            </div>
+          </div>
+          <ul className="token-chain-list">
+            {verdict.matchedSteps.map((step) => (
+              <li key={step} className="token-chain-item">
+                <div className="token-chain-row">
+                  <span className="token-chain-label">✅ {step}</span>
+                </div>
+              </li>
+            ))}
+            {verdict.missingSteps.map((step) => (
+              <li key={step} className="token-chain-item">
+                <div className="token-chain-row">
+                  <span className="token-chain-label">⚠️ {step} (not yet observed)</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* MCP Delegation Trail */}
       <div className="token-chain-card">

@@ -162,7 +162,7 @@ describe('All chips — cross-vertical pipeline coverage (real)', () => {
             // the BFF drives RFC 8693 → gateway → MCP, then confirm the legs in
             // the admin app-events feed. Admin context required to read events.
             if (bearer) {
-              const inv = await client.post('/api/agent/invoke', { prompt: chip.message, forceHeuristic: true }, {
+              const inv = await client.post('/api/agent/invoke', { prompt: chip.message, forceHeuristic: true, useCaseId: chip.useCaseId, vertical }, {
                 headers: { Authorization: `Bearer ${bearer}` },
               });
               // 200 (executed), 428 (HITL consent), or 403 (Authorize DENY) all
@@ -172,11 +172,29 @@ describe('All chips — cross-vertical pipeline coverage (real)', () => {
             if (adminClient) {
               const ev = await adminClient.get(`/api/admin/app-events?since=${encodeURIComponent(since)}&limit=50`);
               if (ev.status === 200) {
-                const cats = new Set((ev.data.events || []).map((e) => e.category));
+                const events = ev.data.events || [];
+                const cats = new Set(events.map((e) => e.category));
                 // Pipeline emits at least an `agent` event; token_exchange/mcp appear when exchange ran.
                 // Warn-only: async event writes may not flush within the test window.
                 if (!cats.has('agent') && !cats.has('mcp') && !cats.has('token_exchange')) {
                   console.warn(`[all-chips-pipeline] ${vertical}/${chip.label}: no pipeline events in window — async flush may be slow`);
+                }
+                if (chip.useCaseId) {
+                  // useCaseId slugs are shared across verticals by design (Tasks
+                  // 3-6), so filter by BOTH useCaseId AND vertical — otherwise a
+                  // chip in one vertical could false-pass on another vertical's
+                  // events for the same useCaseId in this sequentially-run suite.
+                  const taggedEvents = events.filter((e) =>
+                    (e.useCaseId || (e.metadata && e.metadata.useCaseId)) === chip.useCaseId
+                    && (e.vertical || (e.metadata && e.metadata.vertical)) === vertical);
+                  if (taggedEvents.length > 0) {
+                    // Belt-and-suspenders: if any event for this useCaseId made it
+                    // into the window, at least one must be an authorize category —
+                    // proof the decision itself (not just token exchange) was tagged.
+                    expect(taggedEvents.some((e) => e.category === 'authorize')).toBe(true);
+                  } else {
+                    console.warn(`[all-chips-pipeline] ${vertical}/${chip.label}: no ${chip.useCaseId}-tagged events in window — async flush may be slow`);
+                  }
                 }
               }
             }

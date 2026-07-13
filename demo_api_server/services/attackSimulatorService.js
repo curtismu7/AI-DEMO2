@@ -21,6 +21,7 @@ const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizatio
 const { mintIntentToken } = require('./intentTokenService');
 const dataStore = require('../data/store');
 const configStore = require('./configStore');
+const { stampUseCaseId } = require('./useCaseTagging');
 
 const UC18_DEMO_RATE_LIMIT = {
   rateLimitEnabled: true,
@@ -134,20 +135,6 @@ function _parseGatewayError(err, fallbackStatus) {
 }
 
 /**
- * Stamp every event in tokenChainEvents with the useCaseId so they are
- * filterable in the activity feed without a separate lookup.
- * Mutates in place; returns the same array.
- * @param {object[]} events
- * @param {string} useCaseId
- * @returns {object[]}
- */
-function _stampUseCaseId(events, useCaseId) {
-  if (!useCaseId) { return events; }
-  events.forEach(function (ev) { ev.useCaseId = useCaseId; });
-  return events;
-}
-
-/**
  * Resolve catalog useCaseId slug for a sim id.
  * @param {string} sim
  * @returns {string}
@@ -257,7 +244,7 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
     `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
     { error: errorCode, httpStatus },
   ));
-  _stampUseCaseId(tokenChainEvents, useCaseId);
+  stampUseCaseId(tokenChainEvents, useCaseId);
   return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
 }
 
@@ -420,7 +407,7 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       null,
       'The gateway permitted a write-scoped tool call with a read-only token. Scope enforcement may not be active.'
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId,
       status: 200,
@@ -443,7 +430,7 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
       { error: errorCode, httpStatus }
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
   }
 }
@@ -540,7 +527,7 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       null,
       'The gateway permitted a call with a wrong-audience token. Audience validation may not be active.'
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId,
       status: 200,
@@ -560,7 +547,7 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       `Gateway rejected the token with ${httpStatus} ${errorCode}: ${reason}`,
       { error: errorCode, httpStatus }
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
   }
 }
@@ -697,12 +684,12 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
         reason,
         { error: errorCode, httpStatus },
       ));
-      _stampUseCaseId(tokenChainEvents, useCaseId);
+      stampUseCaseId(tokenChainEvents, useCaseId);
       return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
     }
   }
 
-  _stampUseCaseId(tokenChainEvents, useCaseId);
+  stampUseCaseId(tokenChainEvents, useCaseId);
 
   if (rateLimitedHit) {
     return {
@@ -753,7 +740,7 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
       null,
       'The gateway permitted a cross-owner balance read — resource-ownership enforcement may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — resource-ownership enforcement may not be active',
@@ -793,7 +780,7 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
       null,
       'The gateway accepted a replayed session token — audience binding may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — audience binding may not be active',
@@ -832,7 +819,7 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents) {
       null,
       'The gateway permitted a rogue actor — authorized-actor enforcement may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — authorized-actor enforcement may not be active',
@@ -930,7 +917,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
       null,
       'The gateway permitted a RAR-overlimit transfer — RAR enforcement may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — RAR enforcement may not be active',
@@ -1123,7 +1110,7 @@ async function _runTamperedIntentToken(subjectToken, useCaseId, tokenChainEvents
       null,
       'The gateway accepted a tampered intent token — signature validation may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — intent-token validation may not be active',
@@ -1191,7 +1178,7 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
       null,
       'The gateway permitted an act-less impersonation call — UC16 enforcement may not be active.',
     ));
-    _stampUseCaseId(tokenChainEvents, useCaseId);
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
       reason: 'Gateway permitted the call — impersonation block may not be active',

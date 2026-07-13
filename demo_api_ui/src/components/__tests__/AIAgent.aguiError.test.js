@@ -10,6 +10,7 @@ import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
+import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
 
 // ─── Mock heavy dependencies (mirrors AIAgent.chips.test.js) ────────────────
 
@@ -136,9 +137,11 @@ const customerUser = {
 function renderAgent(props = {}) {
   return render(
     <MemoryRouter>
-      <ActivityNarrativeProvider>
-        <AIAgent {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }

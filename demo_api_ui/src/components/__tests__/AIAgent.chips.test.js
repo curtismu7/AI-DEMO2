@@ -23,10 +23,12 @@ import {
 import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../AIAgent";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
+import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
 import * as demoAgentNlService from "../../services/demoAgentNlService";
 import * as configService from "../../services/configService";
 import * as demoAgentService from "../../services/demoAgentService";
 import * as agentAccessConsent from "../../services/agentAccessConsent";
+import { useVertical } from "../../vertical/useVertical";
 
 // ─── Mock heavy dependencies ─────────────────────────────────────────────────
 
@@ -51,6 +53,23 @@ vi.mock("../../context/AgentUiModeContext", () => ({
     fab: true,
     setAgentUi: jest.fn(),
   }),
+}));
+
+// Default matches the real hook's no-VerticalProvider fallback (pageManifest:
+// null etc.) so existing tests are unaffected; only the new useCaseId describe
+// block below overrides this via mockReturnValue, and restores it afterward.
+const DEFAULT_VERTICAL_MOCK = {
+  pageManifest: null,
+  agentManifest: null,
+  adminManifest: null,
+  pageMockData: null,
+  activeId: null,
+  isAdminScope: false,
+  isAdmin: false,
+  refetch: () => {},
+};
+vi.mock("../../vertical/useVertical", () => ({
+  useVertical: jest.fn(),
 }));
 
 vi.mock("../../context/SessionTokenContext", () => ({
@@ -153,6 +172,7 @@ beforeEach(() => {
   cfgMock.loadPublicConfig.mockResolvedValue({});
   const svcMock = demoAgentService;
   svcMock.sendAgentMessage.mockResolvedValue({ success: true, reply: "Done." });
+  useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
 });
 
 const customerUser = {
@@ -175,9 +195,11 @@ const adminUser = {
 function renderAgent(props = {}) {
   return render(
     <MemoryRouter>
-      <ActivityNarrativeProvider>
-        <AIAgent {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }
@@ -610,9 +632,11 @@ describe("Chips when not logged in", () => {
 function renderAgentAtAccounts(props = {}) {
   return render(
     <MemoryRouter initialEntries={["/accounts"]}>
-      <ActivityNarrativeProvider>
-        <AIAgent {...props} />
-      </ActivityNarrativeProvider>
+      <ProofOfEnforcementProvider>
+        <ActivityNarrativeProvider>
+          <AIAgent {...props} />
+        </ActivityNarrativeProvider>
+      </ProofOfEnforcementProvider>
     </MemoryRouter>,
   );
 }
@@ -1002,5 +1026,87 @@ describe("NL error envelope (BFF restarting) degrades gracefully", () => {
     expect(
       screen.queryByText(/Could not parse: Cannot read properties/i),
     ).not.toBeInTheDocument();
+  });
+});
+
+// ─── Chip useCaseId → dispatchNlResult → sendAgentMessage ────────────────────
+// Most chips are NOT `direct: true` — they fall through onChipClick to
+// dispatchNlResult's "vertical" branch, which calls
+// sendAgentMessage(agentMessage, null, verticalOpts). Regression: verticalOpts
+// never carried the chip's useCaseId, so PingOne Authorize proof-of-enforcement
+// context was silently dropped for every non-direct chip click.
+
+describe("Chip useCaseId threads through dispatchNlResult into sendAgentMessage (non-direct chip)", () => {
+  const CHIP_WITH_USE_CASE_ID = {
+    id: "uc_chip",
+    label: "Use Case Demo Chip",
+    message: "run the use case demo",
+    mode: "both",
+    useCaseId: "delegated-access-with-proof",
+  };
+
+  let origFetch;
+
+  beforeEach(() => {
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: { dashboard: { chips10: [CHIP_WITH_USE_CASE_ID] } },
+      activeId: "healthcare",
+    });
+    origFetch = global.fetch;
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            source: "heuristic",
+            result: {
+              kind: "vertical",
+              vertical: "healthcare",
+              action: "show_health_record",
+              params: {},
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    demoAgentService.sendAgentMessage.mockClear();
+    demoAgentService.sendAgentMessage.mockResolvedValue({
+      success: true,
+      reply: "Done.",
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
+  });
+
+  it("passes the chip's useCaseId into sendAgentMessage's options when clicked", async () => {
+    renderAgent({
+      user: customerUser,
+      mode: "inline",
+      distinctFloatingChrome: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /Action browser/i,
+    });
+    const chipBtn = within(dialog)
+      .getByText("Use Case Demo Chip")
+      .closest("button");
+    await act(async () => {
+      fireEvent.click(chipBtn);
+    });
+    await waitFor(() => {
+      expect(demoAgentService.sendAgentMessage).toHaveBeenCalled();
+    });
+    const [, , verticalOpts] =
+      demoAgentService.sendAgentMessage.mock.calls[0];
+    expect(verticalOpts).toMatchObject({
+      useCaseId: "delegated-access-with-proof",
+    });
   });
 });

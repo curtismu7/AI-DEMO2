@@ -13,7 +13,7 @@ const { runMcpToolPipeline } = require('./mcpToolPipeline');
 const verticalDispatch = require('./verticalDispatch');
 const { isAdminClientToken, isCustomerBankingTool, ADMIN_TOKEN_ON_CUSTOMER } = require('./customerTokenGuard');
 const { deriveUseCaseId, isValidUseCaseId } = require('../config/useCases');
-const { stampUseCaseId } = require('./useCaseTagging');
+const { stampUseCaseId, stampVertical } = require('./useCaseTagging');
 
 // Server-level pipeline deps injected at startup via setPipelineDeps().
 // When set, executeBffTool routes all banking tool calls through runMcpToolPipeline
@@ -166,6 +166,19 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
 
   const { flowTraceId, deps: callDeps } = bindTraceEmit(req, name);
 
+  // Resolve useCaseId before the pipeline runs so ctx.useCaseId is available for
+  // authorize tagging: launcher-supplied wins (if it is a known catalog slug —
+  // arbitrary client strings are rejected), else derive organically from (tool, args).
+  const clientId = req?.body?.useCaseId;
+  const useCaseId = (clientId && isValidUseCaseId(clientId))
+    ? clientId
+    : deriveUseCaseId(name, args);
+
+  // useCaseId slugs are shared across verticals by design (same narrative can play
+  // out in banking, healthcare, retail, etc.), so vertical is a parallel tag needed
+  // to disambiguate which vertical produced a given tagged event.
+  const vertical = req?.body?.vertical;
+
   const ctx = {
     tool: name,
     params: args || {},
@@ -173,26 +186,23 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     startTime: Date.now(),
     req: effectiveReq,
     deps: callDeps,
+    useCaseId,
+    vertical,
   };
 
   const outcome = await runMcpToolPipeline(ctx);
 
-  // Tag the flow's token events with a useCaseId: launcher-supplied wins (if it is a
-  // known catalog slug — arbitrary client strings are rejected), else derive organically
-  // from (tool, args). stampUseCaseId never overwrites an existing tag.
-  const clientId = req?.body?.useCaseId;
-  const useCaseId = (clientId && isValidUseCaseId(clientId))
-    ? clientId
-    : deriveUseCaseId(name, args);
-
   // Merge any token events the pipeline produced into the caller's tokenEvents array.
+  // stampUseCaseId never overwrites an existing tag.
   if (Array.isArray(outcome.tokenEvents)) {
     stampUseCaseId(outcome.tokenEvents, useCaseId);
+    stampVertical(outcome.tokenEvents, vertical);
     for (const ev of outcome.tokenEvents) {
       if (!tokenEvents.includes(ev)) tokenEvents.push(ev);
     }
   } else if (outcome.body && Array.isArray(outcome.body.tokenEvents)) {
     stampUseCaseId(outcome.body.tokenEvents, useCaseId);
+    stampVertical(outcome.body.tokenEvents, vertical);
     for (const ev of outcome.body.tokenEvents) {
       if (!tokenEvents.includes(ev)) tokenEvents.push(ev);
     }

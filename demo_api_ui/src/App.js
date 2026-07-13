@@ -50,6 +50,7 @@ import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
+import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
@@ -85,6 +86,7 @@ import DemoTourModal from "./components/tour/DemoTourModal";
 import UserAccounts from "./components/UserAccounts";
 import Users from "./components/Users";
 import UserTransactions from "./components/UserTransactions";
+import VerifiedBanner from "./components/VerifiedBanner";
 import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
@@ -161,7 +163,9 @@ import {
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
+import { useVertical } from "./vertical/useVertical";
 import { EventStreamProvider } from "./context/EventStreamContext";
+import { ProofOfEnforcementProvider } from "./context/ProofOfEnforcementContext";
 import "./App.css";
 
 // Browser extension interference detection and handling
@@ -255,6 +259,7 @@ function AppWithAuth() {
   } = useAgentUiMode();
 
   const { user, loading, logout, sessionReauth, setSessionReauth } = useAuth();
+  const { activeId: activeVerticalId } = useVertical();
   useAdminSkin();
   const { appFlags } = useAppFlags();
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
@@ -262,6 +267,7 @@ function AppWithAuth() {
 
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
+  const [showTokenChain, setShowTokenChain] = useState(false);
 
   // Setup browser extension interference handling
   useEffect(() => {
@@ -384,6 +390,7 @@ function AppWithAuth() {
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
+          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined}>
           <ActivityNarrativeProvider>
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
@@ -1242,6 +1249,15 @@ function AppWithAuth() {
               {!isApiTrafficOnlyPage && <CIBAPanel />}
               {!isApiTrafficOnlyPage && <CimdSimPanel />}
               {!isApiTrafficOnlyPage && <AgentFlowDiagramPanel />}
+              {!isApiTrafficOnlyPage && (
+                <VerifiedBanner onExpand={() => setShowTokenChain(true)} />
+              )}
+              {!isApiTrafficOnlyPage && (
+                <FloatingTokenChainPanel
+                  isOpen={showTokenChain}
+                  onClose={() => setShowTokenChain(false)}
+                />
+              )}
               <LogViewer
                 isOpen={logViewerOpen}
                 onClose={() => setLogViewerOpen(false)}
@@ -1288,6 +1304,7 @@ function AppWithAuth() {
               <SpinnerHost />
             </div>
           </ActivityNarrativeProvider>
+          </ProofOfEnforcementProvider>
         </TokenChainProvider>
       </EducationUIProvider>
     </DemoTourProvider>

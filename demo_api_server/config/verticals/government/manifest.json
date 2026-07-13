@@ -75,12 +75,12 @@
       ]
     },
     "chips10": [
-      { "id": "gv1", "label": "My permits", "message": "show my permits", "mode": "both", "tool": "view_permits" },
-      { "id": "gv2", "label": "Fees owed", "message": "what fees do I owe", "mode": "both", "tool": "view_fees" },
-      { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee" },
-      { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "challenge": "both", "tool": "release_record" },
-      { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit" },
-      { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "challenge": "consent", "tool": "sensitive_tax_record" },
+      { "id": "gv1", "label": "My permits", "message": "show my permits", "mode": "both", "tool": "view_permits", "useCaseId": "delegated-access-with-proof" },
+      { "id": "gv2", "label": "Fees owed", "message": "what fees do I owe", "mode": "both", "tool": "view_fees", "useCaseId": "delegated-access-with-proof" },
+      { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee", "useCaseId": "delegated-access-with-proof" },
+      { "id": "gv5", "label": "🔐 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "challenge": "both", "tool": "release_record", "useCaseId": "step-up-required" },
+      { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit", "useCaseId": "delegated-access-with-proof" },
+      { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "challenge": "consent", "tool": "sensitive_tax_record", "useCaseId": "a2a-delegation" },
       { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm" },
       { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
     ],

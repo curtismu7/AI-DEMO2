@@ -17,7 +17,9 @@ import TokenChainModal from "./TokenChainModal";
 import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
-import { navigateToCustomerOAuthForceLogin } from "../utils/authUi";
+import ProofStrip from './ProofStrip';
+import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
+import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
   isAgentBlockedByConsentDecline,
@@ -5107,6 +5109,7 @@ export default function BankingAgent({
     result,
     _source = "heuristic",
     nlUserText = "",
+    useCaseId = undefined,
   ) {
     // A /nl error envelope (e.g. the Vite proxy's 502 {"error":"proxy_error"}
     // while the BFF restarts) parses as JSON but carries no `result`, so all
@@ -5419,7 +5422,7 @@ export default function BankingAgent({
         const agentMessage = hasFilledParams
           ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
           : (nlUserText || result.action);
-        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven };
+        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
         const response = await sendAgentMessage(agentMessage, null, verticalOpts);
         // Admin token on the customer agent → action card (login as customer / cancel).
         if (maybeHandleCustomerLogin(response, _source)) return;
@@ -6762,7 +6765,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool }) => {
+                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -7019,7 +7022,7 @@ export default function BankingAgent({
                               addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams);
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId, vertical: effectiveVerticalId });
                             if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
                               tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }
@@ -7212,6 +7215,7 @@ export default function BankingAgent({
                             result,
                             source || "heuristic",
                             message,
+                            chipUseCaseId,
                           );
                         } catch (err) {
                           reportNlFailure(err);
@@ -8758,7 +8762,12 @@ export default function BankingAgent({
                       msg.role === "error" ||
                       (showRfcInfo && msg.role === "token-event"),
                   )
-                  .map((msg) => {
+                  .map((msg, msgIdx, filteredMsgs) => {
+                    const isLastAssistantMsg =
+                      msg.role === "assistant" &&
+                      !filteredMsgs
+                        .slice(msgIdx + 1)
+                        .some((m) => m.role === "assistant");
                     if (msg.role === "reasoning") {
                       return (
                         <div
@@ -8973,6 +8982,7 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
+                          {isLastAssistantMsg && <ProofStrip />}
                         </div>
                       </div>
                     );

@@ -280,7 +280,9 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TokenChainRedesign.css") ||         // token chain code/claims/JSON display (intentional)
         f.includes("PrivilegeDemoPage.css") ||          // persona email identifier display (intentional)
         f.includes("ServersPage.css") ||                // container/port/latency data columns (intentional)
-        f.includes("CheckPage.css")                     // pre-demo check id/count/log display via --mono (intentional)
+        f.includes("CheckPage.css") ||                   // pre-demo check id/count/log display via --mono (intentional)
+        f.includes("ProofStrip.css") ||                   // evidence chain step id display (intentional)
+        f.includes("VerifiedBanner.css")                  // evidence chain step id display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");

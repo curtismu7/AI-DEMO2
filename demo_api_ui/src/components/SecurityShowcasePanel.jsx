@@ -110,6 +110,7 @@ export default function SecurityShowcasePanel({
                     caption: chip.caption,
                     stepUpMethod: chip.stepUpMethod,
                     denyTool: chip.denyTool,
+                    useCaseId: chip.useCaseId,
                   });
                 }
               }}

@@ -154,7 +154,7 @@ export async function warmupAuthz() {
  * @param {object} params - Tool parameters
  * @returns {Promise<{ result: any, tokenEvents: Array }>}
  */
-export async function callMcpTool(tool, params = {}, { signal } = {}) {
+export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertical } = {}) {
   log.debug("=== MCP TOOL CALL START ===");
   log.debug("tool:", tool);
   log.debug("params:", JSON.stringify(params));
@@ -253,7 +253,7 @@ export async function callMcpTool(tool, params = {}, { signal } = {}) {
   // Defensive body construction with validation
   let body;
   try {
-    const requestBody = { tool, params: params || {}, flowTraceId };
+    const requestBody = { tool, params: params || {}, flowTraceId, ...(useCaseId ? { useCaseId } : {}), ...(vertical ? { vertical } : {}) };
     body = JSON.stringify(requestBody);
 
     // Validate the body was created successfully
