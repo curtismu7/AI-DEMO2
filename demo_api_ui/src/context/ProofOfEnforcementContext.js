@@ -3,6 +3,13 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 
 const ProofContext = createContext(null);
 
+// The backend catalog's expectedOutcome values that represent a "blocked or
+// challenged" narrative (attacks track + hitl-consent). See decisionOf()
+// below: these outcomes' block responses don't populate `decision` today, so
+// outcomeMatches defaults to true for them — this set is what maps that
+// true-by-default match to 'denied-as-expected' instead of 'verified'.
+const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'STEP_UP', 'HITL_REQUIRED']);
+
 function firstUseCaseId(trace) {
   const fromTokens = (trace.tokenEvents || []).find((e) => e && e.useCaseId)?.useCaseId;
   if (fromTokens) return fromTokens;
@@ -68,7 +75,7 @@ export function computeVerdict(trace, catalogEntry) {
     useCaseId,
     title: catalogEntry.title,
     state: outcomeMatches
-      ? (expected === 'DENY' || expected === 'STEP_UP' || expected === 'HITL' ? 'denied-as-expected' : 'verified')
+      ? (DENIED_LIKE_OUTCOMES.has(expected) ? 'denied-as-expected' : 'verified')
       : 'mismatch',
     matchedSteps,
     missingSteps: [],

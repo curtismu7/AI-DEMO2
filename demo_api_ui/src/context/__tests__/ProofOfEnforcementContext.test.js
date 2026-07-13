@@ -16,6 +16,18 @@ const CATALOG = [
     expectedOutcome: 'DENY',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
   },
+  {
+    useCaseId: 'attack-blocked-403',
+    title: 'Attack blocked (403)',
+    expectedOutcome: 'DENY_403',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+  },
+  {
+    useCaseId: 'hitl-consent',
+    title: 'HITL consent required',
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
+  },
 ];
 
 function Probe() {
@@ -76,6 +88,35 @@ test('an outcome that contradicts expectedOutcome verdicts as mismatch', async (
     tokenChainTraceStore.ingestAuthorize({ decisionId: 'd3', decision: 'PERMIT', useCaseId: 'authz-denied' });
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('authz-denied:mismatch'));
+});
+
+test('a DENY_403 block outcome (no decision field, real block shape) verdicts as denied-as-expected', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    // Mirrors the real backend DENY shape: decisionContext/decisionId are set,
+    // but `decision` itself is never populated on the block body (see the
+    // decisionOf() comment in ProofOfEnforcementContext.js).
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'd4', decisionContext: 'McpFirstTool', useCaseId: 'attack-blocked-403' });
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('attack-blocked-403:denied-as-expected'));
+});
+
+test('a HITL_REQUIRED block outcome (no decision field) verdicts as denied-as-expected', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'd5', decisionContext: 'McpFirstTool', useCaseId: 'hitl-consent' });
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('hitl-consent:denied-as-expected'));
 });
 
 test('untagged events produce no verdict', async () => {
