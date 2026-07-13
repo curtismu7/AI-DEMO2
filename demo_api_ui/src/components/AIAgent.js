@@ -5118,6 +5118,7 @@ export default function BankingAgent({
     result,
     _source = "heuristic",
     nlUserText = "",
+    useCaseId = undefined,
   ) {
     // A /nl error envelope (e.g. the Vite proxy's 502 {"error":"proxy_error"}
     // while the BFF restarts) parses as JSON but carries no `result`, so all
@@ -5430,7 +5431,7 @@ export default function BankingAgent({
         const agentMessage = hasFilledParams
           ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
           : (nlUserText || result.action);
-        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven };
+        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
         const response = await sendAgentMessage(agentMessage, null, verticalOpts);
         // Admin token on the customer agent → action card (login as customer / cancel).
         if (maybeHandleCustomerLogin(response, _source)) return;
@@ -7202,6 +7203,7 @@ export default function BankingAgent({
                             result,
                             source || "heuristic",
                             message,
+                            chipUseCaseId,
                           );
                         } catch (err) {
                           reportNlFailure(err);
