@@ -127,4 +127,23 @@ describe('getMcpGatewayHttpUrl ff_mcp_gateway_pinggateway routing', () => {
 
     expect(getMcpGatewayHttpUrl()).toBe('http://mcp-gateway:3005');
   });
+
+  // Issue #375: docker-compose.yml bakes MCP_GATEWAY_HTTP_URL to PingGateway's own
+  // address for demo-api-server, so flipping the flag off must not fall back to it.
+  test('flag OFF with MCP_GATEWAY_HTTP_URL polluted to PingGateway -> uses mcp_demo_gateway_url instead', () => {
+    process.env.MCP_GATEWAY_HTTP_URL = 'http://ping-gateway:8080';
+    stubConfig({
+      ff_mcp_gateway_pinggateway: 'false',
+      mcp_demo_gateway_url: 'http://mcp-gateway:3005',
+    });
+
+    expect(getMcpGatewayHttpUrl()).toBe('http://mcp-gateway:3005');
+  });
+
+  test('flag OFF with no mcp_demo_gateway_url configured -> still falls back to MCP_GATEWAY_HTTP_URL', () => {
+    process.env.MCP_GATEWAY_HTTP_URL = 'http://mcp-gateway:3005';
+    stubConfig({ ff_mcp_gateway_pinggateway: 'false' }); // no mcp_demo_gateway_url
+
+    expect(getMcpGatewayHttpUrl()).toBe('http://mcp-gateway:3005');
+  });
 });
