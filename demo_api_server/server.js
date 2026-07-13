@@ -1332,6 +1332,9 @@ app.use('/api/demo/attacks', express.json(), demoAttackSeedsRoutes);
 const attackSimulatorRoutes = require('./routes/attackSimulator');
 app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 
+const intentBindingRoutes = require('./routes/intentBinding');
+app.use('/api/demo/intent-binding', express.json(), intentBindingRoutes);
+
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
 app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
