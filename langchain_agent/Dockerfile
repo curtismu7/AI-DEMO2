@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install Python dependencies
 COPY langchain_agent/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt \
-    && guardrails configure --disable-metrics --disable-remote-inferencing --token ""
+    && PATH="/root/.local/bin:$PATH" guardrails configure --disable-metrics --disable-remote-inferencing --token ""
 
 # Production stage
 ARG GIT_SHA=unknown
@@ -36,6 +36,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /home/appuser/.local
+# Copy the guardrails-ai config generated in the builder stage; without it,
+# guardrails-ai's Validator base class raises ValueError at construction time.
+COPY --from=builder /root/.guardrailsrc /home/appuser/.guardrailsrc
 
 # Copy application code
 COPY langchain_agent/src/ ./src/
@@ -62,7 +65,8 @@ COPY langchain_agent/.env.example ./
 
 # Create necessary directories
 RUN mkdir -p logs data config visualizations && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chown appuser:appuser /home/appuser/.guardrailsrc
 
 # Switch to non-root user
 USER appuser
