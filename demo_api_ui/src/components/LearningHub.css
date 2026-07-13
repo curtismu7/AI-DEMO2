@@ -177,6 +177,33 @@
   background: var(--primary-dark, #0052a3);
 }
 
+.learning-hub__live-demo {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 3rem 0;
+}
+
+.learning-hub__live-demo-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #16a34a;
+  margin: 0 0 1rem 0;
+}
+
+.learning-hub__live-demo-description {
+  color: #374151;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+}
+
+.learning-hub__chain-container {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .learning-hub {
@@ -210,5 +237,18 @@
 
   .learning-hub__card-description {
     font-size: 0.85rem;
+  }
+
+  .learning-hub__live-demo {
+    padding: 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .learning-hub__live-demo-title {
+    font-size: 1.25rem;
+  }
+
+  .learning-hub__live-demo-description {
+    font-size: 0.95rem;
   }
 }
