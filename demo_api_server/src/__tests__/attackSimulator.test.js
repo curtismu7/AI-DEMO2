@@ -82,6 +82,14 @@ describe('AttackSimulator — structural (no creds needed)', () => {
       expect(Array.isArray(result.tokenChainEvents)).toBe(true);
     },
   );
+
+  test('uses the shared stampUseCaseId module, not a private duplicate', () => {
+    const src = require('fs').readFileSync(
+      require.resolve('../../services/attackSimulatorService'), 'utf8',
+    );
+    expect(src).toMatch(/require\(['"]\.\/useCaseTagging['"]\)/);
+    expect(src).not.toMatch(/function _stampUseCaseId/);
+  });
 });
 
 // ─── Real-API tests (skipped unless ATTACK_SIM_REAL_API=true) ────────────────
