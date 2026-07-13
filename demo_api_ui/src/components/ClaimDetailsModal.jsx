@@ -9,15 +9,40 @@ import { TOKEN_CLAIMS } from '../constants/tokenClaims';
 import '../styles/TokenChainRedesign.css';
 
 /**
+ * Builds the claim rows to render. With no live claims (or an empty object),
+ * returns the static educational example set unchanged — same as before this
+ * function existed. With live claims, shows only the fields actually present
+ * on this run's token (real values), pairing each with the static RFC
+ * description when we have one for that key, so the teaching content survives
+ * without ever putting a canned example value next to a real token.
+ */
+function buildClaimRows(tokenType, liveClaims) {
+  const staticClaims = TOKEN_CLAIMS[tokenType] || [];
+  if (!liveClaims || typeof liveClaims !== "object" || Object.keys(liveClaims).length === 0) {
+    return { claims: staticClaims, isLive: false };
+  }
+  const descriptionByKey = new Map(staticClaims.map((c) => [c.key, c.description]));
+  const claims = Object.entries(liveClaims).map(([key, value]) => ({
+    key,
+    value: value && typeof value === "object" ? JSON.stringify(value) : String(value),
+    description: descriptionByKey.get(key) || "Live value from this run.",
+  }));
+  return { claims, isLive: true };
+}
+
+/**
  * ClaimDetailsModal
  * @param {boolean} isOpen - Whether the modal is visible
  * @param {string} tokenType - Token type: 'user', 'agent', or 'mcp'
+ * @param {Object} [liveClaims] - This run's real claims for tokenType, e.g.
+ *   { sub, aud, scope, act, ... }. When omitted/empty, falls back to the
+ *   static educational example set for tokenType.
  * @param {function} onClose - Callback when modal should close
  */
-function ClaimDetailsModal({ isOpen, tokenType, onClose }) {
+function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
   if (!isOpen) return null;
 
-  const claims = TOKEN_CLAIMS[tokenType] || [];
+  const { claims, isLive } = buildClaimRows(tokenType, liveClaims);
   const titleMap = {
     user: 'User Token Claims',
     agent: 'Agent Token Claims',
@@ -35,7 +60,10 @@ function ClaimDetailsModal({ isOpen, tokenType, onClose }) {
     <div className="utfi-modal-backdrop" onClick={handleBackdropClick}>
       <div className="utfi-modal-container">
         <div className="utfi-modal-header">
-          <h2 className="utfi-modal-title">{title}</h2>
+          <div className="utfi-modal-title-group">
+            <h2 className="utfi-modal-title">{title}</h2>
+            {isLive && <span className="utfi-modal-live-badge">Live — this run</span>}
+          </div>
           <button
             className="utfi-modal-close"
             onClick={onClose}
