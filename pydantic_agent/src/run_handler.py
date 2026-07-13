@@ -12,10 +12,30 @@ from .agui_emitter import AGUIEmitter
 from .bff_tool_adapter import resolve_bff_tool_url
 from .models import BffDeps
 from . import config as cfg
+from .grounding_guardrail import CommitmentGroundingValidator, ToolCallRecord, contains_commitment_claim
+from guardrails.validator_base import FailResult
+from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+import httpx
 
 logger = logging.getLogger(__name__)
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _extract_tool_calls(messages) -> list:
+    pending: dict = {}
+    records: list = []
+    for msg in messages:
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolCallPart):
+                pending[part.tool_call_id] = {"name": part.tool_name, "args": part.args}
+            elif isinstance(part, ToolReturnPart):
+                info = pending.pop(part.tool_call_id, None)
+                if info is not None:
+                    records.append(
+                        ToolCallRecord(name=info["name"], args=info["args"], result=str(part.content))
+                    )
+    return records
 
 
 async def _error_stream(run_id: str, thread_id: str, message: str) -> AsyncIterator[str]:
@@ -174,6 +194,41 @@ async def handle_run(request: Request) -> StreamingResponse:
 
                 async for text in result.stream_text(delta=True):
                     await emitter.on_text_token(message_id, text)
+                    while collected:
+                        yield collected.pop(0)
+
+                final_text = await result.get_output()
+                turn_tool_calls = _extract_tool_calls(result.all_messages())
+
+            if contains_commitment_claim(final_text):
+                async def _chat_fn(prompt: str) -> str:
+                    async with httpx.AsyncClient(timeout=15.0) as http_client:
+                        resp = await http_client.post(
+                            f"{cfg.LLM_BASE_URL}/chat/completions",
+                            json={
+                                "model": model,
+                                "messages": [{"role": "user", "content": prompt}],
+                                "temperature": 0,
+                            },
+                            headers={"Authorization": f"Bearer {cfg.LLM_API_KEY}"} if cfg.LLM_API_KEY else {},
+                        )
+                    resp.raise_for_status()
+                    return resp.json()["choices"][0]["message"]["content"] or ""
+
+                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                check = await validator.async_validate(
+                    final_text, {"tool_calls": turn_tool_calls}
+                )
+                if isinstance(check, FailResult):
+                    await emitter.emit({
+                        "type": "CUSTOM",
+                        "name": "grounding_correction",
+                        "value": {
+                            "original": final_text,
+                            "corrected": check.fix_value,
+                            "correctionNote": check.error_message,
+                        },
+                    })
                     while collected:
                         yield collected.pop(0)
 
