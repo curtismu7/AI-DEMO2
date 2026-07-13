@@ -320,7 +320,7 @@ block (lines 3007-3076) with:
             simRes?.errorCode === "gateway_not_configured" ||
             simRes?.errorCode === "wrong_aud_not_configured"
           ) {
-            audOutcome = `ℹ️ Simulator not fully configured: ${simRes.reason}`;
+            audOutcome = `⚠️ Simulator not fully configured: ${simRes.reason}`;
           } else {
             audOutcome = `⚠️ Simulator error (${simRes?.status ?? simRes?._httpStatus ?? "?"} ${simRes?.errorCode || "unknown"}): ${simRes?.reason || "no reason given"}`;
           }
@@ -349,7 +349,7 @@ block (lines 3007-3076) with:
             render:
               simRes?.errorCode === "invalid_aud"
                 ? "✅ Audience rejection confirmed"
-                : "ℹ️ Audience test complete",
+                : "Audience test complete",
             type: "info",
             isLoading: false,
             autoClose: agentToastMs.toolsLoaded,
