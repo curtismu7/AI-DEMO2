@@ -58,7 +58,7 @@
 .ib-pill--permit { background: rgba(76, 175, 80, 0.12); color: var(--brand-success, #4caf50); border: 1px solid rgba(76, 175, 80, 0.3); }
 .ib-pill--drift { background: rgba(244, 67, 54, 0.12); color: var(--brand-error, #f44336); border: 1px solid rgba(244, 67, 54, 0.3); }
 
-.ib-amount { font-size: 1.4rem; font-weight: 700; font-family: monospace; margin: 4px 0; }
+.ib-amount { font-size: 1.4rem; font-weight: 700; font-family: var(--font-family-mono); margin: 4px 0; }
 .ib-amount small { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary, #8991a0); font-weight: 500; }
 .ib-rationale { font-size: 0.82rem; color: var(--text-secondary, #5b6472); line-height: 1.5; min-height: 3.2em; }
 
