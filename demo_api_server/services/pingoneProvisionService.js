@@ -2814,6 +2814,26 @@ class PingOneProvisionService {
             steps.push({ step: `a2a-${spec.appKey}-may-act`, icon: '⚠️', message: `${spec.specialistName} may_act step: ${mayActErr.message}` });
           }
           onStep(steps[steps.length - 1]);
+
+          // Wire act on this specialist's own intermediate resource — the SAME
+          // SPEL already live on the Agent Gateway resource (Exchange #1 target
+          // of the original two-exchange flow): copies the SUBJECT token's
+          // (the user token's) may_act claim onto this hop's act claim. Without
+          // this, Exchange #1's result carries no act at all, and Exchange #2's
+          // act SPEL — a straight passthrough of subjectToken.act — has nothing
+          // to propagate (confirmed live: actChainDepth stayed 0 until this was
+          // added; adding it alone brought depth to 1, actPresent true).
+          try {
+            await this._setResourceAttribute(
+              specResourceResult.resource.id,
+              'act',
+              '${#root.context.requestData.subjectToken.may_act}',
+            );
+            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '✅', message: `${spec.specialistName} act wired on its own A2A Intermediate resource` });
+          } catch (actErr) {
+            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '⚠️', message: `${spec.specialistName} act step: ${actErr.message}` });
+          }
+          onStep(steps[steps.length - 1]);
         }
       } catch (a2aErr) {
         steps.push({ step: 'a2a-specialists', icon: '⚠️', message: `A2A specialist provisioning skipped: ${a2aErr.message}` });
