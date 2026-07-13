@@ -198,7 +198,7 @@ describe('ClaimDetailsModal', () => {
       );
       expect(screen.getByText('Token Claims')).toBeInTheDocument();
       // Should render empty claims list
-      const claimsList = screen.getByRole('heading').parentElement.querySelector('.utfi-claims-list');
+      const claimsList = document.querySelector('.utfi-claims-list');
       expect(claimsList?.children.length || 0).toBe(0);
     });
 
@@ -207,6 +207,45 @@ describe('ClaimDetailsModal', () => {
         <ClaimDetailsModal isOpen={true} tokenType={undefined} onClose={() => {}} />
       );
       expect(screen.getByText('Token Claims')).toBeInTheDocument();
+    });
+  });
+
+  describe('Live claims', () => {
+    it('shows this run\'s real values instead of the static examples', () => {
+      render(
+        <ClaimDetailsModal
+          isOpen={true}
+          tokenType="mcp"
+          liveClaims={{ aud: 'https://mcp.example.com', scope: 'write:transfer' }}
+          onClose={() => {}}
+        />
+      );
+      expect(screen.getByText('https://mcp.example.com')).toBeInTheDocument();
+      expect(screen.getByText('write:transfer')).toBeInTheDocument();
+      // Static examples for this tokenType must not leak in alongside real data.
+      expect(screen.queryByText('banking-api')).not.toBeInTheDocument();
+      expect(screen.queryByText('read')).not.toBeInTheDocument();
+      expect(screen.getByText('Live — this run')).toBeInTheDocument();
+    });
+
+    it('keeps the RFC description for a key that also has live data', () => {
+      render(
+        <ClaimDetailsModal
+          isOpen={true}
+          tokenType="mcp"
+          liveClaims={{ aud: 'https://mcp.example.com' }}
+          onClose={() => {}}
+        />
+      );
+      expect(screen.getByText(/RFC 8707/)).toBeInTheDocument();
+    });
+
+    it('falls back to the static examples when liveClaims is empty', () => {
+      render(
+        <ClaimDetailsModal isOpen={true} tokenType="user" liveClaims={{}} onClose={() => {}} />
+      );
+      expect(screen.getByText('user-12345')).toBeInTheDocument();
+      expect(screen.queryByText('Live — this run')).not.toBeInTheDocument();
     });
   });
 });

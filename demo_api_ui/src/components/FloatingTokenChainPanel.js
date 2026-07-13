@@ -2,17 +2,15 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
-import TokenChainPanel from './education/TokenChainPanel';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import '../styles/draggablePanel.css';
 import './FloatingTokenChainPanel.css';
 
 /**
- * Floating, draggable, resizable Token Chain panel for the marketing page.
- * Shows the RFC 8693 token chain visualization in a movable overlay.
- *
- * credentialPath: each event in the chain carries a credentialPath field added in Phase 266.
- * TokenChainPanel (below) delegates to TokenChainDisplay which renders per-segment
- * colour/badge (blue/amber/teal) based on that field. No pass-through change needed here.
+ * Floating, draggable, resizable Token Chain panel — opened app-wide from the
+ * VerifiedBanner's expand button. Renders TokenChainTraceRail (same live
+ * per-step trace + claim-diff detail as TokenChainModal on the agent chat
+ * page) instead of the old illustrative-only education/TokenChainPanel.
  */
 export default function FloatingTokenChainPanel({ isOpen, onClose }) {
   const [minimized, setMinimized] = useState(false);
@@ -70,7 +68,7 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
       {/* Scrollable body */}
       {!minimized && (
         <div className="ftcp-body">
-          <TokenChainPanel />
+          <TokenChainTraceRail />
         </div>
       )}
 
