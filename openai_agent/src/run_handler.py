@@ -14,6 +14,8 @@ from .agent_factory import build_agent, build_llm_client
 from .agui_emitter import AGUIEmitter
 from .bff_tool_adapter import resolve_bff_tool_url
 from .config import get_config
+from .grounding_guardrail import CommitmentGroundingValidator, contains_commitment_claim
+from guardrails.validator_base import FailResult
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -137,6 +139,25 @@ async def _stream(
             result = Runner.run_streamed(agent, input_messages)
             async for event in result.stream_events():
                 await _handle_sdk_event(event, emitter)
+            if contains_commitment_claim(emitter._turn_reply_text):
+                async def _chat_fn(prompt: str) -> str:
+                    completion = await client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0,
+                    )
+                    return completion.choices[0].message.content or ""
+
+                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                check = await validator.async_validate(
+                    emitter._turn_reply_text, {"tool_calls": emitter._turn_tool_calls}
+                )
+                if isinstance(check, FailResult):
+                    await emitter.on_grounding_correction(
+                        original=emitter._turn_reply_text,
+                        corrected=check.fix_value,
+                        note=check.error_message,
+                    )
             usage = getattr(result, "usage", None)
             if usage:
                 await emitter.on_usage(
