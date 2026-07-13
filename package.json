@@ -55,6 +55,7 @@
     "publish:agent-guardrails": "node scripts/publish-agent-guardrails-page.mjs",
     "publish:agent-onboarding-flow": "node scripts/publish-agent-onboarding-flow-page.mjs",
     "publish:agent-onboarding-flow-compact": "node scripts/publish-agent-onboarding-flow-compact-page.mjs",
+    "publish:agent-onboarding-flow-subway": "node scripts/publish-agent-onboarding-flow-subway-page.mjs",
     "prepare": "husky"
   },
   "dependencies": {
