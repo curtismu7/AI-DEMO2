@@ -198,36 +198,49 @@ async def handle_run(request: Request) -> StreamingResponse:
                         yield collected.pop(0)
 
                 final_text = await result.get_output()
-                turn_tool_calls = _extract_tool_calls(result.all_messages())
+                # new_messages() (not all_messages()) — run_stream is called
+                # with message_history=msg_history (prior turns), so
+                # all_messages() would return the WHOLE conversation and leak
+                # earlier turns' tool calls into this turn's grounding check.
+                turn_tool_calls = _extract_tool_calls(result.new_messages())
 
             if contains_commitment_claim(final_text):
-                async def _chat_fn(prompt: str) -> str:
-                    # Reuse the exact model object the conversation itself used
-                    # (agent.model) rather than re-deriving cfg/provider routing
-                    # here — that raw-httpx approach silently no-opped the
-                    # guardrail on Anthropic-routed sessions, since it always
-                    # posted to cfg.LLM_BASE_URL with cfg.LLM_API_KEY regardless
-                    # of which provider actually served the conversation.
-                    grounding_agent = Agent(agent.model, defer_model_check=True)
-                    result = await grounding_agent.run(prompt)
-                    return str(result.output)
+                try:
+                    async def _chat_fn(prompt: str) -> str:
+                        # Reuse the exact model object the conversation itself used
+                        # (agent.model) rather than re-deriving cfg/provider routing
+                        # here — that raw-httpx approach silently no-opped the
+                        # guardrail on Anthropic-routed sessions, since it always
+                        # posted to cfg.LLM_BASE_URL with cfg.LLM_API_KEY regardless
+                        # of which provider actually served the conversation.
+                        grounding_agent = Agent(agent.model, defer_model_check=True)
+                        result = await grounding_agent.run(prompt)
+                        return str(result.output)
 
-                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
-                check = await validator.async_validate(
-                    final_text, {"tool_calls": turn_tool_calls}
-                )
-                if isinstance(check, FailResult):
-                    await emitter.emit({
-                        "type": "CUSTOM",
-                        "name": "grounding_correction",
-                        "value": {
-                            "original": final_text,
-                            "corrected": check.fix_value,
-                            "correctionNote": check.error_message,
-                        },
-                    })
-                    while collected:
-                        yield collected.pop(0)
+                    validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                    check = await validator.async_validate(
+                        final_text, {"tool_calls": turn_tool_calls}
+                    )
+                    if isinstance(check, FailResult):
+                        await emitter.emit({
+                            "type": "CUSTOM",
+                            "name": "grounding_correction",
+                            "value": {
+                                "original": final_text,
+                                "corrected": check.fix_value,
+                                "correctionNote": check.error_message,
+                            },
+                        })
+                        while collected:
+                            yield collected.pop(0)
+                except Exception:
+                    # Fail open on ANY error in the grounding-check block (not
+                    # just the LLM call, which the validator itself already
+                    # fails open on internally) -- e.g. CommitmentGroundingValidator
+                    # construction raising ValueError when ~/.guardrailsrc is
+                    # missing. Never block or alter an already-streamed reply
+                    # on a grounding-check error.
+                    logger.exception("[grounding] guardrail check failed; failing open")
 
             await emitter.on_text_end(message_id)
             while collected:

@@ -62,7 +62,7 @@ def _make_mock_agent(tokens=None):  # type: ignore[no-untyped-def]
         async def get_output(self):
             return "".join(tokens)
 
-        def all_messages(self, *, output_tool_return_content=None):
+        def new_messages(self, *, output_tool_return_content=None):
             return []
 
     mock_agent = MagicMock()
@@ -149,7 +149,7 @@ from guardrails.validator_base import FailResult
 
 def _make_mock_agent_with_tool_call(tokens, tool_name, tool_args, tool_result):
     """Return a mock Agent whose run_stream yields tokens and whose
-    all_messages()/get_output() expose one tool call for grounding checks."""
+    new_messages()/get_output() expose one tool call for grounding checks."""
     from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
 
     class FakeStreamResult:
@@ -166,7 +166,7 @@ def _make_mock_agent_with_tool_call(tokens, tool_name, tool_args, tool_result):
         async def get_output(self):
             return "".join(tokens)
 
-        def all_messages(self, *, output_tool_return_content=None):
+        def new_messages(self, *, output_tool_return_content=None):
             return [
                 ModelResponse(parts=[
                     ToolCallPart(tool_name=tool_name, args=tool_args, tool_call_id="call_1"),
