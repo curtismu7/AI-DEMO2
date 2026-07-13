@@ -355,6 +355,8 @@ git commit -m "Resolve useCaseId before the pipeline runs so authorize tagging c
 - Consumes: `useCaseId` (already parsed at `server.js:1721`), `deriveUseCaseId` (existing, `config/useCases.js:1081`), `isValidUseCaseId` (existing, `config/useCases.js:1070` — note: **not currently imported in `server.js`**, only `deriveUseCaseId` is, per `server.js:32`).
 - Produces: `resolveChipUseCaseId(clientId, toolName, args, vertical)` — a new pure, exported function; `ctx.useCaseId` on the chip-path pipeline context, same contract as Task 3.
 
+**Addendum (post-Task-3 decision):** `useCaseId` slugs are shared across verticals by design (e.g. `delegated-access-with-proof` demonstrates the same narrative in every vertical) — no event today tags which vertical produced it, so two verticals firing the same `useCaseId` are indistinguishable downstream. Task 3 was extended to add a parallel `ctx.vertical` field alongside `ctx.useCaseId`, stamped via a new `stampVertical(events, vertical)` in `useCaseTagging.js` (mirrors `stampUseCaseId`'s exact non-destructive behavior — see the updated `demo_api_server/src/__tests__/useCaseTagging.test.js` for its contract). This task must do the same: add `ctx.vertical: req.body?.vertical` (already parsed elsewhere in this handler) alongside `ctx.useCaseId`, and call `stampVertical(outcome.body.tokenEvents, req.body?.vertical)` alongside the existing `stampUseCaseId` call in the post-hoc block.
+
 `server.js`'s inline route handlers are not independently mountable for HTTP-level integration testing the way the smaller router modules are (confirmed: the one existing test that touches `/api/mcp/tool`, `demo_api_server/tests/routes/allChips.pipeline.integration.test.js:79-104`, builds an entirely separate sentinel Express app to test middleware ordering — it does not exercise the real inline handler at all, because that handler closes over dozens of module-level services). So instead of testing the route, extract the one new piece of logic — "resolve which useCaseId applies" — into a pure function in `config/useCases.js` (which already owns `deriveUseCaseId`/`isValidUseCaseId`) and unit-test that directly; `server.js` becomes a thin caller.
 
 - [ ] **Step 1: Write the failing test**
@@ -499,8 +501,10 @@ git commit -m "Resolve useCaseId before the /api/mcp/tool pipeline call"
 - Test: `demo_api_server/src/__tests__/mcpToolPipelineUseCaseId.test.js` (new, or add to the existing pipeline test file if `mcpToolPipeline.js` already has one — check `demo_api_server/src/__tests__/` or `demo_api_server/tests/services/` first)
 
 **Interfaces:**
-- Consumes: `ctx.useCaseId` (Tasks 3 & 4).
-- Produces: `mcpAuthorizeEvaluation.useCaseId` on both the block-path body and the permit-path `out` object; `metadata.useCaseId` on the pipeline's own `appEventLog` calls. Task 7 (client `ProofOfEnforcementContext`) reads `trace.authorize.useCaseId`.
+- Consumes: `ctx.useCaseId`, `ctx.vertical` (Tasks 3 & 4).
+- Produces: `mcpAuthorizeEvaluation.useCaseId` and `mcpAuthorizeEvaluation.vertical` on both the block-path body and the permit-path `out` object; `metadata.useCaseId`/`metadata.vertical` on the pipeline's own `appEventLog` calls. Task 7 (client `ProofOfEnforcementContext`) reads `trace.authorize.useCaseId`/`trace.authorize.vertical`.
+
+**Addendum (post-Task-3 decision):** apply the exact same pattern this task already uses for `useCaseId` to `ctx.vertical` too — every place you add `useCaseId: ctx.useCaseId` below, add `vertical: ctx.vertical` alongside it (both to the `mcpAuthorizeEvaluation` objects and to the `appEventLog` `metadata` objects). This is purely additive, same shape as the `useCaseId` change — do not restructure anything else.
 
 **Scope note:** this task only tags the two `appEventLog` calls that live directly inside `mcpToolPipeline.js` (the ones verified with exact line numbers above). Other activity-log call sites for the `evidence.activity` categories some use cases declare (e.g. `token_exchange` inside `agentMcpTokenService.js`, `hitl`/`ciba` inside the HITL service client) are deeper, separately-owned modules not traced in this plan. Task 11's authenticated replay test is the backstop that will surface, per use case, whether any of those deeper categories are still missing a `useCaseId` tag (it warns rather than hard-fails when a category is absent from the tagged-event set) — treat any such warning as a follow-up, not a blocker for this task.
 
@@ -684,6 +688,8 @@ git commit -m "Tag the authorize decision and pipeline activity logs with useCas
 - Consumes: `stampUseCaseId` from `demo_api_server/services/useCaseTagging.js` (existing, unmodified).
 - Produces: no external contract change — `attackSimulatorService`'s public functions still return the same shapes. The only observable difference: `useCaseId` is no longer force-overwritten on events that already carry one (shared module's non-destructive semantics replace the private function's unconditional overwrite) — safe, because every call site pushes freshly-built events via `buildTokenEvent(...)` that never carry a pre-existing `useCaseId`.
 
+**Addendum (post-Task-3 decision, optional):** if this task's exploration confirms attack simulations always pin to a single vertical (the "attacks demonstrate the security infrastructure, banking is the reference" convention already found in `AIAgent.js`'s showcase branches during earlier planning), stamping a companion `vertical` tag here is lower-value than in Tasks 3-5 (there's no cross-vertical ambiguity to resolve if only one vertical is ever involved). If it turns out sims DO vary by active vertical, import and call the new `stampVertical` (added in Task 3) alongside `stampUseCaseId` at the same call sites, passing whatever vertical value the sim already carries. Do not block this task on it either way — note your finding in the report.
+
 - [ ] **Step 1: Write the failing test**
 
 Add to the existing attack-simulator test file (find its exact path first with `grep -rl "attackSimulatorService" demo_api_server/tests demo_api_server/src/__tests__ 2>/dev/null`):
@@ -750,7 +756,9 @@ git commit -m "Consolidate attackSimulatorService's useCaseId stamping into the 
 
 **Interfaces:**
 - Consumes: `tokenChainTraceStore` (existing, `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js` — `subscribe(fn)`, `getState()` returning `{trace: {tokenEvents, authorize, mcpResult, phases, outcome, ...}, steps}`), and the use-case catalog fetched from `GET /api/use-cases?vertical=X` (existing endpoint, `demo_api_server/routes/useCases.js` — returns each entry's `evidence: {tokenChain, activity}` and `expectedOutcome`, per `resolveUseCase`).
-- Produces: `ProofOfEnforcementProvider` (context provider component) and `useProofOfEnforcement()` hook returning `{ verdict, history }`, where `verdict` is `null` (the "untagged" case — no useCaseId could be resolved, so the engine stays silent rather than guess, per the design doc's posture) or `{ useCaseId, title, state: 'verified'|'denied-as-expected'|'mismatch'|'incomplete', matchedSteps: string[], missingSteps: string[] }`. Tasks 8, 9, 10 (the three UI components) all consume `useProofOfEnforcement()`.
+- Produces: `ProofOfEnforcementProvider` (context provider component) and `useProofOfEnforcement()` hook returning `{ verdict, history }`, where `verdict` is `null` (the "untagged" case — no useCaseId could be resolved, so the engine stays silent rather than guess, per the design doc's posture) or `{ useCaseId, title, state: 'verified'|'denied-as-expected'|'mismatch'|'incomplete', matchedSteps: string[], missingSteps: string[], vertical }`. Tasks 8, 9, 10 (the three UI components) all consume `useProofOfEnforcement()`.
+
+**Addendum (post-Task-3 decision):** Tasks 3-5 now stamp a companion `vertical` field onto `tokenEvents`/`trace.authorize` alongside `useCaseId` (`useCaseId` slugs are shared across verticals by design, so `vertical` is what disambiguates which vertical instance of a narrative fired). Add a `verticalOf(trace)` helper (mirroring `firstUseCaseId`) that reads `trace.tokenEvents[].vertical` first, falling back to `trace.authorize.vertical`, and include the result as `verdict.vertical` in `computeVerdict`'s return value. This is purely additive to the verdict shape — no change to the state-computation logic (`matchedSteps`/`missingSteps`/`state`), and no new test cases beyond asserting `verdict.vertical` is populated in the existing "verified" test case.
 
 **Scoping simplification:** the design doc called for scoping verdicts by `flowTraceId` so two rapid, overlapping triggers can't cross-contaminate. `tokenChainTraceStore` (the existing store this engine reads) is already a **singleton, one-trace-at-a-time** store — `beginTrace()` resets it at the start of each new user turn, which is the same reset the existing `TokenChainPanel`/`FloatingTokenChainPanel` already depend on for correctness. This plan piggybacks on that existing reset semantic instead of building a second, parallel `flowTraceId`-keyed store: sequential triggers (the normal case — one chip click resolves before the next fires) are correctly isolated for free. Two genuinely concurrent triggers (a second chip clicked before the first's trace settles) are a narrower, pre-existing risk shared with the current Token Chain panel, not a new one introduced here — out of scope for this plan.
 
@@ -1470,6 +1478,8 @@ git commit -m "Add Component C: room-facing Verified banner"
 - Consumes: `chip.useCaseId` (Task 1), `GET /api/admin/app-events` (existing, already polled at line 172-181), `GET /api/use-cases/:id` (existing, `demo_api_server/routes/useCases.js`) for `expectedOutcome`.
 - Produces: no new exports — this is a test-only change. Deviates from the original design doc's plan to extend `scripts/preflight-demo.sh` directly: that script's chip-replay section (its section 5) only resolves intent anonymously via `/api/demo-agent/nl` and never executes a tool, so it has no authorize/activity trace to assert against. The authenticated `--deep` path (`scripts/run-real-tests.sh shared`, which runs this exact file) is where a real trace exists — asserting here is both correct and reached by preflight's existing `--deep` flag with zero preflight.sh changes needed.
 
+**Addendum (post-Task-3 decision):** since `useCaseId` slugs are shared across verticals (Tasks 3-5 now also stamp a companion `vertical` field), this test's assertion must filter `app-events` by BOTH `useCaseId` AND `vertical` matching the current `vertical` loop variable — not `useCaseId` alone. Without this, a chip in one vertical could pass its assertion using events actually produced by a different vertical's chip sharing the same `useCaseId` in an adjacent test (the suite runs verticals sequentially, so this is a real, not theoretical, false-pass risk once vertical tagging exists). Filter as `events.filter(e => (e.useCaseId || e.metadata?.useCaseId) === chip.useCaseId && (e.vertical || e.metadata?.vertical) === vertical)`.
+
 - [ ] **Step 1: Write the failing assertion**
 
 In `demo_api_server/tests/real/shared/all-chips-pipeline.test.js`, inside the `if (depth === 'mcp-pipeline')` block (lines 160-182), extend the existing admin app-events check (lines 172-181) from a loose category-presence warning into a hard assertion when the chip declares a `useCaseId`:
@@ -1491,7 +1501,9 @@ In `demo_api_server/tests/real/shared/all-chips-pipeline.test.js`, inside the `i
                   console.warn(`[all-chips-pipeline] ${vertical}/${chip.label}: no pipeline events in window — async flush may be slow`);
                 }
                 if (chip.useCaseId) {
-                  const taggedEvents = events.filter((e) => (e.useCaseId || (e.metadata && e.metadata.useCaseId)) === chip.useCaseId);
+                  const taggedEvents = events.filter((e) =>
+                    (e.useCaseId || (e.metadata && e.metadata.useCaseId)) === chip.useCaseId
+                    && (e.vertical || (e.metadata && e.metadata.vertical)) === vertical);
                   if (taggedEvents.length > 0) {
                     // Belt-and-suspenders: if any event for this useCaseId made it
                     // into the window, at least one must be an authorize category —
