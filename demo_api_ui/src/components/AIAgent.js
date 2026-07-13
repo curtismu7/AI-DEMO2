@@ -2465,7 +2465,10 @@ export default function BankingAgent({
     // gate discharged → retry PERMITs instead of re-issuing the 428). Named
     // distinctly from the component-scope `hitlChallengeId` state (direct-UI
     // consent modal) to avoid shadowing it inside runAction.
-    const { skipUserLabel = false, isRefire = false, nlSource = null, hitlRetryChallengeId = null } = opts;
+    // useCaseId/vertical: threaded from the chip/dispatch caller so the tool
+    // call carries proof-of-enforcement context (mirrors callMcpTool's own
+    // useCaseId/vertical opts — see demoAgentService.js).
+    const { skipUserLabel = false, isRefire = false, nlSource = null, hitlRetryChallengeId = null, useCaseId = null, vertical = null } = opts;
     const resultExtra = nlSource ? { source: nlSource } : {};
     const label = ACTIONS.find((a) => a.id === actionId)?.label || actionId;
     if (!skipUserLabel) {
@@ -2503,7 +2506,7 @@ export default function BankingAgent({
           return;
         case "accounts":
           toast.update(toastId, { render: " Calling get_my_accounts…" });
-          response = await getMyAccounts();
+          response = await getMyAccounts({ useCaseId, vertical });
           response = { ...response, result: enforceVerticalAccountTypes(response.result, terminology) };
           break;
         case "mortgage_demo": {
@@ -2520,7 +2523,7 @@ export default function BankingAgent({
           });
           let mortgageResp;
           try {
-            mortgageResp = await callMcpTool("show_mortgage", {});
+            mortgageResp = await callMcpTool("show_mortgage", {}, { useCaseId, vertical });
           } catch (e) {
             console.error(
               "[BankingAgent] mortgage_demo dispatch failed:",
@@ -2588,7 +2591,7 @@ export default function BankingAgent({
           });
           let investResp;
           try {
-            investResp = await callMcpTool("show_investment", {});
+            investResp = await callMcpTool("show_investment", {}, { useCaseId, vertical });
           } catch (e) {
             console.error(
               "[BankingAgent] invest_demo dispatch failed:",
@@ -2680,7 +2683,7 @@ export default function BankingAgent({
           });
           let featureResp;
           try {
-            featureResp = await callMcpTool(featureTool, {});
+            featureResp = await callMcpTool(featureTool, {}, { useCaseId, vertical });
           } catch (e) {
             console.error("[BankingAgent] vertical_feature_demo dispatch failed:", e?.message);
             toast.dismiss(toastId);
@@ -2741,17 +2744,18 @@ export default function BankingAgent({
         }
         case "transactions":
           toast.update(toastId, { render: " Calling get_my_transactions…" });
-          response = await getMyTransactions();
+          response = await getMyTransactions(undefined, { useCaseId, vertical });
           break;
         case "balance":
           toast.update(toastId, { render: " Calling get_account_balance…" });
-          response = await getAccountBalance(form.accountId);
+          response = await getAccountBalance(form.accountId, { useCaseId, vertical });
           break;
         case "account_nickname":
           toast.update(toastId, { render: " Calling get_account_nickname…" });
           response = await callMcpTool(
             "get_account_nickname",
             form.accountId ? { account_id: form.accountId } : {},
+            { useCaseId, vertical },
           );
           break;
         case "deposit":
@@ -2761,6 +2765,7 @@ export default function BankingAgent({
             parseFloat(form.amount),
             form.note,
             hitlRetryChallengeId,
+            { useCaseId, vertical },
           );
           break;
         case "withdraw":
@@ -2770,6 +2775,7 @@ export default function BankingAgent({
             parseFloat(form.amount),
             form.note,
             hitlRetryChallengeId,
+            { useCaseId, vertical },
           );
           break;
         case "transfer":
@@ -2780,6 +2786,7 @@ export default function BankingAgent({
             parseFloat(form.amount),
             form.note,
             hitlRetryChallengeId,
+            { useCaseId, vertical },
           );
           break;
         case "sensitive-account-details": {
@@ -2955,7 +2962,7 @@ export default function BankingAgent({
           let scopeTestRes;
           try {
             // admin_get_all_users requires admin scope not in customer token
-            scopeTestRes = await callMcpTool("admin_get_all_users", {});
+            scopeTestRes = await callMcpTool("admin_get_all_users", {}, { useCaseId, vertical });
           } catch (scopeErr) {
             scopeTestRes = {
               error: scopeErr.code || scopeErr.message,
@@ -3130,6 +3137,8 @@ export default function BankingAgent({
             hitlTo.id,
             APP_CONFIG.THRESHOLDS.DEMO_LARGE_TRANSFER,
             "Test HITL threshold",
+            undefined,
+            { useCaseId, vertical },
           );
           // Falls through to normalizeAgentToolResult — HITL gate fires there and shows consent modal
           break;
@@ -3309,6 +3318,8 @@ export default function BankingAgent({
             intentTo.id,
             APP_CONFIG.THRESHOLDS.DEMO_LARGE_TRANSFER,
             "Intent-bound delegation demo",
+            undefined,
+            { useCaseId, vertical },
           );
           // Falls through to normalizeAgentToolResult — HITL gate fires there and shows consent modal
           break;
@@ -3564,46 +3575,46 @@ export default function BankingAgent({
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What can I help you with today?",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_helix_demo":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What are best practices for account security?",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Explain how OAuth 2.0 and RFC 8693 token exchange work in this demo",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_helix_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Explain the difference between OAuth and SAML",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_analyze":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Summarize how the MCP tool flow works in this demo",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "What are some good tips for managing checking and savings accounts?",
-          });
+          }, { useCaseId, vertical });
           break;
         case "ai_helix_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Give me 5 tips for reducing transaction fees and managing money better",
-          });
+          }, { useCaseId, vertical });
           break;
         case "api_key_demo": {
           // Phase 266/267 Path A: exercise the gateway API-key credential swap.
@@ -3618,7 +3629,7 @@ export default function BankingAgent({
             render: "Routing to API-key credential path…",
           });
           try {
-            await callMcpTool("show_mortgage", {});
+            await callMcpTool("show_mortgage", {}, { useCaseId, vertical });
           } catch (e) {
             console.error(
               "[BankingAgent] api_key_demo dispatch failed:",
@@ -3639,7 +3650,7 @@ export default function BankingAgent({
             render: "Routing to access + id-token credential path…",
           });
           try {
-            await callMcpTool("user_profile_card", {});
+            await callMcpTool("user_profile_card", {}, { useCaseId, vertical });
           } catch (e) {
             console.error(
               "[BankingAgent] dual_token_demo dispatch failed:",
@@ -3680,7 +3691,7 @@ export default function BankingAgent({
               actionId === "unusual_patterns"
                 ? "Check my recent transactions for unusual patterns"
                 : "Could my savings cover a big upcoming expense?",
-          });
+          }, { useCaseId, vertical });
           break;
         }
         default: {
@@ -3689,7 +3700,7 @@ export default function BankingAgent({
             toast.update(toastId, { render: "Reasoning…" });
             response = await callMcpTool("sequential_think", {
               query: customChip.prompt,
-            });
+            }, { useCaseId, vertical });
             break;
           }
           throw new Error(`Unknown action: ${actionId}`);
@@ -5229,12 +5240,15 @@ export default function BankingAgent({
         await runAction(
           "mcp_tools",
           {},
-          { skipUserLabel: true, nlSource: _source },
+          { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
         );
         return;
       }
       if (action === "biggest_purchase" || action === "spending_summary") {
-        const txRes = await getMyTransactions(50).catch(() => null);
+        const txRes = await getMyTransactions(50, {
+          useCaseId,
+          vertical: effectiveVerticalId,
+        }).catch(() => null);
         const txNorm = txRes ? normalizeAgentToolResult(txRes.result) : null;
         const txList = txNorm?.transactions;
         if (!Array.isArray(txList) || txList.length === 0) {
@@ -5298,7 +5312,7 @@ export default function BankingAgent({
         return;
       }
       if (action === "accounts" || action === "transactions") {
-        await runAction(action, {}, { skipUserLabel: true, nlSource: _source });
+        await runAction(action, {}, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
       } else if (action === "balance" && (p.accountId || p.accountType)) {
         let resolvedId = p.accountId;
         if (!resolvedId && p.accountType) {
@@ -5311,7 +5325,7 @@ export default function BankingAgent({
           await runAction(
             "balance",
             { accountId: resolvedId },
-            { skipUserLabel: true, nlSource: _source },
+            { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
           );
         } else {
           addMessage(
@@ -5333,7 +5347,7 @@ export default function BankingAgent({
         await runAction(
           "transfer",
           { ...p, fromId: resolveAcct(p.fromId), toId: resolveAcct(p.toId) },
-          { skipUserLabel: true, nlSource: _source },
+          { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
         );
       } else if (action === "deposit" && p.amount) {
         const depAcct = liveAccounts.find(
@@ -5342,7 +5356,7 @@ export default function BankingAgent({
         await runAction(
           "deposit",
           { ...p, accountId: p.accountId || (depAcct ? depAcct.id : p.toId) },
-          { skipUserLabel: true, nlSource: _source },
+          { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
         );
       } else if (action === "withdraw" && p.amount) {
         const wdAcct = liveAccounts.find(
@@ -5352,7 +5366,7 @@ export default function BankingAgent({
         await runAction(
           "withdraw",
           { ...p, accountId: p.accountId || (wdAcct ? wdAcct.id : p.fromId) },
-          { skipUserLabel: true, nlSource: _source },
+          { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
         );
       } else if (
         ["balance", "transfer", "deposit", "withdraw"].includes(action)
@@ -5391,7 +5405,7 @@ export default function BankingAgent({
           asked: questions[action],
         });
       } else {
-        await runAction(action, p, { skipUserLabel: true, nlSource: _source });
+        await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
       }
       return;
     }
@@ -5407,6 +5421,7 @@ export default function BankingAgent({
           },
           _source,
           nlUserText,
+          useCaseId,
         );
       }
       // The /nl endpoint only routed intent; execute via the agent endpoint to get data+render.
