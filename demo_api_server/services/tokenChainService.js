@@ -3,9 +3,14 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const mcpToolAuditStore = require('./mcpToolAuditStore');
 const configStore = require('./configStore');
+const fs = require('fs');
+const path = require('path');
 
 // In-memory storage for token events (in production, this would be persisted)
 const tokenEvents = new Map();
+
+// Persistence directory for token chain LMDB
+const TOKEN_CHAIN_DIR = path.join(__dirname, '..', 'data', 'token-chains');
 
 // Token event structure
 const TokenEvent = {
@@ -335,6 +340,73 @@ async function getMCPToolCalls(userId, req = null) {
   }
 }
 
+// Phase 2: Persistence functions for restart resilience
+function recordEvent(event) {
+  if (!event.id) event.id = crypto.randomUUID();
+  if (!event.userId) event.userId = event.tokenSub || 'unknown';
+
+  if (!tokenEvents.has(event.userId)) {
+    tokenEvents.set(event.userId, []);
+  }
+  tokenEvents.get(event.userId).push(event);
+
+  // Keep only last 500 events per user
+  const userEvents = tokenEvents.get(event.userId);
+  if (userEvents.length > 500) {
+    tokenEvents.set(event.userId, userEvents.slice(-500));
+  }
+}
+
+function getEventsByUserId(userId) {
+  return (tokenEvents.get(userId) || []).sort((a, b) =>
+    new Date(a.timestamp || 0) - new Date(b.timestamp || 0)
+  );
+}
+
+function clearAllEvents() {
+  tokenEvents.clear();
+}
+
+async function persistToDisk() {
+  try {
+    if (!fs.existsSync(TOKEN_CHAIN_DIR)) {
+      fs.mkdirSync(TOKEN_CHAIN_DIR, { recursive: true });
+    }
+
+    // Save each user's events to separate file
+    for (const [userId, events] of tokenEvents.entries()) {
+      const filePath = path.join(TOKEN_CHAIN_DIR, `${userId}.json`);
+      const data = JSON.stringify(events, null, 2);
+      fs.writeFileSync(filePath, data, 'utf8');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[tokenChainService] persistToDisk error:', error.message);
+    return false;
+  }
+}
+
+async function reloadFromDisk() {
+  try {
+    if (!fs.existsSync(TOKEN_CHAIN_DIR)) return;
+
+    const files = fs.readdirSync(TOKEN_CHAIN_DIR).filter(f => f.endsWith('.json'));
+    for (const file of files) {
+      const userId = file.replace('.json', '');
+      const filePath = path.join(TOKEN_CHAIN_DIR, file);
+      const data = fs.readFileSync(filePath, 'utf8');
+      const events = JSON.parse(data);
+
+      if (Array.isArray(events)) {
+        tokenEvents.set(userId, events);
+      }
+    }
+  } catch (error) {
+    console.error('[tokenChainService] reloadFromDisk error:', error.message);
+  }
+}
+
 module.exports = {
   trackTokenEvent,
   addExchangeStep,
@@ -345,5 +417,10 @@ module.exports = {
   classifyTokenType,
   generateTokenDescription,
   synthesizeFromSession,
-  getMCPToolCalls
+  getMCPToolCalls,
+  recordEvent,
+  getEventsByUserId,
+  clearAllEvents,
+  persistToDisk,
+  reloadFromDisk
 };
