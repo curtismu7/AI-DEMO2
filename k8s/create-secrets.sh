@@ -240,6 +240,30 @@ PY
   info "  GROQ_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
+# Mirror ANTHROPIC_API_KEY from the BFF .env into langchain-secrets so the agent
+# can honor an explicit Anthropic/Claude provider selection.
+#
+# ANTHROPIC_API_KEY is declared in 03-secrets.yaml.template, but that populates
+# ai-demo-secrets — which the LangChain agent does NOT mount (it mounts
+# langchain-secrets, same trap as HELIX/GOOGLE/GROQ above). Without this mirror
+# the key never reaches the pod, and an anthropic provider selection fails every
+# run with `401 invalid x-api-key` (2026-07-14: this blocked every live-agent
+# use case on the SE/AWS deploy).
+mirror_anthropic_api_key() {
+  local bff_env="$ASSET_ROOT/demo_api_server/.env"
+  local anthropic_key
+  anthropic_key=$(grep -E '^ANTHROPIC_API_KEY=.+' "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  if [ -z "$anthropic_key" ]; then
+    return
+  fi
+  export ANTHROPIC_KEY="$anthropic_key"
+  python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {"ANTHROPIC_API_KEY": os.environ["ANTHROPIC_KEY"]}}))
+PY
+  info "  ANTHROPIC_API_KEY mirrored into langchain-secrets from BFF .env"
+}
+
 # ── Cloud override: redirect URIs must match the public origin ───────────────
 # The BFF .env carries the LOCAL redirect URIs (https://api.ping.demo:4000/...).
 # Shipping them verbatim breaks sign-in on any public deployment: these keys are
@@ -307,6 +331,7 @@ align_service_api_keys                                                      # on
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
+mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
