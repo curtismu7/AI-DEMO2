@@ -43,12 +43,26 @@ function hasPlugin(activeId) {
   return resolvePlugin(activeId) !== null;
 }
 
-/** Normalize a plugin tool to the MCP tool-schema shape. */
+/**
+ * Normalize a plugin tool to the MCP tool-schema shape.
+ *
+ * Plugin tools are LangChain `tool()` objects (see mcpToolRegistry.js) — their
+ * parameter schema lives on `.schema` (a Zod object), not `.inputSchema` (that
+ * property doesn't exist on LangChain tool instances). Reading `.inputSchema`
+ * silently produced an empty `{ properties: {} }` schema for every plugin
+ * tool, so the LLM received no declared parameters at all: it had to guess
+ * argument names, which surfaced as "tool call validation failed" errors
+ * (confirmed for create_deposit) once the model's guess didn't match the
+ * name(s) the provider expected.
+ */
 function toToolSchema(t) {
+  const inputSchema = t.inputSchema
+    || (typeof t.schema?.toJSONSchema === 'function' ? t.schema.toJSONSchema() : null)
+    || { type: 'object', properties: {} };
   return {
     name: t.name,
     description: t.description || '',
-    inputSchema: t.inputSchema || { type: 'object', properties: {} },
+    inputSchema,
   };
 }
 
