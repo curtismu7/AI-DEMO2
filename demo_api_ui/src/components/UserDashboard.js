@@ -1367,6 +1367,13 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
   const [middleHostEl, setMiddleHostEl] = useState(null);
   const middleHostRefCb = useCallback((el) => setMiddleHostEl(el), []);
   useEffect(() => {
+    // Never publish a null host: when ff_agent_clinical_split flips on, this
+    // component early-returns the clinical layout, the middle column unmounts
+    // (middleHostEl → null) and this effect re-runs. Writing that null stomped
+    // the host TalkPane had just registered, leaving surfaceHostEl=null while
+    // clinicalSplit=true — so the agent rendered unportaled, below the fold.
+    // Clearing is the guarded cleanup's job alone (it only clears OUR element).
+    if (!middleHostEl) return undefined;
     setSurfaceHostEl(middleHostEl);
     return () => {
       setSurfaceHostEl((cur) => (cur === middleHostEl ? null : cur));

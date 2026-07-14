@@ -13,16 +13,34 @@ import './ConversationSummaryPanel.css';
  * are unaffected. Collapsed by default; expanding refetches so the list stays
  * current after a background summarization lands.
  */
+/**
+ * Verticals whose summaries endpoint answered 401/403 this page-load.
+ *
+ * Module scope on purpose: this panel lives inside AIAgent, which renders
+ * through a portal whose container is state — changing the container tears the
+ * subtree down and rebuilds it, so the panel remounts (a ref would die with it).
+ * Without this latch each remount refires the request, which is how one stale
+ * session produced ~10 console 401s in seconds. Not-authorized is a stable
+ * answer for this page-load: ask once, then stop.
+ */
+const unauthorizedVerticals = new Set();
+
 export default function ConversationSummaryPanel({ vertical }) {
   const [summaries, setSummaries] = useState([]);
   const [expanded, setExpanded] = useState(false);
 
   const fetchSummaries = useCallback(() => {
-    if (!vertical) return;
+    if (!vertical || unauthorizedVerticals.has(vertical)) return;
     fetch(`/api/conversations/me/${encodeURIComponent(vertical)}/summaries`, {
       credentials: 'include',
     })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) {
+          unauthorizedVerticals.add(vertical); // don't ask again this page-load
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
       .then((data) => {
         if (data && Array.isArray(data.summaries)) setSummaries(data.summaries);
       })

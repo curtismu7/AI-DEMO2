@@ -1390,6 +1390,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [middleHostEl, setMiddleHostEl] = useState(null);
   const middleHostRefCb = useCallback((el) => setMiddleHostEl(el), []);
   useEffect(() => {
+    // Never publish a null host — see UserDashboard.js: when the clinical-split
+    // flag flips on, the middle column unmounts and this effect re-runs with
+    // null, stomping the host TalkPane just registered (agent hidden below the
+    // fold). Clearing is the guarded cleanup's job alone.
+    if (!middleHostEl) return undefined;
     setSurfaceHostEl(middleHostEl);
     return () => {
       setSurfaceHostEl((cur) => (cur === middleHostEl ? null : cur));

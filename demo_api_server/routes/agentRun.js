@@ -22,6 +22,7 @@
 const express = require('express');
 const http = require('http');
 const configStore = require('../services/configStore');
+const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
 const verticalDispatch = require('../services/verticalDispatch');
@@ -318,7 +319,31 @@ router.post('/run', async (req, res) => {
   // run; both win over server-wide config so the run honors what the user chose.
   const bodyProvider = (typeof req.body?.provider === 'string' && req.body.provider.trim()) ? req.body.provider.trim() : null;
   const sessionProvider = req.session?.langchain_config?.provider;
-  const provider = bodyProvider || sessionProvider || configStore.getEffective('llm_provider') || process.env.AGENT_PROVIDER || 'anthropic';
+
+  // Heuristics mode means NO LLM — resolve the mode before the provider chain.
+  // This route used to ignore agent_mode entirely and fall through to a
+  // hard-coded 'anthropic', so a run that arrived without an explicit provider
+  // (Heuristics selected, a stale session provider, or the HITL resume/cancel
+  // runs which send none) silently called a frontier API — the `401 invalid
+  // x-api-key` seen on the SE deploy. Heuristics now pins provider='none',
+  // which llm_factory understands as "no LLM, heuristic routing".
+  const requestedMode = (typeof req.body?.mode === 'string' && req.body.mode.trim())
+    ? req.body.mode.trim()
+    : configStore.getEffective('agent_mode');
+  const resolvedMode = resolveAgentMode(requestedMode);
+  const isHeuristics = resolvedMode && resolvedMode.provider === null;
+
+  // For LLM modes the mode itself names the provider, so it ranks ahead of the
+  // session copy (which goes stale when the picker changes without a run) and
+  // ahead of server-wide config. An explicit per-run body.provider still wins.
+  const provider = isHeuristics
+    ? 'none'
+    : (bodyProvider
+      || (resolvedMode && resolvedMode.provider)
+      || sessionProvider
+      || configStore.getEffective('llm_provider')
+      || process.env.AGENT_PROVIDER
+      || 'anthropic');
   const model = configStore.getEffective('llm_model') || process.env.AGENT_MODEL || undefined;
 
   // bffToolUrl — URL the agent service uses to call back into the BFF for tool

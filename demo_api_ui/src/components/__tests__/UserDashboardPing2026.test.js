@@ -307,13 +307,15 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined for eeaddd8ac "fix(dashboard): agent center, token chain rail
-  // on the right (2026 skin)" — intentional split3 child-order change, CSS
-  // verified (UserDashboard.css --no-banking override handles the new order).
+  // Re-baselined for the agent-host stomp fix (2026-07-14): the middle-column
+  // effect now bails on a null host instead of publishing it, so flipping
+  // ff_agent_clinical_split no longer wipes the host TalkPane registered
+  // (which left the agent unportaled, below the fold). Behaviour with the flag
+  // OFF is unchanged. Previous baseline: 908b8d393ef588c0c4aa4d989e1f0740…
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "908b8d393ef588c0c4aa4d989e1f0740190db661a9d1c7c3ca64a0ce2bedd9f8";
+    "bf5d83807e4efe3880f1bc71d39dea521154fbe82add854546381f63da2da342";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

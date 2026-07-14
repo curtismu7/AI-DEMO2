@@ -83,6 +83,66 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-14 — "Heuristics only" called Anthropic; agent hidden under clinical split; /api/conversations 401'd for everyone
+
+Three bugs, two of them sharing one root cause (a stomped agent surface host).
+
+**Files changed:**
+- `demo_api_server/routes/agentRun.js` — resolves `agent_mode` (body `mode`, else
+  configStore) via `agentModeResolver`; heuristics pins `provider='none'` (the
+  agent service's no-LLM mode). For LLM modes the mode now outranks a stale
+  session provider. Previously this route never read `agent_mode` at all.
+- `demo_api_server/routes/langchainConfig.js` — writes the provider on EVERY mode
+  change, including `null` for heuristics (was guarded on `am.provider`, so
+  switching TO heuristics left the old LLM provider in the session).
+- `demo_api_ui/src/hooks/useAgentRun.js` + `components/AIAgent.js` — every `/run`
+  now sends `mode`, including the two HITL resume/cancel runs that previously sent
+  neither mode nor provider.
+- `demo_api_ui/src/components/UserDashboard.js` + `UserDashboardPing2026.js` — the
+  middle-column effect bails on a null host instead of publishing it.
+- `demo_api_ui/src/routes/CustomerRoutes.js` — waits for the skin flag before
+  mounting either dashboard (no more mount-then-swap).
+- `demo_api_server/server.js` — `/api/conversations` finally gets `authenticateToken`.
+- `demo_api_ui/src/components/ConversationSummaryPanel.jsx` — module-scope 401/403
+  latch (a ref dies with the remount).
+
+**What was broken:**
+1. **Heuristics called an LLM.** `agentRun.js`'s provider chain ended in a hard-coded
+   `'anthropic'` and never looked at `agent_mode`. Any run arriving without an explicit
+   provider — heuristics selected, a stale session provider, or a HITL resume — silently
+   called Anthropic (`401 invalid x-api-key` on the SE deploy). The only thing enforcing
+   heuristics was a client-side branch, defeated by any remount/flag race.
+2. **Agent invisible under the clinical split.** Both dashboards published their middle-column
+   host UNCONDITIONALLY, including `null`. When `ff_agent_clinical_split` resolved async, the
+   middle column unmounted, the effect re-ran, and its `null` stomped the host TalkPane had
+   just registered — `clinicalSplit=true` but `surfaceHostEl=null`, so `AIAgent` rendered
+   unportaled below the fold. (NOT the double-mount the old handoff blamed; it reproduces
+   from a single component. The `?ff_agent_clinical_split=on` override "worked" only because
+   it skips the stomp.)
+3. **`/api/conversations` 401'd unconditionally** — mounted without `authenticateToken`
+   despite the route file documenting it, so `req.user` was always undefined and the
+   ownership guard rejected everyone, valid session or not. The panel could never render.
+   The "~10x retry spam" was not a retry loop: changing a portal container remounts the
+   subtree, and (2)'s host churn remounted the panel ~10 times, each refetching.
+
+**Do not break:** heuristics must NEVER resolve to an LLM provider — `resolveAgentMode()`
+maps it to `provider: null` and the route must send `'none'`. Never publish a null surface
+host from a dashboard; clearing is the guarded cleanup's job (it clears only its OWN
+element). `/api/conversations` keeps `authenticateToken` and keeps returning 401 for
+genuinely unauthenticated callers (do NOT soften it to 204 — that masks the mount bug and
+weakens an authz boundary). `UserDashboard.js` is SHA256-frozen by a canary test — any
+intentional edit must re-baseline the hash in the same PR.
+
+**Verify:** `cd demo_api_server && npx jest tests/agentRunHeuristicsProvider.test.js
+--testPathIgnorePatterns="/node_modules/"` (6 pass, incl. "heuristics wins even when a stale
+session provider says anthropic"); `cd demo_api_ui && npx vitest run src/components/__tests__
+src/routes` (126 pass, incl. `agentSurfaceHost.regression.test.jsx` which pins both the effect
+ordering and the real dashboard sources); `npm run build` exit 0.
+
+**Known pre-existing failure (NOT from this change):** `tests/langchainConfig.agentMode.test.js`
+→ "GET status returns agent_mode + external_wiring + mode list" fails on a clean tree too —
+the `groq` mode was added to `AGENT_MODES` without updating that test's expected id list.
+
 ### 2026-07-14 — Another user's vertical switch yanked your screen mid-demo
 
 **Files changed:**

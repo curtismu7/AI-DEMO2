@@ -1,3 +1,18 @@
+> **RESOLVED 2026-07-14 — and the root cause below is WRONG.** It was not the
+> double mount. Both dashboards published their middle-column host
+> UNCONDITIONALLY (`setSurfaceHostEl(middleHostEl)` — including when it was
+> `null`). When `ff_agent_clinical_split` resolved asynchronously the middle
+> column unmounted, the effect re-ran, and its `null` stomped the host TalkPane
+> had just registered → `clinicalSplit=true` with `surfaceHostEl=null`, so the
+> agent rendered unportaled below the fold. It reproduces from a SINGLE
+> dashboard component with `ff_customer_skin_ping2026` OFF, so the double mount
+> was a red herring (it only added a second round of the same race). The
+> `?ff_agent_clinical_split=on` override "worked" because it skips the stomp.
+> Fixed by bailing on a null host; see REGRESSION_PLAN §4 (2026-07-14). The
+> `ConversationSummaryPanel` 401 spam noted below was the same stomp remounting
+> the panel through a changing portal container — also fixed.
+> Kept for the history; do not act on the root cause below.
+
 # HANDOFF — Agent hidden under the clinical-split dashboard (2026-07-05)
 
 Status snapshot so the next agent can pick this up without clobbering other

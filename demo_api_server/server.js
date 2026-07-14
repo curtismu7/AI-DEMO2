@@ -1058,7 +1058,11 @@ app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
 app.use('/api/langchain/llamacpp', llamacppModelsRoutes);
-app.use('/api/conversations', conversationRoutes);
+// authenticateToken is REQUIRED here: routes/conversations.js guards ownership on
+// req.user.sub (`me` → your own history, 403 cross-user). Mounted without it,
+// req.user was always undefined, so every request 401'd — even with a valid
+// session — and the summary panel could never render.
+app.use('/api/conversations', authenticateToken, conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
 // Pre-Demo Check — readiness checks for the demo. Any logged-in user.
 const { authenticateToken: authForCheck } = require('./middleware/auth');
