@@ -203,6 +203,42 @@ case "$ACTION" in
     fi
     start_model "$found"
     ;;
+  ensure-set)
+    # ensure-set <port>[,<port>...] — residency primitive: keep EVERY listed tier
+    # loaded and stop the rest. Swap mode's one-tier-at-a-time rule makes the BFF
+    # (phi-4-mini) and the agent (gpt-oss-20b) evict each other; loading both
+    # removes the swap entirely. Costs the sum of the tiers' memory.
+    PORT_CSV="${2:?usage: $0 ensure-set <port>[,<port>...]}"
+    IFS=',' read -r -a WANTED <<< "$PORT_CSV"
+
+    want_port() {
+      local p
+      for p in "${WANTED[@]}"; do
+        [ "${p// /}" = "$1" ] && return 0
+      done
+      return 1
+    }
+
+    # Stop first, so a tier being dropped frees its memory before we load a new one.
+    for model in "${MODELS[@]}"; do
+      IFS=':' read -r port _ _ _ _ <<< "$model"
+      want_port "$port" || stop_model "$model"
+    done
+
+    failed=0
+    for model in "${MODELS[@]}"; do
+      IFS=':' read -r port _ _ _ _ <<< "$model"
+      if want_port "$port"; then
+        start_model "$model" || ((failed++))
+      fi
+    done
+
+    if [ "$failed" -gt 0 ]; then
+      echo "❌ ensure-set: $failed tier(s) failed to load"
+      exit 1
+    fi
+    echo "✅ ensure-set: resident tiers loaded ($PORT_CSV)"
+    ;;
   status)
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔷 LLM Proxy Backend Status"
@@ -215,7 +251,7 @@ case "$ACTION" in
     echo "Logs: $LOG_DIR/llama-*.log"
     ;;
   *)
-    echo "Usage: $0 [start|stop|status|ensure <port>|ensure-available]"
+    echo "Usage: $0 [start|stop|status|ensure <port>|ensure-set <port,port>|ensure-available]"
     exit 1
     ;;
 esac
