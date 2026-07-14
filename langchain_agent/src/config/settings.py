@@ -91,6 +91,11 @@ class LangChainConfig:
     # server's 8080 and this sub-project's own backend port).
     llamacpp_base_url: str = "http://127.0.0.1:8090"
     llamacpp_model: str = "phi-4-mini-instruct"
+    # GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required (billed
+    # cloud service); get_llm() fails fast when it is blank.
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
     # Anthropic credentials — used by both "anthropic" (cloud) and "anthropic-lmstudio" (local).
     # When ANTHROPIC_BASE_URL is set to an LM Studio origin, the "anthropic" provider hits LM Studio
     # instead of api.anthropic.com, letting you demo "Anthropic" using a local model.
@@ -445,6 +450,10 @@ class ConfigManager:
             lmstudio_base_url=get_env_value("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
             llamacpp_base_url=get_env_value("LLAMACPP_BASE_URL", "http://127.0.0.1:8090"),
             llamacpp_model=get_env_value("LLAMACPP_MODEL", "phi-4-mini-instruct"),
+            # GroqCloud — real key required; get_llm() fails fast when blank.
+            groq_base_url=get_env_value("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+            groq_api_key=get_env_value("GROQ_API_KEY", ""),
+            groq_model=get_env_value("GROQ_MODEL", "llama-3.3-70b-versatile"),
             # Anthropic credentials — cloud or LM Studio proxy depending on ANTHROPIC_BASE_URL
             anthropic_api_key=get_env_value("ANTHROPIC_API_KEY", "lm-studio"),
             anthropic_base_url=get_env_value("ANTHROPIC_BASE_URL", ""),

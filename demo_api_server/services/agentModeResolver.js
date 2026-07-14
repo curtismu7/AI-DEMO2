@@ -24,6 +24,7 @@ const AGENT_MODES = [
   { id: 'mlx',          label: 'MLX (Apple)',     provider: 'mlx',       heuristicRouting: false, external: true  },
   { id: 'claude',       label: 'Anthropic only',  provider: 'anthropic', heuristicRouting: false, external: true  },
   { id: 'helix_google', label: 'Helix only',      provider: 'helix',     heuristicRouting: false, external: true  },
+  { id: 'groq',         label: 'Groq only',       provider: 'groq',      heuristicRouting: false, external: true  },
 ];
 
 const DEFAULT_MODE = 'heuristics'; // stable, no-config-safe default (deterministic)

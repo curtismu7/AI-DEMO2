@@ -124,6 +124,11 @@ data:
   # HELIX_API_KEY stays in secrets — see create-secrets.sh inject_helix_api_key.
   LANGCHAIN_LLM_PROVIDER: "helix"
 
+  # GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. GROQ_API_KEY stays in
+  # secrets — see create-secrets.sh mirror_groq_api_key.
+  GROQ_BASE_URL: "https://api.groq.com/openai/v1"
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+
   # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
   # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
   # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.

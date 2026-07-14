@@ -15,6 +15,10 @@ Provider resolution rules (mirrors demo_api_server/services/llmProviderResolver.
                            http://127.0.0.1:8090); we append /v1. Native tool-calling, no API key.
                            Use 127.0.0.1 (not localhost) — clients resolve localhost to ::1 where
                            llama-server isn't bound; Python uses the same default for consistency.
+  - "groq"               → ChatOpenAI pointed at GroqCloud's OpenAI-compatible endpoint
+                           (https://api.groq.com/openai/v1). Real GROQ_API_KEY required —
+                           unlike llamacpp/lmstudio this is a billed cloud API, not a local
+                           dummy-key backend. Fails fast when the key is absent.
   - no provider / unknown → falls back to "none" (heuristic routing)
 
 No other module may inline a provider default.
@@ -39,6 +43,8 @@ def get_llm(
     anthropic_base_url: str = "",
     llamacpp_base_url: str = "http://127.0.0.1:8090",
     llamacpp_model: str = "phi-4-mini-instruct",
+    groq_base_url: str = "https://api.groq.com/openai/v1",
+    groq_model: str = "llama-3.3-70b-versatile",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",
@@ -142,6 +148,28 @@ def get_llm(
             model=resolved_model,
             openai_api_base=base,
             openai_api_key="llama-cpp",  # llama-server ignores the key; any non-empty string works
+            temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
+        )
+
+    if resolved == "groq":
+        # GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real API key required
+        # (billed cloud service; not a local/dummy-key backend like llamacpp/lmstudio).
+        resolved_model = model or groq_model
+        resolved_api_key = api_key or ""
+        if not resolved_api_key:
+            raise ValueError(
+                "Groq provider requires GROQ_API_KEY to be set. "
+                "Set it in the environment or choose another provider via LANGCHAIN_LLM_PROVIDER."
+            )
+        base = groq_base_url.rstrip("/")
+        logger.info("Initializing LLM: provider=groq model=%s url=%s", resolved_model, base)
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=resolved_model,
+            openai_api_base=base,
+            openai_api_key=resolved_api_key,
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,

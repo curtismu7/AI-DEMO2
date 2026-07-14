@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// tier-manager-k8.js — in-cluster swap daemon for the 2-tier LLM stack.
+// tier-manager-k8.js — in-cluster swap daemon for the LLM stack.
 //
-// Mirrors demo_llm_proxy/tier-manager.js but scales llama-tier1 / llama-tier5
-// Deployments instead of running start-local-models.sh on the host. Only one
-// tier runs at a time (swap mode) to stay within namespace memory quota.
+// Mirrors demo_llm_proxy/tier-manager.js but scales llama-tier1 / llama-tier3 /
+// llama-tier5 Deployments instead of running start-local-models.sh on the host.
+// Only one tier runs at a time (swap mode) to stay within namespace memory quota.
 //
-// Requires a ServiceAccount with patch/update on deployments llama-tier1 and
-// llama-tier5 (see k8s/56-llm-stack.yaml).
+// Requires a ServiceAccount with patch/update on deployments llama-tier1,
+// llama-tier3, and llama-tier5 (see k8s/56-llm-stack.yaml).
 
 const http = require('http');
 const { execFile } = require('child_process');
@@ -21,6 +21,7 @@ const ROLLOUT_TIMEOUT = process.env.TIER_ROLLOUT_TIMEOUT || '600s';
 
 const DEPLOYMENTS = {
   8091: 'llama-tier1',
+  8093: 'llama-tier3',
   8096: 'llama-tier5',
 };
 

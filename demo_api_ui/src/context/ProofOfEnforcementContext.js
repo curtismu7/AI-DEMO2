@@ -60,6 +60,7 @@ export function computeVerdict(trace, catalogEntry) {
   const matchedSteps = (evidence.tokenChain || []).filter((step) => {
     if (step === 'authorize-decision') return !!trace.authorize;
     if (step === 'tool-dispatched') return !!trace.mcpResult;
+    if (step === 'token-exchange') return trace.tokenEvents.some((e) => e && e.exchangeStep != null);
     return seenTokenIds.has(step);
   });
   const missingSteps = (evidence.tokenChain || []).filter((s) => !matchedSteps.includes(s));

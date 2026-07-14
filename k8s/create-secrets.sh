@@ -223,6 +223,23 @@ PY
   info "  GOOGLE_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
+# Mirror GROQ_API_KEY from the BFF .env into langchain-secrets so the agent
+# can honor an explicit Groq provider selection (GroqCloud, OpenAI-compatible).
+mirror_groq_api_key() {
+  local bff_env="$ASSET_ROOT/demo_api_server/.env"
+  local groq_key
+  groq_key=$(grep -E '^GROQ_API_KEY=.+' "$bff_env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  if [ -z "$groq_key" ]; then
+    return
+  fi
+  export GROQ_KEY="$groq_key"
+  python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {"GROQ_API_KEY": os.environ["GROQ_KEY"]}}))
+PY
+  info "  GROQ_API_KEY mirrored into langchain-secrets from BFF .env"
+}
+
 # ── Cloud override: redirect URIs must match the public origin ───────────────
 # The BFF .env carries the LOCAL redirect URIs (https://api.ping.demo:4000/...).
 # Shipping them verbatim breaks sign-in on any public deployment: these keys are
@@ -289,6 +306,7 @@ override_redirect_uris_for_public_origin                                    # pu
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
+mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
