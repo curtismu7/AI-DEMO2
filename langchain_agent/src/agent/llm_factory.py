@@ -19,6 +19,9 @@ Provider resolution rules (mirrors demo_api_server/services/llmProviderResolver.
                            (https://api.groq.com/openai/v1). Real GROQ_API_KEY required —
                            unlike llamacpp/lmstudio this is a billed cloud API, not a local
                            dummy-key backend. Fails fast when the key is absent.
+  - "google"             → ChatOpenAI pointed at Gemini's OpenAI-compatible endpoint
+                           (https://generativelanguage.googleapis.com/v1beta/openai/).
+                           Real GOOGLE_API_KEY required. Fails fast when the key is absent.
   - no provider / unknown → falls back to "none" (heuristic routing)
 
 No other module may inline a provider default.
@@ -45,6 +48,8 @@ def get_llm(
     llamacpp_model: str = "phi-4-mini-instruct",
     groq_base_url: str = "https://api.groq.com/openai/v1",
     groq_model: str = "llama-3.3-70b-versatile",
+    google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/",
+    google_model: str = "gemini-2.0-flash",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",
@@ -165,6 +170,28 @@ def get_llm(
             )
         base = groq_base_url.rstrip("/")
         logger.info("Initializing LLM: provider=groq model=%s url=%s", resolved_model, base)
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=resolved_model,
+            openai_api_base=base,
+            openai_api_key=resolved_api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
+        )
+
+    if resolved == "google":
+        # Gemini — OpenAI-compatible /v1beta/openai/ endpoint. Real API key
+        # required (billed cloud service; not a local/dummy-key backend).
+        resolved_model = model or google_model
+        resolved_api_key = api_key or ""
+        if not resolved_api_key:
+            raise ValueError(
+                "Google provider requires GOOGLE_API_KEY to be set. "
+                "Set it in the environment or choose another provider via LANGCHAIN_LLM_PROVIDER."
+            )
+        base = google_base_url.rstrip("/")
+        logger.info("Initializing LLM: provider=google model=%s url=%s", resolved_model, base)
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=resolved_model,

@@ -129,6 +129,11 @@ data:
   GROQ_BASE_URL: "https://api.groq.com/openai/v1"
   GROQ_MODEL: "llama-3.3-70b-versatile"
 
+  # Gemini — OpenAI-compatible /v1beta/openai/ endpoint. GOOGLE_API_KEY stays
+  # in secrets — see create-secrets.sh mirror_google_api_key.
+  GOOGLE_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  GOOGLE_MODEL: "gemini-2.0-flash"
+
   # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
   # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
   # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.

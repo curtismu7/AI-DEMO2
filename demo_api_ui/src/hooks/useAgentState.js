@@ -124,15 +124,22 @@ export function useAgentState() {
 
       case 'TEXT_MESSAGE_CONTENT':
         if (streamingMessageRef.current && event.messageId === streamingMessageRef.current.id) {
-          streamingMessageRef.current = {
+          // Capture the updated message locally — same reasoning as
+          // TEXT_MESSAGE_START. When events arrive back-to-back with no real
+          // delay (e.g. a non-streaming provider whose full reply is emitted
+          // as a single START/CONTENT/END burst), a following event's ref
+          // mutation can run before React executes this updater; reading the
+          // ref inside the updater would then push a stale or null value.
+          const updatedMessage = {
             ...streamingMessageRef.current,
             content: streamingMessageRef.current.content + (event.delta || ''),
           };
+          streamingMessageRef.current = updatedMessage;
           setState((prev) => {
             const msgs = [...prev.messages];
             const idx = msgs.findIndex((m) => m && m.id === event.messageId);
             if (idx !== -1) {
-              msgs[idx] = { ...streamingMessageRef.current };
+              msgs[idx] = updatedMessage;
             }
             return { ...prev, messages: msgs };
           });
@@ -141,16 +148,17 @@ export function useAgentState() {
 
       case 'TEXT_MESSAGE_END':
         if (streamingMessageRef.current && event.messageId === streamingMessageRef.current.id) {
-          streamingMessageRef.current = {
+          // Same local-capture reasoning as TEXT_MESSAGE_START/CONTENT.
+          const finishedMessage = {
             ...streamingMessageRef.current,
             streaming: false,
           };
-          tokenChainTraceStore.ingestLlmReply(streamingMessageRef.current.content);
+          tokenChainTraceStore.ingestLlmReply(finishedMessage.content);
           setState((prev) => {
             const msgs = [...prev.messages];
             const idx = msgs.findIndex((m) => m && m.id === event.messageId);
             if (idx !== -1) {
-              msgs[idx] = { ...streamingMessageRef.current };
+              msgs[idx] = finishedMessage;
             }
             return { ...prev, messages: msgs };
           });
