@@ -1,8 +1,9 @@
-# 2-tier in-cluster LLM stack (Phase 2 K8 parity with Docker llm-proxy).
+# In-cluster LLM stack (Phase 2 K8 parity with Docker llm-proxy).
 #
 # Swap mode: only ONE llama-server tier runs at a time. tier-manager scales
-# llama-tier1 (:8091, Phi-4-mini) vs llama-tier5 (:8096, gpt-oss-20b) on
-# demand; llm-proxy (:8090) routes agent/BFF traffic and triggers swaps.
+# llama-tier1 (:8091, Phi-4-mini), llama-tier3 (:8093, Llama-3-Groq-8B-Tool-Use
+# — experimental), or llama-tier5 (:8096, gpt-oss-20b) on demand; llm-proxy
+# (:8090) routes agent/BFF traffic and triggers swaps.
 #
 # Consumers use LLAMACPP_BASE_URL=http://llm-proxy:8090 (configmap).
 # Replaces the legacy single-model llamacpp Deployment (55-llamacpp).
@@ -39,7 +40,7 @@ metadata:
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "deployments/scale"]
-    resourceNames: ["llama-tier1", "llama-tier5"]
+    resourceNames: ["llama-tier1", "llama-tier3", "llama-tier5"]
     verbs: ["get", "list", "watch", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -150,6 +151,102 @@ spec:
   selector:
     app: ai-demo
     component: llama-tier1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-tier3
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier3
+spec:
+  # 0: tiers swap on a shared RWO model volume; llama-tier3 is an experimental
+  # evaluation tier (Llama-3-Groq-8B-Tool-Use) — scaled up only for A/B testing
+  # against the pinned llama-tier5 (gpt-oss-20b), never the default.
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: llama-tier3
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: llama-tier3
+    spec:
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8093"
+            - "--ctx-size"
+            - "4096"
+            - "--parallel"
+            - "1"
+            - "--jinja"
+            # HuggingFace GGUF download into PVC cache (SE/AWS has no hostPath).
+            - "-hf"
+            - "bartowski/Llama-3-Groq-8B-Tool-Use-GGUF:Q4_K_M"
+          ports:
+            - containerPort: 8093
+              name: http
+          volumeMounts:
+            - name: models
+              mountPath: /root/.cache/llama.cpp
+          resources:
+            requests:
+              memory: "3Gi"
+              cpu: "500m"
+            limits:
+              memory: "7Gi"
+              cpu: "2500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8093
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8093
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llm-models
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-tier3
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: llama-tier3
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8093
+      targetPort: 8093
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-demo
+    component: llama-tier3
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -363,6 +460,8 @@ spec:
               value: "http://tier-manager:8097"
             - name: LLAMA_TIER1_HOST
               value: "llama-tier1"
+            - name: LLAMA_TIER3_HOST
+              value: "llama-tier3"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
             # Pin to :8096 (gpt-oss-20b). The tiers swap (shared RWO model

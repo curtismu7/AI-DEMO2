@@ -24,15 +24,23 @@ const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unl
 const IDLE_DECAY_MS = parseInt(process.env.LLM_PROXY_IDLE_DECAY_MS || '300000', 10); // 5 min
 const PIN_TIER_PORT = parseInt(process.env.LLM_PROXY_PIN_TIER || '', 10);
 
-// Two tiers only (US-origin): small (Phi-4-mini, :8091) and big (gpt-oss-20b,
-// :8096). Names/sizes MUST match the processes start-local-models.sh launches
-// on each port. health/load/lastCheck live on the tier object itself.
+// Three tiers (US-origin): small (Phi-4-mini, :8091), big (gpt-oss-20b, :8096),
+// and an experimental mid-size tool-calling tier (Llama-3-Groq-8B-Tool-Use,
+// :8093) appended LAST (class 2) so it never changes the existing class-0/
+// class-1 routing for phi-4-mini/gpt-oss — it is reached only via an explicit
+// LLM_PROXY_PIN_TIER=8093 for evaluation, not by keyword classification.
+// Names/sizes MUST match the processes start-local-models.sh launches on each
+// port. health/load/lastCheck live on the tier object itself.
 const TIERS = [
   { name: 'phi-4-mini-instruct', port: 8091, size: '3.8B', host: tierHost('LLAMA_TIER1_HOST') },
   // gpt-oss-20b: complex technical/reasoning prompts and any agent that pins
   // model=gpt-oss-20b. MoE (~3.6B active params), so fast despite the size.
   // On :8096 because mcp-code-search publishes :8095.
   { name: 'gpt-oss-20b',         port: 8096, size: '20B',  host: tierHost('LLAMA_TIER5_HOST') },
+  // Experimental — evaluating as a faster tool-calling alternative to gpt-oss-20b
+  // on CPU-only nodes. Groq itself deprecated this model's hosted-API preview in
+  // favor of larger models, so treat tool-call reliability as unproven here too.
+  { name: 'llama-3-groq-8b-tool-use', port: 8093, size: '8B', host: tierHost('LLAMA_TIER3_HOST') },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
 const PIN_TIER_INDEX = Number.isFinite(PIN_TIER_PORT) && PIN_TIER_PORT > 0
@@ -56,6 +64,7 @@ function effectiveClass(cls) {
 const MODEL_CLASS = [
   [/phi-4-mini|gemma-3-4b/, 0], // legacy gemma-3-4b pin still routes to small
   [/gpt-oss/, 1],
+  [/llama-3-groq|groq-tool-use/, 2], // experimental — see TIERS comment above
 ];
 
 function classFromModel(model) {
