@@ -83,6 +83,67 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-14 — Another user's vertical switch yanked your screen mid-demo
+
+**Files changed:**
+- `demo_api_server/routes/verticalManifest.js` — `GET /me` pins the resolved
+  vertical onto the session (`req.session.active_vertical`) on first hydration,
+  if the session has no preference yet.
+
+**What was broken:** the READ path was session-scoped, but only for sessions that
+had explicitly switched. `setActive()` writes the process-GLOBAL active vertical
+and SSE-broadcasts `vertical-switched` to every connected client; each client then
+refetches `/me`. A session that never pinned a vertical fell back to that global on
+every read — so when any other user (shared AWS demo) switched verticals, unpinned
+sessions followed them to Great Buy / CareConnect / etc. mid-demo.
+
+**What was fixed:** first `/me` pins the vertical to the session, making the global
+a first-load DEFAULT rather than a live channel between sessions. Fresh sessions
+still inherit the global (admin's demo default still governs new loads); already-open
+sessions can no longer be moved by anyone else.
+
+**Do not break:** the pin must not overwrite an existing `req.session.active_vertical`
+(an explicit user switch wins), must tolerate a missing `req.session`, and stays
+fire-and-forget on save (a failed save just re-pins next `/me` — never 500 a read).
+A forced global re-theme (e.g. Reset Demo) must explicitly CLEAR the session pin;
+it can no longer rely on the global-fallback side effect.
+
+**Verify:** `cd demo_api_server && npx jest tests/verticalSessionPin.route.test.js
+--testPathIgnorePatterns="/node_modules/"` (5 pass, incl. "another session switching
+the global does NOT move a pinned session"); full vertical surface
+`npx jest tests/vertical tests/verticals --testPathIgnorePatterns="/node_modules/"`
+(17 suites, 204 pass).
+
+### 2026-07-14 — Duplicate side nav on every AppShell route (two sidebars stacked)
+
+**Files changed:**
+- `demo_api_ui/src/routes/sideNavOwner.js` (new) — single source of truth for which
+  layer renders `<AdminSideNav>`: `appRendersSideNav()` (App.js owns it) and its
+  complement `shellRendersSideNav()` (AppShell fills the gap).
+- `demo_api_ui/src/routes/AppShell.js` — renders `<AdminSideNav>` only when App.js
+  does not.
+- `demo_api_ui/src/App.js` — side-nav condition now calls `appRendersSideNav()`;
+  the orphaned `isHomePage` local is gone (`isApiTrafficOnlyPage` still drives the
+  other chrome opt-outs and is unchanged).
+
+**What was broken:** App.js rendered a global `<AdminSideNav>` for signed-in users
+(`user && !isApiTrafficOnlyPage && !isHomePage`) AND `AppShell` rendered its own
+unconditionally. Every AppShell-wrapped route (`/use-cases`, `/oauth-academy`,
+`/code-search`, `/mcp-inspector`, …) therefore painted two identical sidebars on
+top of each other — the second one intercepted pointer events, so nav clicks landed
+on the wrong tree.
+
+**Do not break:** the no-chrome routes (`/api-traffic`, `/logs`) DO use AppShell
+while App.js suppresses its global nav for them — AppShell must keep supplying
+their sidebar. Same for any AppShell route viewed logged-out. Exactly one layer
+renders the side nav for any (route, user); never delete AppShell's copy outright.
+`AdminSideNav.jsx` itself is untouched (its expansion-state-by-key invariant stands).
+
+**Verify:** `cd demo_api_ui && npx vitest run src/routes/__tests__/sideNavOwner.test.js`
+(12 pass — pins "never both" across signed-in, logged-out, and no-chrome routes),
+plus `npx vitest run src/__tests__/App.structure.test.js src/__tests__/uiRegression.test.js
+src/components/__tests__/adminSideNav.test.jsx` (82 pass) and `npm run build` exit 0.
+
 ### 2026-07-12 — Chat-driven transfer used wrong tool name, bypassing amount-aware HITL step-up
 
 **Files changed:** `demo_api_server/config/verticals/banking/index.js`,

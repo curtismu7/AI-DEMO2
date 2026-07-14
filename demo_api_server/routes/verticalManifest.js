@@ -35,6 +35,16 @@ function requireValidId(req, res, next) {
 
 router.get('/me', requireSession, (req, res) => {
   const scope = verticalManifest.scope.resolveForRequest(req);
+  // Pin the vertical to THIS session on first hydration. Without a pin,
+  // activeIdFor() falls back to the process-global forever, so any other
+  // session switching verticals (setActive → global + SSE broadcast to every
+  // client) yanked this screen to their vertical mid-demo. Pinning once makes
+  // the global a first-load default instead of a live channel between sessions.
+  // Fire-and-forget: a failed save just means we re-pin on the next /me.
+  if (scope && scope.activeId && req.session && !req.session.active_vertical) {
+    req.session.active_vertical = scope.activeId;
+    if (typeof req.session.save === 'function') req.session.save(() => {});
+  }
   // Overlay per-vertical theme-zone overrides (set via /api/admin/vertical-themes).
   // resolveForRequest returns a structuredClone, so mutating cssVars is safe.
   // Blind merge — zone semantics live in the frontend registry (themeZones.js).
