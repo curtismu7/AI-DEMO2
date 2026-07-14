@@ -83,6 +83,36 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-14 — Duplicate side nav on every AppShell route (two sidebars stacked)
+
+**Files changed:**
+- `demo_api_ui/src/routes/sideNavOwner.js` (new) — single source of truth for which
+  layer renders `<AdminSideNav>`: `appRendersSideNav()` (App.js owns it) and its
+  complement `shellRendersSideNav()` (AppShell fills the gap).
+- `demo_api_ui/src/routes/AppShell.js` — renders `<AdminSideNav>` only when App.js
+  does not.
+- `demo_api_ui/src/App.js` — side-nav condition now calls `appRendersSideNav()`;
+  the orphaned `isHomePage` local is gone (`isApiTrafficOnlyPage` still drives the
+  other chrome opt-outs and is unchanged).
+
+**What was broken:** App.js rendered a global `<AdminSideNav>` for signed-in users
+(`user && !isApiTrafficOnlyPage && !isHomePage`) AND `AppShell` rendered its own
+unconditionally. Every AppShell-wrapped route (`/use-cases`, `/oauth-academy`,
+`/code-search`, `/mcp-inspector`, …) therefore painted two identical sidebars on
+top of each other — the second one intercepted pointer events, so nav clicks landed
+on the wrong tree.
+
+**Do not break:** the no-chrome routes (`/api-traffic`, `/logs`) DO use AppShell
+while App.js suppresses its global nav for them — AppShell must keep supplying
+their sidebar. Same for any AppShell route viewed logged-out. Exactly one layer
+renders the side nav for any (route, user); never delete AppShell's copy outright.
+`AdminSideNav.jsx` itself is untouched (its expansion-state-by-key invariant stands).
+
+**Verify:** `cd demo_api_ui && npx vitest run src/routes/__tests__/sideNavOwner.test.js`
+(12 pass — pins "never both" across signed-in, logged-out, and no-chrome routes),
+plus `npx vitest run src/__tests__/App.structure.test.js src/__tests__/uiRegression.test.js
+src/components/__tests__/adminSideNav.test.jsx` (82 pass) and `npm run build` exit 0.
+
 ### 2026-07-12 — Chat-driven transfer used wrong tool name, bypassing amount-aware HITL step-up
 
 **Files changed:** `demo_api_server/config/verticals/banking/index.js`,

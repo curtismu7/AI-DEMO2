@@ -15,6 +15,7 @@ import Accounts from "./components/Accounts";
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
 import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
+import { appRendersSideNav } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
@@ -244,9 +245,8 @@ function AppWithAuth() {
   const backgroundLocation = fullLocation.state?.backgroundLocation;
   const { pathname } = useLocation();
   const pathNorm = pathname.replace(/\/$/, "") || "/";
-  // Home route hosts LandingPage (non-admin) / Dashboard (admin) full-bleed
-  // layouts — neither wants the side nav.
-  const isHomePage = pathNorm === "/";
+  // Side-nav ownership (home + no-chrome routes opt out) lives in
+  // routes/sideNavOwner.js so AppShell can't render a second one.
   const isApiTrafficOnlyPage =
     pathNorm === "/api-traffic" ||
     pathNorm === "/logs" ||
@@ -415,7 +415,7 @@ function AppWithAuth() {
                   onDismiss={() => setSessionReauth(null)}
                 />
               )}
-              {user && !isApiTrafficOnlyPage && !isHomePage && (
+              {appRendersSideNav({ pathname, user }) && (
                 <AdminSideNav user={user} />
               )}
               <Routes>
