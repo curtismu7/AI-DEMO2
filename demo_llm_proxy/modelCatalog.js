@@ -1,8 +1,13 @@
 // demo_llm_proxy/modelCatalog.js — single source of truth for local LLM tier GGUFs.
 // Consumed by start-local-models.sh (via Node helpers), BFF download UI, and router pins.
 //
-// Two tiers only (US-origin):
+// Three tiers (US-origin):
 //   Tier 1 — Microsoft Phi-4-mini-instruct (3.8B): small/teaching/classification.
+//   Tier 3 — Meta/Groq Llama-3-Groq-8B-Tool-Use (8B): experimental mid-size
+//     tool-calling option — being evaluated as a faster alternative to Tier 5
+//     for agent tool loops; Groq itself deprecated this model's hosted-API
+//     preview in favor of larger models, so treat its tool-call reliability
+//     as unproven until tested against this app's real tool schemas.
 //   Tier 5 — OpenAI gpt-oss-20b (20B MoE): vibe coding / reasoning / agent brain.
 
 const fs = require('fs');
@@ -21,6 +26,15 @@ const TIERS = [
     label: 'Phi-4-mini-instruct (3.8B) — small, fast, US-origin',
     repo: 'bartowski/microsoft_Phi-4-mini-instruct-GGUF',
     sizeBytes: 2_490_000_000,
+  },
+  {
+    tier: 3,
+    port: 8093,
+    pinName: 'llama-3-groq-8b-tool-use',
+    file: 'Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf',
+    label: 'Llama-3-Groq-8B-Tool-Use (8B) — experimental, tool-calling, US-origin',
+    repo: 'bartowski/Llama-3-Groq-8B-Tool-Use-GGUF',
+    sizeBytes: 4_920_000_000,
   },
   {
     tier: 5,

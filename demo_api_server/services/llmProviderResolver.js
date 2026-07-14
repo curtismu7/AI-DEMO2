@@ -17,7 +17,7 @@
  * No other module may inline a provider default.
  *
  * @param {{ provider?: string, model?: string }} langchainConfig
- * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock', model: string|undefined }}
+ * @returns {{ provider: 'helix'|'openai'|'anthropic'|'google'|'anthropic-lmstudio'|'llamacpp'|'mlx'|'bedrock'|'groq', model: string|undefined }}
  */
 const { isBedrockLlmEffective } = require('./bedrockPathGate');
 
@@ -51,6 +51,12 @@ function resolveLlmProvider(langchainConfig = {}) {
   if (requested === 'mlx') {
     // Apple mlx-lm demo server — OpenAI-compatible /v1 on MLX_LM_BASE_URL (:8098).
     return { provider: 'mlx', model };
+  }
+
+  if (requested === 'groq') {
+    // GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required;
+    // langchain_agent's get_llm() fails fast when GROQ_API_KEY is absent.
+    return { provider: 'groq', model };
   }
 
   if (requested === 'helix') return { provider: 'helix', model };

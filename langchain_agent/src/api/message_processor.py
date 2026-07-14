@@ -805,12 +805,14 @@ class MessageProcessor:
         _CLAUDE_PROVIDERS = frozenset(["anthropic"])
         _LLAMACPP_PROVIDERS = frozenset(["llamacpp"])
         _HELIX_PROVIDERS = frozenset(["helix"])
+        _GROQ_PROVIDERS = frozenset(["groq"])
         run_llm = self.agent.llm
         # True once a per-run provider actually produced its own LLM, so the MCP
         # graph path below knows to rebuild instead of reusing the startup graph.
         run_llm_overridden = False
         if run_provider and (run_provider in _LMSTUDIO_PROVIDERS or run_provider in _CLAUDE_PROVIDERS
-                             or run_provider in _LLAMACPP_PROVIDERS or run_provider in _HELIX_PROVIDERS):
+                             or run_provider in _LLAMACPP_PROVIDERS or run_provider in _HELIX_PROVIDERS
+                             or run_provider in _GROQ_PROVIDERS):
             try:
                 from agent.llm_factory import get_llm
                 import os
@@ -849,6 +851,18 @@ class MessageProcessor:
                         helix_environment_id=getattr(lc, "helix_environment_id", ""),
                         helix_agent_id=getattr(lc, "helix_agent_id", ""),
                         helix_prompt_field_id=getattr(lc, "helix_prompt_field_id", ""),
+                    )
+                elif run_provider in _GROQ_PROVIDERS:
+                    # GroqCloud — real key required (billed cloud API); no env
+                    # fallback default, get_llm() raises if unset.
+                    run_llm = get_llm(
+                        provider="groq",
+                        model=run_model or getattr(lc, "groq_model", None) or None,
+                        api_key=getattr(lc, "groq_api_key", "") or os.environ.get("GROQ_API_KEY", ""),
+                        temperature=lc.temperature,
+                        max_tokens=lc.max_tokens,
+                        streaming=bool(getattr(lc, "stream_llm_tokens", True)),
+                        groq_base_url=getattr(lc, "groq_base_url", "https://api.groq.com/openai/v1"),
                     )
                 else:
                     # anthropic — use real Anthropic API key from env
