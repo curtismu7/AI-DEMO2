@@ -94,3 +94,11 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 
 # evidence screenshots/results from the real e2e evidence + use-case suites (never commit)
 /demo_api_ui/evidence/
+
+# Loose LLM/provider API-key scratch files kept in the repo root (never commit).
+# Real keys belong in the gitignored service .env files; these are the ad-hoc
+# notes people paste them into first.
+/claude-switch-keys.txt
+*-keys.txt
+*.key
+
