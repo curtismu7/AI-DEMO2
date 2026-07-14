@@ -15,9 +15,9 @@ const settings = {
   stepUpAcrValue: process.env.STEP_UP_ACR_VALUE || 'Multi_Factor',
   // RFC 9470 freshness: require auth_time within this many seconds (0 = disabled)
   stepUpMaxAge: parseFloat(process.env.STEP_UP_MAX_AGE) || 0,
-  // Default OFF — must match the step_up_enabled configStore default; the
-  // boot seed (server.js) only overrides this when a value is persisted.
-  stepUpEnabled: false,
+  // Default ON to match the feature flag registry default for step_up_enabled.
+  // The boot seed (server.js) overrides this when a persisted value exists.
+  stepUpEnabled: true,
   // Step-up method: 'ciba' (back-channel challenge) or 'email' (OIDC re-auth redirect)
   stepUpMethod: process.env.STEP_UP_METHOD || 'email',
 
