@@ -1039,6 +1039,17 @@ class MessageProcessor:
 
             elif event_name == "on_chat_model_end":
                 output = event_data.get("output")
+                # Some providers (e.g. ChatHelix, whose API is poll-based, not
+                # SSE) never emit on_chat_model_stream chunks, so llm_streaming
+                # stays False and the visible chat bubble is never created —
+                # the final text only reaches on_llm_detail (debug panel), not
+                # the user. Surface it here as a single-shot message instead.
+                if not llm_streaming and output is not None:
+                    final_text = _content_to_text(getattr(output, "content", ""))
+                    if final_text:
+                        await emitter.on_llm_start()
+                        await emitter.on_llm_new_token(final_text)
+                        await emitter.on_llm_end()
                 if output and (usage := getattr(output, "usage_metadata", None)):
                     # usage_metadata is a TypedDict (plain dict at runtime), so
                     # attribute access always yields the default 0 — read keys.
