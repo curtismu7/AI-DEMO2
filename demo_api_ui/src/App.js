@@ -116,7 +116,6 @@ import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
-import PrivilegeDemoPage from "./pages/PrivilegeDemoPage";
 import PingCliPage from "./components/PingCliPage";
 import PingAiTestLabPage from "./components/PingAiTestLabPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
@@ -145,6 +144,7 @@ import PublicRoutes, {
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
+  PrivilegeDemoPageRoute,
   PingOneSetupPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
@@ -596,7 +596,12 @@ function AppWithAuth() {
                   path="/onboarding"
                   element={<OnboardingRoute user={user} />}
                 />
-                <Route path="/privilege-demo" element={<PrivilegeDemoPage />} />
+                <Route
+                  path="/privilege-demo"
+                  element={
+                    <PrivilegeDemoPageRoute user={user} logout={logout} />
+                  }
+                />
                 <Route
                   path="/snapshot-import"
                   element={

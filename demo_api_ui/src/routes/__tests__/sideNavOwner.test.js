@@ -13,6 +13,7 @@ describe("side-nav ownership", () => {
     // [pathname, user, who should own it]
     ["/use-cases", user, "app"], // was the visible double-sidebar bug
     ["/oauth-academy", user, "app"],
+    ["/privilege-demo", user, "app"],
     ["/dashboard", user, "app"],
     ["/learning/", user, "app"], // trailing slash normalizes
     ["/api-traffic", user, "shell"], // no-chrome route: App.js opts out
