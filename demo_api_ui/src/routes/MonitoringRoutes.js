@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
+import ActivityLogPage from "../components/ActivityLogPage";
 import ActivityLogs from "../components/ActivityLogs";
 import ApiExplorerPanel from "../components/ApiExplorerPanel";
 import ApiTrafficPage from "../components/ApiTrafficPage";
@@ -30,7 +31,9 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             ? <AgentFlowPage />
             : <Navigate to="/" replace />
         } />
-        <Route path="activity-log" element={<ActivityLogs user={user} onLogout={logout} />} />
+        {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
+        <Route path="activity-log" element={<ActivityLogPage />} />
+        <Route path="api-activity" element={<ActivityLogs user={user} onLogout={logout} />} />
       </Routes>
     </AppShell>
   );

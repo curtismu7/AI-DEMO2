@@ -182,7 +182,7 @@ export default function ActivityLogPanel({ enabled }) {
           <div className="alp-empty">
             {isPaused
               ? 'Paused — resume to see new events'
-              : 'Waiting for events…'}
+              : 'No events yet. Recent activity loads on open; new events appear live.'}
           </div>
         ) : (
           events.map((event) => (
