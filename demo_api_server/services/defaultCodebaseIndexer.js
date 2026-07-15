@@ -53,12 +53,14 @@ const IGNORE_DIR = new Set([
   '__tests__', '__mocks__', 'tests', 'test',
 ]);
 const IGNORE_FILE_RE = /(^|\/)(\.env(\..*)?|.*\.min\.(js|css)|package-lock\.json|yarn\.lock|.*\.pem|.*\.key|.*\.p12|.*\.crt)$/i;
+// Drop CSS/assets from the default walk — giant stylesheets dominate the
+// SE embedder queue and starve the searchable .js/.ts logic.
 const ALLOW_EXT = new Set([
-  '.js', '.jsx', '.ts', '.tsx', '.py', '.json', '.md', '.css', '.scss',
-  '.yml', '.yaml', '.sh', '.go', '.java', '.rb', '.rs', '.txt', '.html',
+  '.js', '.jsx', '.ts', '.tsx', '.py', '.json',
+  '.yml', '.yaml', '.sh', '.go', '.java', '.rb', '.rs',
 ]);
 
-const MAX_FILE_BYTES = 256 * 1024;
+const MAX_FILE_BYTES = 48 * 1024;
 /** Per-piece file cap. SE CPU embedder can't finish thousands in a demo window. */
 const MAX_FILES_PER_PIECE = Number(process.env.CODE_SEARCH_MAX_FILES_PER_PIECE) || 100;
 
@@ -74,16 +76,6 @@ function walk(absDir, repoRoot, acc, skipped) {
   try { entries = fs.readdirSync(absDir, { withFileTypes: true }); }
   catch { return; }
   for (const e of entries) {
-    if (acc.length >= skipped.maxFiles) {
-      skipped.count++;
-      if (!skipped.capWarned) {
-        skipped.capWarned = true;
-        console.warn(
-          `[default-index] file cap (${skipped.maxFiles}) reached; indexing truncated`
-        );
-      }
-      return;
-    }
     const abs = path.join(absDir, e.name);
     const rel = path.relative(repoRoot, abs).split(path.sep).join('/');
     if (e.isDirectory()) {
@@ -104,19 +96,28 @@ function walk(absDir, repoRoot, acc, skipped) {
 
 /**
  * Pure: collect first-party source files under repoRoot for the given roots
- * (defaults to all piece roots).
+ * (defaults to all piece roots). Smallest files first so the per-piece cap
+ * is filled with searchable logic rather than giant CSS/bundle sources.
  * @param {string} repoRoot
  * @param {string[]} [roots]
  */
 function collectFiles(repoRoot, roots = SOURCE_ROOTS) {
   const acc = [];
-  const skipped = { count: 0, maxFiles: MAX_FILES_PER_PIECE };
+  const skipped = { count: 0 };
   for (const root of roots) {
     const abs = path.join(repoRoot, root);
     if (fs.existsSync(abs)) walk(abs, repoRoot, acc, skipped);
   }
-  acc._skipped = skipped.count;
-  return acc;
+  acc.sort((a, b) => a.content.length - b.content.length);
+  const capped = acc.slice(0, MAX_FILES_PER_PIECE);
+  if (acc.length > capped.length) {
+    skipped.count += acc.length - capped.length;
+    console.warn(
+      `[default-index] file cap (${MAX_FILES_PER_PIECE}) reached; indexing truncated`
+    );
+  }
+  capped._skipped = skipped.count;
+  return capped;
 }
 
 /**
