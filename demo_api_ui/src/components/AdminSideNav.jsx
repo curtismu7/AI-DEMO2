@@ -145,8 +145,8 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
-  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/mcp-tools"] },
-  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab", "/mcp-tools"] },
+  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -469,11 +469,6 @@ export default function AdminSideNav({ user }) {
             window.location.href = "/pingone-mcp-tools.html";
           },
           icon: "tool",
-        },
-        {
-          label: "PingOne MCP Catalog",
-          path: "/mcp-tools",
-          icon: "ref",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
       ],

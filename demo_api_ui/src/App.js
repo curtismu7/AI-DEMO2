@@ -58,7 +58,6 @@ import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LogViewer from "./components/LogViewer";
-import { MCPToolsEducation } from "./components/MCPToolsEducation";
 import McpInspector from "./components/McpInspector";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
@@ -1020,7 +1019,7 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/mcp-tools"
-                              element={<MCPToolsEducation />}
+                              element={<Navigate to="/mcp-inspector" replace />}
                             />
                             <Route
                               path="/agent-builder"
