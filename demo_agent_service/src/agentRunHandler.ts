@@ -244,8 +244,9 @@ function secretsMatch(a: string, b: string): boolean {
     const ab = Buffer.from(a);
     const bb = Buffer.from(b);
     if (ab.length !== bb.length) {
-      // Use expected-secret length for dummy comparison to avoid leaking secret length via timing.
-      timingSafeEqual(Buffer.alloc(bb.length), Buffer.alloc(bb.length));
+      // Dummy comparison using the INCOMING guess length (ab) so an attacker
+      // cannot infer the secret's length from timing differences.
+      timingSafeEqual(Buffer.alloc(ab.length), Buffer.alloc(ab.length));
       return false;
     }
     return timingSafeEqual(ab, bb);

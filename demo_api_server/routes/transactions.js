@@ -415,28 +415,31 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'amount_exceeds_limit', message: 'Transaction amount cannot exceed $1,000,000.' });
     }
 
+    // Round to 2 decimal places BEFORE any limit comparisons to prevent
+    // floating-point manipulation bypassing thresholds.
+    const roundedAmount = roundToCents(parsedAmount);
+    amount = roundedAmount;
+    req.body.amount = roundedAmount;
+
     // ── Hard transaction limit gate ──────────────────────────────────────
     // Block ALL transactions exceeding the absolute maximum (applies to all user types)
     const MAX_TRANSACTION_AMOUNT = parseFloat(configStore.getEffective('max_transaction_amount')) || 1000;
-    if (parseFloat(amount) > MAX_TRANSACTION_AMOUNT) {
+    if (roundedAmount > MAX_TRANSACTION_AMOUNT) {
       // Also check if the source account has insufficient funds, so the error message can surface both reasons.
       let insufficientFundsAlso = false;
       if (fromAccountId && (type === 'withdrawal' || type === 'transfer')) {
         const srcAccount = dataStore.getAccountById(fromAccountId);
-        if (srcAccount && srcAccount.balance < parseFloat(amount)) insufficientFundsAlso = true;
+        if (srcAccount && srcAccount.balance < roundedAmount) insufficientFundsAlso = true;
       }
       return res.status(400).json({
         error: 'amount_exceeds_hard_limit',
         message: `Transaction amount cannot exceed $${MAX_TRANSACTION_AMOUNT}.`,
         limit: MAX_TRANSACTION_AMOUNT,
-        amount: parseFloat(amount),
+        amount: roundedAmount,
         insufficient_funds_also: insufficientFundsAlso,
       });
     }
     // ── End hard limit gate ──────────────────────────────────────────────
-
-        // Round to 2 decimal places to prevent floating-point manipulation
-    req.body.amount = roundToCents(parsedAmount);
 
     const performingUser = dataStore.getUserById(req.user.id);
     const performedByName = performingUser ? `${performingUser.firstName} ${performingUser.lastName}` : req.user.username;

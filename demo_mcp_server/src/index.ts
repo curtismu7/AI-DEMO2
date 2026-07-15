@@ -184,12 +184,18 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  shutdown('uncaughtException');
+  shutdown('uncaughtException').catch((err) => {
+    console.error('Shutdown failed after uncaughtException:', err);
+    process.exit(1);
+  });
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  shutdown('unhandledRejection');
+  shutdown('unhandledRejection').catch((err) => {
+    console.error('Shutdown failed after unhandledRejection:', err);
+    process.exit(1);
+  });
 });
 
 if (require.main === module) {
