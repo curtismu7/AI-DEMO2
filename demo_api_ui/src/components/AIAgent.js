@@ -3747,12 +3747,14 @@ export default function BankingAgent({
   normalized.debug_mcp_stepup_handler: ${normalized.debug_mcp_stepup_handler}
   full normalized: ${JSON.stringify(normalized)}`);
 
-        const consent = normalized.error === "hitl_required";
+        const consent =
+          normalized.error === "hitl_required" ||
+          normalized.error === "mcp_hitl_required";
 
         console.log(`[DEBUG-FRONTEND-DECISION]  DECISION POINT:
   consent=${consent}
   will show consent modal: ${consent}
-  will show stepup modal: ${!consent && (normalized.step_up_required === true || normalized.error === "step_up_required")}`);
+  will show stepup modal: ${!consent && (normalized.step_up_required === true || normalized.error === "step_up_required" || normalized.error === "mcp_step_up_required")}`);
 
         if (consent) {
           try {
@@ -5506,9 +5508,18 @@ export default function BankingAgent({
           // (Earlier this only fired on hitl_required + requiresConsent, so
           // step-up tools like healthcare release_records printed the text but
           // never opened the modal.)
-          if (response.error === 'hitl_required' || response.error === 'step_up_required') {
+          if (
+            response.error === 'hitl_required' ||
+            response.error === 'mcp_hitl_required' ||
+            response.error === 'step_up_required' ||
+            response.error === 'mcp_step_up_required'
+          ) {
             const actionLabel = (response.action || result.action || '').replace(/_/g, ' ');
-            const isStepUp = response.error === 'step_up_required' || !!response.requiresStepUp || !!response.step_up_required;
+            const isStepUp =
+              response.error === 'step_up_required' ||
+              response.error === 'mcp_step_up_required' ||
+              !!response.requiresStepUp ||
+              !!response.step_up_required;
             setHitlPendingIntent({
               isVerticalConsent: true,
               verticalMessage: agentMessage,

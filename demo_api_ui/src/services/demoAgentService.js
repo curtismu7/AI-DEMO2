@@ -380,35 +380,37 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
 
       // Proof-of-enforcement + TraceRail: block outcomes (step-up / HITL / deny)
       // carry mcpAuthorizeEvaluation on the 4xx body. Success-path ingest below
-      // never ran, so UC7 step-up 428 left authorize ✗ / ProofStrip Incomplete.
+      // never ran, so UC7/UC8 428 left authorize missing / ProofStrip Incomplete.
       if (err.mcpAuthorizeEvaluation) {
-        const ae = err.mcpAuthorizeEvaluation;
-        const decision = ae.decision || "INDETERMINATE";
-        const engine = ae.engine || "simulated";
-        const decisionStatus =
-          decision === "PERMIT"
-            ? "active"
-            : decision === "DENY"
-              ? "failed"
-              : "waiting";
-        if (!allTokenEvents.some((e) => e && e.id === "authorize-decision")) {
-          allTokenEvents.push({
-            id: "authorize-decision",
-            label: "PingOne Authorize — Policy Decision",
-            status: decisionStatus,
-            timestamp: Date.now(),
-            rfc: "RFC 8705",
-            authorizeDecision: decision,
-            authorizeEngine: engine,
-            authorizePath: ae.path || null,
-            authorizeDecisionId: ae.decisionId || null,
-            authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
-            authorizeRequest: ae.request || null,
-            authorizeResponse: ae.response || null,
-            explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
-          });
-        }
         try {
+          const ae = err.mcpAuthorizeEvaluation;
+          const decision = ae.decision || "INDETERMINATE";
+          const engine = ae.engine || "simulated";
+          const decisionStatus =
+            decision === "PERMIT"
+              ? "active"
+              : decision === "DENY"
+                ? "failed"
+                : "waiting";
+          if (!allTokenEvents.some((e) => e && e.id === "authorize-decision")) {
+            allTokenEvents.push({
+              id: "authorize-decision",
+              label: "PingOne Authorize — Policy Decision",
+              status: decisionStatus,
+              timestamp: Date.now(),
+              rfc: "RFC 8705",
+              authorizeDecision: decision,
+              authorizeEngine: engine,
+              authorizePath: ae.path || null,
+              authorizeDecisionId: ae.decisionId || null,
+              authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
+              authorizeRequest: ae.request || null,
+              authorizeResponse: ae.response || null,
+              explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
+              ...(ae.useCaseId ? { useCaseId: ae.useCaseId } : {}),
+              ...(ae.vertical ? { vertical: ae.vertical } : {}),
+            });
+          }
           tokenChainTraceStore.ingestAuthorize(ae);
           tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
         } catch { /* display-only */ }
@@ -416,7 +418,11 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
 
       // Special case: 428 Precondition Required with HITL consent required
       // This is not an error condition — it's a valid response that needs HITL handling
-      if (response.status === 428 && err.error === "hitl_required") {
+      // (Authorize gate uses mcp_hitl_required; local/transactions path uses hitl_required).
+      if (
+        response.status === 428 &&
+        (err.error === "hitl_required" || err.error === "mcp_hitl_required")
+      ) {
         appendMcpCall(
           tool,
           response.status,
