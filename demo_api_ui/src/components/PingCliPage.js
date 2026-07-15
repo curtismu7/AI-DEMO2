@@ -270,6 +270,99 @@ function labelForCommandKey(commandKey) {
   return commandKey;
 }
 
+const SECTION_OPEN_KEY = 'pingcli.sectionOpen';
+
+/** Read remembered open/closed map from localStorage. */
+function readSectionOpenMap() {
+  try {
+    const raw = localStorage.getItem(SECTION_OPEN_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Persist one section's open state. */
+function writeSectionOpen(id, open) {
+  try {
+    const next = { ...readSectionOpenMap(), [id]: open };
+    localStorage.setItem(SECTION_OPEN_KEY, JSON.stringify(next));
+  } catch {
+    // Quota / private mode — UI still toggles in-memory.
+  }
+}
+
+/** Collapsible section with open state remembered across reloads. */
+function CollapsibleSection({ id, title, defaultOpen = true, children, className = '' }) {
+  const [open, setOpen] = useState(() => {
+    const saved = readSectionOpenMap()[id];
+    return typeof saved === 'boolean' ? saved : defaultOpen;
+  });
+
+  /** Toggle open and remember the choice. */
+  const handleToggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      writeSectionOpen(id, next);
+      return next;
+    });
+  };
+
+  return (
+    <div className={`pingcli-collapse${className ? ` ${className}` : ''}${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        id={`pingcli-section-toggle-${id}`}
+        className="pingcli-collapse-toggle"
+        aria-expanded={open}
+        aria-controls={`pingcli-section-body-${id}`}
+        onClick={handleToggle}
+      >
+        <span className="pingcli-collapse-chevron" aria-hidden="true">{open ? '▼' : '▶'}</span>
+        <span className="pingcli-collapse-title">{title}</span>
+      </button>
+      {open && (
+        <div id={`pingcli-section-body-${id}`} className="pingcli-collapse-body">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Scroll an element into view inside the nearest overflow scroll parent
+ * (e.g. `.main-content__primary`), falling back to the window. Plain
+ * `scrollIntoView` often no-ops when a nested scroller owns the overflow.
+ */
+function scrollIntoNearestScroller(el, offset = 16) {
+  if (!el) return;
+
+  let scroller = el.parentElement;
+  while (scroller && scroller !== document.body && scroller !== document.documentElement) {
+    const style = window.getComputedStyle(scroller);
+    const oy = style.overflowY;
+    const scrolls =
+      (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+      scroller.scrollHeight > scroller.clientHeight + 1;
+    if (scrolls) break;
+    scroller = scroller.parentElement;
+  }
+
+  if (scroller && scroller !== document.body && scroller !== document.documentElement) {
+    const sRect = scroller.getBoundingClientRect();
+    const eRect = el.getBoundingClientRect();
+    const top = scroller.scrollTop + (eRect.top - sRect.top) - offset;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    return;
+  }
+
+  const top = window.scrollY + el.getBoundingClientRect().top - offset;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
 /**
  * Shared copyable dark code row used by Install / Configure / How to run.
  * `copyId` is used for Copied! state and as a stable HTML id on the button.
@@ -311,8 +404,7 @@ function InstallSection() {
 
   return (
     <>
-      <div className="pingcli-install">
-        <h2>1. Install PingCLI</h2>
+      <CollapsibleSection id="install" title="1. Install PingCLI" className="pingcli-install" defaultOpen>
         <p>
           PingCLI is the official command-line tool for managing PingOne and related
           Ping Identity services. On a Mac demo machine, install it with Homebrew:
@@ -329,10 +421,9 @@ function InstallSection() {
 
         <p><strong>Already installed? Upgrade</strong></p>
         <CodeCopyRow text={upgradeCmd} copyId="upgrade" copied={copied} onCopy={copy} />
-      </div>
+      </CollapsibleSection>
 
-      <div className="pingcli-install">
-        <h2>2. Configure and authenticate</h2>
+      <CollapsibleSection id="configure" title="2. Configure and authenticate" className="pingcli-install" defaultOpen>
         <p>
           Before any PingOne command works locally, you must write credentials and
           obtain a worker token. This demo host does those steps for you on each
@@ -357,11 +448,9 @@ function InstallSection() {
 
         <p><strong>Optional — confirm the profile sees your keys</strong></p>
         <CodeCopyRow text={configKeysCmd} copyId="keys" copied={copied} onCopy={copy} />
-      </div>
+      </CollapsibleSection>
 
-      <div className="pingcli-install pingcli-howto">
-        <h2>3. How to run commands</h2>
-
+      <CollapsibleSection id="howto" title="3. How to run commands" className="pingcli-install pingcli-howto" defaultOpen>
         <h3>Option A — Live on this page</h3>
         <ol className="pingcli-howto-list">
           <li>Pick a command card below (for example List Users or List Groups).</li>
@@ -392,7 +481,7 @@ function InstallSection() {
           demo&apos;s environment ID filled in — click Copy, then paste into your terminal
           after you have authenticated locally.
         </p>
-      </div>
+      </CollapsibleSection>
     </>
   );
 }
@@ -414,7 +503,7 @@ export default function PingCliPage() {
   const [viewMode, setViewMode]   = useState('json');
   const [installedVersion, setInstalledVersion] = useState(null);
   const abortRef = useRef(null);
-  const terminalRef = useRef(null);
+  const outputRef = useRef(null);
 
   // Show the installed pingcli version in the page header.
   useEffect(() => {
@@ -596,16 +685,20 @@ export default function PingCliPage() {
     if (buildReadableView(output)) setViewMode('easy');
   }, [running, exitCode, output]);
 
-  // Scroll the JSON / response pane into view when a run starts (cards sit above it).
+  // Scroll the response pane into view when a run starts. Prefer the nearest
+  // overflow scroller (window may not be the one that moves).
   useEffect(() => {
     if (running === null) return;
-    const scrollToTerminal = () => {
-      terminalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const scroll = () => scrollIntoNearestScroller(outputRef.current);
+    scroll();
+    const raf = requestAnimationFrame(scroll);
+    const t1 = setTimeout(scroll, 80);
+    const t2 = setTimeout(scroll, 250);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
-    // After paint so the terminal is mounted; again next frame if prereqs shift layout.
-    scrollToTerminal();
-    const id = requestAnimationFrame(scrollToTerminal);
-    return () => cancelAnimationFrame(id);
   }, [running]);
 
   /** Render the Easy read / JSON toggle (used above the output pane). */
@@ -652,45 +745,14 @@ export default function PingCliPage() {
         after you authenticate locally.
       </p>
 
-      {runStatus && (
-        <div
-          id="pingcli-run-status"
-          className={`pingcli-run-status ${
-            runStatus.phase === 'running'
-              ? 'busy'
-              : runStatus.exitCode === 0
-                ? 'ok'
-                : 'err'
-          }`}
-          role="status"
-          aria-live="polite"
-          aria-busy={runStatus.phase === 'running'}
-        >
-          {runStatus.phase === 'running' ? (
-            <>
-              <span className="pingcli-spinner pingcli-spinner-on-light" aria-hidden="true" />
-              <span>
-                Running <strong>{runStatus.label}</strong>…
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="pingcli-run-status-mark" aria-hidden="true">
-                {runStatus.exitCode === 0 ? '✓' : '✗'}
-              </span>
-              <span>
-                {runStatus.exitCode === 0 ? 'Done' : 'Finished with errors'}:{' '}
-                <strong>{runStatus.label}</strong>
-                {` (exit ${runStatus.exitCode})`}
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
       {CATEGORIES.map(({ title, commands }) => (
-        <div key={title}>
-          <p className="pingcli-section-title">{title}</p>
+        <CollapsibleSection
+          key={title}
+          id={`cat-${title}`}
+          title={title}
+          className="pingcli-cat-section"
+          defaultOpen
+        >
           <div className={`pingcli-command-grid${running ? ' is-busy' : ''}`}>
             {commands.map(({ key, label, desc }) => {
               const meta = cmdMeta[key] || {};
@@ -747,10 +809,48 @@ export default function PingCliPage() {
               );
             })}
           </div>
-        </div>
+        </CollapsibleSection>
       ))}
 
-      {showTerminal && prereqs.length > 0 && (
+      {(showTerminal || runStatus) && (
+        <div id="pingcli-output" ref={outputRef} className="pingcli-output" tabIndex={-1}>
+          {runStatus && (
+            <div
+              id="pingcli-run-status"
+              className={`pingcli-run-status ${
+                runStatus.phase === 'running'
+                  ? 'busy'
+                  : runStatus.exitCode === 0
+                    ? 'ok'
+                    : 'err'
+              }`}
+              role="status"
+              aria-live="polite"
+              aria-busy={runStatus.phase === 'running'}
+            >
+              {runStatus.phase === 'running' ? (
+                <>
+                  <span className="pingcli-spinner pingcli-spinner-on-light" aria-hidden="true" />
+                  <span>
+                    Running <strong>{runStatus.label}</strong>…
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="pingcli-run-status-mark" aria-hidden="true">
+                    {runStatus.exitCode === 0 ? '✓' : '✗'}
+                  </span>
+                  <span>
+                    {runStatus.exitCode === 0 ? 'Done' : 'Finished with errors'}:{' '}
+                    <strong>{runStatus.label}</strong>
+                    {` (exit ${runStatus.exitCode})`}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
+          {showTerminal && prereqs.length > 0 && (
         <div className="pingcli-prereqs" aria-label="Steps required to run this command">
           <div className="pingcli-prereqs-header">
             <span className="pingcli-prereqs-title">What was needed to run this</span>
@@ -785,16 +885,14 @@ export default function PingCliPage() {
             ))}
           </ol>
         </div>
-      )}
+          )}
 
-      {showTerminal && viewToggle}
+          {showTerminal && viewToggle}
 
-      {showTerminal && (
+          {showTerminal && (
         <div
           id="pingcli-terminal"
-          ref={terminalRef}
           className="pingcli-terminal"
-          tabIndex={-1}
         >
           <div className="pingcli-terminal-header">
             <span className="pingcli-terminal-prompt">
@@ -870,6 +968,8 @@ export default function PingCliPage() {
               </div>
             );
           })()}
+        </div>
+          )}
         </div>
       )}
     </div>
