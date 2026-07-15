@@ -29,6 +29,10 @@ import {
   getCompletedUseCaseIds,
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
+import {
+  DEMO_USE_CASE_IDS,
+  DEMO_USE_CASE_LABEL,
+} from '../config/demoUseCaseSteps';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -42,7 +46,7 @@ const TRACK_LABELS = {
 };
 
 const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
-const DEMO_LABEL = 'Demo — a scripted walkthrough';
+const DEMO_LABEL = DEMO_USE_CASE_LABEL;
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -72,13 +76,6 @@ const FLAG_ID_ALIASES = { ff_ciba: 'ciba_enabled' };
 
 /** Hide Act 1 from demo grid — shown only in the presenter strip. */
 const PROGRESSIVE_TRUST_STRIP_IDS = new Set(['UC24']);
-
-/**
- * Fixed presenter script for the Demo section, in display order. No dedup
- * against Happy Path or track sections — see design spec §3: a use case may
- * legitimately render once here and again in another section.
- */
-const DEMO_USE_CASE_IDS = ['UC1', 'UC2', 'UC2.5', 'UC8', 'UC7', 'UC6', 'UC10', 'UC5', 'UC13', 'UC11', 'UC12', 'UC20'];
 
 /**
  * Progressive trust act strip — references existing catalog UCs (see design spec).
