@@ -38,19 +38,68 @@ const EVENT_SEVERITIES = {
   ERROR: 'error',
 };
 
+// Configuration
+const MAX_EVENTS = 200;
+
+/**
+ * Prefer ACTIVITY_LOG_FILE, else LOG_DIRECTORY/activity.ndjson (SE PVC at
+ * /var/log/aidemo), else local ./logs. Writing under LOG_DIRECTORY makes
+ * history survive BFF restarts on the SE cluster.
+ */
+function resolveLogFilePath() {
+  if (process.env.ACTIVITY_LOG_FILE) {
+    return path.resolve(process.env.ACTIVITY_LOG_FILE);
+  }
+  if (process.env.LOG_DIRECTORY) {
+    return path.resolve(process.env.LOG_DIRECTORY, 'activity.ndjson');
+  }
+  return path.resolve(__dirname, '..', 'logs', 'activity.ndjson');
+}
+
 // File persistence — D-01
-const _logFilePath = path.resolve(
-  process.env.ACTIVITY_LOG_FILE || path.join(__dirname, '..', 'logs', 'activity.ndjson')
-);
+const _logFilePath = resolveLogFilePath();
 try {
   fs.mkdirSync(path.dirname(_logFilePath), { recursive: true });
 } catch (_e) {
   console.warn('[appEventService] Could not create log directory:', _e.message);
 }
 
-// Configuration
-const MAX_EVENTS = 200;
 let events = [];
+
+/**
+ * Reload the in-memory ring buffer from NDJSON (last MAX_EVENTS lines).
+ * Called on boot so GET /api/app-events returns prior demo activity before
+ * the next live event is logged.
+ * @returns {number} number of events loaded
+ */
+function hydrateFromFile() {
+  try {
+    if (!fs.existsSync(_logFilePath)) return 0;
+    const raw = fs.readFileSync(_logFilePath, 'utf8');
+    if (!raw.trim()) return 0;
+    const parsed = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line);
+        if (ev && typeof ev === 'object' && ev.timestamp) parsed.push(ev);
+      } catch (_) {
+        // skip corrupt lines
+      }
+    }
+    // Keep oldest→newest so getEvents()'s reverse() yields newest-first.
+    events = parsed.slice(-MAX_EVENTS);
+    return events.length;
+  } catch (e) {
+    console.warn('[appEventService] hydrate failed:', e.message);
+    return 0;
+  }
+}
+
+const _hydratedCount = hydrateFromFile();
+if (_hydratedCount > 0) {
+  console.info(`[appEventService] Hydrated ${_hydratedCount} events from ${_logFilePath}`);
+}
 
 // Live-push subscribers (SSE connections)
 const _subscribers = new Set();
@@ -192,8 +241,11 @@ module.exports = {
   getEvents,
   getEventsByCategory,
   clearEvents,
+  hydrateFromFile,
   generateFlowId,
   subscribe,
   EVENT_CATEGORIES,
   EVENT_SEVERITIES,
+  // Exported for tests — path actually used after env resolution.
+  _logFilePath,
 };

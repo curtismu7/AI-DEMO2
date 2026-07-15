@@ -52,6 +52,9 @@ spec:
           value: "true"
         - name: LOG_DIRECTORY
           value: "/var/log/aidemo"
+        # Persist app-events NDJSON on the bff-logs PVC with other BFF logs.
+        - name: ACTIVITY_LOG_FILE
+          value: "/var/log/aidemo/activity.ndjson"
         # Route BFF→agent-service calls to the k8s service DNS name.
         # Without this the BFF defaults to localhost:3006, which is unreachable
         # inside the pod. This env var must be set before the BFF starts.
