@@ -45,10 +45,15 @@ COPY langchain_agent/src/ ./src/
 # The agent handles a missing/empty db gracefully (returns [] for all queries).
 RUN touch /app/codegraph.db
 # Prefer a pre-built index from the build context when present
-# (host .codegraph/codegraph.db copied to langchain_agent/codegraph.db).
+# (host .codegraph/codegraph.db copied to langchain_agent/codegraph.db by
+# setup:fresh / se-update-code.sh). A zero-byte placeholder makes Code Explorer
+# return 503 "index not available" until Refresh index succeeds.
 COPY langchain_agent/codegraph.db* /tmp/codegraph-build/
 RUN if [ -f /tmp/codegraph-build/codegraph.db ] && [ -s /tmp/codegraph-build/codegraph.db ]; then \
       cp /tmp/codegraph-build/codegraph.db /app/codegraph.db; \
+      echo "CodeGraph DB baked: $(wc -c < /app/codegraph.db) bytes"; \
+    else \
+      echo "WARNING: langchain_agent/codegraph.db missing/empty — Code Explorer will 503 until Refresh index"; \
     fi && rm -rf /tmp/codegraph-build
 ENV CODEGRAPH_DB_PATH=/app/codegraph.db
 COPY langchain_agent/scripts/ ./scripts/

@@ -1437,6 +1437,18 @@ async function buildCodeGraph() {
 
   ok('.codegraph/codegraph.db written');
 
+  // Bake a copy for the langchain_agent Dockerfile (COPY langchain_agent/codegraph.db*
+  // → /app/codegraph.db). Without this, the image ships a zero-byte `touch`
+  // placeholder and Code Explorer returns 503 "index not available".
+  const srcDb = path.join(REPO_ROOT, '.codegraph', 'codegraph.db');
+  const bakeDb = path.join(REPO_ROOT, 'langchain_agent', 'codegraph.db');
+  try {
+    fs.copyFileSync(srcDb, bakeDb);
+    ok('langchain_agent/codegraph.db baked for agent image');
+  } catch (err) {
+    console.warn('⚠  Failed to bake langchain_agent/codegraph.db:', err.message);
+  }
+
   // Stage the indexed source subset into langchain_agent/repo-src/ so it can
   // be COPYed into the Docker image (REPO_SRC_ROOT=/app/repo-src).
   console.log('  Staging repo source for the Code Explorer image → langchain_agent/repo-src');

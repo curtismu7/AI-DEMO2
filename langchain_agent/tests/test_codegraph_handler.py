@@ -76,11 +76,14 @@ class TestCodegraphQuery:
         assert response.status_code == 200
 
     def test_agent_creation_failure_returns_503(self):
+        # Index may be present on disk (live bake); this test only fails agent creation.
         with patch("src.api.codegraph_handler.create_codegraph_agent", side_effect=Exception("DB missing")), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 503
-        assert response.json()["error"] == "CodeGraph index not available"
+        err = response.json()["error"]
+        assert "CodeGraph LLM backend unavailable" in err
+        assert "DB missing" in err
 
     def test_default_history_is_empty(self):
         """Question without history field should work."""
