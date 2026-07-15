@@ -18,9 +18,27 @@ function selectChecks(flags, { includeHeavy = false } = {}, list) {
 }
 
 const VERDICT = { READY: 'ready', WARN: 'ready_with_warnings', NOT_READY: 'not_ready' };
+
+/**
+ * Severity-aware verdict (Demo check):
+ * - gate | blocking fail → not_ready
+ * - advisory fail or any warn → ready_with_warnings (if no hard fail)
+ * - else ready
+ * Unspecified severity is treated as blocking (safe default).
+ */
+function resultSeverity(r) {
+  return r.severity || 'blocking';
+}
+
 function aggregateVerdict(results) {
-  if (results.some((r) => r.status === 'fail')) return VERDICT.NOT_READY;
-  if (results.some((r) => r.status === 'warn')) return VERDICT.WARN;
+  const hardFail = results.some(
+    (r) => r.status === 'fail' && resultSeverity(r) !== 'advisory',
+  );
+  if (hardFail) return VERDICT.NOT_READY;
+  const softIssue = results.some(
+    (r) => r.status === 'warn' || (r.status === 'fail' && resultSeverity(r) === 'advisory'),
+  );
+  if (softIssue) return VERDICT.WARN;
   return VERDICT.READY;
 }
 
@@ -37,8 +55,14 @@ async function runChecks(checks, ctx, onResult = () => {}) {
     }
     if (!outcome || typeof outcome !== 'object') outcome = { status: 'fail', detail: 'check returned no result' };
     const result = {
-      id: check.id, name: check.name, category: check.category,
-      status: outcome.status, detail: outcome.detail || '', meta: outcome.meta || null,
+      id: check.id,
+      name: check.name,
+      category: check.category,
+      status: outcome.status,
+      detail: outcome.detail || '',
+      meta: outcome.meta || null,
+      nextAction: outcome.nextAction || null,
+      severity: check.severity || 'blocking',
       durationMs: Date.now() - start,
     };
     results.push(result);

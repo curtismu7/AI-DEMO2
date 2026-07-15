@@ -21,9 +21,10 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 ### B4. AI Attach Demos — run buttons do nothing
 - None of the run buttons on the AI Attach Demos trigger anything.
 
-### B5. Code chat — "CodeGraph index not available"
-- Every question (e.g. "How does the MCP gateway work?") returns `Error: CodeGraph index not available`.
-- The "Refresh index" button was clicked but the error persists — refresh either fails silently or doesn't rebuild the index.
+### B5. Code chat — "CodeGraph index not available" — FIXED
+- Cause: agent image shipped a zero-byte `/app/codegraph.db` (`touch` placeholder) because `setup:fresh` never baked `langchain_agent/codegraph.db` for the Dockerfile COPY. Refresh wrote to `repo-src/.codegraph` (staged indexer without `--out`) while queries read `/app/codegraph.db`.
+- Fix: bake DB in setup/run/se-update; bake current `scripts/build-codegraph.py` to `/app/indexer`; `ensure_index` promotes legacy → query path on startup + every query + Refresh; Refresh fails closed if query DB still empty.
+- Verify: rebuild/redeploy agent, ask "How does the MCP gateway work?" on `/code-explorer` — expect SSE answer, not 503. Pod restart must keep working without a manual copy.
 
 ### B6. `/code-search` — button CSS broken
 - URL: https://ai-demo.ping-devops.com/code-search

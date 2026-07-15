@@ -4,10 +4,17 @@
  * Service for tracking API calls with request/response details for educational purposes.
  * Captures JSON bodies, headers, and metadata for display on the PingOne test page.
  * Also tracks tokens separately for decoding/display without sanitizing headers.
+ *
+ * Demo explorer: every tracked call is dual-written to GLOBAL_SESSION_ID so
+ * /monitoring/api-explorer can show agent/MCP/BFF traffic even when those
+ * requests lack the browser's express-session cookie.
  */
 
 const crypto = require('crypto');
 const sseHub = require('./pingoneTestSseHub');
+
+/** Shared ring buffer read by the API Explorer monitoring page. */
+const GLOBAL_SESSION_ID = '__global__';
 
 // In-memory storage for API calls (production should use database)
 const apiCalls = new Map();
@@ -18,7 +25,24 @@ const sessionTokens = new Map();
 const MAX_TOKENS_PER_SESSION = 50;
 
 /**
- * Track an API call with request/response details
+ * Push a call onto a session bucket, trimming to MAX_CALLS_PER_SESSION.
+ * @param {string} sessionId
+ * @param {object} call
+ */
+function pushCall(sessionId, call) {
+  if (!apiCalls.has(sessionId)) {
+    apiCalls.set(sessionId, []);
+  }
+  apiCalls.get(sessionId).push(call);
+  const sessionCalls = apiCalls.get(sessionId);
+  if (sessionCalls.length > MAX_CALLS_PER_SESSION) {
+    apiCalls.set(sessionId, sessionCalls.slice(-MAX_CALLS_PER_SESSION));
+  }
+}
+
+/**
+ * Track an API call with request/response details.
+ * Dual-writes into the shared global bucket for the monitoring explorer.
  */
 async function trackApiCall(callData) {
   const {
@@ -52,20 +76,17 @@ async function trackApiCall(callData) {
       body: responseBody ? formatBody(responseBody) : null
     },
     duration,
+    // Alias for ApiExplorerPanel (expects durationMs)
+    durationMs: duration,
     success: responseStatus >= 200 && responseStatus < 300
   };
 
-  // Store call by session ID if provided, otherwise use 'default'
   const sessionId = callData.sessionId || 'default';
-  if (!apiCalls.has(sessionId)) {
-    apiCalls.set(sessionId, []);
-  }
-  apiCalls.get(sessionId).push(call);
+  pushCall(sessionId, call);
 
-  // Keep only last MAX_CALLS_PER_SESSION calls
-  const sessionCalls = apiCalls.get(sessionId);
-  if (sessionCalls.length > MAX_CALLS_PER_SESSION) {
-    apiCalls.set(sessionId, sessionCalls.slice(-MAX_CALLS_PER_SESSION));
+  // Dual-write so agent/Bearer traffic (no browser cookie) still appears in the explorer
+  if (sessionId !== GLOBAL_SESSION_ID) {
+    pushCall(GLOBAL_SESSION_ID, call);
   }
 
   console.log('[apiCallTracker] Tracked call:', { id: call.id, method: call.method, url: call.url, status: call.response.status });
@@ -86,7 +107,7 @@ async function trackApiCall(callData) {
 /**
  * Get all API calls for a session
  */
-function getApiCalls(sessionId = 'default', limit = 50) {
+function getApiCalls(sessionId = GLOBAL_SESSION_ID, limit = 50) {
   const calls = apiCalls.get(sessionId) || [];
   return calls.slice(-limit);
 }
@@ -94,7 +115,7 @@ function getApiCalls(sessionId = 'default', limit = 50) {
 /**
  * Clear API calls for a session
  */
-function clearApiCalls(sessionId = 'default') {
+function clearApiCalls(sessionId = GLOBAL_SESSION_ID) {
   apiCalls.delete(sessionId);
   console.log('[apiCallTracker] Cleared calls for session:', sessionId);
 }
@@ -140,13 +161,23 @@ function formatBody(body) {
 }
 
 /**
- * Get statistics about API calls
+ * Get statistics about API calls.
+ * Includes ApiExplorerPanel aliases (success/errors/avgDurationMs).
  */
-function getApiCallStats(sessionId = 'default') {
+function getApiCallStats(sessionId = GLOBAL_SESSION_ID) {
   const calls = apiCalls.get(sessionId) || [];
 
   if (calls.length === 0) {
-    return { total: 0, successful: 0, failed: 0, categories: {} };
+    return {
+      total: 0,
+      successful: 0,
+      failed: 0,
+      success: 0,
+      errors: 0,
+      categories: {},
+      averageDuration: null,
+      avgDurationMs: null,
+    };
   }
 
   const successful = calls.filter(c => c.success).length;
@@ -158,12 +189,17 @@ function getApiCallStats(sessionId = 'default') {
     categories[cat] = (categories[cat] || 0) + 1;
   }
 
+  const averageDuration = calls.reduce((sum, c) => sum + (c.duration || 0), 0) / calls.length;
+
   return {
     total: calls.length,
     successful,
     failed,
+    success: successful,
+    errors: failed,
     categories,
-    averageDuration: calls.reduce((sum, c) => sum + (c.duration || 0), 0) / calls.length
+    averageDuration,
+    avgDurationMs: averageDuration,
   };
 }
 
@@ -172,13 +208,13 @@ function getApiCallStats(sessionId = 'default') {
  */
 function trackToken(sessionId = 'default', tokenData) {
   const { token, tokenType, description } = tokenData;
-  
+
   if (!token) return;
-  
+
   if (!sessionTokens.has(sessionId)) {
     sessionTokens.set(sessionId, []);
   }
-  
+
   const tokens = sessionTokens.get(sessionId);
   tokens.push({
     id: crypto.randomUUID(),
@@ -187,12 +223,12 @@ function trackToken(sessionId = 'default', tokenData) {
     tokenType: tokenType || 'unknown',
     description: description || 'Token'
   });
-  
+
   // Keep only last MAX_TOKENS_PER_SESSION tokens
   if (tokens.length > MAX_TOKENS_PER_SESSION) {
     sessionTokens.set(sessionId, tokens.slice(-MAX_TOKENS_PER_SESSION));
   }
-  
+
   console.log('[apiCallTracker] Tracked token:', { sessionId, tokenType, description });
 }
 
@@ -211,12 +247,22 @@ function clearSessionTokens(sessionId = 'default') {
   console.log('[apiCallTracker] Cleared tokens for session:', sessionId);
 }
 
+/**
+ * Reset all in-memory stores (tests only).
+ */
+function _resetForTests() {
+  apiCalls.clear();
+  sessionTokens.clear();
+}
+
 module.exports = {
+  GLOBAL_SESSION_ID,
   trackApiCall,
   getApiCalls,
   clearApiCalls,
   getApiCallStats,
   trackToken,
   getSessionTokens,
-  clearSessionTokens
+  clearSessionTokens,
+  _resetForTests,
 };

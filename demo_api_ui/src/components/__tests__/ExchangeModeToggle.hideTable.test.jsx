@@ -17,4 +17,8 @@ test("hideTable suppresses the table and security note but keeps the header", as
   expect(container.querySelector(".emt-tokens-table")).toBeNull();
   expect(container.querySelector(".emt-note")).toBeNull();
   expect(container.querySelector(".emt-header")).not.toBeNull();
+  // Embedded token chain starts collapsed (body hidden until header click).
+  expect(container.querySelector(".emt-desc-main")).toBeNull();
+  expect(container.querySelector(".emt-explainer")).toBeNull();
+  expect(container.querySelector(".emt-chevron")?.textContent).toBe("▶");
 });

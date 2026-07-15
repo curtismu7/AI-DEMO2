@@ -6,6 +6,7 @@ const PROXY = (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8090').replace
 
 const status = {
   id: 'llm.status', name: 'LLM models', category: 'LLM',
+  severity: 'advisory',
   async run() {
     let models;
     try {

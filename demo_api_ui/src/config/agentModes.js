@@ -19,17 +19,45 @@
 // never answer silently.
 
 export const AGENT_MODES = [
-  { id: "heuristics",   label: "Heuristics", provider: null,        pure: false },
+  // Labels name the brain — Heuristic vs LLM is the separate Fallback /
+  // LLM-only toggle on AgentModeSelector (ff_heuristic_enabled).
+  { id: "heuristics",   label: "Heuristics",    provider: null,        pure: false },
   // Gemini first among LLM modes: on the CPU-only SE cluster it answers in
   // seconds while llama.cpp (gpt-oss-20b) takes minutes — lead live demos
   // with the fast provider. Order here IS the picker order (CORE_MODE_IDS).
   { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
-  { id: "llamacpp",     label: "llama.cpp",  provider: "llamacpp",  pure: true  },
-  { id: "mlx",          label: "MLX",        provider: "mlx",       pure: true  },
-  { id: "claude",       label: "Anthropic",  provider: "anthropic", pure: true  },
-  { id: "helix_google", label: "Helix",      provider: "helix",     pure: true  },
-  { id: "groq",         label: "Groq",       provider: "groq",      pure: true  },
+  { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
+  { id: "mlx",          label: "MLX",           provider: "mlx",       pure: true  },
+  { id: "claude",       label: "Anthropic",     provider: "anthropic", pure: true  },
+  { id: "helix_google", label: "Helix",         provider: "helix",     pure: true  },
+  { id: "groq",         label: "Groq",          provider: "groq",      pure: true  },
 ];
+
+/** Friendly chat badge for /nl `source` (and related agent paths). */
+export const SOURCE_LABELS = {
+  heuristic: "Heuristic",
+  helix: "Helix",
+  helix_fallback: "Helix",
+  google: "Google Gemini",
+  llamacpp: "llama.cpp",
+  mlx: "MLX",
+  claude: "Anthropic",
+  anthropic: "Anthropic",
+  groq: "Groq",
+  lmstudio: "LM Studio",
+  "anthropic-lmstudio": "LM Studio",
+  "direct-mcp": "Direct MCP",
+};
+
+/**
+ * Human label for an NL/agent response source tag.
+ * @param {string|null|undefined} source
+ * @returns {string}
+ */
+export function sourceLabel(source) {
+  if (!source) return "";
+  return SOURCE_LABELS[source] || source;
+}
 
 // Picker order for the core modes.
 export const CORE_MODE_IDS = AGENT_MODES.map((m) => m.id);

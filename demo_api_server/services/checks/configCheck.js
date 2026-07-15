@@ -4,6 +4,7 @@ const { register } = require('./registry');
 
 const prereqs = {
   id: 'config.prereqs', name: 'Config & secrets for current flags', category: 'Config / Secrets',
+  severity: 'blocking',
   async run({ flags }) {
     const missing = [];
     const needStore = (key) => { if (!configStore.getEffective(key)) missing.push(key); };

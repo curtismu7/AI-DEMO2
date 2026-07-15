@@ -47,20 +47,12 @@ function userCentric(sliceDefs) {
   };
 }
 
-// Page-level utility actions shared by every vertical (not tied to a record).
-// Rendered as hero toolbar buttons; the handler surfaces the endpoint's
-// returned { steps, summary, success }.
-const COMMON_PAGE_ACTIONS = [
-  { label: 'Fix PingOne Scopes', method: 'post', url: '/api/admin/pingone/update-scopes' },
-];
-
 export const CONFIGS = {
   banking: {
     id: 'banking', name: 'Banking Ops', short: 'Banking', icon: '🏦',
     theme: { accent: '#2563eb', accent2: '#1e3a8a', tint: '#eef4ff' },
     lookupPath: '/api/admin/banking/lookup',
     lookupPlaceholder: 'Look up by holder name, username, email, or account number…',
-    pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Seed charge': { method: 'post', buildUrl: (row) => `/api/admin/banking/accounts/${encodeURIComponent(row.id)}/seed-charges` },
       'Delete': { method: 'delete', buildUrl: (row, _c, catId) => catId === 'transactions' ? `/api/transactions/${encodeURIComponent(row.id)}` : `/api/accounts/${encodeURIComponent(row.id)}` },
@@ -95,7 +87,6 @@ export const CONFIGS = {
     theme: { accent: '#0d9488', accent2: '#115e59', tint: '#ecfdf9' },
     lookupPath: '/api/admin/healthcare/lookup',
     lookupPlaceholder: 'Look up a patient by name, email, or id…',
-    pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Cancel': { method: 'post', buildUrl: (row, _c, catId) => `/api/admin/healthcare/${catId === 'referrals' ? 'referrals' : 'appointments'}/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
       'Pay bill': { method: 'post', buildUrl: (row) => `/api/admin/healthcare/bills/${encodeURIComponent(row.id)}/pay`, body: (_r, c) => ({ userId: c.id }) },
@@ -115,7 +106,6 @@ export const CONFIGS = {
     theme: { accent: '#ea580c', accent2: '#9a3412', tint: '#fff3ec' },
     lookupPath: '/api/admin/retail/lookup',
     lookupPlaceholder: 'Look up a shopper by name, email, or id…',
-    pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Cancel order': { method: 'post', buildUrl: (row) => `/api/admin/retail/orders/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
       'Cancel sub': { method: 'post', buildUrl: (row) => `/api/admin/retail/subscriptions/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
@@ -135,7 +125,6 @@ export const CONFIGS = {
     theme: { accent: '#16a34a', accent2: '#14532d', tint: '#edfcef' },
     lookupPath: '/api/admin/sporting-goods/lookup',
     lookupPlaceholder: 'Look up a member by name, email, or id…',
-    pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Cancel order': { method: 'post', buildUrl: (row) => `/api/admin/sporting-goods/orders/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
       'Return': { method: 'post', buildUrl: (row) => `/api/admin/sporting-goods/rentals/${encodeURIComponent(row.id)}/return`, body: (_r, c) => ({ userId: c.id }) },
@@ -155,7 +144,6 @@ export const CONFIGS = {
     theme: { accent: '#7c3aed', accent2: '#4c1d95', tint: '#f5f0ff' },
     lookupPath: '/api/admin/workforce/lookup',
     lookupPlaceholder: 'Look up an employee by name, email, or id…',
-    pageActions: COMMON_PAGE_ACTIONS,
     actions: {
       'Approve': { method: 'post', buildUrl: (row) => `/api/admin/workforce/expenses/${encodeURIComponent(row.id)}/approve`, body: (_r, c) => ({ userId: c.id }) },
       'Deny': { method: 'post', buildUrl: (row) => `/api/admin/workforce/expenses/${encodeURIComponent(row.id)}/deny`, body: (_r, c) => ({ userId: c.id }) },

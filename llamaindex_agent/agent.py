@@ -38,6 +38,9 @@ def _make_llm():
         # budget on reasoning_content before emitting any visible answer —
         # 800 tokens regularly produced an EMPTY content string.
         max_tokens=int(os.getenv("AGENT_MAX_TOKENS", "3000")),
+        # SE cluster often only runs the large tier (~8–10 t/s). Default HTTP
+        # client timeout (60s) aborts mid-generation → UI "assistant unavailable".
+        timeout=float(os.getenv("AGENT_LLM_TIMEOUT", "240")),
     )
 
 
@@ -79,23 +82,27 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
                 seen.add(k); out.append(h)
         return out
 
-    try:
-        import asyncio
-        from llama_index.core.agent.workflow import ReActAgent
+    # AGENT_MODE=single-shot skips the ReAct tool loop (needed when only a slow
+    # reasoning model is live — multiple tool rounds exceed BFF/UI timeouts).
+    mode = (os.getenv("AGENT_MODE") or "agent").strip().lower()
+    if mode != "single-shot":
+        try:
+            import asyncio
+            from llama_index.core.agent.workflow import ReActAgent
 
-        agent = ReActAgent(
-            tools=[tool], llm=_make_llm(), system_prompt=SYSTEM, verbose=False,
-        )
-        handler = agent.run(user_msg=f"Question: {question}", max_iterations=_MAX_TOOLS)
-        resp = asyncio.run(handler)
-        answer = str(resp)
-        if collected:
-            return {"answer": answer, "sources": _dedup(collected),
-                    "toolCalls": max(1, len(collected) // max(1, limit)),
-                    "mode": "agent"}
-        # Model answered without calling the tool → force one retrieval (grounding).
-    except Exception:
-        pass
+            agent = ReActAgent(
+                tools=[tool], llm=_make_llm(), system_prompt=SYSTEM, verbose=False,
+            )
+            handler = agent.run(user_msg=f"Question: {question}", max_iterations=_MAX_TOOLS)
+            resp = asyncio.run(handler)
+            answer = str(resp)
+            if collected:
+                return {"answer": answer, "sources": _dedup(collected),
+                        "toolCalls": max(1, len(collected) // max(1, limit)),
+                        "mode": "agent"}
+            # Model answered without calling the tool → force one retrieval (grounding).
+        except Exception:
+            pass
 
     # single-shot fallback: retrieve once, answer with the same LLM.
     hits = retrieve(index, question, codebase_id=codebase_id, limit=limit)

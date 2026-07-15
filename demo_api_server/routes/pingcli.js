@@ -100,29 +100,75 @@ function ensureAuthBootstrap() {
 }
 
 const ENV_ID = process.env.PINGONE_ENVIRONMENT_ID || '<environment-id>';
-const envFlag = ['--environment-id', ENV_ID];
 
-// Allow-list of safe read-only commands. All are live-runnable server-side
-// (pingcli >= 1.2.0 accepts worker client-credentials + --environment-id after
-// `pingone auth login`). Every card still exposes Copy with the exact terminal
-// command (no --config; that is server-internal).
+// Env-scoped resource subcommands (`pingone users list --environment-id …`) still
+// fail with worker client-credentials in pingcli 1.2.0 — the PingOne SDK rejects
+// a client configured with both an access token and an environment ID. Use
+// `pingone api <uri>` instead: that path works after `pingone auth login` and
+// returns the same management-API JSON (under data._embedded.*).
 //
-// auth=true → run ensureAuthBootstrap() first.
+// auth=true → run ensureAuthBootstrap() first. Labels match what we execute
+// (no --config; that is server-internal) so Copy works with worker auth too.
+function apiCmd(uri) {
+  return {
+    label: `pingcli pingone api ${uri} -O json`,
+    args: [...configFlag, 'pingone', 'api', uri, '-O', 'json'],
+    runnable: true,
+    auth: true,
+  };
+}
+
+const envApi = (resource) => apiCmd(`environments/${ENV_ID}/${resource}`);
+
 const COMMANDS = {
-  pingone_users_list:        { label: `pingcli pingone users list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'users', 'list', ...envFlag, '-O', 'json'],              runnable: true, auth: true },
-  pingone_apps_list:         { label: `pingcli pingone applications list --environment-id ${ENV_ID} -O json`,        args: [...configFlag, 'pingone', 'applications', 'list', ...envFlag, '-O', 'json'],       runnable: true, auth: true },
-  pingone_groups_list:       { label: `pingcli pingone groups list --environment-id ${ENV_ID} -O json`,              args: [...configFlag, 'pingone', 'groups', 'list', ...envFlag, '-O', 'json'],             runnable: true, auth: true },
-  pingone_populations_list:  { label: `pingcli pingone populations list --environment-id ${ENV_ID} -O json`,         args: [...configFlag, 'pingone', 'populations', 'list', ...envFlag, '-O', 'json'],        runnable: true, auth: true },
-  pingone_idps_list:         { label: `pingcli pingone identity-providers list --environment-id ${ENV_ID} -O json`,  args: [...configFlag, 'pingone', 'identity-providers', 'list', ...envFlag, '-O', 'json'], runnable: true, auth: true },
-  pingone_resources_list:    { label: `pingcli pingone resources list --environment-id ${ENV_ID} -O json`,           args: [...configFlag, 'pingone', 'resources', 'list', ...envFlag, '-O', 'json'],          runnable: true, auth: true },
-  pingone_roles_list:        { label: `pingcli pingone roles list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'roles', 'list', ...envFlag, '-O', 'json'],              runnable: true, auth: true },
-  pingone_policies_list:     { label: `pingcli pingone sign-on-policies list --environment-id ${ENV_ID} -O json`,    args: [...configFlag, 'pingone', 'sign-on-policies', 'list', ...envFlag, '-O', 'json'],   runnable: true, auth: true },
-  pingone_mfa_policies_list: { label: `pingcli mfa mfa-device-policies list --environment-id ${ENV_ID} -O json`,     args: [...configFlag, 'mfa', 'mfa-device-policies', 'list', ...envFlag, '-O', 'json'],    runnable: true, auth: true },
+  pingone_users_list:        envApi('users'),
+  pingone_apps_list:         envApi('applications'),
+  pingone_groups_list:       envApi('groups'),
+  pingone_populations_list:  envApi('populations'),
+  pingone_idps_list:         envApi('identityProviders'),
+  pingone_resources_list:    envApi('resources'),
+  pingone_roles_list:        apiCmd('roles'),
+  pingone_policies_list:     envApi('signOnPolicies'),
+  pingone_mfa_policies_list: envApi('deviceAuthenticationPolicies'),
 
   pingone_envs_list:         { label: 'pingcli pingone environments list -O json',                                   args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'],                   runnable: true, auth: true },
   config_list_keys:          { label: 'pingcli config list-keys',                                                    args: [...configFlag, 'config', 'list-keys'],                                            runnable: true },
   version:                   { label: 'pingcli --version',                                                           args: ['--version'],                                                                     runnable: true },
 };
+
+/**
+ * Ordered setup steps a local operator needs before this command can succeed.
+ * Shown above the streamed response so the demo teaches init + auth.
+ */
+function buildPrereqs(cmd) {
+  const steps = [
+    {
+      title: 'Install PingCLI',
+      command: 'brew install pingidentity/tap/pingcli',
+      note: 'Already installed on this demo host.',
+    },
+  ];
+  if (cmd.auth || (Array.isArray(cmd.args) && cmd.args.includes('--config'))) {
+    steps.push({
+      title: 'Configure credentials',
+      command: 'pingcli init',
+      note: 'Interactive setup. This demo generates a worker client-credentials config automatically.',
+    });
+  }
+  if (cmd.auth) {
+    steps.push({
+      title: 'Authenticate',
+      command: 'pingcli pingone auth login',
+      note: 'Obtains a worker access token (non-interactive with client credentials).',
+    });
+  }
+  steps.push({
+    title: 'Run command',
+    command: cmd.label,
+    note: 'Live invocation — output streams below.',
+  });
+  return steps;
+}
 
 const router = Router();
 
@@ -151,11 +197,14 @@ router.post('/run', async (req, res) => {
   }
 
   execFile(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
-    const exitCode = err?.code ?? 0;
+    let exitCode = typeof err?.code === 'number' ? err.code : (err ? 1 : 0);
     const raw = stdout || stderr || '';
     let output;
     try {
-      output = JSON.stringify(JSON.parse(raw), null, 2);
+      const parsed = JSON.parse(raw);
+      output = JSON.stringify(parsed, null, 2);
+      // pingcli often exits 0 with status:"error" in the JSON envelope.
+      if (parsed && parsed.status === 'error' && exitCode === 0) exitCode = 1;
     } catch {
       output = raw;
     }
@@ -190,7 +239,11 @@ router.get('/stream', async (req, res) => {
     if (typeof res.flush === 'function') res.flush();
   };
 
-  send('meta', { command: cmd.label });
+  send('meta', {
+    command: cmd.label,
+    auth: Boolean(cmd.auth),
+    prereqs: buildPrereqs(cmd),
+  });
 
   if (cmd.auth) {
     const boot = await ensureAuthBootstrap();
@@ -238,7 +291,13 @@ router.get('/version', (_req, res) => {
 
 router.get('/commands', (_req, res) => {
   res.json(
-    Object.entries(COMMANDS).map(([key, { label, runnable }]) => ({ key, label, runnable }))
+    Object.entries(COMMANDS).map(([key, cmd]) => ({
+      key,
+      label: cmd.label,
+      runnable: cmd.runnable,
+      auth: Boolean(cmd.auth),
+      prereqs: buildPrereqs(cmd),
+    }))
   );
 });
 

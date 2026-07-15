@@ -15,9 +15,24 @@
   justify-content: space-between;
 }
 .tctr-title { font-size: 13px; font-weight: 700; }
-.tctr-legend-btn {
-  background: none; border: 1px solid rgba(255, 255, 255, 0.35); color: #e2e8f0;
+.tctr-head-actions {
+  display: flex; align-items: center; gap: 6px;
+}
+.tctr-legend-btn,
+.tctr-clear-btn {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
   font-size: 11px; border-radius: 5px; padding: 3px 8px; cursor: pointer;
+}
+.tctr-legend-btn { color: #e2e8f0; }
+.tctr-clear-btn {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.55);
+}
+.tctr-clear-btn:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.15); color: #fca5a5;
+}
+.tctr-clear-btn:disabled {
+  opacity: 0.4; cursor: default;
 }
 
 .tctr-chain-line {

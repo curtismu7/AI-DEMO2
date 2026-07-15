@@ -21,7 +21,7 @@ describe('getLiveAgentRow', () => {
     expect(row.id).toBe('demo-agent');
     expect(row.label).toBe('Live Agent (Super Banking)');
     expect(row.provider).toBe('helix');
-    expect(row.providerLabel).toBe('Helix only');
+    expect(row.providerLabel).toBe('Helix');
     expect(row.status).toBe('active');
   });
 
@@ -31,7 +31,7 @@ describe('getLiveAgentRow', () => {
     cs.getEffective.mockImplementation(() => { throw new Error('boom'); });
     const row = getLiveAgentRow({ session: {} });
     expect(row.provider).toBeNull();
-    expect(row.providerLabel).toBe('Heuristics only');
+    expect(row.providerLabel).toBe('Heuristics');
     // vertical still resolves
     expect(row.label).toBe('Live Agent (Super Banking)');
   });

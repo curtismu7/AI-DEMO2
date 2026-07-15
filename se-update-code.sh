@@ -140,6 +140,18 @@ if [[ -z "$SERVICE" || "$SERVICE" == "agent" ]] && [[ ! -d "$BASEDIR/langchain_a
     || die "repo-src generation failed — run: python3 scripts/build-codegraph.py --stage-src langchain_agent/repo-src"
 fi
 
+# langchain_agent/codegraph.db is the bake input for /app/codegraph.db in the
+# agent image. Dockerfile `touch`es an empty placeholder when this file is
+# missing/empty → Code Explorer 503 "index not available". Build+copy if needed.
+if [[ -z "$SERVICE" || "$SERVICE" == "agent" ]] && [[ ! -s "$BASEDIR/langchain_agent/codegraph.db" ]]; then
+  info "langchain_agent/codegraph.db missing/empty — building CodeGraph index for image bake..."
+  python3 "$BASEDIR/scripts/build-codegraph.py" \
+    || die "CodeGraph index build failed — run: python3 scripts/build-codegraph.py"
+  cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" \
+    || die "Failed to bake langchain_agent/codegraph.db"
+  success "Baked langchain_agent/codegraph.db ($(wc -c < "$BASEDIR/langchain_agent/codegraph.db") bytes)"
+fi
+
 # ── GHCR login ────────────────────────────────────────────────────────────────
 info "Logging in to GHCR..."
 docker logout ghcr.io >/dev/null 2>&1 || true

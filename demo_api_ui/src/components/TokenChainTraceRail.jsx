@@ -6,6 +6,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
+import { useTokenChainOptional } from "../context/TokenChainContext";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -63,10 +64,20 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [inspectType, setInspectType] = useState(null);
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
+  const tokenChain = useTokenChainOptional();
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   useEffect(() => subscribeTrustFlags(setTrustFlags), []);
   const onInspect = useCallback((tokenType) => setInspectType(tokenType), []);
+
+  /** Reset the rail to an empty “nothing done” pipeline for the next demo run. */
+  const handleClear = useCallback(() => {
+    tokenChainTraceStore.reset();
+    tokenChain?.clearEvents?.();
+    setInspectType(null);
+    setLegendOpen(false);
+    setTab(mcpRouteOnly ? "mcp" : "chain");
+  }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
   const steps = mcpRouteOnly
@@ -80,6 +91,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     events: trace.tokenEvents,
   });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
+  const hasTraceActivity = Boolean(
+    trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
+    (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
+    trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
+  );
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -92,9 +108,21 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     <div className="tctr">
       <div className="tctr-head">
         <span className="tctr-title">Token Chain</span>
-        <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
-          Legend
-        </button>
+        <div className="tctr-head-actions">
+          <button
+            type="button"
+            className="tctr-clear-btn"
+            onClick={handleClear}
+            disabled={!hasTraceActivity}
+            title="Clear token chain back to nothing done (ready for next demo run)"
+            aria-label="Clear token chain"
+          >
+            Clear
+          </button>
+          <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
+            Legend
+          </button>
+        </div>
       </div>
 
       <div className="tctr-chain-line">

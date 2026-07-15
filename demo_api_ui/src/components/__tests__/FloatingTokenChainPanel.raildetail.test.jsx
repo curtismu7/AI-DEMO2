@@ -1,8 +1,12 @@
 import React from "react";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FloatingTokenChainPanel from "../FloatingTokenChainPanel";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
+
+vi.mock("../../context/TokenChainContext", () => ({
+  useTokenChainOptional: () => ({ clearEvents: vi.fn() }),
+}));
 
 // Confirms the swap from the illustrative education/TokenChainPanel to the
 // real TokenChainTraceRail: a chip-fired trace's aud/scope diff must render
@@ -10,6 +14,13 @@ import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainT
 describe("FloatingTokenChainPanel", () => {
   beforeEach(() => tokenChainTraceStore.reset());
   afterEach(cleanup);
+
+  it("exposes a Clear control on the floating panel header", () => {
+    render(<FloatingTokenChainPanel isOpen onClose={() => {}} />);
+    const clears = screen.getAllByRole("button", { name: /clear token chain/i });
+    expect(clears.length).toBeGreaterThanOrEqual(1);
+    expect(document.querySelector(".ftcp-btn--clear")).toBeTruthy();
+  });
 
   it("renders TokenChainTraceRail's live step data, not the illustrative panel", () => {
     tokenChainTraceStore.beginTrace({ prompt: "get_my_accounts" });

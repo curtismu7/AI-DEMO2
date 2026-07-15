@@ -48,6 +48,9 @@ async function run() {
   };
 }
 
-const descriptor = { id: 'servers.all_up', name: 'All servers running', category: 'Servers', run };
+const descriptor = {
+  id: 'servers.all_up', name: 'All servers running', category: 'Servers',
+  severity: 'blocking', run,
+};
 register(descriptor);
 module.exports = { ...descriptor, run };

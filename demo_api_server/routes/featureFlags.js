@@ -478,11 +478,11 @@ const FLAG_REGISTRY = [
   // ── LLM Chips ──────────────────────────────────────────────────────────────
   {
     id:           'ff_heuristic_enabled',
-    name:         'LLM Chips — Use Heuristic Fast-Path',
+    name:         'Routing — Fallback to Heuristics',
     category:     'LLM Chips',
     description:
-      'When **ON** (default), the agent uses fast heuristic queries for balance, accounts, and transactions (~200-300ms). ' +
-      'When **OFF**, all queries go through the LLM for advanced analysis (~1-3s). Both modes show chips, but heuristics take a fast dedicated code path.',
+      'When **ON** (default, "Fallback"), known chips (balance, accounts, transactions) short-circuit to Heuristics — fast and cheap, even when Google Gemini / Helix / etc. is selected. ' +
+      'When **OFF** ("LLM only"), the selected model always runs first; Heuristics is only a safety net if the LLM returns nothing. Reply badges always show the real source.',
     impact:
       'ON (default) = quick responses for balance/accounts/transactions via heuristic NL parser; LLM for analysis/insights. ' +
       'OFF = all queries routed through LLM (slower but more conversational/analytical).',

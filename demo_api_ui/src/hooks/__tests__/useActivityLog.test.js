@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useActivityLog } from '../useActivityLog';
 
 // Stub useAppEventsSSE to push events manually.
@@ -6,6 +6,13 @@ let _handler = null;
 vi.mock('../useAppEventsSSE', () => ({
   useAppEventsSSE: (h) => { _handler = h; },
 }));
+
+beforeEach(() => {
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ events: [], total: 0 }),
+  });
+});
 
 function pushEvent(e) {
   act(() => { _handler(e); });
@@ -100,5 +107,27 @@ describe('useActivityLog — useCaseId filter', () => {
     expect(ids).toContain('15');
     expect(ids).not.toContain('14'); // untagged excluded
     expect(ids).not.toContain('16'); // different UC excluded
+  });
+});
+
+describe('useActivityLog — backlog seed', () => {
+  it('loads recent events from GET /api/app-events when enabled', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        events: [
+          { id: 'seed-1', category: 'oauth', severity: 'info', message: 'login', timestamp: '2026-07-15T00:00:00.000Z' },
+        ],
+        total: 1,
+      }),
+    });
+    const { result } = renderHook(() => useActivityLog({ enabled: true }));
+    await waitFor(() => {
+      expect(result.current.events.some((e) => e.id === 'seed-1')).toBe(true);
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/app-events?limit=200',
+      expect.objectContaining({ credentials: 'include' }),
+    );
   });
 });

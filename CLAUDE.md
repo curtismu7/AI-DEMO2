@@ -73,6 +73,8 @@ file. See [`.aidlc/README.md`](.aidlc/README.md).
   `PROD_MODE=1` uses the nginx build instead. See README **Option 2** for memory
   profiles and Quick Flag → container sync.
 - `./run-k8.sh` — Kubernetes / OrbStack / EKS variants (see `README.md`).
+- `./run-pingaws.sh` — Ping SE AWS cluster only (`ai-demo.ping-devops.com`).
+  Wraps `./run-k8.sh se-*` plus `se-update-{code,config,pingone}.sh`.
 
 **Local LLM backends** (`LLAMACPP_BASE_URL`, default `http://localhost:8090`):
 

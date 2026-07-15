@@ -23,9 +23,17 @@ describe('privilegeDemoConfig', () => {
   });
 
   it('defines setup steps with ids', () => {
-    expect(PRIVILEGE_DEMO.setupSteps.length).toBeGreaterThanOrEqual(9);
+    expect(PRIVILEGE_DEMO.setupSteps.length).toBeGreaterThanOrEqual(11);
     const ids = new Set(PRIVILEGE_DEMO.setupSteps.map((s) => s.id));
     expect(ids.size).toBe(PRIVILEGE_DEMO.setupSteps.length);
+    expect(ids.has('prepare-workstations')).toBe(true);
+    expect(ids.has('grant-admin-role')).toBe(true);
+  });
+
+  it('exposes SE1 guide and workstation tools from shared demo', () => {
+    expect(PRIVILEGE_DEMO.overview.length).toBeGreaterThan(40);
+    expect(PRIVILEGE_DEMO.se1GuidePath).toContain('SE1-Privilege-Shared-Demo.md');
+    expect(PRIVILEGE_DEMO.workstationTools).toContain('AWS CLI');
   });
 
   it('resolves setup step console links', () => {

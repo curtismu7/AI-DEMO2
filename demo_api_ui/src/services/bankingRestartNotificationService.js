@@ -177,20 +177,30 @@ export async function manualRetry() {
 }
 
 /**
- * Wrap global fetch to intercept 504s and timeouts
+ * Wrap global fetch to intercept 504s and hard connection failures.
+ *
+ * Do NOT attach a short AbortController to every request — Code Explorer and
+ * other SSE endpoints legitimately take longer than a few seconds, and aborting
+ * (or even treating AbortError as a restart) surfaces a false "network error".
  */
 const originalFetch = window.fetch;
 window.fetch = function (...args) {
-  const timeoutMs = 5000; // 5s timeout for API calls
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const input = args[0];
+  const url =
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.href
+        : (input && input.url) || '';
+  // Long-lived / streaming API paths — never classify their abort/network
+  // edges as "server restarting".
+  const isStreamingApi =
+    /\/api\/codegraph\//.test(url) ||
+    /\/api\/code-search\//.test(url) ||
+    /\/api\/admin\/pingcli\/stream/.test(url);
 
-  const fetchPromise = originalFetch.apply(this, args);
-
-  return fetchPromise
+  return originalFetch.apply(this, args)
     .then(async (response) => {
-      clearTimeout(timeoutId);
-
       if (response.status === 504) {
         console.warn('[RestartNotification] 504 Server Unavailable');
         handle504Error(new Error('504 Server Unavailable'));
@@ -202,13 +212,11 @@ window.fetch = function (...args) {
       return response;
     })
     .catch((error) => {
-      clearTimeout(timeoutId);
-
-      // Check for timeout (AbortError) or connection errors
       if (
-        error.name === 'AbortError' ||
-        error.message === 'Failed to fetch' ||
-        error.message.includes('ERR_CONNECTION')
+        !isStreamingApi &&
+        error.name !== 'AbortError' &&
+        (error.message === 'Failed to fetch' ||
+          (typeof error.message === 'string' && error.message.includes('ERR_CONNECTION')))
       ) {
         console.warn('[RestartNotification] Connection timeout or network error');
         handle504Error(error);

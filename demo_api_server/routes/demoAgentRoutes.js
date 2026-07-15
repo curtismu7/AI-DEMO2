@@ -153,9 +153,11 @@ router.post('/tools', express.json(), async (req, res) => {
 
 // POST /message - Process agent message
 router.post('/message', async (req, res) => {
+  let runId = null;
+  let useCaseId = '';
   try {
     console.log('[demo-agent/message] Incoming request');
-    const useCaseId = req.body?.useCaseId || '';
+    useCaseId = req.body?.useCaseId || '';
 
     // Emit user_request event
     req.eventEmitter.emit(
@@ -169,7 +171,6 @@ router.post('/message', async (req, res) => {
       'info'
     );
 
-    appEventService.logEvent('agent', 'info', 'Agent request received', { tag: 'agent/route', metadata: { ...(useCaseId ? { useCaseId } : {}) } });
     console.log('[demo-agent/message] Session ID:', req.session?.id);
     console.log('[demo-agent/message] Session exists:', !!req.session);
     console.log('[demo-agent/message] Request body keys:', Object.keys(req.body || {}));
@@ -182,7 +183,7 @@ router.post('/message', async (req, res) => {
     const requestProvider = typeof req.body?.provider === 'string' && req.body.provider
       ? req.body.provider
       : null;
-    const runId = crypto.randomUUID();
+    runId = crypto.randomUUID();
     const runStartedAt = new Date().toISOString();
     // CR-05 fix: validate message is a non-empty string. express.json() may
     // deliver arrays or objects for keys that are truthy but not strings.
@@ -208,6 +209,19 @@ router.post('/message', async (req, res) => {
       console.error('[demo-agent/message] ERROR: Session expired - userId:', userId, 'accessToken present:', !!accessToken);
       return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
     }
+
+    // Bookend for Activity Log demos — same correlationId on start + end.
+    const messagePreview = message.length > 72 ? `${message.slice(0, 72)}…` : message;
+    appEventService.logEvent('agent', 'info', `Agent flow start — ${messagePreview}`, {
+      tag: 'agent/flow-start',
+      correlationId: runId,
+      metadata: {
+        runId,
+        ...(useCaseId ? { useCaseId } : {}),
+        ...(vertical ? { vertical } : {}),
+        messagePreview,
+      },
+    });
 
     // Phase 2 CR-02: pre-flight consent lookup removed. The previous code
     // called getConsentDecision(req.session.id), but the store is keyed by
@@ -386,7 +400,23 @@ router.post('/message', async (req, res) => {
     }
 
     console.log('[demo-agent/message] Returning agent response');
-    appEventService.logEvent('agent', 'info', 'Agent response sent', { tag: 'agent/route', metadata: { ...(useCaseId ? { useCaseId } : {}) } });
+    const toolsCalled = response.toolsCalled || [];
+    const flowOk = response.success !== false;
+    appEventService.logEvent(
+      'agent',
+      flowOk ? 'info' : 'warning',
+      `Agent flow end — ${flowOk ? 'success' : 'error'}${toolsCalled.length ? ` · ${toolsCalled.length} tool(s)` : ''}`,
+      {
+        tag: 'agent/flow-end',
+        correlationId: runId,
+        metadata: {
+          runId,
+          success: flowOk,
+          toolsCalled,
+          ...(useCaseId ? { useCaseId } : {}),
+        },
+      },
+    );
     const responseBody = {
       reply: response.reply,
       success: response.success,
@@ -491,6 +521,25 @@ router.post('/message', async (req, res) => {
       },
       'error'
     );
+
+    // Close the Activity Log bookend even when the run throws.
+    if (typeof runId === 'string' && runId) {
+      appEventService.logEvent(
+        'agent',
+        'error',
+        `Agent flow end — error · ${error.name || error.code || 'unknown'}`,
+        {
+          tag: 'agent/flow-end',
+          correlationId: runId,
+          metadata: {
+            runId,
+            success: false,
+            error: error.message || String(error),
+            ...(useCaseId ? { useCaseId } : {}),
+          },
+        },
+      );
+    }
 
     // D-03: Structured recovery responses — agent threw a typed recovery error
     if (error.name === 'LoginRequiredError') {

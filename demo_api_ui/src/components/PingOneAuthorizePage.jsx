@@ -106,8 +106,14 @@ const S = {
   error: { padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px' },
   iconBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '8px' },
   reopenTrace: {
-    marginTop: '14px', padding: '8px 14px', background: '#eef2ff', border: '1px solid #c7d2fe',
+    marginTop: '12px', padding: '9px 14px', background: '#1e3a5f', border: 'none',
+    borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', gap: '8px',
+  },
+  reopenTraceOpen: {
+    marginTop: '12px', padding: '9px 14px', background: '#eef2ff', border: '1px solid #c7d2fe',
     borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#3730a3', cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', gap: '8px',
   },
 
   policyUsed: { marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,.06)' },
@@ -366,7 +372,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
       const elapsed = Date.now() - started;
       setLastParameters(parameters);
       setResult({ ...res.data, elapsedMs: elapsed });
-      setTraceOpen(true);
       setLastTrace({
         request: authorizeRequestPayload(res.data, endpointId, parameters),
         response: authorizeResponsePayload(res.data),
@@ -557,6 +562,14 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
               )}
             </div>
           )}
+          <button
+            type="button"
+            style={traceOpen ? S.reopenTraceOpen : S.reopenTrace}
+            onClick={() => setTraceOpen((open) => !open)}
+            aria-expanded={traceOpen}
+          >
+            {traceOpen ? 'Close floating policy decision trace' : '🪟 Open policy decision trace'}
+          </button>
         </div>
       )}
 
@@ -594,22 +607,13 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
         </>
       )}
 
-      {result && !traceOpen && (
-        <button
-          type="button"
-          style={S.reopenTrace}
-          onClick={() => setTraceOpen(true)}
-        >
-          Show policy decision trace
-        </button>
-      )}
       {result && traceOpen && (
         <FloatingPanel
           title="Policy decision trace"
           defaultWidth={Math.min(780, window.innerWidth - 48)}
           defaultHeight={Math.min(560, window.innerHeight - 100)}
-          defaultX={Math.max(24, window.innerWidth - 820)}
-          defaultY={72}
+          defaultX={Math.max(24, Math.floor((window.innerWidth - Math.min(780, window.innerWidth - 48)) / 2))}
+          defaultY={Math.max(48, Math.floor((window.innerHeight - Math.min(560, window.innerHeight - 100)) / 5))}
           minWidth={360}
           minHeight={280}
           onClose={() => setTraceOpen(false)}
