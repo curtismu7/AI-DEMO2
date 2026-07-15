@@ -72,6 +72,35 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
     expect(res.body.error).toBe('unknown_test');
   });
 
+  it('scores conn_pingcli as pass when the resolved binary returns a version', async () => {
+    jest.resetModules();
+    const prevBin = process.env.PINGCLI_BIN;
+    process.env.PINGCLI_BIN = '/usr/local/bin/pingcli';
+    const execFile = jest.fn((_bin, _args, _opts, cb) => {
+      cb(null, 'pingcli version 1.2.0 (commit: abc)\n', '');
+    });
+    jest.doMock('node:child_process', () => ({ execFile }));
+    try {
+      const freshApp = express();
+      freshApp.use(express.json());
+      freshApp.use((req, _res, next) => {
+        req.session = { oauthTokens: { accessToken: 'user-at' }, user: { id: 'u1' }, id: 's1' };
+        next();
+      });
+      freshApp.use('/api/admin/ping-ai-test-lab', require('../routes/pingAiTestLab'));
+      const res = await request(freshApp)
+        .post('/api/admin/ping-ai-test-lab/run')
+        .send({ testKey: 'conn_pingcli' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('pass');
+      expect(execFile.mock.calls[0][0]).toBe('/usr/local/bin/pingcli');
+      expect(res.body.detail.bin).toBe('/usr/local/bin/pingcli');
+    } finally {
+      if (prevBin === undefined) delete process.env.PINGCLI_BIN;
+      else process.env.PINGCLI_BIN = prevBin;
+    }
+  });
+
   it('returns the six Agent Skills for skills_catalog', async () => {
     const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'skills_catalog' });
     expect(res.status).toBe(200);

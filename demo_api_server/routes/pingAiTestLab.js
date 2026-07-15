@@ -21,12 +21,20 @@
  * Auth enforced by authenticateToken at the server.js mount.
  */
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const configStore = require('../services/configStore');
 
 const router = express.Router();
 
-const PINGCLI_BIN = process.env.PINGCLI_BIN || '/app/bin/pingcli';
+// Same resolution as routes/pingcli.js: /app/bin is often the repo's macOS
+// Mach-O binary via the Docker bind mount and cannot exec in Linux pods.
+const PINGCLI_BIN =
+  process.env.PINGCLI_BIN ||
+  (fs.existsSync('/usr/local/bin/pingcli')
+    ? '/usr/local/bin/pingcli'
+    : path.join(__dirname, '..', 'bin', 'pingcli'));
 
 const EVAL_ROWS = require('../data/ciamEvalChecks.json').rows;
 
@@ -382,27 +390,37 @@ const TESTS = [
     run: () => new Promise((resolve) => {
       const { execFile } = require('node:child_process');
       execFile(PINGCLI_BIN, ['--version'], { timeout: 10000 }, (err, stdout, stderr) => {
-        // ENOENT / ENOEXEC / UV "Unknown system error -8" mean the binary is
-        // missing or not runnable in this image — not an infra regression.
+        // ENOENT / ENOEXEC / UV "Unknown system error -8" / Exec format error
+        // mean missing binary or wrong arch (macOS Mach-O on Linux) — not a fail.
         const spawnCode = err && err.code;
+        const errText = `${err?.message || ''} ${stderr || ''} ${stdout || ''}`;
         const missing = !err ? false
           : spawnCode === 'ENOENT'
             || spawnCode === 'ENOEXEC'
             || spawnCode === 'EACCES'
-            || /Unknown system error -8/i.test(err.message || '')
-            || /not found/i.test(err.message || '');
+            || /Unknown system error -8/i.test(errText)
+            || /Exec format error/i.test(errText)
+            || /cannot execute binary file/i.test(errText)
+            || /not found/i.test(err?.message || '');
         if (missing) {
           resolve({
             status: 'not_configured',
             detail: {
-              reason: `pingcli binary not available at ${PINGCLI_BIN} (shipped in the Docker BFF image)`,
+              reason: `pingcli binary not available at ${PINGCLI_BIN} (use image /usr/local/bin/pingcli; /app/bin is often a macOS Mach-O)`,
+              bin: PINGCLI_BIN,
               error: err.message,
             },
           });
         } else if (err) {
-          resolve({ status: 'fail', detail: { error: err.message, output: String(stderr || stdout).slice(0, 200) } });
+          resolve({
+            status: 'fail',
+            detail: { bin: PINGCLI_BIN, error: err.message, output: String(stderr || stdout).slice(0, 200) },
+          });
         } else {
-          resolve({ status: 'pass', detail: { version: String(stdout).trim().slice(0, 120) } });
+          resolve({
+            status: 'pass',
+            detail: { bin: PINGCLI_BIN, version: String(stdout).trim().slice(0, 120) },
+          });
         }
       });
     }),
