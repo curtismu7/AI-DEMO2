@@ -17,6 +17,35 @@
   color: var(--color-text-primary, #111);
 }
 
+.uc-launcher__progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+}
+
+.uc-launcher__progress-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111);
+}
+
+.uc-launcher__clear-progress {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #d1d5db);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary, #111);
+  cursor: pointer;
+}
+
+.uc-launcher__clear-progress:hover {
+  border-color: var(--color-text-secondary, #6b7280);
+}
+
 .uc-launcher__subtitle {
   font-size: 0.95rem;
   color: var(--color-text-secondary, #555);
@@ -125,6 +154,26 @@
 .uc-card--advanced {
   border-style: dashed;
   opacity: 0.85;
+}
+
+.uc-card--completed {
+  border-color: #15803d;
+  box-shadow: inset 3px 0 0 #15803d;
+}
+
+.uc-card__done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #15803d;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .uc-card__header {
@@ -685,6 +734,11 @@
 }
 
 /* ── Multi-LLM showcase (Phase 5) ───────────────────────────────────────── */
+
+.pt-demo-strip__step--completed {
+  border-color: #15803d;
+  box-shadow: inset 3px 0 0 #15803d;
+}
 
 .pt-demo-strip__step--optional {
   border-style: dashed;

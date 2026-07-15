@@ -139,7 +139,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   white-space: nowrap;
 }
 
@@ -151,6 +151,23 @@
   color: var(--brand-topnav-text, #ffffff);
   font-weight: 600;
   border-bottom-color: var(--brand-topnav-text, #ffffff);
+}
+
+/* After launching from /use-cases — prominent return control */
+.topnav-use-cases-btn--back {
+  margin-left: 4px;
+  padding: 4px 12px;
+  font-weight: 600;
+  color: var(--brand-topnav-text, #ffffff);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+}
+
+.topnav-use-cases-btn--back:hover {
+  background: rgba(255, 255, 255, 0.26);
+  color: var(--brand-topnav-text, #ffffff);
 }
 
 .topnav-spacer {
