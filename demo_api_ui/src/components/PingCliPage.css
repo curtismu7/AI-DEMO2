@@ -62,6 +62,45 @@
   color: #f1f5f9;
 }
 
+.pingcli-install-hint {
+  font-size: 12px !important;
+  color: #64748b !important;
+  margin: -2px 0 12px !important;
+}
+
+.pingcli-install code {
+  background: #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.pingcli-install h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 16px 0 8px;
+}
+
+.pingcli-howto-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.65;
+}
+
+.pingcli-howto-list li {
+  margin-bottom: 6px;
+}
+
+.pingcli-howto-list code {
+  background: #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
 /* ── Command categories ──────────────────────────────── */
 .pingcli-run-note {
   font-size: 13px;
