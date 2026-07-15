@@ -51,16 +51,14 @@ def _resolve_provider() -> str:
     Probe-based provider resolution — no CODEGRAPH_LLM_PROVIDER override needed.
 
     Priority:
-      1. CODEGRAPH_LLM_PROVIDER env var (explicit override)
+      1. CODEGRAPH_LLM_PROVIDER env var (explicit override), BUT if it is
+         `llamacpp` and the configured llama URL is unreachable, fall through
+         so a down tier1 replica does not hard-fail Code Explorer with
+         "Connection error."
       2. llama.cpp — if llama-server is reachable at LLAMACPP_BASE_URL
       3. Helix — if HELIX_ENVIRONMENT_ID + HELIX_PROMPT_FIELD_ID are set
       4. lmstudio — fallback when neither llama.cpp nor Helix is available
     """
-    explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip()
-    if explicit:
-        logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
-        return explicit
-
     # Prefer CODEGRAPH_LLAMACPP_BASE_URL when set (e.g. host mlx-lm on :8098
     # while LLAMACPP_BASE_URL still points at in-cluster llm-proxy).
     llamacpp_url = (
@@ -68,6 +66,18 @@ def _resolve_provider() -> str:
         or os.getenv("LLAMACPP_BASE_URL")
         or "http://host.docker.internal:8090"
     )
+
+    explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip()
+    if explicit:
+        if explicit == "llamacpp" and not _llamacpp_reachable(llamacpp_url):
+            logger.warning(
+                "CodeGraph LLM: CODEGRAPH_LLM_PROVIDER=llamacpp but %s unreachable — falling through",
+                llamacpp_url,
+            )
+        else:
+            logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
+            return explicit
+
     if _llamacpp_reachable(llamacpp_url):
         logger.info("CodeGraph LLM: llama.cpp reachable at %s — using llamacpp", llamacpp_url)
         return "llamacpp"
@@ -90,9 +100,20 @@ def create_codegraph_agent(api_key: str):
     Override with CODEGRAPH_LLM_PROVIDER env var.
     """
     provider = _resolve_provider()
+    # CODEGRAPH_MODEL is often set for llama.cpp (e.g. gpt-oss-20b). Do not
+    # pass that through to Anthropic/Helix or tool-calling requests 404.
+    model_override = os.getenv("CODEGRAPH_MODEL") or None
+    if provider not in {"llamacpp", "lmstudio", "anthropic-lmstudio", "groq", "google"}:
+        model_override = None
+    elif provider == "anthropic":
+        # Anthropic cloud: keep explicit CODEGRAPH_MODEL only when it looks like
+        # a Claude id; ignore llama/gguf names left over from local config.
+        if model_override and not model_override.lower().startswith("claude"):
+            model_override = None
+
     llm = get_llm(
         provider=provider,
-        model=os.getenv("CODEGRAPH_MODEL") or None,
+        model=model_override,
         api_key=api_key,
         llamacpp_base_url=(
             os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
