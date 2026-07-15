@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import apiClient from "../services/apiClient";
 import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
+import { pingOneConsoleUrl } from "../utils/pingOneConsoleUrl";
 // Toasts intentionally disabled on this page — they obscured the inline diagnostic
 // panels. Status is conveyed by the on-page result/diagnostic cards instead.
 const notifyError = () => {};
@@ -636,14 +637,16 @@ export default function PingOneTestPage() {
 	const fixIssue = useCallback(
 		(testName) => {
 			const envId = config?.environmentId;
-			const consoleBase = envId
-				? `https://console.pingone.com/edit/${envId}/#`
-				: "https://console.pingone.com";
+			// PingOne rejects /edit/{envId}/# with "Invalid Sign-on URL"; use ?env=.
+			const appsUrl = pingOneConsoleUrl(envId, "/application/list");
+			const resourcesUrl = pingOneConsoleUrl(envId, "/foundation/Resource/list");
+			const usersUrl = pingOneConsoleUrl(envId, "/users/list");
+			const consoleHome = pingOneConsoleUrl(envId);
 
 			const fixActions = {
 				environmentId: {
 					msg: "Set PINGONE_ENVIRONMENT_ID in your .env file, then restart the server.",
-					url: "https://console.pingone.com",
+					url: consoleHome,
 				},
 				region: {
 					msg: "Set PINGONE_REGION in .env (e.g. com | eu | ca). Default is com.",
@@ -651,55 +654,55 @@ export default function PingOneTestPage() {
 				},
 				adminClientId: {
 					msg: "Set PINGONE_ADMIN_CLIENT_ID — copy Client ID from PingOne → Applications → Demo AI App - Admin Login.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				},
 				userClientId: {
 					msg: "Set PINGONE_USER_CLIENT_ID — copy Client ID from PingOne → Applications → Demo AI App - User Login.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				},
 				mcpTokenExchangerClientId: {
 					msg: "Set PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID — copy from PingOne → Applications → Demo AI App - Token Exchanger.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				},
 				aiAgentClientId: {
 					msg: "Set PINGONE_AI_AGENT_CLIENT_ID — copy from PingOne → Applications → Demo AI App - AI Agent Actor.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				},
 				resourceMcpServerUri: {
 					msg: "Set PINGONE_RESOURCE_MCP_SERVER_URI — copy the Audience URI from PingOne → Connections → Resource Servers → Demo MCP Server.",
-					url: `${consoleBase}/foundation/Resource/list`,
+					url: resourcesUrl,
 				},
 				resourceMcpGatewayUri: {
 					msg: "Set PINGONE_RESOURCE_MCP_GATEWAY_URI — Audience URI for the MCP Gateway resource server.",
-					url: `${consoleBase}/foundation/Resource/list`,
+					url: resourcesUrl,
 				},
 				resourceAgentGatewayUri: {
 					msg: "Set PINGONE_RESOURCE_AGENT_GATEWAY_URI — Audience URI for the Agent Gateway resource server.",
-					url: `${consoleBase}/foundation/Resource/list`,
+					url: resourcesUrl,
 				},
 				"single-exchange": {
 					msg: 'PingOne error: "At least one scope must be granted" means the MCP Token Exchanger app is missing banking scopes. Fix: PingOne → Applications → Demo AI App - Token Exchanger → Resources tab → add read, write, mcp:invoke from the Demo MCP Gateway resource server. Also enable Token Exchange grant type.',
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				}, // legacy dispatch key — not user-facing; canonical: 1-exchange
 				"double-exchange": {
 					msg: "2-exchange (dual-token) needs Ping Agent Gateway alignment: MCP Token Exchanger app must have banking scopes, user token must carry may_act, and actor_token policy must allow gateway exchange. Fix: Applications → MCP Token Exchanger → Resources tab.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				}, // legacy dispatch key — not user-facing; canonical: 2-exchange
 				apps: {
 					msg: "In PingOne → Worker App → Roles → assign Read Clients / Applications role.",
-					url: `${consoleBase}/application/list`,
+					url: appsUrl,
 				},
 				resources: {
 					msg: "In PingOne → Worker App → Roles → assign Read Resource Servers role.",
-					url: `${consoleBase}/foundation/Resource/list`,
+					url: resourcesUrl,
 				},
 				scopes: {
 					msg: "In PingOne → Worker App → Roles → assign Read Scopes role.",
-					url: `${consoleBase}/foundation/Resource/list`,
+					url: resourcesUrl,
 				},
 				users: {
 					msg: "In PingOne → Worker App → Roles → assign Read Users role.",
-					url: `${consoleBase}/users/list`,
+					url: usersUrl,
 				},
 			};
 
@@ -708,11 +711,9 @@ export default function PingOneTestPage() {
 				notifyInfo(
 					"Check configuration for this item in PingOne admin console.",
 				);
-				window.open(
-					"https://console.pingone.com",
-					"_blank",
-					"noopener,noreferrer",
-				);
+				if (consoleHome) {
+					window.open(consoleHome, "_blank", "noopener,noreferrer");
+				}
 				return;
 			}
 			notifyInfo(action.msg, { autoClose: 10000 });
