@@ -228,12 +228,19 @@ class TestCodegraphReindex:
         busy.locked.assert_called_once()
 
     def test_success_parses_counts(self, tmp_path):
+        db = tmp_path / "codegraph.db"
         self._write_indexer(
             tmp_path,
+            "import sys\n"
+            "from pathlib import Path\n"
             "print('  Indexing 5 files from X')\n"
-            "print('  Found 12 nodes, 3 call sites')\n",
+            "print('  Found 12 nodes, 3 call sites')\n"
+            "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
+            "out.parent.mkdir(parents=True, exist_ok=True)\n"
+            "out.write_bytes(b'x' * 64)\n",
         )
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
@@ -241,16 +248,47 @@ class TestCodegraphReindex:
         assert data["files"] == 5
         assert data["nodes"] == 12
         assert isinstance(data["durationMs"], int)
+        assert db.is_file() and db.stat().st_size > 0
 
     def test_unparseable_output_yields_null_counts(self, tmp_path):
-        self._write_indexer(tmp_path, "print('done, nothing to parse here')\n")
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        db = tmp_path / "codegraph.db"
+        self._write_indexer(
+            tmp_path,
+            "import sys\n"
+            "from pathlib import Path\n"
+            "print('done, nothing to parse here')\n"
+            "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
+            "out.write_bytes(b'x' * 64)\n",
+        )
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
         assert data["ok"] is True
         assert data["files"] is None
         assert data["nodes"] is None
+
+    def test_legacy_indexer_without_out_is_promoted(self, tmp_path):
+        """Staged build-codegraph.py that ignores --out still unblocks queries."""
+        query_db = tmp_path / "query" / "codegraph.db"
+        legacy = tmp_path / ".codegraph" / "codegraph.db"
+        self._write_indexer(
+            tmp_path,
+            "from pathlib import Path\n"
+            "print('  Indexing 2 files from X')\n"
+            "print('  Found 9 nodes, 1 call sites')\n"
+            "p = Path('.codegraph') / 'codegraph.db'\n"
+            "p.parent.mkdir(parents=True, exist_ok=True)\n"
+            "p.write_bytes(b'legacy-db' * 8)\n",
+        )
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(query_db)):
+            response = client.post("/codegraph/reindex")
+        assert response.status_code == 200
+        assert response.json()["nodes"] == 9
+        assert query_db.is_file() and query_db.stat().st_size > 0
+        assert legacy.is_file()
 
     def test_indexer_failure_returns_500_with_log(self, tmp_path):
         self._write_indexer(tmp_path, "import sys\nprint('boom')\nsys.exit(1)\n")

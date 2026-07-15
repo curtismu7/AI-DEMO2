@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -141,6 +142,11 @@ async def codegraph_reindex() -> Response:
     The repo is bind-mounted at REPO_SRC_ROOT (/app/live-repo); the indexer is
     told to write to CODEGRAPH_DB_PATH (via --out) — the exact DB the query
     tools read — so no image rebuild or re-stage is needed.
+
+    Older staged copies of build-codegraph.py ignore --out and always write to
+    {REPO_SRC_ROOT}/.codegraph/codegraph.db. After a successful run we copy that
+    default into CODEGRAPH_DB_PATH when the query path is still empty, so Refresh
+    index actually unblocks /code-explorer.
     """
     root = repo_src_root()
     script = root / "scripts" / "build-codegraph.py"
@@ -170,31 +176,61 @@ async def codegraph_reindex() -> Response:
             logger.error("CodeGraph reindex failed to launch: %s", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
-    out = (stdout or b"").decode("utf-8", "replace")
-    elapsed_ms = int((time.monotonic() - started) * 1000)
+        out = (stdout or b"").decode("utf-8", "replace")
+        elapsed_ms = int((time.monotonic() - started) * 1000)
 
-    if proc.returncode != 0:
-        logger.error("CodeGraph reindex exited %s:\n%s", proc.returncode, out)
-        return JSONResponse(
-            {"error": "indexer exited non-zero", "log": out[-2000:]},
-            status_code=500,
-        )
+        if proc.returncode != 0:
+            logger.error("CodeGraph reindex exited %s:\n%s", proc.returncode, out)
+            return JSONResponse(
+                {"error": "indexer exited non-zero", "log": out[-2000:]},
+                status_code=500,
+            )
 
-    # The indexer prints "Indexing N files ..." and "Found M nodes ..." — surface
-    # the counts (None if the output format ever changes; never a wrong number).
-    nodes = files = None
-    m = re.search(r"Found\s+(\d+)\s+nodes", out)
-    if m:
-        nodes = int(m.group(1))
-    m = re.search(r"Indexing\s+(\d+)\s+files", out)
-    if m:
-        files = int(m.group(1))
+        # Legacy indexer (no --out): promote default write path → query path.
+        if not _index_available():
+            legacy = root / ".codegraph" / "codegraph.db"
+            target = Path(CODEGRAPH_DB_PATH)
+            try:
+                if legacy.is_file() and legacy.stat().st_size > 0:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    # Same-filesystem replace keeps concurrent readers safe.
+                    tmp = target.with_name(target.name + ".promote-tmp")
+                    shutil.copy2(legacy, tmp)
+                    os.replace(tmp, target)
+                    logger.info(
+                        "CodeGraph reindex: promoted %s → %s (%s bytes)",
+                        legacy, target, target.stat().st_size,
+                    )
+            except OSError as exc:
+                logger.error("CodeGraph reindex promote failed: %s", exc)
+                return JSONResponse(
+                    {"error": f"index built but not available at {CODEGRAPH_DB_PATH}: {exc}",
+                     "log": out[-2000:]},
+                    status_code=500,
+                )
 
-    # Drop the cached agent so the next query rebuilds against the fresh DB
-    # (and re-probes the LLM provider).
-    global _graph_cache
-    _graph_cache = None
+        if not _index_available():
+            return JSONResponse(
+                {"error": f"index still missing/empty at {CODEGRAPH_DB_PATH} after rebuild",
+                 "log": out[-2000:]},
+                status_code=500,
+            )
 
-    logger.info("CodeGraph reindex OK in %sms (nodes=%s)", elapsed_ms, nodes)
-    return JSONResponse({"ok": True, "nodes": nodes, "files": files,
-                         "durationMs": elapsed_ms})
+        # The indexer prints "Indexing N files ..." and "Found M nodes ..." — surface
+        # the counts (None if the output format ever changes; never a wrong number).
+        nodes = files = None
+        m = re.search(r"Found\s+(\d+)\s+nodes", out)
+        if m:
+            nodes = int(m.group(1))
+        m = re.search(r"Indexing\s+(\d+)\s+files", out)
+        if m:
+            files = int(m.group(1))
+
+        # Drop the cached agent so the next query rebuilds against the fresh DB
+        # (and re-probes the LLM provider).
+        global _graph_cache
+        _graph_cache = None
+
+        logger.info("CodeGraph reindex OK in %sms (nodes=%s)", elapsed_ms, nodes)
+        return JSONResponse({"ok": True, "nodes": nodes, "files": files,
+                             "durationMs": elapsed_ms})
