@@ -218,12 +218,15 @@ router.get('/login', (req, res) => {
 
     // Generate a nonce for OIDC replay protection (RFC 6749 / OIDC Core §3.1.2.1)
     const nonce = crypto.randomBytes(16).toString('hex');
+    // force=true must send prompt=login — clearing the BFF session alone does not
+    // stop PingOne SSO from silently re-auth'ing and bouncing the SPA to `/`.
     const url =
       oauthService.generateAuthorizationUrl({
         state,
         codeVerifier,
         redirectUri,
         nonce,
+        ...(forceLogin ? { prompt: 'login' } : {}),
       }) + resourceParam;
 
     // Store state, verifier and redirect URI in session for CSRF protection and PKCE

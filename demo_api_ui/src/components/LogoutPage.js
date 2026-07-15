@@ -1,12 +1,14 @@
 // banking_api_ui/src/components/LogoutPage.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { navigateToCustomerOAuthLogin } from '../utils/authUi';
+import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import './LogoutPage.css';
 
 /**
  * LogoutPage — shown after successful logout from PingOne
- * Displays a confirmation message and redirects to PingOne login after 3 seconds
+ * Displays a confirmation message and redirects to PingOne login after 3 seconds.
+ * Uses force login (prompt=login) so PingOne SSO cannot silently send the user
+ * back to the home page without a credential prompt.
  */
 export default function LogoutPage() {
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ export default function LogoutPage() {
   // Navigate to PingOne login when countdown reaches 0
   useEffect(() => {
     if (countdown === 0) {
-      navigateToCustomerOAuthLogin();
+      navigateToCustomerOAuthForceLogin();
     }
   }, [countdown]);
 
@@ -52,7 +54,7 @@ export default function LogoutPage() {
         <div className="logout-actions">
           <button
             className="logout-button logout-button--primary"
-            onClick={() => navigateToCustomerOAuthLogin()}
+            onClick={() => navigateToCustomerOAuthForceLogin()}
             title="Sign in again"
           >
             Sign In Again

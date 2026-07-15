@@ -129,4 +129,22 @@ describe('OAuth User Login', () => {
 
     expect(clientId).toBe('test-client-id');
   });
+
+  test('force=true should send prompt=login so PingOne shows credentials', async () => {
+    const res = await request(app)
+      .get('/api/auth/oauth/user/login?force=true')
+      .expect(302);
+
+    const url = new URL(res.headers.location);
+    expect(url.searchParams.get('prompt')).toBe('login');
+  });
+
+  test('normal login should not set prompt=login', async () => {
+    const res = await request(app)
+      .get('/api/auth/oauth/user/login')
+      .expect(302);
+
+    const url = new URL(res.headers.location);
+    expect(url.searchParams.get('prompt')).toBeNull();
+  });
 });
