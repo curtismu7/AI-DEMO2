@@ -178,23 +178,45 @@ export function buildTraceSteps(trace) {
       tokenEvent: exTok,
     } : {}));
 
-  // 7. authorize
+  // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the
+  // synthesize authorize-decision token event (same payloads, different source).
   const azDenied = hasPhase(phases, "authorize_denied");
   const azPermitted = hasPhase(phases, "authorize_permitted") || (authorize && authorize.decision === "PERMIT");
   const azBegun = hasPhase(phases, "authorize_gate_begin");
+  const azEvent = findEvent(tokenEvents, "authorize-decision");
+  const azEval = authorize || (azEvent ? {
+    engine: azEvent.authorizeEngine,
+    decision: azEvent.authorizeDecision || azEvent.decision,
+    decisionId: azEvent.authorizeDecisionId || azEvent.decisionId,
+    decisionContext: azEvent.decisionContext,
+    path: azEvent.authorizePath || azEvent.path,
+    request: azEvent.authorizeRequest || azEvent.request,
+    response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
+  } : null);
+  const azRequestPayload = azEval && azEval.request
+    ? ((azEval.request.body && azEval.request.body.parameters)
+        || azEval.request.parameters
+        || azEval.request.body
+        || azEval.request)
+    : null;
   steps.push(makeStep("authorize",
-    azDenied ? "error" : azPermitted ? "done" : azBegun ? "active" : "pending",
-    authorize ? {
-      request: authorize.request ? { title: "Decision request (actual)",
-        text: `${authorize.request.method || "POST"} ${authorize.request.url || ""}\n${asJson((authorize.request.body && authorize.request.body.parameters) || authorize.request.parameters || authorize.request.body || {})}` } : undefined,
-      response: authorize.response
-        ? { title: "Decision response (raw)", text: asJson(authorize.response) } : undefined,
-      decision: { outcome: authorize.decision || "INDETERMINATE",
-        label: `${authorize.decision || "INDETERMINATE"} — ${authorize.engine || "?"}${authorize.decisionContext ? ` (${authorize.decisionContext})` : ""}` },
+    azDenied ? "error" : azPermitted || (azEval && azEval.decision === "PERMIT") ? "done"
+      : azEval && (azEval.decision === "DENY" || azEval.decision === "deny") ? "error"
+      : azBegun || azEval ? "active" : "pending",
+    azEval ? {
+      request: azRequestPayload || azEval.request
+        ? { title: "Decision request (actual)",
+            text: `${(azEval.request && azEval.request.method) || "POST"} ${(azEval.request && azEval.request.url) || ""}\n${asJson(azRequestPayload || azEval.request)}` }
+        : undefined,
+      response: azEval.response
+        ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
+      decision: { outcome: azEval.decision || "INDETERMINATE",
+        label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
       kv: [
-        ["engine", String(authorize.engine || "")],
-        ["decision id", String(authorize.decisionId || "")],
+        ["engine", String(azEval.engine || "")],
+        ["decision id", String(azEval.decisionId || "")],
       ].filter(([, v]) => v),
+      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : {}));
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
@@ -259,10 +281,31 @@ export function buildTraceSteps(trace) {
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
       ].filter(Boolean),
-      response: gwAz && gwAz.rawResponse
-        ? { title: "Gateway authorize response", text: asJson(gwAz.rawResponse) }
-        : gwIntro && gwIntro.rawResponse
-          ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) } : undefined,
+      request: (() => {
+        if (!gwAz) return undefined;
+        const params = gwAz.parameters
+          || gwAz.authorizeRequest?.parameters
+          || gwAz.authorizeRequest?.body?.parameters
+          || gwAz.authorizeRequest
+          || null;
+        if (!params) return undefined;
+        return {
+          title: "Gateway → P1AZ request (actual)",
+          text: `${gwAz.url ? `POST ${gwAz.url}\n` : ""}${asJson(params)}`,
+        };
+      })(),
+      response: (() => {
+        if (!gwAz) {
+          return gwIntro && gwIntro.rawResponse
+            ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) }
+            : undefined;
+        }
+        const body = gwAz.rawResponse || gwAz.authorizeResponse || null;
+        return body
+          ? { title: "Gateway authorize response", text: asJson(body) }
+          : undefined;
+      })(),
+      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",

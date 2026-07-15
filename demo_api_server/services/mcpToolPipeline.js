@@ -2,6 +2,7 @@
 
 const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
+const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
 const _CAT = LOG_CATEGORIES.MCP_TOOL_PIPELINE;
 
 /**
@@ -400,8 +401,16 @@ async function runMcpToolPipeline(ctx) {
                 } : {}),
                 tokenEvents,
                 mcpAuthorizeEvaluation: {
+                    decision: mcpAuthz.block.body.error === 'mcp_step_up_required'
+                        ? 'INDETERMINATE'
+                        : mcpAuthz.block.body.error === 'mcp_hitl_required'
+                            ? 'INDETERMINATE'
+                            : 'DENY',
+                    engine: mcpAuthz.block.body.authorize_engine || null,
                     decisionContext: mcpAuthz.block.body.decisionContext,
                     decisionId: mcpAuthz.block.body.decisionId,
+                    request: mcpAuthz.block.body.authorize_request || null,
+                    response: mcpAuthz.block.body.authorize_response || null,
                     ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
                     ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
                 },
@@ -647,18 +656,7 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     desc,
-                    {
-                        decision: authzRes.decision,
-                        backend: authzRes.backend,
-                        url: authzRes.url,
-                        tool: authzRes.tool,
-                        method: authzRes.method,
-                        vertical: authzRes.vertical,
-                        parameters: authzRes.parameters,
-                        rawResponse: authzRes.rawResponse,
-                        reason: authzRes.reason,
-                        statements: authzRes.statements,
-                    }
+                    buildGwAuthorizeEventExtra(authzRes)
                 ));
             }
             if (gwAuditTrail.mcpAudit) {
@@ -832,18 +830,7 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    {
-                        decision: authzRes.decision,
-                        backend: authzRes.backend,
-                        url: authzRes.url,
-                        tool: authzRes.tool,
-                        method: authzRes.method,
-                        vertical: authzRes.vertical,
-                        parameters: authzRes.parameters,
-                        rawResponse: authzRes.rawResponse,
-                        reason: authzRes.reason,
-                        statements: authzRes.statements,
-                    }
+                    buildGwAuthorizeEventExtra(authzRes)
                 ));
             }
             if (err.gwAuditTrail && err.gwAuditTrail.mcpAudit) {
@@ -915,10 +902,7 @@ async function runMcpToolPipeline(ctx) {
                     decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny'),
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    { decision: authzRes.decision, backend: authzRes.backend, url: authzRes.url,
-                      tool: authzRes.tool, method: authzRes.method, vertical: authzRes.vertical,
-                      parameters: authzRes.parameters, rawResponse: authzRes.rawResponse,
-                      reason: authzRes.reason, statements: authzRes.statements }
+                    buildGwAuthorizeEventExtra(authzRes)
                 ));
             }
             if (trail.mcpAudit && !tokenEvents.some((e) => e && e.id === 'gw-mcp-audit')) {

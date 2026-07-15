@@ -66,6 +66,16 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
             → Inspect claims
           </button>
         )}
+        {d.moreDetail && d.moreDetail.href && (
+          <a
+            className="tctr-inspect"
+            href={d.moreDetail.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            → {d.moreDetail.label || "Show more detail"}
+          </a>
+        )}
       </div>
     </details>
   );

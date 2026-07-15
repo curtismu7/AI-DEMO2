@@ -1786,8 +1786,14 @@ function AuthorizeDecisionEduBox({ event }) {
             </li>
           )}
         </ul>
-        <JsonField label="Authorize Request (JSON)" value={event.authorizeRequest} />
-        <JsonField label="Authorize Response (JSON)" value={event.authorizeResponse} />
+        <JsonField label="Authorize Request (JSON)" value={event.authorizeRequest || event.request || (event.parameters ? { parameters: event.parameters } : null)} defaultOpen />
+        <JsonField label="Authorize Response (JSON)" value={event.authorizeResponse || event.response || event.rawResponse} defaultOpen />
+        {event.id === "authorize-decision" && (
+          <p className="tcd-edu-detail">
+            <a href="/pingone-authorize" target="_blank" rel="noopener noreferrer">→ Show more detail</a>
+            {" "}on the PingOne Authorize learning page.
+          </p>
+        )}
         {engine !== "pingone" && (
           <p className="tcd-edu-detail">
             Configure <code>authorize_decision_endpoint_id</code> via Setup to
@@ -1972,8 +1978,20 @@ function GwAuthorizeEduBox({ event }) {
             </li>
           )}
         </ul>
-        <JsonField label="Decision Parameters (JSON)" value={event.parameters} />
-        <JsonField label="Authorize Response (JSON)" value={event.rawResponse} />
+        <JsonField
+          label="Decision Parameters (JSON)"
+          value={event.parameters || event.authorizeRequest?.parameters || event.authorizeRequest}
+          defaultOpen
+        />
+        <JsonField
+          label="Authorize Response (JSON)"
+          value={event.rawResponse || event.authorizeResponse || event.response}
+          defaultOpen
+        />
+        <p className="tcd-edu-detail">
+          <a href="/pingone-authorize" target="_blank" rel="noopener noreferrer">→ Show more detail</a>
+          {" "}on the PingOne Authorize learning page.
+        </p>
       </div>
     </div>
   );
@@ -3048,7 +3066,17 @@ function EventRow({
     event.exchangeRequest ||
     event.jwtFullDecode ||
     event.mayActPresent !== undefined ||
-    event.actPresent !== undefined;
+    event.actPresent !== undefined ||
+    event.authorizeRequest ||
+    event.authorizeResponse ||
+    event.parameters ||
+    event.rawResponse ||
+    event.authorizeDecision ||
+    event.decision ||
+    event.id === "authorize-decision" ||
+    event.id === "gw-authorize" ||
+    event.id === "gw-mcp-audit" ||
+    event.id === "gw-introspection";
 
   const handleOpen = () => {
     if (!hasDetail) return;

@@ -453,6 +453,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             decisionId: r.decisionId,
             deny_reason: r.raw?.reason || null,
             deny_parameters: r.raw?.parameters || null,
+            authorize_request: r._debug?.request || null,
+            authorize_response: r._debug?.response || r.raw || null,
             ...autoDisabled,
           },
         },
@@ -548,6 +550,12 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
               // UserGroups so the UI can show required-vs-user groups.
               deny_reason: r.raw?.deny_reason || r.raw?.reason || null,
               deny_parameters: r.raw?.parameters || null,
+              authorize_request: { parameters: r.raw?.parameters || null },
+              authorize_response: (() => {
+                if (!r.raw) return null;
+                const { parameters: _p, ...rest } = r.raw;
+                return rest;
+              })(),
             },
           },
         };
@@ -673,6 +681,12 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             decisionId: r.decisionId,
             deny_reason: r.raw?.deny_reason || r.raw?.reason || null,
             deny_parameters: r.raw?.parameters || null,
+            authorize_request: { parameters: r.raw?.parameters || null },
+            authorize_response: (() => {
+              if (!r.raw) return null;
+              const { parameters: _p, ...rest } = r.raw;
+              return rest;
+            })(),
             authorizeFallback,
           } } };
         }

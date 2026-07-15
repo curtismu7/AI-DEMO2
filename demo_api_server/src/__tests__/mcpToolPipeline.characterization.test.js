@@ -180,7 +180,14 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.kind).toBe('block');
     expect(outcome.httpStatus).toBe(403);
     expect(outcome.body.error).toBe('mcp_authorization_denied');
-    expect(outcome.body.mcpAuthorizeEvaluation).toEqual({ decisionContext: { x: 1 }, decisionId: 'd1' });
+    expect(outcome.body.mcpAuthorizeEvaluation).toEqual({
+      decision: 'DENY',
+      engine: null,
+      decisionContext: { x: 1 },
+      decisionId: 'd1',
+      request: null,
+      response: null,
+    });
   });
 
   test('gate block 428 mcp_hitl_required → block + 3009 challenge created, taskId in body', async () => {

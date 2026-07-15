@@ -7,7 +7,7 @@ const { tool } = require('@langchain/core/tools');
 const { z } = require('zod/v4');
 const { explainTopic } = require('../services/educationTopics.js');
 const { mcpCallTool } = require('../services/mcpWebSocketClient');
-const { decodeJwtClaims, buildTokenEvent } = require('../services/agentMcpTokenService');
+const { decodeJwtClaims, buildTokenEvent, buildGwAuthorizeEventExtra } = require('../services/agentMcpTokenService');
 const { recordToolCall: recordMcpToolCall } = require('../services/mcpToolAuditStore');
 const mcpGatewayClient = require('../services/mcpGatewayClient');
 const configStore = require('../services/configStore');
@@ -164,15 +164,7 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
           const azStatus = az.decision === 'PERMIT' ? 'permit' : (az.decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
           tokenEvents.push(buildTokenEvent('gw-authorize', 'Gateway — PingOne Authorize Decision', azStatus, null,
             `PingOne Authorize policy evaluation: ${az.decision}${az.reason ? ` (${az.reason})` : ''}`,
-            {
-              decision: az.decision,
-              authorizeDecision: az.decision,
-              authorizeEngine: az.engine || 'pingone',
-              authorizeRequest: az.request || null,
-              authorizeResponse: az.response || null,
-              authorizeRef: az.policyRef || az.ref || null,
-              decisionId: az.decisionId || null,
-            }));
+            buildGwAuthorizeEventExtra(az)));
         }
         if (gwAuditTrail.mcpAudit) {
           const a = gwAuditTrail.mcpAudit;
