@@ -189,7 +189,8 @@ router.post('/ask', express.json(), async (req, res) => {
   if (!codebase_id) return res.status(400).json({ error: 'missing_codebase_id' });
   // Bound the agent call so a slow/hung LLM doesn't wedge the request forever.
   const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 60000);
+  // Large reasoning tier on SE (~8–10 t/s) often needs >60s for one answer.
+  const timeout = setTimeout(() => ctrl.abort(), 240000);
   try {
     const r = await fetch(`${LLAMAINDEX_AGENT_URL}/ask`, {
       method: 'POST',
@@ -199,6 +200,13 @@ router.post('/ask', express.json(), async (req, res) => {
     });
     const body = await r.json().catch(() => ({}));
     const status = typeof r.status === 'number' ? r.status : (r.ok ? 200 : 502);
+    // Normalize FastAPI { detail } into message so the UI can surface it.
+    if (!r.ok && body && body.detail && !body.message) {
+      const detail = Array.isArray(body.detail)
+        ? body.detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
+        : String(body.detail);
+      return res.status(status).json({ ...body, error: body.error || 'agent_error', message: detail });
+    }
     return res.status(status).json(body);
   } catch (err) {
     const aborted = err.name === 'AbortError';

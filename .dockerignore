@@ -31,3 +31,15 @@
 **/.vite
 **/.turbo
 test-results
+
+# Never bake live secrets into images (BFF now COPYs first-party trees into
+# /repo for the SE/K8 default code-search indexer; Compose still bind-mounts
+# ./:/repo over that path). Keep example envs.
+**/.env
+**/.env.*
+!**/.env.example
+**/certs
+**/*.pem
+**/*.key
+**/*.p12
+**/*.crt

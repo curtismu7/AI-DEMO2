@@ -32,6 +32,8 @@
 #   ./run-k8.sh sim-deploy   # deploy GHCR images to local K8s only (no rebuild)
 #
 # Ping SE DevOps cluster (ping-dev-aws-us-east-2):
+#   Prefer: ./run-pingaws.sh [start|build|deploy|status|undeploy|update …]
+#   Low-level (same behavior):
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
@@ -39,7 +41,7 @@
 #   ./run-k8.sh se-undeploy   # remove all app resources from your SE namespace (run when done!)
 #
 #   Namespace is auto-derived from your Ping email (cmuir@pingidentity.com → ping-devops-cmuir).
-#   Override with: SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-deploy
+#   Override with: SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh
 #
 # AWS EKS:
 #   ./run-k8.sh aws-build    # build images + push to GHCR (needs GITHUB_OWNER)

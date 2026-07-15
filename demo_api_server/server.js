@@ -12,6 +12,9 @@ require('dotenv').config({
     override: false
 });
 
+// Datadog scaffold — no-op unless DD_TRACE_ENABLED=true + DD_API_KEY (see docs/observability/datadog-scaffold.md).
+require('./services/datadogBootstrap').bootstrapDatadog();
+
 // Validate required env vars at startup — exits in production if any are missing
 require('./scripts/check-env');
 
@@ -1154,6 +1157,19 @@ app.get('/api/app-events/stream', (req, res) => {
     };
 
     const unsub = appEventService.subscribe(send);
+
+    // Replay recent history (oldest→newest) so the Activity Log has rows
+    // before the next live demo action. Clients also seed via GET; ids dedupe.
+    try {
+        const backlog = appEventService.getEvents({
+            category: filterCategory || undefined,
+            severity: filterSeverity || undefined,
+            limit: 200,
+        });
+        for (const event of [...backlog].reverse()) {
+            send(event);
+        }
+    } catch (_) { /* best-effort */ }
 
     req.on('close', () => {
         clearInterval(keepalive);

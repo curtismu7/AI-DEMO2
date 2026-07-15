@@ -24,7 +24,7 @@ asks **how you want to run** the demo:
 |---|------|----------|----------|
 | **1** | **Local** (native Node/Python — recommended to start) | `./run.sh` | Node, Python, Docker¹, mkcert, llama.cpp |
 | **2** | **Kubernetes / OrbStack** (local cluster) | `./run-k8.sh` | + OrbStack, kubectl |
-| **3** | **Ping SE cluster** (shared AWS) | `./run-k8.sh se-all` | + Docker Desktop, kubelogin, kubectx |
+| **3** | **Ping SE cluster** (shared AWS) | `./run-pingaws.sh` | + Docker Desktop, kubelogin, kubectx |
 | **4** | **Kubernetes / EKS** (self-managed) | `./run-k8.sh aws-all` | + OrbStack, AWS CLI |
 
 ¹ Local mode still uses Docker to run **PingGateway** (the MCP authorization gateway).
@@ -366,6 +366,8 @@ kubectl logs -n ai-demo deploy/<name> --previous        # after a crash
 
 Deploys to the shared Ping SE DevOps cluster (`ping-dev-aws-us-east-2`). Images are built locally, pushed to GHCR, and deployed to your personal namespace.
 
+**Launcher:** `./run-pingaws.sh` (wrapper around `./run-k8.sh se-*` and `se-update-*`).
+
 **Prerequisites:**
 
 | Tool | Install |
@@ -392,17 +394,30 @@ cd ~/AI-demo
 gh auth token | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 
 # Then deploy
-./run-k8.sh se-all
+./run-pingaws.sh
+# same as: ./run-pingaws.sh start
 ```
 
-`se-all` = build all 13 Docker images → push to `ghcr.io/curtismu7/` → apply K8s manifests to your SE namespace.
+That builds images → pushes to `ghcr.io/<you>/` → applies K8s manifests to your SE namespace.
 
 Your namespace is auto-derived from your Ping email:
 
 - `cmuir@pingidentity.com` → `ping-devops-cmuir`
-- Override: `SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-all`
+- Override: `SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh`
 
 **Access:** `https://ai-demo.ping-devops.com` (live after ~5 min for DNS)
+
+**Common commands:**
+
+```bash
+./run-pingaws.sh status                 # pods in your namespace
+./run-pingaws.sh build                  # build + push only
+./run-pingaws.sh deploy                 # deploy only (images already in GHCR)
+./run-pingaws.sh update code frontend   # rebuild/redeploy one service
+./run-pingaws.sh update config          # push .env / configmaps (no rebuild)
+./run-pingaws.sh update pingone         # re-register OAuth redirect URIs for SE URL
+./run-pingaws.sh undeploy               # tear down when done (keeps namespace)
+```
 
 **If the build succeeds but deploy fails (kubectl auth timeout):**
 
@@ -411,7 +426,7 @@ The OIDC browser popup must complete interactively. Run in your terminal:
 ```bash
 kubectl config use-context us
 kubectl get namespace ping-devops-cmuir   # triggers browser login — complete it
-./run-k8.sh se-deploy                     # deploy only (images already pushed)
+./run-pingaws.sh deploy                  # deploy only (images already pushed)
 ```
 
 **If the push fails mid-way (token expired during push):**
@@ -419,14 +434,15 @@ kubectl get namespace ping-devops-cmuir   # triggers browser login — complete 
 ```bash
 # Re-auth and re-push only (build is cached — fast)
 gh auth token | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-./run-k8.sh se-build    # push to GHCR
-./run-k8.sh se-deploy   # deploy to cluster
+./run-pingaws.sh build     # push to GHCR
+./run-pingaws.sh deploy    # deploy to cluster
 ```
 
 **Check status after deploy:**
 
 ```bash
-kubectl get pods -n ping-devops-cmuir
+./run-pingaws.sh status
+# or: kubectl get pods -n ping-devops-cmuir
 ```
 
 **Logs:**
@@ -444,7 +460,7 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous        # after a cras
 **⚠️ Undeploy when finished — the SE cluster is shared infrastructure:**
 
 ```bash
-./run-k8.sh se-undeploy   # removes all app resources; preserves the namespace
+./run-pingaws.sh undeploy   # removes all app resources; preserves the namespace
 ```
 
 ---
@@ -546,7 +562,7 @@ Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo
 | Symptom | Fix |
 | ------- | --- |
 | GHCR push fails with `unauthenticated` | `gh auth token \| docker login ghcr.io -u YOUR_USERNAME --password-stdin` then re-run |
-| `kubectl` OIDC auth timeout | Run `kubectl get namespace ping-devops-<you>` in your terminal to complete the browser popup, then `./run-k8.sh se-deploy` |
+| `kubectl` OIDC auth timeout | Run `kubectl get namespace ping-devops-<you>` in your terminal to complete the browser popup, then `./run-pingaws.sh deploy` |
 | `error: get-token: context deadline exceeded` | OIDC session expired — open a terminal, run a kubectl command to re-auth, then retry |
 | Docker socket error on SE deploy | Open Docker Desktop, wait for it to start, retry |
 | `zsh: command not found: nvm` | `source ~/.zshrc` or open a new terminal |

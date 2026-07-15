@@ -7,7 +7,10 @@ router.get('/catalog', (_req, res) => {
   require('../services/checks'); // populate the registry
   const flags = currentFlags();
   const checks = selectChecks(flags, { includeHeavy: true })
-    .map((c) => ({ id: c.id, name: c.name, category: c.category, heavy: !!c.heavy }));
+    .map((c) => ({
+      id: c.id, name: c.name, category: c.category, heavy: !!c.heavy,
+      severity: c.severity || 'blocking',
+    }));
   res.json({ flags, checks });
 });
 

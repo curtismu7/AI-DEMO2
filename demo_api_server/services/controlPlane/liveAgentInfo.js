@@ -16,7 +16,7 @@ function getLiveAgentRow(req) {
   } catch (_) { /* fall back */ }
 
   let provider = null;
-  let providerLabel = 'Heuristics only';
+  let providerLabel = 'Heuristics';
   try {
     const modeId = configStore.getEffective('agent_mode');
     const resolved = resolveAgentMode(modeId);

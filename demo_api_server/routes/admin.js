@@ -734,10 +734,10 @@ router.post(
 
 /**
  * POST /api/admin/pingone/update-scopes
- * 
- * PingOne scope configuration update.
- * Enhanced with silent worker token acquisition - no manual credentials required.
- * Handles: agent:invoke -> ai:agent:read (Phase 69.1)
+ *
+ * Add any scopes missing from scope-topology.json onto Demo API, Agent Gateway,
+ * and MCP Server resources. Non-destructive (add-only). Uses silent worker-token
+ * acquisition — no manual credentials required.
  */
 router.post(
   '/pingone/update-scopes',

@@ -1221,10 +1221,13 @@ done
 
 # ── CodeGraph index (Code Explorer) ──────────────────────────────────────────
 # Rebuild the codegraph DB + stage the source the agent's grep/read tools read,
-# so /code-explorer is always current locally. Fast (~1s, AST-only, no API cost);
-# never fails startup — Code Explorer degrades gracefully on a missing/stale DB.
+# so /code-explorer is always current locally. Also bake langchain_agent/codegraph.db
+# for Docker/k8s image builds (avoids empty /app/codegraph.db → Code Explorer 503).
+# Fast (~1s, AST-only, no API cost); never fails startup — Code Explorer degrades
+# gracefully on a missing/stale DB.
 if command -v python3 >/dev/null 2>&1; then
   if python3 "$BASEDIR/scripts/build-codegraph.py" >/dev/null 2>&1; then
+    cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
     python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" >/dev/null 2>&1 || true
     ok "CodeGraph index refreshed (Code Explorer)"
   else

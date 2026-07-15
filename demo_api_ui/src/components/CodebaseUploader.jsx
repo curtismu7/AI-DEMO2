@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   filterFolderFiles,
   indexFolderFiles,
+  planFolderIndex,
   FOLDER_MAX_FILE_BYTES,
   FOLDER_MAX_FILES,
 } from '../services/codeSearchAPI';
@@ -61,31 +62,55 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
       return;
     }
 
-    const topFolder = (accepted[0]?.webkitRelativePath || 'folder').split('/')[0];
-    // One id for the whole folder so all batches land in a single codebase and
-    // the id we hand the page matches what is stored in Weaviate (queryable).
-    const codebaseId = `folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const plan = planFolderIndex(accepted);
+    /** @type {Array<{ name: string, files: File[] }>} */
+    let jobs;
+    if (plan.mode === 'pieces') {
+      const names = [...plan.groups.keys()];
+      const split = window.confirm(
+        `"${plan.rootName}" has ${names.length} top-level packages ` +
+          `(${names.slice(0, 6).join(', ')}${names.length > 6 ? ', …' : ''}).\n\n` +
+          `Index each package as its own searchable codebase?\n\n` +
+          `OK = split into pieces\nCancel = index everything as one codebase`
+      );
+      if (split) {
+        jobs = names.map((name) => ({ name, files: plan.groups.get(name) }));
+      } else {
+        jobs = [{ name: plan.rootName, files: accepted }];
+      }
+    } else {
+      jobs = [{ name: plan.name, files: plan.files }];
+    }
+
     setFolderError('');
     setFolderSkipped(skipped);
     setFolderIndexed(0);
     setIsFolderIndexing(true);
-    // Global spinner modal while the folder uploads and indexes (same service
-    // CodeExplorerPage drives around its async work).
     spinner.show('Indexing folder…', 'POST /api/code-search/index');
 
     try {
-      // Client-batched upload to stay under body limits.
       const BATCH = 300;
       let indexed = 0;
-      for (let i = 0; i < accepted.length; i += BATCH) {
-        const batch = accepted.slice(i, i + BATCH);
-        const res = await indexFolderFiles(batch, topFolder, codebaseId);
-        indexed += res?.files_indexed || batch.length;
-        setFolderIndexed(indexed);
-      }
-
-      if (typeof onFolderIndexed === 'function') {
-        onFolderIndexed({ id: codebaseId, name: topFolder });
+      const stamp = Date.now();
+      for (let j = 0; j < jobs.length; j++) {
+        const job = jobs[j];
+        const codebaseId =
+          `folder-${stamp}-${j}-${Math.random().toString(36).slice(2, 8)}`;
+        spinner.show(
+          jobs.length > 1
+            ? `Indexing ${job.name} (${j + 1}/${jobs.length})…`
+            : 'Indexing folder…',
+          'POST /api/code-search/index'
+        );
+        for (let i = 0; i < job.files.length; i += BATCH) {
+          const batch = job.files.slice(i, i + BATCH);
+          const res = await indexFolderFiles(batch, job.name, codebaseId);
+          indexed += res?.files_indexed || batch.length;
+          setFolderIndexed(indexed);
+        }
+        if (typeof onFolderIndexed === 'function') {
+          onFolderIndexed({ id: codebaseId, name: job.name });
+        }
       }
     } catch (err) {
       setFolderError(err.message || 'Folder indexing failed');

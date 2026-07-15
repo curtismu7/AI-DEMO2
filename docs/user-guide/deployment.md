@@ -7,7 +7,7 @@ Four modes are supported. Pick the one that matches your environment.
 | **1 — Native processes** | `./run.sh` | No | No | `https://api.ping.demo:4000` |
 | **2 — Docker Compose** | `docker compose up --build` | Yes | No | `https://api.ping.demo:4000` |
 | **3 — Mac Kubernetes (OrbStack)** | `./run-k8.sh` | Yes | Local | `https://api.ping.demo:4000` |
-| **4 — Ping SE AWS Cluster** | `./run-k8.sh se-all` | Yes | Remote | `https://ai-demo.ping-devops.com` |
+| **4 — Ping SE AWS Cluster** | `./run-pingaws.sh` | Yes | Remote | `https://ai-demo.ping-devops.com` |
 
 ---
 
@@ -217,15 +217,16 @@ cd ~/AI-demo
 # Re-authenticate to GHCR before every deploy (token expires)
 gh auth token | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 
-# Build all 13 images + push to GHCR + apply K8s manifests
-./run-k8.sh se-all
+# Build images + push to GHCR + apply K8s manifests
+./run-pingaws.sh
+# same as: ./run-pingaws.sh start  (wraps ./run-k8.sh se-all)
 ```
 
 Your namespace is auto-derived from your Ping email:
 
 - `cmuir@pingidentity.com` → `ping-devops-cmuir`
 - Bootstrap writes `PING_EMAIL` to `demo_api_server/.env` (from git config when `user.email` ends in `@pingidentity.com`, or from the interactive bootstrap prompt)
-- Override: `SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-all`
+- Override: `SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh`
 
 ### Split build and deploy
 
@@ -234,8 +235,8 @@ If the push fails mid-way (token expired) or you want to deploy without rebuildi
 ```bash
 # Re-auth and push only (build is cached — fast)
 gh auth token | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-./run-k8.sh se-build    # build + push to GHCR
-./run-k8.sh se-deploy   # apply manifests to SE cluster
+./run-pingaws.sh build     # build + push to GHCR
+./run-pingaws.sh deploy    # apply manifests to SE cluster
 ```
 
 ### kubectl auth timeout
@@ -245,12 +246,14 @@ The SE cluster uses PingOne OIDC — the browser popup must complete interactive
 ```bash
 kubectl config use-context us
 kubectl get namespace ping-devops-cmuir   # triggers browser login — complete it
-./run-k8.sh se-deploy                     # then deploy
+./run-pingaws.sh deploy                   # then deploy
 ```
 
 ### Check status
 
 ```bash
+./run-pingaws.sh status
+# or:
 kubectl get pods -n ping-devops-cmuir
 kubectl get ingress -n ping-devops-cmuir
 ```
@@ -274,7 +277,7 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous                 # aft
 **Always undeploy when finished.** The SE cluster is shared infrastructure and leaving the app running may result in loss of your publishing rights.
 
 ```bash
-./run-k8.sh se-undeploy   # removes all app resources; preserves the namespace
+./run-pingaws.sh undeploy   # removes all app resources; preserves the namespace
 ```
 
 ---

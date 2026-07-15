@@ -1,6 +1,6 @@
 /**
  * Log Viewer API Routes
- * Provides endpoints to fetch application logs and Vercel deployment logs
+ * Provides endpoints to fetch application, console, and exchange audit logs
  */
 
 const express = require('express');
@@ -97,33 +97,7 @@ router.get('/app', async (req, res) => {
 });
 
 /**
- * Get Vercel deployment logs
- * Uses Vercel CLI or API to fetch logs
- */
-router.get('/vercel', async (req, res) => {
-  try {
-    const { limit = 100 } = req.query;
-
-    // On Vercel serverless the CLI is not available — serve in-process logs directly.
-    let logs = [...recentLogs];
-
-    // Limit results
-    logs = logs.slice(0, parseInt(limit));
-
-    res.json({
-      logs,
-      total: logs.length,
-      source: 'vercel'
-    });
-  } catch (error) {
-    console.error('Error fetching Vercel logs:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
  * Get token-exchange audit events from Redis.
- * Survives Vercel Lambda isolation — events written by any Lambda are visible here.
  * Returns empty array when Redis (Upstash KV) is not configured.
  */
 router.get('/exchange', async (req, res) => {

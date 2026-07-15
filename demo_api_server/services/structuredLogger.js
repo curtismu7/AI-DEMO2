@@ -1,6 +1,7 @@
 // demo_api_server/services/structuredLogger.js
 const fs = require('fs');
 const path = require('path');
+const { redactObject, redactMessage } = require('../utils/logRedact');
 
 class StructuredLogger {
   constructor(filePath = '/tmp/demo-api-structured.jsonl') {
@@ -13,13 +14,22 @@ class StructuredLogger {
     this.writeStream = fs.createWriteStream(filePath, { flags: 'a' });
   }
 
+  /**
+   * Append one structured log line (secrets redacted).
+   * Preferred fields: event_type, level, category, message, correlationId, requestId, sessionId.
+   */
   log(event) {
+    const safe = redactObject(event || {});
+    if (typeof safe.message === 'string') {
+      safe.message = redactMessage(safe.message);
+    }
     const entry = {
       timestamp: new Date().toISOString(),
-      requestId: event.requestId || 'unknown',
-      event_type: event.event_type,
-      ...Object.entries(event)
-        .filter(([k]) => k !== 'requestId' && k !== 'event_type')
+      requestId: safe.requestId || 'unknown',
+      correlationId: safe.correlationId || safe.flowId || null,
+      event_type: safe.event_type,
+      ...Object.entries(safe)
+        .filter(([k]) => !['requestId', 'event_type'].includes(k))
         .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}),
     };
 

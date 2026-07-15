@@ -114,6 +114,52 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(steps.find((s) => s.id === "authorize").status).toBe("error");
   });
 
+  test("authorize_denied with HTTP 428 is a challenge (active), not a hard DENY", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", status: 428, label: "Step-up required" }],
+      authorize: {
+        decision: "INDETERMINATE",
+        engine: "simulated",
+        decisionId: "d-stepup",
+        request: { parameters: { ToolName: "create_transfer" } },
+        response: { decision: "INDETERMINATE" },
+      },
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("active");
+    expect(az.detail.decision.outcome).toBe("INDETERMINATE");
+    expect(az.detail.request.text).toContain("create_transfer");
+  });
+
+  test("authorize_denied with detail 'HTTP 428' (legacy SSE row) is a challenge", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", label: "Authorize denied", detail: "HTTP 428" }],
+    });
+    expect(steps.find((s) => s.id === "authorize").status).toBe("active");
+  });
+
+  test("authorize_denied + DENY evaluation stays error", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", status: 403 }],
+      authorize: { decision: "DENY", engine: "pingone", decisionId: "d-deny" },
+    });
+    expect(steps.find((s) => s.id === "authorize").status).toBe("error");
+  });
+
+  test("authorize_unavailable renders authorize step as error", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [
+        { phase: "authorize_gate_begin" },
+        { phase: "authorize_unavailable" },
+      ],
+    });
+    expect(steps.find((s) => s.id === "authorize").status).toBe("error");
+  });
+
   test("mfa_challenge_initiated inserts conditional step-up step after authorize", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

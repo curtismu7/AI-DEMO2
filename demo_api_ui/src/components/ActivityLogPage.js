@@ -1,60 +1,51 @@
 // demo_api_ui/src/components/ActivityLogPage.js
+import { useMemo } from 'react';
 import ActivityLogPanel from './ActivityLogPanel';
+import DraggableModal from './DraggableModal';
+import './ActivityLogPage.css';
 
-const wrapStyle = {
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'flex-start',
-  padding: '24px',
-  flex: 1,
-  minHeight: 0,
-  background: '#f1f5f9',
-};
-
-const cardStyle = {
-  width: '700px',
-  height: '720px',
-  maxWidth: '100%',
-  maxHeight: 'calc(100vh - 80px)',
-  display: 'flex',
-  flexDirection: 'column',
-  background: '#ffffff',
-  borderRadius: '10px',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.13)',
-  overflow: 'hidden',
-};
-
-const headerStyle = {
-  padding: '12px 16px 10px',
-  borderBottom: '1px solid #e2e8f0',
-  flexShrink: 0,
-};
-
-const titleStyle = {
-  fontSize: '14px',
-  fontWeight: 700,
-  color: '#0f172a',
-  margin: 0,
-};
-
-const subtitleStyle = {
-  fontSize: '11px',
-  color: '#64748b',
-  marginTop: '2px',
-};
-
+/**
+ * Full-viewport Activity Log for /monitoring/activity-log.
+ * Uses DraggableModal so the panel fills the page by default and stays
+ * draggable, resizable, and pop-out capable like TokenChainModal.
+ */
 export default function ActivityLogPage() {
+  const { defaultWidth, defaultHeight, defaultX, defaultY } = useMemo(() => {
+    const margin = 16;
+    const topBar = 56;
+    const w = typeof window !== 'undefined'
+      ? Math.max(640, window.innerWidth - margin * 2)
+      : 1200;
+    const h = typeof window !== 'undefined'
+      ? Math.max(480, window.innerHeight - topBar - margin)
+      : 800;
+    return {
+      defaultWidth: w,
+      defaultHeight: h,
+      defaultX: margin,
+      defaultY: topBar,
+    };
+  }, []);
+
   return (
-    <div style={wrapStyle}>
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <p style={titleStyle}>Activity Log</p>
-          <p style={subtitleStyle}>
-            Live event stream — oauth · mcp · delegation · hitl · token_exchange · gateway_path · and more
-          </p>
-        </div>
+    <div className="alp-page-shell" aria-hidden="true">
+      <DraggableModal
+        isOpen
+        onClose={() => window.history.back()}
+        title="Activity Log"
+        defaultWidth={defaultWidth}
+        defaultHeight={defaultHeight}
+        defaultX={defaultX}
+        defaultY={defaultY}
+        storageKey="ba-activity-log-page"
+        minWidth={420}
+        minHeight={320}
+        footer={null}
+        noBackdrop
+        zIndex={9000}
+      >
         <ActivityLogPanel enabled />
-      </div>
+      </DraggableModal>
     </div>
   );
 }

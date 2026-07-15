@@ -289,7 +289,7 @@ const FIELD_DEFS = {
   ff_skip_token_exchange:  { public: true, default: 'false' }, // Skip RFC 8693 — pass user access token directly to MCP (demo mode; token exchange not required)
   ff_oidc_only_authorize:  { public: true, default: 'false' }, // Strip resource scopes from user /authorize — fixes multi-resource error when scopes are on a PingOne Resource Server
   mcp_use_legacy_protocol: { public: true, default: 'false' }, // When 'true', BFF uses protocolVersion 2024-11-05 in MCP initialize; default (false) = 2025-11-25
-ff_heuristic_enabled:      { public: true, default: 'true'  }, // Use heuristic fast path for chips; when false, all queries go through LLM
+ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to Heuristics for known chips (true) vs LLM only (false)
   ff_prompt_injection_guard: { public: true, default: 'true'  }, // Block common prompt-injection patterns on NL/agent inputs
   ff_agent_results_panel:    { public: true, default: 'false' }, // Floating Results Panel in Banking Agent (off by default)
   ff_agui_enabled:           { public: true, default: 'true'  }, // AG-UI streaming agent via POST /api/agent/run

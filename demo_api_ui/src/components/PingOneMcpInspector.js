@@ -246,14 +246,14 @@ const VerticalGroupMembershipSection = ({ isAdmin = false }) => {
         <code>POST /users/&#123;id&#125;/memberOfGroups</code>) using worker creds from{' '}
         <code>.env</code>.
       </p>
-      <div className="p1mcp-toolbar" style={{ marginBottom: 12 }}>
-        <button type="button" className="p1mcp-btn" onClick={refresh} disabled={loading}>
+      <div className="p1mcp-toolbar">
+        <button type="button" className="mcp-inspector__btn" onClick={refresh} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh membership'}
         </button>
         {isAdmin && (
           <button
             type="button"
-            className="p1mcp-btn"
+            className="mcp-inspector__btn"
             onClick={handleProvision}
             disabled={provisioning}
             title="Create groups for active vertical via Management API (no bootstrap)"

@@ -23,6 +23,12 @@ import { opportunisticPrewarm } from '../components/demoAgentSafety';
 // A8 -- Ping product attribution
 import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
+import { markCameFromUseCases } from '../utils/fromUseCasesNav';
+import {
+  clearCompletedUseCases,
+  getCompletedUseCaseIds,
+  markUseCaseCompleted,
+} from '../utils/useCaseDemoProgress';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -356,7 +362,7 @@ function FlagGate({ flagId, isOn, loading, onToggle }) {
   );
 }
 
-function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
@@ -377,9 +383,14 @@ function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, at
   const flagGated = flagId != null && !flagIsOn;
 
   return (
-    <div className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}`}>
+    <div className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
       <div className="uc-card__header">
         <span className="uc-card__id">{uc.id}</span>
+        {completed && (
+          <span className="uc-card__done" aria-label="Completed this session" title="Completed this session">
+            ✓
+          </span>
+        )}
         {stepNumber != null && <span className="uc-card__step">Step {stepNumber}</span>}
         <h3 className="uc-card__title">{uc.title}</h3>
         {uc.advanced && <span className="uc-card__advanced-label">Advanced</span>}
@@ -433,7 +444,7 @@ function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, at
             title={flagGated ? `Enable ${flagId} to run this scenario` : undefined}
             onClick={() => onRun(uc)}
           >
-            {chipRunning ? 'Launching…' : 'Run'}
+            {chipRunning ? 'Launching…' : completed ? 'Run again' : 'Run'}
           </button>
         )}
         {isAttack && isRunnable && (
@@ -443,7 +454,7 @@ function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, at
             disabled={running}
             onClick={() => onRunAttack(uc, normalizedSim)}
           >
-            {running ? 'Running…' : 'Run'}
+            {running ? 'Running…' : completed ? 'Run again' : 'Run'}
           </button>
         )}
         {isAttack && !isRunnable && (
@@ -462,7 +473,7 @@ function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, at
             className="uc-run-btn"
             onClick={() => onOpen(uc)}
           >
-            {uc.trigger.label || 'Open'}
+            {completed ? `Open again` : (uc.trigger.label || 'Open')}
           </button>
         )}
         {isEdu && (
@@ -471,7 +482,7 @@ function UseCaseCard({ uc, stepNumber, onRun, onRunAttack, onExplain, onOpen, at
             className="uc-run-btn"
             onClick={() => onOpen(uc)}
           >
-            {uc.trigger.label || 'Open panel'}
+            {completed ? 'Open again' : (uc.trigger.label || 'Open panel')}
           </button>
         )}
         {!isChip && !isAttack && !isLink && !isEdu && (
@@ -519,6 +530,7 @@ function resolveProgressiveTrustActs(useCases) {
  */
 function ProgressiveTrustDemoStrip({
   useCases,
+  completedIds,
   onRun,
   onExplain,
   chipRun,
@@ -539,6 +551,7 @@ function ProgressiveTrustDemoStrip({
       <ol className="pt-demo-strip__list">
         {acts.map((act) => {
           const { uc } = act;
+          const completed = completedIds?.has(uc.id);
           const flagId = parseFlagId(uc.maturity);
           const flagIsOn = flagId != null
             ? (flagMap != null ? Boolean(flagMap[flagId]) : false)
@@ -551,10 +564,19 @@ function ProgressiveTrustDemoStrip({
           return (
             <li
               key={act.actKey}
-              className={`pt-demo-strip__step${act.optional ? ' pt-demo-strip__step--optional' : ''}`}
+              className={[
+                'pt-demo-strip__step',
+                act.optional ? 'pt-demo-strip__step--optional' : '',
+                completed ? 'pt-demo-strip__step--completed' : '',
+              ].filter(Boolean).join(' ')}
             >
               <div className="pt-demo-strip__step-head">
                 <span className="pt-demo-strip__act">{act.actLabel}</span>
+                {completed && (
+                  <span className="uc-card__done" aria-label="Completed this session" title="Completed this session">
+                    ✓
+                  </span>
+                )}
                 <h3 className="pt-demo-strip__title">{act.title}</h3>
                 {mat && <span className={`uc-maturity ${mat.cls}`}>{mat.text}</span>}
                 {act.sourceId !== 'UC24' && (
@@ -594,7 +616,7 @@ function ProgressiveTrustDemoStrip({
                   title={flagGated ? `Enable ${flagId} to run this act` : undefined}
                   onClick={() => onRun(uc)}
                 >
-                  {chipRunning ? 'Launching…' : 'Run act'}
+                  {chipRunning ? 'Launching…' : completed ? 'Run act again' : 'Run act'}
                 </button>
               </div>
               {chipRunError && (
@@ -706,6 +728,9 @@ export default function UseCaseLauncherPage() {
 
   const [query, setQuery] = useState('');
 
+  // Catalog ids (UC1, UC2, …) marked complete this presenter session.
+  const [completedIds, setCompletedIds] = useState(() => getCompletedUseCaseIds());
+
   const { flagMap, flagsLoading, setFlag } = useLiveFlags();
 
   const vertical = verticalId || 'banking';
@@ -713,6 +738,26 @@ export default function UseCaseLauncherPage() {
   // Pre-load gpt-oss while the presenter browses use cases (fire-and-forget).
   useEffect(() => {
     opportunisticPrewarm('gpt-oss-20b');
+  }, []);
+
+  // Re-read progress when returning to this route (remount) or gaining focus after
+  // another tab — keeps checks in sync if the same sessionStorage is shared.
+  useEffect(() => {
+    setCompletedIds(getCompletedUseCaseIds());
+    const onFocus = () => setCompletedIds(getCompletedUseCaseIds());
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  /** Record a catalog id as completed and refresh card checkmarks. */
+  const recordCompleted = useCallback((uc) => {
+    if (!uc?.id) return;
+    setCompletedIds(markUseCaseCompleted(uc.id));
+  }, []);
+
+  /** Reset demo check-offs for a fresh presenter pass. */
+  const handleClearProgress = useCallback(() => {
+    setCompletedIds(clearCompletedUseCases());
   }, []);
 
   useEffect(() => {
@@ -760,6 +805,10 @@ export default function UseCaseLauncherPage() {
       })
       .then((data) => {
         // Navigation unmounts this page, so chipRun need not be cleared here.
+        // Persist launcher origin so TopNav can show "← Use Cases" after AIAgent
+        // clears router state.
+        markCameFromUseCases();
+        recordCompleted(uc);
         navigate('/dashboard', {
           state: {
             useCaseId: data.useCaseId,
@@ -773,16 +822,21 @@ export default function UseCaseLauncherPage() {
         console.error('Failed to run use case:', err);
         setChipRun({ id: uc.id, state: 'error', msg: formatAxiosError(err, 'Failed to launch scenario') });
       });
-  }, [navigate, vertical]);
+  }, [navigate, vertical, recordCompleted]);
 
   // Link-type use cases navigate to their page; edu-type opens a learning panel.
   const handleOpen = useCallback((uc) => {
     if (uc.trigger?.type === 'edu') {
+      recordCompleted(uc);
       openEdu(uc.trigger.panel, uc.trigger.tab || 'overview');
       return;
     }
-    if (uc.trigger?.path) navigate(uc.trigger.path);
-  }, [navigate, openEdu]);
+    if (uc.trigger?.path) {
+      markCameFromUseCases();
+      recordCompleted(uc);
+      navigate(uc.trigger.path);
+    }
+  }, [navigate, openEdu, recordCompleted]);
 
   const handleRunAttack = useCallback((uc, sim) => {
     // Clear anatomy explainer while a new run is in flight
@@ -801,6 +855,7 @@ export default function UseCaseLauncherPage() {
         // A7.1: populate anatomy explainer
         setLastSimResult(data);
         setLastSimUcEntry(uc);
+        recordCompleted(uc);
       })
       .catch((err) => {
         const msg = formatAxiosError(err, 'Attack simulation failed');
@@ -809,7 +864,7 @@ export default function UseCaseLauncherPage() {
           [uc.id]: { running: false, result: null, error: msg },
         }));
       });
-  }, []);
+  }, [recordCompleted]);
 
   const happyPathAll = useCases.filter(
     (uc) => uc.expectedOutcome === 'PERMIT' && !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id)
@@ -863,6 +918,23 @@ export default function UseCaseLauncherPage() {
         <p className="uc-launcher__subtitle">
           {useCases.length} security use cases grouped by demo track. Click Run to launch a scenario in the agent.
         </p>
+        <div className="uc-launcher__progress" data-testid="uc-demo-progress">
+          <span className="uc-launcher__progress-count">
+            {completedIds.size === 0
+              ? 'No use cases run this session yet'
+              : `${completedIds.size} completed this session`}
+          </span>
+          {completedIds.size > 0 && (
+            <button
+              type="button"
+              className="uc-launcher__clear-progress"
+              onClick={handleClearProgress}
+              title="Clear checkmarks for a fresh demo pass"
+            >
+              Clear progress
+            </button>
+          )}
+        </div>
         <div className="uc-launcher__search">
           <label htmlFor="uc-search-input" className="uc-launcher__search-label">
             Search use cases
@@ -895,6 +967,7 @@ export default function UseCaseLauncherPage() {
                 key={uc.id}
                 uc={uc}
                 stepNumber={DEMO_USE_CASE_IDS.indexOf(uc.id) + 1}
+                completed={completedIds.has(uc.id)}
                 onRun={handleRun}
                 onRunAttack={handleRunAttack}
                 onExplain={setExplainUc}
@@ -919,6 +992,7 @@ export default function UseCaseLauncherPage() {
               <UseCaseCard
                 key={uc.id}
                 uc={uc}
+                completed={completedIds.has(uc.id)}
                 onRun={handleRun}
                 onRunAttack={handleRunAttack}
                 onExplain={setExplainUc}
@@ -944,6 +1018,7 @@ export default function UseCaseLauncherPage() {
             {track === 'demo' && !isSearching && (
               <ProgressiveTrustDemoStrip
                 useCases={demoTrackItemsForStrip}
+                completedIds={completedIds}
                 onRun={handleRun}
                 onExplain={setExplainUc}
                 chipRun={chipRun}
@@ -957,6 +1032,7 @@ export default function UseCaseLauncherPage() {
                 <UseCaseCard
                   key={uc.id}
                   uc={uc}
+                  completed={completedIds.has(uc.id)}
                   onRun={handleRun}
                   onRunAttack={handleRunAttack}
                   onExplain={setExplainUc}

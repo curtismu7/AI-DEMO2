@@ -301,6 +301,9 @@ export const agentFlowDiagram = {
       label,
       detail,
       t: typeof payload.t === 'number' ? payload.t : undefined,
+      // Preserve gate HTTP status (403 DENY vs 428 step-up/HITL) so TraceRail
+      // can distinguish a hard deny from a challenge on authorize_denied.
+      ...(payload.status != null ? { status: payload.status } : {}),
     };
     state.serverEvents = [...state.serverEvents, row].slice(-MAX_SERVER_EVENTS);
     state.updatedAt = Date.now();
