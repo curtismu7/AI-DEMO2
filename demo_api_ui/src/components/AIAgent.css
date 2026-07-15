@@ -4835,6 +4835,31 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 700;
 }
 
+.ba-demo-steps-popout__advanced {
+  margin-top: 6px;
+  border-top: 1px solid var(--ba-border, #e5e7eb);
+  padding-top: 6px;
+}
+
+.ba-demo-steps-popout__advanced-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ba-text, #1e293b);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ba-demo-steps-popout__advanced-toggle:hover {
+  background: rgba(65, 105, 225, 0.08);
+}
+
 .ba-demo-steps-popout__title {
   flex: 1 1 100%;
   font-weight: 600;

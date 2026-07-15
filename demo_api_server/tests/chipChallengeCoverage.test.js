@@ -4,10 +4,9 @@
  * Chip challenge coverage gate.
  *
  * Every vertical must be able to demonstrate BOTH a consent-only chip (👤) and
- * a both chip (👤🔑), regardless of which vertical is active. This asserts each
- * vertical's manifest carries at least one chip with `challenge: "consent"` and
- * one with `challenge: "both"`. (Phase-2 gate: investment/retail/sporting-goods
- * gain their missing-class chip via a new tool.)
+ * an MFA chip (🔑 step_up, or legacy both 👤🔑), regardless of which vertical
+ * is active. Primary rail uses consent + step_up; Advanced may keep `both`
+ * for CIBA-style combined demos.
  */
 const fs = require('fs');
 const path = require('path');
@@ -28,11 +27,11 @@ function challengesOf(manifest) {
 
 describe('chip challenge coverage', () => {
   for (const v of VERTICALS) {
-    test(`${v} can demo consent AND both`, () => {
+    test(`${v} can demo consent AND MFA (step_up or both)`, () => {
       const m = JSON.parse(fs.readFileSync(path.join(base, v, 'manifest.json'), 'utf8'));
       const kinds = challengesOf(m);
       expect(kinds.has('consent')).toBe(true);
-      expect(kinds.has('both')).toBe(true);
+      expect(kinds.has('step_up') || kinds.has('both')).toBe(true);
     });
   }
 });
