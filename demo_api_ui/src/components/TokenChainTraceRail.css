@@ -183,3 +183,72 @@
   background: #eef2f9; border-radius: 999px; padding: 0 6px;
 }
 .tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: #16325c; }
+
+/* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
+.tctr-trust {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  color: #0f172a;
+  line-height: 1.5;
+}
+.tctr-trust > p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+.tctr-trust__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 8px;
+  border: 1px solid #d4ddea;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.tctr-trust__row--ok {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.tctr-trust__row--off {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.tctr-trust__badge {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 64px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+.tctr-trust__row--ok .tctr-trust__badge {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+}
+.tctr-trust__row--off .tctr-trust__badge {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #64748b;
+}
+.tctr-trust__row strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.tctr-trust__row code {
+  font-family: inherit;
+  font-size: 11.5px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-word;
+}
