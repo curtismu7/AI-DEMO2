@@ -59,8 +59,8 @@ const ALLOW_EXT = new Set([
 ]);
 
 const MAX_FILE_BYTES = 256 * 1024;
-/** Per-piece file cap (was a single 3000 for the whole monolith). */
-const MAX_FILES_PER_PIECE = 1500;
+/** Per-piece file cap. SE CPU embedder can't finish thousands in a demo window. */
+const MAX_FILES_PER_PIECE = Number(process.env.CODE_SEARCH_MAX_FILES_PER_PIECE) || 100;
 
 /**
  * Walk one directory tree, collecting code files under repo-relative paths.
