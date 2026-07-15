@@ -1401,7 +1401,7 @@
   justify-content: center;
 }
 
-/* P1MFA device picker (Phase 174-04) */
+/* P1MFA device picker (Phase 174-04) — kept for legacy callers */
 .otp-step-up-modal__device-list {
   display: flex;
   flex-direction: column;
@@ -1428,6 +1428,119 @@
 }
 .otp-step-up-modal__device-icon {
   font-size: 1.3rem;
+}
+
+/* Method choice table — OTP + Passkey always offered side-by-side as rows */
+.otp-step-up-modal__method-table-wrap {
+  margin: 0.65rem 0 0.25rem;
+}
+.otp-step-up-modal__method-intro {
+  margin: 0 0 0.65rem;
+}
+.otp-step-up-modal__method-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #d7dee8;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fbfdff;
+  font-size: 0.88rem;
+}
+.otp-step-up-modal__method-table thead th {
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: #f1f5f9;
+  border-bottom: 1px solid #d7dee8;
+  padding: 0.55rem 0.85rem;
+}
+.otp-step-up-modal__method-table tbody tr + tr td {
+  border-top: 1px solid #e8edf4;
+}
+.otp-step-up-modal__method-table td {
+  padding: 0.85rem;
+  vertical-align: middle;
+  color: #1e293b;
+}
+.otp-step-up-modal__method-row {
+  transition: background 0.15s ease;
+}
+.otp-step-up-modal__method-row:hover {
+  background: #f0f7ff;
+}
+.otp-step-up-modal__method-row--setup td {
+  background: #f8fbff;
+}
+.otp-step-up-modal__method-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+.otp-step-up-modal__method-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  height: 1.45rem;
+  padding: 0 0.35rem;
+  border-radius: 4px;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.otp-step-up-modal__method-badge--passkey {
+  background: #0f766e;
+}
+.otp-step-up-modal__method-badge--extra {
+  background: #475569;
+}
+.otp-step-up-modal__method-detail {
+  color: #475569;
+  line-height: 1.35;
+  min-width: 10rem;
+}
+.otp-step-up-modal__method-cta {
+  appearance: none;
+  border: 1px solid #0ea5e9;
+  background: #fff;
+  color: #0369a1;
+  font-weight: 700;
+  font-size: 0.82rem;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.otp-step-up-modal__method-cta:hover:not(:disabled) {
+  background: #0ea5e9;
+  color: #fff;
+}
+.otp-step-up-modal__method-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: #94a3b8;
+  color: #64748b;
+}
+.otp-step-up-modal__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Method toggle link (Phase 174-03) */
