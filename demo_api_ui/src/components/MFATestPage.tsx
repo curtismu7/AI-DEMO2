@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState, FC } from "react";
 import apiClient from "../services/apiClient";
 import { notifyError, notifyInfo, notifySuccess } from "../utils/appToast";
+import {
+  bytesToB64,
+  normalizePublicKeyRequestOptions,
+} from "../utils/passkeyCeremony";
 import "./MFATestPage.css";
 import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
@@ -802,42 +806,23 @@ const MFATestPage: FC = () => {
       if (!navigator.credentials)
         throw new Error("WebAuthn not supported in this browser");
 
-      // Safe base64 decode helper
-      const safeBase64ToBytes = (str) => {
-        try {
-          return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
-        } catch (e) {
-          // If decoding fails, try treating as UTF-8 string
-          if (typeof str === "string") {
-            const bytes = new Uint8Array(str.length);
-            for (let i = 0; i < str.length; i++) {
-              bytes[i] = str.charCodeAt(i);
-            }
-            return bytes;
-          }
-          throw e;
-        }
-      };
-
-      const opts = {
-        ...fidoChallengeOptions,
-        challenge: safeBase64ToBytes(fidoChallengeOptions.challenge),
-      };
+      // PingOne returns challenge / allowCredentials ids as base64url (and
+      // occasionally byte arrays). Plain atob() fails on -/_ → the MFA test
+      // page was throwing "Failed to execute 'atob'…".
+      const publicKey = normalizePublicKeyRequestOptions(fidoChallengeOptions);
       const assertion = (await navigator.credentials.get({
-        publicKey: opts,
+        publicKey,
       })) as any;
-      const toB64 = (buf: any) =>
-        btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buf))));
       const assertionPayload = {
         id: assertion.id,
-        rawId: toB64(assertion.rawId),
+        rawId: bytesToB64(assertion.rawId),
         type: assertion.type,
         response: {
-          clientDataJSON: toB64(assertion.response.clientDataJSON),
-          authenticatorData: toB64(assertion.response.authenticatorData),
-          signature: toB64(assertion.response.signature),
+          clientDataJSON: bytesToB64(assertion.response.clientDataJSON),
+          authenticatorData: bytesToB64(assertion.response.authenticatorData),
+          signature: bytesToB64(assertion.response.signature),
           userHandle: assertion.response.userHandle
-            ? toB64(assertion.response.userHandle)
+            ? bytesToB64(assertion.response.userHandle)
             : null,
         },
       };

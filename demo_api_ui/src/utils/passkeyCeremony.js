@@ -15,26 +15,60 @@
 const apiBase = process.env.REACT_APP_API_URL || "";
 
 /** Convert base64url / signed-byte-array (PingOne) -> Uint8Array. */
-function b64ToBytes(val) {
+export function b64ToBytes(val) {
   if (!val) throw new Error("Expected base64url value but got empty");
   if (val instanceof Uint8Array) return val;
   if (val instanceof ArrayBuffer) return new Uint8Array(val);
   if (Array.isArray(val)) return new Uint8Array(val.map((b) => b & 0xff));
+  // PingOne / Jackson sometimes wrap buffers as { type: 'Buffer', data: [...] }
+  if (typeof val === "object" && Array.isArray(val.data)) {
+    return new Uint8Array(val.data.map((b) => b & 0xff));
+  }
   const stripped = String(val)
     .replace(/\s/g, "")
     .replace(/-/g, "+")
     .replace(/_/g, "/")
     .replace(/=+$/, "");
   const padded = stripped + "=".repeat((4 - (stripped.length % 4)) % 4);
-  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  try {
+    return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  } catch (e) {
+    throw new Error(
+      `base64url decode failed (first 20: "${padded.slice(0, 20)}"): ${e.message}`,
+    );
+  }
 }
 
 /** Convert an ArrayBuffer -> standard base64 (with padding). */
-function bytesToB64(buf) {
+export function bytesToB64(buf) {
   const bytes = new Uint8Array(buf);
   let binary = "";
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
+}
+
+/**
+ * Normalize PingOne publicKeyCredentialRequestOptions for navigator.credentials.get.
+ * Accepts a JSON string or object; decodes challenge + allowCredentials[].id.
+ * @param {object|string} raw
+ * @returns {PublicKeyCredentialRequestOptions}
+ */
+export function normalizePublicKeyRequestOptions(raw) {
+  const opts = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!opts || typeof opts !== "object") {
+    throw new Error("Missing publicKeyCredentialRequestOptions");
+  }
+  const publicKey = {
+    ...opts,
+    challenge: b64ToBytes(opts.challenge),
+  };
+  if (Array.isArray(opts.allowCredentials)) {
+    publicKey.allowCredentials = opts.allowCredentials.map((c) => ({
+      ...c,
+      id: b64ToBytes(c.id),
+    }));
+  }
+  return publicKey;
 }
 
 async function postJson(path, body) {
