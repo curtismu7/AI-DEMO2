@@ -4756,6 +4756,90 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline-offset: 2px;
 }
 
+/* Demo steps popout — same script as /use-cases Demo section */
+.ba-demo-steps-popout__header {
+  padding: 12px 14px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ba-text-secondary, #64748b);
+  border-bottom: 1px solid var(--ba-border, #e2e8f0);
+}
+
+.ba-demo-steps-popout__status {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ba-text-secondary, #64748b);
+}
+
+.ba-demo-steps-popout__status--error {
+  color: #b91c1c;
+}
+
+.ba-demo-steps-popout__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.ba-demo-steps-popout__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--ba-text, #0f172a);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ba-demo-steps-popout__item:hover {
+  background: var(--ba-chip-bg-hover, #eff6ff);
+}
+
+.ba-demo-steps-popout__item--done {
+  background: rgba(21, 128, 61, 0.06);
+}
+
+.ba-demo-steps-popout__step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.ba-demo-steps-popout__id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ba-text-secondary, #64748b);
+}
+
+.ba-demo-steps-popout__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: #15803d;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.ba-demo-steps-popout__title {
+  flex: 1 1 100%;
+  font-weight: 600;
+}
+
 /* Popout overlay — anchored to .ba-header (position:relative), opens below header */
 .ba-actions-popout {
   position: fixed;

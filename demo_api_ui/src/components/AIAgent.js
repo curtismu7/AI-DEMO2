@@ -62,7 +62,11 @@ import VerticalResult from "./VerticalResult";
 import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
+import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
+import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import apiClient from "../services/apiClient";
+import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
@@ -255,6 +259,8 @@ export default function BankingAgent({
   const [isExpanded, setIsExpanded] = useState(false);
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
+  /** Demo steps popout — same list as /use-cases Demo section. */
+  const [showDemoSteps, setShowDemoSteps] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
   const discoveryTriggerRef = useRef(null);
   const actionsPopoutRef = useRef(null);
@@ -5690,6 +5696,86 @@ export default function BankingAgent({
     }
   }
 
+  /**
+   * Run a Demo-section use case from the agent header (same catalog as /use-cases).
+   * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
+   * link/edu open their destinations.
+   */
+  async function handleDemoStepSelect(uc, stepNumber) {
+    if (!uc) return;
+    setShowDemoSteps(false);
+    setShowDiscovery(false);
+    if (isAgentBlockedByConsentDecline()) {
+      addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
+      return;
+    }
+    markUseCaseCompleted(uc.id);
+    const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
+    const trigger = uc.trigger || {};
+
+    if (trigger.type === "chip" && trigger.text) {
+      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+        addMessage("assistant", "Sign in to run demo steps.");
+        return;
+      }
+      // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
+      pendingUcIdRef.current = uc.useCaseId || null;
+      pendingNlResumeRef.current = null;
+      addMessage("assistant", `Running ${stepLabel}…`);
+      setNlResumeAfterAuth(trigger.text);
+      return;
+    }
+
+    if (trigger.type === "edu" && trigger.panel) {
+      edu?.open(trigger.panel, trigger.tab || "overview");
+      addMessage("assistant", `${stepLabel} — opened learning panel.`);
+      return;
+    }
+
+    if (trigger.type === "link" && trigger.path) {
+      addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      navigate(trigger.path);
+      return;
+    }
+
+    if (trigger.type === "attack" && trigger.sim) {
+      const sim =
+        trigger.sim === "wrong-aud-token" ? "wrong-aud" : trigger.sim;
+      addMessage("user", stepLabel);
+      setNlLoading(true);
+      try {
+        const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
+        const status = data?.status;
+        const isDeny = typeof status !== "number" || status >= 400;
+        const verdict = isDeny ? "DENY" : "PERMIT";
+        const reason = data?.reason || data?.errorCode || "";
+        addMessage(
+          "assistant",
+          [
+            `${stepLabel}`,
+            `Attack sim \`${sim}\` → ${status ?? "?"} ${verdict}`,
+            reason ? reason : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
+      } catch (err) {
+        addMessage(
+          "assistant",
+          `${stepLabel}\nAttack simulation failed: ${formatAxiosError(err, err.message || "failed")}`,
+        );
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+
+    addMessage(
+      "assistant",
+      `${stepLabel} — this use case has no runnable trigger in the agent.`,
+    );
+  }
+
   async function handleNaturalLanguage() {
     const text = nlInput.trim();
     if (!text) return;
@@ -6647,6 +6733,19 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
+                {/* Demo steps — same scripted list as /use-cases Demo section */}
+                <DemoStepsDropdown
+                  vertical={effectiveVerticalId || "banking"}
+                  disabled={consentBlocked}
+                  open={showDemoSteps}
+                  onOpenChange={(next) => {
+                    setShowDemoSteps(next);
+                    if (next) setShowDiscovery(false);
+                  }}
+                  onSelect={(uc, stepNumber) => {
+                    handleDemoStepSelect(uc, stepNumber);
+                  }}
+                />
                 {/* Actions trigger — float + dashboard inline agents (D-01, D-02) */}
                 {useActionsPopout && (
                   <button
@@ -6655,7 +6754,13 @@ export default function BankingAgent({
                     className={
                       "ba-actions-trigger" + (showDiscovery ? " active" : "")
                     }
-                    onClick={() => setShowDiscovery((v) => !v)}
+                    onClick={() => {
+                      setShowDiscovery((v) => {
+                        const next = !v;
+                        if (next) setShowDemoSteps(false);
+                        return next;
+                      });
+                    }}
                     disabled={consentBlocked}
                     aria-expanded={showDiscovery}
                     aria-haspopup="dialog"
