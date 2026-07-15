@@ -1190,7 +1190,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         // Session-scoped persona: give the external platform agent THIS session's
         // vertical voice (same systemPromptFlavor the in-house reason loop uses),
         // so "Just ChatGPT"/Anthropic/etc. speak the right vertical, not the global.
-        const { verticalId: _pfVid } = resolveVerticalRouting(vertical);
+        const { verticalId: _pfVid } = resolveVerticalRouting(vertical, req);
         const _pfManifest = verticalManifest.resolver.resolve(_pfVid);
         const _pfSystemPrompt = verticalDispatch.hasPlugin(_pfVid)
           ? verticalDispatch.systemPromptFor(_pfVid, {}, () => _pfManifest?.agent?.systemPromptFlavor)
@@ -1258,7 +1258,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       // vertical's language. Absolute rule: heuristics must work for ALL
       // verticals, never leak banking terms. Banking → null → all helpers
       // fall back to the original banking wording (regression-safe).
-      const { verticalId: _activeVerticalId, verticalCtx: _verticalCtx } = resolveVerticalRouting(vertical);
+      const { verticalId: _activeVerticalId, verticalCtx: _verticalCtx } = resolveVerticalRouting(vertical, req);
       const isAdmin = req && req.session && req.session.user && req.session.user.role === 'admin';
 
       const heuristic = parseHeuristic(message, _activeVerticalId, _verticalCtx, {
@@ -1400,7 +1400,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       } catch (e) { /* audit must never break the request path */ }
     }
 
-    const { verticalId: activeId } = resolveVerticalRouting(vertical);
+    const { verticalId: activeId } = resolveVerticalRouting(vertical, req);
     const activeManifest = verticalManifest.resolver.resolve(activeId);
     const isAdminUser = req?.session?.user?.role === 'admin';
     const toolSchemas = verticalDispatch.toolSchemasFor(activeId, { isAdmin: isAdminUser }, () => []);
