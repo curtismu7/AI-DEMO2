@@ -161,7 +161,8 @@ class LangChainMCPApplication:
                 self.config.chat.agui_http_port,
             )
 
-            # MCP Host inspector snapshot (HTTP GET /inspector/mcp-host on health port)
+            # MCP Host inspector snapshot (GET /inspector/mcp-host on health :8890
+            # and on AG-UI :8888 for the BFF proxy)
             try:
                 tools = await self.agent.get_available_tools()
                 # WR-09: attribute is `mcp_manager` on this class. The prior
@@ -310,8 +311,10 @@ class LangChainMCPApplication:
         Runs until the application shutdown event fires.
         Binds to 127.0.0.1 only (loopback) — the BFF proxies to it.
         """
+        import os as _os
         import uvicorn
         from fastapi import FastAPI
+        from fastapi.responses import JSONResponse as _JSONResponse
         from api.agui_run_handler import router as agui_router
         from api.codegraph_handler import router as codegraph_router
 
@@ -333,17 +336,43 @@ class LangChainMCPApplication:
         except Exception as exc:
             logger.warning("[CodeGraph] startup index check failed: %s", exc)
 
-        # Gate the ENTIRE app (AG-UI /run AND /codegraph/*) on the shared internal
-        # secret. The BFF proxies here with `x-internal-gateway-secret:
-        # <BFF_INTERNAL_SECRET>` (routes/agentRun.js, routes/codegraphProxy.js)
-        # and is the only legitimate caller. Docker publishes this port on
-        # 0.0.0.0, so every route must require the secret — not just /run:
-        # /codegraph/query drives an LLM (spends the API key + reads the source
-        # tree) and /codegraph/reindex spawns the CPU-heavy indexer. The health
-        # server (port 8890) and the hardened WebSocket transport are separate
-        # servers with their own controls.
-        import os as _os
-        from fastapi.responses import JSONResponse as _JSONResponse
+        # BFF MCP Inspector proxies here (not health :8890). Health binds
+        # loopback-only (CR-03); AG-UI :8888 is already reachable in Docker/K8s
+        # via LANGCHAIN_AGENT_HTTP_URL and is gated by the secret below.
+        health_server = self.health_server
+
+        @app.get("/inspector/mcp-host")
+        async def mcp_host_inspector():
+            """Return the MCP Host inspector snapshot for the BFF demo UI."""
+            payload = (
+                health_server.app_status.get("mcp_host_inspector")
+                if health_server
+                else None
+            )
+            if not payload:
+                return _JSONResponse(
+                    {
+                        "error": "inspector_not_ready",
+                        "message": (
+                            "Host inspector snapshot not populated yet "
+                            "(agent still starting)."
+                        ),
+                    },
+                    status_code=503,
+                )
+            return payload
+
+        # Gate the ENTIRE app (AG-UI /run, /codegraph/*, /inspector/*) on the
+        # shared internal secret. The BFF proxies here with
+        # `x-internal-gateway-secret: <BFF_INTERNAL_SECRET>` (routes/agentRun.js,
+        # routes/codegraphProxy.js, routes/mcpInspector.js) and is the only
+        # legitimate caller. Docker publishes this port on 0.0.0.0, so every
+        # route must require the secret — not just /run: /codegraph/query
+        # drives an LLM (spends the API key + reads the source tree),
+        # /codegraph/reindex spawns the CPU-heavy indexer, and
+        # /inspector/mcp-host leaks the MCP tool registry. The health server
+        # (port 8890, loopback-only) and the hardened WebSocket transport are
+        # separate servers with their own controls.
 
         _DEFAULT_INTERNAL_SECRET = "dev-shared-secret-change-me"
         _env_name = str(getattr(self.config, "environment", None)
