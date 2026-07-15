@@ -31,14 +31,40 @@ const MAX_COLUMNS = 6;
 /**
  * Unwrap pingcli / management-API list payloads into a plain array.
  * Prefer a top-level data array (environments list); else take the first array
- * under data._embedded (pingone api responses).
+ * under data._embedded or root _embedded (raw management API / pingone api).
  */
 function extractResultRows(parsed) {
+  if (Array.isArray(parsed)) return parsed;
   if (Array.isArray(parsed.data)) return parsed.data;
-  const embedded = parsed.data && typeof parsed.data === 'object' ? parsed.data._embedded : null;
-  if (!embedded || typeof embedded !== 'object') return null;
-  const key = Object.keys(embedded).find((k) => Array.isArray(embedded[k]));
-  return key ? embedded[key] : null;
+  const candidates = [];
+  if (parsed.data && typeof parsed.data === 'object' && parsed.data._embedded) {
+    candidates.push(parsed.data._embedded);
+  }
+  if (parsed._embedded && typeof parsed._embedded === 'object') {
+    candidates.push(parsed._embedded);
+  }
+  for (const embedded of candidates) {
+    const key = Object.keys(embedded).find((k) => Array.isArray(embedded[k]));
+    if (key) return embedded[key];
+  }
+  return null;
+}
+
+/**
+ * Parse JSON, tolerating leading/trailing CLI noise around a single object/array.
+ */
+export function parseJsonLoose(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  try { return JSON.parse(raw); } catch { /* continue */ }
+  const startObj = raw.indexOf('{');
+  const startArr = raw.indexOf('[');
+  let start = -1;
+  if (startObj >= 0 && (startArr < 0 || startObj < startArr)) start = startObj;
+  else if (startArr >= 0) start = startArr;
+  if (start < 0) return null;
+  const end = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
+  if (end <= start) return null;
+  try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
 }
 
 /**
@@ -61,16 +87,8 @@ function flattenResultRow(item) {
   return flat;
 }
 
-// Parse a pingcli JSON envelope into { status, message, columns, rows }.
-// Supports data: [...] and data._embedded.<collection>: [...]. Exported for tests.
-export function parsePingcliResults(raw) {
-  let parsed;
-  try { parsed = JSON.parse(raw); } catch { return null; }
-  if (!parsed || typeof parsed !== 'object' || !parsed.schemaVersion) {
-    return null;
-  }
-  const dataRows = extractResultRows(parsed);
-  if (!dataRows) return null;
+/** Build table columns/rows from a list of resource objects. */
+function tableFromRows(dataRows, status = '', message = '') {
   const rows = dataRows.map(flattenResultRow);
   const present = new Set();
   for (const row of rows) for (const k of Object.keys(row)) present.add(k);
@@ -80,11 +98,29 @@ export function parsePingcliResults(raw) {
     if (!columns.includes(k)) columns.push(k);
   }
   return {
-    status: parsed.status || '',
-    message: parsed.message || '',
+    kind: 'table',
+    status,
+    message,
     columns: columns.slice(0, MAX_COLUMNS),
     rows,
   };
+}
+
+// Parse a pingcli JSON envelope into { status, message, columns, rows }.
+// Supports data: [...] and data._embedded.<collection>: [...]. Exported for tests.
+export function parsePingcliResults(raw) {
+  const parsed = parseJsonLoose(raw);
+  if (!parsed || typeof parsed !== 'object') return null;
+  const dataRows = extractResultRows(parsed);
+  if (!dataRows) return null;
+  // Prefer envelope metadata when present; do not require schemaVersion so
+  // raw management-API JSON still becomes a table.
+  const { kind: _k, ...table } = tableFromRows(
+    dataRows,
+    parsed.status || '',
+    parsed.message || ''
+  );
+  return table;
 }
 
 /**
@@ -100,47 +136,22 @@ function objectToFormFields(obj) {
 
 /**
  * Build an easy-read model from raw command output.
- * - kind: 'table' for list envelopes (and empty success lists)
- * - kind: 'form' for a single object (envelope data or top-level JSON)
- * Returns null when the output is not structured JSON we can present.
+ * - kind: 'table' for list payloads
+ * - kind: 'form' for a single object
+ * Returns null only when the output is not JSON.
  */
 export function buildReadableView(raw) {
-  if (!raw || typeof raw !== 'string') return null;
-
-  const table = parsePingcliResults(raw);
-  if (table && (table.rows.length > 0 || table.status === 'success')) {
-    return { kind: 'table', ...table };
-  }
-
-  let parsed;
-  try { parsed = JSON.parse(raw); } catch { return null; }
+  const parsed = parseJsonLoose(raw);
   if (!parsed || typeof parsed !== 'object') return null;
 
-  if (Array.isArray(parsed)) {
-    if (parsed.length === 0) {
-      return { kind: 'table', status: '', message: '', columns: [], rows: [] };
-    }
-    const rows = parsed.map(flattenResultRow);
-    const present = new Set();
-    for (const row of rows) for (const k of Object.keys(row)) present.add(k);
-    const columns = PREFERRED_COLUMNS.filter((c) => present.has(c));
-    for (const k of present) {
-      if (columns.length >= MAX_COLUMNS) break;
-      if (!columns.includes(k)) columns.push(k);
-    }
-    return {
-      kind: 'table',
-      status: '',
-      message: '',
-      columns: columns.slice(0, MAX_COLUMNS),
-      rows,
-    };
+  const dataRows = extractResultRows(parsed);
+  if (dataRows) {
+    return tableFromRows(dataRows, parsed.status || '', parsed.message || '');
   }
 
   // Envelope with a single resource object as data (not a list / _embedded).
   if (
-    parsed.schemaVersion
-    && parsed.data
+    parsed.data
     && typeof parsed.data === 'object'
     && !Array.isArray(parsed.data)
     && !parsed.data._embedded
@@ -165,7 +176,15 @@ export function buildReadableView(raw) {
       fields,
     };
   }
-  return null;
+
+  // Valid JSON object/array with nothing flattenable — still offer Easy read
+  // as a compact summary so the toggle is never mysteriously missing.
+  return {
+    kind: 'form',
+    status: parsed.status || '',
+    message: parsed.message || 'Structured JSON',
+    fields: [{ key: 'type', value: Array.isArray(parsed) ? 'array' : 'object' }],
+  };
 }
 
 // Cap for per-token JSON highlighting. PingOne list payloads (users/groups/apps)
@@ -477,14 +496,37 @@ export default function PingCliPage() {
   const showTerminal = running !== null || exitCode !== null || output !== '';
   const statusClass  = exitCode === 0 ? 'ok' : exitCode !== null ? 'err' : '';
   const readable = (!running && output) ? buildReadableView(output) : null;
+  // Show Easy read whenever finished output is JSON (readable is always non-null
+  // for objects/arrays after buildReadableView's fallback).
   const canEasyRead = readable !== null;
 
   // When a run finishes with structured JSON, open Easy read so the table/form
-  // is the default; user can flip back to JSON with the header button.
+  // is the default; user can flip back to JSON with the toolbar button.
   useEffect(() => {
     if (running !== null || exitCode === null || !output) return;
     if (buildReadableView(output)) setViewMode('easy');
   }, [running, exitCode, output]);
+
+  /** Render the Easy read / JSON toggle (used above the output pane). */
+  const viewToggle = canEasyRead ? (
+    <div className="pingcli-view-bar" role="group" aria-label="Output view">
+      <span className="pingcli-view-bar-label">View</span>
+      <button
+        type="button"
+        className={`pingcli-view-btn${viewMode === 'easy' ? ' active' : ''}`}
+        onClick={() => setViewMode('easy')}
+      >
+        Easy read
+      </button>
+      <button
+        type="button"
+        className={`pingcli-view-btn${viewMode === 'json' ? ' active' : ''}`}
+        onClick={() => setViewMode('json')}
+      >
+        JSON
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className="pingcli-page">
@@ -588,37 +630,19 @@ export default function PingCliPage() {
         </div>
       )}
 
+      {showTerminal && viewToggle}
+
       {showTerminal && (
         <div className="pingcli-terminal">
           <div className="pingcli-terminal-header">
             <span className="pingcli-terminal-prompt">
               $ <span className="cmd-text">{cmdLabel || '…'}</span>
             </span>
-            <div className="pingcli-terminal-actions">
-              {canEasyRead && (
-                <div className="pingcli-view-toggle" role="group" aria-label="Output view">
-                  <button
-                    type="button"
-                    className={`pingcli-view-btn${viewMode === 'easy' ? ' active' : ''}`}
-                    onClick={() => setViewMode('easy')}
-                  >
-                    Easy read
-                  </button>
-                  <button
-                    type="button"
-                    className={`pingcli-view-btn${viewMode === 'json' ? ' active' : ''}`}
-                    onClick={() => setViewMode('json')}
-                  >
-                    JSON
-                  </button>
-                </div>
-              )}
-              {exitCode !== null && (
-                <span className={`pingcli-terminal-status ${statusClass}`}>
-                  {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
-                </span>
-              )}
-            </div>
+            {exitCode !== null && (
+              <span className={`pingcli-terminal-status ${statusClass}`}>
+                {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
+              </span>
+            )}
           </div>
           {viewMode === 'easy' && readable?.kind === 'table' && (
             <div className="pingcli-results pingcli-results-in-terminal">

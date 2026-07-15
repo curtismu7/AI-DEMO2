@@ -35,9 +35,19 @@ describe("parsePingcliResults", () => {
     expect(parsePingcliResults("Valid Keys:\n- auth.storage.type")).toBeNull();
   });
 
-  it("returns null for JSON that is not a pingcli envelope", () => {
+  it("returns null when JSON has no list payload", () => {
     expect(parsePingcliResults(JSON.stringify({ foo: "bar" }))).toBeNull();
     expect(parsePingcliResults(JSON.stringify({ schemaVersion: "1.0", data: null }))).toBeNull();
+  });
+
+  it("unwraps root _embedded without schemaVersion", () => {
+    const raw = JSON.stringify({
+      count: 1,
+      _embedded: { groups: [{ id: "g-1", name: "Admins" }] },
+    });
+    const r = parsePingcliResults(raw);
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({ id: "g-1", name: "Admins" });
   });
 
   it("carries the error status through for error envelopes", () => {
@@ -128,6 +138,12 @@ describe("buildReadableView", () => {
         { key: "enabled", value: "true" },
       ])
     );
+  });
+
+  it("returns a form model for top-level objects without a list", () => {
+    const view = buildReadableView(JSON.stringify({ foo: "bar", count: 2 }));
+    expect(view.kind).toBe("form");
+    expect(view.fields.length).toBeGreaterThan(0);
   });
 
   it("returns null for plain text", () => {
