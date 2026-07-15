@@ -4772,7 +4772,10 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                   <div className="tcd-mcp-results-toolbar">
                     <span className="tcd-mcp-results-count">
                       {ctx.mcpToolCalls.length} tool call
-                      {ctx.mcpToolCalls.length === 1 ? "" : "s"}
+                      {ctx.mcpToolCalls.length === 1 ? "" : "s"} this session
+                      <span className="tcd-mcp-results-scope" title="Accumulated MCP audit for this user session (not one chat turn)">
+                        {" "}(session total)
+                      </span>
                     </span>
                     <button
                       type="button"

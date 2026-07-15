@@ -311,8 +311,8 @@ export default function TokenChainPanel() {
           aria-expanded={mcpTrailOpen}
         >
           <div>
-            <div className="token-chain-card-title">🔗 MCP Tool Calls ({mcpToolCalls.length})</div>
-            <div className="token-chain-card-sub">Tools called with your token authority in this session</div>
+            <div className="token-chain-card-title">MCP Tool Calls — session total ({mcpToolCalls.length})</div>
+            <div className="token-chain-card-sub">All tools invoked with your token this session (chips, agent, Academy) — not just the last prompt</div>
           </div>
           <span className="token-chain-chev" aria-hidden>{mcpTrailOpen ? '▾' : '▸'}</span>
         </button>
