@@ -240,7 +240,9 @@ class TestCodegraphReindex:
             "out.write_bytes(b'x' * 64)\n",
         )
         with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
-             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)):
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
@@ -261,7 +263,9 @@ class TestCodegraphReindex:
             "out.write_bytes(b'x' * 64)\n",
         )
         with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
-             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)):
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
@@ -283,7 +287,9 @@ class TestCodegraphReindex:
             "p.write_bytes(b'legacy-db' * 8)\n",
         )
         with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
-             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(query_db)):
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(query_db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(query_db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         assert response.json()["nodes"] == 9

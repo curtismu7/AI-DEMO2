@@ -6,10 +6,8 @@ import json
 import logging
 import os
 import re
-import shutil
 import sys
 import time
-from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Response
@@ -19,6 +17,11 @@ from langchain_core.messages import AIMessageChunk, HumanMessage, AIMessage
 
 from codegraph.agent import create_codegraph_agent
 from codegraph.db import CODEGRAPH_DB_PATH
+from codegraph.ensure_index import (
+    ensure_query_index,
+    query_db_path,
+    resolve_indexer_script,
+)
 from codegraph.repo import repo_src_root
 
 logger = logging.getLogger(__name__)
@@ -34,9 +37,14 @@ _reindex_lock = asyncio.Lock()
 
 
 def _index_available() -> bool:
-    """True if the CodeGraph DB exists and is non-empty."""
+    """True if the CodeGraph query DB exists and is non-empty.
+
+    Self-heals first: if a prior Refresh wrote to the legacy repo-src path,
+    promote it into CODEGRAPH_DB_PATH before deciding.
+    """
+    ensure_query_index()
     try:
-        db_file = Path(CODEGRAPH_DB_PATH)
+        db_file = query_db_path()
         return db_file.is_file() and db_file.stat().st_size > 0
     except OSError:
         return False
@@ -139,21 +147,16 @@ async def _stream(graph, messages: list) -> AsyncGenerator[str, None]:
 async def codegraph_reindex() -> Response:
     """Rebuild the symbol index from the live source tree.
 
-    The repo is bind-mounted at REPO_SRC_ROOT (/app/live-repo); the indexer is
-    told to write to CODEGRAPH_DB_PATH (via --out) — the exact DB the query
-    tools read — so no image rebuild or re-stage is needed.
-
-    Older staged copies of build-codegraph.py ignore --out and always write to
-    {REPO_SRC_ROOT}/.codegraph/codegraph.db. After a successful run we copy that
-    default into CODEGRAPH_DB_PATH when the query path is still empty, so Refresh
-    index actually unblocks /code-explorer.
+    Prefers the baked `/app/indexer/build-codegraph.py` (supports --out). After a
+    successful run, promotes any legacy write into CODEGRAPH_DB_PATH and refuses
+    success if the query path is still empty.
     """
     root = repo_src_root()
-    script = root / "scripts" / "build-codegraph.py"
-    if not script.is_file():
+    script = resolve_indexer_script(root)
+    if script is None:
         return JSONResponse(
-            {"error": f"indexer not found at {script}; is the repo mounted at "
-                      "REPO_SRC_ROOT?"},
+            {"error": f"indexer not found under {root}/scripts or "
+                      "/app/indexer; is the repo mounted at REPO_SRC_ROOT?"},
             status_code=503,
         )
 
@@ -186,38 +189,14 @@ async def codegraph_reindex() -> Response:
                 status_code=500,
             )
 
-        # Legacy indexer (no --out): promote default write path → query path.
-        if not _index_available():
-            legacy = root / ".codegraph" / "codegraph.db"
-            target = Path(CODEGRAPH_DB_PATH)
-            try:
-                if legacy.is_file() and legacy.stat().st_size > 0:
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    # Same-filesystem replace keeps concurrent readers safe.
-                    tmp = target.with_name(target.name + ".promote-tmp")
-                    shutil.copy2(legacy, tmp)
-                    os.replace(tmp, target)
-                    logger.info(
-                        "CodeGraph reindex: promoted %s → %s (%s bytes)",
-                        legacy, target, target.stat().st_size,
-                    )
-            except OSError as exc:
-                logger.error("CodeGraph reindex promote failed: %s", exc)
-                return JSONResponse(
-                    {"error": f"index built but not available at {CODEGRAPH_DB_PATH}: {exc}",
-                     "log": out[-2000:]},
-                    status_code=500,
-                )
-
-        if not _index_available():
+        # Promote legacy path / verify query DB before declaring success.
+        if not ensure_query_index(root) and not _index_available():
             return JSONResponse(
                 {"error": f"index still missing/empty at {CODEGRAPH_DB_PATH} after rebuild",
                  "log": out[-2000:]},
                 status_code=500,
             )
 
-        # The indexer prints "Indexing N files ..." and "Found M nodes ..." — surface
-        # the counts (None if the output format ever changes; never a wrong number).
         nodes = files = None
         m = re.search(r"Found\s+(\d+)\s+nodes", out)
         if m:
@@ -226,11 +205,12 @@ async def codegraph_reindex() -> Response:
         if m:
             files = int(m.group(1))
 
-        # Drop the cached agent so the next query rebuilds against the fresh DB
-        # (and re-probes the LLM provider).
         global _graph_cache
         _graph_cache = None
 
-        logger.info("CodeGraph reindex OK in %sms (nodes=%s)", elapsed_ms, nodes)
+        logger.info(
+            "CodeGraph reindex OK in %sms (nodes=%s, indexer=%s)",
+            elapsed_ms, nodes, script,
+        )
         return JSONResponse({"ok": True, "nodes": nodes, "files": files,
                              "durationMs": elapsed_ms})
