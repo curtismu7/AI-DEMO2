@@ -107,13 +107,13 @@ export default function ScopeAuditPage() {
   if (!hasRun && !loading) {
     return (
       <div className="scope-audit-page">
-        <h1>🔍 PingOne Scope Audit</h1>
+        <h1>PingOne Scope Audit</h1>
         <p className="scope-audit-page__subtitle">
           Verify that PingOne resources have the scopes your code expects.
         </p>
         <div className="scope-audit-page__start">
           <button className="scope-audit-btn scope-audit-btn--primary scope-audit-btn--lg" onClick={loadResources}>
-            ▶ Run Audit
+            Run Audit
           </button>
         </div>
       </div>
@@ -123,9 +123,8 @@ export default function ScopeAuditPage() {
   if (loading) {
     return (
       <div className="scope-audit-page">
-        <h1>🔍 PingOne Scope Audit</h1>
+        <h1>PingOne Scope Audit</h1>
         <div className="scope-audit-page__loading">
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
           Connecting to PingOne Management API...
         </div>
       </div>
@@ -135,13 +134,13 @@ export default function ScopeAuditPage() {
   if (error) {
     return (
       <div className="scope-audit-page">
-        <h1>🔍 PingOne Scope Audit</h1>
+        <h1>PingOne Scope Audit</h1>
         <div className="scope-audit-page__error">
           <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>❌</div>
           Failed to connect to PingOne
           <div className="scope-audit-page__error-detail">{error}</div>
           <button className="scope-audit-btn" style={{ marginTop: '1rem' }} onClick={loadResources}>
-            🔄 Retry
+            Retry
           </button>
         </div>
       </div>
@@ -150,7 +149,7 @@ export default function ScopeAuditPage() {
 
   return (
     <div className="scope-audit-page">
-      <h1>🔍 PingOne Scope Audit</h1>
+      <h1>PingOne Scope Audit</h1>
       <p className="scope-audit-page__subtitle">
         Environment: <code>{envInfo.environment}</code> · Region: <code>{envInfo.region}</code>
       </p>
@@ -158,10 +157,10 @@ export default function ScopeAuditPage() {
       {/* Summary bar */}
       <div className="scope-audit-page__summary">
         <div className="scope-audit-page__stat scope-audit-page__stat--info">
-          📦 {totalResources} Resources
+          {totalResources} Resources
         </div>
         <div className="scope-audit-page__stat scope-audit-page__stat--info">
-          🎯 {customResources} Matched
+          {customResources} Matched
         </div>
         <div className={`scope-audit-page__stat ${resourcesOk > 0 ? 'scope-audit-page__stat--ok' : 'scope-audit-page__stat--info'}`}>
           ✅ {resourcesOk} OK
@@ -182,11 +181,11 @@ export default function ScopeAuditPage() {
       <div className="scope-audit-page__toolbar">
         <div className="scope-audit-page__toolbar-actions">
           <button className="scope-audit-btn" onClick={loadResources}>
-            🔄 Refresh
+            Refresh
           </button>
           {totalMissing > 0 && (
             <button className="scope-audit-btn scope-audit-btn--primary" onClick={handleFixEverything}>
-              🛠️ Fix All Missing ({totalMissing})
+              Fix All Missing ({totalMissing})
             </button>
           )}
         </div>
@@ -271,7 +270,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
           )}
         </div>
         <span className={`scope-resource-card__chevron ${expanded ? 'scope-resource-card__chevron--open' : ''}`}>
-          ▶
+          →
         </span>
       </div>
 
@@ -290,7 +289,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
                 onClick={() => onFixAll(resource)}
                 disabled={addingScope != null}
               >
-                🛠️ Add All Missing Required ({expected.missingRequired.length})
+                Add All Missing Required ({expected.missingRequired.length})
               </button>
             </div>
           )}
@@ -333,7 +332,7 @@ function ResourceCard({ resource, expanded, onToggle, onAddScope, onFixAll, addi
                         onClick={() => onAddScope(id, row.name)}
                         disabled={addingScope === `${id}:${row.name}`}
                       >
-                        {addingScope === `${id}:${row.name}` ? '⏳' : '➕'} Add
+                        {addingScope === `${id}:${row.name}` ? 'Adding…' : 'Add'}
                       </button>
                     )}
                   </td>
