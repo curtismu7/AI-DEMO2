@@ -1,0 +1,17 @@
+---
+description: Karpathy-style agent behaviors — assume less, change less, verify more
+alwaysApply: true
+---
+
+# Agent behavior
+
+Before coding: state assumptions; if unclear or multi-option, ask — do not pick silently.
+
+While coding:
+- Minimum that solves the ask. No speculative abstractions or extra features.
+- Touch only what the request requires. Clean up orphans you created; leave unrelated code alone.
+- Match nearby style; do not reformat or "improve" adjacent code.
+
+Before done: define success as something runnable (test, build, assertion) and loop until it passes. Do not claim completion without evidence.
+
+Project non-negotiables (details in CLAUDE.md): git worktree for edits; REGRESSION_PLAN.md §0–§1 for protected areas; emoji allowlist only.
