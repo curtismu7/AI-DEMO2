@@ -234,25 +234,8 @@ router.put('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// Session status — callable by unauthenticated users (returns authenticated: false when not logged in)
-router.get('/session', (req, res) => {
-  try {
-    const hasOAuthTokens = !!req.session?.oauthTokens?.accessToken;
-    const hasLocalSession = !!req.session?.user;
-    const authenticated = hasOAuthTokens || hasLocalSession;
-
-    res.json({
-      authenticated,
-      user: req.session?.user ?? null,
-      oauthType: req.session?.oauthType ?? null,
-      clientType: req.session?.clientType ?? null,
-      sessionStoreHealthy: req._sessionStoreHealthy ?? null,
-      sessionStoreError: req._sessionStoreError ?? null,
-    });
-  } catch (error) {
-    console.error('Session status error:', error);
-    res.status(500).json({ error: 'Internal server error', authenticated: false });
-  }
-});
+// NOTE: Duplicate GET /session handler removed (was dead code — Express only
+// invokes the first matching handler). The canonical session handler above
+// handles all auth types (basic auth, OAuth admin, OAuth user).
 
 module.exports = router;

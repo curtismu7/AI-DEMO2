@@ -19,13 +19,18 @@ const HITL_INTERNAL_SECRET = process.env.HITL_INTERNAL_SECRET || '';
 
 function requireSecret(req, res, next) {
   if (!HITL_INTERNAL_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({
-        error: 'hitl_misconfigured',
-        message: 'HITL_INTERNAL_SECRET is required in production.',
-      });
+    // Fail closed: require the secret in ALL environments.
+    // Only allow bypass when HITL_ALLOW_UNSECURED=true is explicitly set in local dev.
+    const allowUnsecured = process.env.HITL_ALLOW_UNSECURED === 'true' &&
+      process.env.NODE_ENV !== 'production';
+    if (allowUnsecured) {
+      console.warn('[HITL] WARNING: HITL_INTERNAL_SECRET is unset and HITL_ALLOW_UNSECURED=true — skipping auth (dev only)');
+      return next();
     }
-    return next();
+    return res.status(503).json({
+      error: 'hitl_misconfigured',
+      message: 'HITL_INTERNAL_SECRET is required. Set it in the environment or set HITL_ALLOW_UNSECURED=true for local development.',
+    });
   }
   if (req.headers['x-hitl-internal-secret'] !== HITL_INTERNAL_SECRET) {
     return res.status(401).json({ error: 'unauthorized' });

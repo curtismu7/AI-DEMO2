@@ -97,7 +97,7 @@ function extractRequestMetadata(req, res, next) {
  * POST /api/oauth/token
  * OAuth 2.0 token endpoint - RFC 6749 compliant
  */
-router.post('/token', extractRequestMetadata, async (req, res, next) => {
+router.post('/token', extractClientCredentials, extractRequestMetadata, async (req, res, next) => {
   try {
     // Parse form-encoded request body
     const grant_type = req.body.grant_type;
