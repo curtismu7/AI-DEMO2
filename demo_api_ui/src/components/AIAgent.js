@@ -3846,7 +3846,7 @@ export default function BankingAgent({
           // Show waiting message
           addMessage(
             "assistant",
-            " Waiting for MFA verification… Choose Email code or Passkey in the modal above.",
+            " Waiting for MFA verification… Choose Email code, SMS, or Passkey in the modal above.",
             `mfa-step-${Date.now()}`,
           );
           toast.dismiss(toastId);
@@ -8337,6 +8337,7 @@ export default function BankingAgent({
                 userIdentity={{
                   name: effectiveUser?.fullName || effectiveUser?.username,
                   email: effectiveUser?.email,
+                  phone: effectiveUser?.phone || effectiveUser?.mobilePhone || effectiveUser?.primaryPhone || null,
                 }}
                 onPasskeyRegistered={handlePasskeyRegistered}
                 deliveryError={otpDeliveryError}

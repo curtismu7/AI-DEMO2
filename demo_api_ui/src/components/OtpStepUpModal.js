@@ -3,15 +3,57 @@ import DraggableModal from './DraggableModal';
 import { registerPasskey } from '../utils/passkeyCeremony';
 
 /**
- * Find an email/SMS OTP device from a PingOne MFA device list.
+ * Find an email OTP device from a PingOne MFA device list.
  * @param {Array} devices
  * @returns {object|null}
  */
-function findOtpDevice(devices) {
+function findEmailDevice(devices) {
   return (devices || []).find((d) => {
     const t = String(d?.type || '').toUpperCase();
-    return t === 'EMAIL' || t === 'SMS' || t.includes('OTP');
+    return t === 'EMAIL' || (t.includes('OTP') && t !== 'SMS' && !t.includes('SMS'));
   }) || null;
+}
+
+/**
+ * Find an SMS OTP device from a PingOne MFA device list.
+ * @param {Array} devices
+ * @returns {object|null}
+ */
+function findSmsDevice(devices) {
+  return (devices || []).find((d) => {
+    const t = String(d?.type || '').toUpperCase();
+    return t === 'SMS' || t === 'PHONE' || t === 'MOBILE_PHONE';
+  }) || null;
+}
+
+/**
+ * Mask a phone number for display (last 4 digits only).
+ * @param {object|string|null} deviceOrPhone
+ * @returns {string}
+ */
+function maskPhone(deviceOrPhone) {
+  const raw = typeof deviceOrPhone === 'string'
+    ? deviceOrPhone
+    : (deviceOrPhone?.phone?.number || deviceOrPhone?.phone || deviceOrPhone?.nickname || deviceOrPhone?.name || '');
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length >= 4) return `***-***-${digits.slice(-4)}`;
+  return raw ? String(raw) : '';
+}
+
+/**
+ * Normalize user-entered phone to E.164 (default US +1 for 10-digit numbers).
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizePhoneE164(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return '';
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+${digits}`;
 }
 
 /**
@@ -51,10 +93,13 @@ function isPasskeySupported() {
  */
 function MethodChoiceTable({
   otpContactLabel,
+  smsContactLabel,
+  smsEnrolled,
   hasFido,
   passkeySupported,
   registering,
   onChooseOtp,
+  onChooseSms,
   onChoosePasskey,
   extraRows = [],
 }) {
@@ -70,6 +115,12 @@ function MethodChoiceTable({
       : hasFido
         ? 'Continue →'
         : 'Set up →';
+  const smsDetail = smsEnrolled
+    ? (smsContactLabel
+      ? `Text a 6-digit code to ${smsContactLabel}`
+      : 'Text a 6-digit code to your phone')
+    : 'Set up SMS OTP on your phone (E.164)';
+  const smsCta = smsEnrolled ? 'Continue →' : 'Set up →';
 
   return (
     <div className="otp-step-up-modal__method-table-wrap">
@@ -105,6 +156,25 @@ function MethodChoiceTable({
                 data-testid="mfa-choose-otp"
               >
                 Continue →
+              </button>
+            </td>
+          </tr>
+          <tr className={`otp-step-up-modal__method-row${smsEnrolled ? '' : ' otp-step-up-modal__method-row--setup'}`}>
+            <td>
+              <span className="otp-step-up-modal__method-name">
+                <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--sms" aria-hidden>SMS</span>
+                SMS code
+              </span>
+            </td>
+            <td className="otp-step-up-modal__method-detail">{smsDetail}</td>
+            <td>
+              <button
+                type="button"
+                className="otp-step-up-modal__method-cta"
+                onClick={onChooseSms}
+                data-testid="mfa-choose-sms"
+              >
+                {smsCta}
               </button>
             </td>
           </tr>
@@ -164,8 +234,8 @@ function MethodChoiceTable({
  *   - "stub" (default): method choice table → OTP input | passkey setup
  *   - "p1mfa": method choice table → PingOne OTP / push / FIDO complete
  *
- * Always offers Email OTP and Passkey on the same screen as a choice table.
- * Existing OTP entry UI is preserved after the user selects Email code.
+ * Always offers Email OTP, SMS OTP, and Passkey on the same screen as a choice table.
+ * Existing OTP entry UI is preserved after the user selects Email or SMS code.
  */
 export default function OtpStepUpModal({
   show, onSubmit, onCancel, contextLine = '',
@@ -179,7 +249,11 @@ export default function OtpStepUpModal({
   const [error, setError] = useState('');
   const [showDemoCode, setShowDemoCode] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [stubStep, setStubStep] = useState('choose'); // 'choose' | 'otp'
+  const [stubStep, setStubStep] = useState('choose'); // 'choose' | 'otp' | 'sms-enroll-phone' | 'sms-enroll-otp'
+  const [otpChannel, setOtpChannel] = useState('email'); // 'email' | 'sms'
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
+  const [smsBusy, setSmsBusy] = useState(false);
   const inputRef = useRef(null);
 
   // P1MFA state machine
@@ -193,9 +267,15 @@ export default function OtpStepUpModal({
 
   // Which address the code was sent to (masked PingOne contact, else the
   // signed-in user's email). Answers "what email do I get the OTP from?".
-  const otpContactLabel = maskedContact || userIdentity?.email || '';
+  const emailContactLabel = maskedContact || userIdentity?.email || '';
   const fidoEnrolled = !!findFidoDevice(devices);
-  const otpDevice = findOtpDevice(devices);
+  const emailDevice = findEmailDevice(devices);
+  const smsDevice = findSmsDevice(devices);
+  const smsEnrolled = !!smsDevice;
+  const smsContactLabel = maskPhone(smsDevice) || maskPhone(userIdentity?.phone) || '';
+  const otpContactLabel = otpChannel === 'sms'
+    ? (smsContactLabel || 'your phone')
+    : emailContactLabel;
   const passkeySupported = isPasskeySupported();
   // Demo OTP hint depends on the path: the stub path does not verify the code
   // (any 6 digits pass), the PingOne paths accept the 123123 test bypass.
@@ -225,12 +305,16 @@ export default function OtpStepUpModal({
     setOtp('');
     setError('');
     setShowDemoCode(false);
+    setOtpChannel('email');
+    setSmsPhone(userIdentity?.phone ? String(userIdentity.phone) : '');
+    setSmsEnrollDeviceId(null);
+    setSmsBusy(false);
     if (mode === 'p1mfa') {
       setP1Step('pick-device');
       setSelectedDeviceId(null);
       setP1Error('');
     }
-  }, [show, mode]);
+  }, [show, mode, userIdentity?.phone]);
 
   // Cleanup push polling on unmount
   useEffect(() => {
@@ -546,25 +630,169 @@ export default function OtpStepUpModal({
     setP1Error('');
     setOtp('');
     setError('');
+    setOtpChannel('email');
+    setSmsEnrollDeviceId(null);
+    setSmsBusy(false);
     if (pollRef.current) clearInterval(pollRef.current);
+  };
+
+  /**
+   * Refresh MFA challenge devices after SMS enroll (reuses passkey refresh hook
+   * when provided) so the new SMS device is selectable.
+   */
+  const refreshChallengeDevices = async () => {
+    if (typeof onPasskeyRegistered === 'function') {
+      return onPasskeyRegistered();
+    }
+    const resp = await fetch(`${apiBase}/api/auth/mfa/challenge`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!resp.ok) throw new Error(`MFA initiation failed: ${resp.status}`);
+    const data = await resp.json();
+    return { daId: data.daId, devices: data.devices || [] };
+  };
+
+  /** After SMS is enrolled, start a challenge and select the SMS device (sends OTP). */
+  const startSmsChallengeWithFreshDevices = async () => {
+    const fresh = await refreshChallengeDevices();
+    const sms = findSmsDevice(fresh?.devices || []);
+    if (!fresh?.daId || !sms) {
+      throw new Error('SMS device enrolled but not returned by MFA challenge.');
+    }
+    setOtpChannel('sms');
+    await handleSelectDevice(sms, fresh.daId);
   };
 
   /** User picked Email OTP from the choice table. */
   const handleChooseOtp = () => {
     setError('');
     setP1Error('');
+    setOtpChannel('email');
     if (mode === 'stub') {
       setStubStep('otp');
       return;
     }
-    if (otpDevice) {
-      handleSelectDevice(otpDevice);
+    if (emailDevice) {
+      handleSelectDevice(emailDevice);
       return;
     }
     // No email device enrolled — fall through to the local OTP stub UI so the
     // demo can still collect a code (demo bypass 123123).
     setStubStep('otp');
     setP1Step('otp-stub');
+  };
+
+  /** Begin SMS enrollment (phone entry). */
+  const beginSmsEnroll = () => {
+    setOtpChannel('sms');
+    setSmsEnrollDeviceId(null);
+    setP1Step('sms-enroll-phone');
+    setStubStep('sms-enroll-phone');
+  };
+
+  /** User picked SMS from the choice table — challenge enrolled device or enroll. */
+  const handleChooseSms = () => {
+    setError('');
+    setP1Error('');
+    setOtpChannel('sms');
+    if (smsDevice && mode === 'p1mfa') {
+      handleSelectDevice(smsDevice);
+      return;
+    }
+    if (smsDevice && mode === 'stub') {
+      // Stub mode with an enrolled SMS device still needs a real PingOne challenge.
+      (async () => {
+        try {
+          setSmsBusy(true);
+          await startSmsChallengeWithFreshDevices();
+        } catch (err) {
+          console.error('[OtpStepUpModal] SMS challenge error:', err);
+          setP1Error(err?.message || 'Could not start SMS verification.');
+          setP1Step('error');
+        } finally {
+          setSmsBusy(false);
+        }
+      })();
+      return;
+    }
+    beginSmsEnroll();
+  };
+
+  /** POST /enroll/sms-init — PingOne texts an activation OTP. */
+  const handleSmsEnrollInit = async () => {
+    const phone = normalizePhoneE164(smsPhone);
+    if (!phone || phone.length < 10) {
+      setError('Enter a phone number in E.164 format, e.g. +15551234567');
+      return;
+    }
+    setError('');
+    setP1Error('');
+    setSmsBusy(true);
+    try {
+      const resp = await fetch(`${apiBase}/api/auth/mfa/enroll/sms-init`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.message || data.error || `SMS enroll failed (${resp.status})`);
+      }
+      const status = String(data.status || '').toUpperCase();
+      // Worker-token enroll can return ACTIVE immediately — skip activation OTP.
+      if (status === 'ACTIVE' || status === 'ENABLED') {
+        await startSmsChallengeWithFreshDevices();
+        return;
+      }
+      if (!data.deviceId) throw new Error('SMS enroll did not return a deviceId');
+      setSmsEnrollDeviceId(data.deviceId);
+      setOtp('');
+      setP1Step('sms-enroll-otp');
+      setStubStep('sms-enroll-otp');
+    } catch (err) {
+      console.error('[OtpStepUpModal] SMS enroll init error:', err);
+      setError(err?.message || 'Failed to start SMS enrollment');
+      setP1Error(err?.message || 'Failed to start SMS enrollment');
+    } finally {
+      setSmsBusy(false);
+    }
+  };
+
+  /** POST /enroll/sms-complete — activate device, then run step-up challenge. */
+  const handleSmsEnrollComplete = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      setError('Enter the 6-digit code from your SMS');
+      return;
+    }
+    if (!smsEnrollDeviceId) {
+      setError('SMS enrollment session missing — go back and try again');
+      return;
+    }
+    setError('');
+    setSmsBusy(true);
+    try {
+      const resp = await fetch(`${apiBase}/api/auth/mfa/enroll/sms-complete`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: smsEnrollDeviceId, otp }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.message || data.error || `SMS activate failed (${resp.status})`);
+      }
+      setOtp('');
+      setSmsEnrollDeviceId(null);
+      await startSmsChallengeWithFreshDevices();
+    } catch (err) {
+      console.error('[OtpStepUpModal] SMS enroll complete error:', err);
+      setError(err?.message || 'Failed to activate SMS device');
+    } finally {
+      setSmsBusy(false);
+    }
   };
 
   /** User picked Passkey from the choice table. */
@@ -603,11 +831,14 @@ export default function OtpStepUpModal({
 
   const methodTable = (
     <MethodChoiceTable
-      otpContactLabel={otpContactLabel}
+      otpContactLabel={emailContactLabel}
+      smsContactLabel={smsContactLabel}
+      smsEnrolled={smsEnrolled}
       hasFido={fidoEnrolled}
       passkeySupported={passkeySupported && (!!onPasskeyRegistered || fidoEnrolled || allowFido)}
-      registering={registering}
+      registering={registering || smsBusy}
       onChooseOtp={handleChooseOtp}
+      onChooseSms={handleChooseSms}
       onChoosePasskey={handleChoosePasskey}
       extraRows={extraMethodRows}
     />
@@ -675,20 +906,82 @@ export default function OtpStepUpModal({
         aria-label="Verification code"
       />
       {error && <div className="otp-step-up-modal__error">{error}</div>}
-      <p className="otp-step-up-modal__hint">Enter the 6-digit code from your email</p>
+      <p className="otp-step-up-modal__hint">
+        Enter the 6-digit code from your {otpChannel === 'sms' ? 'text message' : 'email'}
+      </p>
       {demoCodeReveal}
     </>
+  );
+
+
+  /** SMS enrollment panels (phone → activation OTP). */
+  const smsEnrollPhonePanel = (
+    <div className="otp-step-up-modal__sms-enroll" data-testid="mfa-sms-enroll-phone">
+      <p className="otp-step-up-modal__hint" style={{ marginBottom: 8 }}>
+        Enter the mobile number that should receive SMS codes (E.164).
+      </p>
+      <input
+        type="tel"
+        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+        placeholder="+15551234567"
+        value={smsPhone}
+        onChange={(e) => { setSmsPhone(e.target.value); if (error) setError(''); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollInit(); }}
+        aria-label="Mobile phone number"
+        autoFocus
+      />
+      {error && <div className="otp-step-up-modal__error">{error}</div>}
+      <p className="otp-step-up-modal__hint">Example: +1 555 123 4567 — we&apos;ll text an activation code first.</p>
+    </div>
+  );
+
+  const smsEnrollOtpPanel = (
+    <div className="otp-step-up-modal__sms-enroll" data-testid="mfa-sms-enroll-otp">
+      <div className="otp-step-up-modal__contact">
+        Enter the activation code texted to {maskPhone(smsPhone) || 'your phone'}
+      </div>
+      <input
+        ref={inputRef}
+        type="text"
+        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+        placeholder="000000"
+        value={otp}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+          setOtp(digits);
+          if (error) setError('');
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollComplete(); }}
+        onPaste={handleOtpPaste}
+        inputMode="numeric"
+        aria-label="SMS activation code"
+      />
+      {error && <div className="otp-step-up-modal__error">{error}</div>}
+      <p className="otp-step-up-modal__hint">This activates SMS on your account, then we send the step-up code.</p>
+      {demoCodeReveal}
+    </div>
   );
 
   // P1MFA mode
 
   if (mode === 'p1mfa') {
     const showingOtp = p1Step === 'otp' || p1Step === 'otp-stub';
+    const showingSmsEnroll = p1Step === 'sms-enroll-phone' || p1Step === 'sms-enroll-otp';
     const p1Footer = (
       <>
-        {(showingOtp || p1Step === 'error' || p1Step === 'push' || p1Step === 'fido') && (
+        {(showingOtp || showingSmsEnroll || p1Step === 'error' || p1Step === 'push' || p1Step === 'fido') && (
           <button type="button" className="otp-step-up-modal__btn-ghost" onClick={handleBackToMethodChoice}>
             ← Methods
+          </button>
+        )}
+        {p1Step === 'sms-enroll-phone' && (
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollInit} disabled={smsBusy}>
+            {smsBusy ? 'Sending…' : 'Send activation code'}
+          </button>
+        )}
+        {p1Step === 'sms-enroll-otp' && (
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollComplete} disabled={smsBusy}>
+            {smsBusy ? 'Activating…' : 'Activate SMS'}
           </button>
         )}
         {p1Step === 'otp' && (
@@ -731,6 +1024,8 @@ export default function OtpStepUpModal({
           </p>
 
           {p1Step === 'pick-device' && methodTable}
+          {p1Step === 'sms-enroll-phone' && smsEnrollPhonePanel}
+          {p1Step === 'sms-enroll-otp' && smsEnrollOtpPanel}
 
           {/* Registering a passkey (WebAuthn create ceremony in progress) */}
           {p1Step === 'registering' && (
@@ -773,12 +1068,25 @@ export default function OtpStepUpModal({
 
   const stubShowRegistering = registering || p1Step === 'registering';
   const stubShowPasskeyError = p1Step === 'error' && !!p1Error;
+  const stubSmsEnroll = stubStep === 'sms-enroll-phone' || stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-phone' || p1Step === 'sms-enroll-otp';
+  const showSmsPhone = stubStep === 'sms-enroll-phone' || p1Step === 'sms-enroll-phone';
+  const showSmsOtp = stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-otp';
 
   const stubFooter = (
     <>
-      {(stubStep === 'otp' || stubShowPasskeyError) && (
+      {(stubStep === 'otp' || stubSmsEnroll || stubShowPasskeyError) && (
         <button type="button" className="otp-step-up-modal__btn-ghost" onClick={handleBackToMethodChoice}>
           ← Methods
+        </button>
+      )}
+      {showSmsPhone && (
+        <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollInit} disabled={smsBusy}>
+          {smsBusy ? 'Sending…' : 'Send activation code'}
+        </button>
+      )}
+      {showSmsOtp && (
+        <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollComplete} disabled={smsBusy}>
+          {smsBusy ? 'Activating…' : 'Activate SMS'}
         </button>
       )}
       {stubStep === 'otp' && (
@@ -810,7 +1118,9 @@ export default function OtpStepUpModal({
           {contextLine || 'Step-up authentication required to complete this action'}
         </p>
 
-        {stubStep === 'choose' && !stubShowRegistering && !stubShowPasskeyError && methodTable}
+        {stubStep === 'choose' && !stubShowRegistering && !stubShowPasskeyError && !stubSmsEnroll && methodTable}
+        {showSmsPhone && smsEnrollPhonePanel}
+        {showSmsOtp && smsEnrollOtpPanel}
 
         {stubShowRegistering && (
           <>

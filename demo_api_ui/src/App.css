@@ -1500,6 +1500,9 @@
 .otp-step-up-modal__method-badge--passkey {
   background: #0f766e;
 }
+.otp-step-up-modal__method-badge--sms {
+  background: #b45309;
+}
 .otp-step-up-modal__method-badge--extra {
   background: #475569;
 }
