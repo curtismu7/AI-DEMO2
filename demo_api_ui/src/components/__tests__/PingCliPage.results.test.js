@@ -46,4 +46,36 @@ describe("parsePingcliResults", () => {
     expect(r.status).toBe("error");
     expect(r.rows).toEqual([]);
   });
+
+  it("unwraps data._embedded collections from pingone api responses", () => {
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      message: "Custom request successful",
+      data: {
+        _embedded: {
+          users: [
+            {
+              id: "u-1",
+              username: "alice",
+              email: "a@example.com",
+              enabled: true,
+              name: { formatted: "Alice Example", given: "Alice", family: "Example" },
+            },
+          ],
+        },
+      },
+    });
+    const r = parsePingcliResults(raw);
+    expect(r.status).toBe("success");
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({
+      id: "u-1",
+      username: "alice",
+      email: "a@example.com",
+      enabled: true,
+      name: "Alice Example",
+    });
+    expect(r.columns).toEqual(expect.arrayContaining(["name", "username", "email", "id", "enabled"]));
+  });
 });
