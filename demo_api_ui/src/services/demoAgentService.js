@@ -378,13 +378,39 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       // Merge SSE-collected token events with response body events
       const allTokenEvents = [...tokenEventsFromSse, ...responseTokenEvents];
 
-      // Proof-of-enforcement: block outcomes (step-up / HITL / deny) carry
-      // mcpAuthorizeEvaluation on the 4xx body. ingestAuthorize only ran on the
-      // success path below, so UC7 step-up 428 left trace.authorize null while
-      // tokenEvents still stamped useCaseId → ProofStrip "Incomplete".
+      // Proof-of-enforcement + TraceRail: block outcomes (step-up / HITL / deny)
+      // carry mcpAuthorizeEvaluation on the 4xx body. Success-path ingest below
+      // never ran, so UC7 step-up 428 left authorize ✗ / ProofStrip Incomplete.
       if (err.mcpAuthorizeEvaluation) {
+        const ae = err.mcpAuthorizeEvaluation;
+        const decision = ae.decision || "INDETERMINATE";
+        const engine = ae.engine || "simulated";
+        const decisionStatus =
+          decision === "PERMIT"
+            ? "active"
+            : decision === "DENY"
+              ? "failed"
+              : "waiting";
+        if (!allTokenEvents.some((e) => e && e.id === "authorize-decision")) {
+          allTokenEvents.push({
+            id: "authorize-decision",
+            label: "PingOne Authorize — Policy Decision",
+            status: decisionStatus,
+            timestamp: Date.now(),
+            rfc: "RFC 8705",
+            authorizeDecision: decision,
+            authorizeEngine: engine,
+            authorizePath: ae.path || null,
+            authorizeDecisionId: ae.decisionId || null,
+            authorizeRef: ae.authorizeRef || ae.decisionEndpointId || null,
+            authorizeRequest: ae.request || null,
+            authorizeResponse: ae.response || null,
+            explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
+          });
+        }
         try {
-          tokenChainTraceStore.ingestAuthorize(err.mcpAuthorizeEvaluation);
+          tokenChainTraceStore.ingestAuthorize(ae);
+          tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
         } catch { /* display-only */ }
       }
 

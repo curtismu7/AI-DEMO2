@@ -52,7 +52,10 @@ describe('callMcpTool step-up 428 authorize ingest', () => {
       code: 'mcp_step_up_required',
     });
 
-    expect(tokenChainTraceStore.getState().trace.authorize).toEqual(evaluation);
+    const snap = tokenChainTraceStore.getState();
+    expect(snap.trace.authorize).toEqual(evaluation);
+    expect(snap.trace.tokenEvents.some((e) => e.id === 'authorize-decision')).toBe(true);
+    expect(snap.steps.find((s) => s.id === 'authorize').status).toBe('active');
   });
 
   test('ingests mcpAuthorizeEvaluation from a 428 hitl_required body', async () => {
