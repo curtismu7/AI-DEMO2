@@ -5795,7 +5795,7 @@ export default function BankingAgent({
             level: "error",
             limit: String(logQuery.limit),
           });
-          const sources = ["console", "app", "vercel"];
+          const sources = ["console", "app", "exchange"];
           const results = await Promise.allSettled(
             sources.map((src) =>
               fetch(`/api/logs/${src}?${params.toString()}`, {
@@ -8471,7 +8471,7 @@ export default function BankingAgent({
                                 level: "error",
                                 limit: String(_chipLogQuery.limit),
                               });
-                              const _sources = ["console", "app", "vercel"];
+                              const _sources = ["console", "app", "exchange"];
                               const _results = await Promise.allSettled(
                                 _sources.map((src) =>
                                   fetch(

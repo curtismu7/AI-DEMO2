@@ -1,6 +1,6 @@
 /**
  * LogViewer Component
- * Displays application and Vercel logs in a real-time table with filtering
+ * Learning Log shell — Learn (app-events) / Debug (console, app, exchange tails).
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -60,7 +60,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
   const [filter, setFilter] = useState({
     level: '',
     search: '',
-    source: 'all', // all, console, app, vercel
+    source: 'all', // all, console, app, exchange
     category: '', // '' | 'runtime messages' | 'toast messages'
   });
   const [stats, setStats] = useState(null);
@@ -112,7 +112,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
       };
 
       if (filter.source === 'all') {
-        const sources = ['console', 'app', 'vercel', 'exchange'];
+        const sources = ['console', 'app', 'exchange'];
         const results = await Promise.allSettled(
           sources.map(src => axios.get(`/api/logs/${src}`, { params }))
         );
@@ -205,14 +205,17 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
     return () => window.removeEventListener('banking-log-viewer-open', handler);
   }, [standalone]);
 
-  // Cmd/Ctrl+Shift+L opens Learning Log (Learn mode).
+  // Cmd/Ctrl+Shift+L opens Learning Log in a pop-out window (Learn mode).
   useEffect(() => {
     if (standalone) return;
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
         e.preventDefault();
-        setMode('learn');
-        setSelfOpen(true);
+        window.open(
+          '/logs?mode=learn',
+          'BankingLogs',
+          'width=1400,height=900,scrollbars=yes,resizable=yes',
+        );
       }
     };
     document.addEventListener('keydown', onKey);
@@ -421,7 +424,6 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
               <option value="all">All Sources</option>
               <option value="console">Console Logs</option>
               <option value="app">Application Logs</option>
-              <option value="vercel">Vercel Logs</option>
               <option value="exchange">Exchange Audit</option>
             </select>
           </div>

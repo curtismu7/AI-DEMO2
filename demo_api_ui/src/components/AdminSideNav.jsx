@@ -682,10 +682,10 @@ export default function AdminSideNav({ user }) {
           label: "Learning Log",
           icon: "log",
           action: () => {
-            window.dispatchEvent(
-              new CustomEvent("banking-log-viewer-open", {
-                detail: { mode: "learn" },
-              }),
+            window.open(
+              "/logs?mode=learn",
+              "BankingLogs",
+              "width=1400,height=900,scrollbars=yes,resizable=yes",
             );
           },
         },
