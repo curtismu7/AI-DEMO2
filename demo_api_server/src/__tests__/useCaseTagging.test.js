@@ -86,6 +86,20 @@ describe('stampUseCaseId', () => {
     expect(events[0].useCaseId).toBeUndefined();
     expect(() => stampUseCaseId(null, 'x')).not.toThrow();
   });
+
+  test('does not stamp useCaseId onto session/sign-in card events', () => {
+    const events = [
+      { id: 'user-token' },
+      { id: 'id-token' },
+      { id: 'refresh-token' },
+      { id: 'two-ex-exchange1' },
+    ];
+    stampUseCaseId(events, 'a2a-delegation');
+    expect(events[0].useCaseId).toBeUndefined();
+    expect(events[1].useCaseId).toBeUndefined();
+    expect(events[2].useCaseId).toBeUndefined();
+    expect(events[3].useCaseId).toBe('a2a-delegation');
+  });
 });
 
 describe('stampVertical', () => {

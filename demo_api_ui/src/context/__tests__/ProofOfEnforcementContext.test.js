@@ -180,3 +180,38 @@ test('untagged events produce no verdict', async () => {
   });
   expect(getByTestId('verdict').textContent).toBe('none');
 });
+
+test('sticky a2a-delegation on session user-token does not hijack the next use case verdict', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    // Simulate prior UC2: user-token still carries a2a-delegation after beginTrace
+    // carry-over (pre-fix). Call-scoped events + authorize belong to UC1.
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: 'user-token', useCaseId: 'a2a-delegation', vertical: 'banking' },
+      { id: 'two-ex-exchange1', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+    ]);
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'd-uc1', decision: 'PERMIT', useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+    tokenChainTraceStore.ingestMcpResult({ toolName: 'get_balance', status: 'success' });
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('delegated-access-with-proof:verified'));
+});
+
+test('session-only sticky useCaseId yields no verdict until call-scoped evidence arrives', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  act(() => {
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: 'user-token', useCaseId: 'a2a-delegation', vertical: 'banking' },
+    ]);
+  });
+  await waitFor(() => expect(getByTestId('verdict').textContent).toBe('none'));
+});
