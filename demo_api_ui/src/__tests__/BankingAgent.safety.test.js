@@ -13,6 +13,8 @@ import {
   anySignal,
   isLocalModelTimeout,
   prewarmTierAndRetry,
+  opportunisticPrewarm,
+  __resetOpportunisticPrewarmForTests,
 } from "../components/demoAgentSafety";
 
 describe("claimPendingNl — atomic single-fire post-OAuth replay (Task 1)", () => {
@@ -255,5 +257,48 @@ describe("prewarmTierAndRetry — force-load a tier then replay the original req
 
     await expect(prewarmTierAndRetry("gpt-oss-20b", retry)).rejects.toThrow("network down");
     expect(retry).not.toHaveBeenCalled();
+  });
+});
+
+describe("opportunisticPrewarm — keep-warm fire-and-forget", () => {
+  beforeEach(() => {
+    __resetOpportunisticPrewarmForTests();
+  });
+
+  afterEach(() => {
+    delete global.fetch;
+    __resetOpportunisticPrewarmForTests();
+  });
+
+  test("POSTs the prewarm endpoint and reports ok", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    await expect(opportunisticPrewarm("gpt-oss-20b")).resolves.toEqual({
+      ok: true,
+      model: "gpt-oss-20b",
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/langchain/llamacpp/prewarm",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ model: "gpt-oss-20b" }),
+      }),
+    );
+  });
+
+  test("coalesces cooldown so a second call within 60s skips the network", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    await opportunisticPrewarm("gpt-oss-20b");
+    const second = await opportunisticPrewarm("gpt-oss-20b");
+    expect(second).toEqual({ skipped: true, reason: "cooldown", model: "gpt-oss-20b" });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not throw when the network fails", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("offline"));
+    await expect(opportunisticPrewarm("gpt-oss-20b")).resolves.toEqual({
+      ok: false,
+      model: "gpt-oss-20b",
+      reason: "offline",
+    });
   });
 });

@@ -92,7 +92,7 @@ import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
-import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry } from "./demoAgentSafety";
+import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
@@ -240,6 +240,16 @@ export default function BankingAgent({
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
+
+  // Keep the llama.cpp agent-brain tier loaded while this surface is mounted so
+  // the first chip/tool turn does not pay a cold swap.
+  useEffect(() => {
+    const provider = MODE_PROVIDER[agentProviderMode] ?? agentProviderMode;
+    if (provider !== "llamacpp") return undefined;
+    opportunisticPrewarm("gpt-oss-20b");
+    return undefined;
+  }, [agentProviderMode]);
+
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
