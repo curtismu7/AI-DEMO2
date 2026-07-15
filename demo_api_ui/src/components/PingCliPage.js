@@ -256,15 +256,48 @@ export default function PingCliPage() {
       controller.abort();
     }, RUN_TIMEOUT_MS);
 
+    // Tracks whether we applied an SSE `done` event. If the stream ends without
+    // one (common when the final frame sits in the SSE buffer and is never
+    // flushed), exitCode stays null and the terminal unmounts the moment
+    // `running` clears — JSON flashes then disappears.
+    let sawDone = false;
+
     try {
       const res = await fetch(
         `/api/admin/pingcli/stream?commandKey=${encodeURIComponent(commandKey)}`,
         { credentials: 'include', signal: controller.signal }
       );
 
+      if (!res.ok || !res.body) {
+        const text = await res.text().catch(() => '');
+        setOutput(text || `HTTP ${res.status}`);
+        setExitCode(1);
+        return;
+      }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
+
+      /** Apply one SSE event block (event: / data: pair). */
+      const applySseBlock = (block) => {
+        const eventMatch = block.match(/^event: (\w+)/m);
+        const dataMatch  = block.match(/^data: (.+)/m);
+        if (!eventMatch || !dataMatch) return;
+
+        const type = eventMatch[1];
+        const payload = JSON.parse(dataMatch[1]);
+
+        if (type === 'meta') {
+          setCmdLabel(payload.command);
+        } else if (type === 'chunk') {
+          setOutput((prev) => prev + payload.text);
+        } else if (type === 'done') {
+          sawDone = true;
+          if (payload.error) setOutput((prev) => prev || payload.error);
+          setExitCode(payload.exitCode ?? 0);
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -273,30 +306,24 @@ export default function PingCliPage() {
         buf += decoder.decode(value, { stream: true });
         const events = buf.split('\n\n');
         buf = events.pop();
-
-        for (const block of events) {
-          const eventMatch = block.match(/^event: (\w+)/m);
-          const dataMatch  = block.match(/^data: (.+)/m);
-          if (!eventMatch || !dataMatch) continue;
-
-          const type = eventMatch[1];
-          const payload = JSON.parse(dataMatch[1]);
-
-          if (type === 'meta') {
-            setCmdLabel(payload.command);
-          } else if (type === 'chunk') {
-            setOutput((prev) => prev + payload.text);
-          } else if (type === 'done') {
-            if (payload.error) setOutput((prev) => prev || payload.error);
-            setExitCode(payload.exitCode);
-          }
-        }
+        for (const block of events) applySseBlock(block);
       }
+
+      // Flush TextDecoder + any trailing SSE frame that lacked a final \n\n
+      // in an intermediate chunk (the `done` event is often exactly this).
+      buf += decoder.decode();
+      if (buf.trim()) {
+        for (const block of buf.split('\n\n')) applySseBlock(block);
+      }
+      if (!sawDone) setExitCode(0);
     } catch (err) {
       if (err.name === 'AbortError') {
         if (timedOut) {
           setOutput((prev) => `${prev}${prev ? '\n' : ''}⚠️ Command timed out after ${RUN_TIMEOUT_MS / 1000} seconds.`);
           setExitCode(1);
+        } else if (!sawDone) {
+          // Aborted for another reason mid-stream — keep any streamed output.
+          setExitCode((code) => (code === null ? 1 : code));
         }
       } else {
         setOutput(err.message);
@@ -308,7 +335,9 @@ export default function PingCliPage() {
     }
   };
 
-  const showTerminal = running !== null || exitCode !== null;
+  // Keep the pane up while streaming, after a finished run, or whenever we
+  // already have output (belt-and-suspenders if exitCode never lands).
+  const showTerminal = running !== null || exitCode !== null || output !== '';
   const statusClass  = exitCode === 0 ? 'ok' : exitCode !== null ? 'err' : '';
 
   return (
