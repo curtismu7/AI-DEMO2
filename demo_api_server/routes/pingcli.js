@@ -136,6 +136,40 @@ const COMMANDS = {
   version:                   { label: 'pingcli --version',                                                           args: ['--version'],                                                                     runnable: true },
 };
 
+/**
+ * Ordered setup steps a local operator needs before this command can succeed.
+ * Shown above the streamed response so the demo teaches init + auth.
+ */
+function buildPrereqs(cmd) {
+  const steps = [
+    {
+      title: 'Install PingCLI',
+      command: 'brew install pingidentity/tap/pingcli',
+      note: 'Already installed on this demo host.',
+    },
+  ];
+  if (cmd.auth || (Array.isArray(cmd.args) && cmd.args.includes('--config'))) {
+    steps.push({
+      title: 'Configure credentials',
+      command: 'pingcli init',
+      note: 'Interactive setup. This demo generates a worker client-credentials config automatically.',
+    });
+  }
+  if (cmd.auth) {
+    steps.push({
+      title: 'Authenticate',
+      command: 'pingcli pingone auth login',
+      note: 'Obtains a worker access token (non-interactive with client credentials).',
+    });
+  }
+  steps.push({
+    title: 'Run command',
+    command: cmd.label,
+    note: 'Live invocation — output streams below.',
+  });
+  return steps;
+}
+
 const router = Router();
 
 router.post('/run', async (req, res) => {
@@ -205,7 +239,11 @@ router.get('/stream', async (req, res) => {
     if (typeof res.flush === 'function') res.flush();
   };
 
-  send('meta', { command: cmd.label });
+  send('meta', {
+    command: cmd.label,
+    auth: Boolean(cmd.auth),
+    prereqs: buildPrereqs(cmd),
+  });
 
   if (cmd.auth) {
     const boot = await ensureAuthBootstrap();
@@ -253,7 +291,13 @@ router.get('/version', (_req, res) => {
 
 router.get('/commands', (_req, res) => {
   res.json(
-    Object.entries(COMMANDS).map(([key, { label, runnable }]) => ({ key, label, runnable }))
+    Object.entries(COMMANDS).map(([key, cmd]) => ({
+      key,
+      label: cmd.label,
+      runnable: cmd.runnable,
+      auth: Boolean(cmd.auth),
+      prereqs: buildPrereqs(cmd),
+    }))
   );
 });
 
