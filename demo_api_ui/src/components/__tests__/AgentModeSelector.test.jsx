@@ -136,10 +136,13 @@ test("onChange not called on initial settled render (hydration suppression)", ()
   expect(onChange).not.toHaveBeenCalled();
 });
 
-test("Heuristics mode hides the Fallback / LLM-only routing toggle", () => {
+test("Heuristics mode shows Routing locked to Fallback", () => {
   mockHook.mode = "heuristics";
   render(<AgentModeSelector heuristicFallback />);
-  expect(screen.queryByLabelText(/heuristic routing/i)).not.toBeInTheDocument();
+  const routing = screen.getByLabelText(/heuristic routing/i);
+  expect(routing).toBeInTheDocument();
+  expect(routing).toBeDisabled();
+  expect(routing).toHaveValue("fallback");
 });
 
 test("LLM mode shows Fallback / LLM-only toggle and notifies on change", async () => {
@@ -150,6 +153,7 @@ test("LLM mode shows Fallback / LLM-only toggle and notifies on change", async (
   );
   const routing = screen.getByLabelText(/heuristic routing/i);
   expect(routing).toHaveValue("fallback");
+  expect(routing).not.toBeDisabled();
   fireEvent.change(routing, { target: { value: "llm-only" } });
   expect(onRouting).toHaveBeenCalledWith(false);
   await waitFor(() => {

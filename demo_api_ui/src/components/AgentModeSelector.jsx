@@ -155,7 +155,9 @@ export default function AgentModeSelector({
   const current = modeOptions.find((m) => m.id === mode);
   const isExternal = !!current && current.external;
   const showDegraded = isExternal && externalWiring === "platform";
-  const showRoutingToggle = mode !== "heuristics" && !!MODE_PROVIDER[mode];
+  // Always show Routing so the control is discoverable. On Heuristics mode it
+  // stays locked to Fallback (that mode IS heuristics).
+  const routingLocked = mode === "heuristics" || !MODE_PROVIDER[mode];
 
   return (
     <div className={`ams${compact ? " ams--compact" : ""}`}>
@@ -183,22 +185,22 @@ export default function AgentModeSelector({
         </select>
       </label>
 
-      {showRoutingToggle && (
-        <label className="ams-label ams-routing">
-          Routing
-          <select
-            aria-label="Heuristic routing"
-            value={heuristicFallback ? "fallback" : "llm-only"}
-            disabled={saving || routingSaving}
-            onChange={(e) => handleRoutingChange(e.target.value === "fallback")}
-            className="ctl-select ams-select"
-            title="Fallback uses Heuristics for known chips (fast, cheap). LLM only always calls the selected model first."
-          >
-            <option value="fallback">Fallback (Heuristics)</option>
-            <option value="llm-only">LLM only</option>
-          </select>
-        </label>
-      )}
+      <label className="ams-label ams-routing">
+        Routing
+        <select
+          aria-label="Heuristic routing"
+          value={routingLocked || heuristicFallback ? "fallback" : "llm-only"}
+          disabled={saving || routingSaving || routingLocked}
+          onChange={(e) => handleRoutingChange(e.target.value === "fallback")}
+          className="ctl-select ams-select"
+          title={routingLocked
+            ? "Heuristics mode always uses the Heuristics path. Pick an LLM agent mode to choose Fallback vs LLM only."
+            : "Fallback uses Heuristics for known chips (fast, cheap). LLM only always calls the selected model first."}
+        >
+          <option value="fallback">Fallback (Heuristics)</option>
+          <option value="llm-only">LLM only</option>
+        </select>
+      </label>
 
       {autoSwitchNotice && (
         <p className="ams-autoswitch" role="status">
