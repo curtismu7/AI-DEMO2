@@ -350,6 +350,14 @@ spec:
               value: "http://llm-proxy:8090"
             - name: AGENT_MAX_TOOL_CALLS
               value: "4"
+            # Prefer one retrieval + one completion: ReAct multi-round often
+            # times out when only the large reasoning tier is available.
+            - name: AGENT_MODE
+              value: "single-shot"
+            - name: AGENT_LLM_TIMEOUT
+              value: "240"
+            - name: AGENT_MAX_TOKENS
+              value: "1200"
           resources:
             requests:
               memory: "256Mi"
