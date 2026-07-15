@@ -48,8 +48,13 @@ export function bytesToB64(buf) {
 }
 
 /**
- * Normalize PingOne publicKeyCredentialRequestOptions for navigator.credentials.get.
- * Accepts a JSON string or object; decodes challenge + allowCredentials[].id.
+ * Normalize PingOne `publicKeyCredentialRequestOptions` for navigator.credentials.get.
+ *
+ * PingOne returns this as a JSON string (ASSERTION_REQUIRED). Fields use base64url
+ * (or Jackson byte arrays). Official sample uses `new Uint8Array(options.challenge)`,
+ * which only works for numeric arrays — base64url strings must be decoded first.
+ *
+ * @see https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/check-assertion-device-authentication.html
  * @param {object|string} raw
  * @returns {PublicKeyCredentialRequestOptions}
  */
@@ -58,17 +63,47 @@ export function normalizePublicKeyRequestOptions(raw) {
   if (!opts || typeof opts !== "object") {
     throw new Error("Missing publicKeyCredentialRequestOptions");
   }
+  // Mirror PingOne's Authenticate() sample: only pass WebAuthn-known fields.
   const publicKey = {
-    ...opts,
     challenge: b64ToBytes(opts.challenge),
   };
+  if ("rpId" in opts) publicKey.rpId = opts.rpId;
+  if ("timeout" in opts) publicKey.timeout = opts.timeout;
+  if ("userVerification" in opts) publicKey.userVerification = opts.userVerification;
+  if ("extensions" in opts) publicKey.extensions = opts.extensions;
   if (Array.isArray(opts.allowCredentials)) {
-    publicKey.allowCredentials = opts.allowCredentials.map((c) => ({
-      ...c,
-      id: b64ToBytes(c.id),
-    }));
+    publicKey.allowCredentials = opts.allowCredentials.map((c) => {
+      const cred = { type: c.type || "public-key", id: b64ToBytes(c.id) };
+      if (c.transports) cred.transports = c.transports;
+      return cred;
+    });
   }
   return publicKey;
+}
+
+/**
+ * Format a WebAuthn assertion for PingOne assertion.check.
+ * Binary fields are standard base64 (toBase64Str in PingOne's sample). The BFF
+ * JSON.stringifies this object into the required `assertion` String property,
+ * with required `origin` + optional `compatibility`.
+ *
+ * @param {PublicKeyCredential} credential
+ * @returns {object}
+ */
+export function formatPublicKeyCredentialAssertion(credential) {
+  return {
+    id: credential.id,
+    rawId: bytesToB64(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bytesToB64(credential.response.clientDataJSON),
+      authenticatorData: bytesToB64(credential.response.authenticatorData),
+      signature: bytesToB64(credential.response.signature),
+      userHandle: credential.response.userHandle
+        ? bytesToB64(credential.response.userHandle)
+        : null,
+    },
+  };
 }
 
 async function postJson(path, body) {

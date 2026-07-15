@@ -456,11 +456,22 @@ async function getDeviceAuthStatus(daId, _userAccessToken) {
 }
 
 /**
- * Submit a FIDO2/WebAuthn assertion.
- * Body: { assertion: { ... } } — base64-encoded fields from navigator.credentials.get()
+ * Submit a FIDO2/WebAuthn assertion (PingOne Check Assertion / FIDO Device).
+ * Body: { origin, assertion: "<JSON string>", compatibility?: "FULL"|"SECURITY_KEY_ONLY"|"NONE" }
+ * Content-Type: application/vnd.pingidentity.assertion.check+json
+ * @see https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/check-assertion-device-authentication.html
  * Status transitions: ASSERTION_REQUIRED → COMPLETED | FAILED
  */
 async function submitFido2Assertion(daId, assertion, userAccessToken, origin) {
+  // PingOne Check Assertion requires origin (must match clientDataJSON.origin).
+  const resolvedOrigin = origin || "";
+  if (!resolvedOrigin) {
+    const err = new Error(
+      "FIDO2 assertion.check requires origin (browser window.location.origin).",
+    );
+    err.status = 400;
+    throw err;
+  }
   try {
     const url = `${_authBaseUrl()}/deviceAuthentications/${daId}`;
     // PingOne requires the assertion field to be a JSON string (not an object).
@@ -468,7 +479,7 @@ async function submitFido2Assertion(daId, assertion, userAccessToken, origin) {
     const assertionStr =
       typeof assertion === "string" ? assertion : JSON.stringify(assertion);
     const body = {
-      origin: origin || "",
+      origin: resolvedOrigin,
       assertion: assertionStr,
       compatibility: "FULL",
     };

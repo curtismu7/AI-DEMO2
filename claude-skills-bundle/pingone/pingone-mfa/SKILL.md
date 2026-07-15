@@ -319,7 +319,7 @@ return `_debug` request/response for the UI.
 | [reference/device-sms.md](reference/device-sms.md) | ✅ wired | SMS enroll (E.164), OTP activate, resend, SMS errors |
 | [reference/device-email.md](reference/device-email.md) | ✅ wired | Email device enroll + OTP activation |
 | [reference/device-totp.md](reference/device-totp.md) | reference only | TOTP secret/`keyUri` QR provisioning, activate by code |
-| [reference/device-fido2.md](reference/device-fido2.md) | ✅ wired | FIDO2/passkey WebAuthn attestation, usernameless |
+| [reference/device-fido2.md](reference/device-fido2.md) | ✅ wired | FIDO2/passkey: enroll + assertion.check, base64url decode, origin required |
 | [reference/device-whatsapp.md](reference/device-whatsapp.md) | reference only | WhatsApp device (two-route), OTP delivery |
 | [reference/device-mobile-push.md](reference/device-mobile-push.md) | reference only | Mobile push SDK pairing, device order, push vs OTP fallback |
 | [reference/policy-and-scopes.md](reference/policy-and-scopes.md) | partial | Device-auth-policy templates, full scope matrix, pairing flags |
@@ -331,7 +331,19 @@ return `_debug` request/response for the UI.
 
 ## See Also
 
-- [PingOne docs index (llms.txt)](https://docs.pingidentity.com/pingone/llms.txt) — machine-readable index of every PingOne doc page. Append `.md` to any `docs.pingidentity.com/pingone/...` URL to fetch it as raw markdown (e.g. the `strong_authentication_mfa/*.md` pages). Pull current, authoritative MFA/device docs this way.
+### Official PingOne docs (prefer these over stale blogs)
+
+| Doc | URL |
+|---|---|
+| **Strong Authentication (MFA) hub** — product overview, methods, policies, PingID | https://docs.pingidentity.com/pingone/strong_authentication_mfa/p1_strong_authentication_start.md |
+| **PingOne MFA API intro** — deviceAuthentications, MFA settings/policies, devices, pairing keys, `PING_ONE_MFA` BOM | https://developer.pingidentity.com/pingone-api/mfa/introduction.md |
+| **MFA Device Authentications** — initiate / status / OTP / FIDO | https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications.html |
+| **Check Assertion (FIDO Device)** — `origin` + `assertion` (JSON **string**) + `compatibility`; WebAuthn sample | https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/check-assertion-device-authentication.html |
+| **MFA Devices (Platform API)** — enroll / activate / list | https://developer.pingidentity.com/pingone-api/mfa/users/mfa-devices.html |
+| Docs index (`llms.txt`) | https://docs.pingidentity.com/pingone/llms.txt — append `.md` to any `docs.pingidentity.com/pingone/...` path for raw markdown |
+
+### Related skills
+
 - [oauth-pingone skill](../oauth-pingone/SKILL.md) — MFA during login: ACR, step-up, CIBA, `pi.flow`, RFC 8693 mechanics
 - [pingone-api-calls skill](../pingone-api-calls/SKILL.md) — generic Management API (user CRUD, app registration), worker-token pattern
 - [bff-sessions skill](../bff-sessions/SKILL.md) — token custody, `configStore` lookup

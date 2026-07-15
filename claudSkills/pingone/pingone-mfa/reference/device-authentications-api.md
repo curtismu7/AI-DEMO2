@@ -1,9 +1,14 @@
 # MFA Device Authentications API — Implementation Cheatsheet
 
-**Sources:**
-- https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications.html
-- https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/onetime-authentication-email.html
-- https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/onetime-authentication-sms.html
+**Sources (official):**
+- MFA API intro: https://developer.pingidentity.com/pingone-api/mfa/introduction.md
+- Strong Authentication hub: https://docs.pingidentity.com/pingone/strong_authentication_mfa/p1_strong_authentication_start.md
+- Device Authentications: https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications.html
+- Check Assertion (FIDO): https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/check-assertion-device-authentication.html
+- One-time email: https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/onetime-authentication-email.html
+- One-time SMS: https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/onetime-authentication-sms.html
+
+Requires `PING_ONE_MFA` in the environment Bill of Materials (see MFA API intro).
 
 ---
 
@@ -49,12 +54,12 @@ Content-Type: application/json
 Response `201 Created`:
 ```json
 {
-  "id": "0fa3daf8-499d-4d7a-8829-00d16ee84d5d",
+  "id": "11111111-1111-4111-8111-111111111111",
   "status": "OTP_REQUIRED",
   "_embedded": { "devices": [{ "type": "EMAIL", "email": "ab****@ping.com" }] },
   "selectedDevice": { "oneTime": { "type": "EMAIL", "email": "ab****@ping.com" } },
-  "user": { "id": "991776fd-145b-499e-8237-2c62aef35b2c" },
-  "policy": { "id": "5a0a0950-8a81-4739-b12a-f4d6a11c7a82" },
+  "user": { "id": "22222222-2222-4222-8222-222222222222" },
+  "policy": { "id": "33333333-3333-4333-8333-333333333333" },
   "_links": {
     "otp.check": { "href": "https://auth.pingone.eu/{envId}/deviceAuthentications/{daId}" }
   }
@@ -104,11 +109,11 @@ Content-Type: application/json
 Response `201 Created`:
 ```json
 {
-  "id": "0ff545da-016a-4ae7-a8c6-84d67f7b20ea",
+  "id": "44444444-4444-4444-8444-444444444444",
   "status": "OTP_REQUIRED",
   "_embedded": { "devices": [{ "type": "SMS", "phone": "*******44" }] },
   "selectedDevice": { "oneTime": { "type": "SMS", "phone": "*******44" } },
-  "user": { "id": "991776fd-145b-499e-8237-2c62aef35b2c" }
+  "user": { "id": "22222222-2222-4222-8222-222222222222" }
 }
 ```
 
@@ -118,23 +123,43 @@ Same as email — `POST {daId}` with `Content-Type: application/vnd.pingidentity
 
 ---
 
+## FIDO2 assertion check (enrolled passkey)
+
+When status is `ASSERTION_REQUIRED`, PingOne includes
+`publicKeyCredentialRequestOptions` (string). Run WebAuthn `get()`, then:
+
+```http
+POST {authBase}/{envId}/deviceAuthentications/{daId}
+Authorization: Bearer {userAccessToken}
+Content-Type: application/vnd.pingidentity.assertion.check+json
+
+{
+  "origin": "https://ai-demo.ping-devops.com",
+  "assertion": "{\"id\":\"…\",\"rawId\":\"…\",\"type\":\"public-key\",\"response\":{…}}",
+  "compatibility": "FULL"
+}
+```
+
+- `origin` and `assertion` are **required**; `assertion` is a **JSON string**
+  (not an object). Banking: `mfaService.submitFido2Assertion`.
+- Decode request options with base64url-aware helpers — see
+  [device-fido2.md](device-fido2.md).
+
+---
+
 ## Token rules (critical)
 
 | Operation | Token |
 |---|---|
-| POST initiate (step 1) | **Worker token** |
+| POST initiate (step 1) | **User access token** |
 | POST otp.check (step 2) | **Worker token** |
 | GET poll status | **Worker token** |
 | POST device.select | **Worker token** |
-| POST assertion.check (FIDO2) | **User access token** ⚠️ only exception |
+| POST assertion.check (FIDO2) | **User access token** (banking `submitFido2Assertion`) |
 
-`mfaService.js` uses the **worker** token for `initiateDeviceAuth`,
-`initiateOneTimeOtp`, `selectDevice`, `submitOtp`, and `getDeviceAuthStatus`.
-The **only** call that uses the **user** access token is
-`submitFido2Assertion`. On a worker-token call a `401` maps to
-`code:'mfa_service_auth_failed'` (a credential/service failure surfaced by the
-route as HTTP 502 `mfa_service_unavailable`), **not** `token_expired` — so it
-does not drive a user-token refresh + retry.
+PingOne returns `401 INVALID_TOKEN` if you use a user token on the `{daId}`
+sub-resource calls that require worker. `_wrapError` in `mfaService.js` maps this to
+`code:'token_expired'` for retry.
 
 ---
 
@@ -164,6 +189,7 @@ For one-time auth, you'll only ever see `OTP_REQUIRED` → `COMPLETED`/`FAILED`.
 | `selectedDevice.oneTime.phone` | Conditional | Required when type is `SMS`/`VOICE`; must be E.164 (`+14135550150`) |
 | `selectedDevice.oneTime.testMode` | Optional | `true` → OTP returned in `test.otp` body instead of delivered (API/DaVinci only) |
 | `policy.id` | Optional | Device auth policy; defaults to environment policy |
+| `webAuthn.challenge` | Optional | Dynamic linking — Base64URL, ≥32 bytes after decode (see Device Authentications data model) |
 
 For enrolled-device flows (not one-time), use `selectedDevice.id` instead.
 
@@ -206,6 +232,8 @@ Authorization: Bearer {workerToken}
 ```
 
 Not needed for one-time OTP flows — status is synchronous on the verify call.
+When `ASSERTION_REQUIRED`, the status payload includes
+`publicKeyCredentialRequestOptions` for the browser ceremony.
 
 ---
 
