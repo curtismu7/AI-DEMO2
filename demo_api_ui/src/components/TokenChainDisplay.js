@@ -4,6 +4,7 @@ import ReactDOM from "react-dom";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import JsonHighlight from "./shared/JsonHighlight";
 import "./TokenChainDisplay.css";
 import {
@@ -4181,6 +4182,17 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     !isLive &&
     Array.isArray(sessionPreviewEvents) &&
     sessionPreviewEvents.length > 0;
+  const canClearChain = Boolean(isLive || isSessionPreview);
+
+  /** Clear live/session events and the shared TraceRail so every Token Chain surface resets together. */
+  const handleClearChain = useCallback(() => {
+    ctx?.clearEvents?.();
+    try {
+      tokenChainTraceStore.reset();
+    } catch {
+      /* display-only */
+    }
+  }, [ctx]);
   const effectivePlaceholders = React.useMemo(() => {
     if (!idTokenMode) return PLACEHOLDER_EVENTS;
     return PLACEHOLDER_EVENTS.map((ev) => {
@@ -4422,6 +4434,23 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   return (
     <>
       <div className="tcd-root">
+        {hideHeader && ctx?.clearEvents && (
+          <div className="tcd-header tcd-header--compact">
+            <div className="tcd-header-title-row">
+              <div className="tcd-header-title">Token Chain</div>
+              <button
+                type="button"
+                className="tcd-clear-btn"
+                onClick={handleClearChain}
+                disabled={!canClearChain}
+                title="Clear token chain for the next demo run"
+                aria-label="Clear token chain"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
         {!hideHeader && (
           <div className="tcd-header">
             <div className="tcd-header-title-row">
@@ -4464,12 +4493,13 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                   />
                 )}
               </div>
-              {isLive && ctx?.clearEvents && (
+              {ctx?.clearEvents && (
                 <button
                   type="button"
                   className="tcd-clear-btn"
-                  onClick={() => ctx.clearEvents()}
-                  title="Clear live token events and return to session preview"
+                  onClick={handleClearChain}
+                  disabled={!canClearChain}
+                  title="Clear token chain for the next demo run"
                   aria-label="Clear token chain"
                 >
                   Clear
