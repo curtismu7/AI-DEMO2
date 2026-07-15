@@ -12,6 +12,9 @@ require('dotenv').config({
     override: false
 });
 
+// Datadog scaffold — no-op unless DD_TRACE_ENABLED=true + DD_API_KEY (see docs/observability/datadog-scaffold.md).
+require('./services/datadogBootstrap').bootstrapDatadog();
+
 // Validate required env vars at startup — exits in production if any are missing
 require('./scripts/check-env');
 

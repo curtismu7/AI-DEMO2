@@ -82,22 +82,34 @@ function generateFlowId() {
  * @param {object} options - Additional options
  * @param {string} options.tag - Original [tag] label for traceability
  * @param {object} options.metadata - Optional structured metadata (no secrets)
- * @param {string} options.flowId - Optional flow ID for grouping related events
+ * @param {string} options.flowId - Optional flow ID for grouping related events (legacy)
+ * @param {string} options.correlationId - Preferred correlation id (aliases flowId)
+ * @param {string} options.requestId - Optional HTTP request id
+ * @param {string} options.sessionId - Optional BFF session id
  * @param {string} options.username - Optional username association
  */
 function logEvent(category, severity, message, options = {}) {
+  const { redactMessage, redactObject } = require("../utils/logRedact");
   const useCaseId = options.useCaseId
     || (options.metadata && options.metadata.useCaseId)
     || null;
+  const correlationId =
+    options.correlationId || options.flowId || null;
+  const metadata = options.metadata
+    ? redactObject(options.metadata)
+    : null;
   const event = {
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     category,
     severity,
-    message,
+    message: redactMessage(message),
     tag: options.tag || null,
-    metadata: options.metadata || null,
-    flowId: options.flowId || null,
+    metadata,
+    flowId: correlationId,
+    correlationId,
+    requestId: options.requestId || null,
+    sessionId: options.sessionId || null,
     username: options.username || null,
     ...(useCaseId ? { useCaseId } : {}),
   };

@@ -85,7 +85,9 @@ describe("LogViewer Component", () => {
 			render(<LogViewer isOpen={true} onClose={jest.fn()} standalone={true} />);
 
 			await waitFor(() => {
-				expect(screen.getByText("📊 Log Viewer")).toBeInTheDocument();
+				expect(screen.getByText("Learning Log")).toBeInTheDocument();
+				expect(screen.getByRole("tab", { name: "Learn" })).toBeInTheDocument();
+				expect(screen.getByRole("tab", { name: "Debug" })).toBeInTheDocument();
 			});
 		});
 
