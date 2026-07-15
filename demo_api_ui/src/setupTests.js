@@ -21,14 +21,17 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn();
 // tests that call localStorage.getItem / .setItem / .clear() work correctly.
 if (typeof window !== "undefined") {
   if (window.localStorage) {
+    // Capture the Storage instance once. A getter that reads window.localStorage
+    // can recurse on Node 22+ where window.localStorage aliases globalThis.
+    const jsdomLocalStorage = window.localStorage;
     try {
       Object.defineProperty(globalThis, "localStorage", {
-        get: () => window.localStorage,
+        get: () => jsdomLocalStorage,
         configurable: true,
       });
     } catch (_) {
       try {
-        globalThis.localStorage = window.localStorage;
+        globalThis.localStorage = jsdomLocalStorage;
       } catch (_2) {
         /* best-effort */
       }

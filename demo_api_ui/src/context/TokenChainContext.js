@@ -146,9 +146,10 @@ export function TokenChainProvider({ children, activePath = "" }) {
         // A real tool call that produced no events (e.g. failed before any
         // step). Do NOT keep the previous call's chain on screen with the
         // live dot — that misrepresents stale data as the current call. Clear
-        // the live view; skip the empty history entry (nothing to record).
+        // the live view only; keep session login tokens so displayEvents can
+        // fall back to the session preview (Clear button contract + Simple
+        // Stepper after NL prep that clears the live chain).
         setEvents([]);
-        setSessionTokenEvents([]);
         return;
       }
       // Always persist to history so it's available when the user navigates to a token-chain page.
@@ -158,8 +159,9 @@ export function TokenChainProvider({ children, activePath = "" }) {
       ]);
       // Always update live events — float agent and floating token-chain panel
       // are visible on any route, not only isTokenChainRoute pages.
+      // Keep sessionTokenEvents: displayEvents prefers live events when present,
+      // and falls back to the login token set when live is cleared.
       setEvents(newEvents);
-      setSessionTokenEvents([]);
     },
     // Body uses only stable state setters — no activePath dependency. Listing
     // activePath here churned this callback's identity on every route change,
@@ -167,10 +169,10 @@ export function TokenChainProvider({ children, activePath = "" }) {
     [],
   );
 
+  /** Clear live tool-chain events and return to session preview (login tokens). */
   const clearEvents = useCallback(() => {
     setEvents([]);
     setNlRoutingEventState(null);
-    setSessionTokenEvents([]);
   }, []);
 
   /** Record the NL routing step (prompt + source + intent) for display as step 0 in the chain. */
