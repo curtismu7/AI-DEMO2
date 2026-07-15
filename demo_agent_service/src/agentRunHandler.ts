@@ -515,12 +515,21 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
       }
     }
 
-    // Max iterations reached
+    // Max iterations reached — the agent hit the tool-call loop limit without
+    // producing a final answer. Surface a user-visible message and report as
+    // an error so the client does not display an empty success bubble.
+    const iterLimitMsg =
+      'I was unable to complete your request within the allowed number of steps. ' +
+      'This may indicate a complex query or a tool-call loop. Please try rephrasing your request or breaking it into smaller steps.';
+    const iterMsgId = uid('msg');
+    emit(res, { type: EventType.TEXT_MESSAGE_START, messageId: iterMsgId, role: 'assistant' });
+    emit(res, { type: EventType.TEXT_MESSAGE_CONTENT, messageId: iterMsgId, delta: iterLimitMsg });
+    emit(res, { type: EventType.TEXT_MESSAGE_END, messageId: iterMsgId });
     emitStateDelta(res, [
-      { op: 'replace', path: '/activeRun/status', value: 'finished' },
+      { op: 'replace', path: '/activeRun/status', value: 'error' },
       { op: 'replace', path: '/activeRun/currentStep', value: null },
     ]);
-    emit(res, { type: EventType.RUN_FINISHED, threadId, runId, outcome: { type: 'success' } });
+    emit(res, { type: EventType.RUN_ERROR, message: 'max_iterations_reached', code: 'MAX_ITERATIONS' });
     res.end();
   };
 }

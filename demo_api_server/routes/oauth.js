@@ -587,11 +587,16 @@ router.post('/refresh', async (req, res) => {
       tokenType:    tokenData.token_type    || 'Bearer',
     };
 
-    req.session.save((err) => {
-      if (err) console.error('[admin refresh] Session save error:', err);
+    // Await session persistence before responding — prevents race condition where
+    // the client believes the refresh succeeded but the token never persists to
+    // the session store (e.g. Redis timeout on a different Lambda/instance).
+    return req.session.save((err) => {
+      if (err) {
+        console.error('[admin refresh] Session save error:', err);
+        return res.status(500).json({ error: 'session_persist_failed', message: 'Token refreshed but session save failed. Please retry.' });
+      }
+      return res.json({ success: true, expiresAt: req.session.oauthTokens.expiresAt });
     });
-
-    return res.json({ success: true, expiresAt: req.session.oauthTokens.expiresAt });
   } catch (err) {
     console.error('[admin refresh] Token refresh failed:', err.message);
     return res.status(401).json({ error: 'refresh_failed', message: err.message });
