@@ -378,6 +378,16 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       // Merge SSE-collected token events with response body events
       const allTokenEvents = [...tokenEventsFromSse, ...responseTokenEvents];
 
+      // Proof-of-enforcement: block outcomes (step-up / HITL / deny) carry
+      // mcpAuthorizeEvaluation on the 4xx body. ingestAuthorize only ran on the
+      // success path below, so UC7 step-up 428 left trace.authorize null while
+      // tokenEvents still stamped useCaseId → ProofStrip "Incomplete".
+      if (err.mcpAuthorizeEvaluation) {
+        try {
+          tokenChainTraceStore.ingestAuthorize(err.mcpAuthorizeEvaluation);
+        } catch { /* display-only */ }
+      }
+
       // Special case: 428 Precondition Required with HITL consent required
       // This is not an error condition — it's a valid response that needs HITL handling
       if (response.status === 428 && err.error === "hitl_required") {
