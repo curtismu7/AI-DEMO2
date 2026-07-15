@@ -14,6 +14,7 @@ const configStore = require('./configStore');
 const verticalDispatch = require('./verticalDispatch');
 const { repairAndParseJson, validateIntent, snippet: contractSnippet, logMendEvent } = require('./llmResponseContract');
 const llmBreaker = require('./llmCircuitBreaker');
+const nlIntentResultCache = require('./nlIntentResultCache');
 
 const { base: SYSTEM_BASE, themes: THEME_OVERRIDES } =
   require(path.join(__dirname, '../../docs/HELIX_AGENT_DIRECTIVES.json'));
@@ -337,6 +338,12 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // Surfaces in /tmp/demo-api.log for post-hoc diagnosis of routing decisions.
   const msgPreview = String(message || '').slice(0, 60).replace(/\s+/g, ' ');
   const startedAt = Date.now();
+  const cacheKey = nlIntentResultCache.key({
+    message,
+    vertical: activeVertical,
+    provider,
+    role: context?.role,
+  });
   /** Resolve the tool/action name from an NL result (banking or vertical). */
   function actionName(result) {
     if (!result || typeof result !== 'object') return null;
@@ -377,6 +384,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${out.source} `
       + `action=${action} ms=${ms} msg="${msgPreview}"`
     );
+    // Cache successful non-heuristic answers so repeat free-text skips the LLM.
+    if (out && out.source !== 'heuristic' && !out.cache_hit) {
+      nlIntentResultCache.set(cacheKey, out);
+    }
     return out;
   }
 
@@ -419,6 +430,20 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 
   if (provider !== 'pingone-admin' && heuristicRoutingEnabled && heuristicResult && heuristicResult.kind !== 'none') {
     return { source: 'heuristic', result: heuristicResult };
+  }
+
+  // Repeat free-text: return a prior LLM structured result before paying again.
+  // Only reached after heuristic miss / LLM-only mode (heuristic path returned above).
+  if (provider !== 'pingone-admin') {
+    const cached = nlIntentResultCache.get(cacheKey);
+    if (cached) {
+      const ms = Date.now() - startedAt;
+      console.log(
+        `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${cached.source} `
+        + `action=${actionName(cached.result) || cached.result?.kind || 'unknown'} ms=${ms} cache=hit msg="${msgPreview}"`,
+      );
+      return { ...cached, cache_hit: true };
+    }
   }
 
   // 2. FALLBACK TO LLM — when heuristic doesn't recognize the input

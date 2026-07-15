@@ -19,6 +19,7 @@ import { useEducationUI } from '../context/EducationUIContext';
 import { MODE_PROVIDER } from '../config/agentModes';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import './UseCaseLauncherPage.css';
+import { opportunisticPrewarm } from '../components/demoAgentSafety';
 // A8 -- Ping product attribution
 import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
@@ -708,6 +709,11 @@ export default function UseCaseLauncherPage() {
   const { flagMap, flagsLoading, setFlag } = useLiveFlags();
 
   const vertical = verticalId || 'banking';
+
+  // Pre-load gpt-oss while the presenter browses use cases (fire-and-forget).
+  useEffect(() => {
+    opportunisticPrewarm('gpt-oss-20b');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
