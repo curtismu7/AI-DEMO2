@@ -1,7 +1,7 @@
 // VerticalOpsConsole.jsx
 import React, { useState, useCallback } from 'react';
 import bffAxios from '../../services/bffAxios';
-import { notifySuccess, notifyError, notifyWarning } from '../../utils/appToast';
+import { notifySuccess, notifyError } from '../../utils/appToast';
 import { getVerticalConfig } from './verticalOpsConfig';
 import RecordDrawer from './RecordDrawer';
 import TokenChainTraceRail from '../TokenChainTraceRail';
@@ -13,8 +13,6 @@ export default function VerticalOpsConsole({ vertical }) {
   const [result, setResult] = useState(null); // { customer, categories }
   const [loading, setLoading] = useState(false);
   const [drawer, setDrawer] = useState(null);  // { category, row }
-  const [paBusy, setPaBusy] = useState('');     // label of the running page action
-  const [paResult, setPaResult] = useState(null); // { summary, steps[], success }
 
   const doLookup = useCallback(async (e) => {
     e.preventDefault();
@@ -46,29 +44,6 @@ export default function VerticalOpsConsole({ vertical }) {
     }
   }, [cfg, result, drawer, doLookup]);
 
-  // Page-level utility actions (e.g. banking "Fix PingOne Scopes"). Not tied to
-  // a record; the endpoint returns { steps, summary, success } which we surface.
-  const runPageAction = useCallback(async (action) => {
-    setPaBusy(action.label);
-    setPaResult(null);
-    try {
-      const { data } = action.method === 'get'
-        ? await bffAxios.get(action.url)
-        : await bffAxios.post(action.url);
-      const ok = data?.success !== false;
-      setPaResult({ summary: data?.summary || `${action.label} completed`, steps: data?.steps || [], success: ok });
-      if (ok) notifySuccess(data?.summary || `${action.label} done.`);
-      else notifyWarning(data?.summary || `${action.label} completed with warnings.`);
-    } catch (err) {
-      const st = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || `${action.label} failed`;
-      notifyError(st === 401 ? 'Session expired — please sign in again.' : msg);
-      setPaResult({ summary: '', steps: [], success: false, error: msg });
-    } finally {
-      setPaBusy('');
-    }
-  }, []);
-
   const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2, '--tint': cfg.theme.tint };
 
   return (
@@ -79,27 +54,7 @@ export default function VerticalOpsConsole({ vertical }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={cfg.lookupPlaceholder} aria-label="Lookup" />
           <button type="submit" disabled={loading}>{loading ? '…' : 'Look up'}</button>
         </form>
-        {cfg.pageActions?.length > 0 && (
-          <div className="vops__tools" data-testid="vops-tools">
-            {cfg.pageActions.map((pa) => (
-              <button key={pa.label} type="button" className="vops__toolbtn" disabled={!!paBusy} onClick={() => runPageAction(pa)}>
-                {paBusy === pa.label ? 'Working…' : pa.label}
-              </button>
-            ))}
-          </div>
-        )}
       </header>
-
-      {paResult && (
-        <section className={`vops__paresult vops__paresult--${paResult.success ? 'ok' : 'warn'}`} data-testid="vops-paresult">
-          <button type="button" className="vops__paclose" aria-label="Dismiss" onClick={() => setPaResult(null)}>✕</button>
-          {paResult.summary && <div className="vops__pasummary">{paResult.summary}</div>}
-          {paResult.error && <div className="vops__paerror">{paResult.error}</div>}
-          {paResult.steps.length > 0 && (
-            <ul className="vops__pasteps">{paResult.steps.map((s) => { const text = typeof s === 'string' ? s : (s.message || s.label || JSON.stringify(s)); return <li key={text}>{text}</li>; })}</ul>
-          )}
-        </section>
-      )}
 
       {result?.customer && (
         <section className="vops__summary" data-testid="vops-summary">
