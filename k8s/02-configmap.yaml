@@ -219,6 +219,26 @@ data:
             proxy_ssl_server_name         on;
         }
 
+        # Code Explorer SSE — must stream immediately (no proxy buffering).
+        location /api/codegraph/ {
+            proxy_pass https://demo-api-server:3001/api/codegraph/;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 300s;
+            proxy_send_timeout 300s;
+            chunked_transfer_encoding on;
+            gzip off;
+        }
+
         location /api/ {
             proxy_pass https://demo-api-server:3001/api/;
             proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
