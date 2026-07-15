@@ -470,16 +470,22 @@ router.post('/invoke', express.json(), async (req, res) => {
   }
 });
 
-// GET /api/mcp/inspector/langchain-host — proxy to the LangChain agent health server
-// so the browser can reach it over HTTPS (BFF has TLS; port 8890 is plain HTTP).
-// 8890 default (not 8081) — 8081 is reserved for banking_mcp_invest in run-demo.sh.
+// GET /api/mcp/inspector/langchain-host — proxy to the LangChain AG-UI HTTP
+// server (LANGCHAIN_AGENT_HTTP_URL, port 8888). Do NOT use health :8890:
+// that server binds loopback-only (CR-03), so localhost:8890 from the BFF
+// container/pod is the BFF itself and returns undici "fetch failed" in
+// Docker/K8s. Same pattern as codegraphProxy.js / aguiSseProxy.js.
 router.get('/langchain-host', async (req, res) => {
-  const port = process.env.HEALTH_HTTP_PORT || '8890';
-  const url = `http://localhost:${port}/inspector/mcp-host`;
+  const base = (process.env.LANGCHAIN_AGENT_HTTP_URL || 'http://127.0.0.1:8888').replace(/\/$/, '');
+  const url = `${base}/inspector/mcp-host`;
+  const secret = process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me';
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 3000);
-    const upstream = await fetch(url, { signal: ctrl.signal });
+    const upstream = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'x-internal-gateway-secret': secret },
+    });
     clearTimeout(timer);
     if (!upstream.ok) {
       return res.status(502).json({ error: 'langchain_agent_error', message: `Agent returned HTTP ${upstream.status}` });
@@ -487,11 +493,19 @@ router.get('/langchain-host', async (req, res) => {
     const data = await upstream.json();
     res.json(data);
   } catch (err) {
-    const isDown = err.name === 'AbortError' || err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET';
+    // undici wraps connect failures as TypeError("fetch failed") with cause.code
+    const causeCode = err.cause && err.cause.code;
+    const isDown =
+      err.name === 'AbortError' ||
+      err.code === 'ECONNREFUSED' ||
+      err.code === 'ECONNRESET' ||
+      causeCode === 'ECONNREFUSED' ||
+      causeCode === 'ECONNRESET' ||
+      /fetch failed/i.test(err.message || '');
     res.status(isDown ? 503 : 502).json({
       error: isDown ? 'langchain_agent_down' : 'langchain_agent_error',
       message: isDown
-        ? `LangChain agent not running. Start with: cd langchain_agent && python -m src.main`
+        ? `LangChain agent not running at ${base}. Start with: cd langchain_agent && python -m src.main`
         : err.message,
     });
   }
