@@ -1441,7 +1441,7 @@ export default function AgentDemoGuide({
                     <strong>Pro Tips:</strong>
                     <ul>
                       <li>Toggle "Token Chain" in the agent header to open the floating panel — it doesn't block the agent, so you can keep chatting while token events stream in</li>
-                      <li>Toggle "Compliance" in the agent header to see which steps are active (enable "Side panel" for the slide-out view)</li>
+                      <li>Toggle "Compliance" in the agent header to open the 12-step compliance checklist modal</li>
                       <li>The Simple Stepper bar above the messages is a compact per-step audit trail — click "Show" to pop it out as a draggable table</li>
                       <li>Follow scenarios top-to-bottom to understand the story</li>
                       <li>

@@ -459,13 +459,6 @@ export default function BankingAgent({
       return false;
     }
   });
-  const [complianceSlideout, setComplianceSlideout] = useState(() => {
-    try {
-      return localStorage.getItem("ba_compliance_slideout") === "1";
-    } catch {
-      return false;
-    }
-  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   // MCP Elicitation (form mode + URL mode input requests)
   const {
@@ -6571,7 +6564,7 @@ export default function BankingAgent({
                     >×</button>
                   </span>
                 )}
-                {/* Compliance 12-step toggle */}
+                {/* Compliance 12-step modal toggle */}
                 <Check
                   variant="switch"
                   className="ba-header-toggle-label"
@@ -6584,32 +6577,12 @@ export default function BankingAgent({
                         newVal ? "1" : "0",
                       );
                     } catch {}
-                    if (newVal) setComplianceSlideout(true);
                     setShowCompliancePanel(newVal);
                   }}
-                  title="Show or hide the 12-step compliance status"
+                  title="Show or hide the 12-step compliance checklist modal"
                 >
                   Compliance
                 </Check>
-                {showCompliancePanel && (
-                  <Check
-                    variant="switch"
-                    className="ba-header-toggle-label"
-                    checked={complianceSlideout}
-                    onChange={(e) => {
-                      try {
-                        localStorage.setItem(
-                          "ba_compliance_slideout",
-                          e.target.checked ? "1" : "0",
-                        );
-                      } catch {}
-                      setComplianceSlideout(e.target.checked);
-                    }}
-                    title="Show compliance as side-panel overlay"
-                  >
-                    Side panel
-                  </Check>
-                )}
                 {/* Token Chain floating panel toggle — non-blocking, agent stays usable */}
                 <Check
                   variant="switch"
@@ -9026,8 +8999,13 @@ export default function BankingAgent({
 
               {/* Compliance 12-step panel — draggable, resizable modal */}
               <ComplianceModal
-                open={showCompliancePanel && complianceSlideout}
-                onClose={() => setComplianceSlideout(false)}
+                open={showCompliancePanel}
+                onClose={() => {
+                  try {
+                    localStorage.setItem("ba_show_compliance_panel", "0");
+                  } catch {}
+                  setShowCompliancePanel(false);
+                }}
                 complianceStripState={complianceStripState}
                 messages={messages}
                 onClearSteps={() => {
