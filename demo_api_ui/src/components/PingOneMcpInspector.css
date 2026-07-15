@@ -1,11 +1,152 @@
-/* PingOneMcpInspector.css — page-specific additions on top of McpInspector.css */
+/* PingOneMcpInspector.css — mix A/B/C: shell hero + split catalog/detail panes */
 
-/* Collapsible sections */
+/* ── Page actions in hero ─────────────────────────────────────────────────── */
+.p1mcp-page .p1mcp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.p1mcp-page .p1mcp-hero-link {
+  text-decoration: none;
+}
+
+.App.end-user-nano .p1mcp-page a.p1mcp-hero-link,
+.App.end-user-nano .p1mcp-page a.p1mcp-hero-link:any-link,
+.App.end-user-nano .p1mcp-page a.p1mcp-hero-link:visited,
+.App.end-user-nano .p1mcp-page a.p1mcp-hero-link:hover {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-decoration: none !important;
+}
+
+.p1mcp-page .app-page-shell__title {
+  color: var(--brand-navy, #1d4ed8);
+}
+
+.p1mcp-page .app-page-shell__lead code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* ── Split workspace (B/C) ────────────────────────────────────────────────── */
+.p1mcp-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 1.15fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-bottom: 1.25rem;
+  min-height: 520px;
+}
+
+@media (max-width: 980px) {
+  .p1mcp-split {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+}
+
+.p1mcp-pane {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  padding: 1rem 1.15rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p1mcp-pane__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.p1mcp-pane__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.p1mcp-pane__hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.p1mcp-catalog-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  max-height: min(62vh, 640px);
+  padding-right: 4px;
+}
+
+.p1mcp-pane--detail {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+/* ── Empty state (C) ──────────────────────────────────────────────────────── */
+.p1mcp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  min-height: 320px;
+}
+
+.p1mcp-empty__glyph {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.p1mcp-empty__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.p1mcp-empty__hint {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ── Collapsible sections ─────────────────────────────────────────────────── */
 .p1mcp-section {
   margin-bottom: 16px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 .p1mcp-section > summary {
   cursor: pointer;
@@ -20,18 +161,18 @@
 .p1mcp-section > summary::before {
   content: "▸";
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
   transition: transform 0.15s ease;
 }
 .p1mcp-section[open] > summary::before { transform: rotate(90deg); }
 .p1mcp-section__title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 650;
   color: #0f172a;
 }
 .p1mcp-section__hint {
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
 }
 .p1mcp-section__status {
   font-size: 11px;
@@ -50,22 +191,28 @@
 }
 .p1mcp-section__body { padding: 0 16px 16px; }
 
-/* Tab bar */
+/* Nested sections inside the detail pane */
+.p1mcp-tool-card .p1mcp-section {
+  margin-top: 12px;
+  box-shadow: none;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
 .p1mcp-tabs {
   display: flex;
   gap: 2px;
   border-bottom: 2px solid #e2e8f0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .p1mcp-tab {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: #64748b;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   cursor: pointer;
   border-radius: 6px 6px 0 0;
   display: flex;
@@ -75,13 +222,13 @@
 }
 .p1mcp-tab:hover { color: #1e293b; }
 .p1mcp-tab--active {
-  color: #1d4ed8;
-  border-bottom-color: #1d4ed8;
-  font-weight: 600;
+  color: var(--brand-navy, #1d4ed8);
+  border-bottom-color: var(--brand-navy, #1d4ed8);
+  font-weight: 650;
 }
 .p1mcp-tab__count {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   padding: 1px 7px;
   border-radius: 999px;
   background: #e2e8f0;
@@ -89,23 +236,30 @@
 }
 .p1mcp-tab--active .p1mcp-tab__count {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: var(--brand-navy, #1d4ed8);
 }
 
-/* Secondary (resource) tabs under the PingOne top tab */
+/* end-user-nano button reset — keep tab chrome intact */
+.App.end-user-nano .p1mcp-page button.p1mcp-tab,
+.App.end-user-nano .p1mcp-page button.p1mcp-subtab,
+.App.end-user-nano .p1mcp-page button.p1mcp-chip {
+  border-radius: inherit;
+  font-size: inherit;
+}
+
 .p1mcp-subtabs {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .p1mcp-subtab {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #475569;
-  background: #f1f5f9;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
-  padding: 5px 12px;
+  padding: 5px 11px;
   cursor: pointer;
   border-radius: 999px;
   display: flex;
@@ -115,39 +269,39 @@
 }
 .p1mcp-subtab:hover { color: #1e293b; border-color: #cbd5e1; }
 .p1mcp-subtab--active {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: var(--brand-navy, #1d4ed8);
+  background: #eff6ff;
   border-color: #bfdbfe;
-  font-weight: 600;
+  font-weight: 650;
 }
 .p1mcp-subtab--active .p1mcp-tab__count {
-  background: #1d4ed8;
+  background: var(--brand-navy, #1d4ed8);
   color: #fff;
 }
 
-/* Tool search filter */
+/* ── Search ───────────────────────────────────────────────────────────────── */
 .p1mcp-tool-search {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .p1mcp-tool-search__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+  color: #475569;
 }
 .p1mcp-tool-search__input {
   flex: 1;
-  min-width: 200px;
-  max-width: 420px;
-  padding: 7px 12px;
+  min-width: 160px;
+  padding: 8px 12px;
   font-size: 13px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #0f172a;
   background: #fff;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 .p1mcp-tool-search__input:focus {
   outline: none;
@@ -157,10 +311,10 @@
 .p1mcp-tool-search__count {
   font-size: 12px;
   font-weight: 500;
-  color: #475569;
+  color: #64748b;
 }
 
-/* Tool chip catalog */
+/* ── Chip catalog ─────────────────────────────────────────────────────────── */
 .p1mcp-chips-callbar {
   display: flex;
   margin-bottom: 10px;
@@ -168,83 +322,82 @@
 .p1mcp-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .p1mcp-chip {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+  font-size: 12px;
   color: #1e293b;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.p1mcp-chip:hover { background: #e2e8f0; border-color: #94a3b8; }
+.p1mcp-chip:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
 .p1mcp-chip--active {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: var(--brand-navy, #1d4ed8);
+  border-color: var(--brand-navy, #1d4ed8);
   color: #fff;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.35);
 }
 
-/* Resource sub-groups inside a tab (Demo MCP Inspector) */
-.p1mcp-chip-group { margin-bottom: 14px; }
+.p1mcp-chip-group {
+  margin-bottom: 12px;
+  padding: 8px 10px 10px;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  background: #fafbfc;
+}
 .p1mcp-chip-group:last-child { margin-bottom: 0; }
 .p1mcp-chip-group__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #64748b;
 }
-/* The head doubles as a <details> summary — make it a clickable disclosure. */
 summary.p1mcp-chip-group__head {
   cursor: pointer;
   list-style: none;
   user-select: none;
 }
 summary.p1mcp-chip-group__head::-webkit-details-marker { display: none; }
-/* Rotating chevron: points right when collapsed, down when open. */
 summary.p1mcp-chip-group__head::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  flex: none;
-  margin-right: 8px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(-45deg);
+  content: "▸";
+  font-size: 11px;
+  color: #94a3b8;
   transition: transform 0.15s ease;
 }
-.p1mcp-chip-group__icon {
-  flex: none;
-  line-height: 1;
+.p1mcp-chip-group[open] > summary.p1mcp-chip-group__head::before {
+  transform: rotate(90deg);
 }
-.p1mcp-chip-group__label {
-  flex: none;
-}
-.p1mcp-chip-group[open] > summary.p1mcp-chip-group__head::before { transform: rotate(45deg); }
-/* Only reserve the gap below the head when the group is expanded. */
+.p1mcp-chip-group__label { flex: none; }
 .p1mcp-chip-group[open] > .p1mcp-chip-group__head { margin-bottom: 8px; }
 .p1mcp-chip-group__count {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0;
   color: #475569;
-  background: #f1f5f9;
+  background: #e2e8f0;
   border-radius: 999px;
   padding: 1px 8px;
 }
 
-/* Per-chip flavour: dot colour + tint + badge (visible inside any tab) */
-.p1mcp-chip { display: inline-flex; align-items: center; gap: 7px; }
 .p1mcp-chip__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: #15803d; }
 .p1mcp-chip__badge {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: inherit;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -254,20 +407,31 @@ summary.p1mcp-chip-group__head::before {
 .p1mcp-chip--write  { background: #fffbeb; border-color: #fcd34d; }
 .p1mcp-chip--write  .p1mcp-chip__dot { background: #b45309; }
 .p1mcp-chip--write  .p1mcp-chip__badge { background: #fef3c7; color: #b45309; }
-.p1mcp-chip--write:hover { border-color: #b45309; }
 .p1mcp-chip--sensitive { background: #fef2f2; border-color: #fca5a5; }
 .p1mcp-chip--sensitive .p1mcp-chip__dot { background: #b91c1c; }
 .p1mcp-chip--sensitive .p1mcp-chip__badge { background: #fee2e2; color: #b91c1c; }
-.p1mcp-chip--sensitive:hover { border-color: #b91c1c; }
-.p1mcp-chip--reasoning .p1mcp-chip__dot { background: #7c3aed; }
-/* Active selection keeps the solid-blue treatment; neutralise tint + dot. */
+.p1mcp-chip--reasoning .p1mcp-chip__dot { background: #64748b; }
 .p1mcp-chip--active,
 .p1mcp-chip--active.p1mcp-chip--write,
-.p1mcp-chip--active.p1mcp-chip--sensitive { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.p1mcp-chip--active.p1mcp-chip--sensitive {
+  background: var(--brand-navy, #1d4ed8);
+  border-color: var(--brand-navy, #1d4ed8);
+  color: #fff;
+}
 .p1mcp-chip--active .p1mcp-chip__dot { background: #fff; }
 .p1mcp-chip--active .p1mcp-chip__badge { background: rgba(255,255,255,0.25); color: #fff; }
 
-/* Selected tool card */
+/* ── Detail tool card ─────────────────────────────────────────────────────── */
+.p1mcp-tool-card--panel {
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  flex: 1;
+  overflow-y: auto;
+  max-height: min(62vh, 640px);
+}
 .p1mcp-tool-card {
   margin-top: 14px;
   border: 1px solid #cbd5e1;
@@ -278,13 +442,29 @@ summary.p1mcp-chip-group__head::before {
 .p1mcp-tool-card__name {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
   color: #0f172a;
 }
 .p1mcp-tool-card__desc {
-  margin: 6px 0 12px;
-  font-size: 14px;
-  color: #334155;
+  margin: 6px 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+.p1mcp-param-block {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.p1mcp-param-block__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 10px;
 }
 .p1mcp-param-row {
   display: flex;
@@ -292,28 +472,42 @@ summary.p1mcp-chip-group__head::before {
   gap: 10px;
   margin-bottom: 8px;
 }
+.p1mcp-param-row:last-child { margin-bottom: 0; }
 .p1mcp-param-row label {
-  min-width: 220px;
+  min-width: 140px;
+  max-width: 180px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+  font-size: 12px;
   color: #1e293b;
 }
 .p1mcp-param-row label .p1mcp-required { color: #b91c1c; }
 .p1mcp-param-row input {
   flex: 1;
-  max-width: 480px;
-  padding: 6px 10px;
+  min-width: 0;
+  padding: 7px 10px;
   font-size: 13px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #0f172a;
 }
-.p1mcp-param-row .p1mcp-param-type {
-  font-size: 12px;
-  color: #475569;
+.p1mcp-param-row input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
+.p1mcp-param-row .p1mcp-param-type {
+  font-size: 11px;
+  color: #94a3b8;
+  min-width: 3.5rem;
+}
+.p1mcp-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.p1mcp-call-btn { min-width: 10rem; }
 
-/* Call result status line */
 .p1mcp-call-status {
   margin: 10px 0;
   font-size: 13px;
@@ -321,7 +515,7 @@ summary.p1mcp-chip-group__head::before {
 }
 .p1mcp-call-status--error { color: #b91c1c; }
 
-/* "Not in the MCP server — use direct API" gap list */
+/* Gaps / misc */
 .p1mcp-gap-group { margin-top: 14px; }
 .p1mcp-gap-group:first-of-type { margin-top: 8px; }
 .p1mcp-gap-group__title {
@@ -357,7 +551,6 @@ summary.p1mcp-chip-group__head::before {
 }
 .p1mcp-gap-foot { margin-top: 14px; font-style: italic; }
 
-/* Membership / provision action row */
 .p1mcp-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -366,7 +559,6 @@ summary.p1mcp-chip-group__head::before {
   margin-bottom: 12px;
 }
 
-/* CIMD section — honest "mocked" badge (PingOne has no CIMD support yet). */
 .p1mcp-cimd-badge {
   display: inline-block;
   margin-bottom: 10px;
@@ -379,4 +571,12 @@ summary.p1mcp-chip-group__head::before {
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+/* Ensure shell body actions class exists for hero flex */
+.app-page-shell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }

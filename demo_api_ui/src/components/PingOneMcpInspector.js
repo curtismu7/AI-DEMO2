@@ -616,12 +616,10 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
 
   const tabCounts = { platform: platformTools.length, davinci: davinciTools.length };
 
-  // Single source of truth for the invoke button so it can render both above
-  // the tool chips and inside the tool card without drifting.
   const callButton = selectedTool ? (
     <button
       type="button"
-      className="mcp-inspector__btn"
+      className="app-page-toolbar-btn app-page-toolbar-btn--theme p1mcp-call-btn"
       onClick={callTool}
       disabled={calling || !enabled}
       title={enabled ? `Invoke ${selectedTool.name}` : 'Enable live querying first'}
@@ -630,25 +628,191 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
     </button>
   ) : null;
 
+  const catalogBody = tools.length === 0 ? (
+    <p className="mcp-inspector__muted">No tools returned yet — enable live querying and refresh.</p>
+  ) : (
+    <>
+      <div className="p1mcp-tabs" role="tablist">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            type="button"
+            aria-selected={activeTab === tab.id}
+            className={`p1mcp-tab ${activeTab === tab.id ? 'p1mcp-tab--active' : ''}`}
+            onClick={() => switchTab(tab.id)}
+          >
+            {tab.label}
+            <span className="p1mcp-tab__count">{tabCounts[tab.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'platform' && platformSubTabs.length > 1 && (
+        <div className="p1mcp-subtabs" role="tablist">
+          {platformSubTabs.map((sub) => (
+            <button
+              key={sub.id}
+              role="tab"
+              type="button"
+              aria-selected={platformGroup === sub.id}
+              className={`p1mcp-subtab ${platformGroup === sub.id ? 'p1mcp-subtab--active' : ''}`}
+              onClick={() => switchPlatformGroup(sub.id)}
+            >
+              {sub.label}
+              <span className="p1mcp-tab__count">{sub.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="p1mcp-tool-search">
+        <label htmlFor="p1mcp-tool-search" className="p1mcp-tool-search__label">
+          Search tools
+        </label>
+        <input
+          id="p1mcp-tool-search"
+          type="search"
+          className="p1mcp-tool-search__input"
+          placeholder="Filter by name or description…"
+          value={toolSearch}
+          onChange={(e) => setToolSearch(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {searchQuery && (
+          <span className="p1mcp-tool-search__count" aria-live="polite">
+            {visibleTools.length} of {tabTools.length}
+          </span>
+        )}
+      </div>
+
+      <div className="p1mcp-catalog-scroll">
+        {visibleTools.length === 0 ? (
+          <p className="mcp-inspector__muted">
+            {searchQuery
+              ? `No tools match "${toolSearch.trim()}".`
+              : `No ${activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.${
+                  activeTab === 'davinci' ? ' DaVinci Admin role required.' : ''
+                }`}
+          </p>
+        ) : (
+          groupChips(visibleTools).map(([key, groupTools]) => {
+            const meta = CHIP_GROUP_META[key];
+            return (
+              <details
+                className="p1mcp-chip-group"
+                key={key}
+                open={!!searchQuery || CHIP_GROUP_OPEN.has(key)}
+              >
+                <summary className="p1mcp-chip-group__head">
+                  <span className="p1mcp-chip-group__label">{meta.label}</span>
+                  <span className="p1mcp-chip-group__count">{groupTools.length}</span>
+                </summary>
+                <div className="p1mcp-chips">
+                  {groupTools.map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      className={`p1mcp-chip ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
+                      title={t.description || t.name}
+                      onClick={() => selectTool(t)}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+
+  const detailBody = !selectedTool ? (
+    <div className="p1mcp-empty" data-testid="p1mcp-empty-state">
+      <div className="p1mcp-empty__glyph" aria-hidden="true">{'</>'}</div>
+      <h3 className="p1mcp-empty__title">Select a tool to inspect schema and call</h3>
+      <p className="p1mcp-empty__hint">
+        Choose a tool from the catalog to view its input schema, run tools/call, and inspect the JSON-RPC frames.
+      </p>
+    </div>
+  ) : (
+    <div className="p1mcp-tool-card p1mcp-tool-card--panel">
+      <div className="p1mcp-tool-card__name">{selectedTool.name}</div>
+      {selectedTool.description && (
+        <p className="p1mcp-tool-card__desc">{selectedTool.description}</p>
+      )}
+
+      {Object.keys(schemaProps).length > 0 && (
+        <div className="p1mcp-param-block">
+          <div className="p1mcp-param-block__label">Parameters</div>
+          {Object.entries(schemaProps).map(([key, schema]) => (
+            <div className="p1mcp-param-row" key={key}>
+              <label htmlFor={`p1mcp-param-${key}`}>
+                {key}
+                {requiredParams.has(key) && <span className="p1mcp-required"> *</span>}
+              </label>
+              <input
+                id={`p1mcp-param-${key}`}
+                type="text"
+                placeholder={schema?.description || schema?.type || 'value'}
+                value={paramValues[key] ?? ''}
+                onChange={(e) =>
+                  setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
+                }
+              />
+              <span className="p1mcp-param-type">{schema?.type || ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p1mcp-detail-actions">{callButton}</div>
+      {formError && (
+        <div className="p1mcp-call-status p1mcp-call-status--error">{formError}</div>
+      )}
+
+      {lastCall && (
+        <>
+          <div className={`p1mcp-call-status ${lastCall.error ? 'p1mcp-call-status--error' : ''}`}>
+            {lastCall.error
+              ? lastCall.reason
+              : `Completed in ${lastCall.timingsMs?.roundTrip ?? '?'} ms`}
+          </div>
+          <Section title="Call request" hint="JSON-RPC tools/call sent over HTTP" status="ok" defaultOpen>
+            <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={lastCall.request} deep /></pre>
+          </Section>
+          <Section title="Call response" status={lastCall.error ? 'error' : 'ok'} defaultOpen>
+            {lastCall.response ? (
+              <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={lastCall.response} deep /></pre>
+            ) : (
+              <p className="mcp-inspector__muted">No JSON-RPC response (transport-level failure).</p>
+            )}
+          </Section>
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <div className="mcp-inspector-page app-page-shell">
+    <div className="mcp-inspector-page app-page-shell p1mcp-page">
       <PageNav user={user} onLogout={onLogout} title="PingOne MCP Inspector" />
       <header className="app-page-shell__hero">
         <div className="app-page-shell__hero-top">
           <div>
             <h1 className="app-page-shell__title">PingOne MCP Inspector</h1>
             <div className="app-page-shell__lead">
-              Calls the hosted <strong>PingOne MCP server</strong> over HTTP through the
-              Backend-for-Frontend (BFF) and returns its <code>tools/list</code>. Live querying is on
-              by default (<code>mcp_inspector_pingone_live</code> flag, page-only). Click a tool chip
-              below to invoke it.
+              Explore hosted <strong>PingOne MCP</strong> tools over HTTP via the Backend-for-Frontend (BFF).
+              Browse the catalog, inspect schemas, and run live <code>tools/call</code>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="app-page-shell__actions p1mcp-hero-actions">
             {data && (
               <button
                 type="button"
-                className="mcp-inspector__btn"
+                className={`app-page-toolbar-btn ${enabled ? 'app-page-toolbar-btn--theme' : ''}`}
                 onClick={toggleLiveQuery}
                 disabled={toggling || loading}
                 aria-pressed={!!enabled}
@@ -657,16 +821,20 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
                 {toggling ? 'Switching…' : `Live query: ${enabled ? 'On' : 'Off'}`}
               </button>
             )}
-            <button type="button" className="mcp-inspector__btn" onClick={refresh} disabled={loading}>
+            <button
+              type="button"
+              className="app-page-toolbar-btn app-page-toolbar-btn--theme"
+              onClick={refresh}
+              disabled={loading}
+            >
               {loading ? 'Querying…' : 'Refresh tools/list'}
             </button>
             <a
-              className="mcp-inspector__btn"
-              style={{ textDecoration: 'none' }}
+              className="app-page-toolbar-btn p1mcp-hero-link"
               href="/pingone-mcp-tools.html"
               target="_blank"
               rel="noopener noreferrer"
-              title="Full catalog of the 67 PingOne MCP tools, including recent renames"
+              title="Full catalog of PingOne MCP tools"
             >
               Tools reference
             </a>
@@ -674,230 +842,87 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
         </div>
       </header>
 
-      {data && !enabled && (
-        <section className="mcp-inspector__notice mcp-inspector__notice--warn">
-          <strong>Live querying is off.</strong> {data.reason}
-        </section>
-      )}
-      {data && enabled && hasError && (
-        <section className="mcp-inspector__notice mcp-inspector__notice--error">
-          <strong>PingOne MCP server unreachable.</strong> {data.reason}
-        </section>
-      )}
-
-      <Section
-        title={`Tools (${tools.length})`}
-        hint="Click a chip to inspect and invoke a tool"
-      >
-        {tools.length === 0 ? (
-          <p className="mcp-inspector__muted">No tools returned yet — enable live querying and refresh.</p>
-        ) : (
-          <>
-            <div className="p1mcp-tabs" role="tablist">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  type="button"
-                  aria-selected={activeTab === tab.id}
-                  className={`p1mcp-tab ${activeTab === tab.id ? 'p1mcp-tab--active' : ''}`}
-                  onClick={() => switchTab(tab.id)}
-                >
-                  {tab.label}
-                  <span className="p1mcp-tab__count">{tabCounts[tab.id]}</span>
-                </button>
-              ))}
-            </div>
-
-            {activeTab === 'platform' && platformSubTabs.length > 1 && (
-              <div className="p1mcp-subtabs" role="tablist">
-                {platformSubTabs.map((sub) => (
-                  <button
-                    key={sub.id}
-                    role="tab"
-                    type="button"
-                    aria-selected={platformGroup === sub.id}
-                    className={`p1mcp-subtab ${platformGroup === sub.id ? 'p1mcp-subtab--active' : ''}`}
-                    onClick={() => switchPlatformGroup(sub.id)}
-                  >
-                    {sub.label}
-                    <span className="p1mcp-tab__count">{sub.count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {callButton && (
-              <div className="p1mcp-chips-callbar">{callButton}</div>
-            )}
-
-            <div className="p1mcp-tool-search">
-              <label htmlFor="p1mcp-tool-search" className="p1mcp-tool-search__label">
-                Search tools
-              </label>
-              <input
-                id="p1mcp-tool-search"
-                type="search"
-                className="p1mcp-tool-search__input"
-                placeholder="Filter by name or description…"
-                value={toolSearch}
-                onChange={(e) => setToolSearch(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              {searchQuery && (
-                <span className="p1mcp-tool-search__count" aria-live="polite">
-                  {visibleTools.length} of {tabTools.length}
-                </span>
-              )}
-            </div>
-
-            {visibleTools.length === 0 ? (
-              <p className="mcp-inspector__muted">
-                {searchQuery
-                  ? `No tools match "${toolSearch.trim()}".`
-                  : `No ${activeTab === 'davinci' ? 'DaVinci' : 'platform'} tools returned.${
-                      activeTab === 'davinci' ? ' DaVinci Admin role required.' : ''
-                    }`}
-              </p>
-            ) : (
-              groupChips(visibleTools).map(([key, groupTools]) => {
-                const meta = CHIP_GROUP_META[key];
-                return (
-                  <details className="p1mcp-chip-group" key={key} open={!!searchQuery || CHIP_GROUP_OPEN.has(key)}>
-                    <summary className="p1mcp-chip-group__head">
-                      <span className="p1mcp-chip-group__icon" aria-hidden="true">{meta.icon}</span>
-                      <span className="p1mcp-chip-group__label">{meta.label}</span>
-                      <span className="p1mcp-chip-group__count">{groupTools.length}</span>
-                    </summary>
-                    <div className="p1mcp-chips">
-                      {groupTools.map((t) => (
-                        <button
-                          key={t.name}
-                          type="button"
-                          className={`p1mcp-chip ${selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''}`}
-                          title={t.description || t.name}
-                          onClick={() => selectTool(t)}
-                        >
-                          {t.name}
-                        </button>
-                      ))}
-                    </div>
-                  </details>
-                );
-              })
-            )}
-
-            {selectedTool && (
-              <div className="p1mcp-tool-card">
-                <div className="p1mcp-tool-card__name">{selectedTool.name}</div>
-                {selectedTool.description && (
-                  <p className="p1mcp-tool-card__desc">{selectedTool.description}</p>
-                )}
-
-                {Object.keys(schemaProps).length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    {Object.entries(schemaProps).map(([key, schema]) => (
-                      <div className="p1mcp-param-row" key={key}>
-                        <label htmlFor={`p1mcp-param-${key}`}>
-                          {key}
-                          {requiredParams.has(key) && <span className="p1mcp-required"> *</span>}
-                        </label>
-                        <input
-                          id={`p1mcp-param-${key}`}
-                          type="text"
-                          placeholder={schema?.description || schema?.type || 'value'}
-                          value={paramValues[key] ?? ''}
-                          onChange={(e) =>
-                            setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
-                          }
-                        />
-                        <span className="p1mcp-param-type">{schema?.type || ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {callButton}
-                {formError && (
-                  <div className="p1mcp-call-status p1mcp-call-status--error">{formError}</div>
-                )}
-
-                {lastCall && (
-                  <>
-                    <div className={`p1mcp-call-status ${lastCall.error ? 'p1mcp-call-status--error' : ''}`}>
-                      {lastCall.error
-                        ? lastCall.reason
-                        : `Completed in ${lastCall.timingsMs?.roundTrip ?? '?'} ms`}
-                    </div>
-                    <Section title="Call request" hint="JSON-RPC tools/call sent over HTTP" status="ok" defaultOpen>
-                      <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={lastCall.request} deep /></pre>
-                    </Section>
-                    <Section title="Call response" status={lastCall.error ? 'error' : 'ok'} defaultOpen>
-                      {lastCall.response ? (
-                        <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={lastCall.response} deep /></pre>
-                      ) : (
-                        <p className="mcp-inspector__muted">No JSON-RPC response (transport-level failure).</p>
-                      )}
-                    </Section>
-                  </>
-                )}
-              </div>
-            )}
-          </>
+      <div className="app-page-shell__body">
+        {data && !enabled && (
+          <section className="mcp-inspector__notice mcp-inspector__notice--warn">
+            <strong>Live querying is off.</strong> {data.reason}
+          </section>
         )}
-      </Section>
+        {data && enabled && hasError && (
+          <section className="mcp-inspector__notice mcp-inspector__notice--error">
+            <strong>PingOne MCP server unreachable.</strong> {data.reason}
+          </section>
+        )}
 
-      <VerticalGroupMembershipSection isAdmin={user?.role === 'admin'} />
+        <div className="p1mcp-split">
+          <section className="p1mcp-pane p1mcp-pane--catalog" aria-label="Tool catalog">
+            <div className="p1mcp-pane__head">
+              <h2 className="p1mcp-pane__title">Tools ({tools.length})</h2>
+              <span className="p1mcp-pane__hint">Browse and select</span>
+            </div>
+            {catalogBody}
+          </section>
 
-      <CimdRegistrationSection />
+          <section className="p1mcp-pane p1mcp-pane--detail" aria-label="Tool detail">
+            <div className="p1mcp-pane__head">
+              <h2 className="p1mcp-pane__title">Inspect &amp; call</h2>
+              <span className="p1mcp-pane__hint">Schema, invoke, JSON-RPC</span>
+            </div>
+            {detailBody}
+          </section>
+        </div>
 
-      <Section
-        title="Not in the MCP server — use direct API"
-        hint="Operations the hosted PingOne MCP server doesn't expose"
-        defaultOpen={false}
-      >
-        <p className="mcp-inspector__muted">
-          The hosted PingOne MCP server is preview software with a limited tool set. The
-          operations below have no MCP tool, so the app and tests call the PingOne
-          Management API (or DaVinci API) directly. Verified against the live{' '}
-          <code>tools/list</code> ({tools.length} tools).
-        </p>
-        {MCP_GAPS.map((cat) => (
-          <div className="p1mcp-gap-group" key={cat.group}>
-            <div className="p1mcp-gap-group__title">{cat.group}</div>
-            <ul className="p1mcp-gap-list">
-              {cat.items.map(([name, why]) => (
-                <li className="p1mcp-gap-item" key={name}>
-                  <span className="p1mcp-gap-item__name">{name}</span>
-                  {why && <span className="p1mcp-gap-item__why">{why}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-        <p className="mcp-inspector__muted p1mcp-gap-foot">
-          Recently added to MCP (no longer direct-only): users (create/update/list/get),
-          passwords (<code>manageUserPassword</code>), account lock (<code>manageUserAccount</code>),
-          per-user MFA (<code>manageUserMfa</code>).
-        </p>
-      </Section>
+        <VerticalGroupMembershipSection isAdmin={user?.role === 'admin'} />
 
-      <Section title="Discovery request" hint="JSON-RPC tools/list sent over HTTP" status={data ? 'ok' : undefined} defaultOpen={false}>
-        <pre className="mcp-inspector__code jh-dark">
-          <JsonHighlight value={data?.request || { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }} deep />
-        </pre>
-      </Section>
+        <CimdRegistrationSection />
 
-      <Section title="Discovery response" status={data?.response ? (data.error ? 'error' : 'ok') : undefined} defaultOpen={false}>
-        {data?.response ? (
-          <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={data.response} deep /></pre>
-        ) : (
+        <Section
+          title="Not in the MCP server — use direct API"
+          hint="Operations the hosted PingOne MCP server doesn't expose"
+          defaultOpen={false}
+        >
           <p className="mcp-inspector__muted">
-            No response yet{enabled === false ? ' — enable live querying and refresh.' : '.'}
+            The hosted PingOne MCP server is preview software with a limited tool set. The
+            operations below have no MCP tool, so the app and tests call the PingOne
+            Management API (or DaVinci API) directly. Verified against the live{' '}
+            <code>tools/list</code> ({tools.length} tools).
           </p>
-        )}
-      </Section>
+          {MCP_GAPS.map((cat) => (
+            <div className="p1mcp-gap-group" key={cat.group}>
+              <div className="p1mcp-gap-group__title">{cat.group}</div>
+              <ul className="p1mcp-gap-list">
+                {cat.items.map(([name, why]) => (
+                  <li className="p1mcp-gap-item" key={name}>
+                    <span className="p1mcp-gap-item__name">{name}</span>
+                    {why && <span className="p1mcp-gap-item__why">{why}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <p className="mcp-inspector__muted p1mcp-gap-foot">
+            Recently added to MCP (no longer direct-only): users (create/update/list/get),
+            passwords (<code>manageUserPassword</code>), account lock (<code>manageUserAccount</code>),
+            per-user MFA (<code>manageUserMfa</code>).
+          </p>
+        </Section>
+
+        <Section title="Discovery request" hint="JSON-RPC tools/list sent over HTTP" status={data ? 'ok' : undefined} defaultOpen={false}>
+          <pre className="mcp-inspector__code jh-dark">
+            <JsonHighlight value={data?.request || { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }} deep />
+          </pre>
+        </Section>
+
+        <Section title="Discovery response" status={data?.response ? (data.error ? 'error' : 'ok') : undefined} defaultOpen={false}>
+          {data?.response ? (
+            <pre className="mcp-inspector__code jh-dark"><JsonHighlight value={data.response} deep /></pre>
+          ) : (
+            <p className="mcp-inspector__muted">
+              No response yet{enabled === false ? ' — enable live querying and refresh.' : '.'}
+            </p>
+          )}
+        </Section>
+      </div>
     </div>
   );
 };

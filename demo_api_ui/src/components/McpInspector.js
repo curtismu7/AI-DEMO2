@@ -371,7 +371,7 @@ const McpInspector = ({ user, onLogout }) => {
   const callButton = selectedTool ? (
     <button
       type="button"
-      className="mcp-inspector__btn"
+      className="app-page-toolbar-btn app-page-toolbar-btn--theme p1mcp-call-btn"
       onClick={handleInvoke}
       disabled={busy}
       title={`Invoke ${selectedTool.name} via the Backend-for-Frontend (BFF)`}
@@ -381,37 +381,35 @@ const McpInspector = ({ user, onLogout }) => {
   ) : null;
 
   return (
-    <div className="mcp-inspector-page app-page-shell">
+    <div className="mcp-inspector-page app-page-shell p1mcp-page">
       <PageNav user={user} onLogout={onLogout} title="Demo MCP Inspector" />
       <header className="app-page-shell__hero">
         <div className="app-page-shell__hero-top">
           <div>
             <h1 className="app-page-shell__title">Demo MCP Inspector</h1>
             <div className="app-page-shell__lead">
-              Calls the demo <strong>banking MCP server</strong> over WebSocket JSON-RPC through the
-              Backend-for-Frontend (BFF) and returns its <code>tools/list</code>. Click a tool chip
-              below to invoke it (same layout as the PingOne MCP Inspector).
+              Explore the demo <strong>banking MCP server</strong> over WebSocket JSON-RPC via the BFF.
+              Browse tools, inspect schemas, and run live <code>tools/call</code>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="app-page-shell__actions p1mcp-hero-actions">
             <button
               type="button"
-              className="mcp-inspector__btn"
+              className="app-page-toolbar-btn"
               onClick={() => open(EDU.MCP_PROTOCOL, 'what')}
             >
               What is MCP?
             </button>
             <button
               type="button"
-              className="mcp-inspector__btn"
+              className="app-page-toolbar-btn app-page-toolbar-btn--theme"
               onClick={refreshTools}
               disabled={loadingTools}
             >
               {loadingTools ? 'Querying…' : 'Refresh tools/list'}
             </button>
             <Link
-              className="mcp-inspector__btn"
-              style={{ textDecoration: 'none' }}
+              className="app-page-toolbar-btn p1mcp-hero-link"
               to="/pingone-mcp-inspector"
               title="Hosted PingOne MCP Inspector"
             >
@@ -421,6 +419,7 @@ const McpInspector = ({ user, onLogout }) => {
         </div>
       </header>
 
+      <div className="app-page-shell__body">
       {toolsSourceInfo?.local && (
         <section className="mcp-inspector__notice mcp-inspector__notice--warn">
           <strong>Showing static / local catalog.</strong>{' '}
@@ -436,7 +435,7 @@ const McpInspector = ({ user, onLogout }) => {
           <strong>Sign in required.</strong> This tools/call needs a valid BFF session.{' '}
           <button
             type="button"
-            className="mcp-inspector__btn mcp-inspector__btn--primary"
+            className="app-page-toolbar-btn app-page-toolbar-btn--theme"
             onClick={navigateToCustomerOAuthLogin}
           >
             Log in
@@ -444,200 +443,217 @@ const McpInspector = ({ user, onLogout }) => {
         </section>
       )}
 
-      <Section
-        title={`Tools (${tools.length})`}
-        hint="Click a chip to inspect and invoke a tool"
-        status={tools.length ? 'ok' : undefined}
-      >
-        {tools.length === 0 && !loadingTools ? (
-          <p className="mcp-inspector__muted">No tools returned yet — sign in and refresh.</p>
-        ) : (
-          <>
-            <div className="p1mcp-tabs" role="tablist">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  type="button"
-                  aria-selected={activeTab === tab.id}
-                  className={`p1mcp-tab ${activeTab === tab.id ? 'p1mcp-tab--active' : ''}`}
-                  onClick={() => switchTab(tab.id)}
-                >
-                  {tab.label}
-                  <span className="p1mcp-tab__count">{tabCounts[tab.id]}</span>
-                </button>
-              ))}
-            </div>
-
-            {callButton && <div className="p1mcp-chips-callbar">{callButton}</div>}
-
-            <div className="p1mcp-tool-search">
-              <label htmlFor="mcp-tool-search" className="p1mcp-tool-search__label">
-                Search tools
-              </label>
-              <input
-                id="mcp-tool-search"
-                type="search"
-                className="p1mcp-tool-search__input"
-                placeholder="Filter by name or description…"
-                value={toolSearch}
-                onChange={(e) => setToolSearch(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              {searchQuery && (
-                <span className="p1mcp-tool-search__count" aria-live="polite">
-                  {visibleTools.length} of {tabTools.length}
-                </span>
-              )}
-            </div>
-
-            {visibleTools.length === 0 ? (
-              <p className="mcp-inspector__muted">
-                {searchQuery
-                  ? `No tools match "${toolSearch.trim()}".`
-                  : `No ${activeTab} tools in the catalog.`}
-              </p>
-            ) : (
-              groupByResource(visibleTools).map(([resKey, resTools]) => {
-                const meta = RESOURCE_META[resKey];
-                return (
-                  <details
-                    className="p1mcp-chip-group"
-                    key={resKey}
-                    open={!!searchQuery || !COLLAPSED_RESOURCES.has(resKey)}
+      <div className="p1mcp-split">
+        <section className="p1mcp-pane p1mcp-pane--catalog" aria-label="Tool catalog">
+          <div className="p1mcp-pane__head">
+            <h2 className="p1mcp-pane__title">Tools ({tools.length})</h2>
+            <span className="p1mcp-pane__hint">Browse and select</span>
+          </div>
+          {tools.length === 0 && !loadingTools ? (
+            <p className="mcp-inspector__muted">No tools returned yet — sign in and refresh.</p>
+          ) : (
+            <>
+              <div className="p1mcp-tabs" role="tablist">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    role="tab"
+                    type="button"
+                    aria-selected={activeTab === tab.id}
+                    className={`p1mcp-tab ${activeTab === tab.id ? 'p1mcp-tab--active' : ''}`}
+                    onClick={() => switchTab(tab.id)}
                   >
-                    <summary className="p1mcp-chip-group__head">
-                      <span className="p1mcp-chip-group__label">{meta.label}</span>
-                      <span className="p1mcp-chip-group__count">{resTools.length}</span>
-                    </summary>
-                    <div className="p1mcp-chips">
-                      {resTools.map((t) => {
-                        const flavor = toolFlavor(t);
-                        const badge = FLAVOR_BADGE[flavor];
-                        return (
-                          <button
-                            key={t.name}
-                            type="button"
-                            className={`p1mcp-chip p1mcp-chip--${flavor} ${
-                              selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''
-                            }`}
-                            title={t.description || t.name}
-                            onClick={() => handleSelectTool(t)}
-                          >
-                            <i className="p1mcp-chip__dot" aria-hidden="true" />
-                            {t.name}
-                            {badge && <span className="p1mcp-chip__badge">{badge}</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </details>
-                );
-              })
-            )}
+                    {tab.label}
+                    <span className="p1mcp-tab__count">{tabCounts[tab.id]}</span>
+                  </button>
+                ))}
+              </div>
 
-            {selectedTool && (
-              <div className="p1mcp-tool-card">
-                <div className="p1mcp-tool-card__name">{selectedTool.name}</div>
-                {selectedTool.description && (
-                  <p className="p1mcp-tool-card__desc">{selectedTool.description}</p>
-                )}
-                {selectedTool.requiredScopes?.length > 0 && (
-                  <p className="mcp-inspector__scopes">
-                    Required scopes: <code>{selectedTool.requiredScopes.join(', ')}</code>
-                  </p>
-                )}
-
-                {Object.keys(schemaProps).length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    {Object.entries(schemaProps).map(([key, schema]) => (
-                      <div className="p1mcp-param-row" key={key}>
-                        <label htmlFor={`mcp-param-${key}`}>
-                          {key}
-                          {requiredParams.has(key) && <span className="p1mcp-required"> *</span>}
-                        </label>
-                        <input
-                          id={`mcp-param-${key}`}
-                          type="text"
-                          placeholder={schema?.description || schema?.type || 'value'}
-                          value={paramValues[key] ?? ''}
-                          onChange={(e) =>
-                            setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
-                          }
-                        />
-                        <span className="p1mcp-param-type">{schema?.type || ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {callButton}
-                {formError && (
-                  <div className="p1mcp-call-status p1mcp-call-status--error">{formError}</div>
-                )}
-
-                {(lastTiming || lastInvoke) && (
-                  <>
-                    {lastTiming && (
-                      <div
-                        className={`p1mcp-call-status ${
-                          lastTiming.error ? 'p1mcp-call-status--error' : ''
-                        }`}
-                      >
-                        {lastTiming.error
-                          ? lastTiming.reason
-                          : `Completed in ${lastTiming.ms} ms`}
-                      </div>
-                    )}
-                    {lastInvoke?.frames?.request && (
-                      <Section
-                        title="Call request"
-                        hint="JSON-RPC tools/call sent over WebSocket"
-                        status="ok"
-                        defaultOpen
-                      >
-                        <pre className="mcp-inspector__code jh-dark">
-                          <JsonHighlight value={lastInvoke.frames.request} deep />
-                        </pre>
-                      </Section>
-                    )}
-                    {lastInvoke?.frames?.response && (
-                      <Section
-                        title="Call response"
-                        status={lastTiming?.error ? 'error' : 'ok'}
-                        defaultOpen
-                      >
-                        <pre className="mcp-inspector__code jh-dark">
-                          <JsonHighlight value={lastInvoke.frames.response} deep />
-                        </pre>
-                      </Section>
-                    )}
-                    {lastInvoke?.tokenEvents?.length > 0 && (
-                      <Section
-                        title={`Token exchange (${lastInvoke.tokenEvents.length} events)`}
-                        hint="user token → RFC 8693 → MCP token"
-                        defaultOpen={false}
-                      >
-                        <pre className="mcp-inspector__code jh-dark">
-                          <JsonHighlight value={lastInvoke.tokenEvents} deep />
-                        </pre>
-                      </Section>
-                    )}
-                    {lastInvoke && !lastInvoke.frames && (
-                      <Section title="Full response body" defaultOpen>
-                        <pre className="mcp-inspector__pre jh-dark">
-                          <JsonHighlight value={lastInvoke} deep />
-                        </pre>
-                      </Section>
-                    )}
-                  </>
+              <div className="p1mcp-tool-search">
+                <label htmlFor="mcp-tool-search" className="p1mcp-tool-search__label">
+                  Search tools
+                </label>
+                <input
+                  id="mcp-tool-search"
+                  type="search"
+                  className="p1mcp-tool-search__input"
+                  placeholder="Filter by name or description…"
+                  value={toolSearch}
+                  onChange={(e) => setToolSearch(e.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {searchQuery && (
+                  <span className="p1mcp-tool-search__count" aria-live="polite">
+                    {visibleTools.length} of {tabTools.length}
+                  </span>
                 )}
               </div>
-            )}
-          </>
-        )}
-      </Section>
+
+              <div className="p1mcp-catalog-scroll">
+                {visibleTools.length === 0 ? (
+                  <p className="mcp-inspector__muted">
+                    {searchQuery
+                      ? `No tools match "${toolSearch.trim()}".`
+                      : `No ${activeTab} tools in the catalog.`}
+                  </p>
+                ) : (
+                  groupByResource(visibleTools).map(([resKey, resTools]) => {
+                    const meta = RESOURCE_META[resKey];
+                    return (
+                      <details
+                        className="p1mcp-chip-group"
+                        key={resKey}
+                        open={!!searchQuery || !COLLAPSED_RESOURCES.has(resKey)}
+                      >
+                        <summary className="p1mcp-chip-group__head">
+                          <span className="p1mcp-chip-group__label">{meta.label}</span>
+                          <span className="p1mcp-chip-group__count">{resTools.length}</span>
+                        </summary>
+                        <div className="p1mcp-chips">
+                          {resTools.map((t) => {
+                            const flavor = toolFlavor(t);
+                            const badge = FLAVOR_BADGE[flavor];
+                            return (
+                              <button
+                                key={t.name}
+                                type="button"
+                                className={`p1mcp-chip p1mcp-chip--${flavor} ${
+                                  selectedTool?.name === t.name ? 'p1mcp-chip--active' : ''
+                                }`}
+                                title={t.description || t.name}
+                                onClick={() => handleSelectTool(t)}
+                              >
+                                <i className="p1mcp-chip__dot" aria-hidden="true" />
+                                {t.name}
+                                {badge && <span className="p1mcp-chip__badge">{badge}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="p1mcp-pane p1mcp-pane--detail" aria-label="Tool detail">
+          <div className="p1mcp-pane__head">
+            <h2 className="p1mcp-pane__title">Inspect &amp; call</h2>
+            <span className="p1mcp-pane__hint">Schema, invoke, JSON-RPC</span>
+          </div>
+          {!selectedTool ? (
+            <div className="p1mcp-empty" data-testid="mcp-empty-state">
+              <div className="p1mcp-empty__glyph" aria-hidden="true">{'</>'}</div>
+              <h3 className="p1mcp-empty__title">Select a tool to inspect schema and call</h3>
+              <p className="p1mcp-empty__hint">
+                Choose a tool from the catalog to view its input schema, run tools/call, and inspect the JSON-RPC frames.
+              </p>
+            </div>
+          ) : (
+            <div className="p1mcp-tool-card p1mcp-tool-card--panel">
+              <div className="p1mcp-tool-card__name">{selectedTool.name}</div>
+              {selectedTool.description && (
+                <p className="p1mcp-tool-card__desc">{selectedTool.description}</p>
+              )}
+              {selectedTool.requiredScopes?.length > 0 && (
+                <p className="mcp-inspector__scopes">
+                  Required scopes: <code>{selectedTool.requiredScopes.join(', ')}</code>
+                </p>
+              )}
+
+              {Object.keys(schemaProps).length > 0 && (
+                <div className="p1mcp-param-block">
+                  <div className="p1mcp-param-block__label">Parameters</div>
+                  {Object.entries(schemaProps).map(([key, schema]) => (
+                    <div className="p1mcp-param-row" key={key}>
+                      <label htmlFor={`mcp-param-${key}`}>
+                        {key}
+                        {requiredParams.has(key) && <span className="p1mcp-required"> *</span>}
+                      </label>
+                      <input
+                        id={`mcp-param-${key}`}
+                        type="text"
+                        placeholder={schema?.description || schema?.type || 'value'}
+                        value={paramValues[key] ?? ''}
+                        onChange={(e) =>
+                          setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
+                      />
+                      <span className="p1mcp-param-type">{schema?.type || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="p1mcp-detail-actions">{callButton}</div>
+              {formError && (
+                <div className="p1mcp-call-status p1mcp-call-status--error">{formError}</div>
+              )}
+
+              {(lastTiming || lastInvoke) && (
+                <>
+                  {lastTiming && (
+                    <div
+                      className={`p1mcp-call-status ${
+                        lastTiming.error ? 'p1mcp-call-status--error' : ''
+                      }`}
+                    >
+                      {lastTiming.error
+                        ? lastTiming.reason
+                        : `Completed in ${lastTiming.ms} ms`}
+                    </div>
+                  )}
+                  {lastInvoke?.frames?.request && (
+                    <Section
+                      title="Call request"
+                      hint="JSON-RPC tools/call sent over WebSocket"
+                      status="ok"
+                      defaultOpen
+                    >
+                      <pre className="mcp-inspector__code jh-dark">
+                        <JsonHighlight value={lastInvoke.frames.request} deep />
+                      </pre>
+                    </Section>
+                  )}
+                  {lastInvoke?.frames?.response && (
+                    <Section
+                      title="Call response"
+                      status={lastTiming?.error ? 'error' : 'ok'}
+                      defaultOpen
+                    >
+                      <pre className="mcp-inspector__code jh-dark">
+                        <JsonHighlight value={lastInvoke.frames.response} deep />
+                      </pre>
+                    </Section>
+                  )}
+                  {lastInvoke?.tokenEvents?.length > 0 && (
+                    <Section
+                      title={`Token exchange (${lastInvoke.tokenEvents.length} events)`}
+                      hint="user token → RFC 8693 → MCP token"
+                      defaultOpen={false}
+                    >
+                      <pre className="mcp-inspector__code jh-dark">
+                        <JsonHighlight value={lastInvoke.tokenEvents} deep />
+                      </pre>
+                    </Section>
+                  )}
+                  {lastInvoke && !lastInvoke.frames && (
+                    <Section title="Full response body" defaultOpen>
+                      <pre className="mcp-inspector__pre jh-dark">
+                        <JsonHighlight value={lastInvoke} deep />
+                      </pre>
+                    </Section>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
 
       <Section
         title={`Session MCP call history (${mcpHistory.length})`}
@@ -710,6 +726,7 @@ const McpInspector = ({ user, onLogout }) => {
           <p className="mcp-inspector__muted">No live tools/list response yet — refresh after signing in.</p>
         )}
       </Section>
+      </div>
     </div>
   );
 };
