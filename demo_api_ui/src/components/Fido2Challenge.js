@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { bytesToB64, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
 
 /**
  * FIDO2/passkey step-up challenge component.
@@ -14,17 +15,16 @@ import axios from 'axios';
  *   onError   - called with error message string on failure
  */
 function formatAssertion(credential) {
-  const toBase64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
   return {
     id: credential.id,
-    rawId: toBase64(credential.rawId),
+    rawId: bytesToB64(credential.rawId),
     type: credential.type,
     response: {
-      authenticatorData: toBase64(credential.response.authenticatorData),
-      clientDataJSON:    toBase64(credential.response.clientDataJSON),
-      signature:         toBase64(credential.response.signature),
+      authenticatorData: bytesToB64(credential.response.authenticatorData),
+      clientDataJSON:    bytesToB64(credential.response.clientDataJSON),
+      signature:         bytesToB64(credential.response.signature),
       userHandle: credential.response.userHandle
-        ? toBase64(credential.response.userHandle)
+        ? bytesToB64(credential.response.userHandle)
         : null,
     },
   };
@@ -56,18 +56,11 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           throw new Error('PingOne did not return WebAuthn challenge options. Ensure the FIDO2 device is correctly enrolled.');
         }
 
-        // Step 2: Trigger browser credential selection (native passkey / security key prompt)
-        // Decode base64url strings -> Uint8Array; WebAuthn requires BufferSource, not strings.
-        const b64ToBytes = (s) => {
-          const p = s.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
-          return Uint8Array.from(atob(p + '='.repeat((4 - (p.length % 4)) % 4)), (c) => c.charCodeAt(0));
-        };
-        const parsed = JSON.parse(data.publicKeyCredentialRequestOptions);
-        parsed.challenge = b64ToBytes(parsed.challenge);
-        if (Array.isArray(parsed.allowCredentials)) {
-          parsed.allowCredentials = parsed.allowCredentials.map((c) => ({ ...c, id: b64ToBytes(c.id) }));
-        }
-        const credential = await navigator.credentials.get({ publicKey: parsed });
+        // Step 2: Trigger browser credential selection (native passkey / security key prompt).
+        // PingOne returns challenge + allowCredentials ids as base64url (and
+        // options may already be a parsed object — do not JSON.parse blindly).
+        const publicKey = normalizePublicKeyRequestOptions(data.publicKeyCredentialRequestOptions);
+        const credential = await navigator.credentials.get({ publicKey });
 
         if (!credential) {
           throw new Error('No credential returned from browser.');
