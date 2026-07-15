@@ -2,7 +2,7 @@
  * parsePingcliResults — turns a pingcli JSON envelope into the friendly
  * results-table model shown above the terminal pane on the PingCLI page.
  */
-import { parsePingcliResults, tokenizeJson } from "../PingCliPage";
+import { parsePingcliResults, tokenizeJson, buildReadableView } from "../PingCliPage";
 
 const envelope = (data, extra = {}) =>
   JSON.stringify({ schemaVersion: "1.0", status: "success", message: "Read all successful", data, ...extra });
@@ -101,5 +101,36 @@ describe("tokenizeJson", () => {
     expect(nodes).toHaveLength(1);
     expect(typeof nodes[0]).toBe("string");
     expect(nodes[0].length).toBeGreaterThan(8000);
+  });
+});
+
+describe("buildReadableView", () => {
+  it("returns a table model for list envelopes", () => {
+    const raw = envelope([{ id: "1", name: "A" }, { id: "2", name: "B" }]);
+    const view = buildReadableView(raw);
+    expect(view.kind).toBe("table");
+    expect(view.rows).toHaveLength(2);
+  });
+
+  it("returns a form model for a single-object payload", () => {
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      message: "ok",
+      data: { id: "g-1", name: "Admins", enabled: true, _links: { self: { href: "x" } } },
+    });
+    const view = buildReadableView(raw);
+    expect(view.kind).toBe("form");
+    expect(view.fields).toEqual(
+      expect.arrayContaining([
+        { key: "id", value: "g-1" },
+        { key: "name", value: "Admins" },
+        { key: "enabled", value: "true" },
+      ])
+    );
+  });
+
+  it("returns null for plain text", () => {
+    expect(buildReadableView("pingcli version 1.2.0")).toBeNull();
   });
 });
