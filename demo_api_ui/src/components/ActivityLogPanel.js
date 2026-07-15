@@ -5,6 +5,7 @@
  * Toolbar:  Live/Reconnecting status · Pause · Resume · Clear
  * Filters:  Category pills (15 categories, all-on by default)
  * List:     Newest-first rows; click to expand metadata JSON
+ * Flow:     agent/flow-start and agent/flow-end render as demo bookend dividers
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useActivityLog, ALL_CATEGORIES } from '../hooks/useActivityLog';
@@ -16,8 +17,57 @@ function severityIcon(severity) {
   return '✅';
 }
 
+/**
+ * Returns 'start' | 'end' | null for agent transaction bookend tags.
+ * @param {object} event
+ * @returns {'start'|'end'|null}
+ */
+export function flowBoundaryKind(event) {
+  const tag = event?.tag;
+  if (tag === 'agent/flow-start') return 'start';
+  if (tag === 'agent/flow-end') return 'end';
+  return null;
+}
+
+/** Short id fragment for demo callouts (not a secret). */
+function shortCorr(event) {
+  const id = event?.correlationId || event?.flowId || event?.metadata?.runId || '';
+  return typeof id === 'string' && id.length > 8 ? id.slice(0, 8) : id;
+}
+
+const FlowDivider = React.memo(function FlowDivider({ event }) {
+  const kind = flowBoundaryKind(event);
+  if (!kind) return null;
+  const corr = shortCorr(event);
+  const ts = new Date(event.timestamp);
+  const timeStr = isNaN(ts.getTime()) ? '' : ts.toTimeString().slice(0, 8);
+  const label = kind === 'start' ? 'Agent flow start' : 'Agent flow end';
+  return (
+    <div
+      className={`alp-flow-divider alp-flow-divider--${kind}`}
+      role="separator"
+      aria-label={label}
+      data-testid={kind === 'start' ? 'alp-flow-start' : 'alp-flow-end'}
+    >
+      <span className="alp-flow-divider__label">{label}</span>
+      {corr ? <span className="alp-flow-divider__corr">{corr}</span> : null}
+      {timeStr ? <span className="alp-flow-divider__time">{timeStr}</span> : null}
+      {event.message ? (
+        <span className="alp-flow-divider__msg" title={event.message}>
+          {event.message.replace(/^Agent flow (start|end)\s*[—-]\s*/i, '')}
+        </span>
+      ) : null}
+    </div>
+  );
+});
+
 const EventRow = React.memo(function EventRow({ event }) {
   const [expanded, setExpanded] = useState(false);
+  const boundary = flowBoundaryKind(event);
+
+  if (boundary) {
+    return <FlowDivider event={event} />;
+  }
 
   const ts = new Date(event.timestamp);
   const timeStr = isNaN(ts.getTime())
@@ -182,7 +232,7 @@ export default function ActivityLogPanel({ enabled }) {
           <div className="alp-empty">
             {isPaused
               ? 'Paused — resume to see new events'
-              : 'No events yet. Recent activity loads on open; new events appear live.'}
+              : 'No recent history yet — run a demo action (login, agent chip, MCP call) to populate this log.'}
           </div>
         ) : (
           events.map((event) => (
