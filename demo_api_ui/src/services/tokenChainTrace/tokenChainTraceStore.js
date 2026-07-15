@@ -34,8 +34,16 @@ export const tokenChainTraceStore = {
     // Session-scoped evidence (the sign-in token) outlives any single tool
     // call — carry it into the new trace so the sign-in step doesn't regress
     // to "pending" on every chip click. Per-call events are dropped.
+    // Strip useCaseId from the carry-over: stampUseCaseId tags user-token on the
+    // first demo run, and firstUseCaseId would otherwise keep scoring every later
+    // run against that sticky slug (e.g. always "A2A delegation — Incomplete").
     const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
-    const sessionEvents = trace.tokenEvents.filter((e) => e && SESSION_EVENT_IDS.includes(e.id));
+    const sessionEvents = trace.tokenEvents
+      .filter((e) => e && SESSION_EVENT_IDS.includes(e.id))
+      .map((e) => {
+        const { useCaseId: _uc, ...rest } = e;
+        return rest;
+      });
     trace = EMPTY_TRACE();
     trace.startedAt = Date.now();
     trace.prompt = prompt ? { message: String(prompt) } : null;

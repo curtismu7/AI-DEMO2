@@ -10,8 +10,23 @@ const ProofContext = createContext(null);
 // true-by-default match to 'denied-as-expected' instead of 'verified'.
 const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'STEP_UP', 'HITL_REQUIRED']);
 
+// Sign-in / session cards are reused across runs (see beginTrace). Their tags
+// must not select the Proof catalog entry — that belongs to the current call.
+const SESSION_EVENT_IDS = new Set([
+  'user-token',
+  'session-token-introspection',
+  'user-token-introspection',
+  'id-token',
+  'refresh-token',
+]);
+
+function isCallScopedEvent(e) {
+  return !!(e && e.id && !SESSION_EVENT_IDS.has(e.id));
+}
+
 function firstUseCaseId(trace) {
-  const fromTokens = (trace.tokenEvents || []).find((e) => e && e.useCaseId)?.useCaseId;
+  // Prefer call-scoped token events, then authorize — never sticky session cards.
+  const fromTokens = (trace.tokenEvents || []).find((e) => isCallScopedEvent(e) && e.useCaseId)?.useCaseId;
   if (fromTokens) return fromTokens;
   if (trace.authorize && trace.authorize.useCaseId) return trace.authorize.useCaseId;
   return null;
@@ -22,9 +37,12 @@ function firstUseCaseId(trace) {
 // vertical instance of a narrative fired — stamped alongside useCaseId on
 // tokenEvents and trace.authorize.
 function verticalOf(trace) {
-  const fromTokens = (trace.tokenEvents || []).find((e) => e && e.vertical)?.vertical;
+  const fromTokens = (trace.tokenEvents || []).find((e) => isCallScopedEvent(e) && e.vertical)?.vertical;
   if (fromTokens) return fromTokens;
   if (trace.authorize && trace.authorize.vertical) return trace.authorize.vertical;
+  // Session-only vertical is a last resort when no call-scoped tag exists yet.
+  const fromSession = (trace.tokenEvents || []).find((e) => e && e.vertical)?.vertical;
+  if (fromSession) return fromSession;
   return null;
 }
 

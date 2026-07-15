@@ -64,6 +64,18 @@ test("ingestRoutingMode after beginTrace marks llm/reply heuristic-ready", () =>
   expect(byId.reply.title).toBe("Heuristics composes reply → chat");
 });
 
+test("beginTrace strips sticky useCaseId from carried session token", () => {
+  tokenChainTraceStore.ingestTokenEvents([
+    { id: "user-token", status: "active", useCaseId: "a2a-delegation", claims: { sub: "u1" } },
+    { id: "a2a-exchange1", status: "exchanged", useCaseId: "a2a-delegation" },
+  ]);
+  tokenChainTraceStore.beginTrace({ prompt: "show my accounts" });
+  const { tokenEvents } = tokenChainTraceStore.getState().trace;
+  expect(tokenEvents.map((e) => e.id)).toEqual(["user-token"]);
+  expect(tokenEvents[0].useCaseId).toBeUndefined();
+  expect(tokenEvents[0].claims).toEqual({ sub: "u1" });
+});
+
 test("reset clears everything including sign-in token (full demo wipe)", () => {
   tokenChainTraceStore.beginTrace({ prompt: "my accounts" });
   tokenChainTraceStore.ingestTokenEvents([
