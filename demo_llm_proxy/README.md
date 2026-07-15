@@ -183,15 +183,47 @@ Edit `demo_llm_proxy/start-local-models.sh` to customize:
 
 Example: use CPU only by setting `--n-gpu-layers 0` for both tiers.
 
+## Keep-warm demo profile (default for `./run.sh` + compose)
+
+Cold swaps are the main demo latency spike. Defaults now keep the agent brain hot:
+
+| Knob | Default | Effect |
+|------|---------|--------|
+| `LLM_PROXY_IDLE_DECAY_MS` | `0` (disabled) | After warmup/prewarm, do **not** unload gpt-oss after idle |
+| `LLM_PROXY_PIN_TIER` | unset | Optional hard pin, e.g. `8096` (boot-loads that tier, no decay) |
+| `LLM_WARMUP` | `1` | `./run.sh` backgrounds `scripts/llm-warmup.sh` |
+| `LLM_CTX_SIZE` | `8192` | Smaller than 16k → faster load / less RAM |
+| `LLM_N_PARALLEL` | `1` | llama-server slots |
+| `LLM_SLOT_PROMPT_SIMILARITY` | `0.50` | Prefer KV reuse across similar agent prefixes |
+
+Restore classic swap decay (free RAM after idle):
+
+```bash
+LLM_PROXY_IDLE_DECAY_MS=300000 ./run.sh
+```
+
+Force-pin the agent brain:
+
+```bash
+LLM_PROXY_PIN_TIER=8096 ./run.sh
+```
+
+UI also fire-and-forget prewarms `gpt-oss-20b` when the Use Cases page or AIAgent (llama.cpp mode) mounts.
+
+BFF caches successful NL intent LLM results (`nlIntentResultCache`, 10 min TTL) so repeat free-text does not re-hit the model.
+
 ## Performance Tips
 
 1. **Phi-4-mini for chat** — fastest, good for simple explanations and NL intent classification
 2. **gpt-oss-20b for reasoning/code** — complex OAuth/token flows, vibe coding, tool calls
+3. **Apple Silicon** — prefer `LLM_BACKEND=omlx` (SSD KV cache; skips swap-mode router)
 
 If you're seeing slow responses:
 
-- Reduce `--ctx-size` (uses less VRAM, but shorter context)
-- Disable GPU: set `--n-gpu-layers 0`
+- Confirm warmup finished: `curl -s http://localhost:8090/health | jq .`
+- Confirm decay is off: proxy log should say `idle decay disabled (keep-warm)`
+- Reduce `--ctx-size` further via `LLM_CTX_SIZE=4096`
+- Disable GPU only if debugging: `LLM_N_GPU_LAYERS=0`
 - Use smaller quantization (Q3 instead of Q4)
 
 ## oMLX Mac fast path (recommended on Apple Silicon)

@@ -413,7 +413,8 @@ router.get('/llamacpp/tiers', async (req, res) => {
 });
 
 // POST /api/langchain/llamacpp/prewarm { model } — swap the requested tier in
-// now. Idle decay still drops back to the smallest tier after ~5 quiet minutes.
+// now. With keep-warm defaults (LLM_PROXY_IDLE_DECAY_MS=0) the tier stays
+// loaded; classic 5-min decay is opt-in via LLM_PROXY_IDLE_DECAY_MS=300000.
 router.post('/llamacpp/prewarm', async (req, res) => {
   const model = (req.body && req.body.model) || '';
   const port = LLAMACPP_TIER_PORTS[model];

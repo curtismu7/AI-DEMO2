@@ -1,11 +1,12 @@
 // banking_api_ui/src/components/LogoutPage.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import './LogoutPage.css';
 
 /**
  * LogoutPage — shown after successful logout from PingOne
- * Displays a confirmation message and redirects home after 3 seconds
+ * Displays a confirmation message and redirects to PingOne login after 3 seconds
  */
 export default function LogoutPage() {
   const navigate = useNavigate();
@@ -33,17 +34,17 @@ export default function LogoutPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Navigate when countdown reaches 0
+  // Navigate to PingOne login when countdown reaches 0
   useEffect(() => {
     if (countdown === 0) {
-      navigate('/');
+      navigateToCustomerOAuthLogin();
     }
-  }, [countdown, navigate]);
+  }, [countdown]);
 
   return (
     <div className="logout-page">
       <div className="logout-container">
-        <div className="logout-icon">👋</div>
+        <div className="logout-icon" aria-hidden="true">✓</div>
         <h1>You're signed out</h1>
         <p className="logout-message">
           Your session has been ended and you've been securely signed out.
@@ -51,7 +52,7 @@ export default function LogoutPage() {
         <div className="logout-actions">
           <button
             className="logout-button logout-button--primary"
-            onClick={() => navigate('/')}
+            onClick={() => navigateToCustomerOAuthLogin()}
             title="Sign in again"
           >
             Sign In Again
@@ -65,7 +66,7 @@ export default function LogoutPage() {
           </button>
         </div>
         <p className="logout-redirect-notice">
-          Redirecting to home in {countdown}s...
+          Redirecting to sign in in {countdown}s...
         </p>
       </div>
     </div>

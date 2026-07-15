@@ -100,4 +100,32 @@ describe('parseNaturalLanguage — ff_heuristic_enabled flag', () => {
     expect(parseHeuristic).toHaveBeenCalledTimes(1);
     expect(r.source).toBe('heuristic');
   });
+
+  it('Fallback ON + Google provider short-circuits known chips (no LLM)', async () => {
+    parseHeuristic.mockReturnValue({ kind: 'banking', banking: { action: 'transactions', params: {} } });
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'ff_heuristic_enabled' ? 'true' : null,
+    );
+
+    const r = await parseNaturalLanguage('recent transactions', {}, 'google', {});
+
+    expect(parseHeuristic).toHaveBeenCalledTimes(1);
+    expect(r.source).toBe('heuristic');
+  });
+
+  it('LLM only + Google provider does not short-circuit before LLM attempt', async () => {
+    parseHeuristic.mockReturnValue({ kind: 'banking', banking: { action: 'transactions', params: {} } });
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'ff_heuristic_enabled') return 'false';
+      if (key === 'google_api_key') return '';
+      return null;
+    });
+
+    const r = await parseNaturalLanguage('recent transactions', {}, 'google', {});
+
+    // No early short-circuit: LLM-only tries Gemini; missing key → heuristic safety net.
+    expect(parseHeuristic).toHaveBeenCalledTimes(1);
+    expect(r.source).toBe('heuristic');
+    expect(r.llm_not_configured).toBe(true);
+  });
 });

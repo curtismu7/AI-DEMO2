@@ -340,7 +340,26 @@ export function patchFetch() {
           .catch(() => {});
       }
 
-      // Clone so the original body is still readable by the caller
+      // Clone so the original body is still readable by the caller.
+      // Skip full-body capture for SSE — consuming the clone competes with the
+      // UI reader and can hold the connection open past proxy idle limits.
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/event-stream")) {
+        appendTrafficEntry({
+          method,
+          url,
+          status: response.status,
+          duration,
+          requestHeaders: reqHeaders,
+          requestBody: reqBody,
+          responseHeaders: resHeaders,
+          responseBody: "<SSE stream>",
+          source: "fetch",
+          timestamp: new Date().toISOString(),
+        });
+        return response;
+      }
+
       response
         .clone()
         .text()

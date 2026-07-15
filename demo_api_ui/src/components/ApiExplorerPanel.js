@@ -20,7 +20,7 @@ function CallRow({ call, isSelected, onClick }) {
       <div className="aep-call-meta">
         <span className={methodCls(call.method)}>{call.method}</span>
         {status != null && <span className={statusCls(status)}>{status}</span>}
-        {call.durationMs != null && <span className="aep-dur">{call.durationMs}ms</span>}
+        {(call.durationMs ?? call.duration) != null && <span className="aep-dur">{call.durationMs ?? call.duration}ms</span>}
         <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#374151' }}>{isSelected ? '◀' : '▶'}</span>
       </div>
       <div className="aep-url" title={call.url}>{call.url}</div>
@@ -33,7 +33,7 @@ function DetailPanel({ call, onClose }) {
 
   if (!call) return (
     <div className="aep-detail aep-detail--empty">
-      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>👆</div>
+      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>→</div>
       <div>Click any call on the left to inspect its response &amp; request</div>
     </div>
   );
@@ -97,6 +97,7 @@ export default function ApiExplorerPanel() {
   const fetchCalls = useCallback(async () => {
     if (!liveRef.current) return;
     try {
+      // Shared global buffer — includes agent/Bearer calls that lack a browser session cookie
       const res = await fetch('/api/api-calls?limit=100', { credentials: 'include' });
       if (!res.ok) { setError(`HTTP ${res.status}`); return; }
       const data = await res.json();
@@ -119,25 +120,25 @@ export default function ApiExplorerPanel() {
   return (
     <div className="aep-root">
       <div className="aep-toolbar">
-        <span className="aep-title">📡 API Explorer</span>
+        <span className="aep-title">API Explorer</span>
         <span className="aep-count">{calls.length} calls</span>
-        {error && <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>⚠ {error}</span>}
+        {error && <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>⚠️ {error}</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button className="aep-btn" onClick={() => setLive(v => !v)}>{live ? '⏸ Pause' : '▶ Live'}</button>
+          <button className="aep-btn" onClick={() => setLive(v => !v)}>{live ? 'Pause' : 'Live'}</button>
           <button className="aep-btn" onClick={() => {
             fetch('/api/api-calls', { method: 'DELETE', credentials: 'include' })
               .then(() => { setCalls([]); setSelected(null); });
-          }}>🗑 Clear</button>
+          }}>Clear</button>
         </div>
       </div>
 
       {stats && (
         <div className="aep-stats-row">
           <div className="aep-stat"><span>Total:</span><strong>{stats.total}</strong></div>
-          <div className="aep-stat"><span>Success:</span><strong style={{ color: '#15803d' }}>{stats.success}</strong></div>
-          <div className="aep-stat"><span>Errors:</span><strong style={{ color: stats.errors > 0 ? '#991b1b' : '#64748b' }}>{stats.errors}</strong></div>
-          {stats.avgDurationMs != null && (
-            <div className="aep-stat"><span>Avg:</span><strong>{Math.round(stats.avgDurationMs)}ms</strong></div>
+          <div className="aep-stat"><span>Success:</span><strong style={{ color: '#15803d' }}>{stats.success ?? stats.successful}</strong></div>
+          <div className="aep-stat"><span>Errors:</span><strong style={{ color: (stats.errors ?? stats.failed) > 0 ? '#991b1b' : '#64748b' }}>{stats.errors ?? stats.failed}</strong></div>
+          {(stats.avgDurationMs ?? stats.averageDuration) != null && (
+            <div className="aep-stat"><span>Avg:</span><strong>{Math.round(stats.avgDurationMs ?? stats.averageDuration)}ms</strong></div>
           )}
         </div>
       )}

@@ -8,23 +8,27 @@ import os
 import re
 import sys
 import time
-from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, Response
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from langchain_core.messages import AIMessageChunk, HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 from codegraph.agent import create_codegraph_agent
 from codegraph.db import CODEGRAPH_DB_PATH
+from codegraph.ensure_index import (
+    ensure_query_index,
+    query_db_path,
+    resolve_indexer_script,
+)
 from codegraph.repo import repo_src_root
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_graph_cache: object = None
+_runner_cache: object = None
+_runner_cache_key: object = None
 
 # Only one re-index may run at a time — the button is unauthenticated (the Code
 # Explorer page is public) and the indexer is CPU-heavy, so serialize to avoid
@@ -33,20 +37,36 @@ _reindex_lock = asyncio.Lock()
 
 
 def _index_available() -> bool:
-    """True if the CodeGraph DB exists and is non-empty."""
+    """True if the CodeGraph query DB exists and is non-empty.
+
+    Self-heals first: if a prior Refresh wrote to the legacy repo-src path,
+    promote it into CODEGRAPH_DB_PATH before deciding.
+    """
+    ensure_query_index()
     try:
-        db_file = Path(CODEGRAPH_DB_PATH)
+        db_file = query_db_path()
         return db_file.is_file() and db_file.stat().st_size > 0
     except OSError:
         return False
 
 
-def _get_graph():
-    global _graph_cache
-    if _graph_cache is None:
+def _agent_cache_key() -> tuple:
+    """Rebuild when provider/mode pin or healthy proxy tier changes."""
+    from codegraph.llm_target import resolve_llamacpp_target
+    provider = (os.getenv("CODEGRAPH_LLM_PROVIDER") or "auto").strip().lower()
+    mode = (os.getenv("CODEGRAPH_AGENT_MODE") or "auto").strip().lower()
+    base, model, _ = resolve_llamacpp_target()
+    return (provider, mode, base, model)
+
+
+def _get_runner():
+    global _runner_cache, _runner_cache_key
+    key = _agent_cache_key()
+    if _runner_cache is None or _runner_cache_key != key:
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        _graph_cache = create_codegraph_agent(api_key=api_key)
-    return _graph_cache
+        _runner_cache = create_codegraph_agent(api_key=api_key)
+        _runner_cache_key = key
+    return _runner_cache
 
 
 def _build_messages(question: str, history: list[dict]) -> list:
@@ -81,9 +101,9 @@ async def codegraph_query(request: Request) -> Response:
             f"CodeGraph index not available (missing or empty at {CODEGRAPH_DB_PATH}) "
             "— use Refresh index to rebuild it"
         )
-    graph = None
+    runner = None
     try:
-        graph = _get_graph()
+        runner = _get_runner()
     except Exception as exc:
         logger.error("Failed to create CodeGraph agent: %s", exc)
         problems.append(
@@ -95,59 +115,26 @@ async def codegraph_query(request: Request) -> Response:
     messages = _build_messages(question, history)
 
     return StreamingResponse(
-        _stream(graph, messages),
+        runner.astream_sse(messages),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-async def _stream(graph, messages: list) -> AsyncGenerator[str, None]:
-    """Drive the agent graph and yield SSE frames."""
-    # Emit an immediate status frame so the client shows activity within ~1s.
-    # The ReAct agent does tool-call rounds that produce NO text tokens, and a
-    # slow/loaded local LLM can take many seconds before the first token — without
-    # this the UI sits on a bare typing indicator and looks frozen.
-    yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase…'})}\n\n"
-    try:
-        async for msg, _metadata in graph.astream(
-            {"messages": messages}, stream_mode="messages"
-        ):
-            # Tool execution / tool results carry no text — surface a heartbeat
-            # status so a slow ReAct loop keeps signalling progress.
-            if not isinstance(msg, AIMessageChunk):
-                yield f"data: {json.dumps({'type': 'status', 'text': 'Reading the code…'})}\n\n"
-                continue
-
-            content = msg.content if hasattr(msg, "content") else ""
-            if isinstance(content, str) and content:
-                yield f"data: {json.dumps({'type': 'token', 'text': content})}\n\n"
-            elif isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text = block.get("text", "")
-                        if text:
-                            yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
-    except Exception as exc:
-        logger.error("CodeGraph stream error: %s", exc)
-        yield f"data: {json.dumps({'type': 'error', 'text': str(exc)})}\n\n"
-    finally:
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 @router.post("/reindex")
 async def codegraph_reindex() -> Response:
     """Rebuild the symbol index from the live source tree.
 
-    The repo is bind-mounted at REPO_SRC_ROOT (/app/live-repo); the indexer is
-    told to write to CODEGRAPH_DB_PATH (via --out) — the exact DB the query
-    tools read — so no image rebuild or re-stage is needed.
+    Prefers the baked `/app/indexer/build-codegraph.py` (supports --out). After a
+    successful run, promotes any legacy write into CODEGRAPH_DB_PATH and refuses
+    success if the query path is still empty.
     """
     root = repo_src_root()
-    script = root / "scripts" / "build-codegraph.py"
-    if not script.is_file():
+    script = resolve_indexer_script(root)
+    if script is None:
         return JSONResponse(
-            {"error": f"indexer not found at {script}; is the repo mounted at "
-                      "REPO_SRC_ROOT?"},
+            {"error": f"indexer not found under {root}/scripts or "
+                      "/app/indexer; is the repo mounted at REPO_SRC_ROOT?"},
             status_code=503,
         )
 
@@ -170,31 +157,39 @@ async def codegraph_reindex() -> Response:
             logger.error("CodeGraph reindex failed to launch: %s", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
-    out = (stdout or b"").decode("utf-8", "replace")
-    elapsed_ms = int((time.monotonic() - started) * 1000)
+        out = (stdout or b"").decode("utf-8", "replace")
+        elapsed_ms = int((time.monotonic() - started) * 1000)
 
-    if proc.returncode != 0:
-        logger.error("CodeGraph reindex exited %s:\n%s", proc.returncode, out)
-        return JSONResponse(
-            {"error": "indexer exited non-zero", "log": out[-2000:]},
-            status_code=500,
+        if proc.returncode != 0:
+            logger.error("CodeGraph reindex exited %s:\n%s", proc.returncode, out)
+            return JSONResponse(
+                {"error": "indexer exited non-zero", "log": out[-2000:]},
+                status_code=500,
+            )
+
+        # Promote legacy path / verify query DB before declaring success.
+        if not ensure_query_index(root) and not _index_available():
+            return JSONResponse(
+                {"error": f"index still missing/empty at {CODEGRAPH_DB_PATH} after rebuild",
+                 "log": out[-2000:]},
+                status_code=500,
+            )
+
+        nodes = files = None
+        m = re.search(r"Found\s+(\d+)\s+nodes", out)
+        if m:
+            nodes = int(m.group(1))
+        m = re.search(r"Indexing\s+(\d+)\s+files", out)
+        if m:
+            files = int(m.group(1))
+
+        global _runner_cache, _runner_cache_key
+        _runner_cache = None
+        _runner_cache_key = None
+
+        logger.info(
+            "CodeGraph reindex OK in %sms (nodes=%s, indexer=%s)",
+            elapsed_ms, nodes, script,
         )
-
-    # The indexer prints "Indexing N files ..." and "Found M nodes ..." — surface
-    # the counts (None if the output format ever changes; never a wrong number).
-    nodes = files = None
-    m = re.search(r"Found\s+(\d+)\s+nodes", out)
-    if m:
-        nodes = int(m.group(1))
-    m = re.search(r"Indexing\s+(\d+)\s+files", out)
-    if m:
-        files = int(m.group(1))
-
-    # Drop the cached agent so the next query rebuilds against the fresh DB
-    # (and re-probes the LLM provider).
-    global _graph_cache
-    _graph_cache = None
-
-    logger.info("CodeGraph reindex OK in %sms (nodes=%s)", elapsed_ms, nodes)
-    return JSONResponse({"ok": True, "nodes": nodes, "files": files,
-                         "durationMs": elapsed_ms})
+        return JSONResponse({"ok": True, "nodes": nodes, "files": files,
+                             "durationMs": elapsed_ms})

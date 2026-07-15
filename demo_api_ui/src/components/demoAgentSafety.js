@@ -135,3 +135,51 @@ export async function prewarmTierAndRetry(model, retry) {
   if (!res.ok) throw new Error("Pre-warm failed");
   await retry();
 }
+
+/** Default agent-brain model kept warm for demo chip/tool loops. */
+export const DEFAULT_PREWARM_MODEL = "gpt-oss-20b";
+
+const PREWARM_COOLDOWN_MS = 60_000;
+let lastOpportunisticPrewarmAt = 0;
+let opportunisticPrewarmInFlight = null;
+
+/**
+ * Fire-and-forget tier load for llama.cpp swap mode.
+ * Coalesces concurrent callers and cools down for 60s so mount storms
+ * (Use Cases + AIAgent) do not spam the tier-manager.
+ *
+ * @param {string} [model]
+ * @returns {Promise<{ ok?: boolean, skipped?: boolean, reason?: string, model?: string }>}
+ */
+export async function opportunisticPrewarm(model = DEFAULT_PREWARM_MODEL) {
+  const now = Date.now();
+  if (now - lastOpportunisticPrewarmAt < PREWARM_COOLDOWN_MS) {
+    return { skipped: true, reason: "cooldown", model };
+  }
+  if (opportunisticPrewarmInFlight) return opportunisticPrewarmInFlight;
+
+  lastOpportunisticPrewarmAt = now;
+  opportunisticPrewarmInFlight = (async () => {
+    try {
+      const res = await fetch("/api/langchain/llamacpp/prewarm", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+      });
+      if (!res.ok) return { ok: false, model, reason: `http_${res.status}` };
+      return { ok: true, model };
+    } catch (err) {
+      return { ok: false, model, reason: err?.message || "network" };
+    } finally {
+      opportunisticPrewarmInFlight = null;
+    }
+  })();
+  return opportunisticPrewarmInFlight;
+}
+
+/** Test helper — reset cooldown / in-flight state between vitest cases. */
+export function __resetOpportunisticPrewarmForTests() {
+  lastOpportunisticPrewarmAt = 0;
+  opportunisticPrewarmInFlight = null;
+}

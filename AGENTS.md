@@ -1,25 +1,10 @@
 # AGENTS.md
 
-Canonical instructions for AI coding agents in this repository live in **[CLAUDE.md](./CLAUDE.md)**.
+Canonical instructions for AI coding agents live in **[CLAUDE.md](./CLAUDE.md)**.
 
-Read `CLAUDE.md` first, then [REGRESSION_PLAN.md](./REGRESSION_PLAN.md) §1 before changing protected areas.
-
-Opt-in AI-DLC: when the user says `Using AI-DLC,`, follow `.aidlc/CORE-WORKFLOW.md`
-(see `.aidlc/README.md`). Repo do-not-break rules still win.
-{
-  "language_models": {
-    "llamacpp": {
-      "api_url": "http://localhost:8090"
-    },
-    "provider": "llamacpp",
-    "inline_provider": "llamacpp",
-    "default_model": "phi-4-mini-instruct"
-  },
-  "assistant": {
-    "version": "2",
-    "default_model": {
-      "provider": "llamacpp",
-      "model": "phi-4-mini-instruct"
-    }
-  }
-}
+1. Read the **Agent behavior** section in `CLAUDE.md` first (don't assume, minimum
+   change, surgical diffs, verify until done).
+2. Before protected areas (auth, token exchange, BFF session, UI), read
+   [REGRESSION_PLAN.md](./REGRESSION_PLAN.md) §0–§1 and invoke `regression-guard`.
+3. Opt-in AI-DLC only when the user says `Using AI-DLC,` — see `.aidlc/README.md`.
+   Repo do-not-break rules still win.

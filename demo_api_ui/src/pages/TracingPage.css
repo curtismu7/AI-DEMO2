@@ -196,26 +196,43 @@
   padding: 32px 16px !important;
 }
 
-.tracing-help {
-  padding: 16px 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #ffffff;
+.tracing-empty--explain {
+  text-align: left;
+  max-width: 40rem;
+  margin: 0 auto;
 }
 
-.tracing-help h2 {
-  margin: 0 0 10px 0;
-  font-size: 15px;
+.tracing-empty--explain ul {
+  margin: 8px 0 12px 1.1rem;
+  padding: 0;
+  line-height: 1.55;
+}
+
+.tracing-empty--explain p {
+  margin: 0 0 8px 0;
+}
+
+.tracing-bridge {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.tracing-bridge a {
+  color: #1d4ed8;
   font-weight: 600;
-  color: #1f2937;
 }
 
-.tracing-help ol {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #374151;
-  font-size: 14px;
-  line-height: 1.6;
+.tracing-error p {
+  margin: 0 0 8px 0;
+}
+
+.tracing-detail-legend {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
 .tracing-row { cursor: pointer; }
@@ -246,20 +263,20 @@
 
 .tracing-explainer {
   margin-bottom: 16px;
-  padding: 16px 18px;
+  padding: 12px 18px;
   border: 1px solid #e5e7eb;
   border-left: 3px solid #3b82f6;
   border-radius: 8px;
   background: #ffffff;
 }
-.tracing-explainer h2 {
-  margin: 0 0 8px 0;
+.tracing-explainer summary {
+  cursor: pointer;
   font-size: 15px;
   font-weight: 600;
   color: #1f2937;
 }
 .tracing-explainer > p {
-  margin: 0;
+  margin: 10px 0 0 0;
   color: #374151;
   font-size: 14px;
   line-height: 1.6;
@@ -288,11 +305,4 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.tracing-columns-note {
-  margin: 12px 0 0 0;
-  padding-top: 10px;
-  border-top: 1px solid #f3f4f6;
-  color: #4b5563;
-  font-size: 13px;
-  line-height: 1.6;
-}
+

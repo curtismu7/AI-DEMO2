@@ -45,16 +45,27 @@ const getActionColor = (action) => {
 };
 
 const BUCKET_ICONS = {
-  'AI Agent': '🤖',
-  Banking: '🏦',
+  'AI Agent': 'AI',
+  Banking: 'Bk',
   Identity: '🔑',
-  Admin: '⚙️',
+  Admin: 'Ad',
+};
+
+const formatLogTimestamp = (timestamp) => {
+  const d = new Date(timestamp);
+  if (Number.isNaN(d.getTime())) return '—';
+  try {
+    return format(d, 'MMM dd, yyyy HH:mm:ss');
+  } catch {
+    return '—';
+  }
 };
 
 const ActivityLogs = ({ user, onLogout }) => {
   const [logs, setLogs] = useState([]);
   const [pagination, setPagination] = useState({});
   const [loading, setLoading] = useState(true);
+  const [authRequired, setAuthRequired] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState({
@@ -63,24 +74,36 @@ const ActivityLogs = ({ user, onLogout }) => {
   const [expandedBuckets, setExpandedBuckets] = useState(new Set(BUCKET_ORDER));
 
   const fetchLogs = useCallback(async () => {
+    if (!user) {
+      setLogs([]);
+      setPagination({});
+      setAuthRequired(true);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      setAuthRequired(false);
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
       const response = await apiClient.get(`/api/admin/activity?${params}`);
-      setLogs(response.data.logs);
-      setPagination(response.data.pagination);
+      setLogs(Array.isArray(response.data?.logs) ? response.data.logs : []);
+      setPagination(response.data?.pagination || {});
     } catch (error) {
       console.error('Activity logs error:', error);
-      if (error.response?.status === 403) {
+      setLogs([]);
+      setPagination({});
+      if (error.response?.status === 401) {
+        setAuthRequired(true);
+      } else if (error.response?.status === 403) {
         notifyError('You do not have permission to view activity logs.');
-      } else if (error.response?.status !== 401) {
+      } else {
         notifyError('Failed to load activity logs');
       }
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, user]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -295,7 +318,7 @@ const ActivityLogs = ({ user, onLogout }) => {
                     <tbody>
                       {rows.map(log => (
                         <tr key={log.id} onClick={() => handleRowClick(log)} className="clickable">
-                          <td>{format(new Date(log.timestamp), 'MMM dd, yyyy HH:mm:ss')}</td>
+                          <td>{formatLogTimestamp(log.timestamp)}</td>
                           <td>{log.username || 'Unknown'}</td>
                           <td>
                             <span style={{
@@ -328,8 +351,21 @@ const ActivityLogs = ({ user, onLogout }) => {
         {logs.length === 0 && !loading && (
           <div className="card">
             <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
-              <h3>No activity logs found</h3>
-              <p style={{ color: '#64748b' }}>No activity logs match the current filters.</p>
+              {authRequired || !user ? (
+                <>
+                  <h3>Sign in to view API activity</h3>
+                  <p style={{ color: '#64748b' }}>
+                    HTTP activity logs require an authenticated session.
+                    For the live oauth / mcp / HITL event stream, open{' '}
+                    <a href="/monitoring/activity-log">Activity Log</a>.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3>No activity logs found</h3>
+                  <p style={{ color: '#64748b' }}>No activity logs match the current filters.</p>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -369,7 +405,7 @@ const ActivityLogs = ({ user, onLogout }) => {
                 <div className="detail-section">
                   <h3>Basic Information</h3>
                   <div className="detail-grid">
-                    <div className="detail-item"><label>Timestamp:</label><span>{format(new Date(selectedLog.timestamp), 'MMM dd, yyyy HH:mm:ss')}</span></div>
+                    <div className="detail-item"><label>Timestamp:</label><span>{formatLogTimestamp(selectedLog.timestamp)}</span></div>
                     <div className="detail-item"><label>User:</label><span>{selectedLog.username || 'Unknown'}</span></div>
                     <div className="detail-item"><label>Action:</label>
                       <span style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500, backgroundColor: getActionColor(selectedLog.action), color: 'white' }}>{selectedLog.action}</span>

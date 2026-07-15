@@ -46,13 +46,32 @@ COPY demo_llm_proxy/modelCatalog.js /demo_llm_proxy/modelCatalog.js
 # pingOneAuthorizeService.getAuthorizationPoliciesFromSnapshot resolves to /snapshots/… (../../ from /app/services)
 COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
 
+# First-party sources for the default code-search piece indexer. Compose bind-
+# mounts ./:/repo:ro over this path; SE/K8 have no host checkout, so the image
+# must carry the package trees that CODEBASE_PIECES walks.
+ENV CODE_SEARCH_REPO_ROOT=/repo
+COPY demo_api_ui/src /repo/demo_api_ui/src
+COPY demo_api_server /repo/demo_api_server
+COPY demo_mcp_server /repo/demo_mcp_server
+COPY demo_mcp_gateway /repo/demo_mcp_gateway
+COPY demo_authz_server /repo/demo_authz_server
+COPY ping-gateway /repo/ping-gateway
+COPY demo_hitl_service /repo/demo_hitl_service
+COPY langchain_agent /repo/langchain_agent
+COPY llamaindex_agent /repo/llamaindex_agent
+COPY openai_agent /repo/openai_agent
+COPY pydantic_agent /repo/pydantic_agent
+COPY mastra_agent /repo/mastra_agent
+COPY demo_llm_proxy /repo/demo_llm_proxy
+COPY demo_mcp_code_search/src /repo/demo_mcp_code_search/src
+
 # Create data directory with proper permissions. Pre-create the LMDB persist
 # dir (/app/data/persistent) so that when docker-compose mounts the
 # ai-demo-bff-data named volume there, Docker seeds the fresh volume with this
 # appuser-owned path — otherwise the volume mounts root-owned and the non-root
 # appuser can't write, silently dropping configStore to in-memory.
 RUN mkdir -p /app/data/persistent && \
-    chown -R appuser:appgroup /app
+    chown -R appuser:appgroup /app /repo
 
 # Switch to non-root user
 USER appuser

@@ -23,6 +23,7 @@
 #   6. authz sidecar canary: a McpToolsList decision with the gateway's own
 #      comma-joined resource URI as TokenAudience is not DENYed invalid_aud
 #      (regression: tools/list DENY hid every vertical chip)
+#   7. Code Explorer SSE first byte arrives quickly (nginx must not buffer)
 
 set -uo pipefail
 
@@ -47,7 +48,7 @@ if [ -z "$DEPLOYMENTS" ]; then
 fi
 
 # ── 1. rollout completeness ───────────────────────────────────────────────────
-info "1/6 rollout status of every deployment in $NS (llm stack can take minutes after restart)..."
+info "1/7 rollout status of every deployment in $NS (llm stack can take minutes after restart)..."
 ROLLOUT_FAILED=""
 for dep in $DEPLOYMENTS; do
   if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=300s >/dev/null 2>&1; then
@@ -62,7 +63,7 @@ fi
 
 # ── 2. stale pods (deploy.sh died mid-restart) ────────────────────────────────
 if [ -n "${DEPLOY_START_EPOCH:-}" ]; then
-  info "2/6 checking no pod predates deploy start..."
+  info "2/7 checking no pod predates deploy start..."
   STALE=""
   while IFS=$'\t' read -r name start; do
     [ -n "$start" ] || continue
@@ -88,11 +89,11 @@ if [ -n "${DEPLOY_START_EPOCH:-}" ]; then
     pass "every pod started after deploy began"
   fi
 else
-  info "2/6 skipped (DEPLOY_START_EPOCH not set)"
+  info "2/7 skipped (DEPLOY_START_EPOCH not set)"
 fi
 
 # ── 3. public health endpoint ─────────────────────────────────────────────────
-info "3/6 GET $APP_URL/api/health ..."
+info "3/7 GET $APP_URL/api/health ..."
 HEALTH_OK=""
 for _ in 1 2 3; do
   if curl -skf --max-time 15 "$APP_URL/api/health" | grep -q '"status":"healthy"'; then HEALTH_OK=1; break; fi
@@ -104,7 +105,7 @@ if [ -n "$HEALTH_OK" ]; then pass "api health is healthy"; else fail "$APP_URL/a
 # The BFF vault bridge serves DEMO_MORTGAGE_SERVICE_KEY; mortgage-service
 # validates X-API-Key against MORTGAGE_SERVICE_API_KEY. If they differ, every
 # invest/mortgage chip fails "backend rejected the service API key".
-info "4/6 service API key alignment (BFF bridge vs mortgage-service)..."
+info "4/7 service API key alignment (BFF bridge vs mortgage-service)..."
 BRIDGE_HASH=$(kexec deploy/demo-api-server -- sh -c 'printenv DEMO_MORTGAGE_SERVICE_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
 BACKEND_HASH=$(kexec deploy/mortgage-service -- sh -c 'printenv MORTGAGE_SERVICE_API_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
 EMPTY_HASH="e3b0c44298fc1c14" # sha256("")
@@ -117,7 +118,7 @@ else
 fi
 
 # ── 5. llm-proxy answers ──────────────────────────────────────────────────────
-info "5/6 llm-proxy /v1/models (retries while a tier is still loading)..."
+info "5/7 llm-proxy /v1/models (retries while a tier is still loading)..."
 LLM_OK=""
 for _ in 1 2 3 4 5; do
   CODE=$(kexec deploy/demo-api-server -- node -e '
@@ -137,7 +138,7 @@ if [ -n "$LLM_OK" ]; then pass "llm-proxy serving models"; else fail "llm-proxy 
 # enabled PingOne user (Rule 0a2 user lookup); defaults to the demo user of
 # env 01d89b06-… — override for other PingOne environments.
 SMOKE_SUB="${SMOKE_SUB:-1aee74ae-3d09-4bcf-a69f-7e1bc225b761}"
-info "6/6 authz tools/list canary (full gateway parameter shape, expect PERMIT)..."
+info "6/7 authz tools/list canary (full gateway parameter shape, expect PERMIT)..."
 # Skip terminating pods: right after a rollout the label selector also matches
 # the old pod (still phase=Running but with deletionTimestamp set), and
 # exec'ing into it dies silently (empty canary → phantom FAIL — hit on the
@@ -178,6 +179,36 @@ else
     fail "authz does not PERMIT the gateway tools/list shape — discovery is degraded, vertical chips ride the fallback catalog: $CANARY"
   fi
 fi
+
+# ── 7. Code Explorer SSE must stream immediately (no nginx buffering) ─────────
+# Regression 2026-07-15: frontend nginx buffered /api/codegraph until the LLM
+# finished; browsers reported a network/timeout error. Status frames must arrive
+# within a few seconds even when the model is slow.
+info "7/7 Code Explorer SSE time-to-first-byte (expect status frame quickly)..."
+CG_TMP=$(mktemp)
+CG_META=$(mktemp)
+if curl -skN -o "$CG_TMP" -w '%{http_code} %{time_starttransfer}' \
+    --max-time 12 \
+    -X POST "$APP_URL/api/codegraph/query" \
+    -H 'Content-Type: application/json' \
+    -d '{"question":"smoke: how does oauth login work?"}' \
+    >"$CG_META" 2>/dev/null; then
+  :
+fi
+# Exit 28 (timeout) is OK — we only need early status frames, not the full answer.
+CG_CODE=$(awk '{print $1}' "$CG_META")
+CG_TTFB=$(awk '{print $2}' "$CG_META")
+rm -f "$CG_META"
+if [ "$CG_CODE" != "200" ]; then
+  fail "Code Explorer SSE HTTP $CG_CODE (expected 200) — agent/BFF path broken"
+elif ! grep -q '"type": "status"' "$CG_TMP"; then
+  fail "Code Explorer SSE returned 200 but no status frame — likely still buffered or agent not streaming"
+elif awk "BEGIN {exit !($CG_TTFB < 5)}"; then
+  pass "Code Explorer SSE TTFB ${CG_TTFB}s with status frame"
+else
+  fail "Code Explorer SSE TTFB ${CG_TTFB}s (>=5s) — nginx may be buffering /api/codegraph again"
+fi
+rm -f "$CG_TMP"
 
 # ── verdict ───────────────────────────────────────────────────────────────────
 echo ""

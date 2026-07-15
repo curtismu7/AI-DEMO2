@@ -56,7 +56,7 @@ export default function CodeSearchAsk({ codebaseId }) {
     const timeout = setTimeout(() => {
       timedOut = true;
       ctrl.abort();
-    }, 65000);
+    }, 245000);
 
     setIsSending(true);
     setInput('');
@@ -74,7 +74,13 @@ export default function CodeSearchAsk({ codebaseId }) {
         signal: ctrl.signal,
       });
       const body = await r.json();
-      if (!r.ok) throw new Error(body.message || body.error || 'assistant unavailable');
+      if (!r.ok) {
+        // BFF/MCP use message|error; FastAPI (llamaindex-agent) uses detail.
+        const detail = Array.isArray(body.detail)
+          ? body.detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
+          : body.detail;
+        throw new Error(body.message || body.error || detail || 'assistant unavailable');
+      }
       setLastAssistant({
         content: body.answer || '(no answer)',
         pending: false,

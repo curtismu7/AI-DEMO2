@@ -55,6 +55,29 @@ export default function PrivilegeSetupChecklist() {
 
   return (
     <div className="pd-setup">
+      <section className="pd-setup__overview" aria-label="SE1 overview">
+        <p>{PRIVILEGE_DEMO.overview}</p>
+        <p className="pd-setup__groups">
+          Groups: {PRIVILEGE_DEMO.groups.join(', ')} (static membership)
+        </p>
+        <a
+          className="pd-setup__guide-link"
+          href={PRIVILEGE_DEMO.se1GuideUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Full SE1 setup guide
+        </a>
+        <div className="pd-setup__tools">
+          <h3>Workstation tools</h3>
+          <ul>
+            {PRIVILEGE_DEMO.workstationTools.map((tool) => (
+              <li key={tool}>{tool}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <div className="pd-setup__progress">
         <span>{doneCount} of {total} steps complete</span>
         <button type="button" className="pd-setup__reset" onClick={handleReset}>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   MdAccountBalance, MdLogin, MdLogout, MdSearch, MdSwapHoriz,
   MdLocalHospital, MdShoppingCart, MdStorefront, MdWork, MdSportsBasketball,
@@ -8,6 +9,10 @@ import { useSessionToken } from "../context/SessionTokenContext";
 import { useRoleSwitch } from "../hooks/useRoleSwitch";
 import { useVertical } from "../vertical/useVertical";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
+import {
+  cameFromUseCases,
+  clearCameFromUseCases,
+} from "../utils/fromUseCasesNav";
 import AgentUiModeToggle from "./AgentUiModeToggle";
 import ThresholdControls from "./ThresholdControls";
 import QuickFlagsPill from "./QuickFlagsPill";
@@ -31,6 +36,24 @@ export default function TopNav({ user, onLogout }) {
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
   const BrandIcon = (identity && BRAND_ICONS[identity.icon]) || MdAccountBalance;
+
+  // After Run/Open from /use-cases, show a clear "← Use Cases" control in the top bar.
+  const [fromUseCases, setFromUseCases] = useState(() => cameFromUseCases());
+  useEffect(() => {
+    if (location.pathname === '/use-cases') {
+      clearCameFromUseCases();
+      setFromUseCases(false);
+      return;
+    }
+    setFromUseCases(cameFromUseCases());
+  }, [location.pathname]);
+
+  /** Navigate back to the use-case catalog and clear the launcher-origin flag. */
+  function handleUseCasesNav() {
+    clearCameFromUseCases();
+    setFromUseCases(false);
+    navigate('/use-cases');
+  }
 
   const isAdmin = user?.role === 'admin';
   const isAdminView =
@@ -138,11 +161,16 @@ export default function TopNav({ user, onLogout }) {
 
         <button
           type="button"
-          className={`topnav-use-cases-btn${location.pathname === '/use-cases' ? ' topnav-use-cases-btn--active' : ''}`}
-          onClick={() => navigate('/use-cases')}
-          title="Browse all use cases"
+          className={[
+            'topnav-use-cases-btn',
+            location.pathname === '/use-cases' ? 'topnav-use-cases-btn--active' : '',
+            fromUseCases ? 'topnav-use-cases-btn--back' : '',
+          ].filter(Boolean).join(' ')}
+          onClick={handleUseCasesNav}
+          title={fromUseCases ? 'Back to use cases' : 'Browse all use cases'}
+          data-testid="topnav-use-cases"
         >
-          Use Cases
+          {fromUseCases ? '← Use Cases' : 'Use Cases'}
         </button>
 
         <span className="topnav-spacer" aria-hidden="true" />

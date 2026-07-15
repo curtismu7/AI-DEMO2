@@ -2,7 +2,7 @@
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
 
-const STATUS_ICON = { pending: "·", active: "⏳", done: "✓", error: "✗", notinpath: "–" };
+const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
 
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
@@ -32,8 +32,11 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
           </>
         )}
         {d.decision && (
-          <div className={`tctr-decision tctr-decision--${d.decision.outcome.toLowerCase()}`}>
-            {d.decision.outcome === "PERMIT" ? "✓" : "✗"} {d.decision.label}
+          <div className={`tctr-decision tctr-decision--${String(d.decision.outcome || "").toLowerCase()}`}>
+            {d.decision.outcome === "PERMIT" ? "✓"
+              : String(d.decision.outcome || "").toUpperCase() === "INDETERMINATE" ? "⚠️"
+              : "✗"}{" "}
+            {d.decision.label}
           </div>
         )}
         {d.scopeDiff && (

@@ -28,10 +28,26 @@ describe('checkService core', () => {
       .toEqual(['always', 'only_b', 'heavy']);
   });
 
-  test('aggregateVerdict precedence', () => {
+  test('aggregateVerdict precedence with severity', () => {
     expect(svc.aggregateVerdict([{ status: 'pass' }, { status: 'skip' }])).toBe('ready');
     expect(svc.aggregateVerdict([{ status: 'pass' }, { status: 'warn' }])).toBe('ready_with_warnings');
-    expect(svc.aggregateVerdict([{ status: 'warn' }, { status: 'fail' }])).toBe('not_ready');
+    expect(svc.aggregateVerdict([{ status: 'warn' }, { status: 'fail', severity: 'blocking' }])).toBe('not_ready');
+    expect(svc.aggregateVerdict([{ status: 'pass', severity: 'gate' }, { status: 'fail', severity: 'advisory' }]))
+      .toBe('ready_with_warnings');
+    expect(svc.aggregateVerdict([{ status: 'fail', severity: 'gate' }])).toBe('not_ready');
+    // Missing severity defaults to blocking
+    expect(svc.aggregateVerdict([{ status: 'fail' }])).toBe('not_ready');
+  });
+
+  test('runChecks forwards nextAction and severity', async () => {
+    const checks = [{
+      id: 'g', name: 'g', category: 'Use cases', severity: 'gate',
+      run: async () => ({ status: 'fail', detail: 'x', nextAction: 'Do Y' }),
+    }];
+    const results = await svc.runChecks(checks, {});
+    expect(results[0]).toMatchObject({
+      status: 'fail', nextAction: 'Do Y', severity: 'gate',
+    });
   });
 
   test('runChecks streams results, times each, and isolates throws', async () => {

@@ -21,7 +21,16 @@ const TIER_MANAGER = process.env.TIER_MANAGER_URL || `http://${HOST}:8097`;
 const SWAP_TIMEOUT_MS = 180000;        // cold load of the 11GB gpt-oss can be slow
 const SWAP_POLL_MS = 1500;             // health-poll cadence while a swap is loading
 const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unloading
-const IDLE_DECAY_MS = parseInt(process.env.LLM_PROXY_IDLE_DECAY_MS || '300000', 10); // 5 min
+// Idle decay: after IDLE_DECAY_MS with no traffic, drop back to the smallest
+// tier. Default 0 = keep-warm (demo latency). Opt back into classic 5-min decay
+// with LLM_PROXY_IDLE_DECAY_MS=300000. Any <= 0 also disables.
+const IDLE_DECAY_MS = parseInt(
+  process.env.LLM_PROXY_IDLE_DECAY_MS !== undefined && process.env.LLM_PROXY_IDLE_DECAY_MS !== ''
+    ? process.env.LLM_PROXY_IDLE_DECAY_MS
+    : '0',
+  10,
+);
+const IDLE_DECAY_DISABLED = !Number.isFinite(IDLE_DECAY_MS) || IDLE_DECAY_MS <= 0;
 const PIN_TIER_PORT = parseInt(process.env.LLM_PROXY_PIN_TIER || '', 10);
 
 // Three tiers (US-origin): small (Phi-4-mini, :8091), big (gpt-oss-20b, :8096),
@@ -237,12 +246,11 @@ async function selectTier(cls) {
 }
 
 // Idle decay: after IDLE_DECAY_MS with no traffic, drop back to the smallest
-// tier so the big model's memory is freed. A pin disables decay: the pin's
-// whole point is keeping that tier warm, and decaying anyway forced the next
-// request after 5 idle minutes to sit through a multi-minute model reload
-// (with the downgrade guard, it would 503 instead — equally wrong).
+// tier so the big model's memory is freed. Disabled when IDLE_DECAY_MS <= 0
+// (demo keep-warm) or when a pin is set — decaying after a pin forced the next
+// request to sit through a multi-minute reload (or 503 with the downgrade guard).
 setInterval(() => {
-  if (PIN_TIER_INDEX >= 0) return;
+  if (IDLE_DECAY_DISABLED || PIN_TIER_INDEX >= 0) return;
   if (Date.now() - lastRequestAt < IDLE_DECAY_MS) return;
   if (swapInFlight) return;
   const biggerLoaded = TIERS.slice(1).some((t) => t.healthy);
@@ -408,7 +416,10 @@ server.listen(PORT, '0.0.0.0', () => {
   const pinNote = PIN_TIER_INDEX >= 0
     ? `, pinned to ${TIERS[PIN_TIER_INDEX].name} (:${TIERS[PIN_TIER_INDEX].port})`
     : '';
-  console.log(`[llm-proxy] Routing: request model pin (per agent) → keyword class; serve with smallest loaded tier that covers, swap up via ${TIER_MANAGER}, decay to ${TIERS[0].name} after ${IDLE_DECAY_MS / 1000}s idle${pinNote}`);
+  const decayNote = IDLE_DECAY_DISABLED
+    ? ', idle decay disabled (keep-warm)'
+    : `, decay to ${TIERS[0].name} after ${IDLE_DECAY_MS / 1000}s idle`;
+  console.log(`[llm-proxy] Routing: request model pin (per agent) → keyword class; serve with smallest loaded tier that covers, swap up via ${TIER_MANAGER}${decayNote}${pinNote}`);
   if (PIN_TIER_INDEX >= 0) {
     swapTo(PIN_TIER_INDEX).catch((err) =>
       console.error(`[llm-proxy] pin warm-up failed: ${err.message}`),

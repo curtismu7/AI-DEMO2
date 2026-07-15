@@ -82,13 +82,6 @@ export default function McpDelegationScenarios({ configured }) {
     }
   }, []);
 
-  const runAll = useCallback(async () => {
-    for (const s of SCENARIOS) {
-      // eslint-disable-next-line no-await-in-loop
-      await runOne(s);
-    }
-  }, [runOne]);
-
   return (
     <div className="mcp-delegation-scenarios">
       <div className="mds-header">
@@ -96,7 +89,6 @@ export default function McpDelegationScenarios({ configured }) {
           <h3 className="mds-title">Live PingOne Authorize — MCP Delegation Authorization policy</h3>
           <p className="mds-sub">Runs the real MCP tool-delegation policy live. Each card starts from a fully-valid request and breaks one control (audience, user, actor chain, group, consent).</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={runAll} disabled={!configured}>Run all live</button>
       </div>
       {!configured ? (
         <div className="mds-notice">PingOne Authorize isn’t configured yet — set a worker app + decision endpoint (or <code>PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID</code>) to run these live.</div>

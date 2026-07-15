@@ -603,25 +603,35 @@ router.get('/packages', (_req, res) => {
 });
 
 
-// MCP Server liveness proxy
+// MCP Server liveness proxy — use configured URL (in-cluster service name), not localhost.
 router.get('/mcp-server', async (_req, res) => {
   try {
     const axios = require('axios');
-    const resp = await axios.get('http://localhost:8080/health', { timeout: 3000 });
-    res.json({ ok: resp.status === 200 });
-  } catch {
-    res.status(503).json({ ok: false, error: 'MCP Server not reachable on :8080' });
+    const configStore = require('../services/configStore');
+    const raw = process.env.MCP_SERVER_URL
+      || configStore.getEffective('mcp_server_url')
+      || 'http://localhost:8080';
+    const base = raw.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:').replace(/\/$/, '');
+    const resp = await axios.get(`${base}/health`, { timeout: 3000, httpsAgent: _devHttpsAgent, validateStatus: () => true });
+    if (resp.status === 200) return res.json({ ok: true, url: `${base}/health` });
+    res.status(503).json({ ok: false, error: `MCP Server health HTTP ${resp.status}`, url: `${base}/health` });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: err.message || 'MCP Server not reachable' });
   }
 });
 
-// MCP Gateway liveness proxy
+// MCP Gateway liveness proxy — resolve via mcpGatewayClient (PingGateway / demo gateway), not localhost:3005.
 router.get('/mcp-gateway', async (_req, res) => {
   try {
     const axios = require('axios');
-    const resp = await axios.get('http://localhost:3005/health', { timeout: 3000 });
-    res.json({ ok: resp.status === 200 });
-  } catch {
-    res.status(503).json({ ok: false, error: 'MCP Gateway not reachable on :3005' });
+    const { getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
+    const url = getMcpGatewayHttpUrl().replace(/\/mcp\/?$/, '');
+    const resp = await axios.get(`${url}/health`, { timeout: 3000, httpsAgent: _devHttpsAgent, validateStatus: () => true });
+    // Any HTTP answer proves the gateway process is up; /health may 404 on some builds.
+    if (resp.status > 0) return res.json({ ok: true, url: `${url}/health`, httpStatus: resp.status });
+    res.status(503).json({ ok: false, error: 'MCP Gateway returned no status', url: `${url}/health` });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: err.message || 'MCP Gateway not reachable' });
   }
 });
 

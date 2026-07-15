@@ -45,12 +45,16 @@ spec:
           value: "true"
         - name: QUERY_BASE_PATH
           value: "/jaeger"
+        # Cap in-memory storage so all-in-one does not OOM under noisy auto-instrumentation
+        # (OOMKilled → BFF /api/health/tracing/* returns jaeger_unreachable / socket hang up).
+        - name: MEMORY_MAX_TRACES
+          value: "3000"
         resources:
           requests:
-            memory: "128Mi"
+            memory: "256Mi"
             cpu: "50m"
           limits:
-            memory: "512Mi"
+            memory: "1Gi"
             cpu: "500m"
         readinessProbe:
           httpGet:

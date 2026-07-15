@@ -378,10 +378,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       // Merge SSE-collected token events with response body events
       const allTokenEvents = [...tokenEventsFromSse, ...responseTokenEvents];
 
-      // Proof-of-enforcement: block outcomes (step-up / HITL / deny) carry
-      // mcpAuthorizeEvaluation on the 4xx body. ingestAuthorize only ran on the
-      // success path below, so UC7/UC8 428 left trace.authorize null and the
-      // Token Chain missing authorize-decision → ProofStrip "Incomplete".
+      // Proof-of-enforcement + TraceRail: block outcomes (step-up / HITL / deny)
+      // carry mcpAuthorizeEvaluation on the 4xx body. Success-path ingest below
+      // never ran, so UC7/UC8 428 left authorize missing / ProofStrip Incomplete.
       if (err.mcpAuthorizeEvaluation) {
         try {
           const ae = err.mcpAuthorizeEvaluation;

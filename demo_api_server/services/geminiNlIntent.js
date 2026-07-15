@@ -14,6 +14,7 @@ const configStore = require('./configStore');
 const verticalDispatch = require('./verticalDispatch');
 const { repairAndParseJson, validateIntent, snippet: contractSnippet, logMendEvent } = require('./llmResponseContract');
 const llmBreaker = require('./llmCircuitBreaker');
+const nlIntentResultCache = require('./nlIntentResultCache');
 
 const { base: SYSTEM_BASE, themes: THEME_OVERRIDES } =
   require(path.join(__dirname, '../../docs/HELIX_AGENT_DIRECTIVES.json'));
@@ -337,6 +338,12 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // Surfaces in /tmp/demo-api.log for post-hoc diagnosis of routing decisions.
   const msgPreview = String(message || '').slice(0, 60).replace(/\s+/g, ' ');
   const startedAt = Date.now();
+  const cacheKey = nlIntentResultCache.key({
+    message,
+    vertical: activeVertical,
+    provider,
+    role: context?.role,
+  });
   /** Resolve the tool/action name from an NL result (banking or vertical). */
   function actionName(result) {
     if (!result || typeof result !== 'object') return null;
@@ -377,6 +384,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${out.source} `
       + `action=${action} ms=${ms} msg="${msgPreview}"`
     );
+    // Cache successful non-heuristic answers so repeat free-text skips the LLM.
+    if (out && out.source !== 'heuristic' && !out.cache_hit) {
+      nlIntentResultCache.set(cacheKey, out);
+    }
     return out;
   }
 
@@ -401,24 +412,49 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     // Fall through with selectedProvider forced to 'helix' below.
   }
 
-  // agent_mode controls heuristicRouting per the five-mode spec.
-  // When mode is helix_google (Helix only), bypass the heuristic fast-return
-  // so the LLM path is always taken — matching heuristicRouting:false in agentModeResolver.
-  // resolveAgentMode / AGENT_MODES already required above for heuristicsOnly.
+  // Fallback vs LLM-only (ff_heuristic_enabled):
+  //   true  → short-circuit known chips (fast / cheap) even when an LLM mode
+  //           like Google Gemini is selected.
+  //   false → always prefer the selected LLM; heuristic still runs as a safety
+  //           net (chip floor) when the LLM produces nothing.
+  // Heuristics agent mode always short-circuits. Mode-table heuristicRouting
+  // alone no longer overrides the toggle for selected LLM providers — that made
+  // "Google Gemini only" labels dishonest (chip floor still returned Heuristic).
   const resolvedAgentMode = resolvedAgentModeEarly;
-  // If the request specifies an explicit LLM provider (not 'heuristic'/'auto'), honour
-  // that provider's heuristicRouting flag even when configStore.agent_mode differs.
-  // This ensures the mode-picker selection on the frontend takes precedence over the
-  // persisted configStore value for the duration of this request.
   const requestModeEntry = (provider && provider !== 'heuristic' && provider !== 'auto')
     ? (AGENT_MODES || []).find(m => m.provider === provider)
     : null;
-  const heuristicRoutingEnabled = requestModeEntry
-    ? requestModeEntry.heuristicRouting
-    : (resolvedAgentMode ? resolvedAgentMode.heuristicRouting : heuristicEnabled);
+  const llmModeSelected = !!(
+    requestModeEntry?.provider
+    || (resolvedAgentMode && resolvedAgentMode.provider)
+  );
+  let heuristicRoutingEnabled;
+  if (heuristicsOnly || provider === 'heuristic') {
+    heuristicRoutingEnabled = true;
+  } else if (llmModeSelected) {
+    heuristicRoutingEnabled = heuristicEnabled;
+  } else {
+    heuristicRoutingEnabled = resolvedAgentMode
+      ? resolvedAgentMode.heuristicRouting
+      : heuristicEnabled;
+  }
 
   if (provider !== 'pingone-admin' && heuristicRoutingEnabled && heuristicResult && heuristicResult.kind !== 'none') {
     return { source: 'heuristic', result: heuristicResult };
+  }
+
+  // Repeat free-text: return a prior LLM structured result before paying again.
+  // Only reached after heuristic miss / LLM-only mode (heuristic path returned above).
+  if (provider !== 'pingone-admin') {
+    const cached = nlIntentResultCache.get(cacheKey);
+    if (cached) {
+      const ms = Date.now() - startedAt;
+      console.log(
+        `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${cached.source} `
+        + `action=${actionName(cached.result) || cached.result?.kind || 'unknown'} ms=${ms} cache=hit msg="${msgPreview}"`,
+      );
+      return { ...cached, cache_hit: true };
+    }
   }
 
   // 2. FALLBACK TO LLM — when heuristic doesn't recognize the input
