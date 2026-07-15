@@ -91,24 +91,6 @@ export default function VerticalFeaturePage() {
         )}
       </section>
 
-      {chipContext?.tokenEvents && chipContext.tokenEvents.length > 0 && (
-        <section className="vfp-card vfp-card--chain">
-          <h2 className="vfp-card-title">Token chain</h2>
-          <div className="vfp-chain-list">
-            {chipContext.tokenEvents.map((event, idx) => (
-              <div key={idx} className="vfp-chain-event">
-                <div className="vfp-chain-step">Step {idx + 1}</div>
-                <div className="vfp-chain-detail">
-                  {event.step && <div className="vfp-chain-label">{event.step}</div>}
-                  {event.detail && <div className="vfp-chain-text">{event.detail}</div>}
-                  {event.aud && <div className="vfp-chain-aud">aud: <code>{event.aud}</code></div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="vfp-card vfp-card--data">
         <h2 className="vfp-card-title">{fp?.sectionTitle || 'Details'}</h2>
         <dl className="vfp-fields">
