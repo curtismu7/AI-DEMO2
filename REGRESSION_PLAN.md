@@ -54,6 +54,7 @@ minimal diff.
 | Agent mode taxonomy SSOT | `demo_api_ui/src/config/agentModes.js` — one client mode→provider table; must equal server `services/agentModeResolver.js` (guarded by `config/__tests__/agentModes.test.js`); don't re-inline in `AIAgent.js`/`AgentModeSelector.jsx` |
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
+| Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
 
 ---
 
@@ -82,6 +83,33 @@ configured host.
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-15 — Code Explorer browser "network error" (nginx SSE buffering)
+
+**Files changed:** `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` (nginx-config),
+`k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`,
+`demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py`
+(retrieve keepalives), `demo_api_ui/src/services/bankingRestartNotificationService.js`,
+`demo_api_ui/src/services/apiTrafficStore.js`, `scripts/check-codegraph-sse-nginx.js`,
+`k8s/smoke.sh` check 7, `package.json` `hygiene:check`.
+
+**What was broken:** frontend nginx buffered `/api/codegraph` until the LLM
+finished (~60–70s). Browsers then reported a network/timeout error. A global
+fetch restart-wrapper also treated AbortError as "server restarting".
+
+**What was fixed:** dedicated `/api/codegraph/` location with `proxy_buffering off`
++ 300s timeouts on all nginx surfaces; ingress annotations; BFF flushes SSE
+headers; agent emits `: keepalive` SSE comments every 10s while waiting on the
+LLM; fetch wrapper no longer invents a 5s abort and ignores streaming API
+aborts; traffic store skips cloning SSE bodies.
+
+**Do not break:** the three nginx surfaces must stay in sync (CI:
+`node scripts/check-codegraph-sse-nginx.js`). Smoke check 7 asserts SSE TTFB
+< 5s with a status frame. Retrieve-then-answer remains the default for
+non-tool-capable LLMs.
+
+**Verify:** `npm run hygiene:check`; `cd langchain_agent && bash scripts/run-pytest.sh tests/test_codegraph_agent.py -q`;
+live: `SE_NAMESPACE=ping-devops-<you> ./k8s/smoke.sh` check 7 PASS.
 
 ### 2026-07-14 — Another user's vertical switch yanked your screen mid-demo
 
