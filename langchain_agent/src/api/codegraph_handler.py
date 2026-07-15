@@ -8,12 +8,11 @@ import os
 import re
 import sys
 import time
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, Response
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from langchain_core.messages import AIMessageChunk, HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 from codegraph.agent import create_codegraph_agent
 from codegraph.db import CODEGRAPH_DB_PATH
@@ -28,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_graph_cache: object = None
-_graph_cache_key: object = None
+_runner_cache: object = None
+_runner_cache_key: object = None
 
 # Only one re-index may run at a time — the button is unauthenticated (the Code
 # Explorer page is public) and the indexer is CPU-heavy, so serialize to avoid
@@ -52,21 +51,22 @@ def _index_available() -> bool:
 
 
 def _agent_cache_key() -> tuple:
-    """Rebuild the ReAct graph when the live healthy tier / provider pin changes."""
+    """Rebuild when provider/mode pin or healthy proxy tier changes."""
     from codegraph.llm_target import resolve_llamacpp_target
     provider = (os.getenv("CODEGRAPH_LLM_PROVIDER") or "auto").strip().lower()
+    mode = (os.getenv("CODEGRAPH_AGENT_MODE") or "auto").strip().lower()
     base, model, _ = resolve_llamacpp_target()
-    return (provider, base, model)
+    return (provider, mode, base, model)
 
 
-def _get_graph():
-    global _graph_cache, _graph_cache_key
+def _get_runner():
+    global _runner_cache, _runner_cache_key
     key = _agent_cache_key()
-    if _graph_cache is None or _graph_cache_key != key:
+    if _runner_cache is None or _runner_cache_key != key:
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        _graph_cache = create_codegraph_agent(api_key=api_key)
-        _graph_cache_key = key
-    return _graph_cache
+        _runner_cache = create_codegraph_agent(api_key=api_key)
+        _runner_cache_key = key
+    return _runner_cache
 
 
 def _build_messages(question: str, history: list[dict]) -> list:
@@ -101,9 +101,9 @@ async def codegraph_query(request: Request) -> Response:
             f"CodeGraph index not available (missing or empty at {CODEGRAPH_DB_PATH}) "
             "— use Refresh index to rebuild it"
         )
-    graph = None
+    runner = None
     try:
-        graph = _get_graph()
+        runner = _get_runner()
     except Exception as exc:
         logger.error("Failed to create CodeGraph agent: %s", exc)
         problems.append(
@@ -115,43 +115,10 @@ async def codegraph_query(request: Request) -> Response:
     messages = _build_messages(question, history)
 
     return StreamingResponse(
-        _stream(graph, messages),
+        runner.astream_sse(messages),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-async def _stream(graph, messages: list) -> AsyncGenerator[str, None]:
-    """Drive the agent graph and yield SSE frames."""
-    # Emit an immediate status frame so the client shows activity within ~1s.
-    # The ReAct agent does tool-call rounds that produce NO text tokens, and a
-    # slow/loaded local LLM can take many seconds before the first token — without
-    # this the UI sits on a bare typing indicator and looks frozen.
-    yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase…'})}\n\n"
-    try:
-        async for msg, _metadata in graph.astream(
-            {"messages": messages}, stream_mode="messages"
-        ):
-            # Tool execution / tool results carry no text — surface a heartbeat
-            # status so a slow ReAct loop keeps signalling progress.
-            if not isinstance(msg, AIMessageChunk):
-                yield f"data: {json.dumps({'type': 'status', 'text': 'Reading the code…'})}\n\n"
-                continue
-
-            content = msg.content if hasattr(msg, "content") else ""
-            if isinstance(content, str) and content:
-                yield f"data: {json.dumps({'type': 'token', 'text': content})}\n\n"
-            elif isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text = block.get("text", "")
-                        if text:
-                            yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
-    except Exception as exc:
-        logger.error("CodeGraph stream error: %s", exc)
-        yield f"data: {json.dumps({'type': 'error', 'text': str(exc)})}\n\n"
-    finally:
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 @router.post("/reindex")
@@ -216,9 +183,9 @@ async def codegraph_reindex() -> Response:
         if m:
             files = int(m.group(1))
 
-        global _graph_cache, _graph_cache_key
-        _graph_cache = None
-        _graph_cache_key = None
+        global _runner_cache, _runner_cache_key
+        _runner_cache = None
+        _runner_cache_key = None
 
         logger.info(
             "CodeGraph reindex OK in %sms (nodes=%s, indexer=%s)",
