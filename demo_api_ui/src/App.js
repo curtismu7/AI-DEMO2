@@ -620,7 +620,9 @@ function AppWithAuth() {
                 <Route
                   path="/pingcli"
                   element={
-                    loading ? null : user ? (
+                    // Keep PingCliPage mounted across auth `loading` flickers so a
+                    // finished terminal run is not wiped mid-view.
+                    loading && !user ? null : user ? (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
