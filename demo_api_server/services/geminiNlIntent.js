@@ -401,21 +401,32 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     // Fall through with selectedProvider forced to 'helix' below.
   }
 
-  // agent_mode controls heuristicRouting per the five-mode spec.
-  // When mode is helix_google (Helix only), bypass the heuristic fast-return
-  // so the LLM path is always taken — matching heuristicRouting:false in agentModeResolver.
-  // resolveAgentMode / AGENT_MODES already required above for heuristicsOnly.
+  // Fallback vs LLM-only (ff_heuristic_enabled):
+  //   true  → short-circuit known chips (fast / cheap) even when an LLM mode
+  //           like Google Gemini is selected.
+  //   false → always prefer the selected LLM; heuristic still runs as a safety
+  //           net (chip floor) when the LLM produces nothing.
+  // Heuristics agent mode always short-circuits. Mode-table heuristicRouting
+  // alone no longer overrides the toggle for selected LLM providers — that made
+  // "Google Gemini only" labels dishonest (chip floor still returned Heuristic).
   const resolvedAgentMode = resolvedAgentModeEarly;
-  // If the request specifies an explicit LLM provider (not 'heuristic'/'auto'), honour
-  // that provider's heuristicRouting flag even when configStore.agent_mode differs.
-  // This ensures the mode-picker selection on the frontend takes precedence over the
-  // persisted configStore value for the duration of this request.
   const requestModeEntry = (provider && provider !== 'heuristic' && provider !== 'auto')
     ? (AGENT_MODES || []).find(m => m.provider === provider)
     : null;
-  const heuristicRoutingEnabled = requestModeEntry
-    ? requestModeEntry.heuristicRouting
-    : (resolvedAgentMode ? resolvedAgentMode.heuristicRouting : heuristicEnabled);
+  const llmModeSelected = !!(
+    requestModeEntry?.provider
+    || (resolvedAgentMode && resolvedAgentMode.provider)
+  );
+  let heuristicRoutingEnabled;
+  if (heuristicsOnly || provider === 'heuristic') {
+    heuristicRoutingEnabled = true;
+  } else if (llmModeSelected) {
+    heuristicRoutingEnabled = heuristicEnabled;
+  } else {
+    heuristicRoutingEnabled = resolvedAgentMode
+      ? resolvedAgentMode.heuristicRouting
+      : heuristicEnabled;
+  }
 
   if (provider !== 'pingone-admin' && heuristicRoutingEnabled && heuristicResult && heuristicResult.kind !== 'none') {
     return { source: 'heuristic', result: heuristicResult };

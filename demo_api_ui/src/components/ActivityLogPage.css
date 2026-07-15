@@ -1,0 +1,19 @@
+/* Full-page host for /monitoring/activity-log — panel itself is DraggableModal. */
+.alp-page-shell {
+  flex: 1;
+  min-height: calc(100vh - 56px);
+  background: #f1f5f9;
+}
+
+/* ActivityLogPanel fills the modal body */
+.dm-body .alp-root {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.dm-popout-layout .alp-root {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}

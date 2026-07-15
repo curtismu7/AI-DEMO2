@@ -80,11 +80,22 @@ export function CodeSearchPage() {
     };
   }, []);
 
-  // Poll the default codebase indexing status. Once ready and we have
-  // codebases, auto-select the default codebase so users see code immediately.
+  // Poll default-index status. When ready, refresh the server codebase list
+  // (pieces appear as separate rows) and auto-select a demo piece if needed.
   useEffect(() => {
     let cancelled = false;
     let pollTimeout;
+
+    const pickDefaultPiece = (status, list) => {
+      const pieceIds = Array.isArray(status.pieceIds) ? status.pieceIds : [];
+      const preferred = ['ai-demo2-ui', 'ai-demo2-server', ...pieceIds];
+      for (const id of preferred) {
+        if (list.some((c) => c.id === id)) return id;
+      }
+      // Legacy monolith id, or first listed codebase.
+      if (list.some((c) => c.id === 'ai-demo2-default')) return 'ai-demo2-default';
+      return list[0]?.id || '';
+    };
 
     const pollStatus = async () => {
       try {
@@ -93,26 +104,36 @@ export function CodeSearchPage() {
         const status = await res.json();
         setDefaultStatus(status);
 
-        // Once indexing is done and default codebase exists, auto-select it.
         if (status.state === 'ready') {
-          const defaultCodebaseId = 'ai-demo2-default';
-          setSelectedCodebaseId((cur) => {
-            // Only auto-select if nothing is selected yet, or current selection
-            // doesn't exist. Don't override user's manual selection.
-            if (!cur || !codebases.some((c) => c.id === cur)) {
-              return defaultCodebaseId;
+          // Pieces finish indexing after the initial listCodebases fetch —
+          // re-load so the left rail shows UI / Server / Gateway / …
+          try {
+            const serverCodebases = await listCodebases();
+            if (!cancelled && Array.isArray(serverCodebases)) {
+              setCodebases((prev) => {
+                const localById = new Map(prev.map((c) => [c.id, c]));
+                return serverCodebases.map((c) => ({
+                  ...localById.get(c.id),
+                  id: c.id,
+                  name: c.name,
+                  chunks: c.chunks,
+                }));
+              });
+              setSelectedCodebaseId((cur) => {
+                if (cur && serverCodebases.some((c) => c.id === cur)) return cur;
+                return pickDefaultPiece(status, serverCodebases);
+              });
             }
-            return cur;
-          });
+          } catch (err) {
+            console.error('Failed to refresh codebases after default index:', err);
+          }
           return; // Stop polling
         }
 
-        // Keep polling while indexing or if not yet attempted.
         if (status.state === 'indexing' || status.state === 'idle') {
           pollTimeout = setTimeout(pollStatus, 2000);
         }
       } catch (err) {
-        // Non-fatal: MCP or server may not be ready yet.
         if (!cancelled) {
           pollTimeout = setTimeout(pollStatus, 5000);
         }
@@ -124,7 +145,7 @@ export function CodeSearchPage() {
       cancelled = true;
       if (pollTimeout) clearTimeout(pollTimeout);
     };
-  }, [codebases]);
+  }, []);
 
   const handleUpload = useCallback(
     async (file, codebaseName) => {
@@ -227,9 +248,22 @@ export function CodeSearchPage() {
 
           {indexError && <div className="panel-error">{indexError}</div>}
 
+          {(defaultStatus.state === 'indexing' || defaultStatus.state === 'idle') && (
+            <div className="default-index-status" role="status">
+              Indexing demo packages
+              {defaultStatus.state === 'indexing' ? '…' : ' (waiting)'}
+              {defaultStatus.filesIndexed
+                ? ` — ${defaultStatus.filesIndexed.toLocaleString()} files so far`
+                : ''}
+            </div>
+          )}
+
           {codebases.length > 0 && (
             <div className="codebases-list">
               <h3>Indexed Codebases</h3>
+              <p className="codebases-hint">
+                Large demos are split into packages — pick one to search or ask.
+              </p>
               <div className="codebase-items">
                 {codebases.map((codebase) => (
                   <div
@@ -250,7 +284,9 @@ export function CodeSearchPage() {
                     <div className="codebase-meta">
                       {codebase.chunks != null
                         ? `${codebase.chunks.toLocaleString()} chunks`
-                        : new Date(codebase.uploadedAt).toLocaleDateString()}
+                        : codebase.uploadedAt
+                          ? new Date(codebase.uploadedAt).toLocaleDateString()
+                          : ''}
                     </div>
                   </div>
                 ))}

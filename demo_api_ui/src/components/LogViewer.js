@@ -1,6 +1,6 @@
 /**
  * LogViewer Component
- * Displays application and Vercel logs in a real-time table with filtering
+ * Learning Log shell — Learn (app-events) / Debug (console, app, exchange tails).
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,7 +9,14 @@ import { toastLogStore } from '../services/toastLogStore';
 import { notifyError } from '../utils/appToast';
 import { createPortal } from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import LearningLogLearnPane from './LearningLogLearnPane';
+import {
+  correlationTint,
+  resolveCorrelationId,
+  severityStyle,
+} from '../utils/learningLogColors';
 import './LogViewer.css';
+import './LearningLogLearnPane.css';
 
 /** Stable React key + dedup across sources (id from server when present). */
 function stableLogKey(log) {
@@ -44,7 +51,8 @@ function mergeLogHistory(prev, incoming, maxRows = 2500) {
   return merged.slice(merged.length - maxRows);
 }
 
-const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' }) => {
+const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', initialMode = 'debug' }) => {
+  const [mode, setMode] = useState(initialMode === 'learn' ? 'learn' : 'debug');
   const [logs, setLogs] = useState([]);
   const [toastLogs, setToastLogs] = useState(() => toastLogStore.getAll() || []);
   const [loading, setLoading] = useState(false);
@@ -52,13 +60,14 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
   const [filter, setFilter] = useState({
     level: '',
     search: '',
-    source: 'all', // all, console, app, vercel
+    source: 'all', // all, console, app, exchange
     category: '', // '' | 'runtime messages' | 'toast messages'
   });
   const [stats, setStats] = useState(null);
   const logContainerRef = useRef(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [selfOpen, setSelfOpen] = useState(false);
+  const [correlationFilter, setCorrelationFilter] = useState(null);
   const replaceLogsOnNextFetchRef = useRef(true);
   const isRuntimeMessageLog = (log) =>
     log?.category === 'runtime messages' ||
@@ -103,7 +112,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
       };
 
       if (filter.source === 'all') {
-        const sources = ['console', 'app', 'vercel', 'exchange'];
+        const sources = ['console', 'app', 'exchange'];
         const results = await Promise.allSettled(
           sources.map(src => axios.get(`/api/logs/${src}`, { params }))
         );
@@ -187,9 +196,30 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
   // Listen for 'banking-log-viewer-open' event to open as floating panel.
   useEffect(() => {
     if (standalone) return;
-    const handler = () => setSelfOpen(true);
+    const handler = (e) => {
+      const nextMode = e?.detail?.mode;
+      if (nextMode === 'learn' || nextMode === 'debug') setMode(nextMode);
+      setSelfOpen(true);
+    };
     window.addEventListener('banking-log-viewer-open', handler);
     return () => window.removeEventListener('banking-log-viewer-open', handler);
+  }, [standalone]);
+
+  // Cmd/Ctrl+Shift+L opens Learning Log in a pop-out window (Learn mode).
+  useEffect(() => {
+    if (standalone) return;
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        window.open(
+          '/logs?mode=learn',
+          'BankingLogs',
+          'width=1400,height=900,scrollbars=yes,resizable=yes',
+        );
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [standalone]);
 
   // Escape key closes floating panel.
@@ -212,14 +242,14 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
   );
 
   useEffect(() => {
-    if (openState) {
+    if (openState && mode === 'debug') {
       fetchLogs({ silent: false });
       fetchStats();
     }
-  }, [openState, fetchLogs, fetchStats]);
+  }, [openState, fetchLogs, fetchStats, mode]);
 
   useEffect(() => {
-    if (!openState || !autoRefresh) return;
+    if (!openState || !autoRefresh || mode !== 'debug') return;
     if (filter.category === 'toast messages') return;
 
     const interval = setInterval(() => {
@@ -228,7 +258,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
     }, 2000); // Refresh every 2 seconds
 
     return () => clearInterval(interval);
-  }, [openState, autoRefresh, fetchLogs, fetchStats, filter.category]);
+  }, [openState, autoRefresh, fetchLogs, fetchStats, filter.category, mode]);
 
   useEffect(() => {
     if (!autoScroll || !logContainerRef.current) return;
@@ -298,15 +328,41 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
   if (!standalone && !openState) return null;
 
   const inner = (
-    <div className={standalone ? 'log-viewer-standalone' : 'log-viewer-float__body'}>
+    <div className={`${standalone ? 'log-viewer-standalone' : 'log-viewer-float__body'}${mode === 'learn' ? ' is-learn-mode' : ''}`}>
         <div className="log-viewer-header" onPointerDown={!standalone ? handleDragStart : undefined}>
-          <h2>📊 Log Viewer</h2>
+          <h2>Learning Log</h2>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="log-viewer-mode-toggle" role="tablist" aria-label="Log mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'learn'}
+                className={mode === 'learn' ? 'active' : ''}
+                onClick={() => setMode('learn')}
+              >
+                Learn
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'debug'}
+                className={mode === 'debug' ? 'active' : ''}
+                onClick={() => setMode('debug')}
+              >
+                Debug
+              </button>
+            </div>
             {!standalone && (
               <button
                 className="close-button"
                 title="Open in new window"
-                onClick={() => window.open('/logs', 'BankingLogs', 'width=1400,height=900,scrollbars=yes,resizable=yes')}
+                onClick={() =>
+                  window.open(
+                    mode === 'learn' ? '/logs?mode=learn' : '/logs',
+                    'BankingLogs',
+                    'width=1400,height=900,scrollbars=yes,resizable=yes',
+                  )
+                }
                 style={{ fontSize: '16px', padding: '4px 10px' }}
               >
                 ⊞
@@ -316,6 +372,12 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
           </div>
         </div>
 
+        {mode === 'learn' ? (
+          <div className="log-viewer-learn-slot">
+            <LearningLogLearnPane enabled={openState} />
+          </div>
+        ) : (
+          <>
         <div className="log-viewer-controls">
           <div className="control-group runtime-chip-group">
             <button
@@ -362,7 +424,6 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
               <option value="all">All Sources</option>
               <option value="console">Console Logs</option>
               <option value="app">Application Logs</option>
-              <option value="vercel">Vercel Logs</option>
               <option value="exchange">Exchange Audit</option>
             </select>
           </div>
@@ -412,6 +473,17 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
               Auto-scroll
             </label>
           </div>
+          {correlationFilter && (
+            <div className="control-group">
+              <button
+                type="button"
+                className="runtime-chip active"
+                onClick={() => setCorrelationFilter(null)}
+              >
+                Correlation: {String(correlationFilter).slice(0, 8)} (clear)
+              </button>
+            </div>
+          )}
 
         </div>
 
@@ -438,10 +510,15 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
             <tbody>
               {(() => {
                 const activeCats = categoryFilter ? categoryFilter.split(',').map(s => s.trim()).filter(Boolean) : [];
-                const displayedLogs = activeCats.length === 0 ? logs : logs.filter(log => {
+                let displayedLogs = activeCats.length === 0 ? logs : logs.filter(log => {
                   const msg = typeof log.message === 'string' ? log.message : JSON.stringify(log.message || '');
                   return activeCats.some(cat => msg.startsWith(`[${cat}]`));
                 });
+                if (correlationFilter) {
+                  displayedLogs = displayedLogs.filter(
+                    (log) => resolveCorrelationId(log) === correlationFilter,
+                  );
+                }
                 return loading && displayedLogs.length === 0 && filter.category !== 'toast messages' ? (
                 <tr>
                   <td colSpan="5" className="loading-cell">Loading logs...</td>
@@ -451,15 +528,26 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
                   <td colSpan="5" className="empty-cell">No logs found</td>
                 </tr>
               ) : (
-                displayedLogs.map((log) => (
-                  <tr key={stableLogKey(log)} className={`log-row log-${log.level}`}>
+                displayedLogs.map((log) => {
+                  const corr = resolveCorrelationId(log);
+                  const sev = severityStyle(log.level);
+                  const tint = correlationTint(corr);
+                  return (
+                  <tr
+                    key={stableLogKey(log)}
+                    className={`log-row log-${log.level}`}
+                    style={{
+                      borderLeft: `4px solid ${sev.stripe}`,
+                      background: tint || undefined,
+                    }}
+                  >
                     <td className="log-time">{formatTimestamp(log.timestamp)}</td>
                     <td className="log-level">
                       <span 
                         className="level-badge" 
                         style={{ backgroundColor: getLevelColor(log.level) }}
                       >
-                        {log.level?.toUpperCase() || 'INFO'}
+                        {sev.glyph ? `${sev.glyph} ` : ''}{log.level?.toUpperCase() || 'INFO'}
                       </span>
                     </td>
                     <td className="log-source" style={{ fontSize: '0.7rem', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{log._src || '—'}</td>
@@ -472,10 +560,18 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
                       {typeof log.message === 'object' 
                         ? JSON.stringify(log.message, null, 2)
                         : log.message}
-                      {log.correlationId && (
-                        <span className="correlation-id">
-                          🔗 {log.correlationId}
-                        </span>
+                      {corr && (
+                        <button
+                          type="button"
+                          className="correlation-id"
+                          style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
+                          onClick={() =>
+                            setCorrelationFilter((prev) => (prev === corr ? null : corr))
+                          }
+                          title="Filter by correlation id"
+                        >
+                          {corr.slice(0, 10)}
+                        </button>
                       )}
                     </td>
                     <td className="log-details-cell">
@@ -486,7 +582,8 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               );
               })()}
             </tbody>
@@ -497,6 +594,8 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
           <span>{logs.length} logs displayed</span>
           {autoRefresh && <span className="refresh-indicator">● Live</span>}
         </div>
+          </>
+        )}
       </div>
   );
 
@@ -508,7 +607,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '' })
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
       role="dialog"
       aria-modal="false"
-      aria-label="Log Viewer"
+      aria-label="Learning Log"
     >
       {inner}
       

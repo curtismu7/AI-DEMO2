@@ -113,6 +113,39 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
     expect(res.body.status).toBe('not_run');
     expect(callTool).not.toHaveBeenCalledWith(expect.stringMatching(/delete|create|update/i), expect.anything());
   });
+
+  it('scores CIAM-GS-002 as not_configured when invited.admin@example.com is absent (demo gap, not a fail)', async () => {
+    const { listTools, callTool } = adapter();
+    listTools.mockResolvedValue([
+      { name: 'listUsers', inputSchema: { properties: { environmentId: {} } } },
+    ]);
+    callTool.mockResolvedValue({
+      content: [{ type: 'text', text: JSON.stringify({ _embedded: { users: [{ email: 'demoUser@example.com' }] } }) }],
+    });
+    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-002' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('not_configured');
+    const invited = res.body.detail.checks.find((c) => c.checkId === 'invited-admin-user-exists');
+    expect(invited.status).toBe('not_configured');
+    expect(invited.reason).toMatch(/invited\.admin@example\.com/);
+  });
+
+  it('scores CIAM-DP-001 as not_configured when DEV/QA named envs are absent', async () => {
+    const { listTools, callTool } = adapter();
+    listTools.mockResolvedValue([
+      { name: 'listEnvironments', inputSchema: { properties: { limit: {} } } },
+    ]);
+    callTool.mockResolvedValue({
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ _embedded: { environments: [{ name: 'AI-DEMO', type: 'SANDBOX' }] } }),
+      }],
+    });
+    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-DP-001' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('not_configured');
+    expect(res.body.detail.checks.filter((c) => c.status === 'not_configured').length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe('eval data integrity', () => {

@@ -139,9 +139,17 @@ data:
   # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.
   LLAMACPP_BASE_URL: "http://llm-proxy:8090"
   LLAMACPP_MODEL: "phi-4-mini-instruct"
-  CODEGRAPH_LLM_PROVIDER: "llamacpp"
-  CODEGRAPH_LLAMACPP_BASE_URL: "http://llama-tier1:8091"
-  CODEGRAPH_MODEL: "phi-4-mini-instruct"
+  # Code Explorer: always talk to llm-proxy (never a raw llama-tierN URL). The
+  # agent probes GET /health and pins model= to a currently healthy tier name
+  # (prefers gpt-oss-20b, then groq-tool-use, then phi). CODEGRAPH_LLM_PROVIDER
+  # may be "auto"/"llamacpp"/"anthropic"/"helix"/…. CODEGRAPH_AGENT_MODE=
+  # auto|react|retrieve — auto uses ReAct only for native tool-calling providers
+  # (Anthropic/Groq/Google); Helix/llama.cpp/LM Studio use retrieve-then-answer
+  # so every configured LLM can answer.
+  CODEGRAPH_LLM_PROVIDER: "auto"
+  CODEGRAPH_AGENT_MODE: "auto"
+  CODEGRAPH_LLAMACPP_BASE_URL: "http://llm-proxy:8090"
+  CODEGRAPH_MODEL: "gpt-oss-20b"
   # Apple mlx-lm demo agent mode — host mlx_lm.server on :8098 (Mac/OrbStack only).
   # BFF + agent-service reach the Mac host via host.docker.internal. On remote
   # clusters this URL is unreachable; the MLX agent mode stays greyed out.
@@ -209,6 +217,26 @@ data:
             proxy_ssl_verify              on;
             proxy_ssl_name                api.ping.demo;
             proxy_ssl_server_name         on;
+        }
+
+        # Code Explorer SSE — must stream immediately (no proxy buffering).
+        location /api/codegraph/ {
+            proxy_pass https://demo-api-server:3001/api/codegraph/;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/rootCA.pem;
+            proxy_ssl_verify              on;
+            proxy_ssl_name                api.ping.demo;
+            proxy_ssl_server_name         on;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 300s;
+            proxy_send_timeout 300s;
+            chunked_transfer_encoding on;
+            gzip off;
         }
 
         location /api/ {

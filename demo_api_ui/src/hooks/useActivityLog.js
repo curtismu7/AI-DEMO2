@@ -2,6 +2,7 @@
 /**
  * Manages live app-event state for the Activity Log tab.
  *
+ * - Seeds from GET /api/app-events so the panel is not empty on open.
  * - Wraps useAppEventsSSE (handles EventSource lifecycle).
  * - Maintains a 200-event ring buffer (newest first).
  * - Per-category filter: 15 known categories, all active by default.
@@ -12,11 +13,30 @@
  * @param {{ enabled: boolean }} opts
  *   enabled — connect SSE when the modal is open (true keeps stream alive across tab switches).
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppEventsSSE } from './useAppEventsSSE';
+
+const MAX_EVENTS = 200;
 
 function resolveUseCaseId(event) {
   return event.useCaseId ?? event.metadata?.useCaseId ?? null;
+}
+
+/**
+ * Merge incoming events into a newest-first ring buffer, deduping by id.
+ * @param {object[]} prev
+ * @param {object[]} incoming
+ * @returns {object[]}
+ */
+function mergeEventsNewestFirst(prev, incoming) {
+  const byId = new Map();
+  for (const event of [...incoming, ...prev]) {
+    const key = event?.id || `${event?.timestamp}-${event?.category}-${event?.message}`;
+    if (!byId.has(key)) byId.set(key, event);
+  }
+  return Array.from(byId.values())
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+    .slice(0, MAX_EVENTS);
 }
 
 export const ALL_CATEGORIES = [
@@ -37,8 +57,6 @@ export const ALL_CATEGORIES = [
   'auth_lifecycle',
 ];
 
-const MAX_EVENTS = 200;
-
 export function useActivityLog({ enabled = false } = {}) {
   const [events, setEvents] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -57,11 +75,31 @@ export function useActivityLog({ enabled = false } = {}) {
       setNewCount((n) => n + 1);
       return;
     }
-    setEvents((prev) => {
-      const next = [event, ...prev];
-      return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
-    });
+    setEvents((prev) => mergeEventsNewestFirst(prev, [event]));
   }, []);
+
+  // Seed from the public backlog so the panel is not empty while waiting for SSE.
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/app-events?limit=${MAX_EVENTS}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        const backlog = Array.isArray(body?.events) ? body.events : [];
+        if (!cancelled && backlog.length > 0) {
+          setEvents((prev) => mergeEventsNewestFirst(prev, backlog));
+        }
+      } catch (_) {
+        // Backfill is best-effort; SSE still delivers live events.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
 
   useAppEventsSSE(handleEvent, { enabled });
 

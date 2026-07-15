@@ -56,7 +56,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
-import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER } from "../config/agentModes";
+import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import JsonField from "./shared/JsonField";
@@ -3846,7 +3846,7 @@ export default function BankingAgent({
           // Show waiting message
           addMessage(
             "assistant",
-            " Waiting for MFA verification… Enter the code from your email in the modal above.",
+            " Waiting for MFA verification… Choose Email code, SMS, or Passkey in the modal above.",
             `mfa-step-${Date.now()}`,
           );
           toast.dismiss(toastId);
@@ -5795,7 +5795,7 @@ export default function BankingAgent({
             level: "error",
             limit: String(logQuery.limit),
           });
-          const sources = ["console", "app", "vercel"];
+          const sources = ["console", "app", "exchange"];
           const results = await Promise.allSettled(
             sources.map((src) =>
               fetch(`/api/logs/${src}?${params.toString()}`, {
@@ -6524,7 +6524,11 @@ export default function BankingAgent({
                 )}
               <div className="ba-header-tools">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
-                <AgentModeSelector compact />
+                <AgentModeSelector
+                  compact
+                  heuristicFallback={heuristicEnabled}
+                  onHeuristicFallbackChange={setHeuristicEnabled}
+                />
                 {/* RFC info toggle — standard switch control, always visible in header */}
                 <Check
                   variant="switch"
@@ -8337,6 +8341,7 @@ export default function BankingAgent({
                 userIdentity={{
                   name: effectiveUser?.fullName || effectiveUser?.username,
                   email: effectiveUser?.email,
+                  phone: effectiveUser?.phone || effectiveUser?.mobilePhone || effectiveUser?.primaryPhone || null,
                 }}
                 onPasskeyRegistered={handlePasskeyRegistered}
                 deliveryError={otpDeliveryError}
@@ -8471,7 +8476,7 @@ export default function BankingAgent({
                                 level: "error",
                                 limit: String(_chipLogQuery.limit),
                               });
-                              const _sources = ["console", "app", "vercel"];
+                              const _sources = ["console", "app", "exchange"];
                               const _results = await Promise.allSettled(
                                 _sources.map((src) =>
                                   fetch(
@@ -8950,15 +8955,9 @@ export default function BankingAgent({
                           )}
                           {msg.source && msg.role === "assistant" && (
                             <div
-                              className={`banking-agent-msg-label banking-agent-msg-label--${msg.source}`}
+                              className={`banking-agent-msg-label banking-agent-msg-label--${String(msg.source).replace(/[^a-z0-9_-]/gi, "")}`}
                             >
-                              {msg.source === "heuristic"
-                                ? "Heuristic"
-                                : msg.source === "helix"
-                                  ? "Helix LLM"
-                                  : msg.source === "direct-mcp"
-                                    ? "Direct MCP"
-                                    : msg.source}
+                              {sourceLabel(msg.source)}
                             </div>
                           )}
                           <div

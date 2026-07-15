@@ -1,5 +1,13 @@
+// demo_api_ui/src/pages/TracingPage.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./TracingPage.css";
+import {
+  isTransientFailure,
+  pickBestService,
+  rankCandidateServices,
+  readStoredService,
+  writeStoredService,
+} from "./tracingServiceSelect";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -9,6 +17,47 @@ const LOOKBACK_OPTIONS = [
   { value: "24h", label: "Last 24 hours" },
 ];
 
+const TOKEN_CHAIN_HREF = "/monitoring/token-chain";
+
+/**
+ * Fetches a short trace list for auto-select probing.
+ * @param {string} serviceName
+ * @param {string} lookback
+ */
+async function fetchTraceProbe(serviceName, lookback) {
+  const params = new URLSearchParams({ service: serviceName, limit: "5", lookback });
+  const res = await fetch(`/api/health/tracing/traces?${params}`, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return { service: serviceName, traces: data.traces || [] };
+}
+
+/**
+ * Chooses initial service: stored preference, else newest-trace probe, else first in list.
+ * @param {string[]} services
+ * @param {string} lookback
+ * @returns {Promise<{ service: string, source: "stored" | "auto" }>}
+ */
+async function resolveInitialService(services, lookback) {
+  const stored = readStoredService();
+  if (stored && services.includes(stored)) {
+    return { service: stored, source: "stored" };
+  }
+  const candidates = rankCandidateServices(services);
+  if (!candidates.length) {
+    return { service: "demo-api-server", source: "auto" };
+  }
+  const results = await Promise.all(
+    candidates.map((name) =>
+      fetchTraceProbe(name, lookback).catch(() => ({ service: name, traces: [] })),
+    ),
+  );
+  return { service: pickBestService(results, services), source: "auto" };
+}
+
 /**
  * Distributed tracing page — lists recent OpenTelemetry spans exported to Jaeger.
  * Data is proxied via GET /api/health/tracing/*; full flame graphs open in Jaeger UI.
@@ -16,17 +65,23 @@ const LOOKBACK_OPTIONS = [
 export default function TracingPage() {
   const [status, setStatus] = useState(null);
   const [services, setServices] = useState([]);
-  const [service, setService] = useState("demo-api-server");
+  const [service, setService] = useState("");
+  const [selectionSource, setSelectionSource] = useState("auto");
   const [lookback, setLookback] = useState("1h");
   const [traces, setTraces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errorKind, setErrorKind] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
   const latestTraceReq = useRef(null);
+  const serviceReady = useRef(false);
+  const bootGen = useRef(0);
+  const lookbackRef = useRef(lookback);
+  lookbackRef.current = lookback;
 
   const toggleTrace = useCallback(async (traceId) => {
     if (expandedId === traceId) {
@@ -55,27 +110,12 @@ export default function TracingPage() {
     }
   }, [expandedId]);
 
-  const loadStatus = useCallback(async () => {
-    const res = await fetch("/api/health/tracing/status", { credentials: "include" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    setStatus(data);
-    return data;
-  }, []);
-
-  const loadServices = useCallback(async () => {
-    const res = await fetch("/api/health/tracing/services", { credentials: "include" });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || `HTTP ${res.status}`);
-    }
-    const data = await res.json();
-    setServices(data.services || []);
-    return data;
-  }, []);
-
-  const loadTraces = useCallback(async () => {
-    const params = new URLSearchParams({ service, limit: "25", lookback });
+  const loadTracesFor = useCallback(async (serviceName, lookbackValue) => {
+    const params = new URLSearchParams({
+      service: serviceName,
+      limit: "25",
+      lookback: lookbackValue,
+    });
     const res = await fetch(`/api/health/tracing/traces?${params}`, { credentials: "include" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -85,38 +125,116 @@ export default function TracingPage() {
     setTraces(data.traces || []);
     setLastUpdated(data.timestamp || new Date().toISOString());
     setError(null);
+    setErrorKind(null);
     return data;
-  }, [service, lookback]);
+  }, []);
 
-  const refresh = useCallback(async () => {
+  const applyFailure = useCallback((e) => {
+    const msg = e?.message || "Failed to load traces";
+    if (isTransientFailure(e)) {
+      setError("Backend briefly unavailable — retry");
+      setErrorKind("transient");
+    } else {
+      setError(msg);
+      setErrorKind("other");
+    }
+  }, []);
+
+  const bootstrap = useCallback(async () => {
+    const gen = ++bootGen.current;
+    setLoading(true);
+    setError(null);
+    setErrorKind(null);
+    try {
+      const statusRes = await fetch("/api/health/tracing/status", { credentials: "include" });
+      if (!statusRes.ok) throw new Error(`HTTP ${statusRes.status}`);
+      const statusData = await statusRes.json();
+      if (gen !== bootGen.current) return;
+      setStatus(statusData);
+
+      const servicesRes = await fetch("/api/health/tracing/services", { credentials: "include" });
+      if (!servicesRes.ok) {
+        const body = await servicesRes.json().catch(() => ({}));
+        throw new Error(body.message || `HTTP ${servicesRes.status}`);
+      }
+      const servicesData = await servicesRes.json();
+      const list = servicesData.services || [];
+      if (gen !== bootGen.current) return;
+      setServices(list);
+
+      const lb = lookbackRef.current;
+      const resolved = await resolveInitialService(list, lb);
+      if (gen !== bootGen.current) return;
+      setService(resolved.service);
+      setSelectionSource(resolved.source === "stored" ? "stored" : "auto");
+      serviceReady.current = true;
+      await loadTracesFor(resolved.service, lb);
+    } catch (e) {
+      if (gen !== bootGen.current) return;
+      applyFailure(e);
+      setTraces([]);
+    } finally {
+      if (gen === bootGen.current) setLoading(false);
+    }
+  }, [loadTracesFor, applyFailure]);
+
+  useEffect(() => {
+    serviceReady.current = false;
+    bootstrap();
+    // Mount-only bootstrap; lookback/service changes use dedicated handlers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!serviceReady.current || !service) return undefined;
+    const timer = setInterval(() => {
+      if (!document.hidden) {
+        loadTracesFor(service, lookback).catch(() => {});
+      }
+    }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [service, lookback, loadTracesFor]);
+
+  const handleServiceChange = async (next) => {
+    writeStoredService(next);
+    setSelectionSource("manual");
+    setService(next);
+    setExpandedId(null);
     setLoading(true);
     try {
-      await loadStatus();
-      await loadServices();
-      await loadTraces();
+      await loadTracesFor(next, lookback);
     } catch (e) {
-      setError(e.message || "Failed to load traces");
+      applyFailure(e);
       setTraces([]);
     } finally {
       setLoading(false);
     }
-  }, [loadStatus, loadServices, loadTraces]);
+  };
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const handleLookbackChange = async (next) => {
+    setLookback(next);
+    if (!serviceReady.current || !service) return;
+    setLoading(true);
+    try {
+      await loadTracesFor(service, next);
+    } catch (e) {
+      applyFailure(e);
+      setTraces([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (!document.hidden) {
-        loadTraces().catch(() => {});
-      }
-    }, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [loadTraces]);
+  const handleRetry = () => {
+    bootstrap();
+  };
 
   const jaegerUiUrl = status?.jaegerUiUrl || "http://localhost:16686";
   const traceUrl = (traceId) => `${jaegerUiUrl}/trace/${traceId}`;
+  const showFullEmpty =
+    !loading && !error && traces.length === 0 && (selectionSource === "manual" || selectionSource === "stored");
+  const showLightEmpty =
+    !loading && !error && traces.length === 0 && selectionSource === "auto";
 
   return (
     <div className="tracing-page">
@@ -124,7 +242,7 @@ export default function TracingPage() {
         <div>
           <h1>Tracing</h1>
           <p className="tracing-subtitle">
-            See how a single request travels across the demo's services. Generate traffic —
+            See how a single request travels across the demo&apos;s services. Generate traffic —
             sign in, use the AI agent, make a transfer — then inspect the call path and latency below.
           </p>
         </div>
@@ -142,14 +260,20 @@ export default function TracingPage() {
           >
             Open Jaeger UI
           </a>
-          <button type="button" className="tracing-btn" onClick={refresh} disabled={loading}>
+          <button type="button" className="tracing-btn" onClick={handleRetry} disabled={loading}>
             Refresh
           </button>
         </div>
       </header>
 
-      <section className="tracing-explainer">
-        <h2>What am I looking at?</h2>
+      <p className="tracing-bridge">
+        Traces show where time is spent across services;{" "}
+        <a href={TOKEN_CHAIN_HREF}>Token Chain</a> shows the OAuth and MCP token hops for the same
+        kinds of demo actions.
+      </p>
+
+      <details className="tracing-explainer">
+        <summary>What am I looking at?</summary>
         <p>
           Every action in this demo — signing in, an AI agent tool call, a money transfer —
           travels through several cooperating services: the app backend (BFF), the AI agent,
@@ -174,15 +298,10 @@ export default function TracingPage() {
           </div>
           <div>
             <dt>Duration</dt>
-            <dd>How long the whole trace took. Click a row to see each span's timing as a waterfall.</dd>
+            <dd>How long the whole trace took. Click a row to see each span&apos;s timing as a waterfall.</dd>
           </div>
         </dl>
-        <p className="tracing-columns-note">
-          <strong>The table:</strong> Operation (the request's entry point) · Spans (how many steps) ·
-          Duration (total time) · Start (when it began). Click any row to expand its span waterfall,
-          or <strong>View in Jaeger</strong> for the full interactive timeline.
-        </p>
-      </section>
+      </details>
 
       <div className="tracing-status-row">
         <span className={`tracing-pill ${status?.ok ? "tracing-pill--ok" : "tracing-pill--down"}`}>
@@ -195,8 +314,13 @@ export default function TracingPage() {
 
       {error && (
         <div className="tracing-error" role="alert">
-          {error}
-          {!status?.ok && (
+          <p>{error}</p>
+          {errorKind === "transient" && (
+            <button type="button" className="tracing-btn" onClick={handleRetry}>
+              Retry
+            </button>
+          )}
+          {errorKind !== "transient" && !status?.ok && (
             <p className="tracing-error-hint">
               Start Jaeger with <code>docker compose up -d jaeger</code> or run <code>./run.sh</code> (native mode auto-starts it).
             </p>
@@ -209,21 +333,26 @@ export default function TracingPage() {
           <span>Service</span>
           <select
             value={service}
-            onChange={(e) => setService(e.target.value)}
+            onChange={(e) => handleServiceChange(e.target.value)}
             disabled={!services.length}
+            aria-label="Service"
           >
             {services.length ? (
               services.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))
             ) : (
-              <option value={service}>{service}</option>
+              <option value={service || ""}>{service || "Loading…"}</option>
             )}
           </select>
         </label>
         <label className="tracing-filter">
           <span>Window</span>
-          <select value={lookback} onChange={(e) => setLookback(e.target.value)}>
+          <select
+            value={lookback}
+            onChange={(e) => handleLookbackChange(e.target.value)}
+            aria-label="Window"
+          >
             {LOOKBACK_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
@@ -235,11 +364,11 @@ export default function TracingPage() {
         <table className="tracing-table">
           <thead>
             <tr>
-              <th>Operation</th>
-              <th>Trace ID</th>
-              <th>Spans</th>
-              <th>Duration</th>
-              <th>Start</th>
+              <th title="Entry-span name for this request">Operation</th>
+              <th title="Unique id for this end-to-end request">Trace ID</th>
+              <th title="How many steps (spans) across services">Spans</th>
+              <th title="End-to-end time for the whole trace">Duration</th>
+              <th title="When the request started">Start</th>
               <th />
             </tr>
           </thead>
@@ -248,12 +377,34 @@ export default function TracingPage() {
               <tr>
                 <td colSpan={6} className="tracing-empty">Loading traces…</td>
               </tr>
-            ) : traces.length === 0 ? (
+            ) : showFullEmpty ? (
+              <tr>
+                <td colSpan={6} className="tracing-empty tracing-empty--explain">
+                  <p>
+                    No traces for <strong>{service}</strong> in this window.
+                  </p>
+                  <ul>
+                    <li>Try another service — traffic often lands on mcp-gateway or agent-service first.</li>
+                    <li>Widen the window above if the action was more than an hour ago.</li>
+                    <li>Generate traffic: sign in, use the AI agent, or make a transfer, then refresh.</li>
+                  </ul>
+                  <p>
+                    For the OAuth / MCP token story of those same actions, open{" "}
+                    <a href={TOKEN_CHAIN_HREF}>Token Chain</a>.
+                  </p>
+                </td>
+              </tr>
+            ) : showLightEmpty ? (
               <tr>
                 <td colSpan={6} className="tracing-empty">
-                  No traces yet for <strong>{service}</strong> in this window.
-                  Use the app, then refresh.
+                  No traces in this window yet. Sign in, use the AI agent, or make a transfer, then refresh.
+                  {" "}
+                  <a href={TOKEN_CHAIN_HREF}>Token Chain</a> shows the token hops while you generate traffic.
                 </td>
+              </tr>
+            ) : traces.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="tracing-empty">No traces to show.</td>
               </tr>
             ) : (
               traces.map((t) => (
@@ -294,20 +445,13 @@ export default function TracingPage() {
           </tbody>
         </table>
       </div>
-
-      <section className="tracing-help">
-        <h2>How to use this page</h2>
-        <ol>
-          <li>Confirm the status pill shows <strong>Jaeger connected</strong>.</li>
-          <li>Pick <strong>demo-api-server</strong> (or another service) from the dropdown.</li>
-          <li>Perform actions in the demo — API calls and MCP tool paths appear as traces.</li>
-          <li>Click <strong>View in Jaeger</strong> for the full span timeline and flame graph.</li>
-        </ol>
-      </section>
     </div>
   );
 }
 
+/**
+ * Renders the span waterfall for one expanded trace.
+ */
 function TraceDetail({ loading, error, detail }) {
   if (loading) return <div className="tracing-detail tracing-detail--msg">Loading spans…</div>;
   if (error) return <div className="tracing-detail tracing-detail--msg tracing-detail--error">{error}</div>;
@@ -317,6 +461,10 @@ function TraceDetail({ loading, error, detail }) {
   const total = detail.durationMs || 1;
   return (
     <div className="tracing-detail">
+      <p className="tracing-detail-legend">
+        Each row is a span: <strong>service</strong> · <strong>operation</strong>. The bar shows
+        relative time within this trace.
+      </p>
       {detail.spans.map((s) => {
         const left = Math.min(100, (s.relativeStartMs / total) * 100);
         const width = Math.max(0.5, (s.durationMs / total) * 100);

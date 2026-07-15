@@ -39,7 +39,7 @@ describe('resolveAgentMode (five single-brain modes)', () => {
     // Gemini leads the LLM modes (picker order mirrors the UI table in
     // demo_api_ui/src/config/agentModes.js — fastest live-demo provider).
     expect(AGENT_MODES.map((m) => m.id)).toEqual([
-      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google',
+      'heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google', 'groq',
     ]);
   });
 

@@ -17,7 +17,7 @@ export default function DashboardQuickNav({ user }) {
 
   useEffect(() => {
     if (!user || !isDashboardQuickNavRoute(pathname, user)) return;
-    // Home + Dashboard + Agent + [Banking admin] + [Config admin] + Settings + Activity Log + API + Logs
+    // Home + Dashboard + Agent + [Banking admin] + [Config admin] + Settings + Learning Log + API + Logs
     const count = 6 + (isAdmin ? 2 : 0);
     const height = count * 44; // gap: 0, no inter-button spacing
     // Must target .App directly — CSS declares --quick-nav-stack-height on .App.App--has-quick-nav,
@@ -38,7 +38,7 @@ export default function DashboardQuickNav({ user }) {
   };
 
   const openLogPopout = () => {
-    window.open('/logs', 'BankingLogs', POPOUT);
+    window.open('/logs?mode=learn', 'BankingLogs', POPOUT);
   };
 
   const homeActive = pathname === '/' || pathname === '';
@@ -108,18 +108,19 @@ export default function DashboardQuickNav({ user }) {
         </Link>
       )}
       {!isAdmin && (
-        <Link
-          to="/monitoring/activity-log"
-          className={`dashboard-quick-nav__btn${pathname.startsWith('/monitoring/activity-log') ? ' dashboard-quick-nav__btn--active' : ''}`}
-          title="Live event stream — OAuth, MCP, token, and delegation events"
+        <button
+          type="button"
+          className="dashboard-quick-nav__btn"
+          onClick={openLogPopout}
+          title="Learning Log — open Learn mode in a new window"
         >
-          Activity Log
-        </Link>
+          Learning Log
+        </button>
       )}
       <button type="button" className="dashboard-quick-nav__btn" onClick={openApiPopout} title="Open API traffic in a new window">
         API
       </button>
-      <button type="button" className="dashboard-quick-nav__btn" onClick={openLogPopout} title="Open log viewer in a new window">
+      <button type="button" className="dashboard-quick-nav__btn" onClick={openLogPopout} title="Open Learning Log in a new window">
         Logs
       </button>
     </nav>

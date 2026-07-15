@@ -21,9 +21,9 @@ describe('Log Viewer API', () => {
     app.use('/api/logs', logsRouter);
     jest.clearAllMocks();
     
-    // Mock exec to prevent actual CLI calls
+    // Mock exec if any remaining CLI helpers use it
     exec.mockImplementation((cmd, options, callback) => {
-      callback(new Error('Vercel CLI not available'), '', '');
+      callback(new Error('CLI not available'), '', '');
     });
     
     // Mock fs methods
@@ -89,25 +89,6 @@ describe('Log Viewer API', () => {
     it('should handle missing log files gracefully', async () => {
       const response = await request(app)
         .get('/api/logs/app')
-        .expect(200);
-
-      expect(response.body.logs).toBeDefined();
-    });
-  });
-
-  describe('GET /api/logs/vercel', () => {
-    it('should return vercel logs or fallback', async () => {
-      const response = await request(app)
-        .get('/api/logs/vercel')
-        .expect(200);
-
-      expect(response.body).toHaveProperty('logs');
-      expect(response.body).toHaveProperty('source');
-    });
-
-    it('should handle vercel CLI not available', async () => {
-      const response = await request(app)
-        .get('/api/logs/vercel')
         .expect(200);
 
       expect(response.body.logs).toBeDefined();
@@ -190,12 +171,10 @@ describe('Log Viewer API', () => {
       expect(response.body).toBeDefined();
     });
 
-    it('should handle errors gracefully in vercel logs', async () => {
-      const response = await request(app)
+    it('should return 404 for removed vercel log source', async () => {
+      await request(app)
         .get('/api/logs/vercel')
-        .expect(200);
-
-      expect(response.body).toBeDefined();
+        .expect(404);
     });
   });
 
