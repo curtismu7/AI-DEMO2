@@ -525,13 +525,15 @@ export default function BankingAgent({
     } catch (e) {
       console.warn("Failed to load ba_chip_groups_state from localStorage:", e);
     }
-    // Default state per D-06: Account expanded, Transaction and Admin collapsed
+    // Default: Account expanded; Testing / Attacks / Advanced stay collapsed
     return {
       account: true,
       transaction: false,
       admin: false,
       ai: false,
       testing: false,
+      attacks: false,
+      advanced: false,
     };
   });
 
@@ -551,12 +553,14 @@ export default function BankingAgent({
    *  Prevents stale expanded groups persisting in the DOM after switching layouts.
    */
   useEffect(() => {
-    setChipGroupsState((prev) => ({
+    setChipGroupsState(() => ({
       account: true,
       transaction: false,
       admin: false,
       ai: false,
       testing: false,
+      attacks: false,
+      advanced: false,
     }));
   }, [useActionsPopout, isBottomDock]);
 
@@ -697,12 +701,17 @@ export default function BankingAgent({
       }))
       .filter((g) => g.chips.length > 0);
 
-    const isBankingVertical = !effectiveVerticalId || effectiveVerticalId === "banking";
     return [
       {
         key: "testing",
-        label: isBankingVertical ? "Testing" : "AI attacks",
+        label: "Testing",
         chips: ACTION_GROUPS.testing,
+        isEducation: false,
+      },
+      {
+        key: "attacks",
+        label: "Attacks",
+        chips: ACTION_GROUPS.attacks || [],
         isEducation: false,
       },
       ...customEntries,

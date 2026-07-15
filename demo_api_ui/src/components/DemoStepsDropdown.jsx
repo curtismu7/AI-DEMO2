@@ -1,9 +1,14 @@
 /**
  * DemoStepsDropdown — presenter script picker next to the agent Actions menu.
- * Lists the same Demo use cases as /use-cases (DEMO_USE_CASE_IDS order).
+ * Primary trust-ladder steps are always listed; advanced demos sit in a
+ * collapsed "More demos" group (CIBA, A2A, attack deep-dives).
+ * Testing + Attacks are separate collapsed groups on the Actions popout.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEMO_USE_CASE_IDS } from '../config/demoUseCaseSteps';
+import {
+  DEMO_ADVANCED_USE_CASE_IDS,
+  DEMO_PRIMARY_USE_CASE_IDS,
+} from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
 import { isUseCaseCompleted } from '../utils/useCaseDemoProgress';
 
@@ -24,7 +29,9 @@ export default function DemoStepsDropdown({
 }) {
   const triggerRef = useRef(null);
   const popoutRef = useRef(null);
-  const [steps, setSteps] = useState([]);
+  const [primarySteps, setPrimarySteps] = useState([]);
+  const [advancedSteps, setAdvancedSteps] = useState([]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tick, setTick] = useState(0);
@@ -36,17 +43,20 @@ export default function DemoStepsDropdown({
       .get('/api/use-cases', { params: { vertical }, _silent: true })
       .then(({ data }) => {
         const catalog = data.useCases || [];
-        const ordered = DEMO_USE_CASE_IDS
-          .map((id, index) => {
-            const uc = catalog.find((u) => u.id === id);
-            return uc ? { uc, stepNumber: index + 1 } : null;
-          })
-          .filter(Boolean);
-        setSteps(ordered);
+        const mapIds = (ids, offset) =>
+          ids
+            .map((id, index) => {
+              const uc = catalog.find((u) => u.id === id);
+              return uc ? { uc, stepNumber: offset + index + 1 } : null;
+            })
+            .filter(Boolean);
+        setPrimarySteps(mapIds(DEMO_PRIMARY_USE_CASE_IDS, 0));
+        setAdvancedSteps(mapIds(DEMO_ADVANCED_USE_CASE_IDS, DEMO_PRIMARY_USE_CASE_IDS.length));
       })
       .catch((err) => {
         setError(err.message || 'Failed to load demo steps');
-        setSteps([]);
+        setPrimarySteps([]);
+        setAdvancedSteps([]);
       })
       .finally(() => setLoading(false));
   }, [vertical]);
@@ -102,7 +112,7 @@ export default function DemoStepsDropdown({
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
     };
-  }, [open, steps.length]);
+  }, [open, primarySteps.length, advancedOpen]);
 
   /** Toggle the popout open/closed. */
   function handleToggle() {
@@ -115,6 +125,36 @@ export default function DemoStepsDropdown({
     onOpenChange(false);
     onSelect(uc, stepNumber);
     setTick((n) => n + 1);
+  }
+
+  /**
+   * Render one demo-step row.
+   * @param {{ uc: object, stepNumber: number }} row
+   */
+  function renderStep({ uc, stepNumber }) {
+    const completed = isUseCaseCompleted(uc.id);
+    void tick;
+    return (
+      <li key={uc.id}>
+        <button
+          type="button"
+          className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
+          onClick={() => handleSelect(uc, stepNumber)}
+          data-testid={`demo-step-${uc.id}`}
+        >
+          <span className="ba-demo-steps-popout__step">
+            Step {stepNumber}
+          </span>
+          <span className="ba-demo-steps-popout__id">{uc.id}</span>
+          {completed && (
+            <span className="ba-demo-steps-popout__check" aria-label="Completed">
+              ✓
+            </span>
+          )}
+          <span className="ba-demo-steps-popout__title">{uc.title}</span>
+        </button>
+      </li>
+    );
   }
 
   return (
@@ -152,39 +192,32 @@ export default function DemoStepsDropdown({
               {error}
             </p>
           )}
-          {!loading && !error && steps.length === 0 && (
+          {!loading && !error && primarySteps.length === 0 && (
             <p className="ba-demo-steps-popout__status">
               No demo steps for this vertical.
             </p>
           )}
           <ul className="ba-demo-steps-popout__list">
-            {steps.map(({ uc, stepNumber }) => {
-              const completed = isUseCaseCompleted(uc.id);
-              // tick forces re-read after select in this tab
-              void tick;
-              return (
-                <li key={uc.id}>
-                  <button
-                    type="button"
-                    className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
-                    onClick={() => handleSelect(uc, stepNumber)}
-                    data-testid={`demo-step-${uc.id}`}
-                  >
-                    <span className="ba-demo-steps-popout__step">
-                      Step {stepNumber}
-                    </span>
-                    <span className="ba-demo-steps-popout__id">{uc.id}</span>
-                    {completed && (
-                      <span className="ba-demo-steps-popout__check" aria-label="Completed">
-                        ✓
-                      </span>
-                    )}
-                    <span className="ba-demo-steps-popout__title">{uc.title}</span>
-                  </button>
-                </li>
-              );
-            })}
+            {primarySteps.map(renderStep)}
           </ul>
+          {advancedSteps.length > 0 && (
+            <div className="ba-demo-steps-popout__advanced">
+              <button
+                type="button"
+                className="ba-demo-steps-popout__advanced-toggle"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                aria-expanded={advancedOpen}
+                data-testid="demo-steps-advanced-toggle"
+              >
+                {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
+              </button>
+              {advancedOpen && (
+                <ul className="ba-demo-steps-popout__list">
+                  {advancedSteps.map(renderStep)}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
     </>
