@@ -261,15 +261,30 @@ function copyToClipboard(text) {
   navigator.clipboard?.writeText(text).catch(() => {});
 }
 
+/** Human label for a catalog command key (fallback: the key itself). */
+function labelForCommandKey(commandKey) {
+  for (const cat of CATEGORIES) {
+    const hit = cat.commands.find((c) => c.key === commandKey);
+    if (hit) return hit.label;
+  }
+  return commandKey;
+}
+
 /**
  * Shared copyable dark code row used by Install / Configure / How to run.
+ * `copyId` is used for Copied! state and as a stable HTML id on the button.
  */
-function CodeCopyRow({ text, id, copied, onCopy }) {
+function CodeCopyRow({ text, copyId, copied, onCopy }) {
   return (
-    <div className="pingcli-code-block">
+    <div className="pingcli-code-block" id={`pingcli-code-${copyId}`}>
       <code>{text}</code>
-      <button type="button" className="pingcli-copy-btn" onClick={() => onCopy(text, id)}>
-        {copied === id ? 'Copied!' : 'Copy'}
+      <button
+        type="button"
+        id={`pingcli-copy-${copyId}`}
+        className="pingcli-copy-btn"
+        onClick={() => onCopy(text, copyId)}
+      >
+        {copied === copyId ? 'Copied!' : 'Copy'}
       </button>
     </div>
   );
@@ -304,16 +319,16 @@ function InstallSection() {
         </p>
 
         <p><strong>Trust the Ping Identity tap</strong></p>
-        <CodeCopyRow text={trustCmd} id="trust" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={trustCmd} copyId="trust" copied={copied} onCopy={copy} />
 
         <p><strong>Install PingCLI</strong></p>
-        <CodeCopyRow text={brewCmd} id="brew" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={brewCmd} copyId="brew" copied={copied} onCopy={copy} />
 
         <p><strong>Verify the install</strong></p>
-        <CodeCopyRow text={verifyCmd} id="verify" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={verifyCmd} copyId="verify" copied={copied} onCopy={copy} />
 
         <p><strong>Already installed? Upgrade</strong></p>
-        <CodeCopyRow text={upgradeCmd} id="upgrade" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={upgradeCmd} copyId="upgrade" copied={copied} onCopy={copy} />
       </div>
 
       <div className="pingcli-install">
@@ -325,7 +340,7 @@ function InstallSection() {
         </p>
 
         <p><strong>Initialize a profile (worker client credentials + environment)</strong></p>
-        <CodeCopyRow text={initCmd} id="init" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={initCmd} copyId="init" copied={copied} onCopy={copy} />
         <p className="pingcli-install-hint">
           Interactive wizard. Enter your PingOne environment ID, worker client ID,
           and worker client secret. Grant type: client credentials. Storage: file
@@ -333,7 +348,7 @@ function InstallSection() {
         </p>
 
         <p><strong>Authenticate (get an access token)</strong></p>
-        <CodeCopyRow text={authCmd} id="auth" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={authCmd} copyId="auth" copied={copied} onCopy={copy} />
         <p className="pingcli-install-hint">
           Non-interactive with client credentials. Persists a token under
           {' '}<code>~/.pingcli/credentials</code>. You must auth login once per
@@ -341,7 +356,7 @@ function InstallSection() {
         </p>
 
         <p><strong>Optional — confirm the profile sees your keys</strong></p>
-        <CodeCopyRow text={configKeysCmd} id="keys" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={configKeysCmd} copyId="keys" copied={copied} onCopy={copy} />
       </div>
 
       <div className="pingcli-install pingcli-howto">
@@ -360,11 +375,11 @@ function InstallSection() {
 
         <h3>Option B — In your own terminal</h3>
         <p>After install, init, and auth (sections 1–2), run catalog commands like:</p>
-        <CodeCopyRow text={envsCmd} id="envs" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={envsCmd} copyId="envs" copied={copied} onCopy={copy} />
         <p className="pingcli-install-hint">
           Environment-wide lists use the normal verb form.
         </p>
-        <CodeCopyRow text={usersCmd} id="users" copied={copied} onCopy={copy} />
+        <CodeCopyRow text={usersCmd} copyId="users" copied={copied} onCopy={copy} />
         <p className="pingcli-install-hint">
           Environment-scoped resources (users, groups, apps, …) use
           {' '}<code>pingcli pingone api …</code> with your environment ID. Replace
@@ -392,11 +407,14 @@ export default function PingCliPage() {
   const [cmdMeta, setCmdMeta]     = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
   const [copiedPrereq, setCopiedPrereq] = useState(null);
+  // Sticky banner: spinner while busy, Done/Failed when the stream finishes.
+  const [runStatus, setRunStatus] = useState(null);
   // 'json' (raw) or 'easy' (table / form). Auto-switches to easy when a run
   // finishes with structured JSON the reader can present.
   const [viewMode, setViewMode]   = useState('json');
   const [installedVersion, setInstalledVersion] = useState(null);
   const abortRef = useRef(null);
+  const terminalRef = useRef(null);
 
   // Show the installed pingcli version in the page header.
   useEffect(() => {
@@ -441,12 +459,14 @@ export default function PingCliPage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const humanLabel = labelForCommandKey(commandKey);
     setRunning(commandKey);
     setActiveKey(commandKey);
     setCmdLabel('');
     setOutput('');
     setExitCode(null);
     setViewMode('json');
+    setRunStatus({ phase: 'running', key: commandKey, label: humanLabel });
     // Seed prereqs from catalog immediately so the panel appears above the
     // response while the stream connects; SSE meta may refine the list.
     setPrereqs(Array.isArray(cmdMeta[commandKey]?.prereqs) ? cmdMeta[commandKey].prereqs : []);
@@ -465,6 +485,14 @@ export default function PingCliPage() {
     // flushed), exitCode stays null and the terminal unmounts the moment
     // `running` clears — JSON flashes then disappears.
     let sawDone = false;
+    // Local exit code for the status banner (React setState is async in finally).
+    let finalExit = null;
+
+    /** Persist exit code in local + React state. */
+    const finishWithExit = (code) => {
+      finalExit = code;
+      setExitCode(code);
+    };
 
     try {
       const res = await fetch(
@@ -475,7 +503,7 @@ export default function PingCliPage() {
       if (!res.ok || !res.body) {
         const text = await res.text().catch(() => '');
         setOutput(text || `HTTP ${res.status}`);
-        setExitCode(1);
+        finishWithExit(1);
         return;
       }
 
@@ -506,7 +534,7 @@ export default function PingCliPage() {
         } else if (type === 'done') {
           sawDone = true;
           if (payload.error) setOutput((prev) => prev || payload.error);
-          setExitCode(payload.exitCode ?? 0);
+          finishWithExit(payload.exitCode ?? 0);
         }
       };
 
@@ -526,23 +554,29 @@ export default function PingCliPage() {
       if (buf.trim()) {
         for (const block of buf.split('\n\n')) applySseBlock(block);
       }
-      if (!sawDone) setExitCode(0);
+      if (!sawDone) finishWithExit(0);
     } catch (err) {
       if (err.name === 'AbortError') {
         if (timedOut) {
           setOutput((prev) => `${prev}${prev ? '\n' : ''}⚠️ Command timed out after ${RUN_TIMEOUT_MS / 1000} seconds.`);
-          setExitCode(1);
+          finishWithExit(1);
         } else if (!sawDone) {
           // Aborted for another reason mid-stream — keep any streamed output.
-          setExitCode((code) => (code === null ? 1 : code));
+          finishWithExit(finalExit === null ? 1 : finalExit);
         }
       } else {
         setOutput(err.message);
-        setExitCode(1);
+        finishWithExit(1);
       }
     } finally {
       clearTimeout(timer);
       setRunning((r) => (r === commandKey ? null : r));
+      setRunStatus({
+        phase: 'done',
+        key: commandKey,
+        label: humanLabel,
+        exitCode: finalExit === null ? 0 : finalExit,
+      });
     }
   };
 
@@ -561,6 +595,18 @@ export default function PingCliPage() {
     if (running !== null || exitCode === null || !output) return;
     if (buildReadableView(output)) setViewMode('easy');
   }, [running, exitCode, output]);
+
+  // Scroll the JSON / response pane into view when a run starts (cards sit above it).
+  useEffect(() => {
+    if (running === null) return;
+    const scrollToTerminal = () => {
+      terminalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    // After paint so the terminal is mounted; again next frame if prereqs shift layout.
+    scrollToTerminal();
+    const id = requestAnimationFrame(scrollToTerminal);
+    return () => cancelAnimationFrame(id);
+  }, [running]);
 
   /** Render the Easy read / JSON toggle (used above the output pane). */
   const viewToggle = canEasyRead ? (
@@ -606,26 +652,76 @@ export default function PingCliPage() {
         after you authenticate locally.
       </p>
 
+      {runStatus && (
+        <div
+          id="pingcli-run-status"
+          className={`pingcli-run-status ${
+            runStatus.phase === 'running'
+              ? 'busy'
+              : runStatus.exitCode === 0
+                ? 'ok'
+                : 'err'
+          }`}
+          role="status"
+          aria-live="polite"
+          aria-busy={runStatus.phase === 'running'}
+        >
+          {runStatus.phase === 'running' ? (
+            <>
+              <span className="pingcli-spinner pingcli-spinner-on-light" aria-hidden="true" />
+              <span>
+                Running <strong>{runStatus.label}</strong>…
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="pingcli-run-status-mark" aria-hidden="true">
+                {runStatus.exitCode === 0 ? '✓' : '✗'}
+              </span>
+              <span>
+                {runStatus.exitCode === 0 ? 'Done' : 'Finished with errors'}:{' '}
+                <strong>{runStatus.label}</strong>
+                {` (exit ${runStatus.exitCode})`}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {CATEGORIES.map(({ title, commands }) => (
         <div key={title}>
           <p className="pingcli-section-title">{title}</p>
-          <div className="pingcli-command-grid">
+          <div className={`pingcli-command-grid${running ? ' is-busy' : ''}`}>
             {commands.map(({ key, label, desc }) => {
               const meta = cmdMeta[key] || {};
               const runnable = meta.runnable ?? RUNNABLE.has(key);
               const copyText = meta.label || desc;
+              const isRunning = running === key;
+              const isDone = runStatus?.phase === 'done' && runStatus.key === key;
+              const runClass = [
+                'pingcli-cmd-run',
+                isRunning ? 'pingcli-cmd-run--busy' : '',
+                isDone ? 'pingcli-cmd-run--done' : '',
+              ].filter(Boolean).join(' ');
+              let runLabel = 'Run ▸';
+              if (isRunning) runLabel = 'Running…';
+              else if (isDone) runLabel = runStatus.exitCode === 0 ? 'Done ✓' : 'Failed ✗';
               return (
                 <div
                   key={key}
-                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}`}
+                  id={`pingcli-card-${key}`}
+                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${isRunning ? ' running' : ''}${isDone ? ' done' : ''}`}
                 >
                   <div className="pingcli-cmd-top">
                     <span className="pingcli-cmd-label">
-                      {running === key && <span className="pingcli-spinner" />}
+                      {isRunning && (
+                        <span className="pingcli-spinner" aria-hidden="true" />
+                      )}
                       {label}
                     </span>
                     <button
                       type="button"
+                      id={`pingcli-card-copy-${key}`}
                       className="pingcli-cmd-copy"
                       title="Copy command"
                       onClick={() => copyCmd(key, copyText)}
@@ -636,11 +732,16 @@ export default function PingCliPage() {
                   <div className="pingcli-cmd-command" title={copyText}>{copyText}</div>
                   <button
                     type="button"
-                    className="pingcli-cmd-run"
+                    id={`pingcli-run-${key}`}
+                    className={runClass}
                     disabled={!runnable || running !== null}
+                    aria-busy={isRunning}
                     onClick={() => run(key)}
                   >
-                    {running === key ? 'Running…' : 'Run ▸'}
+                    {isRunning && (
+                      <span className="pingcli-spinner pingcli-spinner-on-dark" aria-hidden="true" />
+                    )}
+                    {runLabel}
                   </button>
                 </div>
               );
@@ -689,7 +790,12 @@ export default function PingCliPage() {
       {showTerminal && viewToggle}
 
       {showTerminal && (
-        <div className="pingcli-terminal">
+        <div
+          id="pingcli-terminal"
+          ref={terminalRef}
+          className="pingcli-terminal"
+          tabIndex={-1}
+        >
           <div className="pingcli-terminal-header">
             <span className="pingcli-terminal-prompt">
               $ <span className="cmd-text">{cmdLabel || '…'}</span>

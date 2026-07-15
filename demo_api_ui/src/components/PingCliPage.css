@@ -193,6 +193,9 @@
 .pingcli-cmd-run {
   align-self: flex-start;
   margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   background: #3b82f6;
   color: #fff;
   border: none;
@@ -207,9 +210,72 @@
   background: #1d4ed8;
 }
 
-.pingcli-cmd-run:disabled {
+/* Soften the “all buttons grey out” flash while one command runs. */
+.pingcli-command-grid.is-busy .pingcli-cmd-run:disabled:not(.pingcli-cmd-run--busy) {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.pingcli-cmd-run:disabled:not(.pingcli-cmd-run--busy) {
   opacity: 0.5;
   cursor: default;
+}
+
+.pingcli-cmd-run--busy {
+  opacity: 1;
+  background: #1d4ed8;
+  cursor: wait;
+}
+
+.pingcli-cmd-run--done {
+  background: #15803d;
+}
+
+.pingcli-cmd-run--done:disabled {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.pingcli-cmd-btn.done {
+  border-color: #86efac;
+}
+
+/* Sticky run progress strip (spinner → Done / Failed) */
+.pingcli-run-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pingcli-run-status.busy {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.pingcli-run-status.ok {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.pingcli-run-status.err {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.pingcli-run-status-mark {
+  font-size: 15px;
+  line-height: 1;
 }
 
 /* ── Spinner inside running button ───────────────────── */
@@ -221,6 +287,18 @@
   border-radius: 50%;
   animation: pingcli-spin 0.7s linear infinite;
   flex-shrink: 0;
+}
+
+.pingcli-spinner-on-light {
+  width: 14px;
+  height: 14px;
+  border-color: rgba(37, 99, 235, 0.25);
+  border-top-color: #2563eb;
+}
+
+.pingcli-spinner-on-dark {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 }
 
 @keyframes pingcli-spin {
