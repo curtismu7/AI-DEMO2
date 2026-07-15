@@ -5,6 +5,11 @@ const { logEvent: logAppEvent } = require('../services/appEventService');
 const { scrubRawJwts } = require('../services/jwtScrubber');
 const validationModeConfig = require('../config/validationModeConfig');
 
+// Last activity-feed snapshot per user — GET /api/token-chain is polled ~every
+// 15s; emitting the same "fetched" line on every poll floods the Academy /
+// agent activity feed and makes operators think each prompt ran dozens of tools.
+const _lastFetchTotalsByUser = new Map();
+
 // GET /api/token-chain — get token chain for authenticated user (including MCP delegation trail)
 router.get('/', async (req, res) => {
   try {
@@ -36,6 +41,9 @@ router.get('/', async (req, res) => {
         userId: req.user.id,
         totalEvents: tokenChain.length,
         totalMCPToolCalls: mcpToolCallsChain.length,
+        // Explicit so UIs don't imply these counts are "this prompt only".
+        totalsScope: 'session_accumulated',
+        totalsHint: 'Cumulative for this user session (BFF audit + MCP /audit), not a single chat or Academy turn.',
         synthetic,
         enterpriseManagedMode: (() => {
           try {
@@ -64,9 +72,25 @@ router.get('/', async (req, res) => {
         lastUpdated: new Date().toISOString()
       }
     }));
-    logAppEvent('token_exchange', 'info', `Token chain fetched — ${tokenChain.length} events, ${mcpToolCallsChain.length} MCP tool calls`,
-      { tag: 'token_chain/fetched', metadata: { userId: req.user.id, chainLength: tokenChain.length, mcpToolCalls: mcpToolCallsChain.length } }
-    );
+    const next = { events: tokenChain.length, mcp: mcpToolCallsChain.length };
+    const prev = _lastFetchTotalsByUser.get(req.user.id);
+    if (!prev || prev.events !== next.events || prev.mcp !== next.mcp) {
+      _lastFetchTotalsByUser.set(req.user.id, next);
+      logAppEvent(
+        'token_exchange',
+        'info',
+        `Token chain session totals — ${next.events} token events, ${next.mcp} MCP tool calls (accumulated this session, not this prompt alone)`,
+        {
+          tag: 'token_chain/fetched',
+          metadata: {
+            userId: req.user.id,
+            chainLength: next.events,
+            mcpToolCalls: next.mcp,
+            totalsScope: 'session_accumulated',
+          },
+        },
+      );
+    }
   } catch (err) {
     console.error('[tokenChain] GET error:', err.message);
     logAppEvent('token_exchange', 'error', `Token chain fetch failed: ${err.message}`,

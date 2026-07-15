@@ -353,11 +353,11 @@ function LiveTokenChainPanel() {
             <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>Session Summary</p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
-                ['Token Events', chain.metadata?.totalEvents ?? '—', '#eff6ff', '#1d4ed8'],
-                ['MCP Tool Calls', chain.metadata?.totalMCPToolCalls ?? '—', '#f0fdf4', '#166534'],
+                ['Token events (session)', chain.metadata?.totalEvents ?? '—', '#eff6ff', '#1d4ed8'],
+                ['MCP tool calls (session total)', chain.metadata?.totalMCPToolCalls ?? '—', '#f0fdf4', '#166534'],
                 ['Delegation Events', delegationEvents.length, '#fef3c7', '#b45309'],
               ].map(([label, val, bg, color]) => (
-                <div key={label} style={{ background: bg, borderRadius: 8, padding: '10px 16px', minWidth: 80 }}>
+                <div key={label} style={{ background: bg, borderRadius: 8, padding: '10px 16px', minWidth: 80 }} title={label.startsWith('MCP') ? (chain.metadata?.totalsHint || 'Accumulated this session, not one prompt') : undefined}>
                   <div style={{ fontSize: 22, fontWeight: 700, color }}>{val}</div>
                   <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>{label}</div>
                 </div>
