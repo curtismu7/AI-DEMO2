@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/AgentModeSelector.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { CORE_MODE_IDS, MODE_PROVIDER, DEFAULT_MODE } from "../config/agentModes";
 import "./AgentModeSelector.css";
@@ -10,10 +10,19 @@ import "./AgentModeSelector.css";
 // silent Helix fallback. The id/provider table is the shared SSOT in
 // config/agentModes.js (mirrors the server resolver).
 
-// `compact` = condensed variant for the BankingAgent header.
-// `onChange` (optional) is notified { mode, provider } after a committed
-// mode/provider change so a co-located key UI can re-sync server state.
-export default function AgentModeSelector({ compact = false, onChange }) {
+/**
+ * @param {object} props
+ * @param {boolean} [props.compact]
+ * @param {(info: { mode: string, provider: string|null|undefined }) => void} [props.onChange]
+ * @param {boolean} [props.heuristicFallback] — true = Fallback to Heuristics, false = LLM only
+ * @param {(enabled: boolean) => void} [props.onHeuristicFallbackChange]
+ */
+export default function AgentModeSelector({
+  compact = false,
+  onChange,
+  heuristicFallback = true,
+  onHeuristicFallbackChange,
+}) {
   const {
     mode,
     externalWiring,
@@ -111,6 +120,30 @@ export default function AgentModeSelector({ compact = false, onChange }) {
     }
   }, [mode, provider, loading, onChange]);
 
+  const [routingSaving, setRoutingSaving] = useState(false);
+  /**
+   * Persist Fallback vs LLM-only (ff_heuristic_enabled) and notify the parent.
+   * @param {boolean} enabled — true = Fallback to Heuristics
+   */
+  const handleRoutingChange = useCallback(async (enabled) => {
+    if (typeof onHeuristicFallbackChange === "function") {
+      onHeuristicFallbackChange(enabled);
+    }
+    setRoutingSaving(true);
+    try {
+      await fetch("/api/admin/feature-flags", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: { ff_heuristic_enabled: enabled } }),
+      });
+    } catch (_) {
+      // Parent already has optimistic state; reload on next open reconciles.
+    } finally {
+      setRoutingSaving(false);
+    }
+  }, [onHeuristicFallbackChange]);
+
   if (loading || modeOptions.length === 0) return null;
 
   // The four single-brain modes, in picker order. Filtering by id is robust
@@ -122,6 +155,7 @@ export default function AgentModeSelector({ compact = false, onChange }) {
   const current = modeOptions.find((m) => m.id === mode);
   const isExternal = !!current && current.external;
   const showDegraded = isExternal && externalWiring === "platform";
+  const showRoutingToggle = mode !== "heuristics" && !!MODE_PROVIDER[mode];
 
   return (
     <div className={`ams${compact ? " ams--compact" : ""}`}>
@@ -148,6 +182,23 @@ export default function AgentModeSelector({ compact = false, onChange }) {
           })}
         </select>
       </label>
+
+      {showRoutingToggle && (
+        <label className="ams-label ams-routing">
+          Routing
+          <select
+            aria-label="Heuristic routing"
+            value={heuristicFallback ? "fallback" : "llm-only"}
+            disabled={saving || routingSaving}
+            onChange={(e) => handleRoutingChange(e.target.value === "fallback")}
+            className="ctl-select ams-select"
+            title="Fallback uses Heuristics for known chips (fast, cheap). LLM only always calls the selected model first."
+          >
+            <option value="fallback">Fallback (Heuristics)</option>
+            <option value="llm-only">LLM only</option>
+          </select>
+        </label>
+      )}
 
       {autoSwitchNotice && (
         <p className="ams-autoswitch" role="status">

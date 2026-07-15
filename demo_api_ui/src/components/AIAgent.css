@@ -1375,8 +1375,33 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #059669;
 }
 
-.banking-agent-msg-label--helix {
+.banking-agent-msg-label--helix,
+.banking-agent-msg-label--helix_fallback {
   color: #dc2626;
+}
+
+.banking-agent-msg-label--google {
+  color: #1a73e8;
+}
+
+.banking-agent-msg-label--llamacpp,
+.banking-agent-msg-label--mlx,
+.banking-agent-msg-label--lmstudio,
+.banking-agent-msg-label--anthropic-lmstudio {
+  color: #7c3aed;
+}
+
+.banking-agent-msg-label--claude,
+.banking-agent-msg-label--anthropic {
+  color: #d97706;
+}
+
+.banking-agent-msg-label--groq {
+  color: #f59e0b;
+}
+
+.banking-agent-msg-label--direct-mcp {
+  color: #0f766e;
 }
 
 .banking-agent-msg-label--prompt {
