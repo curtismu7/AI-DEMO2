@@ -319,6 +319,20 @@ class LangChainMCPApplication:
         app.include_router(agui_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
+        # Heal empty /app/codegraph.db from a prior Refresh that wrote the legacy
+        # repo-src path — pod restarts must not re-expose the Code Explorer 503.
+        try:
+            from codegraph.ensure_index import ensure_query_index
+            if ensure_query_index():
+                logger.info("[CodeGraph] query index ready at startup")
+            else:
+                logger.warning(
+                    "[CodeGraph] query index missing at startup — Code Explorer "
+                    "will 503 until Refresh index (or bake) succeeds"
+                )
+        except Exception as exc:
+            logger.warning("[CodeGraph] startup index check failed: %s", exc)
+
         # Gate the ENTIRE app (AG-UI /run AND /codegraph/*) on the shared internal
         # secret. The BFF proxies here with `x-internal-gateway-secret:
         # <BFF_INTERNAL_SECRET>` (routes/agentRun.js, routes/codegraphProxy.js)
