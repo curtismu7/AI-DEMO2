@@ -49,6 +49,8 @@ const IGNORE_DIR = new Set([
   'node_modules', '.git', '.claude', 'dist', 'build', 'coverage',
   'data', 'logs', '.next', '__pycache__', '.venv', 'venv',
   'repo-src', 'certs',
+  // Skip test trees — they balloon the SE embedder queue without helping demos.
+  '__tests__', '__mocks__', 'tests', 'test',
 ]);
 const IGNORE_FILE_RE = /(^|\/)(\.env(\..*)?|.*\.min\.(js|css)|package-lock\.json|yarn\.lock|.*\.pem|.*\.key|.*\.p12|.*\.crt)$/i;
 const ALLOW_EXT = new Set([
@@ -196,7 +198,9 @@ async function indexPiece(client, piece, rootDir) {
   const files = collectFiles(rootDir, presentRoots);
   pieceStatus.skipped = files._skipped || 0;
 
-  const BATCH = 50;
+  // SE embeddings (single in-cluster llama slot) choke on 50-file batches —
+  // 500s and cancels. Keep batches small; Compose still finishes in minutes.
+  const BATCH = Number(process.env.CODE_SEARCH_INDEX_BATCH) || 5;
   let chunks = 0;
   for (let i = 0; i < files.length; i += BATCH) {
     const batch = files.slice(i, i + BATCH);
