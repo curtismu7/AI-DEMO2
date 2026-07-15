@@ -5,6 +5,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
+import { useTokenChainOptional } from "../context/TokenChainContext";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -30,9 +31,19 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [legendOpen, setLegendOpen] = useState(false);
   const [inspectType, setInspectType] = useState(null);
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
+  const tokenChain = useTokenChainOptional();
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   const onInspect = useCallback((tokenType) => setInspectType(tokenType), []);
+
+  /** Reset the rail to an empty “nothing done” pipeline for the next demo run. */
+  const handleClear = useCallback(() => {
+    tokenChainTraceStore.reset();
+    tokenChain?.clearEvents?.();
+    setInspectType(null);
+    setLegendOpen(false);
+    setTab(mcpRouteOnly ? "mcp" : "chain");
+  }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
   const steps = mcpRouteOnly
@@ -41,14 +52,31 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   const mcpDone = steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
+  const hasTraceActivity = Boolean(
+    trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
+    (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
+    trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
+  );
 
   return (
     <div className="tctr">
       <div className="tctr-head">
-        <span className="tctr-title">🔗 Token Chain</span>
-        <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
-          Legend
-        </button>
+        <span className="tctr-title">Token Chain</span>
+        <div className="tctr-head-actions">
+          <button
+            type="button"
+            className="tctr-clear-btn"
+            onClick={handleClear}
+            disabled={!hasTraceActivity}
+            title="Clear token chain back to nothing done (ready for next demo run)"
+            aria-label="Clear token chain"
+          >
+            Clear
+          </button>
+          <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
+            Legend
+          </button>
+        </div>
       </div>
 
       <div className="tctr-chain-line">
