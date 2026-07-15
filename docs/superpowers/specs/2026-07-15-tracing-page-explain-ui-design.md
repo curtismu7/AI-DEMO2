@@ -1,7 +1,7 @@
 # Tracing Page Explain UI — Design
 
 **Date:** 2026-07-15  
-**Status:** Draft (brainstorming complete; awaiting written-spec review)  
+**Status:** Approved — implemented on `feat/tracing-explain-ui`  
 **Page:** `https://ai-demo.ping-devops.com/tracing` (`demo_api_ui/src/pages/TracingPage.jsx`)  
 **Author:** Curtis Muir (with Cursor)
 
