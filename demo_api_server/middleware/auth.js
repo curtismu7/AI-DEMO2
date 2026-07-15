@@ -231,6 +231,7 @@ const parseTokenScopes = (token, requestContext = {}) => {
 const hasRequiredScopes = (userScopes, requiredScopes, requireAll = false) => {
   if (!Array.isArray(userScopes) || !Array.isArray(requiredScopes)) {
     if (DEBUG_TOKENS) {
+      console.debug('[Scopes] Invalid input — userScopes or requiredScopes is not an array', { userScopes, requiredScopes });
     }
     return false;
   }
@@ -238,12 +239,14 @@ const hasRequiredScopes = (userScopes, requiredScopes, requireAll = false) => {
   // Check for admin scope - grants access to all endpoints
   if (userScopes.includes(BANKING_SCOPES.ADMIN)) {
     if (DEBUG_TOKENS) {
+      console.debug('[Scopes] Admin scope detected — granting access (bypasses all scope checks)');
     }
     return true;
   }
   
   if (requiredScopes.length === 0) {
     if (DEBUG_TOKENS) {
+      console.debug('[Scopes] No scopes required — granting access');
     }
     return true; // No scopes required
   }
@@ -255,7 +258,9 @@ const hasRequiredScopes = (userScopes, requiredScopes, requireAll = false) => {
     
     if (DEBUG_TOKENS) {
       if (hasAllScopes) {
+        console.debug('[Scopes] ALL required scopes satisfied', { requiredScopes, userScopes });
       } else {
+        console.debug('[Scopes] Missing required scopes (AND mode)', { missingScopes, requiredScopes, userScopes });
       }
     }
     
@@ -267,7 +272,9 @@ const hasRequiredScopes = (userScopes, requiredScopes, requireAll = false) => {
     
     if (DEBUG_TOKENS) {
       if (hasAnyScope) {
+        console.debug('[Scopes] At least one required scope matched (OR mode)', { matchingScopes, requiredScopes });
       } else {
+        console.debug('[Scopes] No matching scopes found (OR mode)', { requiredScopes, userScopes });
       }
     }
     

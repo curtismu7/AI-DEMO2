@@ -484,13 +484,20 @@ class LangChainMCPApplication:
             await self.cleanup()
     
     def _setup_signal_handlers(self):
-        """Setup signal handlers for graceful shutdown."""
-        def signal_handler(signum, frame):
-            logger.info(f"Received signal {signum}, initiating shutdown...")
+        """Setup signal handlers for graceful shutdown using asyncio-safe methods."""
+        loop = asyncio.get_running_loop()
+
+        def _trigger_shutdown():
+            logger.info("Signal received, initiating shutdown...")
             self._shutdown_event.set()
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+
+        try:
+            loop.add_signal_handler(signal.SIGINT, _trigger_shutdown)
+            loop.add_signal_handler(signal.SIGTERM, _trigger_shutdown)
+        except NotImplementedError:
+            # Windows does not support add_signal_handler; fall back to signal.signal
+            signal.signal(signal.SIGINT, lambda s, f: self._shutdown_event.set())
+            signal.signal(signal.SIGTERM, lambda s, f: self._shutdown_event.set())
     
     async def cleanup(self):
         """Cleanup all resources."""
