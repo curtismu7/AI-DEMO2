@@ -5,9 +5,12 @@ import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
+import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
+import { useTokenChainOptional } from "../context/TokenChainContext";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
+import TraceTrustPanel from "./TraceTrustPanel";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import "./TokenChainTraceRail.css";
@@ -25,14 +28,56 @@ const MCP_ROUTE_DOTS = [
   { cls: "mcp", label: "MCP Server" },
 ];
 
+/**
+ * Loads ff_dpop / ff_rar so Trust can appear for those use cases.
+ * @param {(next: { ffDpop: boolean, ffRar: boolean }) => void} setFlags
+ * @returns {() => void} unsubscribe / cancel
+ */
+function subscribeTrustFlags(setFlags) {
+  let alive = true;
+  const load = () => {
+    fetch("/api/admin/feature-flags", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!alive || !data?.flags) return;
+        const byId = {};
+        for (const f of data.flags) byId[f.id] = f;
+        setFlags({
+          ffDpop: isFlagOn(byId.ff_dpop?.value),
+          ffRar: isFlagOn(byId.ff_rar?.value),
+        });
+      })
+      .catch(() => {});
+  };
+  load();
+  const onFocus = () => load();
+  window.addEventListener("focus", onFocus);
+  return () => {
+    alive = false;
+    window.removeEventListener("focus", onFocus);
+  };
+}
+
 export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [legendOpen, setLegendOpen] = useState(false);
   const [inspectType, setInspectType] = useState(null);
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
+  const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
+  const tokenChain = useTokenChainOptional();
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
+  useEffect(() => subscribeTrustFlags(setTrustFlags), []);
   const onInspect = useCallback((tokenType) => setInspectType(tokenType), []);
+
+  /** Reset the rail to an empty “nothing done” pipeline for the next demo run. */
+  const handleClear = useCallback(() => {
+    tokenChainTraceStore.reset();
+    tokenChain?.clearEvents?.();
+    setInspectType(null);
+    setLegendOpen(false);
+    setTab(mcpRouteOnly ? "mcp" : "chain");
+  }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
   const steps = mcpRouteOnly
@@ -40,15 +85,44 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     : snap.steps;
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   const mcpDone = steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  const showTrust = shouldShowTrustTab({
+    ffDpop: trustFlags.ffDpop,
+    ffRar: trustFlags.ffRar,
+    events: trace.tokenEvents,
+  });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
+  const hasTraceActivity = Boolean(
+    trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
+    (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
+    trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
+  );
+
+  // Drop Trust selection if the use case ends while that tab is open.
+  useEffect(() => {
+    if (!showTrust && tab === "trust") {
+      setTab(mcpRouteOnly ? "mcp" : "chain");
+    }
+  }, [showTrust, tab, mcpRouteOnly]);
 
   return (
     <div className="tctr">
       <div className="tctr-head">
-        <span className="tctr-title">🔗 Token Chain</span>
-        <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
-          Legend
-        </button>
+        <span className="tctr-title">Token Chain</span>
+        <div className="tctr-head-actions">
+          <button
+            type="button"
+            className="tctr-clear-btn"
+            onClick={handleClear}
+            disabled={!hasTraceActivity}
+            title="Clear token chain back to nothing done (ready for next demo run)"
+            aria-label="Clear token chain"
+          >
+            Clear
+          </button>
+          <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
+            Legend
+          </button>
+        </div>
       </div>
 
       <div className="tctr-chain-line">
@@ -72,6 +146,13 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           onClick={() => setTab("mcp")}>
           MCP <span className="tctr-tab-count">{mcpDone}</span>
         </button>
+        {showTrust && (
+          <button type="button" role="tab" aria-selected={tab === "trust"}
+            className={`tctr-tab${tab === "trust" ? " tctr-tab--active" : ""}`}
+            onClick={() => setTab("trust")}>
+            Trust
+          </button>
+        )}
       </div>
 
       {tab === "chain" ? (
@@ -101,6 +182,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             </div>
           </details>
         </>
+      ) : tab === "trust" ? (
+        <TraceTrustPanel events={trace.tokenEvents} />
       ) : (
         <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} />
       )}

@@ -2,7 +2,7 @@
  * parsePingcliResults — turns a pingcli JSON envelope into the friendly
  * results-table model shown above the terminal pane on the PingCLI page.
  */
-import { parsePingcliResults } from "../PingCliPage";
+import { parsePingcliResults, tokenizeJson, buildReadableView } from "../PingCliPage";
 
 const envelope = (data, extra = {}) =>
   JSON.stringify({ schemaVersion: "1.0", status: "success", message: "Read all successful", data, ...extra });
@@ -35,9 +35,19 @@ describe("parsePingcliResults", () => {
     expect(parsePingcliResults("Valid Keys:\n- auth.storage.type")).toBeNull();
   });
 
-  it("returns null for JSON that is not a pingcli envelope", () => {
+  it("returns null when JSON has no list payload", () => {
     expect(parsePingcliResults(JSON.stringify({ foo: "bar" }))).toBeNull();
     expect(parsePingcliResults(JSON.stringify({ schemaVersion: "1.0", data: null }))).toBeNull();
+  });
+
+  it("unwraps root _embedded without schemaVersion", () => {
+    const raw = JSON.stringify({
+      count: 1,
+      _embedded: { groups: [{ id: "g-1", name: "Admins" }] },
+    });
+    const r = parsePingcliResults(raw);
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({ id: "g-1", name: "Admins" });
   });
 
   it("carries the error status through for error envelopes", () => {
@@ -45,5 +55,98 @@ describe("parsePingcliResults", () => {
     const r = parsePingcliResults(raw);
     expect(r.status).toBe("error");
     expect(r.rows).toEqual([]);
+  });
+
+  it("unwraps data._embedded collections from pingone api responses", () => {
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      message: "Custom request successful",
+      data: {
+        _embedded: {
+          users: [
+            {
+              id: "u-1",
+              username: "alice",
+              email: "a@example.com",
+              enabled: true,
+              name: { formatted: "Alice Example", given: "Alice", family: "Example" },
+            },
+          ],
+        },
+      },
+    });
+    const r = parsePingcliResults(raw);
+    expect(r.status).toBe("success");
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({
+      id: "u-1",
+      username: "alice",
+      email: "a@example.com",
+      enabled: true,
+      name: "Alice Example",
+    });
+    expect(r.columns).toEqual(expect.arrayContaining(["name", "username", "email", "id", "enabled"]));
+  });
+});
+
+describe("tokenizeJson", () => {
+  it("pretty-prints large JSON as a single text node (no span flood)", () => {
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      id: `g-${i}`,
+      name: `Group ${i}`,
+      description: `x`.repeat(200),
+      _links: {
+        self: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}` },
+        members: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}/memberGroups` },
+      },
+    }));
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      data: { _embedded: { groups: rows } },
+    });
+    const nodes = tokenizeJson(raw);
+    expect(nodes).not.toBeNull();
+    expect(nodes).toHaveLength(1);
+    expect(typeof nodes[0]).toBe("string");
+    expect(nodes[0].length).toBeGreaterThan(8000);
+  });
+});
+
+describe("buildReadableView", () => {
+  it("returns a table model for list envelopes", () => {
+    const raw = envelope([{ id: "1", name: "A" }, { id: "2", name: "B" }]);
+    const view = buildReadableView(raw);
+    expect(view.kind).toBe("table");
+    expect(view.rows).toHaveLength(2);
+  });
+
+  it("returns a form model for a single-object payload", () => {
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      message: "ok",
+      data: { id: "g-1", name: "Admins", enabled: true, _links: { self: { href: "x" } } },
+    });
+    const view = buildReadableView(raw);
+    expect(view.kind).toBe("form");
+    expect(view.fields).toEqual(
+      expect.arrayContaining([
+        { key: "id", value: "g-1" },
+        { key: "name", value: "Admins" },
+        { key: "enabled", value: "true" },
+      ])
+    );
+  });
+
+  it("returns a form model for top-level objects without a list", () => {
+    const view = buildReadableView(JSON.stringify({ foo: "bar", count: 2 }));
+    expect(view.kind).toBe("form");
+    expect(view.fields.length).toBeGreaterThan(0);
+  });
+
+  it("returns null for plain text", () => {
+    expect(buildReadableView("pingcli version 1.2.0")).toBeNull();
   });
 });

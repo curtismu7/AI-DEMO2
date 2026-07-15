@@ -15,9 +15,25 @@ export function privilegeConsoleUrl(envId) {
 export const PRIVILEGE_DEMO = {
   title: 'PingOne Privilege — SE Demo Hub',
   subtitle: 'Shared environment presenter resource. Requires local EndUser and Admin VMs with the Privilege Agent installed.',
+  overview:
+    'Demo Engineering hosts a always-on shared Privilege multi-tenant environment. Complete the SE setup once (workstations, password reset, agent onboarding, MFA), snapshot your VMs, then present from the Script tab.',
+  se1GuidePath: 'docs/resources/SE1-Privilege-Shared-Demo.md',
+  se1GuideUrl:
+    'https://github.com/curtismu7/AI-DEMO2/blob/main/docs/resources/SE1-Privilege-Shared-Demo.md',
   adminEnvId: '88d79a9c-0dfe-4817-97aa-905bad9ca502',
   agentEnvId: 'a32ebaed-d454-4f5a-9575-697cfcb6f822',
   emailPattern: '{seemail}+role@pingone.com',
+  workstationTools: [
+    'SSH',
+    'Windows App (RDP)',
+    'MySQL Client',
+    'PostgreSQL Client',
+    'Kubernetes tools (kubectl)',
+    'AWS CLI',
+    'GCloud CLI',
+    'Azure CLI',
+    'Git (included with agent install)',
+  ],
   personas: {
     platformAdmin: {
       id: 'platformAdmin',
@@ -60,6 +76,13 @@ export const PRIVILEGE_DEMO = {
   ],
   setupSteps: [
     {
+      id: 'prepare-workstations',
+      title: 'Prepare Admin and End User workstations',
+      description:
+        'Use two machines or Windows 11 VMs (Agent-based personas available today). Install client tools listed under Workstation tools — SSH, RDP, DB clients, kubectl, cloud CLIs. Dedicated Chrome profile recommended.',
+      persona: 'both',
+    },
+    {
       id: 'reset-password',
       title: 'Reset Platform Admin password',
       description: 'Open the Admin environment console, click Forgot Password, and set a password you will remember.',
@@ -76,6 +99,14 @@ export const PRIVILEGE_DEMO = {
       id: 'open-agent-env',
       title: 'Open the Agent environment',
       description: 'Switch to the Agent environment where PingOne Privilege is installed.',
+      linkEnv: 'agentEnvId',
+      persona: 'platformAdmin',
+    },
+    {
+      id: 'grant-admin-role',
+      title: 'Grant Privilege Administrator to AgentAdmin',
+      description:
+        'In Agent env → Users → {seemail}+AgentAdmin → Grant Roles → PingOne Privilege Administrator for this environment. Required for Admin view.',
       linkEnv: 'agentEnvId',
       persona: 'platformAdmin',
     },

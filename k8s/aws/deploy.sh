@@ -72,6 +72,8 @@ IMAGE_MAP=(
   "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
   "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
+  "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
+  "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
 )
 
 # Rewrite image refs in a YAML: local name → GHCR URI

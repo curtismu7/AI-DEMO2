@@ -137,6 +137,57 @@
 }
 
 /* Setup checklist */
+.pd-setup__overview {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pd-setup__overview p {
+  margin: 0 0 0.65rem;
+}
+
+.pd-setup__groups {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.pd-setup__guide-link {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--brand-navy, #0f2744);
+  margin-bottom: 0.85rem;
+}
+
+.pd-setup__tools h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #374151;
+}
+
+.pd-setup__tools ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  columns: 2;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+@media (max-width: 560px) {
+  .pd-setup__tools ul {
+    columns: 1;
+  }
+}
+
 .pd-setup__progress {
   display: flex;
   justify-content: space-between;

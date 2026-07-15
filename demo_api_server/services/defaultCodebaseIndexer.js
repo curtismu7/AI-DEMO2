@@ -2,46 +2,80 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Default demo index is split into selectable pieces so /code-search stays
+ * usable when the full repo is too large for one codebase. Each piece is its
+ * own Weaviate codebase_id and appears in the left-rail picker.
+ *
+ * Legacy monolith id (kept for exports / older clients):
+ */
 const DEFAULT_CODEBASE_ID = 'ai-demo2-default';
 const DEFAULT_CODEBASE_NAME = 'This demo (AI-DEMO2)';
 
-// Curated first-party source roots. Widen by editing this list.
-const SOURCE_ROOTS = [
-  'demo_api_server',
-  'demo_api_ui/src',
-  'demo_mcp_code_search/src',
-  'langchain_agent',
-  'demo_llm_proxy',
-  'llamaindex_agent',
+/** @typedef {{ id: string, name: string, roots: string[] }} CodebasePiece */
+
+/** Curated first-party packages. Widen by editing this list. */
+const CODEBASE_PIECES = [
+  { id: 'ai-demo2-ui', name: 'UI', roots: ['demo_api_ui/src'] },
+  { id: 'ai-demo2-server', name: 'API Server', roots: ['demo_api_server'] },
+  { id: 'ai-demo2-mcp-server', name: 'MCP Server', roots: ['demo_mcp_server'] },
+  { id: 'ai-demo2-mcp-gateway', name: 'MCP Gateway', roots: ['demo_mcp_gateway'] },
+  { id: 'ai-demo2-authorize', name: 'Authorize', roots: ['demo_authz_server'] },
+  { id: 'ai-demo2-ping-gateway', name: 'Ping Gateway', roots: ['ping-gateway'] },
+  { id: 'ai-demo2-hitl', name: 'HITL', roots: ['demo_hitl_service'] },
+  {
+    id: 'ai-demo2-agents',
+    name: 'Agents',
+    roots: [
+      'langchain_agent',
+      'llamaindex_agent',
+      'openai_agent',
+      'pydantic_agent',
+      'mastra_agent',
+    ],
+  },
+  { id: 'ai-demo2-llm-proxy', name: 'LLM Proxy', roots: ['demo_llm_proxy'] },
+  {
+    id: 'ai-demo2-code-search',
+    name: 'Code Search',
+    roots: ['demo_mcp_code_search/src'],
+  },
 ];
+
+/** Flat union of piece roots — used by tests and any caller wanting all files. */
+const SOURCE_ROOTS = CODEBASE_PIECES.flatMap((p) => p.roots);
 
 const IGNORE_DIR = new Set([
   'node_modules', '.git', '.claude', 'dist', 'build', 'coverage',
   'data', 'logs', '.next', '__pycache__', '.venv', 'venv',
   'repo-src', 'certs',
+  // Skip test trees — they balloon the SE embedder queue without helping demos.
+  '__tests__', '__mocks__', 'tests', 'test',
 ]);
 const IGNORE_FILE_RE = /(^|\/)(\.env(\..*)?|.*\.min\.(js|css)|package-lock\.json|yarn\.lock|.*\.pem|.*\.key|.*\.p12|.*\.crt)$/i;
+// Drop CSS/assets from the default walk — giant stylesheets dominate the
+// SE embedder queue and starve the searchable .js/.ts logic.
 const ALLOW_EXT = new Set([
-  '.js', '.jsx', '.ts', '.tsx', '.py', '.json', '.md', '.css', '.scss',
-  '.yml', '.yaml', '.sh', '.go', '.java', '.rb', '.rs', '.txt', '.html',
+  '.js', '.jsx', '.ts', '.tsx', '.py', '.json',
+  '.yml', '.yaml', '.sh', '.go', '.java', '.rb', '.rs',
 ]);
 
-const MAX_FILE_BYTES = 256 * 1024;
-const MAX_FILES = 3000;
+const MAX_FILE_BYTES = 48 * 1024;
+/** Per-piece file cap. SE CPU embedder can't finish thousands in a demo window. */
+const MAX_FILES_PER_PIECE = Number(process.env.CODE_SEARCH_MAX_FILES_PER_PIECE) || 100;
 
+/**
+ * Walk one directory tree, collecting code files under repo-relative paths.
+ * @param {string} absDir
+ * @param {string} repoRoot
+ * @param {Array<{path: string, content: string}>} acc
+ * @param {{ count: number, capWarned?: boolean, maxFiles: number }} skipped
+ */
 function walk(absDir, repoRoot, acc, skipped) {
   let entries;
   try { entries = fs.readdirSync(absDir, { withFileTypes: true }); }
   catch { return; }
   for (const e of entries) {
-    if (acc.length >= MAX_FILES) {
-      skipped.count++;
-      if (!skipped.capWarned) {
-        skipped.capWarned = true;
-        console.warn(`[default-index] file cap (${MAX_FILES}) reached; indexing truncated`);
-      }
-      return;
-    }
     const abs = path.join(absDir, e.name);
     const rel = path.relative(repoRoot, abs).split(path.sep).join('/');
     if (e.isDirectory()) {
@@ -60,61 +94,191 @@ function walk(absDir, repoRoot, acc, skipped) {
   }
 }
 
-/** Pure: collect first-party source files under repoRoot, applying ignore + caps. */
-function collectFiles(repoRoot) {
+/**
+ * Pure: collect first-party source files under repoRoot for the given roots
+ * (defaults to all piece roots). Smallest files first so the per-piece cap
+ * is filled with searchable logic rather than giant CSS/bundle sources.
+ * @param {string} repoRoot
+ * @param {string[]} [roots]
+ */
+function collectFiles(repoRoot, roots = SOURCE_ROOTS) {
   const acc = [];
   const skipped = { count: 0 };
-  for (const root of SOURCE_ROOTS) {
+  for (const root of roots) {
     const abs = path.join(repoRoot, root);
     if (fs.existsSync(abs)) walk(abs, repoRoot, acc, skipped);
   }
-  acc._skipped = skipped.count; // stashed for the caller's status
-  return acc;
+  acc.sort((a, b) => a.content.length - b.content.length);
+  const capped = acc.slice(0, MAX_FILES_PER_PIECE);
+  if (acc.length > capped.length) {
+    skipped.count += acc.length - capped.length;
+    console.warn(
+      `[default-index] file cap (${MAX_FILES_PER_PIECE}) reached; indexing truncated`
+    );
+  }
+  capped._skipped = skipped.count;
+  return capped;
 }
 
-const status = { state: 'idle', filesIndexed: 0, chunksCreated: 0, skipped: 0, error: null };
-function getStatus() { return { ...status }; }
+/**
+ * @typedef {{
+ *   state: 'idle'|'indexing'|'ready'|'error'|'skipped',
+ *   filesIndexed: number,
+ *   chunksCreated: number,
+ *   skipped: number,
+ *   error: string|null
+ * }} PieceStatus
+ */
 
-/** Idempotent background index of the repo into the default codebase. */
+const status = {
+  state: 'idle',
+  filesIndexed: 0,
+  chunksCreated: 0,
+  skipped: 0,
+  error: null,
+  /** @type {Record<string, PieceStatus>} */
+  pieces: {},
+};
+
+/** Return a shallow copy of the aggregate indexer status (incl. per-piece). */
+function getStatus() {
+  return {
+    ...status,
+    pieces: { ...status.pieces },
+    pieceIds: CODEBASE_PIECES.map((p) => p.id),
+  };
+}
+
+/**
+ * Probe whether a codebase already has indexed chunks.
+ * @param {{ search: Function }} client
+ * @param {string} codebaseId
+ */
+async function hasChunks(client, codebaseId) {
+  try {
+    const probe = await client.search({
+      query: 'function',
+      codebase_id: codebaseId,
+      limit: 1,
+    });
+    return !!(probe && Array.isArray(probe.results) && probe.results.length > 0);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Index one piece in small batches.
+ * @param {{ index: Function }} client
+ * @param {CodebasePiece} piece
+ * @param {string} rootDir
+ */
+async function indexPiece(client, piece, rootDir) {
+  const pieceStatus = {
+    state: 'indexing',
+    filesIndexed: 0,
+    chunksCreated: 0,
+    skipped: 0,
+    error: null,
+  };
+  status.pieces[piece.id] = pieceStatus;
+
+  if (await hasChunks(client, piece.id)) {
+    pieceStatus.state = 'ready';
+    return pieceStatus;
+  }
+
+  const presentRoots = piece.roots.filter((r) =>
+    fs.existsSync(path.join(rootDir, r))
+  );
+  if (presentRoots.length === 0) {
+    pieceStatus.state = 'skipped';
+    return pieceStatus;
+  }
+
+  const files = collectFiles(rootDir, presentRoots);
+  pieceStatus.skipped = files._skipped || 0;
+
+  // SE embeddings (single in-cluster llama slot) choke on 50-file batches —
+  // 500s and cancels. Keep batches small; Compose still finishes in minutes.
+  const BATCH = Number(process.env.CODE_SEARCH_INDEX_BATCH) || 5;
+  let chunks = 0;
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const res = await client.index({
+      files: batch,
+      codebase_id: piece.id,
+      codebase_name: piece.name,
+      chunk_strategy: 'line-based',
+    });
+    chunks += (res && res.chunks_created) || 0;
+  }
+  pieceStatus.filesIndexed = files.length;
+  pieceStatus.chunksCreated = chunks;
+  pieceStatus.state = 'ready';
+  return pieceStatus;
+}
+
+/**
+ * Idempotent background index of the repo into one codebase per piece.
+ * @param {{ client: { index: Function, search: Function }, rootDir: string }} opts
+ */
 async function startDefaultIndex({ client, rootDir }) {
   if (status.state === 'indexing' || status.state === 'ready') return;
   status.state = 'indexing';
+  status.error = null;
   try {
-    // Idempotency: if the default codebase already has chunks, skip.
-    try {
-      const probe = await client.search({
-        query: 'function', codebase_id: DEFAULT_CODEBASE_ID, limit: 1,
-      });
-      if (probe && Array.isArray(probe.results) && probe.results.length > 0) {
-        status.state = 'ready';
-        status.error = null;
-        return;
+    // Fast path: if every present piece already has chunks, mark ready.
+    let allReady = true;
+    for (const piece of CODEBASE_PIECES) {
+      const present = piece.roots.some((r) =>
+        fs.existsSync(path.join(rootDir, r))
+      );
+      if (!present) {
+        status.pieces[piece.id] = {
+          state: 'skipped',
+          filesIndexed: 0,
+          chunksCreated: 0,
+          skipped: 0,
+          error: null,
+        };
+        continue;
       }
-    } catch (_) { /* embedder/weaviate not ready yet — fall through to index */ }
-
-    const files = collectFiles(rootDir);
-    status.skipped = files._skipped || 0;
-
-    // Small batches: a 400-file POST wedged the BFF->code-search hop (15min+
-    // timeouts) while 50-file batches index the whole repo in ~2.5min, 2-5s
-    // each — and a failure only retries a small slice.
-    const BATCH = 50;
-    let chunks = 0;
-    for (let i = 0; i < files.length; i += BATCH) {
-      const batch = files.slice(i, i + BATCH);
-      const res = await client.index({
-        files: batch,
-        codebase_id: DEFAULT_CODEBASE_ID,
-        codebase_name: DEFAULT_CODEBASE_NAME,
-        chunk_strategy: 'line-based',
-      });
-      chunks += (res && res.chunks_created) || 0;
+      if (!(await hasChunks(client, piece.id))) {
+        allReady = false;
+        break;
+      }
+      status.pieces[piece.id] = {
+        state: 'ready',
+        filesIndexed: 0,
+        chunksCreated: 0,
+        skipped: 0,
+        error: null,
+      };
     }
-    status.filesIndexed = files.length;
-    status.chunksCreated = chunks;
+    if (allReady && Object.keys(status.pieces).length > 0) {
+      status.state = 'ready';
+      return;
+    }
+
+    let totalFiles = 0;
+    let totalChunks = 0;
+    let totalSkipped = 0;
+    for (const piece of CODEBASE_PIECES) {
+      const ps = await indexPiece(client, piece, rootDir);
+      totalFiles += ps.filesIndexed || 0;
+      totalChunks += ps.chunksCreated || 0;
+      totalSkipped += ps.skipped || 0;
+    }
+    status.filesIndexed = totalFiles;
+    status.chunksCreated = totalChunks;
+    status.skipped = totalSkipped;
     status.state = 'ready';
     status.error = null;
-    console.log(`[default-index] ready: ${files.length} files, ${chunks} chunks, ${status.skipped} skipped`);
+    console.log(
+      `[default-index] ready: ${CODEBASE_PIECES.length} pieces, ` +
+        `${totalFiles} files, ${totalChunks} chunks, ${totalSkipped} skipped`
+    );
   } catch (err) {
     status.state = 'error';
     status.error = err.message;
@@ -122,7 +286,23 @@ async function startDefaultIndex({ client, rootDir }) {
   }
 }
 
+/** Test-only: clear module status so suites can re-invoke startDefaultIndex. */
+function _resetStatusForTests() {
+  status.state = 'idle';
+  status.filesIndexed = 0;
+  status.chunksCreated = 0;
+  status.skipped = 0;
+  status.error = null;
+  status.pieces = {};
+}
+
 module.exports = {
-  DEFAULT_CODEBASE_ID, DEFAULT_CODEBASE_NAME, SOURCE_ROOTS,
-  collectFiles, getStatus, startDefaultIndex,
+  DEFAULT_CODEBASE_ID,
+  DEFAULT_CODEBASE_NAME,
+  CODEBASE_PIECES,
+  SOURCE_ROOTS,
+  collectFiles,
+  getStatus,
+  startDefaultIndex,
+  _resetStatusForTests,
 };

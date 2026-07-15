@@ -1,18 +1,70 @@
 /**
  * PingOne Scope Update Service
- * 
- * Utility to fix scope configuration in existing PingOne environments.
- * Handles renaming incorrect scope names to Phase 69.1 standardized names.
- * 
- * Enhanced with silent worker token acquisition using configStore.
+ *
+ * Non-destructive repair for PingOne resource-server scopes. Adds any scopes
+ * missing from scope-topology.json (SSOT) onto the Demo API, Agent Gateway,
+ * and MCP Server resources. Never renames or deletes scopes — agent:invoke and
+ * ai:agent:read are both valid on different audiences.
+ *
+ * Uses silent worker-token acquisition via configStore.
  */
 
 'use strict';
 
 const axios = require('axios');
 const configStore = require('./configStore');
+const scopeTopology = require('./scopeTopology');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
+
+/** Resolve live PingOne audiences, preferring runtime config over topology defaults. */
+function resolveAudienceTargets() {
+  const audiences = scopeTopology.audiences();
+  return [
+    {
+      key: 'api',
+      label: scopeTopology.provisionedResourceName('Super Banking API'),
+      audience:
+        configStore.getEffective('pingone_audience_enduser') ||
+        process.env.ENDUSER_AUDIENCE ||
+        audiences.enduser,
+      scopes: scopeTopology.resourceScopes('Super Banking API'),
+    },
+    {
+      key: 'agent',
+      label: scopeTopology.provisionedResourceName('Super Banking Agent Gateway'),
+      audience:
+        configStore.getEffective('pingone_resource_agent_gateway_uri') ||
+        process.env.PINGONE_RESOURCE_AGENT_GATEWAY_URI ||
+        audiences.agentGateway,
+      scopes: scopeTopology.resourceScopes('Super Banking Agent Gateway'),
+    },
+    {
+      key: 'mcp',
+      label: scopeTopology.provisionedResourceName('Super Banking MCP Server'),
+      audience:
+        configStore.getEffective('pingone_resource_mcp_server_uri') ||
+        process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+        audiences.mcpServer,
+      scopes: scopeTopology.resourceScopes('Super Banking MCP Server'),
+    },
+  ];
+}
+
+/** Match a PingOne resource by audience URI or provisioned/display name. */
+function findResourceForTarget(resources, target) {
+  const byAudience = resources.find((r) => {
+    const aud = r.audience || (r.accessControl && r.accessControl.audience) || '';
+    return aud === target.audience;
+  });
+  if (byAudience) return byAudience;
+  const label = String(target.label || '').toLowerCase();
+  const key = String(target.key || '').toLowerCase();
+  return resources.find((r) => {
+    const name = String(r.name || '').toLowerCase();
+    return (label && name === label) || (key && name.includes(key));
+  });
+}
 
 class PingOneScopeUpdateService {
   constructor() {
@@ -272,186 +324,108 @@ class PingOneScopeUpdateService {
   }
 
   /**
-   * Fix scope configuration (main update function)
-   * Handles: agent:invoke → ai:agent:read
+   * Add any scopes missing from scope-topology.json onto core resource servers.
+   * Non-destructive: only creates missing scopes; never renames or deletes.
    */
   async fixScopeConfiguration() {
     const steps = [];
     const results = {
       success: true,
-      steps: steps,
-      summary: null
+      steps,
+      summary: null,
     };
 
     try {
-      // Ensure we have a valid token (uses caching)
       if (!this.workerToken || !this.tokenCache.expiresAt || Date.now() >= this.tokenCache.expiresAt) {
-        steps.push({ 
-          icon: '🔐', 
-          message: 'Validating worker credentials...' 
-        });
+        steps.push({ icon: '🔐', message: 'Validating worker credentials...' });
         await this.getOrRefreshWorkerToken(this.envId, this.region);
-        steps.push({ 
-          icon: '✅', 
-          message: 'Worker token obtained' 
-        });
-      }
-      // Step 1: Find Main Banking Resource
-      steps.push({ 
-        icon: '🔍', 
-        message: 'Finding Main Banking Resource Server...' 
-      });
-      
-      const resource = await this.findMainBankingResource();
-      steps.push({ 
-        icon: '✅', 
-        message: `Found: ${resource.name} (${resource.id})` 
-      });
-
-      // Step 2: Get existing scopes
-      steps.push({ 
-        icon: '🔍', 
-        message: 'Checking for incorrect scopes...' 
-      });
-      
-      const scopes = await this.getResourceScopes(resource.id);
-      const hasOldScope = scopes.some(s => s.name === 'agent:invoke');
-      const hasNewScope = scopes.some(s => s.name === 'ai:agent:read');
-
-      if (!hasOldScope && hasNewScope) {
-        steps.push({ 
-          icon: '✅', 
-          message: 'Correct scope already exists, nothing to fix' 
-        });
-        return results;
+        steps.push({ icon: '✅', message: 'Worker token obtained' });
       }
 
-      if (!hasOldScope && !hasNewScope) {
-        steps.push({ 
-          icon: '⚠️', 
-          message: 'Neither old nor new scope found, creating new scope...' 
-        });
-        
-        const createResult = await this.createScope(
-          resource.id, 
-          'ai:agent:read', 
-          'Agent delegation scope (Phase 69.1 standardized)'
-        );
-        steps.push({ 
-          icon: createResult.success ? '✅' : '❌', 
-          message: createResult.message 
-        });
+      const targets = resolveAudienceTargets();
+      steps.push({
+        icon: '✅',
+        message: `Checking ${targets.length} resource servers against scope-topology.json (add-only)`,
+      });
 
-        if (!createResult.success) {
+      const listResponse = await this.makeRequest('GET', '/resources');
+      const resources = listResponse.data._embedded?.resources || [];
+      let addedCount = 0;
+      let missingRsCount = 0;
+
+      for (const target of targets) {
+        const resource = findResourceForTarget(resources, target);
+        if (!resource) {
+          missingRsCount += 1;
           results.success = false;
-          results.summary = 'Failed to create scope';
-          return results;
+          steps.push({
+            icon: '❌',
+            message: `${target.label} not found (audience ${target.audience})`,
+          });
+          continue;
         }
-      } else if (hasOldScope && !hasNewScope) {
-        // Create new scope first
-        steps.push({ 
-          icon: '➕', 
-          message: 'Creating new scope ai:agent:read...' 
-        });
-        
-        const createResult = await this.createScope(
-          resource.id, 
-          'ai:agent:read', 
-          'Agent delegation scope (Phase 69.1 standardized)'
-        );
-        steps.push({ 
-          icon: createResult.success ? '✅' : '⚠️', 
-          message: createResult.message 
+
+        steps.push({
+          icon: '✅',
+          message: `Found ${resource.name} (${resource.id})`,
         });
 
-        // Delete old scope
-        steps.push({ 
-          icon: '🗑️', 
-          message: 'Removing old scope agent:invoke...' 
-        });
-        
-        const deleteResult = await this.deleteScope(resource.id, 'agent:invoke');
-        steps.push({ 
-          icon: deleteResult.success ? '✅' : '⚠️', 
-          message: deleteResult.message 
-        });
-      } else if (hasOldScope && hasNewScope) {
-        // Both exist - just remove old one
-        steps.push({ 
-          icon: '🗑️', 
-          message: 'Both scopes exist, removing old scope agent:invoke...' 
-        });
-        
-        const deleteResult = await this.deleteScope(resource.id, 'agent:invoke');
-        steps.push({ 
-          icon: deleteResult.success ? '✅' : '⚠️', 
-          message: deleteResult.message 
-        });
-      }
+        const existing = await this.getResourceScopes(resource.id);
+        const existingNames = existing.map((s) => s.name || s.value || s);
+        const toAdd = target.scopes.filter((s) => !existingNames.includes(s));
 
-      // Step 3: Update application scope grants
-      steps.push({ 
-        icon: '🔍', 
-        message: 'Updating application scope grants...' 
-      });
-      
-      const applications = await this.getApplications();
-      const relevantApps = applications.filter(a => 
-        a.name && (a.name.includes('User') || a.name.includes('user') || a.name.includes('Customer'))
-      );
-
-      for (const app of relevantApps) {
-        steps.push({ 
-          icon: '🔄', 
-          message: `Checking ${app.name}...` 
-        });
-        
-        const currentScopes = await this.getApplicationResourceScopes(app.id, resource.id);
-        
-        // Check if app has old scope
-        const hasOldAppScope = currentScopes.includes('agent:invoke');
-        const hasNewAppScope = currentScopes.includes('ai:agent:read');
-
-        if (hasOldAppScope || !hasNewAppScope) {
-          const scopesToGrant = currentScopes.filter(s => s !== 'agent:invoke');
-          if (!scopesToGrant.includes('ai:agent:read')) {
-            scopesToGrant.push('ai:agent:read');
-          }
-
-          const grantResult = await this.grantScopesToApplication(app.id, resource.id, scopesToGrant);
-          steps.push({ 
-            icon: grantResult.success ? '✅' : '❌', 
-            message: grantResult.success 
-              ? `Updated ${app.name} with correct scopes` 
-              : `Failed to update ${app.name}: ${grantResult.message}` 
+        if (toAdd.length === 0) {
+          steps.push({
+            icon: '✅',
+            message: `${resource.name}: all ${target.scopes.length} expected scopes present`,
           });
+          continue;
+        }
 
-          if (!grantResult.success) {
-            results.success = false;
-          }
-        } else {
-          steps.push({ 
-            icon: '✅', 
-            message: `${app.name} already has correct scopes` 
+        steps.push({
+          icon: '⚠️',
+          message: `${resource.name}: adding ${toAdd.length} missing scope(s): ${toAdd.join(', ')}`,
+        });
+
+        for (const scopeName of toAdd) {
+          const createResult = await this.createScope(
+            resource.id,
+            scopeName,
+            `Scope: ${scopeName} (from scope-topology.json)`
+          );
+          steps.push({
+            icon: createResult.success ? '✅' : '❌',
+            message: createResult.message,
           });
+          if (createResult.success) addedCount += 1;
+          else results.success = false;
         }
       }
 
-      results.summary = results.success 
-        ? '✅ Scope configuration updated successfully' 
-        : '⚠️ Some updates failed';
+      if (!results.success && missingRsCount === targets.length) {
+        results.summary = '❌ No matching PingOne resource servers found';
+      } else if (!results.success) {
+        results.summary = '⚠️ Some scope updates failed';
+      } else if (addedCount === 0) {
+        results.summary = '✅ All expected PingOne scopes already present';
+      } else {
+        results.summary = `✅ Added ${addedCount} missing PingOne scope(s)`;
+      }
 
       return results;
     } catch (error) {
-      steps.push({ 
-        icon: '❌', 
-        message: `Error: ${error.message}` 
+      steps.push({
+        icon: '❌',
+        message: `Error: ${error.message}`,
       });
       results.success = false;
-      results.summary = error.message;
+      results.summary = `Failed: ${error.message}`;
       return results;
     }
   }
+
 }
 
 module.exports = PingOneScopeUpdateService;
+module.exports.resolveAudienceTargets = resolveAudienceTargets;
+module.exports.findResourceForTarget = findResourceForTarget;

@@ -277,6 +277,56 @@ describe('MCP Inspector routes', () => {
     expect(res.body.frames.response.result).toEqual({ content: [{ type: 'text', text: '{"ok":true}' }] });
     expect(res.body.tokenEvents).toEqual(tokenEvents);
   });
+
+  describe('GET /api/mcp/inspector/langchain-host', () => {
+    const originalFetch = global.fetch;
+    const originalAgentUrl = process.env.LANGCHAIN_AGENT_HTTP_URL;
+    const originalSecret = process.env.BFF_INTERNAL_SECRET;
+
+    beforeEach(() => {
+      process.env.LANGCHAIN_AGENT_HTTP_URL = 'http://langchain-agent:8888';
+      process.env.BFF_INTERNAL_SECRET = 'test-inspector-secret';
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      if (originalAgentUrl === undefined) delete process.env.LANGCHAIN_AGENT_HTTP_URL;
+      else process.env.LANGCHAIN_AGENT_HTTP_URL = originalAgentUrl;
+      if (originalSecret === undefined) delete process.env.BFF_INTERNAL_SECRET;
+      else process.env.BFF_INTERNAL_SECRET = originalSecret;
+    });
+
+    it('proxies AG-UI inspector JSON with the internal gateway secret', async () => {
+      const snapshot = { role: 'mcp_host', langchain_tools_exposed_to_llm: ['get_my_accounts'] };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => snapshot,
+      });
+
+      const res = await request(app).get('/api/mcp/inspector/langchain-host');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(snapshot);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://langchain-agent:8888/inspector/mcp-host',
+        expect.objectContaining({
+          headers: { 'x-internal-gateway-secret': 'test-inspector-secret' },
+        }),
+      );
+    });
+
+    it('maps undici fetch failed to langchain_agent_down (not raw fetch failed)', async () => {
+      const err = new TypeError('fetch failed');
+      err.cause = { code: 'ECONNREFUSED' };
+      global.fetch = jest.fn().mockRejectedValue(err);
+
+      const res = await request(app).get('/api/mcp/inspector/langchain-host');
+
+      expect(res.status).toBe(503);
+      expect(res.body.error).toBe('langchain_agent_down');
+      expect(res.body.message).toMatch(/langchain-agent:8888/);
+    });
+  });
 });
 
 describe('MCP Inspector — MFA gate (GET /api/mcp/inspector/tools)', () => {

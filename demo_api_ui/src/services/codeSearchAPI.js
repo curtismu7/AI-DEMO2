@@ -107,14 +107,51 @@ export function filterFolderFiles(fileList) {
   return { accepted, skipped };
 }
 
-/** Upload picked folder files through the existing multi-file /index route. */
-export async function indexFolderFiles(files, codebaseName) {
+/**
+ * Upload picked folder files through the existing multi-file /index route.
+ * @param {File[]} files
+ * @param {string} codebaseName
+ * @param {string} [codebaseId] - stable id so multi-batch uploads land together
+ */
+export async function indexFolderFiles(files, codebaseName, codebaseId) {
   const formData = new FormData();
   formData.append('codebase_name', codebaseName);
+  if (codebaseId) formData.append('codebase_id', codebaseId);
   for (const f of files) {
     formData.append('file', f, f.webkitRelativePath || f.name);
   }
   const response = await fetch(`${API_BASE}/index`, { method: 'POST', body: formData });
   await throwIfNotOk(response, 'Index failed');
   return response.json();
+}
+
+/**
+ * Decide whether a picked folder should be one codebase or several pieces.
+ * webkitRelativePath is "SelectedRoot/child/...". When SelectedRoot has 2+
+ * child directories that contain files, treat those children as pieces
+ * (e.g. picking the AI-DEMO2 repo → UI / Server / Gateway…).
+ * @param {File[]} accepted
+ * @returns {{ mode: 'single', name: string, files: File[] }
+ *   | { mode: 'pieces', rootName: string, groups: Map<string, File[]> }}
+ */
+export function planFolderIndex(accepted) {
+  const rootName = (accepted[0]?.webkitRelativePath || 'folder').split('/')[0];
+  const childDirs = new Set();
+  for (const f of accepted) {
+    const parts = (f.webkitRelativePath || f.name).split('/');
+    if (parts.length >= 3) childDirs.add(parts[1]);
+  }
+
+  if (childDirs.size < 2) {
+    return { mode: 'single', name: rootName, files: accepted };
+  }
+
+  const groups = new Map();
+  for (const f of accepted) {
+    const parts = (f.webkitRelativePath || f.name).split('/');
+    const piece = parts.length >= 3 ? parts[1] : rootName;
+    if (!groups.has(piece)) groups.set(piece, []);
+    groups.get(piece).push(f);
+  }
+  return { mode: 'pieces', rootName, groups };
 }

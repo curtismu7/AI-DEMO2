@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ALL_CATEGORIES } from '../../hooks/useActivityLog';
-import ActivityLogPanel from '../ActivityLogPanel';
+import ActivityLogPanel, { flowBoundaryKind } from '../ActivityLogPanel';
 
 // Stub the hook while keeping the real module's other exports (ALL_CATEGORIES etc).
 let _mockReturn = null;
@@ -32,6 +32,48 @@ function baseState(overrides = {}) {
     ...overrides,
   };
 }
+
+describe('ActivityLogPanel — agent flow bookends', () => {
+  it('renders start and end dividers for agent/flow-* tags', () => {
+    _mockReturn = baseState({
+      events: [
+        {
+          id: 'e1',
+          tag: 'agent/flow-end',
+          category: 'agent',
+          severity: 'info',
+          message: 'Agent flow end — success · 1 tool(s)',
+          timestamp: '2026-07-15T12:00:01.000Z',
+          correlationId: 'abcd1234-ffff-4444-8888-ffffffffffff',
+        },
+        {
+          id: 'e0',
+          tag: 'agent/flow-start',
+          category: 'agent',
+          severity: 'info',
+          message: 'Agent flow start — show my balance',
+          timestamp: '2026-07-15T12:00:00.000Z',
+          correlationId: 'abcd1234-ffff-4444-8888-ffffffffffff',
+        },
+      ],
+    });
+    render(<ActivityLogPanel enabled={true} />);
+    expect(screen.getByTestId('alp-flow-end')).toBeInTheDocument();
+    expect(screen.getByTestId('alp-flow-start')).toBeInTheDocument();
+    expect(screen.getByText('Agent flow start')).toBeInTheDocument();
+    expect(screen.getByText('Agent flow end')).toBeInTheDocument();
+    expect(screen.getAllByText('abcd1234').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('flowBoundaryKind', () => {
+  it('detects start and end tags only', () => {
+    expect(flowBoundaryKind({ tag: 'agent/flow-start' })).toBe('start');
+    expect(flowBoundaryKind({ tag: 'agent/flow-end' })).toBe('end');
+    expect(flowBoundaryKind({ tag: 'agent/route' })).toBeNull();
+    expect(flowBoundaryKind({})).toBeNull();
+  });
+});
 
 describe('ActivityLogPanel — use-case filter pills', () => {
   it('does not render use-case filter row when availableUseCaseIds is empty', () => {

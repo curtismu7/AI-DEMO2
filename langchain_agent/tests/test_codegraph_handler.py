@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessageChunk, AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 import src.api.codegraph_handler as handler
 from src.api.codegraph_handler import router, _build_messages
@@ -18,59 +18,56 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def _reset_graph_cache():
-    """The handler memoizes the agent in a module global; reset it between tests
-    so a graph built (or mocked) by one test never leaks into the next."""
-    handler._graph_cache = None
+def _reset_runner_cache():
+    """Reset memoized runner between tests."""
+    handler._runner_cache = None
+    handler._runner_cache_key = None
     yield
-    handler._graph_cache = None
+    handler._runner_cache = None
+    handler._runner_cache_key = None
+
+
+def _mock_runner(*, token: str = "Hello world", error: str | None = None, capture=None):
+    runner = MagicMock()
+
+    async def astream_sse(messages):
+        if capture is not None:
+            capture["messages"] = messages
+        yield 'data: {"type": "status", "text": "Searching the codebase…"}\n\n'
+        if error:
+            yield f'data: {{"type": "error", "text": "{error}"}}\n\n'
+        elif token:
+            yield f'data: {{"type": "token", "text": "{token}"}}\n\n'
+        yield 'data: {"type": "done"}\n\n'
+
+    runner.astream_sse = astream_sse
+    return runner
 
 
 class TestCodegraphQuery:
     def test_returns_sse_stream(self):
-        """Happy path: question produces token stream."""
-        mock_graph = MagicMock()
-        chunk = AIMessageChunk(content="Hello world")
-
-        async def mock_astream(*args, **kwargs):
-            yield chunk, {}
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner()), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "How does X work?"})
 
         assert response.status_code == 200
         assert "text/event-stream" in response.headers["content-type"]
         body = response.text
-        assert '"type": "token"' in body or '"type":"token"' in body
+        assert '"type": "token"' in body
         assert "Hello world" in body
-        assert '"type": "done"' in body or '"type":"done"' in body
+        assert '"type": "done"' in body
 
     def test_empty_question_returns_400(self):
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            response = client.post("/codegraph/query", json={"question": ""})
+        response = client.post("/codegraph/query", json={"question": ""})
         assert response.status_code == 400
 
     def test_whitespace_only_question_returns_400(self):
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            response = client.post("/codegraph/query", json={"question": "   "})
+        response = client.post("/codegraph/query", json={"question": "   "})
         assert response.status_code == 400
 
     def test_missing_anthropic_key_still_streams(self):
-        """The agent is provider-agnostic (llama.cpp → Helix → lmstudio), so a
-        missing ANTHROPIC_API_KEY must NOT fail the request — it still streams."""
-        mock_graph = MagicMock()
-
-        async def mock_astream(*args, **kwargs):
-            return
-            yield
-
-        mock_graph.astream = mock_astream
-
         env_without_key = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="ok")), \
              patch.dict("os.environ", env_without_key, clear=True):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 200
@@ -80,117 +77,45 @@ class TestCodegraphQuery:
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 503
-        assert response.json()["error"] == "CodeGraph index not available"
+        err = response.json()["error"]
+        assert "CodeGraph LLM backend unavailable" in err
+        assert "DB missing" in err
 
     def test_default_history_is_empty(self):
-        """Question without history field should work."""
-        mock_graph = MagicMock()
-
-        async def mock_astream(*args, **kwargs):
-            return
-            yield  # make it an async generator
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="x")), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 200
 
     def test_done_event_always_emitted(self):
-        """Even with empty stream, done event is sent."""
-        mock_graph = MagicMock()
-
-        async def mock_astream(*args, **kwargs):
-            return
-            yield
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="")), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "test"})
-
-        body = response.text
-        assert '"type": "done"' in body or '"type":"done"' in body
+        assert '"type": "done"' in response.text
 
     def test_stream_error_emits_error_event_then_done(self):
-        """Mid-stream exception yields error SSE event and then done."""
-        mock_graph = MagicMock()
-
-        async def mock_astream(*args, **kwargs):
-            raise RuntimeError("something broke")
-            yield  # make it a generator
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent",
+                   return_value=_mock_runner(error="something broke")), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             response = client.post("/codegraph/query", json={"question": "test"})
-
         assert response.status_code == 200
         body = response.text
-        assert '"type": "error"' in body or '"type":"error"' in body
+        assert '"type": "error"' in body
         assert "something broke" in body
-        assert '"type": "done"' in body or '"type":"done"' in body
-
-    def test_non_ai_message_chunks_are_filtered(self):
-        """Tool call messages (ToolMessage, HumanMessage) should not produce token events."""
-        mock_graph = MagicMock()
-        tool_msg = ToolMessage(content="tool result", tool_call_id="call_123")
-
-        async def mock_astream(*args, **kwargs):
-            yield tool_msg, {}
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            response = client.post("/codegraph/query", json={"question": "test"})
-
-        body = response.text
-        assert '"type":"token"' not in body and '"type": "token"' not in body
-        assert '"type":"done"' in body or '"type": "done"' in body
-
-    def test_list_content_blocks_yield_tokens(self):
-        """AIMessageChunk with list content (text blocks) should emit token events."""
-        mock_graph = MagicMock()
-        chunk = AIMessageChunk(content=[{"type": "text", "text": "chunked text"}])
-
-        async def mock_astream(*args, **kwargs):
-            yield chunk, {}
-
-        mock_graph.astream = mock_astream
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            response = client.post("/codegraph/query", json={"question": "test"})
-
-        body = response.text
-        assert "chunked text" in body
+        assert '"type": "done"' in body
 
     def test_history_is_passed_to_agent(self):
-        """History messages should be forwarded as LangChain messages."""
-        mock_graph = MagicMock()
-        captured_input = {}
-
-        async def mock_astream(input_dict, **kwargs):
-            captured_input.update(input_dict)
-            return
-            yield
-
-        mock_graph.astream = mock_astream
-
+        captured = {}
         history = [
             {"role": "user", "content": "first question"},
             {"role": "assistant", "content": "first answer"},
         ]
-
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=mock_graph), \
+        with patch("src.api.codegraph_handler.create_codegraph_agent",
+                   return_value=_mock_runner(capture=captured)), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             client.post("/codegraph/query", json={"question": "follow up", "history": history})
 
-        msgs = captured_input.get("messages", [])
+        msgs = captured.get("messages", [])
         assert len(msgs) == 3
         assert isinstance(msgs[0], HumanMessage)
         assert isinstance(msgs[1], AIMessage)
@@ -221,16 +146,24 @@ class TestCodegraphReindex:
              patch("src.api.codegraph_handler._reindex_lock", busy):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 409
-        # The lock guard must short-circuit before spawning the indexer.
         busy.locked.assert_called_once()
 
     def test_success_parses_counts(self, tmp_path):
+        db = tmp_path / "codegraph.db"
         self._write_indexer(
             tmp_path,
+            "import sys\n"
+            "from pathlib import Path\n"
             "print('  Indexing 5 files from X')\n"
-            "print('  Found 12 nodes, 3 call sites')\n",
+            "print('  Found 12 nodes, 3 call sites')\n"
+            "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
+            "out.parent.mkdir(parents=True, exist_ok=True)\n"
+            "out.write_bytes(b'x' * 64)\n",
         )
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
@@ -238,16 +171,50 @@ class TestCodegraphReindex:
         assert data["files"] == 5
         assert data["nodes"] == 12
         assert isinstance(data["durationMs"], int)
+        assert db.is_file() and db.stat().st_size > 0
 
     def test_unparseable_output_yields_null_counts(self, tmp_path):
-        self._write_indexer(tmp_path, "print('done, nothing to parse here')\n")
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        db = tmp_path / "codegraph.db"
+        self._write_indexer(
+            tmp_path,
+            "import sys\n"
+            "from pathlib import Path\n"
+            "print('done, nothing to parse here')\n"
+            "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
+            "out.write_bytes(b'x' * 64)\n",
+        )
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 200
         data = response.json()
         assert data["ok"] is True
         assert data["files"] is None
         assert data["nodes"] is None
+
+    def test_legacy_indexer_without_out_is_promoted(self, tmp_path):
+        query_db = tmp_path / "query" / "codegraph.db"
+        legacy = tmp_path / ".codegraph" / "codegraph.db"
+        self._write_indexer(
+            tmp_path,
+            "from pathlib import Path\n"
+            "print('  Indexing 2 files from X')\n"
+            "print('  Found 9 nodes, 1 call sites')\n"
+            "p = Path('.codegraph') / 'codegraph.db'\n"
+            "p.parent.mkdir(parents=True, exist_ok=True)\n"
+            "p.write_bytes(b'legacy-db' * 8)\n",
+        )
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(query_db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(query_db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
+            response = client.post("/codegraph/reindex")
+        assert response.status_code == 200
+        assert response.json()["nodes"] == 9
+        assert query_db.is_file() and query_db.stat().st_size > 0
+        assert legacy.is_file()
 
     def test_indexer_failure_returns_500_with_log(self, tmp_path):
         self._write_indexer(tmp_path, "import sys\nprint('boom')\nsys.exit(1)\n")

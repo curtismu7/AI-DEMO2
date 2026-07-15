@@ -23,7 +23,7 @@ const QUICK_FLAGS = [
   { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Exchange Mode' },
   { id: 'ff_token_auth_private_key_jwt', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Client Auth — Private Key JWT' },
   { id: 'ciba_enabled',                 group: 'AuthN / AuthZ',   control: 'toggle',    label: 'CIBA — Out-of-Band Approval' },
-  { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'LLM Chips — Heuristic Fast-Path' },
+  { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'Routing — Fallback to Heuristics' },
   { id: 'ff_agent_results_panel',       group: 'Agent',           control: 'toggle',    label: 'Floating Results Panel' },
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
   { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },

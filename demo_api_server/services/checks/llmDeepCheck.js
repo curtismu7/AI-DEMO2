@@ -7,6 +7,7 @@ const PER_MODEL_TIMEOUT = 180000;
 
 const deep = {
   id: 'llm.deep', name: 'Deep LLM test (all models)', category: 'LLM', heavy: true,
+  severity: 'advisory',
   async run() {
     let models;
     try {

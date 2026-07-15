@@ -255,11 +255,21 @@ describe("DashboardQuickNav", () => {
 		);
 	});
 
-	it("Logs button opens /logs in a popout window", () => {
+	it("Logs button opens /logs?mode=learn in a popout window", () => {
 		renderAt(DashboardQuickNav, "/dashboard", { user: customerUser });
 		fireEvent.click(screen.getByRole("button", { name: /logs/i }));
 		expect(windowOpenSpy).toHaveBeenCalledWith(
-			"/logs",
+			"/logs?mode=learn",
+			"BankingLogs",
+			expect.any(String),
+		);
+	});
+
+	it("Learning Log button opens /logs?mode=learn in a popout window", () => {
+		renderAt(DashboardQuickNav, "/dashboard", { user: customerUser });
+		fireEvent.click(screen.getByRole("button", { name: /^learning log$/i }));
+		expect(windowOpenSpy).toHaveBeenCalledWith(
+			"/logs?mode=learn",
 			"BankingLogs",
 			expect.any(String),
 		);

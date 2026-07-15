@@ -46,9 +46,15 @@ function proxyToAgent(req, res, opts) {
       'Content-Type': proxyRes.headers['content-type'] || defaultContentType,
       ...extraHeaders,
     });
+    // Flush immediately so nginx/ALB see the SSE response headers (and early
+    // status frames) before the LLM starts producing tokens.
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
     proxyRes.pipe(res);
   });
 
+  // SSE answers can take minutes; a default socket timeout mid-stream shows up
+  // in the browser as a generic network error.
+  proxyReq.setTimeout(timeout || 0);
   if (timeout) {
     proxyReq.on('timeout', () => proxyReq.destroy(new Error('upstream timed out')));
   }

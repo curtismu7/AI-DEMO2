@@ -6,4 +6,5 @@ require('./configCheck');
 require('./llmCheck');
 require('./llmDeepCheck');
 require('./gatewayCheck');
+require('./usecaseCheck');
 module.exports = require('./registry');

@@ -63,6 +63,7 @@ checkout. Concurrent sessions share one index; collisions have wiped staged work
 | | |
 |---|---|
 | Run | `./run.sh` (native); `./run-docker.sh` (Compose, lean core by default); `./run-k8.sh` |
+| SE AWS | `./run-pingaws.sh` — Ping SE cluster only (`ai-demo.ping-devops.com`); wraps `./run-k8.sh se-*` + `se-update-{code,config,pingone}.sh` |
 | API / UI | `https://api.ping.demo:3001` / UI `:4000` (hosts + `mkcert -install` once) |
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check` |

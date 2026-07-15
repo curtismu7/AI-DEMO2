@@ -3,19 +3,239 @@ import DraggableModal from './DraggableModal';
 import { registerPasskey } from '../utils/passkeyCeremony';
 
 /**
- * OtpStepUpModal — MFA OTP collection modal for HITL step-up challenges
+ * Find an email OTP device from a PingOne MFA device list.
+ * @param {Array} devices
+ * @returns {object|null}
+ */
+function findEmailDevice(devices) {
+  return (devices || []).find((d) => {
+    const t = String(d?.type || '').toUpperCase();
+    return t === 'EMAIL' || (t.includes('OTP') && t !== 'SMS' && !t.includes('SMS'));
+  }) || null;
+}
+
+/**
+ * Find an SMS OTP device from a PingOne MFA device list.
+ * @param {Array} devices
+ * @returns {object|null}
+ */
+function findSmsDevice(devices) {
+  return (devices || []).find((d) => {
+    const t = String(d?.type || '').toUpperCase();
+    return t === 'SMS' || t === 'PHONE' || t === 'MOBILE_PHONE';
+  }) || null;
+}
+
+/**
+ * Mask a phone number for display (last 4 digits only).
+ * @param {object|string|null} deviceOrPhone
+ * @returns {string}
+ */
+function maskPhone(deviceOrPhone) {
+  const raw = typeof deviceOrPhone === 'string'
+    ? deviceOrPhone
+    : (deviceOrPhone?.phone?.number || deviceOrPhone?.phone || deviceOrPhone?.nickname || deviceOrPhone?.name || '');
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length >= 4) return `***-***-${digits.slice(-4)}`;
+  return raw ? String(raw) : '';
+}
+
+/**
+ * Normalize user-entered phone to E.164 (default US +1 for 10-digit numbers).
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizePhoneE164(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return '';
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+${digits}`;
+}
+
+/**
+ * Find a FIDO2 / passkey device from a PingOne MFA device list.
+ * @param {Array} devices
+ * @returns {object|null}
+ */
+function findFidoDevice(devices) {
+  return (devices || []).find((d) =>
+    String(d?.type || '').toUpperCase().startsWith('FIDO2'),
+  ) || null;
+}
+
+/**
+ * Extra enrolled methods (TOTP / push) shown below the always-on OTP + Passkey rows.
+ * @param {Array} devices
+ * @returns {Array}
+ */
+function findExtraDevices(devices) {
+  return (devices || []).filter((d) => {
+    const t = String(d?.type || '').toUpperCase();
+    return t === 'TOTP' || t === 'PUSH' || t.includes('MOBILE');
+  });
+}
+
+/**
+ * Whether the browser can run WebAuthn passkey ceremonies.
+ * @returns {boolean}
+ */
+function isPasskeySupported() {
+  return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined';
+}
+
+/**
+ * Professional method-choice table: always lists Email OTP + Passkey.
+ * Optional extra enrolled devices appear as additional rows.
+ */
+function MethodChoiceTable({
+  otpContactLabel,
+  smsContactLabel,
+  smsEnrolled,
+  hasFido,
+  passkeySupported,
+  registering,
+  onChooseOtp,
+  onChooseSms,
+  onChoosePasskey,
+  extraRows = [],
+}) {
+  const passkeyDetail = !passkeySupported
+    ? 'Not available in this browser'
+    : hasFido
+      ? 'Use Touch ID, Face ID, or your security key'
+      : 'Set up Touch ID, Face ID, or a security key';
+  const passkeyCta = !passkeySupported
+    ? 'Unavailable'
+    : registering
+      ? 'Working…'
+      : hasFido
+        ? 'Continue →'
+        : 'Set up →';
+  const smsDetail = smsEnrolled
+    ? (smsContactLabel
+      ? `Text a 6-digit code to ${smsContactLabel}`
+      : 'Text a 6-digit code to your phone')
+    : 'Set up SMS OTP on your phone (E.164)';
+  const smsCta = smsEnrolled ? 'Continue →' : 'Set up →';
+
+  return (
+    <div className="otp-step-up-modal__method-table-wrap">
+      <p className="otp-step-up-modal__hint otp-step-up-modal__method-intro">
+        Choose how you want to verify your identity
+      </p>
+      <table className="otp-step-up-modal__method-table" role="table">
+        <thead>
+          <tr>
+            <th scope="col">Method</th>
+            <th scope="col">Details</th>
+            <th scope="col"><span className="otp-step-up-modal__sr-only">Action</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="otp-step-up-modal__method-row">
+            <td>
+              <span className="otp-step-up-modal__method-name">
+                <span className="otp-step-up-modal__method-badge" aria-hidden>OTP</span>
+                Email code
+              </span>
+            </td>
+            <td className="otp-step-up-modal__method-detail">
+              {otpContactLabel
+                ? `Send a 6-digit code to ${otpContactLabel}`
+                : 'Send a 6-digit code to your email'}
+            </td>
+            <td>
+              <button
+                type="button"
+                className="otp-step-up-modal__method-cta"
+                onClick={onChooseOtp}
+                data-testid="mfa-choose-otp"
+              >
+                Continue →
+              </button>
+            </td>
+          </tr>
+          <tr className={`otp-step-up-modal__method-row${smsEnrolled ? '' : ' otp-step-up-modal__method-row--setup'}`}>
+            <td>
+              <span className="otp-step-up-modal__method-name">
+                <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--sms" aria-hidden>SMS</span>
+                SMS code
+              </span>
+            </td>
+            <td className="otp-step-up-modal__method-detail">{smsDetail}</td>
+            <td>
+              <button
+                type="button"
+                className="otp-step-up-modal__method-cta"
+                onClick={onChooseSms}
+                data-testid="mfa-choose-sms"
+              >
+                {smsCta}
+              </button>
+            </td>
+          </tr>
+          <tr className={`otp-step-up-modal__method-row${hasFido ? '' : ' otp-step-up-modal__method-row--setup'}`}>
+            <td>
+              <span className="otp-step-up-modal__method-name">
+                <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--passkey" aria-hidden>KEY</span>
+                Passkey
+              </span>
+            </td>
+            <td className="otp-step-up-modal__method-detail">{passkeyDetail}</td>
+            <td>
+              <button
+                type="button"
+                className="otp-step-up-modal__method-cta"
+                onClick={onChoosePasskey}
+                disabled={!passkeySupported || registering}
+                data-testid="mfa-choose-passkey"
+              >
+                {passkeyCta}
+              </button>
+            </td>
+          </tr>
+          {extraRows.map((row) => (
+            <tr key={row.id} className="otp-step-up-modal__method-row">
+              <td>
+                <span className="otp-step-up-modal__method-name">
+                  <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--extra" aria-hidden>
+                    {row.badge}
+                  </span>
+                  {row.label}
+                </span>
+              </td>
+              <td className="otp-step-up-modal__method-detail">{row.detail}</td>
+              <td>
+                <button
+                  type="button"
+                  className="otp-step-up-modal__method-cta"
+                  onClick={row.onSelect}
+                  data-testid={`mfa-choose-extra-${row.id}`}
+                >
+                  Continue →
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * OtpStepUpModal — MFA collection modal for HITL step-up challenges.
  *
  * Modes:
- *   - "stub" (default): Simple OTP input -> onSubmit(otp) — original behavior
- *   - "p1mfa": PingOne MFA multi-step flow (device picker -> OTP/push/FIDO -> complete)
+ *   - "stub" (default): method choice table → OTP input | passkey setup
+ *   - "p1mfa": method choice table → PingOne OTP / push / FIDO complete
  *
- * Props (additions):
- *   userIdentity        — { name, email } of the signed-in user, shown so the
- *                         demo presenter knows who is being verified.
- *   onPasskeyRegistered — async callback fired after a passkey is registered;
- *                         must re-initiate the MFA challenge and resolve to the
- *                         fresh { daId, devices } so we can authenticate with the
- *                         new passkey immediately.
+ * Always offers Email OTP, SMS OTP, and Passkey on the same screen as a choice table.
+ * Existing OTP entry UI is preserved after the user selects Email or SMS code.
  */
 export default function OtpStepUpModal({
   show, onSubmit, onCancel, contextLine = '',
@@ -29,6 +249,11 @@ export default function OtpStepUpModal({
   const [error, setError] = useState('');
   const [showDemoCode, setShowDemoCode] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [stubStep, setStubStep] = useState('choose'); // 'choose' | 'otp' | 'sms-enroll-phone' | 'sms-enroll-otp'
+  const [otpChannel, setOtpChannel] = useState('email'); // 'email' | 'sms'
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
+  const [smsBusy, setSmsBusy] = useState(false);
   const inputRef = useRef(null);
 
   // P1MFA state machine
@@ -42,10 +267,16 @@ export default function OtpStepUpModal({
 
   // Which address the code was sent to (masked PingOne contact, else the
   // signed-in user's email). Answers "what email do I get the OTP from?".
-  const otpContactLabel = maskedContact || userIdentity?.email || '';
-  const hasFido = (devices || []).some((d) =>
-    String(d?.type || '').toUpperCase().startsWith('FIDO2'),
-  );
+  const emailContactLabel = maskedContact || userIdentity?.email || '';
+  const fidoEnrolled = !!findFidoDevice(devices);
+  const emailDevice = findEmailDevice(devices);
+  const smsDevice = findSmsDevice(devices);
+  const smsEnrolled = !!smsDevice;
+  const smsContactLabel = maskPhone(smsDevice) || maskPhone(userIdentity?.phone) || '';
+  const otpContactLabel = otpChannel === 'sms'
+    ? (smsContactLabel || 'your phone')
+    : emailContactLabel;
+  const passkeySupported = isPasskeySupported();
   // Demo OTP hint depends on the path: the stub path does not verify the code
   // (any 6 digits pass), the PingOne paths accept the 123123 test bypass.
   const demoCodeHint = mode === 'p1mfa'
@@ -54,23 +285,36 @@ export default function OtpStepUpModal({
 
   const apiBase = process.env.REACT_APP_API_URL || '';
 
-  // Auto-focus input when modal shows (stub mode)
+  // Auto-focus OTP input when the OTP step shows
   useEffect(() => {
-    if (show && mode === 'stub' && inputRef.current) {
+    if (show && mode === 'stub' && stubStep === 'otp' && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [show, mode]);
+  }, [show, mode, stubStep]);
 
-  // Reset P1MFA state when modal opens. Even with no enrolled devices we land on
-  // the picker so the "Register a passkey" CTA is reachable.
   useEffect(() => {
-    if (show && mode === 'p1mfa') {
+    if (show && mode === 'p1mfa' && p1Step === 'otp' && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [show, mode, p1Step]);
+
+  // Reset to method choice when modal opens.
+  useEffect(() => {
+    if (!show) return;
+    setStubStep('choose');
+    setOtp('');
+    setError('');
+    setShowDemoCode(false);
+    setOtpChannel('email');
+    setSmsPhone(userIdentity?.phone ? String(userIdentity.phone) : '');
+    setSmsEnrollDeviceId(null);
+    setSmsBusy(false);
+    if (mode === 'p1mfa') {
       setP1Step('pick-device');
       setSelectedDeviceId(null);
       setP1Error('');
-      setOtp('');
     }
-  }, [show, mode]);
+  }, [show, mode, userIdentity?.phone]);
 
   // Cleanup push polling on unmount
   useEffect(() => {
@@ -98,13 +342,14 @@ export default function OtpStepUpModal({
   const handleCancel = () => {
     setOtp('');
     setError('');
+    setStubStep('choose');
     if (pollRef.current) clearInterval(pollRef.current);
     onCancel();
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      if (mode === 'stub') handleSubmit();
+      if (mode === 'stub' && stubStep === 'otp') handleSubmit();
       else if (mode === 'p1mfa' && p1Step === 'otp') handleP1OtpSubmit();
     } else if (e.key === 'Escape') {
       handleCancel();
@@ -322,7 +567,7 @@ export default function OtpStepUpModal({
     } catch (err) {
       console.error('[OtpStepUpModal] FIDO assertion error:', err);
       // When NotAllowedError occurs and user has no passkey yet, offer registration
-      if ((err?.name === 'NotAllowedError' || err?.message?.includes('No credential')) && !hasFido && onPasskeyRegistered) {
+      if ((err?.name === 'NotAllowedError' || err?.message?.includes('No credential')) && !fidoEnrolled && onPasskeyRegistered) {
         setP1Step('pick-device');
         setP1Error('');
         setOtp('');
@@ -346,9 +591,7 @@ export default function OtpStepUpModal({
       // Re-initiate the MFA challenge so the new passkey appears as a device.
       const fresh = await onPasskeyRegistered();
       const freshDevices = fresh?.devices || [];
-      const fido = freshDevices.find((d) =>
-        String(d?.type || '').toUpperCase().startsWith('FIDO2'),
-      );
+      const fido = findFidoDevice(freshDevices);
       if (fresh?.daId && fido) {
         // Authenticate with the passkey we just registered.
         await handleSelectDevice(fido, fresh.daId);
@@ -381,23 +624,225 @@ export default function OtpStepUpModal({
     }
   };
 
-  const handleBackToDevicePicker = () => {
+  const handleBackToMethodChoice = () => {
+    setStubStep('choose');
     setP1Step('pick-device');
     setP1Error('');
     setOtp('');
     setError('');
+    setOtpChannel('email');
+    setSmsEnrollDeviceId(null);
+    setSmsBusy(false);
     if (pollRef.current) clearInterval(pollRef.current);
+  };
+
+  /**
+   * Refresh MFA challenge devices after SMS enroll (reuses passkey refresh hook
+   * when provided) so the new SMS device is selectable.
+   */
+  const refreshChallengeDevices = async () => {
+    if (typeof onPasskeyRegistered === 'function') {
+      return onPasskeyRegistered();
+    }
+    const resp = await fetch(`${apiBase}/api/auth/mfa/challenge`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!resp.ok) throw new Error(`MFA initiation failed: ${resp.status}`);
+    const data = await resp.json();
+    return { daId: data.daId, devices: data.devices || [] };
+  };
+
+  /** After SMS is enrolled, start a challenge and select the SMS device (sends OTP). */
+  const startSmsChallengeWithFreshDevices = async () => {
+    const fresh = await refreshChallengeDevices();
+    const sms = findSmsDevice(fresh?.devices || []);
+    if (!fresh?.daId || !sms) {
+      throw new Error('SMS device enrolled but not returned by MFA challenge.');
+    }
+    setOtpChannel('sms');
+    await handleSelectDevice(sms, fresh.daId);
+  };
+
+  /** User picked Email OTP from the choice table. */
+  const handleChooseOtp = () => {
+    setError('');
+    setP1Error('');
+    setOtpChannel('email');
+    if (mode === 'stub') {
+      setStubStep('otp');
+      return;
+    }
+    if (emailDevice) {
+      handleSelectDevice(emailDevice);
+      return;
+    }
+    // No email device enrolled — fall through to the local OTP stub UI so the
+    // demo can still collect a code (demo bypass 123123).
+    setStubStep('otp');
+    setP1Step('otp-stub');
+  };
+
+  /** Begin SMS enrollment (phone entry). */
+  const beginSmsEnroll = () => {
+    setOtpChannel('sms');
+    setSmsEnrollDeviceId(null);
+    setP1Step('sms-enroll-phone');
+    setStubStep('sms-enroll-phone');
+  };
+
+  /** User picked SMS from the choice table — challenge enrolled device or enroll. */
+  const handleChooseSms = () => {
+    setError('');
+    setP1Error('');
+    setOtpChannel('sms');
+    if (smsDevice && mode === 'p1mfa') {
+      handleSelectDevice(smsDevice);
+      return;
+    }
+    if (smsDevice && mode === 'stub') {
+      // Stub mode with an enrolled SMS device still needs a real PingOne challenge.
+      (async () => {
+        try {
+          setSmsBusy(true);
+          await startSmsChallengeWithFreshDevices();
+        } catch (err) {
+          console.error('[OtpStepUpModal] SMS challenge error:', err);
+          setP1Error(err?.message || 'Could not start SMS verification.');
+          setP1Step('error');
+        } finally {
+          setSmsBusy(false);
+        }
+      })();
+      return;
+    }
+    beginSmsEnroll();
+  };
+
+  /** POST /enroll/sms-init — PingOne texts an activation OTP. */
+  const handleSmsEnrollInit = async () => {
+    const phone = normalizePhoneE164(smsPhone);
+    if (!phone || phone.length < 10) {
+      setError('Enter a phone number in E.164 format, e.g. +15551234567');
+      return;
+    }
+    setError('');
+    setP1Error('');
+    setSmsBusy(true);
+    try {
+      const resp = await fetch(`${apiBase}/api/auth/mfa/enroll/sms-init`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.message || data.error || `SMS enroll failed (${resp.status})`);
+      }
+      const status = String(data.status || '').toUpperCase();
+      // Worker-token enroll can return ACTIVE immediately — skip activation OTP.
+      if (status === 'ACTIVE' || status === 'ENABLED') {
+        await startSmsChallengeWithFreshDevices();
+        return;
+      }
+      if (!data.deviceId) throw new Error('SMS enroll did not return a deviceId');
+      setSmsEnrollDeviceId(data.deviceId);
+      setOtp('');
+      setP1Step('sms-enroll-otp');
+      setStubStep('sms-enroll-otp');
+    } catch (err) {
+      console.error('[OtpStepUpModal] SMS enroll init error:', err);
+      setError(err?.message || 'Failed to start SMS enrollment');
+      setP1Error(err?.message || 'Failed to start SMS enrollment');
+    } finally {
+      setSmsBusy(false);
+    }
+  };
+
+  /** POST /enroll/sms-complete — activate device, then run step-up challenge. */
+  const handleSmsEnrollComplete = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      setError('Enter the 6-digit code from your SMS');
+      return;
+    }
+    if (!smsEnrollDeviceId) {
+      setError('SMS enrollment session missing — go back and try again');
+      return;
+    }
+    setError('');
+    setSmsBusy(true);
+    try {
+      const resp = await fetch(`${apiBase}/api/auth/mfa/enroll/sms-complete`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: smsEnrollDeviceId, otp }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.message || data.error || `SMS activate failed (${resp.status})`);
+      }
+      setOtp('');
+      setSmsEnrollDeviceId(null);
+      await startSmsChallengeWithFreshDevices();
+    } catch (err) {
+      console.error('[OtpStepUpModal] SMS enroll complete error:', err);
+      setError(err?.message || 'Failed to activate SMS device');
+    } finally {
+      setSmsBusy(false);
+    }
+  };
+
+  /** User picked Passkey from the choice table. */
+  const handleChoosePasskey = () => {
+    setError('');
+    setP1Error('');
+    if (!passkeySupported) return;
+    const fido = findFidoDevice(devices);
+    if (mode === 'p1mfa' && fido) {
+      handleSelectDevice(fido);
+      return;
+    }
+    // Enroll then authenticate (works for stub and p1mfa-without-passkey).
+    handleRegisterPasskey();
   };
 
   const deviceLabel = (type) => {
     switch (type?.toLowerCase()) {
       case 'email': return 'Email';
-      case 'totp': return 'Authenticator App';
+      case 'totp': return 'Authenticator';
       case 'fido2': return 'Passkey';
-      case 'push': return 'Mobile Push';
+      case 'push': return 'Push';
       default: return 'Device';
     }
   };
+
+  const extraMethodRows = mode === 'p1mfa'
+    ? findExtraDevices(devices).map((device) => ({
+      id: device.id,
+      badge: deviceLabel(device.type).slice(0, 4).toUpperCase(),
+      label: deviceLabel(device.type),
+      detail: device.name || `Use your enrolled ${deviceLabel(device.type).toLowerCase()} device`,
+      onSelect: () => handleSelectDevice(device),
+    }))
+    : [];
+
+  const methodTable = (
+    <MethodChoiceTable
+      otpContactLabel={emailContactLabel}
+      smsContactLabel={smsContactLabel}
+      smsEnrolled={smsEnrolled}
+      hasFido={fidoEnrolled}
+      passkeySupported={passkeySupported && (!!onPasskeyRegistered || fidoEnrolled || allowFido)}
+      registering={registering || smsBusy}
+      onChooseOtp={handleChooseOtp}
+      onChooseSms={handleChooseSms}
+      onChoosePasskey={handleChoosePasskey}
+      extraRows={extraMethodRows}
+    />
+  );
 
   // Shared header: who is being verified (name + email).
   const identityHeader = (userIdentity?.name || userIdentity?.email) ? (
@@ -437,18 +882,120 @@ export default function OtpStepUpModal({
     </div>
   );
 
+  /** Shared OTP entry panel (stub + p1mfa after method choice). */
+  const otpEntryPanel = (
+    <>
+      {deliveryBanner}
+      {!deliveryError && otpContactLabel && (
+        <div className="otp-step-up-modal__contact">A code was sent to {otpContactLabel}</div>
+      )}
+      <input
+        ref={inputRef}
+        type="text"
+        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+        placeholder="000000"
+        value={otp}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+          setOtp(digits);
+          if (error) setError('');
+        }}
+        onKeyDown={handleKeyDown}
+        onPaste={handleOtpPaste}
+        inputMode="numeric"
+        aria-label="Verification code"
+      />
+      {error && <div className="otp-step-up-modal__error">{error}</div>}
+      <p className="otp-step-up-modal__hint">
+        Enter the 6-digit code from your {otpChannel === 'sms' ? 'text message' : 'email'}
+      </p>
+      {demoCodeReveal}
+    </>
+  );
+
+
+  /** SMS enrollment panels (phone → activation OTP). */
+  const smsEnrollPhonePanel = (
+    <div className="otp-step-up-modal__sms-enroll" data-testid="mfa-sms-enroll-phone">
+      <p className="otp-step-up-modal__hint" style={{ marginBottom: 8 }}>
+        Enter the mobile number that should receive SMS codes (E.164).
+      </p>
+      <input
+        type="tel"
+        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+        placeholder="+15551234567"
+        value={smsPhone}
+        onChange={(e) => { setSmsPhone(e.target.value); if (error) setError(''); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollInit(); }}
+        aria-label="Mobile phone number"
+        autoFocus
+      />
+      {error && <div className="otp-step-up-modal__error">{error}</div>}
+      <p className="otp-step-up-modal__hint">Example: +1 555 123 4567 — we&apos;ll text an activation code first.</p>
+    </div>
+  );
+
+  const smsEnrollOtpPanel = (
+    <div className="otp-step-up-modal__sms-enroll" data-testid="mfa-sms-enroll-otp">
+      <div className="otp-step-up-modal__contact">
+        Enter the activation code texted to {maskPhone(smsPhone) || 'your phone'}
+      </div>
+      <input
+        ref={inputRef}
+        type="text"
+        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+        placeholder="000000"
+        value={otp}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+          setOtp(digits);
+          if (error) setError('');
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollComplete(); }}
+        onPaste={handleOtpPaste}
+        inputMode="numeric"
+        aria-label="SMS activation code"
+      />
+      {error && <div className="otp-step-up-modal__error">{error}</div>}
+      <p className="otp-step-up-modal__hint">This activates SMS on your account, then we send the step-up code.</p>
+      {demoCodeReveal}
+    </div>
+  );
+
   // P1MFA mode
 
   if (mode === 'p1mfa') {
+    const showingOtp = p1Step === 'otp' || p1Step === 'otp-stub';
+    const showingSmsEnroll = p1Step === 'sms-enroll-phone' || p1Step === 'sms-enroll-otp';
     const p1Footer = (
       <>
+        {(showingOtp || showingSmsEnroll || p1Step === 'error' || p1Step === 'push' || p1Step === 'fido') && (
+          <button type="button" className="otp-step-up-modal__btn-ghost" onClick={handleBackToMethodChoice}>
+            ← Methods
+          </button>
+        )}
+        {p1Step === 'sms-enroll-phone' && (
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollInit} disabled={smsBusy}>
+            {smsBusy ? 'Sending…' : 'Send activation code'}
+          </button>
+        )}
+        {p1Step === 'sms-enroll-otp' && (
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollComplete} disabled={smsBusy}>
+            {smsBusy ? 'Activating…' : 'Activate SMS'}
+          </button>
+        )}
         {p1Step === 'otp' && (
           <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleP1OtpSubmit}>
             Verify
           </button>
         )}
+        {p1Step === 'otp-stub' && (
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSubmit}>
+            Verify
+          </button>
+        )}
         {(p1Step === 'error' || p1Step === 'push') && (
-          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleBackToDevicePicker}>
+          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleBackToMethodChoice}>
             Try another method
           </button>
         )}
@@ -464,8 +1011,8 @@ export default function OtpStepUpModal({
         onClose={handleCancel}
         title="Verify Your Identity"
         footer={p1Footer}
-        defaultWidth={440}
-        defaultHeight={420}
+        defaultWidth={520}
+        defaultHeight={440}
         storageKey="otp-step-up-modal-p1mfa"
         zIndex={100080}
       >
@@ -476,40 +1023,9 @@ export default function OtpStepUpModal({
             {contextLine || 'Step-up authentication required to complete this action'}
           </p>
 
-          {/* Device Picker */}
-          {p1Step === 'pick-device' && (
-            <div className="otp-step-up-modal__device-list">
-              {devices.length > 0 ? (
-                <p className="otp-step-up-modal__hint" style={{ marginBottom: 8 }}>Select a verification method:</p>
-              ) : (
-                <p className="otp-step-up-modal__hint" style={{ marginBottom: 8 }}>
-                  No passkey is enrolled yet. Register one to verify with Touch ID, Face ID, or a security key.
-                </p>
-              )}
-              {devices.map((device) => (
-                <button
-                  key={device.id}
-                  type="button"
-                  className="otp-step-up-modal__device-item"
-                  onClick={() => handleSelectDevice(device)}
-                >
-                  <span className="otp-step-up-modal__device-icon">{deviceLabel(device.type)}</span>
-                  <span>{device.name || device.type || 'Unknown device'}</span>
-                </button>
-              ))}
-              {!hasFido && onPasskeyRegistered && (
-                <button
-                  type="button"
-                  className="otp-step-up-modal__device-item otp-step-up-modal__device-item--register"
-                  onClick={handleRegisterPasskey}
-                  disabled={registering}
-                >
-                  <span className="otp-step-up-modal__device-icon">Passkey</span>
-                  <span>{registering ? 'Registering…' : 'Register a passkey'}</span>
-                </button>
-              )}
-            </div>
-          )}
+          {p1Step === 'pick-device' && methodTable}
+          {p1Step === 'sms-enroll-phone' && smsEnrollPhonePanel}
+          {p1Step === 'sms-enroll-otp' && smsEnrollOtpPanel}
 
           {/* Registering a passkey (WebAuthn create ceremony in progress) */}
           {p1Step === 'registering' && (
@@ -520,34 +1036,7 @@ export default function OtpStepUpModal({
             </>
           )}
 
-          {/* OTP Input (P1MFA) */}
-          {p1Step === 'otp' && (
-            <>
-              {deliveryBanner}
-              {!deliveryError && otpContactLabel && (
-                <div className="otp-step-up-modal__contact">A code was sent to {otpContactLabel}</div>
-              )}
-              <input
-                ref={inputRef}
-                type="text"
-                className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
-                placeholder="000000"
-                value={otp}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setOtp(digits);
-                  if (error) setError('');
-                }}
-                onKeyDown={handleKeyDown}
-                onPaste={handleOtpPaste}
-                inputMode="numeric"
-                aria-label="Verification code"
-              />
-              {error && <div className="otp-step-up-modal__error">{error}</div>}
-              <p className="otp-step-up-modal__hint">Enter the code from your device</p>
-              {demoCodeReveal}
-            </>
-          )}
+          {showingOtp && otpEntryPanel}
 
           {/* Push Waiting */}
           {p1Step === 'push' && (
@@ -575,23 +1064,36 @@ export default function OtpStepUpModal({
     );
   }
 
-  // Stub mode rendering (original behavior)
+  // Stub mode — method choice first, then existing OTP UI
+
+  const stubShowRegistering = registering || p1Step === 'registering';
+  const stubShowPasskeyError = p1Step === 'error' && !!p1Error;
+  const stubSmsEnroll = stubStep === 'sms-enroll-phone' || stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-phone' || p1Step === 'sms-enroll-otp';
+  const showSmsPhone = stubStep === 'sms-enroll-phone' || p1Step === 'sms-enroll-phone';
+  const showSmsOtp = stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-otp';
 
   const stubFooter = (
     <>
-      {allowFido && onPasskeyRegistered && (
-        <button
-          type="button"
-          className="otp-step-up-modal__method-toggle"
-          onClick={handleRegisterPasskey}
-          disabled={registering}
-        >
-          {registering ? 'Setting up passkey…' : 'Register & use a passkey'}
+      {(stubStep === 'otp' || stubSmsEnroll || stubShowPasskeyError) && (
+        <button type="button" className="otp-step-up-modal__btn-ghost" onClick={handleBackToMethodChoice}>
+          ← Methods
         </button>
       )}
-      <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSubmit}>
-        Verify
-      </button>
+      {showSmsPhone && (
+        <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollInit} disabled={smsBusy}>
+          {smsBusy ? 'Sending…' : 'Send activation code'}
+        </button>
+      )}
+      {showSmsOtp && (
+        <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSmsEnrollComplete} disabled={smsBusy}>
+          {smsBusy ? 'Activating…' : 'Activate SMS'}
+        </button>
+      )}
+      {stubStep === 'otp' && (
+        <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSubmit}>
+          Verify
+        </button>
+      )}
       <button type="button" className="otp-step-up-modal__btn-cancel" onClick={handleCancel}>
         Cancel
       </button>
@@ -604,8 +1106,8 @@ export default function OtpStepUpModal({
       onClose={handleCancel}
       title="Verify Your Identity"
       footer={stubFooter}
-      defaultWidth={440}
-      defaultHeight={460}
+      defaultWidth={520}
+      defaultHeight={stubStep === 'choose' ? 400 : 480}
       storageKey="otp-step-up-modal-stub"
       zIndex={100080}
     >
@@ -616,43 +1118,43 @@ export default function OtpStepUpModal({
           {contextLine || 'Step-up authentication required to complete this action'}
         </p>
 
-        {deliveryBanner}
-        {!deliveryError && otpContactLabel && (
-          <div className="otp-step-up-modal__contact">A 6-digit code was sent to {otpContactLabel}</div>
+        {stubStep === 'choose' && !stubShowRegistering && !stubShowPasskeyError && !stubSmsEnroll && methodTable}
+        {showSmsPhone && smsEnrollPhonePanel}
+        {showSmsOtp && smsEnrollOtpPanel}
+
+        {stubShowRegistering && (
+          <>
+            <div className="push-waiting-spinner" style={{ margin: '16px auto' }}></div>
+            <p style={{ textAlign: 'center', fontWeight: 500 }}>Registering your passkey…</p>
+            <p className="otp-step-up-modal__hint">Approve with your device biometric or security key, then we&apos;ll verify automatically.</p>
+          </>
         )}
 
-        <input
-          ref={inputRef}
-          type="text"
-          className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
-          placeholder="000000"
-          value={otp}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-            setOtp(digits);
-            if (error) setError('');
-          }}
-          onKeyDown={handleKeyDown}
-          onPaste={handleOtpPaste}
-          inputMode="numeric"
-          aria-label="Verification code"
-        />
+        {stubShowPasskeyError && (
+          <div className="otp-step-up-modal__error">{p1Error}</div>
+        )}
 
-        {error && <div className="otp-step-up-modal__error">{error}</div>}
-        {demoCodeReveal}
+        {stubStep === 'otp' && (
+          <>
+            {otpEntryPanel}
+            <div className="otp-step-up-modal__rfc-footer">
+              <span className="otp-step-up-modal__rfc-label">
+                <strong>RFC 9470</strong> — OAuth 2.0 Step-Up Authentication Challenge Protocol
+              </span>
+              <span className="otp-step-up-modal__rfc-detail">
+                This resource requires a higher ACR than your current token provides.
+                After verification, a new token with <code>acr: Multi_Factor</code> is issued — the agent retries automatically.
+              </span>
+              <span className="otp-step-up-modal__rfc-refs">
+                RFC 9470 · RFC 6750 §3.1 (WWW-Authenticate) · RFC 8693 (token exchange)
+              </span>
+            </div>
+          </>
+        )}
 
-        <div className="otp-step-up-modal__rfc-footer">
-          <span className="otp-step-up-modal__rfc-label">
-            <strong>RFC 9470</strong> — OAuth 2.0 Step-Up Authentication Challenge Protocol
-          </span>
-          <span className="otp-step-up-modal__rfc-detail">
-            This resource requires a higher ACR than your current token provides.
-            After verification, a new token with <code>acr: Multi_Factor</code> is issued — the agent retries automatically.
-          </span>
-          <span className="otp-step-up-modal__rfc-refs">
-            RFC 9470 · RFC 6750 §3.1 (WWW-Authenticate) · RFC 8693 (token exchange)
-          </span>
-        </div>
+        {error && stubStep === 'choose' && !stubShowPasskeyError && (
+          <div className="otp-step-up-modal__error">{error}</div>
+        )}
       </div>
     </DraggableModal>
   );
