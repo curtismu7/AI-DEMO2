@@ -102,28 +102,22 @@ function ensureAuthBootstrap() {
 const ENV_ID = process.env.PINGONE_ENVIRONMENT_ID || '<environment-id>';
 const envFlag = ['--environment-id', ENV_ID];
 
-// Allow-list of safe read-only commands.
+// Allow-list of safe read-only commands. All are live-runnable server-side
+// (pingcli >= 1.2.0 accepts worker client-credentials + --environment-id after
+// `pingone auth login`). Every card still exposes Copy with the exact terminal
+// command (no --config; that is server-internal).
 //
-// runnable=true  → executed live server-side and streamed to the terminal pane.
-// runnable=false → shown as a copy-to-run command only. These are env-scoped
-//   PingOne resource commands: pingcli 1.x cannot run them with worker /
-//   client-credentials auth because the PingOne SDK rejects a client configured
-//   with both an access token and an environment ID ("API access token cannot be
-//   set with client ID, client secret or environment ID"). Only environment-wide
-//   commands like `environments list` (no --environment-id) run server-side.
-//
-// `label` is the exact, complete command a user can copy and run in their own
-// terminal (no --config; that is server-internal). `args` is what we execute.
+// auth=true → run ensureAuthBootstrap() first.
 const COMMANDS = {
-  pingone_users_list:        { label: `pingcli pingone users list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'users', 'list', ...envFlag, '-O', 'json'],              runnable: false },
-  pingone_apps_list:         { label: `pingcli pingone applications list --environment-id ${ENV_ID} -O json`,        args: [...configFlag, 'pingone', 'applications', 'list', ...envFlag, '-O', 'json'],       runnable: false },
-  pingone_groups_list:       { label: `pingcli pingone groups list --environment-id ${ENV_ID} -O json`,              args: [...configFlag, 'pingone', 'groups', 'list', ...envFlag, '-O', 'json'],             runnable: false },
-  pingone_populations_list:  { label: `pingcli pingone populations list --environment-id ${ENV_ID} -O json`,         args: [...configFlag, 'pingone', 'populations', 'list', ...envFlag, '-O', 'json'],        runnable: false },
-  pingone_idps_list:         { label: `pingcli pingone identity-providers list --environment-id ${ENV_ID} -O json`,  args: [...configFlag, 'pingone', 'identity-providers', 'list', ...envFlag, '-O', 'json'], runnable: false },
-  pingone_resources_list:    { label: `pingcli pingone resources list --environment-id ${ENV_ID} -O json`,           args: [...configFlag, 'pingone', 'resources', 'list', ...envFlag, '-O', 'json'],          runnable: false },
-  pingone_roles_list:        { label: `pingcli pingone roles list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'roles', 'list', ...envFlag, '-O', 'json'],              runnable: false },
-  pingone_policies_list:     { label: `pingcli pingone sign-on-policies list --environment-id ${ENV_ID} -O json`,    args: [...configFlag, 'pingone', 'sign-on-policies', 'list', ...envFlag, '-O', 'json'],   runnable: false },
-  pingone_mfa_policies_list: { label: `pingcli mfa mfa-device-policies list --environment-id ${ENV_ID} -O json`,     args: [...configFlag, 'mfa', 'mfa-device-policies', 'list', ...envFlag, '-O', 'json'],    runnable: false },
+  pingone_users_list:        { label: `pingcli pingone users list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'users', 'list', ...envFlag, '-O', 'json'],              runnable: true, auth: true },
+  pingone_apps_list:         { label: `pingcli pingone applications list --environment-id ${ENV_ID} -O json`,        args: [...configFlag, 'pingone', 'applications', 'list', ...envFlag, '-O', 'json'],       runnable: true, auth: true },
+  pingone_groups_list:       { label: `pingcli pingone groups list --environment-id ${ENV_ID} -O json`,              args: [...configFlag, 'pingone', 'groups', 'list', ...envFlag, '-O', 'json'],             runnable: true, auth: true },
+  pingone_populations_list:  { label: `pingcli pingone populations list --environment-id ${ENV_ID} -O json`,         args: [...configFlag, 'pingone', 'populations', 'list', ...envFlag, '-O', 'json'],        runnable: true, auth: true },
+  pingone_idps_list:         { label: `pingcli pingone identity-providers list --environment-id ${ENV_ID} -O json`,  args: [...configFlag, 'pingone', 'identity-providers', 'list', ...envFlag, '-O', 'json'], runnable: true, auth: true },
+  pingone_resources_list:    { label: `pingcli pingone resources list --environment-id ${ENV_ID} -O json`,           args: [...configFlag, 'pingone', 'resources', 'list', ...envFlag, '-O', 'json'],          runnable: true, auth: true },
+  pingone_roles_list:        { label: `pingcli pingone roles list --environment-id ${ENV_ID} -O json`,               args: [...configFlag, 'pingone', 'roles', 'list', ...envFlag, '-O', 'json'],              runnable: true, auth: true },
+  pingone_policies_list:     { label: `pingcli pingone sign-on-policies list --environment-id ${ENV_ID} -O json`,    args: [...configFlag, 'pingone', 'sign-on-policies', 'list', ...envFlag, '-O', 'json'],   runnable: true, auth: true },
+  pingone_mfa_policies_list: { label: `pingcli mfa mfa-device-policies list --environment-id ${ENV_ID} -O json`,     args: [...configFlag, 'mfa', 'mfa-device-policies', 'list', ...envFlag, '-O', 'json'],    runnable: true, auth: true },
 
   pingone_envs_list:         { label: 'pingcli pingone environments list -O json',                                   args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'],                   runnable: true, auth: true },
   config_list_keys:          { label: 'pingcli config list-keys',                                                    args: [...configFlag, 'config', 'list-keys'],                                            runnable: true },

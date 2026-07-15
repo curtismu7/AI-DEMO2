@@ -26,11 +26,8 @@ describe('POST /api/admin/pingcli/run', () => {
     expect(res.body.error).toBe('unknown_command');
   });
 
-  // pingone_users_list (and the other env-scoped resource commands) became
-  // copy_only_command in #120 — pingcli 1.x rejects a client configured with
-  // both a worker-credentials token and --environment-id, so those can no
-  // longer run server-side. pingone_envs_list is environment-wide and stays
-  // runnable: true.
+  // pingcli >= 1.2.0 runs env-scoped resource commands with worker credentials
+  // after auth bootstrap, so every allow-listed key is runnable (not copy-only).
   it('runs an allowed command and returns output', async () => {
     const res = await request(app)
       .post('/api/admin/pingcli/run')
@@ -39,12 +36,12 @@ describe('POST /api/admin/pingcli/run', () => {
     expect(res.body).toMatchObject({ command: expect.any(String), output: expect.any(String) });
   });
 
-  it('returns 400 copy_only_command for an env-scoped resource command', async () => {
+  it('runs an env-scoped resource command live', async () => {
     const res = await request(app)
       .post('/api/admin/pingcli/run')
       .send({ commandKey: 'pingone_users_list' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('copy_only_command');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ command: expect.any(String), output: expect.any(String) });
   });
 
   it('returns 400 if commandKey is missing', async () => {
@@ -91,5 +88,6 @@ describe('GET /api/admin/pingcli/commands', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body[0]).toMatchObject({ key: expect.any(String), label: expect.any(String) });
+    expect(res.body.every((c) => c.runnable === true)).toBe(true);
   });
 });
