@@ -56,7 +56,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
-import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER } from "../config/agentModes";
+import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import JsonField from "./shared/JsonField";
@@ -6524,7 +6524,11 @@ export default function BankingAgent({
                 )}
               <div className="ba-header-tools">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
-                <AgentModeSelector compact />
+                <AgentModeSelector
+                  compact
+                  heuristicFallback={heuristicEnabled}
+                  onHeuristicFallbackChange={setHeuristicEnabled}
+                />
                 {/* RFC info toggle — standard switch control, always visible in header */}
                 <Check
                   variant="switch"
@@ -8950,15 +8954,9 @@ export default function BankingAgent({
                           )}
                           {msg.source && msg.role === "assistant" && (
                             <div
-                              className={`banking-agent-msg-label banking-agent-msg-label--${msg.source}`}
+                              className={`banking-agent-msg-label banking-agent-msg-label--${String(msg.source).replace(/[^a-z0-9_-]/gi, "")}`}
                             >
-                              {msg.source === "heuristic"
-                                ? "Heuristic"
-                                : msg.source === "helix"
-                                  ? "Helix LLM"
-                                  : msg.source === "direct-mcp"
-                                    ? "Direct MCP"
-                                    : msg.source}
+                              {sourceLabel(msg.source)}
                             </div>
                           )}
                           <div

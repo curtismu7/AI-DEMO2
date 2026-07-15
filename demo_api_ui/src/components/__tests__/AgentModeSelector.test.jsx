@@ -10,12 +10,13 @@ const mockHook = {
   loading: false,
   // Honest provider-configured flags drive the mode grey-out. All configured
   // here so the four modes render enabled unless a test overrides it.
-  keySet: { helix: true, anthropic: true, "anthropic-lmstudio": true },
+  keySet: { helix: true, anthropic: true, "anthropic-lmstudio": true, google: true, groq: true },
   modeOptions: [
-    { id: "heuristics", label: "Heuristics only", external: false },
-    { id: "llamacpp", label: "llama.cpp only", external: true },
-    { id: "claude", label: "Anthropic only", external: true },
-    { id: "helix_google", label: "Helix only", external: true },
+    { id: "heuristics", label: "Heuristics", external: false },
+    { id: "llamacpp", label: "llama.cpp", external: true },
+    { id: "claude", label: "Anthropic", external: true },
+    { id: "helix_google", label: "Helix", external: true },
+    { id: "gemini", label: "Google Gemini", external: true },
   ],
   setMode: jest.fn(),
   setExternalWiring: jest.fn(),
@@ -37,7 +38,7 @@ afterEach(() => {
   mockHook.provider = undefined;
   mockHook.externalWiring = null;
   mockHook.loading = false;
-  mockHook.keySet = { helix: true, anthropic: true, "anthropic-lmstudio": true };
+  mockHook.keySet = { helix: true, anthropic: true, "anthropic-lmstudio": true, google: true, groq: true };
   jest.clearAllMocks();
 });
 
@@ -53,12 +54,12 @@ test("greys out a mode whose provider is not configured", async () => {
   mockHook.keySet = { helix: false, anthropic: false, "anthropic-lmstudio": true };
   render(<AgentModeSelector />);
   // Anthropic + Helix options are disabled and labelled "not configured".
-  const anthropicOpt = screen.getByRole("option", { name: /Anthropic only/i });
-  const helixOpt = screen.getByRole("option", { name: /Helix only/i });
+  const anthropicOpt = screen.getByRole("option", { name: /^Anthropic( — not configured)?$/i });
+  const helixOpt = screen.getByRole("option", { name: /^Helix( — not configured)?$/i });
   await waitFor(() => expect(anthropicOpt).toBeDisabled());
   expect(helixOpt).toBeDisabled();
   // Heuristics is always available.
-  expect(screen.getByRole("option", { name: /Heuristics only/i })).not.toBeDisabled();
+  expect(screen.getByRole("option", { name: /^Heuristics$/i })).not.toBeDisabled();
 });
 
 test("greys out llama.cpp when the server is unreachable", async () => {
@@ -68,7 +69,7 @@ test("greys out llama.cpp when the server is unreachable", async () => {
   render(<AgentModeSelector />);
   // The "— unavailable" suffix only appears after the async reachability probe
   // settles (un-probed defaults to available to avoid flicker) — must findBy.
-  const llamaCppOpt = await screen.findByRole("option", { name: /llama\.cpp only — unavailable/i });
+  const llamaCppOpt = await screen.findByRole("option", { name: /llama\.cpp — unavailable/i });
   await waitFor(() => expect(llamaCppOpt).toBeDisabled());
 });
 
@@ -133,4 +134,28 @@ test("onChange not called on initial settled render (hydration suppression)", ()
   const onChange = jest.fn();
   render(<AgentModeSelector onChange={onChange} />);
   expect(onChange).not.toHaveBeenCalled();
+});
+
+test("Heuristics mode hides the Fallback / LLM-only routing toggle", () => {
+  mockHook.mode = "heuristics";
+  render(<AgentModeSelector heuristicFallback />);
+  expect(screen.queryByLabelText(/heuristic routing/i)).not.toBeInTheDocument();
+});
+
+test("LLM mode shows Fallback / LLM-only toggle and notifies on change", async () => {
+  mockHook.mode = "gemini";
+  const onRouting = jest.fn();
+  render(
+    <AgentModeSelector heuristicFallback onHeuristicFallbackChange={onRouting} />,
+  );
+  const routing = screen.getByLabelText(/heuristic routing/i);
+  expect(routing).toHaveValue("fallback");
+  fireEvent.change(routing, { target: { value: "llm-only" } });
+  expect(onRouting).toHaveBeenCalledWith(false);
+  await waitFor(() => {
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/admin/feature-flags",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
 });
