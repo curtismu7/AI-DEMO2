@@ -78,11 +78,8 @@ export function SequenceDiagramRoute({ user, logout }) {
 
 export function LogsRoute({ user, logout }) {
   if (!user) return <Navigate to="/" replace />;
-  return (
-    <AppShell user={user} logout={logout}>
-      <LogViewerPage />
-    </AppShell>
-  );
+  // Standalone pop-out page — no AppShell chrome (side nav / TopNav).
+  return <LogViewerPage />;
 }
 
 export function McpInspectorRoute({ user, logout }) {

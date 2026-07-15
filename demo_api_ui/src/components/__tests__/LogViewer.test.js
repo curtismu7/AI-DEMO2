@@ -182,7 +182,10 @@ describe("LogViewer Component", () => {
 					levelParams,
 				);
 				expect(axios.get).toHaveBeenCalledWith("/api/logs/app", levelParams);
-				expect(axios.get).toHaveBeenCalledWith("/api/logs/vercel", levelParams);
+				expect(axios.get).toHaveBeenCalledWith(
+					"/api/logs/exchange",
+					levelParams,
+				);
 			});
 		});
 
@@ -206,7 +209,7 @@ describe("LogViewer Component", () => {
 				);
 				expect(axios.get).toHaveBeenCalledWith("/api/logs/app", searchParams);
 				expect(axios.get).toHaveBeenCalledWith(
-					"/api/logs/vercel",
+					"/api/logs/exchange",
 					searchParams,
 				);
 			});
@@ -217,12 +220,12 @@ describe("LogViewer Component", () => {
 
 			await waitFor(() => {
 				const [sourceSelect] = screen.getAllByRole("combobox");
-				fireEvent.change(sourceSelect, { target: { value: "vercel" } });
+				fireEvent.change(sourceSelect, { target: { value: "exchange" } });
 			});
 
 			await waitFor(() => {
 				expect(axios.get).toHaveBeenCalledWith(
-					"/api/logs/vercel",
+					"/api/logs/exchange",
 					expect.any(Object),
 				);
 			});

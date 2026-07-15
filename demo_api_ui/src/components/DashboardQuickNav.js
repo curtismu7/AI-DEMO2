@@ -41,15 +41,6 @@ export default function DashboardQuickNav({ user }) {
     window.open('/logs?mode=learn', 'BankingLogs', POPOUT);
   };
 
-  /** Opens the floating Learning Log panel (Learn mode) for customer quick nav. */
-  const openLearningLog = () => {
-    window.dispatchEvent(
-      new CustomEvent('banking-log-viewer-open', {
-        detail: { mode: 'learn' },
-      }),
-    );
-  };
-
   const homeActive = pathname === '/' || pathname === '';
   const dashActive = user
     ? (isAdmin ? pathname === '/admin' : pathname === '/dashboard')
@@ -120,8 +111,8 @@ export default function DashboardQuickNav({ user }) {
         <button
           type="button"
           className="dashboard-quick-nav__btn"
-          onClick={openLearningLog}
-          title="Learning Log — live colored event stream (Learn mode)"
+          onClick={openLogPopout}
+          title="Learning Log — open Learn mode in a new window"
         >
           Learning Log
         </button>
