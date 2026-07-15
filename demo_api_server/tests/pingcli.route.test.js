@@ -95,4 +95,20 @@ describe('GET /api/admin/pingcli/commands', () => {
     expect(res.body[0]).toMatchObject({ key: expect.any(String), label: expect.any(String) });
     expect(res.body.every((c) => c.runnable === true)).toBe(true);
   });
+
+  it('includes setup prereqs (install / init / auth) for PingOne commands', async () => {
+    const res = await request(app).get('/api/admin/pingcli/commands');
+    const users = res.body.find((c) => c.key === 'pingone_users_list');
+    expect(users).toBeTruthy();
+    expect(users.auth).toBe(true);
+    expect(users.prereqs.map((p) => p.title)).toEqual([
+      'Install PingCLI',
+      'Configure credentials',
+      'Authenticate',
+      'Run command',
+    ]);
+    expect(users.prereqs.find((p) => p.title === 'Authenticate').command).toBe(
+      'pingcli pingone auth login'
+    );
+  });
 });

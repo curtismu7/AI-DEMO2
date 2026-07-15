@@ -233,8 +233,10 @@ export default function PingCliPage() {
   const [cmdLabel, setCmdLabel]   = useState('');
   const [output, setOutput]       = useState('');
   const [exitCode, setExitCode]   = useState(null);
+  const [prereqs, setPrereqs]     = useState([]);
   const [cmdMeta, setCmdMeta]     = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
+  const [copiedPrereq, setCopiedPrereq] = useState(null);
   const [installedVersion, setInstalledVersion] = useState(null);
   const abortRef = useRef(null);
 
@@ -267,6 +269,13 @@ export default function PingCliPage() {
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
+  /** Copy a prerequisite command string; flash "Copied!" on that step. */
+  const copyPrereq = (index, text) => {
+    copyToClipboard(text);
+    setCopiedPrereq(index);
+    setTimeout(() => setCopiedPrereq(null), 1500);
+  };
+
   const run = async (commandKey) => {
     if (running) return;
 
@@ -279,6 +288,10 @@ export default function PingCliPage() {
     setCmdLabel('');
     setOutput('');
     setExitCode(null);
+    // Seed prereqs from catalog immediately so the panel appears above the
+    // response while the stream connects; SSE meta may refine the list.
+    setPrereqs(Array.isArray(cmdMeta[commandKey]?.prereqs) ? cmdMeta[commandKey].prereqs : []);
+    setCopiedPrereq(null);
 
     // Overall client-side timeout: abort a hung/buffered stream so the Run
     // buttons are never left permanently disabled.
@@ -328,6 +341,7 @@ export default function PingCliPage() {
         const type = eventMatch[1];
         if (type === 'meta') {
           setCmdLabel(payload.command);
+          if (Array.isArray(payload.prereqs)) setPrereqs(payload.prereqs);
         } else if (type === 'chunk') {
           setOutput((prev) => prev + payload.text);
         } else if (type === 'done') {
@@ -442,6 +456,43 @@ export default function PingCliPage() {
           </div>
         </div>
       ))}
+
+      {showTerminal && prereqs.length > 0 && (
+        <div className="pingcli-prereqs" aria-label="Steps required to run this command">
+          <div className="pingcli-prereqs-header">
+            <span className="pingcli-prereqs-title">What was needed to run this</span>
+            <span className="pingcli-prereqs-meta">
+              Install → configure → auth → command (as on your own machine)
+            </span>
+          </div>
+          <ol className="pingcli-prereqs-list">
+            {prereqs.map((step, i) => (
+              <li key={`${step.title}-${i}`} className="pingcli-prereqs-step">
+                <div className="pingcli-prereqs-step-top">
+                  <span className="pingcli-prereqs-step-title">
+                    <span className="pingcli-prereqs-num">{i + 1}</span>
+                    {step.title}
+                  </span>
+                  {step.command && (
+                    <button
+                      type="button"
+                      className="pingcli-cmd-copy"
+                      title="Copy command"
+                      onClick={() => copyPrereq(i, step.command)}
+                    >
+                      {copiedPrereq === i ? 'Copied!' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+                {step.command && (
+                  <code className="pingcli-prereqs-cmd">{step.command}</code>
+                )}
+                {step.note && <p className="pingcli-prereqs-note">{step.note}</p>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {showTerminal && !running && exitCode === 0 && (() => {
         const results = output ? parsePingcliResults(output) : null;
