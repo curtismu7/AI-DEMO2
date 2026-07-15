@@ -34,6 +34,14 @@
 | `users:manage` | high | Super Banking API | Full user management capabilities |
 | `workorders:read` | low | Super Banking API | Read Work Order Status data (manufacturing vertical) |
 | `sensitive:read` | high | Super Banking API | Read sensitive account details (full account/routing numbers) — requires user consent |
+| `agent:invoke:investment` | medium | Super Banking A2A Intermediate - Investment Advisor | Invoke the Investment Advisor A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:records` | medium | Super Banking A2A Intermediate - Records Specialist | Invoke the Records Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:purchase` | medium | Super Banking A2A Intermediate - Purchase History Specialist | Invoke the Purchase History Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:membership` | medium | Super Banking A2A Intermediate - Membership Specialist | Invoke the Membership Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:payroll` | medium | Super Banking A2A Intermediate - Payroll Specialist | Invoke the Payroll Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:tax` | medium | Super Banking A2A Intermediate - Tax Records Specialist | Invoke the Tax Records Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:finaid` | medium | Super Banking A2A Intermediate - Financial Aid Specialist | Invoke the Financial Aid Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:supplier` | medium | Super Banking A2A Intermediate - Supplier Contract Specialist | Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor) |
 
 ## Resources
 
@@ -81,6 +89,66 @@ Audience: `a2a-intermediate.ping.demo`
 
 Native scopes: `agent:invoke`
 
+### Super Banking A2A Intermediate - Investment Advisor
+
+Audience: `a2a-intermediate-investment.ping.demo`
+
+Native scopes: `agent:invoke:investment`
+
+### Super Banking A2A Intermediate - Records Specialist
+
+Audience: `a2a-intermediate-records.ping.demo`
+
+Native scopes: `agent:invoke:records`
+
+### Super Banking A2A Intermediate - Purchase History Specialist
+
+Audience: `a2a-intermediate-purchase.ping.demo`
+
+Native scopes: `agent:invoke:purchase`
+
+### Super Banking A2A Intermediate - Membership Specialist
+
+Audience: `a2a-intermediate-membership.ping.demo`
+
+Native scopes: `agent:invoke:membership`
+
+### Super Banking A2A Intermediate - Payroll Specialist
+
+Audience: `a2a-intermediate-payroll.ping.demo`
+
+Native scopes: `agent:invoke:payroll`
+
+### Super Banking A2A Intermediate - Tax Records Specialist
+
+Audience: `a2a-intermediate-tax.ping.demo`
+
+Native scopes: `agent:invoke:tax`
+
+### Super Banking A2A Intermediate - Financial Aid Specialist
+
+Audience: `a2a-intermediate-finaid.ping.demo`
+
+Native scopes: `agent:invoke:finaid`
+
+### Super Banking A2A Intermediate - Supplier Contract Specialist
+
+Audience: `a2a-intermediate-supplier.ping.demo`
+
+Native scopes: `agent:invoke:supplier`
+
+### Super Banking A2A MCP Gateway
+
+Audience: `mcpgateway-a2a.ping.demo`
+
+Native scopes: `read`, `invest:read`
+
+### Super Banking PingGateway MCP
+
+Audience: `https://api.ping.demo:3036/mcp`
+
+Native scopes: `gateway:mcp:invoke`
+
 ## Servers
 
 | Service | Resource | Validates aud | Gates on tool scopes | Notes |
@@ -89,6 +157,8 @@ Native scopes: `agent:invoke`
 | `demo_mcp_gateway` | Super Banking MCP Gateway | `mcpgateway.ping.demo` | yes | MCP Gateway. Validates inbound aud === mcpgateway.ping.demo and enforces per-tool requiredScopes (getScopesForGatewayTool) on the inbound bearer BEFORE credential swap. Therefore every gateway-surface tool scope MUST be mirrored onto the Super Banking MCP Gateway resource (ARCHITECTURE-TRUTHS T-10). |
 | `demo_mcp_server` | Super Banking MCP Server | `mcpgateway.ping.demo` | yes | Backend MCP tool server. Gateway forwards the inbound bearer UNCHANGED (no re-exchange — see authorizeMcpRequest.ts Step 4 + GatewayTokenPolicy D-05), so the server validates aud === mcpgateway.ping.demo (MCP_SERVER_RESOURCE_URI), the same gateway-targeted audience. PingOne token exchange cannot issue a separate server aud alongside the gateway aud (returns invalid_scope: May not request scopes for multiple resources). |
 | `demo_agent_service` | Super Banking Agent Gateway | `agentgateway.ping.demo` | no | Agent Gateway (Two-Exchange Step 1 audience for the AI Agent client-credentials token). |
+| `ping_gateway` | Super Banking PingGateway MCP | `https://api.ping.demo:3036/mcp` | yes | PingGateway (IG) alternate MCP gateway. Inbound scope spelling is gateway:mcp:invoke (aliases to mcp:invoke). Audience is the RFC 8707 resource URI (local :3036/mcp); k8s may override via deployment.environments.*.pingGatewayResourceUri. |
+| `demo_a2a_mcp_gateway` | Super Banking A2A MCP Gateway | `mcpgateway-a2a.ping.demo` | yes | A2A specialists Exchange #2 destination — separate from Super Banking MCP Gateway so nested-act SPEL never touches the non-A2A two-exchange flow. Listed in MCP_GW_RESOURCE_URI alongside the shared gateway audience. |
 
 ## App Grants
 

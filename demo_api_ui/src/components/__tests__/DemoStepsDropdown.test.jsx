@@ -1,0 +1,78 @@
+/**
+ * DemoStepsDropdown — agent header Demo steps menu.
+ */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import DemoStepsDropdown from '../DemoStepsDropdown';
+import apiClient from '../../services/apiClient';
+import { DEMO_USE_CASE_IDS } from '../../config/demoUseCaseSteps';
+
+vi.mock('../../services/apiClient', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
+}));
+
+const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
+  id,
+  useCaseId: `slug-${id}`,
+  title: `Title for ${id}`,
+  trigger: { type: 'chip', text: `prompt for ${id}` },
+  // Insert a decoy so order-from-catalog ≠ demo script order
+  _order: DEMO_USE_CASE_IDS.length - i,
+})).reverse();
+
+describe('DemoStepsDropdown', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
+  });
+
+  it('renders the Demo steps trigger', () => {
+    render(
+      <DemoStepsDropdown
+        open={false}
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
+  });
+
+  it('lists demo steps in DEMO_USE_CASE_IDS order when open', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+    const items = screen.getAllByTestId(/^demo-step-/);
+    expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
+      DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
+    );
+    expect(screen.getByTestId('demo-step-UC1')).toHaveTextContent(/Step 1/);
+    expect(screen.getByTestId('demo-step-UC2')).toHaveTextContent(/Step 2/);
+  });
+
+  it('calls onSelect with the catalog entry when a step is clicked', async () => {
+    const onSelect = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={onOpenChange}
+        onSelect={onSelect}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('demo-step-UC1'));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect.mock.calls[0][0].id).toBe('UC1');
+    expect(onSelect.mock.calls[0][1]).toBe(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});

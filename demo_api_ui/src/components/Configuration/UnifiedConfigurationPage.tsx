@@ -18,7 +18,6 @@ import { useAgentUiMode } from "../../context/AgentUiModeContext";
 import { useEducationUI } from "../../context/EducationUIContext";
 import { useIndustryBranding } from "../../context/IndustryBrandingContext";
 import "./UnifiedConfigurationPage.css";
-import { MCPToolsEducation } from "../MCPToolsEducation";
 import DemoSetupPanel from "../DemoSetupPanel";
 import LmStudioPanel from "../LmStudioPanel";
 import HelixPanel from "../HelixPanel";
@@ -319,7 +318,6 @@ const CONFIGURATION_TABS: Array<{
     sections: [
       "agent-ui-mode",
       "mcp-scopes",
-      "mcp-tools",
       "education-settings",
       "token-chain",
     ],
@@ -734,7 +732,6 @@ const SectionNavigation: FC<{
     "agent-modes": "Agent Modes",
     "agent-ui-mode": "Agent UI Mode",
     "mcp-scopes": "MCP Scopes",
-    "mcp-tools": "MCP Tools",
     "education-settings": "Education Settings",
     "token-chain": "Token Chain",
     "worker-app": "Worker Application",
@@ -2970,19 +2967,6 @@ const UnifiedConfigurationPage: FC<{
         </div>
       );
 
-    if (s === "mcp-tools")
-      return (
-        <div className="cfg-section">
-          <p className="cfg-section-desc">
-            Browse all MCP banking tools available to the AI agent. Each tool
-            shows its name, required scopes, input parameters, and what it
-            returns. Tools are registered in the MCP server and called via the{" "}
-            <code>tools/call</code> protocol. The agent cannot invoke a tool
-            unless the exchanged MCP token carries the required scopes.
-          </p>
-          <MCPToolsEducation />
-        </div>
-      );
     if (s === "education-settings")
       return (
         <div className="cfg-section">

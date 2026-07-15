@@ -1,7 +1,9 @@
 // banking_api_ui/src/components/FloatingTokenChainPanel.js
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { useTokenChainOptional } from '../context/TokenChainContext';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import '../styles/draggablePanel.css';
 import './FloatingTokenChainPanel.css';
@@ -14,6 +16,13 @@ import './FloatingTokenChainPanel.css';
  */
 export default function FloatingTokenChainPanel({ isOpen, onClose }) {
   const [minimized, setMinimized] = useState(false);
+  const tokenChain = useTokenChainOptional();
+
+  /** Clear TraceRail + live events so presenters can reset between demo runs. */
+  const handleClear = useCallback(() => {
+    tokenChainTraceStore.reset();
+    tokenChain?.clearEvents?.();
+  }, [tokenChain]);
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     () => ({
@@ -44,6 +53,16 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
       <div className="ftcp-header" onPointerDown={handleDragStart} title="Drag to move">
         <span className="ftcp-title">Token Chain — RFC 8693</span>
         <div className="ftcp-controls">
+          <button
+            type="button"
+            className="ftcp-btn ftcp-btn--clear"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={handleClear}
+            title="Clear token chain for the next demo run"
+            aria-label="Clear token chain"
+          >
+            Clear
+          </button>
           <button
             type="button"
             className="ftcp-btn"

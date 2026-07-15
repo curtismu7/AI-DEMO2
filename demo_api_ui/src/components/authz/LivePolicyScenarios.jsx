@@ -59,14 +59,6 @@ export default function LivePolicyScenarios({ configured }) {
     }
   }, []);
 
-  const runAll = useCallback(async () => {
-    for (const s of TX_SCENARIOS) {
-      // sequential to keep the decision-endpoint call order readable and avoid rate limits
-      // eslint-disable-next-line no-await-in-loop
-      await runOne(s);
-    }
-  }, [runOne]);
-
   return (
     <div className="live-policy-scenarios">
       <div className="lps-header">
@@ -74,7 +66,6 @@ export default function LivePolicyScenarios({ configured }) {
           <h3 className="lps-title">Live PingOne Authorize — Transaction Authorization policy</h3>
           <p className="lps-sub">Runs the real provisioned policy against the configured decision endpoint (force-live). Thresholds: consent &gt; $250 · step-up &gt; $500 · deny &gt; $2,000.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={runAll} disabled={!configured}>Run all live</button>
       </div>
       {!configured ? (
         <div className="lps-notice">PingOne Authorize isn’t configured yet. Set a worker app + decision endpoint in Engine Settings (or configure <code>PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID</code>) to run these live.</div>

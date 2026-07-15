@@ -52,6 +52,9 @@ spec:
           value: "true"
         - name: LOG_DIRECTORY
           value: "/var/log/aidemo"
+        # Persist app-events NDJSON on the bff-logs PVC with other BFF logs.
+        - name: ACTIVITY_LOG_FILE
+          value: "/var/log/aidemo/activity.ndjson"
         # Route BFF→agent-service calls to the k8s service DNS name.
         # Without this the BFF defaults to localhost:3006, which is unreachable
         # inside the pod. This env var must be set before the BFF starts.
@@ -71,6 +74,10 @@ spec:
         # /jaeger, and the root /api/* returns the UI HTML shell instead of JSON.
         - name: JAEGER_QUERY_URL
           value: "http://jaeger:16686/jaeger"
+        # Baked package trees live at /repo in the image (see Dockerfile).
+        # Compose overrides this with a host bind-mount of the same path.
+        - name: CODE_SEARCH_REPO_ROOT
+          value: "/repo"
         # secret first, configmap last → cluster URLs in the configmap win
         envFrom:
         - secretRef:

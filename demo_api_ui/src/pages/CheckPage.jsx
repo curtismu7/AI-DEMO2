@@ -22,11 +22,18 @@ export default function CheckPage() {
 
   return (
     <div className="check-wrap">
+      <header className="check-page-head">
+        <h1>Demo check</h1>
+        <p className="check-page-sub">
+          Pre-demo readiness — stack health, a real PERMIT path, and a DENY proof.
+          Sign in, then run before your talk.
+        </p>
+      </header>
       <div className={`verdict-bar verdict-${verdict || 'idle'}`}>
         <div className="verdict"><span className="dot" />
           <h2>{verdict ? VERDICT_TEXT[verdict] : 'Not run yet'}</h2></div>
         <div className="verdict-actions">
-          <button className="chk-btn chk-btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false }).catch(() => {})}>Run all checks</button>
+          <button className="chk-btn chk-btn-primary" disabled={running} onClick={() => runAll({ includeHeavy: false }).catch(() => {})}>Run demo check</button>
         </div>
       </div>
 

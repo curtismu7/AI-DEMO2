@@ -10,6 +10,12 @@ set -e
 
 MODELS_DIR="${MODELS_DIR:-$HOME/models}"
 LOG_DIR="/tmp/llama-models"
+# Demo-oriented defaults: smaller ctx than 16k loads faster and uses less RAM;
+# prompt cache + slot similarity keep agent system-prefix hits warm across turns.
+CTX_SIZE="${LLM_CTX_SIZE:-8192}"
+N_GPU_LAYERS="${LLM_N_GPU_LAYERS:-33}"
+N_PARALLEL="${LLM_N_PARALLEL:-1}"
+SLOT_SIM="${LLM_SLOT_PROMPT_SIMILARITY:-0.50}"
 mkdir -p "$LOG_DIR"
 
 resolve_model_path() {
@@ -68,8 +74,11 @@ start_model() {
     -m "$model_path" \
     --port "$port" \
     --threads "$threads" \
-    --n-gpu-layers 33 \
-    --ctx-size 16384 \
+    --n-gpu-layers "$N_GPU_LAYERS" \
+    --ctx-size "$CTX_SIZE" \
+    --parallel "$N_PARALLEL" \
+    --cache-prompt \
+    --slot-prompt-similarity "$SLOT_SIM" \
     $extra \
     >"$log_file" 2>&1 &
 

@@ -75,10 +75,20 @@
     box-shadow 0.15s;
   flex-shrink: 0;
 }
-.tcd-clear-btn:hover {
+.tcd-clear-btn:hover:not(:disabled) {
   background: #fecaca;
   border-color: #ef4444;
   box-shadow: 0 1px 4px rgba(153, 27, 27, 0.2);
+}
+
+.tcd-clear-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.tcd-header--compact {
+  padding-bottom: 8px;
 }
 .tcd-copy-btn {
   background: #dbeafe;

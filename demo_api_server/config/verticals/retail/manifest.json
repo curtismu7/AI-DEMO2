@@ -104,7 +104,7 @@
       { "id": "rt2", "label": "Where's my order?", "message": "order status", "mode": "both", "tool": "order_status", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt3", "label": "My reward points", "message": "my reward points", "mode": "both", "tool": "rewards_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt4", "label": "🔐 Checkout", "message": "checkout", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "checkout", "useCaseId": "hitl-consent" },
-      { "id": "rt-mfa", "label": "Cash out store credit", "message": "cash out my store credit", "mode": "both", "challenge": "both", "tool": "cash_out_store_credit", "useCaseId": "step-up-required" },
+      { "id": "rt-mfa", "label": "Cash out store credit", "message": "cash out my store credit", "mode": "both", "challenge": "step_up", "tool": "cash_out_store_credit", "useCaseId": "step-up-required" },
       { "id": "rt-feature", "label": "My large purchase", "message": "show my large purchase", "mode": "both", "tool": "show_large_purchase", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt5", "label": "Order history", "message": "order history", "mode": "both", "useCaseId": "delegated-access-with-proof" },

@@ -58,7 +58,6 @@ import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LogViewer from "./components/LogViewer";
-import { MCPToolsEducation } from "./components/MCPToolsEducation";
 import McpInspector from "./components/McpInspector";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
@@ -116,9 +115,7 @@ import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
-import PrivilegeDemoPage from "./pages/PrivilegeDemoPage";
 import PingCliPage from "./components/PingCliPage";
-import PingAiTestLabPage from "./components/PingAiTestLabPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
@@ -145,6 +142,7 @@ import PublicRoutes, {
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
+  PrivilegeDemoPageRoute,
   PingOneSetupPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
@@ -596,7 +594,12 @@ function AppWithAuth() {
                   path="/onboarding"
                   element={<OnboardingRoute user={user} />}
                 />
-                <Route path="/privilege-demo" element={<PrivilegeDemoPage />} />
+                <Route
+                  path="/privilege-demo"
+                  element={
+                    <PrivilegeDemoPageRoute user={user} logout={logout} />
+                  }
+                />
                 <Route
                   path="/snapshot-import"
                   element={
@@ -615,7 +618,9 @@ function AppWithAuth() {
                 <Route
                   path="/pingcli"
                   element={
-                    loading ? null : user ? (
+                    // Keep PingCliPage mounted across auth `loading` flickers so a
+                    // finished terminal run is not wiped mid-view.
+                    loading && !user ? null : user ? (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
@@ -627,21 +632,8 @@ function AppWithAuth() {
                     )
                   }
                 />
-                <Route
-                  path="/ping-ai-test-lab"
-                  element={
-                    loading ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <PingAiTestLabPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
-                  }
-                />
+                {/* Legacy Test Lab URL → unified Demo check */}
+                <Route path="/ping-ai-test-lab" element={<Navigate to="/check" replace />} />
                 <Route
                   path="/llama-vscode-guide"
                   element={
@@ -1027,7 +1019,7 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/mcp-tools"
-                              element={<MCPToolsEducation />}
+                              element={<Navigate to="/mcp-inspector" replace />}
                             />
                             <Route
                               path="/agent-builder"

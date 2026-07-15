@@ -20,7 +20,8 @@ function inferTokenMode(tokenEvents) {
 export default function ExchangeModeToggle({ hideTable = false }) {
   const [tokenMode, setTokenMode] = useState(null);
   const [txnMeta, setTxnMeta] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
+  // Embedded token chain (hideTable) starts collapsed to save vertical space.
+  const [collapsed, setCollapsed] = useState(hideTable);
 
   useEffect(() => {
     let cancelled = false;

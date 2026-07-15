@@ -984,6 +984,11 @@ services:
     environment:
       NODE_ENV: production
       LLM_PROXY_PORT: "8090"
+      # Keep-warm: 0 disables idle decay so gpt-oss stays loaded after warmup.
+      # Restore classic swap decay with LLM_PROXY_IDLE_DECAY_MS=300000.
+      # Optional pin: LLM_PROXY_PIN_TIER=8096
+      LLM_PROXY_IDLE_DECAY_MS: "${LLM_PROXY_IDLE_DECAY_MS:-0}"
+      LLM_PROXY_PIN_TIER: "${LLM_PROXY_PIN_TIER:-}"
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal

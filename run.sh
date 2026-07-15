@@ -404,6 +404,10 @@ preflight_checks() {
   # The router asks the manager to swap up when a request needs a bigger model
   # and decays back to the smallest tier when idle — one model loaded at a time.
   _start_llm_proxy_stack() {
+    # Keep-warm demo defaults: do not idle-decay the big tier after warmup.
+    # Override with LLM_PROXY_IDLE_DECAY_MS=300000 to restore classic 5-min decay.
+    # Optional hard pin: LLM_PROXY_PIN_TIER=8096 (agent brain stays loaded).
+    export LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS:-0}"
     if ! curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
       nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
       echo $! > /tmp/demo-tier-manager.pid
@@ -413,7 +417,11 @@ preflight_checks() {
       return 1
     }
     if ! _local_llm_ready 8090; then
-      LLAMA_HOST=127.0.0.1 LLM_PROXY_PORT=8090 nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
+      LLAMA_HOST=127.0.0.1 \
+        LLM_PROXY_PORT=8090 \
+        LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS}" \
+        LLM_PROXY_PIN_TIER="${LLM_PROXY_PIN_TIER:-}" \
+        nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
       echo $! > /tmp/demo-llm-proxy.pid
     fi
     local _w=0
@@ -1213,10 +1221,13 @@ done
 
 # ── CodeGraph index (Code Explorer) ──────────────────────────────────────────
 # Rebuild the codegraph DB + stage the source the agent's grep/read tools read,
-# so /code-explorer is always current locally. Fast (~1s, AST-only, no API cost);
-# never fails startup — Code Explorer degrades gracefully on a missing/stale DB.
+# so /code-explorer is always current locally. Also bake langchain_agent/codegraph.db
+# for Docker/k8s image builds (avoids empty /app/codegraph.db → Code Explorer 503).
+# Fast (~1s, AST-only, no API cost); never fails startup — Code Explorer degrades
+# gracefully on a missing/stale DB.
 if command -v python3 >/dev/null 2>&1; then
   if python3 "$BASEDIR/scripts/build-codegraph.py" >/dev/null 2>&1; then
+    cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
     python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" >/dev/null 2>&1 || true
     ok "CodeGraph index refreshed (Code Explorer)"
   else

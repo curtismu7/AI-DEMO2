@@ -52,6 +52,9 @@
 .ams-wiring {
   /* no top margin in row layout — compact mode is flex-direction:row */
 }
+.ams-routing {
+  /* Same row slot as Wiring when an LLM agent mode is selected */
+}
 .ams-degraded {
   margin: 4px 0 0;
   padding: 8px 10px;

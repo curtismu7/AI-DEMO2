@@ -57,8 +57,20 @@ except Exception:
     pass'
 }
 
+# After the tier is healthy, poke /refresh and run a short prefix completion so
+# llama-server's prompt cache has a warm slot before showtime.
+finish_warm() {
+  curl -s --max-time 15 -X POST "${PROXY}/refresh" >/dev/null 2>&1 || true
+  curl -s --max-time 60 -X POST "${PROXY}/v1/chat/completions" \
+    -H 'Content-Type: application/json' \
+    -d "{\"model\":\"${TARGET}\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a concise demo assistant.\"},{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}" \
+    >/dev/null 2>&1 || true
+  echo "[llm-warmup] ${TARGET} warm (loaded + prefix cached)"
+}
+
 if [[ "$(is_loaded)" == "yes" ]]; then
-  echo "[llm-warmup] ${TARGET} already healthy (loaded/serving in swap mode) — nothing to do"
+  echo "[llm-warmup] ${TARGET} already healthy (loaded/serving in swap mode) — refreshing prefix cache"
+  finish_warm
   exit 0
 fi
 
@@ -74,6 +86,7 @@ elapsed=0
 while [[ $elapsed -lt $TIMEOUT_S ]]; do
   if [[ "$(is_loaded)" == "yes" ]]; then
     echo "[llm-warmup] ${TARGET} healthy (loaded/serving in swap mode) after ${elapsed}s"
+    finish_warm
     exit 0
   fi
   sleep 5

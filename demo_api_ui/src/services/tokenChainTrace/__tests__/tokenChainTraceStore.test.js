@@ -75,3 +75,18 @@ test("beginTrace strips sticky useCaseId from carried session token", () => {
   expect(tokenEvents[0].useCaseId).toBeUndefined();
   expect(tokenEvents[0].claims).toEqual({ sub: "u1" });
 });
+
+test("reset clears everything including sign-in token (full demo wipe)", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "my accounts" });
+  tokenChainTraceStore.ingestTokenEvents([
+    { id: "user-token", status: "active", claims: { sub: "u1" } },
+    { id: "exchanged-token", status: "exchanged", claims: { sub: "u1" } },
+  ]);
+  tokenChainTraceStore.completeTrace(true);
+  tokenChainTraceStore.reset();
+  const { trace } = tokenChainTraceStore.getState();
+  expect(trace.startedAt).toBeNull();
+  expect(trace.prompt).toBeNull();
+  expect(trace.tokenEvents).toEqual([]);
+  expect(trace.outcome).toBeNull();
+});

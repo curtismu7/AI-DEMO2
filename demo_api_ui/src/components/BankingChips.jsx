@@ -43,14 +43,19 @@ export const PINGONE_ADMIN_CHIP_IDS = new Set(PINGONE_ADMIN_CHIPS.map((c) => c.i
 // manifest, so they route correctly. Guarantees the agent always shows actions
 // instead of an empty dropdown. Overridden the moment a real manifest loads.
 const DEFAULT_CHIPS10 = [
-  { id: 'bk1',  label: 'My accounts',                 message: 'show my accounts',                         mode: 'both', tool: 'get_my_accounts', useCaseId: 'view_accounts' },
-  { id: 'bk2',  label: 'Check balance',               message: 'what is my balance',                       mode: 'both', tool: 'get_account_balance', useCaseId: 'check_balance' },
-  { id: 'bk3',  label: 'Recent transactions',         message: 'recent transactions',                      mode: 'both', tool: 'get_my_transactions', useCaseId: 'view_transactions' },
-  { id: 'bk4',  label: 'Transfer $100',               message: 'transfer $100 from checking to savings',   mode: 'both', tool: 'create_transfer', useCaseId: 'transfer_funds' },
-  { id: 'bk-hitl', label: '🔐 Transfer $500',     message: 'transfer $500 from checking to savings',   mode: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'transfer_funds_high_value' },
-  { id: 'bk7',  label: 'My mortgage',                 message: 'show my mortgage',                         mode: 'both', tool: 'show_mortgage', useCaseId: 'view_mortgage' },
-  { id: 'bk8',  label: 'Biggest spending categories', message: 'What are my biggest categories',           mode: 'llm', useCaseId: 'analyze_spending' },
-  { id: 'bk-direct', label: 'Direct MCP',             message: 'get my accounts',                          mode: 'direct', tool: 'get_my_accounts', useCaseId: 'view_accounts' },
+  { id: 'bk-flow', label: 'Check balance', message: 'what is my balance', mode: 'both', tool: 'get_account_balance', useCaseId: 'delegated-access-with-proof' },
+  { id: 'bk-consent', label: '👤 Transfer $300', message: 'transfer $300 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'consent', tool: 'create_transfer', useCaseId: 'hitl-consent' },
+  { id: 'bk-mfa', label: '🔑 Transfer $600', message: 'transfer $600 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'step_up', tool: 'create_transfer', useCaseId: 'step-up-required' },
+  { id: 'bk7', label: 'My mortgage', message: 'show my mortgage', mode: 'both', tool: 'show_mortgage', useCaseId: 'delegated-access-with-proof' },
+  { id: 'bk-intent', label: 'Intent-bound transfer', message: 'run an intent-bound transfer within my RAR grant', mode: 'both', tool: 'create_transfer', useCaseId: 'rar-intent-verified' },
+  { id: 'bk-dpop', label: 'DPoP / replay defense', message: 'fire a token with the wrong audience at the gateway', mode: 'direct', useCaseId: 'token-theft-replay' },
+  { id: 'bk8', label: 'Biggest spending categories', message: 'What are my biggest categories', mode: 'llm' },
+  { id: 'bk-direct', label: 'Direct MCP', message: 'get my accounts', mode: 'direct', tool: 'get_my_accounts' },
+  { id: 'bk-deny', label: 'Authz DENY', message: 'show my health record', mode: 'direct', denyTool: 'show_health_record', useCaseId: 'authz-denied' },
+  { id: 'bk1', label: 'My accounts', message: 'show my accounts', mode: 'both', tool: 'get_my_accounts', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
+  { id: 'bk3', label: 'Recent transactions', message: 'recent transactions', mode: 'both', tool: 'get_my_transactions', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
+  { id: 'bk-a2a', label: 'A2A sensitive details', message: 'show my sensitive account details', mode: 'both', challenge: 'consent', hitlTrigger: true, tool: 'get_sensitive_account_details', useCaseId: 'a2a-delegation', group: 'advanced' },
+  { id: 'bk-ciba', label: 'CIBA out-of-band', message: 'transfer $600 from checking to savings with CIBA approval', mode: 'both', challenge: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'ciba-out-of-band-approval', group: 'advanced' },
 ];
 
 // Minimal banking fallback for last-resort use only (when API call fails)
@@ -81,6 +86,8 @@ export default function BankingChips({
   const [chips10, setChips10] = useState(null);
   const [isFallback, setIsFallback] = useState(false);
   const [fallbackVertical, setFallbackVertical] = useState('banking');
+  /** More demos (CIBA, A2A, extras) — collapsed by default in the Actions dropdown. */
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // No usable access token (same derived signal as the TopNav "No token —
   // please sign in" pill) distinguishes "not signed in" from a real authorize
@@ -144,7 +151,105 @@ export default function BankingChips({
     }
   };
 
+  /** Hitl badge label from challenge (consent vs MFA) — never conflate both on consent-only chips. */
+  function hitlBadge(chip) {
+    if (!chip.hitlTrigger && !chip.challenge) return null;
+    const ch = chip.challenge || 'both';
+    if (ch === 'consent') {
+      return { text: 'Consent', title: 'Requires human approval (HITL consent)' };
+    }
+    if (ch === 'step_up') {
+      return { text: 'MFA', title: 'Requires step-up authentication (MFA)' };
+    }
+    return { text: 'Consent+MFA', title: 'Requires consent and step-up (MFA)' };
+  }
+
+  /** Title tooltip for a suggestions chip. */
+  function chipTitle(chip, { isDirect, llmDisabled, perm, deniedReason }) {
+    if (perm.unverified) {
+      return needsSignIn
+        ? 'Sign in to use these actions.'
+        : "Authorize unavailable — couldn't reach PingOne or the demo authorize server. Retry shortly.";
+    }
+    if (perm.denied) return `Denied by Authorize: ${deniedReason}`;
+    if (isDirect) return `${chip.message} — calls MCP server directly, no gateway auth`;
+    if (llmDisabled) return 'Needs an LLM — switch to llama.cpp, Anthropic, or Helix mode';
+    if (chip.challenge === 'consent') return `${chip.message} — requires human approval (consent)`;
+    if (chip.challenge === 'step_up') return `${chip.message} — requires step-up MFA`;
+    if (chip.challenge === 'both' || chip.hitlTrigger) {
+      return `${chip.message} — requires consent and identity verification`;
+    }
+    if (chip.elicitationTrigger) {
+      return `${chip.message} — may request additional user input during execution`;
+    }
+    return chip.message;
+  }
+
+  /**
+   * Render one suggestions-chip button (primary or advanced).
+   * @param {object} chip
+   */
+  function renderSuggestionChip(chip) {
+    const isDirect = chip.mode === 'direct';
+    const isLlm = chip.mode === 'llm';
+    const llmDisabled = isLlm && !llmAvailable;
+    const perm = permState(chip);
+    if (!perm.show) return null;
+    const deniedReason = perm.denied
+      ? (perm.reason || 'not permitted by Authorize for the current scope')
+      : null;
+    const badge = hitlBadge(chip);
+    return (
+      <button
+        type="button"
+        key={chip.id}
+        data-chip-id={chip.id}
+        className={`banking-chips-dropdown__button banking-chips-dropdown__button--${isDirect ? 'direct' : isLlm ? 'llm' : 'heuristic'}${perm.denied ? ' banking-chips-dropdown__button--denied' : ''}${perm.unverified ? ' banking-chips-dropdown__button--unverified' : ''}`}
+        onClick={() => {
+          if (perm.denied) {
+            if (onDeniedChip) onDeniedChip({ id: chip.id, label: chip.label, tool: chip.tool }, deniedReason);
+            return;
+          }
+          handleChipClick(
+            { id: chip.id, label: chip.label, message: chip.message, direct: isDirect, useCaseId: chip.useCaseId },
+            isLlm,
+          );
+        }}
+        aria-disabled={perm.denied || undefined}
+        disabled={isLoading || llmDisabled || perm.unverified}
+        title={chipTitle(chip, { isDirect, llmDisabled, perm, deniedReason })}
+      >
+        {chip.label}
+        {isDirect && (
+          <span className="banking-chips-dropdown__mcp-badge">MCP</span>
+        )}
+        {isLlm && isHelixMode && (
+          <span className="banking-chips-dropdown__helix-badge">Helix</span>
+        )}
+        {isLlm && !isHelixMode && (
+          <span className="banking-chips-dropdown__mcp-badge">LLM</span>
+        )}
+        {badge && (
+          <span className="banking-chips-dropdown__hitl-badge" title={badge.title}>
+            {badge.text}
+          </span>
+        )}
+        {chip.elicitationTrigger && (
+          <span
+            className="banking-chips-dropdown__elicitation-badge"
+            title="Requests additional user input or authorization during execution (MCP Elicitation)"
+          >
+            ◆
+          </span>
+        )}
+      </button>
+    );
+  }
+
   if (!chips10) return <div className="chips-loading">Loading chips...</div>;
+
+  const primaryChips = chips10.filter((c) => !c.group || c.group === 'primary');
+  const advancedChips = chips10.filter((c) => c.group === 'advanced');
 
   return (
     <div className="banking-chips-content">
@@ -195,10 +300,8 @@ export default function BankingChips({
           </div>
         </div>
       )}
-      {/* Curated 10-chip Suggestions section (vertical manifest chips10).
-          Renders INSTEAD of the legacy Quick Actions + Advanced Analysis split.
-          `both` chips → heuristic-eligible (requiresLlm=false). `llm` chips →
-          requiresLlm=true and are disabled when no LLM provider is available. */}
+      {/* Primary suggestions (trust ladder) + collapsed More demos (CIBA / A2A / extras).
+          Testing + Attacks live in the Actions popout as separate collapsed groups. */}
       {chips10 && (
         <div className="banking-chips-dropdown__section">
           <div className="banking-chips-dropdown__label">
@@ -216,99 +319,33 @@ export default function BankingChips({
             </button>
           )}
           <div className="banking-chips-dropdown__grid banking-chips-dropdown__grid--heuristic">
-            {chips10.map((chip) => {
-              const isDirect = chip.mode === "direct";
-              const isLlm = chip.mode === "llm";
-              const llmDisabled = isLlm && !llmAvailable;
-              const perm = permState(chip);
-              // Vertical-foreign tool (absent from the live list) → don't render.
-              if (!perm.show) return null;
-              const deniedReason = perm.denied
-                ? (perm.reason || "not permitted by Authorize for the current scope")
-                : null;
-              return (
+            {primaryChips.map((chip) => renderSuggestionChip(chip))}
+          </div>
+          {advancedChips.length > 0 && (
+            <div className="banking-chips-dropdown__categories" style={{ marginTop: 8 }}>
+              <div className="banking-chips-dropdown__category">
                 <button
                   type="button"
-                  key={chip.id}
-                  data-chip-id={chip.id}
-                  className={`banking-chips-dropdown__button banking-chips-dropdown__button--${isDirect ? "direct" : isLlm ? "llm" : "heuristic"}${perm.denied ? " banking-chips-dropdown__button--denied" : ""}${perm.unverified ? " banking-chips-dropdown__button--unverified" : ""}`}
-                  onClick={() => {
-                    if (perm.denied) {
-                      if (onDeniedChip) onDeniedChip({ id: chip.id, label: chip.label, tool: chip.tool }, deniedReason);
-                      return;
-                    }
-                    handleChipClick(
-                      { id: chip.id, label: chip.label, message: chip.message, direct: isDirect, useCaseId: chip.useCaseId },
-                      isLlm,
-                    );
-                  }}
-                  aria-disabled={perm.denied || undefined}
-                  disabled={isLoading || llmDisabled || perm.unverified}
-                  title={
-                    perm.unverified
-                      ? needsSignIn
-                        ? "Sign in to use these actions."
-                        : "Authorize unavailable — couldn't reach PingOne or the demo authorize server. Retry shortly."
-                      : perm.denied
-                      ? `Denied by Authorize: ${deniedReason}`
-                      : isDirect
-                      ? `${chip.message} — calls MCP server directly, no gateway auth`
-                      : llmDisabled
-                      ? "Needs an LLM — switch to llama.cpp, Anthropic, or Helix mode"
-                      : chip.hitlTrigger && chip.elicitationTrigger
-                      ? `${chip.message} — requires consent, identity verification, and may request additional input`
-                      : chip.hitlTrigger
-                      ? `${chip.message} — requires consent + identity verification`
-                      : chip.elicitationTrigger
-                      ? `${chip.message} — may request additional user input or authorization during execution`
-                      : chip.message
-                  }
+                  className="banking-chips-dropdown__category-header"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  aria-expanded={advancedOpen}
+                  data-testid="chips-advanced-toggle"
                 >
-                  {chip.label}
-                  {isDirect && (
-                    <span className="banking-chips-dropdown__mcp-badge">MCP</span>
-                  )}
-                  {isLlm && isHelixMode && (
-                    <span className="banking-chips-dropdown__helix-badge">Helix</span>
-                  )}
-                  {isLlm && !isHelixMode && (
-                    <span className="banking-chips-dropdown__mcp-badge">LLM</span>
-                  )}
-                  {chip.hitlTrigger && (
-                    <span
-                      className="banking-chips-dropdown__hitl-badge"
-                      title="Requires consent + identity verification (MFA)"
-                    >
-                      <svg
-                        className="banking-chips-dropdown__hitl-icon"
-                        width="9"
-                        height="11"
-                        viewBox="0 0 9 11"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M2.2 4.2V3a2.3 2.3 0 0 1 4.6 0v1.2"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.1"
-                        />
-                        <rect x="1" y="4.2" width="7" height="5.8" rx="1.2" fill="currentColor" />
-                      </svg>
-                      MFA
-                    </span>
-                  )}
-                  {chip.elicitationTrigger && (
-                    <span
-                      className="banking-chips-dropdown__elicitation-badge"
-                      title="Requests additional user input or authorization during execution (MCP Elicitation)"
-                    >
-                      ◆
-                    </span>
-                  )}
+                  <span className="banking-chips-dropdown__category-name">
+                    More demos ({advancedChips.length})
+                  </span>
+                  <span className="banking-chips-dropdown__category-toggle">
+                    {advancedOpen ? '▾' : '▸'}
+                  </span>
                 </button>
-              );
-            })}
-          </div>
+                {advancedOpen && (
+                  <div className="banking-chips-dropdown__grid banking-chips-dropdown__grid--heuristic">
+                    {advancedChips.map((chip) => renderSuggestionChip(chip))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

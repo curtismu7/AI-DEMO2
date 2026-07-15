@@ -29,7 +29,7 @@ export function createEmbedder(opts: EmbedderOptions): Embedder {
   // embedder — 30s was never enough for a 400-file batch. Each internal
   // slice (EMBED_BATCH inputs) gets its own generous window instead.
   const post: PostFn =
-    opts.post ?? ((url, body) => axios.post(url, body, { timeout: 120000 }));
+    opts.post ?? ((url, body) => axios.post(url, body, { timeout: 600000 }));
   const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/embeddings`;
 
   // nomic-embed-text v1.5's trained context is 2048 tokens and llama.cpp
@@ -39,6 +39,7 @@ export function createEmbedder(opts: EmbedderOptions): Embedder {
   // content tokenizes at ~2 chars/token (a 6000-char chunk measured 2727
   // tokens), so 3500 chars keeps the worst case under the 2048 cap; only the
   // pathological chunk loses tail recall, everything else is untouched.
+  // Keep under the SE embeddings physical batch (-b 2048) as well.
   const MAX_EMBED_CHARS = 3500;
 
   return {
@@ -48,10 +49,9 @@ export function createEmbedder(opts: EmbedderOptions): Embedder {
       const input = texts.map((t) =>
         t.length > MAX_EMBED_CHARS ? t.slice(0, MAX_EMBED_CHARS) : t
       );
-      // Slice the request so one repo-sized batch doesn't become a single
-      // multi-minute HTTP call (the llama.cpp server processes inputs
-      // sequentially on --parallel 1 anyway).
-      const EMBED_BATCH = 64;
+      // SE CPU embedder (~2–3s/chunk): keep each HTTP call short so axios
+      // timeouts don't abort mid-batch.
+      const EMBED_BATCH = 8;
       const vectors: number[][] = new Array(texts.length);
       for (let off = 0; off < input.length; off += EMBED_BATCH) {
         const slice = input.slice(off, off + EMBED_BATCH);

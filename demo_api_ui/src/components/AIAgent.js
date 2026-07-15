@@ -56,13 +56,17 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
-import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER } from "../config/agentModes";
+import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
+import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
+import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import apiClient from "../services/apiClient";
+import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
@@ -92,7 +96,7 @@ import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
-import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry } from "./demoAgentSafety";
+import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
@@ -240,11 +244,23 @@ export default function BankingAgent({
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
+
+  // Keep the llama.cpp agent-brain tier loaded while this surface is mounted so
+  // the first chip/tool turn does not pay a cold swap.
+  useEffect(() => {
+    const provider = MODE_PROVIDER[agentProviderMode] ?? agentProviderMode;
+    if (provider !== "llamacpp") return undefined;
+    opportunisticPrewarm("gpt-oss-20b");
+    return undefined;
+  }, [agentProviderMode]);
+
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
+  /** Demo steps popout — same list as /use-cases Demo section. */
+  const [showDemoSteps, setShowDemoSteps] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
   const discoveryTriggerRef = useRef(null);
   const actionsPopoutRef = useRef(null);
@@ -509,13 +525,15 @@ export default function BankingAgent({
     } catch (e) {
       console.warn("Failed to load ba_chip_groups_state from localStorage:", e);
     }
-    // Default state per D-06: Account expanded, Transaction and Admin collapsed
+    // Default: Account expanded; Testing / Attacks / Advanced stay collapsed
     return {
       account: true,
       transaction: false,
       admin: false,
       ai: false,
       testing: false,
+      attacks: false,
+      advanced: false,
     };
   });
 
@@ -535,12 +553,14 @@ export default function BankingAgent({
    *  Prevents stale expanded groups persisting in the DOM after switching layouts.
    */
   useEffect(() => {
-    setChipGroupsState((prev) => ({
+    setChipGroupsState(() => ({
       account: true,
       transaction: false,
       admin: false,
       ai: false,
       testing: false,
+      attacks: false,
+      advanced: false,
     }));
   }, [useActionsPopout, isBottomDock]);
 
@@ -681,12 +701,17 @@ export default function BankingAgent({
       }))
       .filter((g) => g.chips.length > 0);
 
-    const isBankingVertical = !effectiveVerticalId || effectiveVerticalId === "banking";
     return [
       {
         key: "testing",
-        label: isBankingVertical ? "Testing" : "AI attacks",
+        label: "Testing",
         chips: ACTION_GROUPS.testing,
+        isEducation: false,
+      },
+      {
+        key: "attacks",
+        label: "Attacks",
+        chips: ACTION_GROUPS.attacks || [],
         isEducation: false,
       },
       ...customEntries,
@@ -1042,18 +1067,22 @@ export default function BankingAgent({
           });
           const seedData = await seedRes.json().catch(() => ({}));
           const payload = seedData.description || seedData.notes || "(payload planted)";
-          const readResp = await callMcpTool(inj.readTool, inj.readTool === "get_my_transactions" ? { limit: 25 } : {});
+          // Pin to banking (seed plants there) + higher limit so the poisoned
+          // memo is in the read window; result must be `assistant` (not
+          // token-event) so it stays visible when RFC info is off.
+          const readParams = inj.readTool === "get_my_transactions" ? { limit: 100 } : {};
+          const readResp = await callMcpTool(inj.readTool, readParams, { vertical: "banking" });
           const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
           addMessage(
-            "token-event",
+            "assistant",
             [
-              `💉 Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
+              `Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
               `   "${payload}"`,
               "",
               surfaced
                 ? "The poisoned directive is now in the agent's context — but it cannot auto-execute:"
                 : "(payload planted; agent read completed)",
-              "⛔ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
+              "❌ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
               "   The policy evaluates the request independently of whatever the LLM 'decided' from the poisoned text.",
             ].join("\n"),
             null,
@@ -1062,7 +1091,7 @@ export default function BankingAgent({
             tokenChain.setTokenEvents(inj.readTool, readResp.tokenEvents);
           }
         } catch (err) {
-          addMessage("token-event", `Injection demo error: ${err.code || err.message || "failed"}`, null);
+          addMessage("assistant", `Injection demo error: ${err.code || err.message || "failed"}`, null);
         } finally {
           setNlLoading(false);
         }
@@ -3727,12 +3756,14 @@ export default function BankingAgent({
   normalized.debug_mcp_stepup_handler: ${normalized.debug_mcp_stepup_handler}
   full normalized: ${JSON.stringify(normalized)}`);
 
-        const consent = normalized.error === "hitl_required";
+        const consent =
+          normalized.error === "hitl_required" ||
+          normalized.error === "mcp_hitl_required";
 
         console.log(`[DEBUG-FRONTEND-DECISION]  DECISION POINT:
   consent=${consent}
   will show consent modal: ${consent}
-  will show stepup modal: ${!consent && (normalized.step_up_required === true || normalized.error === "step_up_required")}`);
+  will show stepup modal: ${!consent && (normalized.step_up_required === true || normalized.error === "step_up_required" || normalized.error === "mcp_step_up_required")}`);
 
         if (consent) {
           try {
@@ -3846,7 +3877,7 @@ export default function BankingAgent({
           // Show waiting message
           addMessage(
             "assistant",
-            " Waiting for MFA verification… Enter the code from your email in the modal above.",
+            " Waiting for MFA verification… Choose Email code, SMS, or Passkey in the modal above.",
             `mfa-step-${Date.now()}`,
           );
           toast.dismiss(toastId);
@@ -5486,9 +5517,18 @@ export default function BankingAgent({
           // (Earlier this only fired on hitl_required + requiresConsent, so
           // step-up tools like healthcare release_records printed the text but
           // never opened the modal.)
-          if (response.error === 'hitl_required' || response.error === 'step_up_required') {
+          if (
+            response.error === 'hitl_required' ||
+            response.error === 'mcp_hitl_required' ||
+            response.error === 'step_up_required' ||
+            response.error === 'mcp_step_up_required'
+          ) {
             const actionLabel = (response.action || result.action || '').replace(/_/g, ' ');
-            const isStepUp = response.error === 'step_up_required' || !!response.requiresStepUp || !!response.step_up_required;
+            const isStepUp =
+              response.error === 'step_up_required' ||
+              response.error === 'mcp_step_up_required' ||
+              !!response.requiresStepUp ||
+              !!response.step_up_required;
             setHitlPendingIntent({
               isVerticalConsent: true,
               verticalMessage: agentMessage,
@@ -5676,6 +5716,86 @@ export default function BankingAgent({
     }
   }
 
+  /**
+   * Run a Demo-section use case from the agent header (same catalog as /use-cases).
+   * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
+   * link/edu open their destinations.
+   */
+  async function handleDemoStepSelect(uc, stepNumber) {
+    if (!uc) return;
+    setShowDemoSteps(false);
+    setShowDiscovery(false);
+    if (isAgentBlockedByConsentDecline()) {
+      addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
+      return;
+    }
+    markUseCaseCompleted(uc.id);
+    const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
+    const trigger = uc.trigger || {};
+
+    if (trigger.type === "chip" && trigger.text) {
+      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+        addMessage("assistant", "Sign in to run demo steps.");
+        return;
+      }
+      // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
+      pendingUcIdRef.current = uc.useCaseId || null;
+      pendingNlResumeRef.current = null;
+      addMessage("assistant", `Running ${stepLabel}…`);
+      setNlResumeAfterAuth(trigger.text);
+      return;
+    }
+
+    if (trigger.type === "edu" && trigger.panel) {
+      edu?.open(trigger.panel, trigger.tab || "overview");
+      addMessage("assistant", `${stepLabel} — opened learning panel.`);
+      return;
+    }
+
+    if (trigger.type === "link" && trigger.path) {
+      addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      navigate(trigger.path);
+      return;
+    }
+
+    if (trigger.type === "attack" && trigger.sim) {
+      const sim =
+        trigger.sim === "wrong-aud-token" ? "wrong-aud" : trigger.sim;
+      addMessage("user", stepLabel);
+      setNlLoading(true);
+      try {
+        const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
+        const status = data?.status;
+        const isDeny = typeof status !== "number" || status >= 400;
+        const verdict = isDeny ? "DENY" : "PERMIT";
+        const reason = data?.reason || data?.errorCode || "";
+        addMessage(
+          "assistant",
+          [
+            `${stepLabel}`,
+            `Attack sim \`${sim}\` → ${status ?? "?"} ${verdict}`,
+            reason ? reason : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
+      } catch (err) {
+        addMessage(
+          "assistant",
+          `${stepLabel}\nAttack simulation failed: ${formatAxiosError(err, err.message || "failed")}`,
+        );
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+
+    addMessage(
+      "assistant",
+      `${stepLabel} — this use case has no runnable trigger in the agent.`,
+    );
+  }
+
   async function handleNaturalLanguage() {
     const text = nlInput.trim();
     if (!text) return;
@@ -5795,7 +5915,7 @@ export default function BankingAgent({
             level: "error",
             limit: String(logQuery.limit),
           });
-          const sources = ["console", "app", "vercel"];
+          const sources = ["console", "app", "exchange"];
           const results = await Promise.allSettled(
             sources.map((src) =>
               fetch(`/api/logs/${src}?${params.toString()}`, {
@@ -6524,7 +6644,11 @@ export default function BankingAgent({
                 )}
               <div className="ba-header-tools">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
-                <AgentModeSelector compact />
+                <AgentModeSelector
+                  compact
+                  heuristicFallback={heuristicEnabled}
+                  onHeuristicFallbackChange={setHeuristicEnabled}
+                />
                 {/* RFC info toggle — standard switch control, always visible in header */}
                 <Check
                   variant="switch"
@@ -6629,6 +6753,19 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
+                {/* Demo steps — same scripted list as /use-cases Demo section */}
+                <DemoStepsDropdown
+                  vertical={effectiveVerticalId || "banking"}
+                  disabled={consentBlocked}
+                  open={showDemoSteps}
+                  onOpenChange={(next) => {
+                    setShowDemoSteps(next);
+                    if (next) setShowDiscovery(false);
+                  }}
+                  onSelect={(uc, stepNumber) => {
+                    handleDemoStepSelect(uc, stepNumber);
+                  }}
+                />
                 {/* Actions trigger — float + dashboard inline agents (D-01, D-02) */}
                 {useActionsPopout && (
                   <button
@@ -6637,7 +6774,13 @@ export default function BankingAgent({
                     className={
                       "ba-actions-trigger" + (showDiscovery ? " active" : "")
                     }
-                    onClick={() => setShowDiscovery((v) => !v)}
+                    onClick={() => {
+                      setShowDiscovery((v) => {
+                        const next = !v;
+                        if (next) setShowDemoSteps(false);
+                        return next;
+                      });
+                    }}
                     disabled={consentBlocked}
                     aria-expanded={showDiscovery}
                     aria-haspopup="dialog"
@@ -6800,7 +6943,9 @@ export default function BankingAgent({
                       // to the normal routing below. `caption` is the presenter's
                       // plain-language "what this demonstrates" line.
                       if (showcase) {
-                        if (caption) addMessage("assistant", `ℹ️ Expected: ${caption}`, null);
+                        // Showcase outcomes must be `assistant` (not token-event):
+                        // token-event bubbles are hidden when RFC info is off (default).
+                        if (caption) addMessage("assistant", `Expected: ${caption}`, null);
                         if (showcase === "authz_deny") {
                           // Call a tool from another vertical directly → AllowedVertical DENY.
                           (async () => {
@@ -6811,9 +6956,9 @@ export default function BankingAgent({
                                 r?.status === 403 ||
                                 isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
                               addMessage(
-                                "token-event",
+                                "assistant",
                                 denied
-                                  ? `⛔ PingOne Authorize DENY — '${tool}' is not permitted in this vertical (AllowedVertical).`
+                                  ? `❌ PingOne Authorize DENY — '${tool}' is not permitted in this vertical (AllowedVertical).`
                                   : `❌ Expected a DENY for '${tool}', but the call returned a result.`,
                                 null,
                               );
@@ -6822,8 +6967,8 @@ export default function BankingAgent({
                               }
                             } catch (err) {
                               addMessage(
-                                "token-event",
-                                `⛔ PingOne Authorize DENY — ${err.code || err.message || "request rejected"}`,
+                                "assistant",
+                                `❌ PingOne Authorize DENY — ${err.code || err.message || "request rejected"}`,
                                 null,
                               );
                               if (tokenChain && Array.isArray(err?.tokenEvents)) {
@@ -6856,9 +7001,9 @@ export default function BankingAgent({
                               const data = await r.json().catch(() => ({}));
                               const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
                               addMessage(
-                                "token-event",
+                                "assistant",
                                 denied
-                                  ? `⛔ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
+                                  ? `❌ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
                                   : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
                                 null,
                               );
@@ -6866,7 +7011,7 @@ export default function BankingAgent({
                                 tokenChain.setTokenEvents("confused_deputy", data.tokenEvents);
                               }
                             } catch (err) {
-                              addMessage("token-event", `⛔ Rogue actor rejected — ${err.code || err.message || "request blocked"}`, null);
+                              addMessage("assistant", `❌ Rogue actor rejected — ${err.code || err.message || "request blocked"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -6891,23 +7036,24 @@ export default function BankingAgent({
                               const payload = seedData.description || seedData.notes || "(payload planted)";
                               // Pin the poisoned read to banking (where the seed plants data) so the
                               // injection surfaces regardless of the active vertical.
+                              // Result is `assistant` (not token-event) so chips stay visible when RFC info is off.
                               const readResp = await (await fetch(`${apiBase}/api/mcp/tool`, {
                                 method: "POST",
                                 credentials: "include",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ tool: inj.readTool, params: inj.readTool === "get_my_transactions" ? { limit: 25 } : {}, vertical: "banking" }),
+                                body: JSON.stringify({ tool: inj.readTool, params: inj.readTool === "get_my_transactions" ? { limit: 100 } : {}, vertical: "banking" }),
                               })).json().catch(() => ({}));
                               const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
                               addMessage(
-                                "token-event",
+                                "assistant",
                                 [
-                                  `💉 Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
+                                  `Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
                                   `   "${payload}"`,
                                   "",
                                   surfaced
                                     ? "The poisoned directive is now in the agent's context — but it cannot auto-execute:"
                                     : "(payload planted; agent read completed)",
-                                  "⛔ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
+                                  "❌ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
                                   "   The policy evaluates the request independently of whatever the LLM 'decided' from the poisoned text.",
                                 ].join("\n"),
                                 null,
@@ -6916,7 +7062,7 @@ export default function BankingAgent({
                                 tokenChain.setTokenEvents(inj.readTool, readResp.tokenEvents);
                               }
                             } catch (err) {
-                              addMessage("token-event", `Injection demo error: ${err.code || err.message || "failed"}`, null);
+                              addMessage("assistant", `Injection demo error: ${err.code || err.message || "failed"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -6940,7 +7086,7 @@ export default function BankingAgent({
                               let accounts = [];
                               try { accounts = JSON.parse(acctD.result?.content?.[0]?.text || "{}").accounts || []; } catch (_) { /* shape */ }
                               if (accounts.length < 2) {
-                                addMessage("token-event", "HITL replay demo needs ≥2 accounts — click My accounts first to load them.", null);
+                                addMessage("assistant", "HITL replay demo needs ≥2 accounts — click My accounts first to load them.", null);
                                 setNlLoading(false);
                                 return;
                               }
@@ -6949,13 +7095,13 @@ export default function BankingAgent({
                               const b1 = await t1.json().catch(() => ({}));
                               const challengeId = b1.challengeId || b1.taskId;
                               if (!challengeId) {
-                                addMessage("token-event", `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`, null);
+                                addMessage("assistant", `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`, null);
                                 setNlLoading(false);
                                 return;
                               }
                               const approve = await fetch(`${apiBase}/api/mcp/decision/${challengeId}/approve`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
                               if (!approve.ok) {
-                                addMessage("token-event", `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`, null);
+                                addMessage("assistant", `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`, null);
                                 setNlLoading(false);
                                 return;
                               }
@@ -6963,19 +7109,19 @@ export default function BankingAgent({
                               const rb = await replay.json().catch(() => ({}));
                               const blocked = replay.status >= 400;
                               addMessage(
-                                "token-event",
+                                "assistant",
                                 [
-                                  `♻ Approved a consent receipt for create_transfer (challenge ${String(challengeId).slice(0, 8)}…).`,
+                                  `Approved a consent receipt for create_transfer (challenge ${String(challengeId).slice(0, 8)}…).`,
                                   "Replaying that SAME receipt on a different tool (create_withdrawal):",
                                   blocked
-                                    ? `⛔ Blocked (HTTP ${replay.status} · ${rb.error || rb.gatewayErrorCode || "re-challenged"}) — the receipt is bound to the tool it approved; reuse is re-challenged, never honored.`
+                                    ? `❌ Blocked (HTTP ${replay.status} · ${rb.error || rb.gatewayErrorCode || "re-challenged"}) — the receipt is bound to the tool it approved; reuse is re-challenged, never honored.`
                                     : `❌ Expected the replay to be blocked, but it returned HTTP ${replay.status}.`,
                                 ].join("\n"),
                                 null,
                               );
                               if (tokenChain && Array.isArray(rb?.tokenEvents)) tokenChain.setTokenEvents("hitl_replay", rb.tokenEvents);
                             } catch (err) {
-                              addMessage("token-event", `HITL replay demo error: ${err.code || err.message || "failed"}`, null);
+                              addMessage("assistant", `HITL replay demo error: ${err.code || err.message || "failed"}`, null);
                             } finally {
                               setNlLoading(false);
                             }
@@ -8337,6 +8483,7 @@ export default function BankingAgent({
                 userIdentity={{
                   name: effectiveUser?.fullName || effectiveUser?.username,
                   email: effectiveUser?.email,
+                  phone: effectiveUser?.phone || effectiveUser?.mobilePhone || effectiveUser?.primaryPhone || null,
                 }}
                 onPasskeyRegistered={handlePasskeyRegistered}
                 deliveryError={otpDeliveryError}
@@ -8471,7 +8618,7 @@ export default function BankingAgent({
                                 level: "error",
                                 limit: String(_chipLogQuery.limit),
                               });
-                              const _sources = ["console", "app", "vercel"];
+                              const _sources = ["console", "app", "exchange"];
                               const _results = await Promise.allSettled(
                                 _sources.map((src) =>
                                   fetch(
@@ -8950,15 +9097,9 @@ export default function BankingAgent({
                           )}
                           {msg.source && msg.role === "assistant" && (
                             <div
-                              className={`banking-agent-msg-label banking-agent-msg-label--${msg.source}`}
+                              className={`banking-agent-msg-label banking-agent-msg-label--${String(msg.source).replace(/[^a-z0-9_-]/gi, "")}`}
                             >
-                              {msg.source === "heuristic"
-                                ? "Heuristic"
-                                : msg.source === "helix"
-                                  ? "Helix LLM"
-                                  : msg.source === "direct-mcp"
-                                    ? "Direct MCP"
-                                    : msg.source}
+                              {sourceLabel(msg.source)}
                             </div>
                           )}
                           <div

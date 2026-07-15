@@ -1,10 +1,14 @@
 import { useCallback, useState } from 'react';
 
+/** Mirror checkService.aggregateVerdict (severity-aware). */
 export function deriveVerdict(results) {
   const list = Object.values(results);
   if (!list.length) return null;
-  if (list.some((r) => r.status === 'fail')) return 'not_ready';
-  if (list.some((r) => r.status === 'warn')) return 'ready_with_warnings';
+  const severityOf = (r) => r.severity || 'blocking';
+  if (list.some((r) => r.status === 'fail' && severityOf(r) !== 'advisory')) return 'not_ready';
+  if (list.some((r) => r.status === 'warn' || (r.status === 'fail' && severityOf(r) === 'advisory'))) {
+    return 'ready_with_warnings';
+  }
   return 'ready';
 }
 
@@ -36,6 +40,7 @@ export async function readSse(response, onEvent) {
 export function useCheckRun() {
   const [catalog, setCatalog] = useState(null);
   const [results, setResults] = useState({});
+  const [serverVerdict, setServerVerdict] = useState(null);
   const [running, setRunning] = useState(false);
 
   const loadCatalog = useCallback(async () => {
@@ -48,6 +53,7 @@ export function useCheckRun() {
 
   const runAll = useCallback(async ({ includeHeavy = false } = {}) => {
     setRunning(true);
+    setServerVerdict(null);
     try {
       const res = await fetch('/api/check/run', {
         method: 'POST', credentials: 'include',
@@ -55,9 +61,13 @@ export function useCheckRun() {
         body: JSON.stringify({ includeHeavy }),
       });
       if (!res.ok) throw new Error(`check run failed: ${res.status}`);
-      await readSse(res, (ev, data) => { if (ev === 'result') setResult(data); });
+      await readSse(res, (ev, data) => {
+        if (ev === 'result') setResult(data);
+        if (ev === 'done' && data.verdict) setServerVerdict(data.verdict);
+      });
     } finally { setRunning(false); }
   }, [setResult]);
 
-  return { catalog, results, verdict: deriveVerdict(results), running, loadCatalog, runAll, setResult };
+  const verdict = serverVerdict || deriveVerdict(results);
+  return { catalog, results, verdict, running, loadCatalog, runAll, setResult };
 }

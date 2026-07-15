@@ -1,8 +1,13 @@
-# GLM 5.2 Custom Execution Directives
-# Model: z-ai/glm-5.2 (Via OpenRouter)
+# Agent behavior (this repo)
 
-- Output Capability: You possess a 128,000 token maximum output generation limit. 
-- Coding Style: NEVER truncate, abbreviate, or use placeholder comments (e.g., "// ... rest of your code here") under any circumstances.
-- Scope: Always output the complete, production-ready source code for modified files, even if the file spans thousands of lines of boilerplate.
-- Context Utilization: Take advantage of your 1M token context. Analyze the cross-file dependencies provided in the context indexing before writing your solution.
-- Output Format: Stream cleanly in unified blocks. Do not break single-file outputs into multiple smaller markdown blocks.
+Canonical instructions: CLAUDE.md (AGENTS.md redirects there).
+
+Behavioral defaults — override stack-specific "always dump full files" habits:
+
+1. Don't assume. Surface tradeoffs. Ask when unclear.
+2. Minimum code that solves the request — nothing speculative.
+3. Surgical diffs only. No drive-by cleanup of adjacent code.
+4. Define verifiable success criteria; loop until checks pass.
+
+When editing: work in a git worktree; respect REGRESSION_PLAN.md §0–§1; emoji
+allowlist only (see CLAUDE.md). Prefer patches over rewriting entire files.

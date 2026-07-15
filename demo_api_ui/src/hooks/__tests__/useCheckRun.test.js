@@ -8,8 +8,12 @@ describe('deriveVerdict', () => {
   test('warn precedence', () => {
     expect(deriveVerdict({ a: { status: 'pass' }, b: { status: 'warn' } })).toBe('ready_with_warnings');
   });
-  test('fail wins', () => {
-    expect(deriveVerdict({ a: { status: 'warn' }, b: { status: 'fail' } })).toBe('not_ready');
+  test('blocking fail wins', () => {
+    expect(deriveVerdict({ a: { status: 'warn' }, b: { status: 'fail', severity: 'blocking' } })).toBe('not_ready');
+  });
+  test('advisory fail is warning only', () => {
+    expect(deriveVerdict({ a: { status: 'pass', severity: 'gate' }, b: { status: 'fail', severity: 'advisory' } }))
+      .toBe('ready_with_warnings');
   });
 });
 

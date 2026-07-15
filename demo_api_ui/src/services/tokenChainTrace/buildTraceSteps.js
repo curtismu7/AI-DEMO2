@@ -180,9 +180,15 @@ export function buildTraceSteps(trace) {
 
   // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the
   // synthesize authorize-decision token event (same payloads, different source).
-  const azDenied = hasPhase(phases, "authorize_denied");
+  //
+  // Pipeline always emits phase "authorize_denied" on a gate *block*, including
+  // HTTP 428 step-up / HITL. That is a challenge, not a hard DENY — paint
+  // "active" (or done after PERMIT) so TraceRail does not show a false ✗.
+  const azDeniedPhase = findPhase(phases, "authorize_denied");
+  const azDenied = !!azDeniedPhase;
   const azPermitted = hasPhase(phases, "authorize_permitted") || (authorize && authorize.decision === "PERMIT");
   const azBegun = hasPhase(phases, "authorize_gate_begin");
+  const azUnavailable = hasPhase(phases, "authorize_unavailable");
   const azEvent = findEvent(tokenEvents, "authorize-decision");
   const azEval = authorize || (azEvent ? {
     engine: azEvent.authorizeEngine,
@@ -193,16 +199,31 @@ export function buildTraceSteps(trace) {
     request: azEvent.authorizeRequest || azEvent.request,
     response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
   } : null);
+  const azDecision = azEval && azEval.decision != null
+    ? String(azEval.decision).toUpperCase()
+    : "";
+  const azIsPermit = azPermitted || azDecision === "PERMIT";
+  const azIsDeny = azDecision === "DENY";
+  // 428 block or INDETERMINATE evaluation = step-up / HITL challenge path.
+  // status may arrive as a number on the phase, or only in detail ("HTTP 428")
+  // from older SSE rows that did not preserve payload.status.
+  let azDeniedHttp = azDeniedPhase ? Number(azDeniedPhase.status) || 0 : 0;
+  if (!azDeniedHttp && azDeniedPhase && typeof azDeniedPhase.detail === "string") {
+    const m = /HTTP\s+(\d+)/i.exec(azDeniedPhase.detail);
+    if (m) azDeniedHttp = Number(m[1]) || 0;
+  }
+  const azIsChallenge = azDecision === "INDETERMINATE" || azDeniedHttp === 428;
+  const azStatus = azIsPermit ? "done"
+    : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
+    : azIsChallenge || azBegun || azEval ? "active"
+    : "pending";
   const azRequestPayload = azEval && azEval.request
     ? ((azEval.request.body && azEval.request.body.parameters)
         || azEval.request.parameters
         || azEval.request.body
         || azEval.request)
     : null;
-  steps.push(makeStep("authorize",
-    azDenied ? "error" : azPermitted || (azEval && azEval.decision === "PERMIT") ? "done"
-      : azEval && (azEval.decision === "DENY" || azEval.decision === "deny") ? "error"
-      : azBegun || azEval ? "active" : "pending",
+  steps.push(makeStep("authorize", azStatus,
     azEval ? {
       request: azRequestPayload || azEval.request
         ? { title: "Decision request (actual)",

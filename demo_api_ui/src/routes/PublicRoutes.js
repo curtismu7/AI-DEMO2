@@ -26,6 +26,7 @@ import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 
 export default function PublicRoutes({ user, logout }) {
   return (
@@ -161,6 +162,15 @@ export function OASDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OASDemoPage />
+    </AppShell>
+  );
+}
+
+/** SE Privilege demo hub — needs AppShell so logged-in sidebar does not overlay content. */
+export function PrivilegeDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PrivilegeDemoPage />
     </AppShell>
   );
 }

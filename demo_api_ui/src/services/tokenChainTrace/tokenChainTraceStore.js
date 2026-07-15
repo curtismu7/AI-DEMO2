@@ -97,7 +97,14 @@ export const tokenChainTraceStore = {
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },
-  reset() { trace = EMPTY_TRACE(); emit(); },
+  /** Full demo reset — empty pipeline (nothing done) ready for the next run. */
+  reset() {
+    trace = EMPTY_TRACE();
+    try {
+      agentFlowDiagram.clearServerEvents();
+    } catch { /* display-only */ }
+    emit();
+  },
 };
 
 // Passive wiring — phases stream through agentFlowDiagram already; MCP results

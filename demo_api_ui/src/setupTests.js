@@ -19,16 +19,22 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn();
 // but it may not be aliased to the bare `localStorage` global in all Vitest
 // worker configurations. Ensure the bare global points to jsdom's store so
 // tests that call localStorage.getItem / .setItem / .clear() work correctly.
+//
+// Snapshot the store BEFORE aliasing. A `get: () => window.localStorage` accessor
+// recurses forever when window.localStorage is itself bound to globalThis.localStorage
+// (common under Vitest + Node 20+/22 Storage shims).
 if (typeof window !== "undefined") {
   if (window.localStorage) {
+    const jsdomLocalStorage = window.localStorage;
     try {
       Object.defineProperty(globalThis, "localStorage", {
-        get: () => window.localStorage,
+        value: jsdomLocalStorage,
+        writable: true,
         configurable: true,
       });
     } catch (_) {
       try {
-        globalThis.localStorage = window.localStorage;
+        globalThis.localStorage = jsdomLocalStorage;
       } catch (_2) {
         /* best-effort */
       }

@@ -11,7 +11,7 @@ import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
 //
 // NOTE: This component owns its OWN <Routes> tree (with relative paths) and
 // works correctly as a route element. The non-/architecture/* education routes
-// (mcp-tools, agentic-trust, etc.) live directly in App.js's wildcard <Routes>
+// (agentic-trust, etc.) live directly in App.js's wildcard <Routes>
 // because React Router v6 requires <Route> elements to be DIRECT children of
 // <Routes> — they cannot be returned from an intermediate component.
 export default function EducationRoutes({ user, logout }) {

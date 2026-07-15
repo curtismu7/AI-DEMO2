@@ -51,13 +51,18 @@ const AI_CHIP_IDS = [
 const TESTING_CHIP_IDS = [
   "demo_guide",
   "test_full_compliance_flow",
-  "test_wrong_scope",
-  "test_wrong_audience",
-  "test_hitl_required",
   "transfer_600_test",
   "test_otp_required",
   "demo_intent_delegation",
   "demo_nl_routing",
+];
+const ATTACKS_CHIP_IDS = [
+  "test_wrong_scope",
+  "test_wrong_audience",
+  "test_hitl_required",
+  "atk_prompt_injection",
+  "atk_confused_deputy",
+  "atk_hitl_replay",
 ];
 
 const ALL_CHIP_IDS = [
@@ -66,6 +71,7 @@ const ALL_CHIP_IDS = [
   ...ADMIN_CHIP_IDS,
   ...AI_CHIP_IDS,
   ...TESTING_CHIP_IDS,
+  ...ATTACKS_CHIP_IDS,
 ];
 
 // ── Routing contract ──────────────────────────────────────────────────────────
@@ -168,13 +174,20 @@ describe("BankingAgent chip catalog", () => {
   });
 
   it("testing group contains compliance and NL routing chips", () => {
-    expect(TESTING_CHIP_IDS).toContain("test_wrong_scope");
-    expect(TESTING_CHIP_IDS).toContain("test_wrong_audience");
-    expect(TESTING_CHIP_IDS).toContain("test_hitl_required");
     expect(TESTING_CHIP_IDS).toContain("transfer_600_test");
     expect(TESTING_CHIP_IDS).toContain("test_otp_required");
     expect(TESTING_CHIP_IDS).toContain("demo_intent_delegation");
     expect(TESTING_CHIP_IDS).toContain("demo_nl_routing");
+    expect(TESTING_CHIP_IDS).not.toContain("test_wrong_scope");
+  });
+
+  it("attacks group contains attack simulation chips", () => {
+    expect(ATTACKS_CHIP_IDS).toContain("test_wrong_scope");
+    expect(ATTACKS_CHIP_IDS).toContain("test_wrong_audience");
+    expect(ATTACKS_CHIP_IDS).toContain("test_hitl_required");
+    expect(ATTACKS_CHIP_IDS).toContain("atk_prompt_injection");
+    expect(ATTACKS_CHIP_IDS).toContain("atk_confused_deputy");
+    expect(ATTACKS_CHIP_IDS).toContain("atk_hitl_replay");
   });
 });
 
@@ -208,13 +221,15 @@ describe("Chip routing contract", () => {
   });
 
   it("the NL-routed set and direct set together cover all registered chip IDs (no unrouted chips)", () => {
-    // demo_guide opens a modal; test_full_compliance_flow runs via runAction in testing group.
+    // demo_guide opens a modal; testing/attacks groups run via Actions popout
+    // (runAction or message→NL) outside the primary NL/DIRECT left-rail sets.
     const knownSpecial = new Set(["demo_guide", "test_full_compliance_flow"]);
     const unrouted = ALL_CHIP_IDS.filter((id) => !knownSpecial.has(id)).filter(
       (id) =>
         !NL_ROUTED_IDS.has(id) &&
         !DIRECT_IDS.has(id) &&
-        !TESTING_CHIP_IDS.includes(id),
+        !TESTING_CHIP_IDS.includes(id) &&
+        !ATTACKS_CHIP_IDS.includes(id),
     );
     expect(unrouted).toEqual([]);
   });

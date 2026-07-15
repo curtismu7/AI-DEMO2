@@ -297,6 +297,28 @@ describe('UseCaseLauncherPage', () => {
         },
       }),
     );
+    expect(sessionStorage.getItem('bx_from_use_cases')).toBe('1');
+    expect(JSON.parse(sessionStorage.getItem('bx_uc_completed'))).toContain('UC1');
+  });
+
+  it('shows a completed checkmark after returning from a prior Run', async () => {
+    sessionStorage.setItem('bx_uc_completed', JSON.stringify(['UC1']));
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Delegated access with proof').length).toBeGreaterThan(0));
+    expect(screen.getByTestId('uc-demo-progress')).toHaveTextContent(/1 completed this session/);
+    const checks = screen.getAllByLabelText('Completed this session');
+    expect(checks.length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /^run again$/i }).length).toBeGreaterThan(0);
+  });
+
+  it('Clear progress removes checkmarks', async () => {
+    sessionStorage.setItem('bx_uc_completed', JSON.stringify(['UC1']));
+    renderPage();
+    await waitFor(() => expect(screen.getByRole('button', { name: /clear progress/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /clear progress/i }));
+    expect(sessionStorage.getItem('bx_uc_completed')).toBeNull();
+    expect(screen.getByTestId('uc-demo-progress')).toHaveTextContent(/No use cases run this session yet/);
+    expect(screen.queryByLabelText('Completed this session')).not.toBeInTheDocument();
   });
 
   it('renders an Open button for a link-type UC and navigates to its path', async () => {
@@ -307,6 +329,7 @@ describe('UseCaseLauncherPage', () => {
     expect(openBtn.disabled).toBe(false);
     fireEvent.click(openBtn);
     expect(mockNavigate).toHaveBeenCalledWith('/code-search');
+    expect(sessionStorage.getItem('bx_from_use_cases')).toBe('1');
   });
 
   it('shows OWASP badge for UCs with owasp data', async () => {

@@ -357,6 +357,15 @@ summary.p1mcp-chip-group__head::before {
 }
 .p1mcp-gap-foot { margin-top: 14px; font-style: italic; }
 
+/* Membership / provision action row */
+.p1mcp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 /* CIMD section — honest "mocked" badge (PingOne has no CIMD support yet). */
 .p1mcp-cimd-badge {
   display: inline-block;
