@@ -130,8 +130,8 @@ export default function AgentConsentModal({
       title={title}
       footer={footer}
       defaultWidth={460}
-      defaultHeight={470}
-      storageKey="agent-consent-modal-v2"
+      defaultHeight={640}
+      storageKey="agent-consent-modal-v3"
       zIndex={100070}
       backdropClose={false}
     >
