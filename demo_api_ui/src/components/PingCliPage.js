@@ -92,7 +92,7 @@ export function parsePingcliResults(raw) {
 // injects tens of thousands of React nodes and can crash the render so the
 // terminal flashes then vanishes. Above the cap we still pretty-print, but as a
 // single text node.
-const JSON_HIGHLIGHT_MAX_CHARS = 24000;
+const JSON_HIGHLIGHT_MAX_CHARS = 8000;
 
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON

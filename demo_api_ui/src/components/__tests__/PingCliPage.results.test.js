@@ -82,10 +82,14 @@ describe("parsePingcliResults", () => {
 
 describe("tokenizeJson", () => {
   it("pretty-prints large JSON as a single text node (no span flood)", () => {
-    const rows = Array.from({ length: 80 }, (_, i) => ({
+    const rows = Array.from({ length: 40 }, (_, i) => ({
       id: `g-${i}`,
       name: `Group ${i}`,
-      _links: { self: { href: `https://example.com/groups/g-${i}` } },
+      description: `x`.repeat(200),
+      _links: {
+        self: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}` },
+        members: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}/memberGroups` },
+      },
     }));
     const raw = JSON.stringify({
       schemaVersion: "1.1",
@@ -96,6 +100,6 @@ describe("tokenizeJson", () => {
     expect(nodes).not.toBeNull();
     expect(nodes).toHaveLength(1);
     expect(typeof nodes[0]).toBe("string");
-    expect(nodes[0].length).toBeGreaterThan(24000);
+    expect(nodes[0].length).toBeGreaterThan(8000);
   });
 });
