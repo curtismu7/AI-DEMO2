@@ -28,27 +28,50 @@ const RUN_TIMEOUT_MS = 30000;
 const PREFERRED_COLUMNS = ['name', 'username', 'email', 'id', 'type', 'region', 'enabled', 'description'];
 const MAX_COLUMNS = 6;
 
-// Parse a pingcli JSON envelope ({schemaVersion, status, message, data: [...]})
-// into { status, message, columns, rows } for the friendly results table.
-// Returns null when the output is not an envelope with a data array (plain-text
-// commands like `config list-keys` keep the terminal-only view). Exported for
-// tests.
+/**
+ * Unwrap pingcli / management-API list payloads into a plain array.
+ * Prefer a top-level data array (environments list); else take the first array
+ * under data._embedded (pingone api responses).
+ */
+function extractResultRows(parsed) {
+  if (Array.isArray(parsed.data)) return parsed.data;
+  const embedded = parsed.data && typeof parsed.data === 'object' ? parsed.data._embedded : null;
+  if (!embedded || typeof embedded !== 'object') return null;
+  const key = Object.keys(embedded).find((k) => Array.isArray(embedded[k]));
+  return key ? embedded[key] : null;
+}
+
+/**
+ * Flatten one list item for the results table (drop _links / nested objects;
+ * promote name.formatted when present).
+ */
+function flattenResultRow(item) {
+  const flat = {};
+  if (!item || typeof item !== 'object') return flat;
+  for (const [k, v] of Object.entries(item)) {
+    if (k.startsWith('_')) continue;
+    if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) {
+      flat[k] = v;
+      continue;
+    }
+    if (k === 'name' && typeof v === 'object' && typeof v.formatted === 'string') {
+      flat.name = v.formatted;
+    }
+  }
+  return flat;
+}
+
+// Parse a pingcli JSON envelope into { status, message, columns, rows }.
+// Supports data: [...] and data._embedded.<collection>: [...]. Exported for tests.
 export function parsePingcliResults(raw) {
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return null; }
-  if (!parsed || typeof parsed !== 'object' || !parsed.schemaVersion || !Array.isArray(parsed.data)) {
+  if (!parsed || typeof parsed !== 'object' || !parsed.schemaVersion) {
     return null;
   }
-  const rows = parsed.data.map((item) => {
-    const flat = {};
-    if (item && typeof item === 'object') {
-      for (const [k, v] of Object.entries(item)) {
-        if (k.startsWith('_')) continue; // _links / _embedded noise
-        if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) flat[k] = v;
-      }
-    }
-    return flat;
-  });
+  const dataRows = extractResultRows(parsed);
+  if (!dataRows) return null;
+  const rows = dataRows.map(flattenResultRow);
   const present = new Set();
   for (const row of rows) for (const k of Object.keys(row)) present.add(k);
   const columns = PREFERRED_COLUMNS.filter((c) => present.has(c));
@@ -94,25 +117,25 @@ const CATEGORIES = [
   {
     title: 'Identity & Directory',
     commands: [
-      { key: 'pingone_users_list',       label: 'List Users',              desc: 'pingcli pingone users list -O json' },
-      { key: 'pingone_groups_list',      label: 'List Groups',             desc: 'pingcli pingone groups list -O json' },
-      { key: 'pingone_populations_list', label: 'List Populations',        desc: 'pingcli pingone populations list -O json' },
+      { key: 'pingone_users_list',       label: 'List Users',              desc: 'pingcli pingone api environments/<env>/users -O json' },
+      { key: 'pingone_groups_list',      label: 'List Groups',             desc: 'pingcli pingone api environments/<env>/groups -O json' },
+      { key: 'pingone_populations_list', label: 'List Populations',        desc: 'pingcli pingone api environments/<env>/populations -O json' },
     ],
   },
   {
     title: 'Applications & Resources',
     commands: [
-      { key: 'pingone_apps_list',      label: 'List Applications',       desc: 'pingcli pingone applications list -O json' },
-      { key: 'pingone_resources_list', label: 'List Resources',          desc: 'pingcli pingone resources list -O json' },
-      { key: 'pingone_roles_list',     label: 'List Built-in Roles',     desc: 'pingcli pingone roles -O json' },
+      { key: 'pingone_apps_list',      label: 'List Applications',       desc: 'pingcli pingone api environments/<env>/applications -O json' },
+      { key: 'pingone_resources_list', label: 'List Resources',          desc: 'pingcli pingone api environments/<env>/resources -O json' },
+      { key: 'pingone_roles_list',     label: 'List Built-in Roles',     desc: 'pingcli pingone api roles -O json' },
     ],
   },
   {
     title: 'Authentication & MFA',
     commands: [
-      { key: 'pingone_idps_list',         label: 'List Identity Providers', desc: 'pingcli pingone identity-providers list -O json' },
-      { key: 'pingone_policies_list',     label: 'List Sign-On Policies',   desc: 'pingcli pingone sign-on-policies list -O json' },
-      { key: 'pingone_mfa_policies_list', label: 'List MFA Policies',       desc: 'pingcli mfa device-authentication-policies list -O json' },
+      { key: 'pingone_idps_list',         label: 'List Identity Providers', desc: 'pingcli pingone api environments/<env>/identityProviders -O json' },
+      { key: 'pingone_policies_list',     label: 'List Sign-On Policies',   desc: 'pingcli pingone api environments/<env>/signOnPolicies -O json' },
+      { key: 'pingone_mfa_policies_list', label: 'List MFA Policies',       desc: 'pingcli pingone api environments/<env>/deviceAuthenticationPolicies -O json' },
     ],
   },
   {
