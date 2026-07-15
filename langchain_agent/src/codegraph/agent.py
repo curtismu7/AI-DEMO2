@@ -7,6 +7,7 @@ import urllib.request
 from langgraph.prebuilt import create_react_agent
 
 from src.codegraph.tools import get_codegraph_tools
+from src.codegraph.llm_target import proxy_base_url, resolve_llamacpp_target
 from src.agent.llm_factory import get_llm
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ finds nothing, try a synonym or a broader pattern before giving up."""
 
 
 def _llamacpp_reachable(base_url: str) -> bool:
-    """Return True if llama-server is up and a model is loaded (/health → 200)."""
+    """Return True if the llm-proxy / llama-server origin answers /health."""
     try:
         urllib.request.urlopen(base_url.rstrip("/") + "/health", timeout=2)
         return True
@@ -46,29 +47,33 @@ def _helix_configured() -> bool:
     )
 
 
+def _anthropic_configured() -> bool:
+    """True when a non-placeholder Anthropic key is available."""
+    key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
+    if not key:
+        return False
+    # Demo images sometimes ship a literal placeholder.
+    if key in {"sk-ant-api03-placeholder", "test-key", "changeme"}:
+        return False
+    return key.startswith("sk-ant-")
+
+
 def _resolve_provider() -> str:
     """
-    Probe-based provider resolution — no CODEGRAPH_LLM_PROVIDER override needed.
+    Probe-based provider resolution.
 
     Priority:
-      1. CODEGRAPH_LLM_PROVIDER env var (explicit override), BUT if it is
-         `llamacpp` and the configured llama URL is unreachable, fall through
-         so a down tier1 replica does not hard-fail Code Explorer with
-         "Connection error."
-      2. llama.cpp — if llama-server is reachable at LLAMACPP_BASE_URL
-      3. Helix — if HELIX_ENVIRONMENT_ID + HELIX_PROMPT_FIELD_ID are set
-      4. lmstudio — fallback when neither llama.cpp nor Helix is available
+      1. CODEGRAPH_LLM_PROVIDER env var (explicit), but `llamacpp` falls through
+         when the proxy/origin is unreachable
+      2. llama.cpp via llm-proxy when /health is reachable
+      3. Anthropic when a real API key is present (ReAct needs tool-calling)
+      4. Helix when configured (note: Helix cannot bind tools — last-resort)
+      5. lmstudio
     """
-    # Prefer CODEGRAPH_LLAMACPP_BASE_URL when set (e.g. host mlx-lm on :8098
-    # while LLAMACPP_BASE_URL still points at in-cluster llm-proxy).
-    llamacpp_url = (
-        os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
-        or os.getenv("LLAMACPP_BASE_URL")
-        or "http://host.docker.internal:8090"
-    )
+    llamacpp_url = proxy_base_url()
 
-    explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip()
-    if explicit:
+    explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip().lower()
+    if explicit and explicit not in {"auto", "default"}:
         if explicit == "llamacpp" and not _llamacpp_reachable(llamacpp_url):
             logger.warning(
                 "CodeGraph LLM: CODEGRAPH_LLM_PROVIDER=llamacpp but %s unreachable — falling through",
@@ -79,16 +84,18 @@ def _resolve_provider() -> str:
             return explicit
 
     if _llamacpp_reachable(llamacpp_url):
-        logger.info("CodeGraph LLM: llama.cpp reachable at %s — using llamacpp", llamacpp_url)
+        logger.info("CodeGraph LLM: llm-proxy reachable at %s — using llamacpp", llamacpp_url)
         return "llamacpp"
 
+    if _anthropic_configured():
+        logger.info("CodeGraph LLM: local proxy down; Anthropic key present — using anthropic")
+        return "anthropic"
+
     if _helix_configured():
-        logger.info("CodeGraph LLM: llama.cpp not reachable, Helix configured — using helix")
+        logger.info("CodeGraph LLM: falling back to helix (no tool-calling)")
         return "helix"
 
-    logger.warning(
-        "CodeGraph LLM: llama.cpp not reachable and Helix not configured — falling back to lmstudio"
-    )
+    logger.warning("CodeGraph LLM: falling back to lmstudio")
     return "lmstudio"
 
 
@@ -96,18 +103,24 @@ def create_codegraph_agent(api_key: str):
     """
     Create a LangGraph ReAct agent for CodeGraph exploration.
 
-    Provider is resolved automatically: llama.cpp → Helix → lmstudio.
-    Override with CODEGRAPH_LLM_PROVIDER env var.
+    For llamacpp, probes llm-proxy `/health` and pins `model=` to a currently
+    healthy tier name so ChatOpenAI hits the running backend via the proxy.
     """
     provider = _resolve_provider()
-    # CODEGRAPH_MODEL is often set for llama.cpp (e.g. gpt-oss-20b). Do not
-    # pass that through to Anthropic/Helix or tool-calling requests 404.
     model_override = os.getenv("CODEGRAPH_MODEL") or None
-    if provider not in {"llamacpp", "lmstudio", "anthropic-lmstudio", "groq", "google"}:
+    llamacpp_base = proxy_base_url()
+    llamacpp_model = os.getenv("LLAMACPP_MODEL", "phi-4-mini-instruct")
+
+    if provider == "llamacpp":
+        base, model, reason = resolve_llamacpp_target()
+        llamacpp_base = base
+        if model:
+            model_override = model
+            llamacpp_model = model
+        logger.info("CodeGraph LLM target: %s", reason)
+    elif provider not in {"lmstudio", "anthropic-lmstudio", "groq", "google"}:
         model_override = None
     elif provider == "anthropic":
-        # Anthropic cloud: keep explicit CODEGRAPH_MODEL only when it looks like
-        # a Claude id; ignore llama/gguf names left over from local config.
         if model_override and not model_override.lower().startswith("claude"):
             model_override = None
 
@@ -115,15 +128,9 @@ def create_codegraph_agent(api_key: str):
         provider=provider,
         model=model_override,
         api_key=api_key,
-        llamacpp_base_url=(
-            os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
-            or os.getenv("LLAMACPP_BASE_URL")
-            or "http://host.docker.internal:8090"
-        ),
-        llamacpp_model=os.getenv("LLAMACPP_MODEL", "phi-4-mini-instruct"),
+        llamacpp_base_url=llamacpp_base,
+        llamacpp_model=llamacpp_model,
         lmstudio_base_url=os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
-        # Helix fallback reads these from env when llama.cpp is unreachable.
-        # Must be passed explicitly — get_llm does not load HELIX_* itself.
         helix_base_url=os.getenv("HELIX_BASE_URL", ""),
         helix_api_key=os.getenv("HELIX_API_KEY", ""),
         helix_environment_id=os.getenv("HELIX_ENVIRONMENT_ID", ""),

@@ -19,6 +19,8 @@ class TestCreateCodegraphAgent:
         api_key) deterministically rather than depending on a live server.
         """
         with patch("src.codegraph.agent._resolve_provider", return_value="llamacpp"), \
+             patch("src.codegraph.agent.resolve_llamacpp_target",
+                   return_value=("http://llm-proxy:8090", "gpt-oss-20b", "picked")), \
              patch("src.codegraph.agent.get_llm") as mock_llm, \
              patch("src.codegraph.agent.get_codegraph_tools", return_value=[]), \
              patch("src.codegraph.agent.create_react_agent", return_value=MagicMock()):
@@ -27,7 +29,8 @@ class TestCreateCodegraphAgent:
         mock_llm.assert_called_once()
         kwargs = mock_llm.call_args.kwargs
         assert kwargs["provider"] == "llamacpp"
-        assert kwargs["model"] is None
+        assert kwargs["model"] == "gpt-oss-20b"
+        assert kwargs["llamacpp_base_url"] == "http://llm-proxy:8090"
         assert kwargs["api_key"] == "test-key"
 
     def test_passes_tools_to_react_agent(self):

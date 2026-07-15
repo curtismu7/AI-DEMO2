@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _graph_cache: object = None
+_graph_cache_key: object = None
 
 # Only one re-index may run at a time — the button is unauthenticated (the Code
 # Explorer page is public) and the indexer is CPU-heavy, so serialize to avoid
@@ -50,11 +51,21 @@ def _index_available() -> bool:
         return False
 
 
+def _agent_cache_key() -> tuple:
+    """Rebuild the ReAct graph when the live healthy tier / provider pin changes."""
+    from codegraph.llm_target import resolve_llamacpp_target
+    provider = (os.getenv("CODEGRAPH_LLM_PROVIDER") or "auto").strip().lower()
+    base, model, _ = resolve_llamacpp_target()
+    return (provider, base, model)
+
+
 def _get_graph():
-    global _graph_cache
-    if _graph_cache is None:
+    global _graph_cache, _graph_cache_key
+    key = _agent_cache_key()
+    if _graph_cache is None or _graph_cache_key != key:
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
         _graph_cache = create_codegraph_agent(api_key=api_key)
+        _graph_cache_key = key
     return _graph_cache
 
 
@@ -205,8 +216,9 @@ async def codegraph_reindex() -> Response:
         if m:
             files = int(m.group(1))
 
-        global _graph_cache
+        global _graph_cache, _graph_cache_key
         _graph_cache = None
+        _graph_cache_key = None
 
         logger.info(
             "CodeGraph reindex OK in %sms (nodes=%s, indexer=%s)",
