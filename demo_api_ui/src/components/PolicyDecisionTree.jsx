@@ -19,6 +19,8 @@
  *                       GET /api/authorize/pingone-policies (.policies)
  *   result   : Object - the /api/authorize/evaluate-endpoint response
  *                       (decision, stepUpRequired, consentRequired, raw{...})
+ *   floating : Bool   - when true, omit the outer title (FloatingPanel owns it)
+ *                       and fill the floating panel body
  */
 import "./PolicyDecisionTree.css";
 
@@ -124,7 +126,7 @@ function NodeCard({ node, o }) {
 
   return (
     <div className={`p1dt-card${o.onPath ? " is-path" : ""}${isRule && !o.active ? " is-na" : ""}`}>
-      {bubble > 0 && <span className="p1dt-bubble" title="Statements returned for this rule">💬 {bubble}</span>}
+      {bubble > 0 && <span className="p1dt-bubble" title="Statements returned for this rule">{bubble}</span>}
       <div className="p1dt-card-top">
         <span className={`p1dt-status p1dt-status--${statusKind}`}>{STATUS_GLYPH[statusKind]}</span>
         <div className="p1dt-card-body">
@@ -165,7 +167,7 @@ function Branch({ node, ov }) {
   );
 }
 
-export default function PolicyDecisionTree({ policies, result }) {
+export default function PolicyDecisionTree({ policies, result, floating = false }) {
   if (!result || !Array.isArray(policies) || policies.length === 0) return null;
 
   const raw = result.pingoneResponse || result.raw || {};
@@ -177,9 +179,9 @@ export default function PolicyDecisionTree({ policies, result }) {
   const { ov, unmatched } = buildOverlay(policies, statements);
 
   return (
-    <div className="p1dt">
+    <div className={floating ? "p1dt p1dt--floating" : "p1dt"}>
       <div className="p1dt-head">
-        <span className="p1dt-title">Policy decision trace</span>
+        {!floating && <span className="p1dt-title">Policy decision trace</span>}
         <span className={`p1dt-overall p1dt-overall--${decision.toLowerCase()}`}>{decision.replace(/_/g, " ")}</span>
         {timing && <span className="p1dt-timing">total {timing}</span>}
         <span className="p1dt-derived" title="PingOne's API returns the verdict + fired statements, not a per-node trace. Per-node badges are derived here.">
@@ -218,7 +220,7 @@ export default function PolicyDecisionTree({ policies, result }) {
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#22c55e" }} /> Taken path / active rule</span>
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#e5e7eb" }} /> N/A (not applicable — derived)</span>
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#6366f1" }} /> Policy set / policy on path</span>
-        <span className="p1dt-legend-item">💬 = statements mapped to that rule</span>
+        <span className="p1dt-legend-item">Number badge = statements mapped to that rule</span>
       </div>
     </div>
   );
