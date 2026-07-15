@@ -7,14 +7,14 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 13 happy-path steps, all pending", () => {
+  test("returns the 12 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
       "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "intent-binding", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
   });
 });
 
@@ -364,10 +364,16 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
 });
 
 describe("buildTraceSteps — intent-binding step", () => {
-  test("pending with no tokenEvents", () => {
+  test("absent mid-flight with no tokenEvents", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
-    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
-    expect(byId["intent-binding"].status).toBe("pending");
+    expect(steps.find((s) => s.id === "intent-binding")).toBeUndefined();
+  });
+
+  test("notinpath once the trace completes without RAR evidence", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok" });
+    const ib = steps.find((s) => s.id === "intent-binding");
+    expect(ib.status).toBe("notinpath");
+    expect(ib.detail.narrative).toMatch(/not required on the default token path/i);
   });
 
   test("done when an intent-binding-verified event is present", () => {
