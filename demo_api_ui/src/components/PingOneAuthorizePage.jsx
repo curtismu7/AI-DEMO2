@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import bffAxios from '../services/bffAxios';
 import PolicyDecisionTree from './PolicyDecisionTree';
+import FloatingPanel from './FloatingPanel';
 import JsonHighlight from './shared/JsonHighlight';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
@@ -104,6 +105,10 @@ const S = {
   warning: { padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '13px', marginBottom: '16px' },
   error: { padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px' },
   iconBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '8px' },
+  reopenTrace: {
+    marginTop: '14px', padding: '8px 14px', background: '#eef2ff', border: '1px solid #c7d2fe',
+    borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#3730a3', cursor: 'pointer',
+  },
 
   policyUsed: { marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,.06)' },
   policyUsedLabel: { fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px' },
@@ -226,6 +231,7 @@ function DecisionRow({ d, idx }) {
 function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest }) {
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
+  const [traceOpen, setTraceOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
   const [lastTrace, setLastTrace] = useState(null);
@@ -260,6 +266,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   useEffect(() => {
     setPreset(autoPreset);
     setResult(null);
+    setTraceOpen(false);
     setErr(null);
     setLastTrace(null);
     setLastParameters(null);
@@ -273,6 +280,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
     if (!pendingTest) return;
     setPreset(pendingTest.preset);
     setResult(null);
+    setTraceOpen(false);
     setErr(null);
     const p = pendingTest.parameters;
     if (pendingTest.preset === 'transaction') {
@@ -347,7 +355,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   };
 
   const run = async () => {
-    setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null);
+    setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null);
     const parameters = buildParameters();
     const started = Date.now();
     try {
@@ -358,6 +366,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
       const elapsed = Date.now() - started;
       setLastParameters(parameters);
       setResult({ ...res.data, elapsedMs: elapsed });
+      setTraceOpen(true);
       setLastTrace({
         request: authorizeRequestPayload(res.data, endpointId, parameters),
         response: authorizeResponsePayload(res.data),
@@ -585,7 +594,30 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
         </>
       )}
 
-      {result && <PolicyDecisionTree policies={policies} result={result} />}
+      {result && !traceOpen && (
+        <button
+          type="button"
+          style={S.reopenTrace}
+          onClick={() => setTraceOpen(true)}
+        >
+          Show policy decision trace
+        </button>
+      )}
+      {result && traceOpen && (
+        <FloatingPanel
+          title="Policy decision trace"
+          defaultWidth={Math.min(780, window.innerWidth - 48)}
+          defaultHeight={Math.min(560, window.innerHeight - 100)}
+          defaultX={Math.max(24, window.innerWidth - 820)}
+          defaultY={72}
+          minWidth={360}
+          minHeight={280}
+          onClose={() => setTraceOpen(false)}
+          className="p1dt-floating-panel"
+        >
+          <PolicyDecisionTree policies={policies} result={result} floating />
+        </FloatingPanel>
+      )}
     </div>
   );
 }
