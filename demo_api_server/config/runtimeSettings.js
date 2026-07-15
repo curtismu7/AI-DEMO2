@@ -9,9 +9,18 @@
  * if you need settings to survive restarts.
  */
 
+/** Parse a numeric env override; empty/unset → undefined so callers can apply a default. */
+function envNumber(name) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return undefined;
+  const n = parseFloat(raw);
+  return Number.isNaN(n) ? undefined : n;
+}
+
 const settings = {
-  // Step-up MFA
-  stepUpAmountThreshold: parseFloat(process.env.STEP_UP_AMOUNT_THRESHOLD) || 0,
+  // Step-up MFA — align with configStore STEP_UP_AMOUNT_THRESHOLD / mfa_threshold_usd ($500).
+  // Previous `|| 0` made EVERY transfer MFA when the env var was unset (amount < 0 never wins).
+  stepUpAmountThreshold: envNumber('STEP_UP_AMOUNT_THRESHOLD') ?? 500,
   stepUpAcrValue: process.env.STEP_UP_ACR_VALUE || 'Multi_Factor',
   // RFC 9470 freshness: require auth_time within this many seconds (0 = disabled)
   stepUpMaxAge: parseFloat(process.env.STEP_UP_MAX_AGE) || 0,

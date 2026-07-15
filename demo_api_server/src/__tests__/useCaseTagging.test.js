@@ -7,7 +7,8 @@ describe('deriveUseCaseId (organic reverse-map)', () => {
     expect(deriveUseCaseId('create_transfer', { amount: 600 })).toBe('step-up-required');   // UC7
     expect(deriveUseCaseId('create_transfer', { amount: 300 })).toBe('hitl-consent');         // UC8
     expect(deriveUseCaseId('create_transfer', { amount: 2500 })).toBe('authz-denied');        // UC6
-    expect(deriveUseCaseId('create_transfer', { amount: 100 })).toBe('delegated-access-with-proof'); // UC1
+    // Phase 170: all transfers are consent-gated — $100 is HITL, not UC1
+    expect(deriveUseCaseId('create_transfer', { amount: 100 })).toBe('hitl-consent');         // UC8
   });
 
   test('a read tool maps to the delegated-access foundation', () => {

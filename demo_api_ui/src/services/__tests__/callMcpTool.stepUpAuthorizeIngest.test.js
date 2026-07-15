@@ -78,6 +78,42 @@ describe('callMcpTool step-up 428 authorize ingest', () => {
 
     await callMcpTool('create_transfer', { amount: 300 });
 
-    expect(tokenChainTraceStore.getState().trace.authorize).toEqual(evaluation);
+    const snap = tokenChainTraceStore.getState();
+    expect(snap.trace.authorize).toEqual(evaluation);
+    expect(snap.trace.tokenEvents.some((e) => e && e.id === 'authorize-decision')).toBe(true);
+  });
+
+  test('mcp_hitl_required 428 returns HITL result (not Error: MCP error: 428) and updates chain', async () => {
+    const evaluation = {
+      decision: 'INDETERMINATE',
+      engine: 'simulated',
+      decisionId: 'd-mcp-hitl',
+      useCaseId: 'hitl-consent',
+    };
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 428,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            error: 'mcp_hitl_required',
+            error_description: 'Human consent required',
+            tokenEvents: [
+              { id: 'access-token', useCaseId: 'hitl-consent' },
+              { id: 'token-exchange', useCaseId: 'hitl-consent', exchangeStep: 1 },
+            ],
+            mcpAuthorizeEvaluation: evaluation,
+          }),
+      }),
+    );
+
+    const out = await callMcpTool('create_transfer', { amount: 100 });
+    expect(out.result.error).toBe('mcp_hitl_required');
+    expect(out.tokenEvents.some((e) => e && e.id === 'authorize-decision')).toBe(true);
+
+    const snap = tokenChainTraceStore.getState();
+    expect(snap.trace.authorize).toEqual(evaluation);
+    expect(snap.trace.tokenEvents.some((e) => e && e.id === 'authorize-decision')).toBe(true);
   });
 });

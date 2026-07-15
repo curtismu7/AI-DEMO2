@@ -334,7 +334,8 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T10'], sections: ['§3.1.5', '§8'] },
     whatToSay: 'The agent paused and waited — the transfer only ran after you approved it.',
     advanced: false,
-    match: { tool: 'create_transfer', amountMin: 250, amountMax: 499.99 },
+    // Phase 170: ALL transfers require consent (type-gated), not only amounts ≥ $250.
+    match: { tool: 'create_transfer', amountMin: 0.01, amountMax: 499.99 },
     whatLong: 'An agent attempts a transfer that requires more than a user tap — a full human-in-the-loop approval. Authorize returns a HITL obligation; the agent is forced to pause and surface a consent modal. Only after the user explicitly approves is the action retried and PERMIT returned.',
     businessValue: 'Consequential agent actions are gated on verified human consent — not inferred intent. The approval is policy-triggered and auditable, with a cryptographic receipt tying the consent to the eventual tool call.',
     productRoles: {
@@ -1142,11 +1143,7 @@ function deriveUseCaseId(toolName, args = {}) {
     if (m.amountMax != null && !(amount <= m.amountMax)) continue;
     return u.useCaseId;
   }
-  // Fallback: a small transfer with no band match is baseline delegated access (UC1).
-  if (toolName === 'create_transfer' && amount != null && amount < 250) {
-    const uc1 = USE_CASES.find((u) => u.useCaseId === 'delegated-access-with-proof');
-    if (uc1) return uc1.useCaseId;
-  }
+  // Transfers are consent-gated (Phase 170) — never fall back to UC1 for writes.
   return undefined;
 }
 
