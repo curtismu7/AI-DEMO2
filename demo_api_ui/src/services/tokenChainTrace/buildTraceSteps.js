@@ -215,20 +215,23 @@ export function buildTraceSteps(trace) {
     }));
   }
 
-  // 7b. intent-binding — RAR (RFC 9396) intent verification, conceptually part
-  // of the authorize decision; kept as its own step in the AUTHZ lane.
+  // 7b. intent-binding — RAR (RFC 9396) intent verification. Same gating as
+  // step-up: omit mid-flight (not part of the default BFF→gateway chain;
+  // only the Intent Binding learning demo / UC14 emit evidence). Once the
+  // trace completes without evidence, mark notinpath rather than pending.
   const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified");
   const intentDeniedEvent = (tokenEvents || []).find(
     (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
   );
-  const intentBindingStatus = intentVerifiedEvent
-    ? "done"
-    : intentDeniedEvent
-    ? "error"
-    : traceComplete
-    ? "notinpath"
-    : "pending";
-  steps.push(makeStep("intent-binding", intentBindingStatus, { tokenEvent: intentVerifiedEvent || intentDeniedEvent || null }));
+  if (intentVerifiedEvent || intentDeniedEvent) {
+    steps.push(makeStep("intent-binding", intentVerifiedEvent ? "done" : "error", {
+      tokenEvent: intentVerifiedEvent || intentDeniedEvent || null,
+    }));
+  } else if (traceComplete) {
+    steps.push(makeStep("intent-binding", "notinpath", {
+      narrative: "RFC 9396 RAR intent binding was not armed for this run (ff_rar off / no authorization_details attest) — not required on the default token path.",
+    }));
+  }
 
   // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
   // (the BFF's own signal that this leg was never part of the run: mTLS off,
