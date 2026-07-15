@@ -135,6 +135,40 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(gw.detail.kv.some(([k]) => k === "authorize")).toBe(true);
   });
 
+  test("gw-authorize parameters + rawResponse render full request/response and moreDetail link", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "gw-authorize", status: "permit", decision: "PERMIT",
+        url: "https://api.pingone.com/v1/environments/e/decisionEndpoints/d",
+        parameters: { ToolName: "get_my_accounts", UserId: "user-1" },
+        rawResponse: { decision: "PERMIT", id: "dec_1" },
+      }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.detail.request.text).toContain("get_my_accounts");
+    expect(gw.detail.response.text).toContain("PERMIT");
+    expect(gw.detail.moreDetail.href).toBe("/pingone-authorize");
+  });
+
+  test("authorize-decision token event fills authorize step when ingestAuthorize absent", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "authorize-decision", status: "active",
+        authorizeEngine: "pingone", authorizeDecision: "PERMIT",
+        authorizeDecisionId: "dec_9",
+        authorizeRequest: { method: "POST", url: "/decision", body: { parameters: { ToolName: "transfer_funds" } } },
+        authorizeResponse: { decision: "PERMIT" },
+      }],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("done");
+    expect(az.detail.request.text).toContain("transfer_funds");
+    expect(az.detail.response.text).toContain("PERMIT");
+    expect(az.detail.moreDetail.label).toBe("Show more detail");
+  });
+
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

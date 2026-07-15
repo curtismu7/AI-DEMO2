@@ -312,6 +312,47 @@ function buildTokenEvent(id, label, status, decoded, explanation, extra = {}) {
 }
 
 /**
+ * Normalize X-Gw-Audit-Trail.authorize into the Token Chain event extras shape.
+ * PingGateway Groovy emits `parameters` + `rawResponse`; older/client paths used
+ * `request`/`response` or `authorizeRequest`/`authorizeResponse`. Emit all aliases
+ * so TokenChainDisplay EduBoxes and TraceRail buildTraceSteps never go blank.
+ * @param {object} az - gateway audit authorize object
+ * @returns {object} extras for buildTokenEvent(..., extras)
+ */
+function buildGwAuthorizeEventExtra(az) {
+  if (!az || typeof az !== 'object') return {};
+  const parameters = az.parameters
+    || az.request?.parameters
+    || az.request?.body?.parameters
+    || az.authorizeRequest?.parameters
+    || az.authorizeRequest?.body?.parameters
+    || null;
+  const rawResponse = az.rawResponse || az.response || az.authorizeResponse || null;
+  const authorizeRequest = az.authorizeRequest
+    || az.request
+    || (parameters ? { parameters } : null);
+  const authorizeResponse = az.authorizeResponse || az.response || rawResponse || null;
+  return {
+    decision: az.decision,
+    authorizeDecision: az.decision,
+    authorizeEngine: az.engine || az.authorizeEngine || 'pingone',
+    backend: az.backend || null,
+    url: az.url || null,
+    tool: az.tool || null,
+    method: az.method || null,
+    vertical: az.vertical || null,
+    reason: az.reason || null,
+    statements: az.statements || null,
+    parameters,
+    rawResponse,
+    authorizeRequest,
+    authorizeResponse,
+    authorizeRef: az.policyRef || az.ref || az.authorizeRef || null,
+    decisionId: az.decisionId || null,
+  };
+}
+
+/**
  * Build the 'token-refresh' chain card shown after a silent RFC 6749 §6 refresh.
  * Shared by the session-preview (idle) surface and the live tool-call chain so
  * both render an identical card. `accessToken` is the NEWLY minted access token.
@@ -2529,6 +2570,7 @@ module.exports = {
   buildSessionPreviewTokenEvents,
   decodeJwtClaims,
   buildTokenEvent,
+  buildGwAuthorizeEventExtra,
   buildRefreshTokenEvent,
   prependRefreshEvent,
   sanitizeClaims,
