@@ -4,10 +4,10 @@
  *
  * Exercises Ping's AI surface from the BFF and returns structured pass/fail
  * results for four suites:
- *   skills — Ping Agent Skills catalog + connectivity checks
- *   mcp    — live MCP calls (hosted PingOne MCP, demo MCP server, gateway)
- *   agent  — LangChain agent scenarios, one per Agent Skill domain
- *   evals  — ping-bench CIAM eval rows: read-only PingOne Management API checks
+ *   skills   — Ping Agent Skills catalog + connectivity checks
+ *   mcp      — live MCP calls (hosted PingOne MCP, demo MCP server, gateway)
+ *   usecases — demo launcher use cases (PERMIT + attack-sim DENY paths; no LLM)
+ *   evals    — ping-bench CIAM eval rows: read-only PingOne Management API checks
  *
  * Pattern follows routes/pingcli.js: everything runnable is defined server-side
  * and addressed by key; the client never supplies executable input.
@@ -21,9 +21,7 @@
  * Auth enforced by authenticateToken at the server.js mount.
  */
 const express = require('express');
-const http = require('http');
 const axios = require('axios');
-const { randomUUID } = require('node:crypto');
 const configStore = require('../services/configStore');
 
 const router = express.Router();
@@ -98,126 +96,83 @@ function demoGapReason(condition) {
 }
 
 // ---------------------------------------------------------------------------
-// Suite 3 — agent scenarios (one per Agent Skill domain)
+// Suite 3 — demo use cases (deterministic; no LLM)
 // ---------------------------------------------------------------------------
 
-const AGENT_SCENARIOS = [
-  {
-    key: 'agent_ping_quickstart', skill: 'ping-quickstart',
-    prompt: 'Which Ping Identity product would I use to add customer login to a web application? Answer briefly.',
-    expect: ['pingone', 'ciam', 'login', 'identity'],
-  },
-  {
-    key: 'agent_ping_foundation', skill: 'ping-foundation',
-    prompt: 'What is a PingOne worker application and what is it used for? Answer briefly.',
-    expect: ['worker', 'client credentials', 'management', 'api', 'admin'],
-  },
-  {
-    key: 'agent_ping_orchestration', skill: 'ping-orchestration',
-    prompt: 'In one short paragraph, what is a PingOne DaVinci flow?',
-    expect: ['davinci', 'flow', 'orchestrat', 'authentication', 'no-code'],
-  },
-  {
-    key: 'agent_ping_universal_services', skill: 'ping-universal-services',
-    prompt: 'What does PingOne Protect do? Answer briefly.',
-    expect: ['risk', 'protect', 'signal', 'fraud', 'threat'],
-  },
-  {
-    key: 'agent_ping_app_integration', skill: 'ping-app-integration',
-    prompt: 'Briefly, how does a single-page app sign users in with OIDC Authorization Code flow plus PKCE against PingOne?',
-    expect: ['pkce', 'authorization code', 'redirect', 'token', 'code_verifier'],
-  },
-  {
-    key: 'agent_ping_identity_for_ai', skill: 'ping-identity-for-ai',
-    prompt: 'Explain briefly how this demo uses RFC 8693 token exchange so the AI agent can access banking data on my behalf.',
-    expect: ['token exchange', '8693', 'actor', 'on behalf', 'delegat'],
-  },
-];
-
-const AGENT_SCENARIO_TIMEOUT_MS = Number(process.env.TESTLAB_AGENT_TIMEOUT_MS) || 60000;
-
-/**
- * Run one message through the LangChain agent (same upstream call as
- * aguiSseProxy) but collect the AG-UI SSE stream server-side into final text.
- */
-function collectAgentText({ message, sessionId, authToken }) {
-  const agentUrl = process.env.LANGCHAIN_AGENT_HTTP_URL || 'http://langchain-agent:8888';
-  const body = JSON.stringify({
-    message,
-    session_id: sessionId,
-    auth_token: authToken,
-    run_id: `lab_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
-  });
-  return new Promise((resolve, reject) => {
-    const u = new URL(agentUrl);
-    const req = http.request(
-      {
-        hostname: u.hostname,
-        port: u.port || 80,
-        path: '/run',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          Accept: 'text/event-stream',
-          'x-internal-gateway-secret': process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me',
-        },
-      },
-      (agentRes) => {
-        let buf = '';
-        let text = '';
-        let events = 0;
-        const eventTypes = [];
-        let runError = null;
-        agentRes.setEncoding('utf8');
-        agentRes.on('data', (chunk) => {
-          buf += chunk;
-          let idx = buf.indexOf('\n\n');
-          while (idx !== -1) {
-            const frame = buf.slice(0, idx);
-            buf = buf.slice(idx + 2);
-            idx = buf.indexOf('\n\n');
-            for (const line of frame.split('\n')) {
-              if (!line.startsWith('data:')) continue;
-              events += 1;
-              try {
-                const evt = JSON.parse(line.slice(5).trim());
-                if (evt && typeof evt.type === 'string') eventTypes.push(evt.type);
-                if (evt.type === 'TEXT_MESSAGE_CONTENT' && typeof evt.delta === 'string') text += evt.delta;
-                // Agent emits RUN_ERROR (AG-UI); legacy ERROR kept for older builds.
-                if (evt.type === 'RUN_ERROR' || evt.type === 'ERROR') {
-                  runError = evt.message || evt.error || evt.detail || 'agent stream error';
-                }
-              } catch { /* non-JSON frame — ignore */ }
-            }
-          }
-        });
-        agentRes.on('end', () => {
-          if (agentRes.statusCode && agentRes.statusCode >= 400) {
-            reject(new Error(`agent /run HTTP ${agentRes.statusCode}`));
-            return;
-          }
-          if (runError) {
-            reject(new Error(String(runError).slice(0, 300)));
-            return;
-          }
-          resolve({ text, events, eventTypes, httpStatus: agentRes.statusCode });
-        });
-        agentRes.on('error', reject);
-      }
-    );
-    req.on('error', reject);
-    req.setTimeout(AGENT_SCENARIO_TIMEOUT_MS, () => req.destroy(new Error(`agent timed out after ${AGENT_SCENARIO_TIMEOUT_MS}ms`)));
-    req.write(body);
-    req.end();
-  });
+/** Tag the request so bffMcpToolExecutor / token-chain stamp the catalog slug. */
+function withUseCaseId(req, useCaseId) {
+  req.body = { ...(req.body || {}), useCaseId };
+  return req;
 }
 
-function gradeScenario(scenario, text) {
-  const lower = (text || '').toLowerCase();
-  const hits = scenario.expect.filter((kw) => lower.includes(kw.toLowerCase()));
-  const pass = hits.length >= 2 && lower.length > 60;
-  return { pass, keywordHits: hits, keywordsExpected: scenario.expect };
+/**
+ * PERMIT path: run a banking read tool through the BFF RFC 8693 chain.
+ * Mirrors UC1 ("Delegated access with proof") — expectedOutcome PERMIT.
+ */
+async function runUseCasePermitTool(req, { useCaseId, tool }) {
+  const { userToken, userId, sessionId } = sessionAuthContext(req);
+  if (!userToken) return { status: 'not_run', detail: { reason: NEEDS_SESSION, useCaseId } };
+  withUseCaseId(req, useCaseId);
+  const { executeBffTool } = require('../services/bffMcpToolExecutor');
+  const tokenEvents = [];
+  const raw = await executeBffTool({
+    name: tool, args: {}, userId, userToken, req, tokenEvents, sessionId,
+  });
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  const failed = parsed && typeof parsed === 'object' && (parsed.error || parsed.isError);
+  const chainIds = tokenEvents.map((e) => e.id);
+  const hasExchange = chainIds.some((id) => /exchange|exchanged|mcp|actor/i.test(id || ''));
+  return {
+    status: failed ? 'fail' : 'pass',
+    detail: {
+      useCaseId,
+      expectedOutcome: 'PERMIT',
+      tool,
+      tokenChain: tokenEvents.map((e) => ({ id: e.id, label: e.label, status: e.status })),
+      hasTokenExchangeEvidence: hasExchange,
+      resultPreview: typeof raw === 'string' ? raw.slice(0, 400) : raw,
+      ...(failed ? { reason: parsed.error || parsed.message || 'tool returned error' } : {}),
+    },
+  };
+}
+
+/**
+ * DENY path: run a catalog attack sim; pass when the gateway rejects as expected.
+ */
+async function runUseCaseDenySim(req, { useCaseId, sim, acceptStatuses = [401, 403] }) {
+  const { userToken } = sessionAuthContext(req);
+  if (!userToken) return { status: 'not_run', detail: { reason: NEEDS_SESSION, useCaseId, sim } };
+  const { runAttackSim } = require('../services/attackSimulatorService');
+  const result = await runAttackSim(sim, req);
+  if (result.errorCode === 'no_session_token') {
+    return { status: 'not_run', detail: { reason: NEEDS_SESSION, useCaseId, sim } };
+  }
+  if (result.errorCode === 'gateway_not_configured' || result.errorCode === 'wrong_aud_not_configured') {
+    return {
+      status: 'not_configured',
+      detail: { useCaseId, sim, reason: result.reason, errorCode: result.errorCode },
+    };
+  }
+  // unexpected_permit means enforcement did not fire — that is a real fail.
+  const denied = acceptStatuses.includes(result.status) && result.errorCode !== 'unexpected_permit';
+  return {
+    status: denied ? 'pass' : 'fail',
+    detail: {
+      useCaseId,
+      expectedOutcome: 'DENY',
+      sim,
+      httpStatus: result.status,
+      errorCode: result.errorCode,
+      reason: result.reason,
+      tokenChain: (result.tokenChainEvents || []).map((e) => ({
+        id: e.id, label: e.label, status: e.status,
+      })),
+      ...(denied ? {} : { failReason: result.errorCode === 'unexpected_permit'
+        ? 'gateway permitted the attack — enforcement may be off'
+        : `expected DENY (${acceptStatuses.join('/')}), got ${result.status} ${result.errorCode || ''}` }),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -611,54 +566,86 @@ const TESTS = [
     },
   },
 
-  // -- agent suite ----------------------------------------------------------
-  ...AGENT_SCENARIOS.map((scenario) => ({
-    key: scenario.key,
-    suite: 'agent',
-    label: `Agent scenario: ${scenario.skill}`,
+  // -- usecases suite (demo launcher paths; no LLM) -------------------------
+  {
+    key: 'uc1_delegated_balance',
+    suite: 'usecases',
+    label: 'UC1 — Delegated access with proof (get_account_balance)',
+    run: (req) => runUseCasePermitTool(req, {
+      useCaseId: 'delegated-access-with-proof',
+      tool: 'get_account_balance',
+    }),
+  },
+  {
+    key: 'uc1_gateway_accounts',
+    suite: 'usecases',
+    label: 'UC1 — Gateway PERMIT (get_my_accounts via MCP gateway)',
     run: async (req) => {
-      const { userToken, sessionId } = sessionAuthContext(req);
-      if (!userToken) return { status: 'not_run', detail: { reason: NEEDS_SESSION } };
+      const { userToken } = sessionAuthContext(req);
+      if (!userToken) return { status: 'not_run', detail: { reason: NEEDS_SESSION, useCaseId: 'delegated-access-with-proof' } };
+      withUseCaseId(req, 'delegated-access-with-proof');
+      const { callToolViaGateway, getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
       const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
-      let authToken = '';
-      try {
-        ({ token: authToken } = await resolveMcpAccessTokenWithEvents(req, 'agui_run'));
-      } catch (err) {
-        return { status: 'not_run', detail: { reason: `token exchange failed: ${err.message}` } };
+      const url = getMcpGatewayHttpUrl();
+      const { token, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+      if (!token) {
+        return { status: 'not_run', detail: { reason: 'token exchange produced no MCP token', useCaseId: 'delegated-access-with-proof' } };
       }
-      const { text, events, eventTypes, httpStatus } = await collectAgentText({
-        message: scenario.prompt, sessionId, authToken,
-      });
-      if (!(text || '').trim()) {
-        return {
-          status: 'fail',
-          detail: {
-            skill: scenario.skill,
-            prompt: scenario.prompt,
-            reason: 'agent returned no TEXT_MESSAGE_CONTENT (check RUN_ERROR / LLM backend)',
-            responseLength: 0,
-            sseEvents: events,
-            eventTypes: eventTypes || [],
-            httpStatus,
-          },
-        };
-      }
-      const grade = gradeScenario(scenario, text);
+      const { result, gwAuditTrail } = await callToolViaGateway(
+        url, token, 'get_my_accounts', {}, { correlationId: req.correlationId },
+      );
+      const decision = (gwAuditTrail?.decision || '').toUpperCase();
+      const failed = !result || result.isError || (decision && decision !== 'PERMIT');
       return {
-        status: grade.pass ? 'pass' : 'fail',
+        status: failed ? 'fail' : 'pass',
         detail: {
-          skill: scenario.skill,
-          prompt: scenario.prompt,
-          responseExcerpt: (text || '').slice(0, 500),
-          responseLength: (text || '').length,
-          sseEvents: events,
-          eventTypes: eventTypes || [],
-          grading: grade,
-          note: 'Heuristic keyword grade — the full LLM-as-judge rubric is applied in the evals report, not here.',
+          useCaseId: 'delegated-access-with-proof',
+          expectedOutcome: 'PERMIT',
+          tool: 'get_my_accounts',
+          gatewayUrl: url,
+          decision: gwAuditTrail?.decision || null,
+          tokenChain: tokenEvents.map((e) => ({ id: e.id, label: e.label, status: e.status })),
+          contentItems: result?.content?.length ?? 0,
         },
       };
     },
-  })),
+  },
+  {
+    key: 'uc5_insufficient_scope',
+    suite: 'usecases',
+    label: 'UC5 — Wrong / insufficient scope (gateway DENY)',
+    run: (req) => runUseCaseDenySim(req, {
+      useCaseId: 'insufficient-scope',
+      sim: 'insufficient-scope',
+    }),
+  },
+  {
+    key: 'uc12_token_replay',
+    suite: 'usecases',
+    label: 'UC12 — Token theft / replay defense (gateway DENY)',
+    run: (req) => runUseCaseDenySim(req, {
+      useCaseId: 'token-theft-replay',
+      sim: 'replayed-token',
+    }),
+  },
+  {
+    key: 'uc13_rogue_actor',
+    suite: 'usecases',
+    label: 'UC13 — Confused-deputy actor injection (gateway DENY)',
+    run: (req) => runUseCaseDenySim(req, {
+      useCaseId: 'confused-deputy-actor-injection',
+      sim: 'rogue-actor',
+    }),
+  },
+  {
+    key: 'uc16_impersonation_no_act',
+    suite: 'usecases',
+    label: 'UC16 — Impersonation block / no-act (gateway DENY)',
+    run: (req) => runUseCaseDenySim(req, {
+      useCaseId: 'impersonation-blocked',
+      sim: 'impersonation-no-act',
+    }),
+  },
 ];
 
 const TESTS_BY_KEY = new Map(TESTS.map((t) => [t.key, t]));
@@ -667,7 +654,11 @@ const EVAL_ROWS_BY_ID = new Map(EVAL_ROWS.map((r) => [r.id, r]));
 const SUITES = [
   { key: 'skills', label: 'Agent Skills & connectivity', description: 'Ping Agent Skills catalog plus reachability of every AI surface this demo integrates.' },
   { key: 'mcp', label: 'MCP live tests', description: 'Real MCP calls: hosted PingOne MCP server, demo MCP server through the RFC 8693 chain, and the active gateway.' },
-  { key: 'agent', label: 'Agent skill scenarios', description: 'One LangChain-agent prompt per Ping Agent Skill domain, graded heuristically.' },
+  {
+    key: 'usecases',
+    label: 'Demo use cases',
+    description: 'Launcher use cases that prove the live demo: UC1 PERMIT (delegated MCP tools) and attack-sim DENY paths (UC5/12/13/16). No LLM — same RFC 8693 + gateway enforcement the chips use.',
+  },
   { key: 'evals', label: 'CIAM evals (ping-bench)', description: 'Deterministic read-only PingOne checks from the AI-First Headless CIAM eval set.' },
 ];
 

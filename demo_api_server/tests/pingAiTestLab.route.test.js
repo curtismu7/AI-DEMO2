@@ -32,7 +32,16 @@ describe('GET /api/admin/ping-ai-test-lab/suites', () => {
   it('returns the four suites with the full CIAM eval catalog', async () => {
     const res = await request(app).get('/api/admin/ping-ai-test-lab/suites');
     expect(res.status).toBe(200);
-    expect(res.body.suites.map((s) => s.key)).toEqual(['skills', 'mcp', 'agent', 'evals']);
+    expect(res.body.suites.map((s) => s.key)).toEqual(['skills', 'mcp', 'usecases', 'evals']);
+    const usecases = res.body.suites.find((s) => s.key === 'usecases');
+    expect(usecases.tests.map((t) => t.key)).toEqual(expect.arrayContaining([
+      'uc1_delegated_balance',
+      'uc1_gateway_accounts',
+      'uc5_insufficient_scope',
+      'uc12_token_replay',
+      'uc13_rogue_actor',
+      'uc16_impersonation_no_act',
+    ]));
     expect(res.body.evalRowCount).toBe(57);
     const evals = res.body.suites.find((s) => s.key === 'evals');
     expect(evals.tests).toHaveLength(57);
@@ -128,6 +137,57 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
     const invited = res.body.detail.checks.find((c) => c.checkId === 'invited-admin-user-exists');
     expect(invited.status).toBe('not_configured');
     expect(invited.reason).toMatch(/invited\.admin@example\.com/);
+  });
+
+  it('runs UC1 delegated balance through executeBffTool when session tokens exist', async () => {
+    jest.resetModules();
+    jest.doMock('../services/bffMcpToolExecutor', () => ({
+      executeBffTool: jest.fn(async ({ name, tokenEvents }) => {
+        tokenEvents.push({ id: 'two-ex-final-token', label: 'MCP Token', status: 'exchanged' });
+        return JSON.stringify({ account_id: 'a1', balance: 100, currency: 'USD' });
+      }),
+    }));
+    const freshApp = express();
+    freshApp.use(express.json());
+    freshApp.use((req, _res, next) => {
+      req.session = { oauthTokens: { accessToken: 'user-at' }, user: { id: 'u1' }, id: 's1' };
+      next();
+    });
+    freshApp.use('/api/admin/ping-ai-test-lab', require('../routes/pingAiTestLab'));
+    const res = await request(freshApp)
+      .post('/api/admin/ping-ai-test-lab/run')
+      .send({ testKey: 'uc1_delegated_balance' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pass');
+    expect(res.body.detail.useCaseId).toBe('delegated-access-with-proof');
+    expect(res.body.detail.tool).toBe('get_account_balance');
+  });
+
+  it('scores UC5 insufficient-scope as pass when the attack sim is denied', async () => {
+    jest.resetModules();
+    jest.doMock('../services/attackSimulatorService', () => ({
+      runAttackSim: jest.fn(async () => ({
+        sim: 'insufficient-scope',
+        useCaseId: 'insufficient-scope',
+        status: 403,
+        errorCode: 'insufficient_scope',
+        reason: 'scope denied',
+        tokenChainEvents: [{ id: 'sim-gateway-deny', label: 'DENY', status: 'error' }],
+      })),
+    }));
+    const freshApp = express();
+    freshApp.use(express.json());
+    freshApp.use((req, _res, next) => {
+      req.session = { oauthTokens: { accessToken: 'user-at' }, user: { id: 'u1' }, id: 's1' };
+      next();
+    });
+    freshApp.use('/api/admin/ping-ai-test-lab', require('../routes/pingAiTestLab'));
+    const res = await request(freshApp)
+      .post('/api/admin/ping-ai-test-lab/run')
+      .send({ testKey: 'uc5_insufficient_scope' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pass');
+    expect(res.body.detail.expectedOutcome).toBe('DENY');
   });
 
   it('scores CIAM-DP-001 as not_configured when DEV/QA named envs are absent', async () => {

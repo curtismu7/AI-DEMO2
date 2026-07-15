@@ -157,9 +157,9 @@ export default function PingAiTestLabPage() {
       <header className="patl-header">
         <h1>Ping AI Test Lab</h1>
         <p className="patl-sub">
-          Exercises Ping&apos;s AI-first headless identity surface — Agent Skills (domain expertise),
-          agent-ready docs (discovery), and MCP servers plus PingCLI (interactive configuration) —
-          and the ping-bench CIAM eval checks. PingOne is reached only through CLI, skills, and MCP
+          Exercises Ping&apos;s AI-first headless identity surface — Agent Skills + connectivity,
+          live MCP calls, demo launcher use cases (UC1 PERMIT and attack-sim DENYs), and
+          ping-bench CIAM eval checks. PingOne is reached only through CLI, skills, and MCP
           servers; never direct Management API calls.
         </p>
         <div className="patl-actions">
