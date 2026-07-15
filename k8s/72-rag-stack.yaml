@@ -166,10 +166,12 @@ spec:
             - "mean"
             - "-c"
             - "8192"
+            # Physical batch must cover MAX_EMBED_CHARS (~3500 → ~1.7k tokens);
+            # 512 caused "input is too large to process" and killed SE indexing.
             - "-b"
-            - "512"
+            - "2048"
             - "-ub"
-            - "512"
+            - "2048"
             - "--parallel"
             - "1"
             - "-hf"
