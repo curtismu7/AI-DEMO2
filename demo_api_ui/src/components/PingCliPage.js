@@ -1,11 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
 import './PingCliPage.css';
 
-// Commands that execute live server-side. Everything else is env-scoped and is
-// copy-to-run only (pingcli 1.x cannot run those with worker credentials). This
-// is a fallback for when GET /commands hasn't loaded yet; the server response is
-// the source of truth.
-const RUNNABLE = new Set(['pingone_envs_list', 'config_list_keys', 'version']);
+// Fallback runnable set when GET /commands hasn't loaded yet. Server catalog is
+// the source of truth; since pingcli >= 1.2.0 every allow-listed command runs
+// live, treat unknown catalog keys as runnable too.
+const RUNNABLE = new Set([
+  'pingone_users_list',
+  'pingone_apps_list',
+  'pingone_groups_list',
+  'pingone_populations_list',
+  'pingone_idps_list',
+  'pingone_resources_list',
+  'pingone_roles_list',
+  'pingone_policies_list',
+  'pingone_mfa_policies_list',
+  'pingone_envs_list',
+  'config_list_keys',
+  'version',
+]);
 
 // Client-side cap on how long a streamed run may take before it is aborted.
 const RUN_TIMEOUT_MS = 30000;
@@ -317,9 +329,8 @@ export default function PingCliPage() {
       <InstallSection />
 
       <p className="pingcli-run-note">
-        Environment-wide commands run live below. Environment-scoped commands (a
-        specific environment&apos;s users, apps, groups&hellip;) show a ready-to-run
-        command you can copy into your own terminal.
+        Click Run to execute live against this demo&apos;s PingOne worker
+        credentials, or Copy to paste the same command into your own terminal.
       </p>
 
       {CATEGORIES.map(({ title, commands }) => (
@@ -333,7 +344,7 @@ export default function PingCliPage() {
               return (
                 <div
                   key={key}
-                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}${runnable ? '' : ' copy-only'}`}
+                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${running === key ? ' running' : ''}`}
                 >
                   <div className="pingcli-cmd-top">
                     <span className="pingcli-cmd-label">
@@ -350,18 +361,14 @@ export default function PingCliPage() {
                     </button>
                   </div>
                   <div className="pingcli-cmd-command" title={copyText}>{copyText}</div>
-                  {runnable ? (
-                    <button
-                      type="button"
-                      className="pingcli-cmd-run"
-                      disabled={running !== null}
-                      onClick={() => run(key)}
-                    >
-                      {running === key ? 'Running…' : 'Run ▸'}
-                    </button>
-                  ) : (
-                    <span className="pingcli-cmd-hint">Copy &amp; run in your terminal</span>
-                  )}
+                  <button
+                    type="button"
+                    className="pingcli-cmd-run"
+                    disabled={!runnable || running !== null}
+                    onClick={() => run(key)}
+                  >
+                    {running === key ? 'Running…' : 'Run ▸'}
+                  </button>
                 </div>
               );
             })}
