@@ -679,6 +679,17 @@ export default function AdminSideNav({ user }) {
       children: [
         { label: "Audit Trail", path: "/audit", icon: "srch", adminOnly: true },
         {
+          label: "Learning Log",
+          icon: "log",
+          action: () => {
+            window.dispatchEvent(
+              new CustomEvent("banking-log-viewer-open", {
+                detail: { mode: "learn" },
+              }),
+            );
+          },
+        },
+        {
           label: "Activity Log",
           path: "/monitoring/activity-log",
           icon: "log",
