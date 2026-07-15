@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, FC } from "react";
 import apiClient from "../services/apiClient";
 import { notifyError, notifyInfo, notifySuccess } from "../utils/appToast";
 import {
-  bytesToB64,
+  formatPublicKeyCredentialAssertion,
   normalizePublicKeyRequestOptions,
 } from "../utils/passkeyCeremony";
 import "./MFATestPage.css";
@@ -813,24 +813,15 @@ const MFATestPage: FC = () => {
       const assertion = (await navigator.credentials.get({
         publicKey,
       })) as any;
-      const assertionPayload = {
-        id: assertion.id,
-        rawId: bytesToB64(assertion.rawId),
-        type: assertion.type,
-        response: {
-          clientDataJSON: bytesToB64(assertion.response.clientDataJSON),
-          authenticatorData: bytesToB64(assertion.response.authenticatorData),
-          signature: bytesToB64(assertion.response.signature),
-          userHandle: assertion.response.userHandle
-            ? bytesToB64(assertion.response.userHandle)
-            : null,
-        },
-      };
+      // PingOne assertion.check requires origin (must match clientDataJSON) +
+      // assertion as a JSON string (BFF stringifies) — see Check Assertion docs.
+      const assertionPayload = formatPublicKeyCredentialAssertion(assertion);
       const { data } = await apiClient.post(
         "/api/mfa/test/integration/verify-fido2",
         {
           daId: fidoDaId,
           assertion: assertionPayload,
+          origin: window.location.origin,
         },
       );
       setRawFidoVerify(data);

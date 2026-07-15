@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { bytesToB64, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
+import {
+  formatPublicKeyCredentialAssertion,
+  normalizePublicKeyRequestOptions,
+} from '../utils/passkeyCeremony';
 
 /**
  * FIDO2/passkey step-up challenge component.
  * Fetches WebAuthn options from BFF, triggers browser credential prompt,
  * relays signed assertion back to BFF via PUT /api/auth/mfa/challenge/:daId.
+ *
+ * PingOne Check Assertion (FIDO Device) requires:
+ *   { origin, assertion: "<JSON string>", compatibility? }
+ * The BFF stringifies assertion and sets compatibility=FULL; the client must
+ * send the browser ceremony origin so it matches clientDataJSON.origin.
+ *
+ * @see https://developer.pingidentity.com/pingone-api/mfa/mfa-authentication/mfa-device-authentications/check-assertion-device-authentication.html
  *
  * Props:
  *   daId      - deviceAuthentication ID (from POST /api/auth/mfa/challenge)
@@ -14,22 +24,6 @@ import { bytesToB64, normalizePublicKeyRequestOptions } from '../utils/passkeyCe
  *   onCancel  - called when user cancels
  *   onError   - called with error message string on failure
  */
-function formatAssertion(credential) {
-  return {
-    id: credential.id,
-    rawId: bytesToB64(credential.rawId),
-    type: credential.type,
-    response: {
-      authenticatorData: bytesToB64(credential.response.authenticatorData),
-      clientDataJSON:    bytesToB64(credential.response.clientDataJSON),
-      signature:         bytesToB64(credential.response.signature),
-      userHandle: credential.response.userHandle
-        ? bytesToB64(credential.response.userHandle)
-        : null,
-    },
-  };
-}
-
 export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, onError }) {
   const [status, setStatus] = useState('starting'); // 'starting' | 'waiting' | 'error'
   const [errorMsg, setErrorMsg] = useState(null);
@@ -57,8 +51,6 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
         }
 
         // Step 2: Trigger browser credential selection (native passkey / security key prompt).
-        // PingOne returns challenge + allowCredentials ids as base64url (and
-        // options may already be a parsed object — do not JSON.parse blindly).
         const publicKey = normalizePublicKeyRequestOptions(data.publicKeyCredentialRequestOptions);
         const credential = await navigator.credentials.get({ publicKey });
 
@@ -66,9 +58,12 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           throw new Error('No credential returned from browser.');
         }
 
-        // Step 3: Format and relay assertion to BFF
-        const assertion = formatAssertion(credential);
-        const verifyResp = await axios.put(`/api/auth/mfa/challenge/${daId}`, { assertion });
+        // Step 3: Format and relay assertion + ceremony origin to BFF
+        const assertion = formatPublicKeyCredentialAssertion(credential);
+        const verifyResp = await axios.put(`/api/auth/mfa/challenge/${daId}`, {
+          assertion,
+          origin: window.location.origin,
+        });
 
         if (!verifyResp.data.completed) {
           throw new Error('FIDO2 assertion was not accepted by PingOne. Please try again.');

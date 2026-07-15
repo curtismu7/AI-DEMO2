@@ -366,15 +366,32 @@ describe('getDeviceAuthStatus', () => {
 // ─── submitFido2Assertion ─────────────────────────────────────────────────────
 
 describe('submitFido2Assertion', () => {
-  it('sends POST with assertion payload', async () => {
+  it('sends POST with assertion string, origin, and compatibility (PingOne Check Assertion)', async () => {
     axios.post.mockResolvedValueOnce({ data: { id: 'da-1', status: 'COMPLETED' } });
     const assertion = { id: 'cred-id', response: { clientDataJSON: 'abc', authenticatorData: 'def', signature: 'ghi' } };
 
-    const result = await mfaService.submitFido2Assertion('da-1', assertion, 'user-token');
+    const result = await mfaService.submitFido2Assertion(
+      'da-1',
+      assertion,
+      'user-token',
+      'https://ai-demo.ping-devops.com',
+    );
 
     expect(result.status).toBe('COMPLETED');
     const lastCall = axios.post.mock.calls[axios.post.mock.calls.length - 1];
+    expect(lastCall[1].origin).toBe('https://ai-demo.ping-devops.com');
+    expect(lastCall[1].compatibility).toBe('FULL');
     expect(JSON.parse(lastCall[1].assertion)).toEqual(assertion);
+    expect(lastCall[2].headers['Content-Type']).toBe(
+      'application/vnd.pingidentity.assertion.check+json',
+    );
+  });
+
+  it('rejects when origin is missing', async () => {
+    await expect(
+      mfaService.submitFido2Assertion('da-1', { id: 'c' }, 'user-token'),
+    ).rejects.toThrow(/origin/i);
+    expect(axios.post).not.toHaveBeenCalled();
   });
 });
 
