@@ -87,14 +87,23 @@ export function parsePingcliResults(raw) {
   };
 }
 
+// Cap for per-token JSON highlighting. PingOne list payloads (users/groups/apps)
+// routinely exceed this once pretty-printed with _links — coloring every token
+// injects tens of thousands of React nodes and can crash the render so the
+// terminal flashes then vanishes. Above the cap we still pretty-print, but as a
+// single text node.
+const JSON_HIGHLIGHT_MAX_CHARS = 8000;
+
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON
 // (e.g. mid-stream or plain-text output), so the caller falls back to raw text.
 // React escapes all text content, so no HTML injection is possible.
-function tokenizeJson(raw) {
+export function tokenizeJson(raw) {
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return null; }
   const pretty = JSON.stringify(parsed, null, 2);
+  // Large payloads: pretty-print only (no per-token spans).
+  if (pretty.length > JSON_HIGHLIGHT_MAX_CHARS) return [pretty];
   const re = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
   const nodes = [];
   let last = 0;
@@ -308,9 +317,15 @@ export default function PingCliPage() {
         const dataMatch  = block.match(/^data: (.+)/m);
         if (!eventMatch || !dataMatch) return;
 
-        const type = eventMatch[1];
-        const payload = JSON.parse(dataMatch[1]);
+        let payload;
+        try {
+          payload = JSON.parse(dataMatch[1]);
+        } catch {
+          // Skip a corrupt frame — do not wipe streamed output.
+          return;
+        }
 
+        const type = eventMatch[1];
         if (type === 'meta') {
           setCmdLabel(payload.command);
         } else if (type === 'chunk') {

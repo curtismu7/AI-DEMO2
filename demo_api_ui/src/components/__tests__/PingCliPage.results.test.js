@@ -2,7 +2,7 @@
  * parsePingcliResults — turns a pingcli JSON envelope into the friendly
  * results-table model shown above the terminal pane on the PingCLI page.
  */
-import { parsePingcliResults } from "../PingCliPage";
+import { parsePingcliResults, tokenizeJson } from "../PingCliPage";
 
 const envelope = (data, extra = {}) =>
   JSON.stringify({ schemaVersion: "1.0", status: "success", message: "Read all successful", data, ...extra });
@@ -77,5 +77,29 @@ describe("parsePingcliResults", () => {
       name: "Alice Example",
     });
     expect(r.columns).toEqual(expect.arrayContaining(["name", "username", "email", "id", "enabled"]));
+  });
+});
+
+describe("tokenizeJson", () => {
+  it("pretty-prints large JSON as a single text node (no span flood)", () => {
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      id: `g-${i}`,
+      name: `Group ${i}`,
+      description: `x`.repeat(200),
+      _links: {
+        self: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}` },
+        members: { href: `https://api.pingone.com/v1/environments/e/groups/g-${i}/memberGroups` },
+      },
+    }));
+    const raw = JSON.stringify({
+      schemaVersion: "1.1",
+      status: "success",
+      data: { _embedded: { groups: rows } },
+    });
+    const nodes = tokenizeJson(raw);
+    expect(nodes).not.toBeNull();
+    expect(nodes).toHaveLength(1);
+    expect(typeof nodes[0]).toBe("string");
+    expect(nodes[0].length).toBeGreaterThan(8000);
   });
 });
