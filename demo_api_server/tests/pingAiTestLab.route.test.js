@@ -14,25 +14,28 @@ jest.mock('../services/mcpPingOneHttpAdapter', () => ({
 
 const pingAiTestLabRoutes = require('../routes/pingAiTestLab');
 
-// The global test setup calls jest.resetModules() after every test, so the
-// route's lazy require() resolves to a FRESH adapter mock per test. Re-require
-// inside each test to configure the instance the route will actually see.
-const adapter = () => require('../services/mcpPingOneHttpAdapter');
-
 const app = express();
 app.use(express.json());
 app.use('/api/admin/ping-ai-test-lab', pingAiTestLabRoutes);
 
-const POPULATION_TOOLS = [
-  { name: 'listPopulations', inputSchema: { properties: { environmentId: {} } } },
-  { name: 'listSignOnPolicies', inputSchema: { properties: { environmentId: {} } } },
-];
-
 describe('GET /api/admin/ping-ai-test-lab/suites', () => {
-  it('returns the four suites with the full CIAM eval catalog', async () => {
+  it('returns the three demo-readiness suites', async () => {
     const res = await request(app).get('/api/admin/ping-ai-test-lab/suites');
     expect(res.status).toBe(200);
-    expect(res.body.suites.map((s) => s.key)).toEqual(['skills', 'mcp', 'usecases', 'evals']);
+    expect(res.body.suites.map((s) => s.key)).toEqual(['stack', 'mcp', 'usecases']);
+    expect(res.body.evalRowCount).toBeUndefined();
+    const stack = res.body.suites.find((s) => s.key === 'stack');
+    expect(stack.tests.map((t) => t.key)).toEqual(expect.arrayContaining([
+      'conn_pingcli',
+      'conn_demo_mcp',
+      'conn_mcp_gateway',
+      'conn_langchain_agent',
+    ]));
+    expect(stack.tests.map((t) => t.key)).not.toEqual(expect.arrayContaining([
+      'skills_catalog',
+      'conn_aic_mcp',
+      'conn_davinci_mcp',
+    ]));
     const usecases = res.body.suites.find((s) => s.key === 'usecases');
     expect(usecases.tests.map((t) => t.key)).toEqual(expect.arrayContaining([
       'uc1_delegated_balance',
@@ -42,14 +45,6 @@ describe('GET /api/admin/ping-ai-test-lab/suites', () => {
       'uc13_rogue_actor',
       'uc16_impersonation_no_act',
     ]));
-    expect(res.body.evalRowCount).toBe(57);
-    const evals = res.body.suites.find((s) => s.key === 'evals');
-    expect(evals.tests).toHaveLength(57);
-    expect(evals.tests[0]).toMatchObject({
-      key: expect.stringMatching(/^eval:CIAM-/),
-      checkCount: expect.any(Number),
-      runnableCount: expect.any(Number),
-    });
   });
 });
 
@@ -66,8 +61,8 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
     expect(res.body.error).toBe('unknown_test');
   });
 
-  it('rejects an unknown eval row id', async () => {
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-XX-999' });
+  it('rejects removed CIAM eval keys', async () => {
+    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-005' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('unknown_test');
   });
@@ -99,73 +94,6 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
       if (prevBin === undefined) delete process.env.PINGCLI_BIN;
       else process.env.PINGCLI_BIN = prevBin;
     }
-  });
-
-  it('returns the six Agent Skills for skills_catalog', async () => {
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'skills_catalog' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('pass');
-    expect(res.body.detail.skills).toHaveLength(6);
-    expect(res.body.detail.skills.map((s) => s.name)).toContain('ping-identity-for-ai');
-  });
-
-  it('runs an eval row via MCP tools and passes when conditions hold', async () => {
-    const { listTools, callTool } = adapter();
-    listTools.mockResolvedValue(POPULATION_TOOLS);
-    callTool.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          _embedded: {
-            populations: [{ id: 'p1' }],
-            signOnPolicies: [{ id: 's1' }],
-          },
-        }),
-      }],
-    });
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-005' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('pass');
-    const byStatus = res.body.detail.checks.reduce((m, c) => ({ ...m, [c.status]: (m[c.status] || 0) + 1 }), {});
-    expect(byStatus.pass).toBe(2); // populations + sign-on policies
-    expect(byStatus.not_run).toBe(3); // manual checks never execute
-    expect(callTool).toHaveBeenCalledWith('listPopulations', expect.any(Object));
-  });
-
-  it('fails an eval row when the MCP body does not meet the condition', async () => {
-    const { listTools, callTool } = adapter();
-    listTools.mockResolvedValue(POPULATION_TOOLS);
-    callTool.mockResolvedValue({
-      content: [{ type: 'text', text: JSON.stringify({ _embedded: { populations: [], signOnPolicies: [] } }) }],
-    });
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-005' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('fail');
-  });
-
-  it('reports not_run when no read-only MCP tool matches (headless policy: never falls back to direct API)', async () => {
-    const { listTools, callTool } = adapter();
-    listTools.mockResolvedValue([]);
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-005' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('not_run');
-    expect(callTool).not.toHaveBeenCalledWith(expect.stringMatching(/delete|create|update/i), expect.anything());
-  });
-
-  it('scores CIAM-GS-002 as not_configured when invited.admin@example.com is absent (demo gap, not a fail)', async () => {
-    const { listTools, callTool } = adapter();
-    listTools.mockResolvedValue([
-      { name: 'listUsers', inputSchema: { properties: { environmentId: {} } } },
-    ]);
-    callTool.mockResolvedValue({
-      content: [{ type: 'text', text: JSON.stringify({ _embedded: { users: [{ email: 'demoUser@example.com' }] } }) }],
-    });
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-GS-002' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('not_configured');
-    const invited = res.body.detail.checks.find((c) => c.checkId === 'invited-admin-user-exists');
-    expect(invited.status).toBe('not_configured');
-    expect(invited.reason).toMatch(/invited\.admin@example\.com/);
   });
 
   it('runs UC1 delegated balance through executeBffTool when session tokens exist', async () => {
@@ -217,46 +145,5 @@ describe('POST /api/admin/ping-ai-test-lab/run', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('pass');
     expect(res.body.detail.expectedOutcome).toBe('DENY');
-  });
-
-  it('scores CIAM-DP-001 as not_configured when DEV/QA named envs are absent', async () => {
-    const { listTools, callTool } = adapter();
-    listTools.mockResolvedValue([
-      { name: 'listEnvironments', inputSchema: { properties: { limit: {} } } },
-    ]);
-    callTool.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({ _embedded: { environments: [{ name: 'AI-DEMO', type: 'SANDBOX' }] } }),
-      }],
-    });
-    const res = await request(app).post('/api/admin/ping-ai-test-lab/run').send({ testKey: 'eval:CIAM-DP-001' });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('not_configured');
-    expect(res.body.detail.checks.filter((c) => c.status === 'not_configured').length).toBeGreaterThanOrEqual(2);
-  });
-});
-
-describe('eval data integrity', () => {
-  const { rows } = require('../data/ciamEvalChecks.json');
-
-  it('covers all 57 CIAM rows with rubric weights summing to 1.0', () => {
-    expect(rows).toHaveLength(57);
-    for (const row of rows) {
-      const total = row.rubric.reduce((s, r) => s + r.weight, 0);
-      expect(Math.abs(total - 1.0)).toBeLessThan(1e-9);
-      expect(row.pingone.length).toBeGreaterThan(0);
-      expect(row.aic.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('only ever declares read-only GET api checks', () => {
-    for (const row of rows) {
-      for (const check of row.pingone) {
-        if (check.run && check.run.kind === 'api') {
-          expect(check.run.method || 'GET').toBe('GET');
-        }
-      }
-    }
   });
 });
