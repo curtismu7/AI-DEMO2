@@ -261,6 +261,20 @@ function copyToClipboard(text) {
   navigator.clipboard?.writeText(text).catch(() => {});
 }
 
+/**
+ * Shared copyable dark code row used by Install / Configure / How to run.
+ */
+function CodeCopyRow({ text, id, copied, onCopy }) {
+  return (
+    <div className="pingcli-code-block">
+      <code>{text}</code>
+      <button type="button" className="pingcli-copy-btn" onClick={() => onCopy(text, id)}>
+        {copied === id ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
 function InstallSection() {
   const [copied, setCopied] = useState(null);
 
@@ -274,56 +288,97 @@ function InstallSection() {
   const brewCmd = 'brew install pingidentity/tap/pingcli';
   const verifyCmd = 'pingcli --version';
   const upgradeCmd = 'brew upgrade pingidentity/tap/pingcli';
+  const initCmd = 'pingcli init';
+  const authCmd = 'pingcli pingone auth login';
+  const configKeysCmd = 'pingcli config list-keys';
+  const envsCmd = 'pingcli pingone environments list -O json';
+  const usersCmd = 'pingcli pingone api environments/<environment-id>/users -O json';
 
   return (
-    <div className="pingcli-install">
-      <h2>Installing PingCLI on a Ping Demo Machine</h2>
-      <p>
-        PingCLI is the official command-line tool for managing PingOne and related
-        Ping Identity services. Install it via Homebrew in two steps:
-      </p>
+    <>
+      <div className="pingcli-install">
+        <h2>1. Install PingCLI</h2>
+        <p>
+          PingCLI is the official command-line tool for managing PingOne and related
+          Ping Identity services. On a Mac demo machine, install it with Homebrew:
+        </p>
 
-      <p><strong>1. Trust the Ping Identity tap</strong></p>
-      <div className="pingcli-code-block">
-        <code>{trustCmd}</code>
-        <button className="pingcli-copy-btn" onClick={() => copy(trustCmd, 'trust')}>
-          {copied === 'trust' ? 'Copied!' : 'Copy'}
-        </button>
+        <p><strong>Trust the Ping Identity tap</strong></p>
+        <CodeCopyRow text={trustCmd} id="trust" copied={copied} onCopy={copy} />
+
+        <p><strong>Install PingCLI</strong></p>
+        <CodeCopyRow text={brewCmd} id="brew" copied={copied} onCopy={copy} />
+
+        <p><strong>Verify the install</strong></p>
+        <CodeCopyRow text={verifyCmd} id="verify" copied={copied} onCopy={copy} />
+
+        <p><strong>Already installed? Upgrade</strong></p>
+        <CodeCopyRow text={upgradeCmd} id="upgrade" copied={copied} onCopy={copy} />
       </div>
 
-      <p><strong>2. Install PingCLI</strong></p>
-      <div className="pingcli-code-block">
-        <code>{brewCmd}</code>
-        <button className="pingcli-copy-btn" onClick={() => copy(brewCmd, 'brew')}>
-          {copied === 'brew' ? 'Copied!' : 'Copy'}
-        </button>
+      <div className="pingcli-install">
+        <h2>2. Configure and authenticate</h2>
+        <p>
+          Before any PingOne command works locally, you must write credentials and
+          obtain a worker token. This demo host does those steps for you on each
+          live Run; on your machine you run them yourself.
+        </p>
+
+        <p><strong>Initialize a profile (worker client credentials + environment)</strong></p>
+        <CodeCopyRow text={initCmd} id="init" copied={copied} onCopy={copy} />
+        <p className="pingcli-install-hint">
+          Interactive wizard. Enter your PingOne environment ID, worker client ID,
+          and worker client secret. Grant type: client credentials. Storage: file
+          system (works headless; no keychain required).
+        </p>
+
+        <p><strong>Authenticate (get an access token)</strong></p>
+        <CodeCopyRow text={authCmd} id="auth" copied={copied} onCopy={copy} />
+        <p className="pingcli-install-hint">
+          Non-interactive with client credentials. Persists a token under
+          {' '}<code>~/.pingcli/credentials</code>. You must auth login once per
+          profile (or again after the token expires).
+        </p>
+
+        <p><strong>Optional — confirm the profile sees your keys</strong></p>
+        <CodeCopyRow text={configKeysCmd} id="keys" copied={copied} onCopy={copy} />
       </div>
 
-      <p><strong>3. Verify the install</strong></p>
-      <div className="pingcli-code-block">
-        <code>{verifyCmd}</code>
-        <button className="pingcli-copy-btn" onClick={() => copy(verifyCmd, 'verify')}>
-          {copied === 'verify' ? 'Copied!' : 'Copy'}
-        </button>
-      </div>
+      <div className="pingcli-install pingcli-howto">
+        <h2>3. How to run commands</h2>
 
-      <p><strong>Already installed? Upgrade to the latest version</strong></p>
-      <div className="pingcli-code-block">
-        <code>{upgradeCmd}</code>
-        <button className="pingcli-copy-btn" onClick={() => copy(upgradeCmd, 'upgrade')}>
-          {copied === 'upgrade' ? 'Copied!' : 'Copy'}
-        </button>
-      </div>
+        <h3>Option A — Live on this page</h3>
+        <ol className="pingcli-howto-list">
+          <li>Pick a command card below (for example List Users or List Groups).</li>
+          <li>Click <strong>Run</strong>. The demo uses its worker credentials, runs
+            {' '}<code>pingcli pingone auth login</code> if needed, then streams the result.</li>
+          <li>Review the <strong>What was needed to run this</strong> panel above the
+            output — that is the same install → init → auth → command chain.</li>
+          <li>Use <strong>Easy read</strong> for a table/form, or <strong>JSON</strong> for the raw payload.</li>
+          <li>Use <strong>Copy</strong> on a card (or on a prereq step) to paste the same command into your own terminal.</li>
+        </ol>
 
-      <p style={{ marginTop: 12 }}>
-        After installing, run{' '}
-        <code style={{ background: '#e2e8f0', padding: '1px 5px', borderRadius: 3 }}>
-          pingcli init
-        </code>{' '}
-        to configure your PingOne environment credentials, then use the commands below to
-        explore your tenant directly from the terminal.
-      </p>
-    </div>
+        <h3>Option B — In your own terminal</h3>
+        <p>After install, init, and auth (sections 1–2), run catalog commands like:</p>
+        <CodeCopyRow text={envsCmd} id="envs" copied={copied} onCopy={copy} />
+        <p className="pingcli-install-hint">
+          Environment-wide lists use the normal verb form.
+        </p>
+        <CodeCopyRow text={usersCmd} id="users" copied={copied} onCopy={copy} />
+        <p className="pingcli-install-hint">
+          Environment-scoped resources (users, groups, apps, …) use
+          {' '}<code>pingcli pingone api …</code> with your environment ID. Replace
+          {' '}<code>&lt;environment-id&gt;</code> with the ID from
+          {' '}<code>environments list</code> (or from <code>pingcli init</code>).
+          Always pass <code>-O json</code> for machine-readable output.
+        </p>
+        <p>
+          Tip: every card below already shows the complete command with this
+          demo&apos;s environment ID filled in — click Copy, then paste into your terminal
+          after you have authenticated locally.
+        </p>
+      </div>
+    </>
   );
 }
 
@@ -546,8 +601,9 @@ export default function PingCliPage() {
       <InstallSection />
 
       <p className="pingcli-run-note">
-        Click Run to execute live against this demo&apos;s PingOne worker
-        credentials, or Copy to paste the same command into your own terminal.
+        Setup is above (install → init → auth → run). Cards below execute live on
+        this demo&apos;s worker credentials, or Copy the command into your own terminal
+        after you authenticate locally.
       </p>
 
       {CATEGORIES.map(({ title, commands }) => (
