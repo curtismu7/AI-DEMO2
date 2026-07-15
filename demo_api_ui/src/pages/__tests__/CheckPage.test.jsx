@@ -12,8 +12,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
-test('renders verdict bar and Run all button, loads catalog', async () => {
+test('renders verdict bar and Run demo check button, loads catalog', async () => {
   render(<CheckPage />);
-  expect(screen.getByRole('button', { name: /run all checks/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /demo check/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /run demo check/i })).toBeInTheDocument();
   await waitFor(() => expect(screen.getByText('Servers')).toBeInTheDocument());
 });

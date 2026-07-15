@@ -45,8 +45,24 @@ export default function RailDetailView({ catalog, results, verdict }) {
           {checks.map((c) => (
             <div className={`chk-row s-${c.result?.status || 'idle'}`} key={c.id}>
               <span className="chk-light" />
-              <span className="name">{c.name}</span>
-              <span className="detail">{c.result?.detail || 'Not run'}</span>
+              <span className="name">
+                {c.name}
+                {(c.severity === 'gate' || c.severity === 'blocking') && (
+                  <span className="chk-gate-badge" title="Required for READY">Required</span>
+                )}
+              </span>
+              <span className="detail">
+                {c.result?.detail || 'Not run'}
+                {c.result?.nextAction && (
+                  <span className="chk-next"> → {c.result.nextAction}</span>
+                )}
+              </span>
+              {c.result?.meta && (
+                <details className="chk-meta">
+                  <summary>Detail</summary>
+                  <pre>{JSON.stringify(c.result.meta, null, 2)}</pre>
+                </details>
+              )}
             </div>
           ))}
         </div>

@@ -146,7 +146,7 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/mcp-tools"] },
-  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab", "/mcp-tools"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/mcp-tools"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -487,11 +487,6 @@ export default function AdminSideNav({ user }) {
           path: "/mcp-inspector",
           icon: "dbg",
         },
-        {
-          label: "Ping AI Test Lab",
-          path: "/ping-ai-test-lab",
-          icon: "tst",
-        },
         { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
           label: "PingGateway Config",
@@ -701,7 +696,7 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         { label: "Tracing", path: "/tracing", icon: "log" },
-        { label: "Health Check", path: "/check", icon: "clk" },
+        { label: "Demo check", path: "/check", icon: "clk" },
         {
           label: "Error Audit Log",
           path: "/error-audit",
