@@ -574,7 +574,7 @@ function createMcpToolRegistry() {
         name: 'create_deposit',
         description: 'Deposit funds into a bank account. Requires user confirmation for amounts over $500. Call this when the user wants to deposit money.',
         schema: z.object({
-          account_id: z.string().describe('Target account ID'),
+          to_account_id: z.string().describe('Target account ID'),
           amount: z.number().positive().describe('Deposit amount in USD'),
           description: z.string().optional().describe('Optional deposit description'),
         }),
@@ -591,7 +591,7 @@ function createMcpToolRegistry() {
         name: 'create_withdrawal',
         description: 'Withdraw funds from a bank account. Requires user confirmation for amounts over $500. Call this when the user wants to withdraw money.',
         schema: z.object({
-          account_id: z.string().describe('Source account ID'),
+          from_account_id: z.string().describe('Source account ID'),
           amount: z.number().positive().describe('Withdrawal amount in USD'),
           description: z.string().optional().describe('Optional withdrawal description'),
         }),
