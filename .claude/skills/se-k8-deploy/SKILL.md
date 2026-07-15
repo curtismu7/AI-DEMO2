@@ -2,9 +2,9 @@
 name: se-k8-deploy
 description: >-
   Deploy and undeploy the AI Demo to the Ping SE DevOps Kubernetes cluster
-  (ping-dev-aws-us-east-2). Use when the user asks to push to Ping K8, run se-all,
-  se-deploy, se-build, se-undeploy, or troubleshoot SE cluster access, GHCR push,
-  kubectl context us, or https://ai-demo.ping-devops.com.
+  (ping-dev-aws-us-east-2). Prefer ./run-pingaws.sh. Also matches se-all,
+  se-deploy, se-build, se-undeploy, Ping K8, GHCR push, kubectl context us,
+  or https://ai-demo.ping-devops.com.
 ---
 
 # SE K8 Deploy — Ping DevOps cluster
@@ -14,12 +14,12 @@ This is **not** local OrbStack K8 and **not** Docker Compose on a test Mac.
 
 | Target | Command | URL |
 |--------|---------|-----|
-| **SE cluster** | `./run-k8.sh se-all` | `https://ai-demo.ping-devops.com` |
+| **SE cluster** | `./run-pingaws.sh` | `https://ai-demo.ping-devops.com` |
 | Local OrbStack | `./run-k8.sh` | `https://api.ping.demo:4000` |
 | Docker Compose | `./run-docker.sh start full` | `https://api.ping.demo:4000` |
 
-Canonical script: **`run-k8.sh`**. Read its header and `docs/user-guide/deployment.md`
-Option 4 before changing deploy behavior.
+Canonical launcher: **`./run-pingaws.sh`** (wraps `run-k8.sh se-*` and `se-update-*`).
+Read `docs/user-guide/deployment.md` Option 4 before changing deploy behavior.
 
 ## When this applies
 
@@ -101,7 +101,7 @@ export COMPOSE_PROFILES=demo-auth,agents
 # Or set PING_EMAIL=cmuir@pingidentity.com in demo_api_server/.env
 
 # 4. Build + push 13 images to GHCR + apply manifests
-./run-k8.sh se-all
+./run-pingaws.sh
 ```
 
 **Live URL:** https://ai-demo.ping-devops.com (DNS may take ~5 min)
@@ -112,8 +112,8 @@ Use when push succeeded but deploy failed, or GHCR token expired mid-push:
 
 ```bash
 gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
-./run-k8.sh se-build     # build + push only
-./run-k8.sh se-deploy    # kubectl apply only
+./run-pingaws.sh build     # build + push only
+./run-pingaws.sh deploy    # kubectl apply only
 ```
 
 ### Verify
@@ -128,7 +128,7 @@ curl -sf https://ai-demo.ping-devops.com/api/health
 The SE cluster is shared. **Always undeploy when done** or publishing rights may be revoked.
 
 ```bash
-./run-k8.sh se-undeploy
+./run-pingaws.sh undeploy
 ```
 
 Re-enable Docker AI after deploy if desired:
@@ -169,7 +169,7 @@ Expected public URLs in PingOne app settings:
 Auto-derived from Ping email localpart (dots stripped):
 
 - `cmuir@pingidentity.com` → `ping-devops-cmuir`
-- Override: `SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-all`
+- Override: `SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh`
 - Or set `PING_EMAIL=` in `demo_api_server/.env`
 
 Git `user.email` is **not** used unless it ends in `@pingidentity.com`.
@@ -195,5 +195,5 @@ kubectl logs -n ping-devops-cmuir -l app=ai-demo --all-containers --prefix -f
 
 1. Verify `kubectl config get-contexts` shows `us` before running `se-deploy` / `se-all`.
 2. Never commit secrets (`.env`, kubeconfig tokens, PATs).
-3. Warn user to `./run-k8.sh se-undeploy` when demo session ends.
+3. Warn user to `./run-pingaws.sh undeploy` when demo session ends.
 4. If `se-all` hangs at build with no push output, check for `docker-ai` plugin first.

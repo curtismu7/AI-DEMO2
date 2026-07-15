@@ -5,6 +5,8 @@ Deploy and run the AI Demo **only** on the shared Ping SE DevOps cluster (`ping-
 
 This runbook does **not** cover OrbStack, local `./run-k8.sh`, or Docker Compose on a test Mac.
 
+**Preferred launcher:** `./run-pingaws.sh` (aliases to `./run-k8.sh se-*`).
+
 ---
 
 ## Prerequisites
@@ -122,17 +124,17 @@ export SE_NAMESPACE=ping-devops-cmuir
 export COMPOSE_PROFILES=demo-auth,agents
 
 # Build 13 images → push GHCR → apply manifests (~15–30 min first run)
-./run-k8.sh se-all
+./run-pingaws.sh
 ```
 
 ### Split deploy (push succeeded, deploy failed)
 
 ```bash
 gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
-./run-k8.sh se-build
+./run-pingaws.sh build
 kubectl config use-context us && kubens ping-devops-cmuir
 export SE_NAMESPACE=ping-devops-cmuir
-./run-k8.sh se-deploy
+./run-pingaws.sh deploy
 ```
 
 ---
@@ -175,7 +177,7 @@ The SE cluster is shared. **Always undeploy** when finished.
 cd ~/Development/AI-DEMO2
 kubectl config use-context us
 kubens ping-devops-cmuir
-./run-k8.sh se-undeploy
+./run-pingaws.sh undeploy
 ```
 
 ---
@@ -259,7 +261,7 @@ kubectl get namespaces
 ```bash
 # Ctrl+C to stop
 mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled
-./run-k8.sh se-all
+./run-pingaws.sh
 ```
 
 ---
@@ -273,7 +275,7 @@ mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled
 ```bash
 gh auth refresh -h github.com -s write:packages
 gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
-./run-k8.sh se-build
+./run-pingaws.sh build
 ```
 
 ---
@@ -286,7 +288,7 @@ gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
 
 ```bash
 export COMPOSE_PROFILES=demo-auth,agents
-./run-k8.sh se-all
+./run-pingaws.sh
 ```
 
 ---
@@ -339,7 +341,7 @@ kubectl logs -n ping-devops-cmuir deploy/langchain-agent --tail=100
 Re-deploy after fixing env or scaling agent:
 
 ```bash
-./run-k8.sh se-deploy
+./run-pingaws.sh deploy
 ```
 
 ---
@@ -356,14 +358,14 @@ kubens ping-devops-cmuir
 
 # Full deploy
 export SE_NAMESPACE=ping-devops-cmuir COMPOSE_PROFILES=demo-auth,agents
-./run-k8.sh se-all
+./run-pingaws.sh
 
 # Status
 kubectl get pods -n ping-devops-cmuir
 open https://ai-demo.ping-devops.com
 
 # Undeploy
-./run-k8.sh se-undeploy
+./run-pingaws.sh undeploy
 ```
 
 ---

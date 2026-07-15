@@ -8,7 +8,7 @@
 #   1. Asks how you want to run the demo — determines what gets installed:
 #        • Local server    (./run.sh)          — Node + Python, no Docker/K8s
 #        • K8s / OrbStack  (./run-k8.sh)       — Docker + kubectl via OrbStack
-#        • Ping SE cluster (./run-k8.sh se-all) — Docker Desktop + kubelogin + kubectx
+#        • Ping SE cluster (./run-pingaws.sh) — Docker Desktop + kubelogin + kubectx
 #        • K8s / EKS       (./run-k8.sh aws-all) — Docker + kubectl + AWS CLI
 #   2. Installs Homebrew if missing (macOS).
 #   3. Installs git via Homebrew if missing.
@@ -1190,7 +1190,7 @@ main() {
   echo ""
   echo "  ${BOLD}1)${RESET} Local server         ${DIM}(./run.sh — Node + Python on this Mac, no Docker)${RESET}"
   echo "  ${BOLD}2)${RESET} Kubernetes / OrbStack ${DIM}(./run-k8.sh — Docker + K8s locally via OrbStack)${RESET}"
-  echo "  ${BOLD}3)${RESET} Ping SE cluster       ${DIM}(./run-k8.sh se-all — deploy to the Ping SE DevOps${RESET}"
+  echo "  ${BOLD}3)${RESET} Ping SE cluster       ${DIM}(./run-pingaws.sh — deploy to the Ping SE DevOps${RESET}"
   echo "                         ${DIM} cluster; needs your SE namespace + gh auth)${RESET}"
   echo "  ${BOLD}4)${RESET} Kubernetes / EKS      ${DIM}(./run-k8.sh aws-all — deploy to a self-managed EKS${RESET}"
   echo "                         ${DIM} cluster; needs GITHUB_OWNER, AWS_REGION, EKS_CLUSTER_NAME)${RESET}"
@@ -1218,7 +1218,7 @@ main() {
   case "$RUN_MODE" in
     local)    ok "Run mode: ${BOLD}Local server${RESET} (./run.sh)" ;;
     orbstack) ok "Run mode: ${BOLD}Kubernetes / OrbStack${RESET} (./run-k8.sh)" ;;
-    se)       ok "Run mode: ${BOLD}Ping SE cluster${RESET} (./run-k8.sh se-all)" ;;
+    se)       ok "Run mode: ${BOLD}Ping SE cluster${RESET} (./run-pingaws.sh)" ;;
     eks)      ok "Run mode: ${BOLD}Kubernetes / EKS${RESET} (./run-k8.sh aws-all)" ;;
   esac
   echo ""
@@ -1442,7 +1442,7 @@ EOF
       echo "  cd $target && ./run-k8.sh"
       ;;
     se)
-      echo "  cd $target && ./run-k8.sh se-all"
+      echo "  cd $target && ./run-pingaws.sh"
       echo ""
       echo "  This will:"
       echo "    1. Build all Docker images"
@@ -1461,7 +1461,7 @@ EOF
       echo "  may result in loss of your publishing rights.${RESET}"
       echo ""
       echo "  To undeploy:"
-      echo "    cd $target && ./run-k8.sh se-undeploy"
+      echo "    cd $target && ./run-pingaws.sh undeploy"
       ;;
     eks)
       echo "  cd $target && ./run-k8.sh aws-all"

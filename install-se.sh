@@ -677,7 +677,7 @@ main() {
   echo "     ${BOLD}gh auth refresh -h github.com -s write:packages${RESET}"
   echo ""
   echo "  4. Build and deploy:"
-  echo "     ${BOLD}cd $target && ./run-k8.sh se-all${RESET}"
+  echo "     ${BOLD}cd $target && ./run-pingaws.sh${RESET}"
   echo ""
   echo "     This will:"
   echo "       - Build all Docker images"
@@ -690,7 +690,7 @@ main() {
   echo "  loss of your publishing rights.${RESET}"
   echo ""
   echo "  To undeploy:"
-  echo "     ${BOLD}cd $target && ./run-k8.sh se-undeploy${RESET}"
+  echo "     ${BOLD}cd $target && ./run-pingaws.sh undeploy${RESET}"
   echo ""
 }
 
